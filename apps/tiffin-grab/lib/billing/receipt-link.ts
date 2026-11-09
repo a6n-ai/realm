@@ -1,5 +1,6 @@
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { appOrigin, authSecret } from "@/lib/runtime/env";
+import { BRAND_COMPACT } from "@/lib/brand";
 
 // The email queue fetches the receipt PDF with no session, so the attachment url
 // carries its own proof: an HMAC over the order id and an expiry. Seven days covers
@@ -39,7 +40,7 @@ export function verifyReceiptSignature(orderPublicId: string, exp: string | null
 /** The email attachment ref, or [] when the link can't be built: never block a payment confirm over a receipt. */
 export function receiptAttachments(order: { publicId: string; deploymentId: string }) {
   try {
-    return [{ filename: `TiffinGrab-receipt-${order.deploymentId}.pdf`, url: signedReceiptUrl(order.publicId), contentType: "application/pdf" }];
+    return [{ filename: `${BRAND_COMPACT}-receipt-${order.deploymentId}.pdf`, url: signedReceiptUrl(order.publicId), contentType: "application/pdf" }];
   } catch (e) {
     console.error("[receipt] attachment skipped:", e);
     return [];

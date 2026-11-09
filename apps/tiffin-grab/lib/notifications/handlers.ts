@@ -2,6 +2,7 @@ import { buildHandlers, type ChannelProvider } from "@relay/engine";
 import type { EmailProvider } from "@relay/email";
 import { getEmailProvider, getMarketingEmailProvider } from "@/lib/email/provider";
 import { db } from "@/db/client";
+import { notifyReplyTo } from "@/lib/runtime/env";
 import { campaignConfig } from "./campaign-config";
 import { notificationTables, usersRef } from "./tables";
 import { broadcast } from "./broadcast";
@@ -17,7 +18,7 @@ function emailChannelProvider(pick: (msg: { from?: unknown }) => EmailProvider):
         to: { email: msg.to.email! },
         from: msg.from,
         // Sent from noreply@, so replies need somewhere a person reads.
-        replyTo: { email: process.env.NOTIFY_REPLY_TO ?? "info@tiffingrab.ca" },
+        replyTo: { email: notifyReplyTo() },
         subject: msg.subject!,
         html: msg.html,
         text: msg.text,

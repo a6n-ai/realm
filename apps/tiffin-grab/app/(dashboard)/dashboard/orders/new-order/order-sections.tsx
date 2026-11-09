@@ -10,6 +10,7 @@ import { Button } from "@foundry/ui/button";
 import { Input } from "@foundry/ui/input";
 import { Label } from "@foundry/ui/label";
 import { Textarea } from "@foundry/ui/textarea";
+import { BRAND_NAME } from "@/lib/brand";
 import { AddressFields } from "@foundry/address/ui";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@foundry/ui/collapsible";
 import { Popover, PopoverContent, PopoverTrigger } from "@foundry/ui/popover";
@@ -39,7 +40,6 @@ import { useFormatMoney } from "@/components/app-currency";
 export type Draft = ReturnType<typeof useOrderDraft>;
 
 const dayName = (d: string) => d.charAt(0).toUpperCase() + d.slice(1);
-const APP_NAME = "Tiffin Grab";
 
 export function Section({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
   return (
@@ -364,7 +364,7 @@ export function PaymentSection({ d, customerName, extra }: { d: Draft; customerN
   async function copyPaymentDetails(m: CheckoutPaymentMethod) {
     const amount = shownPreview ? `${fmtMoney(shownPreview.total)}` : "the order total";
     const lines = [
-      `Hi ${customerName.split(" ")[0] || "there"}, your ${APP_NAME} order total is ${amount}.`,
+      `Hi ${customerName.split(" ")[0] || "there"}, your ${BRAND_NAME} order total is ${amount}.`,
       m.id === "etransfer"
         ? `Please send an Interac e-Transfer of ${amount}${m.payeeHandle ? ` to ${m.payeeHandle}` : ""} with your name in the message, and share the screenshot with us.`
         : `Payment method: ${m.label}${m.payeeHandle ? ` (${m.payeeHandle})` : ""}.`,

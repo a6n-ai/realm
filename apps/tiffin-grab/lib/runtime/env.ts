@@ -1,3 +1,5 @@
+import { BRAND_NAME } from "../brand";
+import { CONTACT_EMAIL } from "../landing/contact";
 import { publicAuthUrl } from "./env.public";
 
 // Every server env read the app shares lives here. Functions, not constants: tests and
@@ -24,6 +26,20 @@ export const siteOrigin = () => process.env.SITE_URL ?? DEFAULT_ORIGIN;
 export const campaignBaseUrl = () => process.env.CAMPAIGN_BASE_URL ?? process.env.SITE_URL;
 export const emailBaseUrl = () => stripSlash(process.env.EMAIL_BASE_URL ?? DEFAULT_ORIGIN);
 export const filesPublicBaseUrl = () => process.env.FILES_PUBLIC_BASE_URL ?? "/api/files";
+
+export const notifyReplyTo = () => process.env.NOTIFY_REPLY_TO ?? CONTACT_EMAIL;
+// SES MaxSendRate is 14/s on this account, shared with puchkaman (5/s); stay
+// under it so a burst cannot trigger throttling, which damages sender reputation.
+export const notifySendRate = () => Number(process.env.NOTIFY_SEND_RATE ?? 8);
+export const unsubscribeSecret = () => process.env.UNSUBSCRIBE_SECRET;
+export const notifyFrom = () => ({
+  email: process.env.NOTIFY_FROM_EMAIL ?? "noreply@tiffingrab.ca",
+  name: process.env.NOTIFY_FROM_NAME ?? BRAND_NAME,
+});
+export const sesConfigSet = () => process.env.SES_CONFIGURATION_SET;
+export const sesTransactionalConfigSet = () => process.env.SES_TRANSACTIONAL_CONFIGURATION_SET;
+export const sesTrackedConfigSet = () => process.env.SES_TRACKED_CONFIGURATION_SET;
+export const processEnv = () => process.env;
 
 export const cronSecret = () => process.env.CRON_SECRET;
 /** Cloudflare token (Cache Purge on tiffingrab.ca only). Set: pages stay in the edge cache an hour and are purged on edit. */

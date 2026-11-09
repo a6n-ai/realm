@@ -1,5 +1,6 @@
 import { handleUnsubscribe, verifyUnsubscribeToken } from "@relay/engine";
 import { db } from "@/db/client";
+import { unsubscribeSecret } from "@/lib/runtime/env";
 import { notificationTables } from "@/lib/notifications/tables";
 
 /**
@@ -18,7 +19,7 @@ export async function applyUnsubscribe(
   url: URL,
   source: "link" | "one-click",
 ): Promise<{ applied: boolean; address: string | null }> {
-  const secret = process.env.UNSUBSCRIBE_SECRET;
+  const secret = unsubscribeSecret();
   if (!secret) return { applied: false, address: null };
   const address = url.searchParams.get("address");
   const token = url.searchParams.get("token");

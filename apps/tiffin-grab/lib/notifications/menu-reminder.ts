@@ -10,7 +10,7 @@ import { notificationTables, usersRef } from "./tables";
 import { signalOutbox } from "./outbox-signal";
 import { render } from "react-email";
 import { MENU_REMINDER } from "@/emails/transactional";
-import { campaignBaseUrl } from "@/lib/runtime/env";
+import { DEFAULT_ORIGIN, campaignBaseUrl } from "@/lib/runtime/env";
 
 export const MENU_REMINDER_KEY = "menu_reminder";
 
@@ -66,7 +66,7 @@ and(orderStatusIn(RUNNING), eq(users.status, "active")),
 async function run(weekStart: string, runKey: string, recipients: { userId: bigint; name: string | null }[]) {
   await ensureMenuReminder();
   const base = campaignBaseUrl() ?? "";
-  const url = new URL("/me/deliveries", base || "https://app.tiffingrab.ca").toString();
+  const url = new URL("/me/deliveries", base || DEFAULT_ORIGIN).toString();
   const result = await runSystemCampaign({ db, tables: notificationTables, users: usersRef }, MENU_REMINDER_KEY, {
     runKey,
     recipients,

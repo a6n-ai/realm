@@ -1,15 +1,11 @@
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { notificationTemplate } from "@/db/schema";
-import { DEFAULT_GRANT_REASON, walletCreditedDefaults } from "./wallet-credited-template";
+import { DEFAULT_GRANT_REASON, fillWalletTokens as fill, walletCreditedDefaults } from "./wallet-credited-template";
 
 export { DEFAULT_GRANT_REASON, walletCreditedDefaults };
 
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-
-// Only wallet tokens are filled here; campaign merge tokens ({{contact.first_name|there}}) must reach the editor untouched.
-const fill = (t: string, coins: number, reason: string) =>
-  t.replace(/\{\{\s*wallet\.(coins|reason)\s*(?:\|[^}]*)?\}\}/g, (_m, k: string) => (k === "coins" ? String(coins) : reason));
 
 /**
  * Subject + HTML for a group coin email: the same wallet_credited copy a single-customer grant sends.

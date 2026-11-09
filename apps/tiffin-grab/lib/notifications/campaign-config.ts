@@ -1,5 +1,7 @@
 import { buildCampaignConfig } from "@relay/engine";
 import { getBrandOrganizationAddress } from "@/lib/services/organizations.service";
+import { BRAND_COMPACT } from "@/lib/brand";
+import { processEnv } from "@/lib/runtime/env";
 import { notificationTables } from "./tables";
 
 /**
@@ -11,6 +13,6 @@ import { notificationTables } from "./tables";
  */
 export async function campaignConfig() {
   const postalAddress = await getBrandOrganizationAddress();
-  const env = postalAddress ? { ...process.env, CAMPAIGN_POSTAL_ADDRESS: postalAddress } : process.env;
-  return buildCampaignConfig(notificationTables, env, { senderName: "TiffinGrab" });
+  const env = postalAddress ? { ...processEnv(), CAMPAIGN_POSTAL_ADDRESS: postalAddress } : processEnv();
+  return buildCampaignConfig(notificationTables, env, { senderName: BRAND_COMPACT });
 }

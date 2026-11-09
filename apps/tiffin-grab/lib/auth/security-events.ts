@@ -7,8 +7,8 @@ import { linkCapture } from "./link-capture";
 import { sealCode } from "./magic-code";
 import { allowOtpTo } from "./otp-throttle";
 import { createLogger } from "@foundry/commons/logger";
+import { BRAND_NAME } from "@/lib/brand";
 
-const APP_NAME = "Tiffin Grab";
 const log = createLogger("auth-otp");
 
 /**
@@ -30,7 +30,7 @@ export async function sendAuthOtp(email: string, otp: string, type: OtpType, ip:
     enqueueNotification(tx, {
       event,
       recipientEmail: email,
-      title: `Your ${APP_NAME} verification code`,
+      title: `Your ${BRAND_NAME} verification code`,
       body: "",
       data: { otp, magicToken: sealCode(otp) },
       channels: ["email"],
@@ -56,7 +56,7 @@ export async function sendVerification(user: { email?: string | null }, url: str
     enqueueNotification(tx, {
       event: "email_verification_link",
       recipientEmail: user.email!,
-      title: `Verify your ${APP_NAME} email`,
+      title: `Verify your ${BRAND_NAME} email`,
       body: "",
       data: { url },
       channels: ["email"],
@@ -85,11 +85,11 @@ export async function sendStaffInvitation(input: {
     enqueueNotification(tx, {
       event: "staff_invitation",
       recipientEmail: input.email,
-      title: `You've been invited to ${APP_NAME}`,
+      title: `You've been invited to ${BRAND_NAME}`,
       // Used only when the staff_invitation template row is missing (templates
       // are seeded by hand; prod had none as of 2026-09-27) — an empty body
       // mailed an invite with no link.
-      body: `You've been invited to join the ${APP_NAME} team as ${input.role}. Accept here (the link signs you in): ${input.inviteUrl}`,
+      body: `You've been invited to join the ${BRAND_NAME} team as ${input.role}. Accept here (the link signs you in): ${input.inviteUrl}`,
       data: { role: input.role, inviteUrl: input.inviteUrl },
       channels: ["email"],
       kind: "transactional",
@@ -127,10 +127,10 @@ export async function sendInviteLinkEmail(email: string, url: string, metadata: 
       enqueueNotification(tx, {
         event: "customer_invitation",
         recipientEmail: email,
-        title: `Welcome to ${APP_NAME}`,
+        title: `Welcome to ${BRAND_NAME}`,
         // Used only if the customer_invitation template row is missing (templates
         // are seeded by hand) — an empty body would mail a welcome with no link.
-        body: `Your ${APP_NAME} account is ready. Open it here (the link signs you in and works once, for 7 days): ${url}`,
+        body: `Your ${BRAND_NAME} account is ready. Open it here (the link signs you in and works once, for 7 days): ${url}`,
         data: { url },
         channels: ["email"],
         kind: "transactional",
@@ -144,7 +144,7 @@ export async function sendInviteLinkEmail(email: string, url: string, metadata: 
       enqueueNotification(tx, {
         event: "payment_reminder",
         recipientEmail: email,
-        title: `Payment pending for your ${APP_NAME} order`,
+        title: `Payment pending for your ${BRAND_NAME} order`,
         body: `Your payment of ${meta.payment.amount} is still pending. Sign in and upload your payment screenshot: ${url}`,
         data: { payment: { ...meta.payment, url } },
         channels: ["email"],
@@ -164,7 +164,7 @@ export async function notifyPasswordChanged(email: string | null | undefined): P
     enqueueNotification(tx, {
       event: "password_changed",
       recipientEmail: email,
-      title: `Your ${APP_NAME} password was changed`,
+      title: `Your ${BRAND_NAME} password was changed`,
       body: "",
       data: {},
       channels: ["email"],
@@ -199,7 +199,7 @@ export async function notifyNewLoginIfNewDevice(params: {
     enqueueNotification(tx, {
       event: "new_login_alert",
       recipientEmail: email,
-      title: `New sign-in to your ${APP_NAME} account`,
+      title: `New sign-in to your ${BRAND_NAME} account`,
       body: "",
       data: { when: new Date().toISOString(), ip, userAgent: params.userAgent ?? "" },
       channels: ["email"],

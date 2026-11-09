@@ -8,6 +8,7 @@ import { payPageLines, type Line } from "@/lib/billing/pay-lines";
 import { paymentMethodLabel } from "./payment-labels";
 import { getBrandOrganizationAddress } from "@/lib/services/organizations.service";
 import { getAppSettings } from "@/lib/services/app-settings.service";
+import { BRAND_COMPACT } from "@/lib/brand";
 
 
 export type ReceiptPayment = {
@@ -146,7 +147,7 @@ export async function loadReceipt(orderPublicId: string, now = Date.now()): Prom
     issuedAt: now,
     currency,
     timezone,
-    business: { name: "TiffinGrab", address },
+    business: { name: BRAND_COMPACT, address },
     customer: {
       name: o.fullName,
       email: o.email,

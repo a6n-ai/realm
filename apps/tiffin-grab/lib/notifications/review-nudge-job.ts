@@ -8,6 +8,7 @@ import { getAppSettings, integrationsConfigStore } from "@/lib/services/app-sett
 import { reviewNudgeStore } from "@/lib/services/review-nudge.service";
 import { renderEmailTemplate } from "@relay/email";
 import { reviewNudgeEmailProvider } from "./review-nudge-provider";
+import { BRAND_NAME } from "@/lib/brand";
 
 /** Customers with at least one past-dated scheduled delivery and no nudge yet. */
 export async function runReviewNudges(): Promise<Response> {
@@ -55,7 +56,7 @@ export async function runReviewNudges(): Promise<Response> {
     await dispatchReviewNudge({
       email: c.email,
       name: c.name ?? undefined,
-      businessName: "Tiffin Grab",
+      businessName: BRAND_NAME,
       configStore: integrationsConfigStore,
       nudgeStore: reviewNudgeStore,
       emailProvider: reviewNudgeEmailProvider(),

@@ -1,5 +1,5 @@
 import { type EmailProvider, type EmailStream, SesEmailProvider } from "@relay/email";
-import { awsRegion } from "@/lib/runtime/env";
+import { awsRegion, notifyFrom, sesConfigSet, sesTrackedConfigSet, sesTransactionalConfigSet } from "@/lib/runtime/env";
 
 let transactional: EmailProvider | undefined;
 let marketing: EmailProvider | undefined;
@@ -9,10 +9,7 @@ function build(configurationSetName: string | undefined): EmailProvider {
   return new SesEmailProvider({
     region: awsRegion(),
     configurationSetName,
-    defaultFrom: {
-      email: process.env.NOTIFY_FROM_EMAIL ?? "noreply@tiffingrab.ca",
-      name: process.env.NOTIFY_FROM_NAME ?? "Tiffin Grab",
-    },
+    defaultFrom: notifyFrom(),
   });
 }
 
@@ -28,14 +25,14 @@ function build(configurationSetName: string | undefined): EmailProvider {
  */
 export function getEmailProvider(): EmailProvider {
   transactional ??= build(
-    process.env.SES_TRANSACTIONAL_CONFIGURATION_SET || process.env.SES_CONFIGURATION_SET,
+    sesTransactionalConfigSet() || sesConfigSet(),
   );
   return transactional;
 }
 
 /** The SES provider for marketing campaigns; `SES_CONFIGURATION_SET` keeps open/click stats. */
 export function getMarketingEmailProvider(): EmailProvider {
-  marketing ??= build(process.env.SES_CONFIGURATION_SET);
+  marketing ??= build(sesConfigSet());
   return marketing;
 }
 
@@ -45,7 +42,7 @@ export function getMarketingEmailProvider(): EmailProvider {
  * back to the untracked provider.
  */
 export function getTrackedEmailProvider(): EmailProvider | undefined {
-  const set = process.env.SES_TRACKED_CONFIGURATION_SET;
+  const set = sesTrackedConfigSet();
   if (!set) return undefined;
   return (trackedProvider ??= build(set));
 }
@@ -53,9 +50,9 @@ export function getTrackedEmailProvider(): EmailProvider | undefined {
 /** Configured SES streams, in display order; unset config sets are omitted. */
 export function emailStreams(): EmailStream[] {
   const all: (Omit<EmailStream, "configSet"> & { configSet: string | undefined })[] = [
-    { id: "transactional", label: "Transactional", configSet: process.env.SES_TRANSACTIONAL_CONFIGURATION_SET, kind: "untracked" },
-    { id: "transactional-tracked", label: "Transactional (tracked)", configSet: process.env.SES_TRACKED_CONFIGURATION_SET, kind: "tracked" },
-    { id: "marketing", label: "Marketing", configSet: process.env.SES_CONFIGURATION_SET, kind: "marketing" },
+    { id: "transactional", label: "Transactional", configSet: sesTransactionalConfigSet(), kind: "untracked" },
+    { id: "transactional-tracked", label: "Transactional (tracked)", configSet: sesTrackedConfigSet(), kind: "tracked" },
+    { id: "marketing", label: "Marketing", configSet: sesConfigSet(), kind: "marketing" },
   ];
   return all.filter((s): s is EmailStream => !!s.configSet);
 }
