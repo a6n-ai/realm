@@ -1,4 +1,5 @@
 import { ValidationError } from "@foundry/commons";
+import { APP_DEFAULTS } from "@/db/schema/app-defaults";
 import { mealSizeAddons, type CatalogSnapshot } from "@/lib/catalog/types";
 import type { PricingCatalog, PricingSelections } from "@/lib/pricing";
 import { applicableRules } from "@/lib/pricing/discounts";
@@ -72,7 +73,7 @@ export function buildPricingCatalog(snapshot: CatalogSnapshot, selections: Prici
     frequency: { key: frequency.key, daysPerWeek: frequency.daysPerWeek },
     addons,
     discounts,
-    maxDiscountPct: snapshot.maxDiscountPct ?? 25,
+    maxDiscountPct: snapshot.maxDiscountPct ?? APP_DEFAULTS.maxDiscountPct,
     deliveryCount,
     waivers: catalogWaivers(snapshot),
     deliveryChargeConfig,

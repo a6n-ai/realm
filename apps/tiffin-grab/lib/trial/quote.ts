@@ -1,4 +1,5 @@
 import { onlyOnMessage, type DayOfWeek } from "@/lib/menu/delivery-days";
+import { APP_DEFAULTS } from "@/db/schema/app-defaults";
 import { parseIsoDateUtc, ValidationError, weekdayKey } from "@foundry/commons";
 import type { CatalogSnapshot } from "@/lib/catalog/types";
 import { effectivePrice } from "@/lib/pricing/meal-size-discount";
@@ -88,7 +89,7 @@ function trialCatalog(
     frequency: { key: "trial", daysPerWeek: length },
     addons: [],
     discounts: [],
-    maxDiscountPct: snapshot.maxDiscountPct ?? 25,
+    maxDiscountPct: snapshot.maxDiscountPct ?? APP_DEFAULTS.maxDiscountPct,
     deliveryCount: length,
     waivers: catalogWaivers(snapshot),
     deliveryChargeConfig: buildDeliveryChargeConfig(snapshot, selections, length),

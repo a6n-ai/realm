@@ -17,7 +17,7 @@ import {
 } from "@/app/(public)/subscribe/actions";
 import type { AdminOrderCreated } from "@/app/(dashboard)/dashboard/orders/admin-order-created-dialog";
 import { eatingDaysError, frequencyFits, type DayOfWeek, WEEK_DAYS } from "@/lib/menu/delivery-days";
-import { DEFAULT_EATING_DAYS, quoteLinkQuery } from "@/lib/wizard/selections";
+import { DEFAULT_EATING_DAYS, quoteLinkQuery, tiffinBounds } from "@/lib/wizard/selections";
 import { orderFormSchema, type OrderFormInput, type OrderFormValues } from "../order-schema";
 import { appToday } from "@/lib/services/start-date";
 import { earliestTrialIso, nextTrialStart, trialSendDays, type TrialSettings } from "@/lib/trial/schedule";
@@ -150,7 +150,7 @@ export function useOrderDraft({
       planKey: "",
       mealSizeId: "",
       frequencyKey: catalog.frequencies.find((f) => f.weekdays?.length)?.key ?? "",
-      eatingDays: DEFAULT_EATING_DAYS.slice(0, catalog.maxTiffinsPerWeek ?? 7),
+      eatingDays: DEFAULT_EATING_DAYS.slice(0, tiffinBounds(catalog).max),
       persons: 1,
       mealSlots: defaultSlots,
       includeSaturday: false,
@@ -192,7 +192,7 @@ export function useOrderDraft({
   // The picked size's allowed days: only frequencies that deliver on them are offered (non-veg only, Tue/Thu veg-only).
   const sizeDays = catalog.mealSizes.find((m) => m.id === mealSizeId)?.allowedDays ?? null;
   const deliveryFrequencies = catalog.frequencies.filter((f) => f.weekdays?.length && frequencyFits(f.weekdays as DayOfWeek[], sizeDays));
-  const bounds = { min: catalog.minTiffinsPerWeek ?? 3, max: catalog.maxTiffinsPerWeek ?? 7 };
+  const bounds = tiffinBounds(catalog);
   const deliveryDays = (deliveryFrequencies.find((f) => f.key === frequencyKey)?.weekdays ?? []) as DayOfWeek[];
   const toggleEating = (d: DayOfWeek) => {
     const next = eatingDays.includes(d)

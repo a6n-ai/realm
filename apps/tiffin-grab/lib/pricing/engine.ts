@@ -1,4 +1,5 @@
 import { computeTax, type TaxLine } from "@foundry/payments";
+import { APP_DEFAULTS } from "@/db/schema/app-defaults";
 import { round2 } from "@foundry/commons/util/money";
 import { resolveCatalogDiscounts } from "@foundry/discounts";
 import type { PricingCatalog, PricingLine, PricingResult, PricingSelections } from "./types";
@@ -59,7 +60,7 @@ export function priceSubscription(
   const labels = new Map((catalog.discounts ?? []).map((d) => [d.key, d.label]));
   const cadenceDiscount: PricingLine[] = resolveCatalogDiscounts(
     (catalog.discounts ?? []).map((d) => ({ key: d.key, name: d.label, kind: "", percent: d.percent })),
-    { subtotal: tiffinSubtotal, maxDiscountPct: catalog.maxDiscountPct ?? 25 },
+    { subtotal: tiffinSubtotal, maxDiscountPct: catalog.maxDiscountPct ?? APP_DEFAULTS.maxDiscountPct },
   ).lines.map((l) => ({ label: labels.get(l.key)!, amount: l.amount, discountKey: l.key }));
   const allAdjustments = [...adjustments, ...cadenceDiscount, ...deliveryWaiverLines(deliveryCalc, catalog.waivers ?? [])];
 

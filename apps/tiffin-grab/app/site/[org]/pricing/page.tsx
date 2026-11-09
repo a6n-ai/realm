@@ -14,6 +14,8 @@ import { isComingSoon, publicPlans } from "@/lib/landing/plan-options";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { listableMealSizes } from "@/lib/catalog/types";
 import { effectivePrice } from "@/lib/pricing";
+import { APP_DEFAULTS } from "@/db/schema/app-defaults";
+import { tiffinBounds } from "@/lib/wizard/selections";
 import { savePct } from "@/lib/pricing/discounts";
 import { pageMeta } from "@/lib/landing/meta";
 import { breadcrumbJsonLd, jsonLdScript, pricingJsonLd } from "@/lib/landing/business-jsonld";
@@ -80,8 +82,8 @@ export default async function PricingPage() {
       days: (m.allowedDays && m.allowedDays.length > 0 ? m.allowedDays : WEEK_DAYS).filter((d) => m.servesWeekends || (!isWeekendDay(d))),
     })),
   }));
-  const maxPct = catalog.maxDiscountPct ?? 25;
-  const bounds = { min: catalog.minTiffinsPerWeek ?? 3, max: catalog.maxTiffinsPerWeek ?? 7 };
+  const maxPct = catalog.maxDiscountPct ?? APP_DEFAULTS.maxDiscountPct;
+  const bounds = tiffinBounds(catalog);
   const weeksList = [...new Set(catalog.durations.map((d) => d.weeks))].sort((a, b) => a - b);
   // Delivery frequencies as the kitchen defines them (fixed weekdays), each with its delivery discount per plan length.
   const frequencies: MathFrequency[] = (catalog.frequencies ?? [])

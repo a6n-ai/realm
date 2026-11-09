@@ -1,4 +1,5 @@
 import { effectivePrice, type PricingSelections } from "@/lib/pricing";
+import { APP_DEFAULTS } from "@/db/schema/app-defaults";
 import { listableMealSizes, mealSizeAddons, type CatalogAddon, type ClientCatalogSnapshot } from "@/lib/catalog/types";
 import { eatingDaysError, frequencyFits, MON_FRI, planDaysError, WEEK_DAYS, type DayOfWeek } from "@/lib/menu/delivery-days";
 import { dropOffCatalog, validDropOff } from "@/lib/catalog/drop-off";
@@ -28,9 +29,9 @@ export const DEFAULT_EATING_DAYS: DayOfWeek[] = [...MON_FRI];
 export const selectableFrequencies = (catalog: ClientCatalogSnapshot, s?: WizardSelections) =>
   catalog.frequencies.filter((f) => f.weekdays?.length && (!s || frequencyFits(f.weekdays as DayOfWeek[], mealAllowedDays(catalog, s))));
 
-export const tiffinBounds = (catalog: ClientCatalogSnapshot) => ({
-  min: catalog.minTiffinsPerWeek ?? 3,
-  max: catalog.maxTiffinsPerWeek ?? 7,
+export const tiffinBounds = (catalog: Pick<ClientCatalogSnapshot, "minTiffinsPerWeek" | "maxTiffinsPerWeek">) => ({
+  min: catalog.minTiffinsPerWeek ?? APP_DEFAULTS.minTiffinsPerWeek,
+  max: catalog.maxTiffinsPerWeek ?? APP_DEFAULTS.maxTiffinsPerWeek,
 });
 
 /** Add-ons the picked meal offers; none for a trial or before a meal is picked. */

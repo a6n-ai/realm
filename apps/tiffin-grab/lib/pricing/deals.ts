@@ -1,6 +1,6 @@
 import { resolveCatalogDiscounts } from "@foundry/discounts";
 import type { CatalogSnapshot, DealTable } from "@/lib/catalog/types";
-import { APP_DEFAULTS } from "@/db/schema/app";
+import { APP_DEFAULTS } from "@/db/schema/app-defaults";
 import { applicableRules } from "./discounts";
 
 export function buildDealTable(snapshot: Pick<CatalogSnapshot, "frequencies" | "durations" | "discounts" | "maxDiscountPct">): DealTable {

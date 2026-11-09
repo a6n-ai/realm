@@ -3,6 +3,7 @@ import { integer, jsonb, numeric, pgTable, text } from "drizzle-orm/pg-core";
 import type { IntegrationsConfig } from "@foundry/clover";
 import type { PaymentConfig } from "@foundry/payments";
 import type { DiscountPolicy } from "./coupons";
+import { APP_DEFAULTS } from "./app-defaults";
 
 /** One weekday's support window, "HH:MM" 24h in the app timezone. */
 export type DayHours = { open: string; close: string };
@@ -14,15 +15,7 @@ export type SupportHours = {
   replyWithinHours: number | null;
 };
 
-// Single source for the app row's column defaults, the settings service fallback and the seeds.
-export const APP_DEFAULTS = {
-  timezone: "America/Toronto",
-  cutoffHour: 18,
-  currency: "INR",
-  minTiffinsPerWeek: 3,
-  maxTiffinsPerWeek: 7,
-  maxDiscountPct: 25,
-} as const;
+export { APP_DEFAULTS };
 
 // The app/tenant entity (formerly app_settings): one row today. Holds currency,
 // timezone and other settings that other tables resolve through their app_id FK.
