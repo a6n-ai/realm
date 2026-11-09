@@ -7,6 +7,7 @@ import { and, asc, desc, eq, gt, ilike, inArray, lt, max, or, sql, type SQL } fr
 import { alias, type PgSelect } from "drizzle-orm/pg-core";
 import type { Page, PageRequest } from "@foundry/commons/util/pagination";
 import { db } from "@/db/client";
+import { enqueueNotification, enqueueStaffNotification } from "@/lib/notifications/enqueue";
 import { deliveryZones, orders, plans, ticketMessages, tickets, users, type Attachment } from "@/db/schema";
 import { complaintWhere, type ComplaintFilters } from "@/lib/services/analytics/complaint-filters";
 import { getSession } from "@/lib/auth/session";
@@ -62,6 +63,8 @@ export function computeOverdue(status: string, lastMessageAt: number | null, now
   if (lastMessageAt == null) return false;
   return lastMessageAt < now - OVERDUE_MS;
 }
+
+const ticketVars = (code: string, subject: string) => ({ ticket: { subject, code } });
 
 type Actor = { id: bigint; role: RoleValue; isStaff: boolean };
 
@@ -140,6 +143,14 @@ class TicketsService extends SessionUpdatableService<typeof tickets> {
       ...(input.orderId != null ? { orderId: input.orderId } : {}),
     });
     await this.message(ticket.id, actor.id, "customer", body, input.attachments);
+    await db.transaction((tx) => enqueueStaffNotification(tx, {
+      event: "ticket_created",
+      title: "New support ticket",
+      body: subject,
+      href: `/dashboard/tickets/${ticket.publicId}`,
+      data: ticketVars(ticket.publicId, subject),
+      dedupeKey: `ticket_created:${ticket.publicId}`,
+    }));
     // The ticket is already saved; a failed flag must not make the customer submit it twice.
     if (input.orderId != null) await lookOutForTicket(input.orderId, subject).catch((err) => log.error({ err, ticket: ticket.publicId }, "look out flag failed"));
     // Fan-out to staff SSE so sidebar dots / queue refresh without polling.
@@ -179,7 +190,17 @@ class TicketsService extends SessionUpdatableService<typeof tickets> {
     if (actor.isStaff && !(await this.hasStaffOwner(ticket))) await this.setOwner(ticket, actor.id, actor.id);
 
     const authorType: TicketMessageAuthor = actor.isStaff ? "staff" : "customer";
-    await this.message(ticket.id, actor.id, authorType, trimmed, attachments);
+    const msg = await this.message(ticket.id, actor.id, authorType, trimmed, attachments);
+    const note = { event: "ticket_reply" as const, title: "New reply on your ticket", body: trimmed || "Sent an attachment", data: ticketVars(ticket.publicId, ticket.subject), dedupeKey: `ticket_reply:${msg.publicId}` };
+    await db.transaction(async (tx) => {
+      if (actor.isStaff) {
+        await enqueueNotification(tx, { ...note, recipientId: ticket.raisedBy, href: `/me/support/${ticket.publicId}` });
+        return;
+      }
+      const staffNote = { ...note, title: "Customer replied", channels: ["in_app" as const], href: `/dashboard/tickets/${ticket.publicId}` };
+      if (ticket.currentOwner != null && (await this.hasStaffOwner(ticket))) await enqueueNotification(tx, { ...staffNote, recipientId: ticket.currentOwner });
+      else await enqueueStaffNotification(tx, staffNote);
+    });
 
     // A staff reply on an in-progress ticket hands the ball back to the customer.
     if (actor.isStaff && ticket.status === "in_progress") {
@@ -195,7 +216,18 @@ class TicketsService extends SessionUpdatableService<typeof tickets> {
     const isClosed = (s: TicketStatus) => s === "resolved" || s === "closed";
     const closing = isClosed(toStatus);
     await this.update(publicId, { status: toStatus, closedAt: closing ? Date.now() : null });
-    await this.message(ticket.id, actor.id, "system", `Status: ${STATUS_TEXT[previous]} → ${STATUS_TEXT[toStatus]}`);
+    const statusMsg = await this.message(ticket.id, actor.id, "system", `Status: ${STATUS_TEXT[previous]} → ${STATUS_TEXT[toStatus]}`);
+    if (toStatus === "resolved") {
+      await db.transaction((tx) => enqueueNotification(tx, {
+        event: "ticket_resolved",
+        recipientId: ticket.raisedBy,
+        title: "Your ticket was resolved",
+        body: ticket.subject,
+        href: `/me/support/${ticket.publicId}`,
+        data: ticketVars(ticket.publicId, ticket.subject),
+        dedupeKey: `ticket_resolved:${ticket.publicId}:${statusMsg.publicId}`,
+      }));
+    }
     if (closing && ticket.orderId != null) await clearTicketLookOut(ticket.orderId).catch((err) => log.error({ err, ticket: publicId }, "look out clear failed"));
     // Reopening puts the order back on the list its resolve took it off.
     if (!closing && isClosed(previous) && ticket.orderId != null) await lookOutForTicket(ticket.orderId, ticket.subject).catch((err) => log.error({ err, ticket: publicId }, "look out flag failed"));

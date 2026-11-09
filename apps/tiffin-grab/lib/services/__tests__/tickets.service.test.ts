@@ -1,7 +1,7 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
-import { ownerPool, ticketMessages, tickets, users } from "@/db/schema";
+import { notificationOutbox, ownerPool, ticketMessages, tickets, users } from "@/db/schema";
 import { ForbiddenError, ValidationError } from "@foundry/commons";
 
 const session: { user: { id: string; role: string } | null } = { user: null };
@@ -34,7 +34,10 @@ describe("ticketsService", () => {
   afterAll(async () => {
     await db.delete(ticketMessages);
     await db.delete(tickets);
-    if (seededUserIds.length) await db.delete(users).where(inArray(users.id, seededUserIds));
+    if (seededUserIds.length) {
+      await db.delete(notificationOutbox).where(inArray(notificationOutbox.recipientId, seededUserIds));
+      await db.delete(users).where(inArray(users.id, seededUserIds));
+    }
   });
 
   it("create inserts an open ticket and a first customer message", async () => {
