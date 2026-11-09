@@ -44,8 +44,8 @@ describe("autoResumeIfElapsed + one-open-pause index (integration)", () => {
   beforeEach(reset);
   afterAll(reset);
 
-  // DEFECT 1 (TOCTOU): assertPauseAllowed + the subscriptionPauses insert run with no lock, so two
-  // concurrent pauseMySubscription calls can both pass the app-level check. The DB-level backstop is
+  // DEFECT 1 (TOCTOU): an app-level open-pause check plus insert has no lock, so two concurrent
+  // pause requests could both pass it. The DB-level backstop is
   // the partial UNIQUE index on (order_id) WHERE resumed_at IS NULL — a second OPEN row for the same
   // order must be physically impossible, independent of any app-level race.
   it("a second direct insert of an OPEN pause row for the same order violates the unique index", async () => {

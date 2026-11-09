@@ -23,9 +23,8 @@ export const subscriptionPauses = pgTable("subscription_pauses", {
   organizationId: text("organization_id").references(() => organization.id),
 }, (t) => [
   index("subscription_pauses_order_idx").on(t.orderId),
-  // Partial UNIQUE index backs the one-open-pause guard at the DB level — a plain
-  // index only supported app-level checks (assertPauseAllowed), which race under
-  // concurrent pause requests. The unique constraint makes a second OPEN row for
+  // Partial UNIQUE index backs the one-open-pause guard at the DB level — an app-level
+  // check alone would race under concurrent pause requests. The unique constraint makes a second OPEN row for
   // the same order impossible, independent of any app-level TOCTOU.
   uniqueIndex("subscription_pauses_one_open_unique").on(t.orderId).where(sql`resumed_at is null`),
   index("subscription_pauses_organization_idx").on(t.organizationId),
