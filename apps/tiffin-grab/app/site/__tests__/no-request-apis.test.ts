@@ -4,7 +4,9 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 const APP = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
-const FORBIDDEN = [/["']next\/headers["']/, /["']@\/lib\/tenant\/resolve-request-org["']/, /["']@\/lib\/auth\/session["']/, /\bgetSession\b/];
+const FORBIDDEN = [/["']next\/headers["']/, /["']@\/lib\/tenant\/resolve-request-org["']/, /["']@\/lib\/auth\/session["']/];
+// authClient.getSession() in a "use client" module is a browser fetch, not a server request read.
+const SERVER_GET_SESSION = /\bgetSession\b/;
 const SPEC = /(?:from|import)\s*\(?\s*["']([^"']+)["']|export\s[^"']*?from\s*["']([^"']+)["']/g;
 const EXTS = ["", ".ts", ".tsx", "/index.ts", "/index.tsx"];
 
@@ -32,7 +34,8 @@ describe("app/site", () => {
       const src = readFileSync(file, "utf8");
       // A server action runs per call, never during the cached render, so it is out of scope entirely.
       if (/^\s*["']use server["']/.test(src)) continue;
-      if (FORBIDDEN.some((re) => re.test(src))) {
+      const isClient = /^\s*["']use client["']/.test(src);
+      if (FORBIDDEN.some((re) => re.test(src)) || (!isClient && SERVER_GET_SESSION.test(src))) {
         const chain: string[] = [];
         for (let f: string | null | undefined = file; f; f = parent.get(f)) chain.unshift(f.slice(APP.length + 1));
         hits.push(chain.join(" -> "));

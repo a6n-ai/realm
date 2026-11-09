@@ -4,13 +4,14 @@ import { eq, ne } from "drizzle-orm";
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
 const { db } = await import("@/db/client");
+const { deleteNonSystemUsers } = await import("@/db/test-helpers");
 const { auditLog, customerAddresses, users } = await import("@/db/schema");
 const { listCustomerActivitiesPage } = await import("../customer-activities-list.service");
 
 async function reset() {
   await db.delete(auditLog).where(eq(auditLog.entity, "customer_addresses"));
   await db.delete(customerAddresses);
-  await db.delete(users).where(ne(users.isSystem, true));
+  await deleteNonSystemUsers();
 }
 
 describe("listCustomerActivitiesPage (integration)", () => {

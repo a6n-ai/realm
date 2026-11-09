@@ -5,6 +5,7 @@ import { eq, inArray, ne, sql } from "drizzle-orm";
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
 const { db } = await import("@/db/client");
+const { deleteNonSystemUsers } = await import("@/db/test-helpers");
 const { orders, payments, orderActivities, ledgerEntries, users, walletLedger, deliveries, notifications, notificationOutbox } = await import("@/db/schema");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { nextWeekday } = await import("@foundry/commons");
@@ -22,7 +23,7 @@ async function reset() {
   const customerIds = db.select({ id: users.id }).from(users).where(ne(users.isSystem, true));
   await db.delete(notificationOutbox).where(inArray(notificationOutbox.recipientId, customerIds));
   await db.delete(notifications).where(inArray(notifications.userId, customerIds));
-  await db.delete(users).where(ne(users.isSystem, true));
+  await deleteNonSystemUsers();
 }
 
 let phone = 700;

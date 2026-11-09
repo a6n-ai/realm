@@ -2,6 +2,7 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq, ne } from "drizzle-orm";
 import { nextWeekday } from "@foundry/commons";
 import { db } from "@/db/client";
+import { deleteNonSystemUsers } from "@/db/test-helpers";
 import { addressTags, deliveries, deliveryChargeConfigs, deliveryStrategies, deliveryStrategyConnections, deliveryStrategyGroups, ledgerEntries, orders, payments, users, customerAddresses } from "@/db/schema";
 import { loadCatalogSnapshot, invalidateCatalogSnapshot } from "@/lib/catalog/load";
 import { deliveryService } from "../delivery.service";
@@ -28,7 +29,7 @@ async function reset() {
   await db.delete(deliveryStrategyGroups);
   await db.delete(addressTags);
   await db.delete(deliveryChargeConfigs);
-  await db.delete(users).where(ne(users.isSystem, true));
+  await deleteNonSystemUsers();
   await invalidateCatalogSnapshot();
 }
 

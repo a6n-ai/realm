@@ -1,13 +1,14 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq, ne } from "drizzle-orm";
 import { db } from "@/db/client";
+import { deleteNonSystemUsers } from "@/db/test-helpers";
 import { users } from "@/db/schema";
 
 vi.mock("@/lib/auth/session", () => ({ getSession: async () => null }));
 const { usersService } = await import("@/lib/services/users.service");
 
 async function reset() {
-  await db.delete(users).where(ne(users.isSystem, true));
+  await deleteNonSystemUsers();
 }
 
 describe("usersService.updateProfile", () => {

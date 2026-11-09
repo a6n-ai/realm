@@ -10,6 +10,7 @@ import { nextWeekday } from "@foundry/commons";
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
 const { db } = await import("@/db/client");
+const { deleteNonSystemUsers } = await import("@/db/test-helpers");
 const {
   couponRedemptions,
   coupons,
@@ -41,7 +42,7 @@ async function reset() {
   await db
     .delete(notificationOutbox)
     .where(inArray(notificationOutbox.recipientId, db.select({ id: users.id }).from(users).where(ne(users.isSystem, true))));
-  await db.delete(users).where(ne(users.isSystem, true));
+  await deleteNonSystemUsers();
   await sharedCache("app-settings").evictAll();
 }
 
@@ -231,7 +232,7 @@ describe("payment methods E2E lifecycle", () => {
 
     await claimPayment(pay!.publicId, {
       reference: "GOOD-REF-999",
-      proof: { path: "payments/x/orig.png", thumbUrl: "https://cdn.test/thumb.png", name: "proof.png" },
+      proof: { path: `payments/${pay!.publicId}/abc123/orig.png`, thumbUrl: "https://cdn.test/thumb.png", name: "proof.png" },
     });
     [claimed] = await db.select().from(payments).where(eq(payments.id, pay!.id));
     expect(claimed!.status).toBe("pending_verification");

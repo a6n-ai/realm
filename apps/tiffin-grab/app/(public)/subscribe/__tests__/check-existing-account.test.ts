@@ -1,6 +1,7 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { ne } from "drizzle-orm";
 import { db } from "@/db/client";
+import { deleteNonSystemUsers } from "@/db/test-helpers";
 import { referrals, users } from "@/db/schema";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
@@ -11,7 +12,7 @@ async function reset() {
   // referrals rows point at users; clear them so the wipe can't FK-fail.
   await db.delete(referrals);
   await db.update(users).set({ referredByUserId: null });
-  await db.delete(users).where(ne(users.isSystem, true));
+  await deleteNonSystemUsers();
 }
 
 describe("checkExistingAccount", () => {

@@ -1,5 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { ensureSystemUser } from "@/db/test-helpers";
+import { ensureSystemUser, deleteNonSystemUsers } from "@/db/test-helpers";
 import { eq, ne } from "drizzle-orm";
 import { db } from "@/db/client";
 import { inquiries, inquiryActivities, ledgerEntries, orders, payments, users } from "@/db/schema";
@@ -39,7 +39,7 @@ async function reset() {
   await db.delete(inquiries);
   await db.delete(payments);
   await db.delete(orders);
-  await db.delete(users).where(ne(users.isSystem, true));
+  await deleteNonSystemUsers();
 }
 const row = async (id: bigint) => (await db.select().from(inquiries).where(eq(inquiries.id, id)))[0];
 const acts = async (id: bigint) => db.select().from(inquiryActivities).where(eq(inquiryActivities.inquiryId, id));

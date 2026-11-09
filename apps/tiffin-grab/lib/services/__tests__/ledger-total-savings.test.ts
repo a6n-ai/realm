@@ -4,12 +4,13 @@ import { ne } from "drizzle-orm";
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
 const { db } = await import("@/db/client");
+const { deleteNonSystemUsers } = await import("@/db/test-helpers");
 const { ledgerEntries, users } = await import("@/db/schema");
 const { ledgerService } = await import("../ledger.service");
 
 async function reset() {
   await db.delete(ledgerEntries);
-  await db.delete(users).where(ne(users.isSystem, true));
+  await deleteNonSystemUsers();
 }
 
 describe("ledgerService.totalSavings (integration)", () => {

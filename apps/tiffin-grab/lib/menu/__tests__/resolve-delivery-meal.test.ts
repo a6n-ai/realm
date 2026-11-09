@@ -2,7 +2,7 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { and, asc, eq, inArray, like, ne } from "drizzle-orm";
 import { db } from "@/db/client";
 import { dishes, mealSelections, mealSizeItems, menuItems, menuSideDefaults, menuWeeks, orders, users } from "@/db/schema";
-import { attachDishToPlans, categoryIdFor, testPlanId } from "@/db/test-helpers";
+import { attachDishToPlans, categoryIdFor, testPlanId, deleteNonSystemUsers } from "@/db/test-helpers";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { exclusiveDishIdsForPlan } from "../selections.service";
 import { maxTuPickIndex } from "../default-pick";
@@ -22,7 +22,7 @@ let pickedSabziPublicId: string;
 
 async function reset() {
   await db.delete(mealSelections); await db.delete(menuItems); await db.delete(menuWeeks);
-  await db.delete(orders); await db.delete(dishes); await db.delete(users).where(ne(users.isSystem, true));
+  await db.delete(orders); await db.delete(dishes); await deleteNonSystemUsers();
 }
 
 describe("resolveDeliveryMeal", () => {

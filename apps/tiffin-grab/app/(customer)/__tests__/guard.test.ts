@@ -5,6 +5,8 @@ vi.mock("@/lib/services/app-settings.service", () => ({
   getAppSettings: vi.fn().mockResolvedValue({ timezone: "Asia/Kolkata", cutoffHour: 18, currency: "INR" }),
   getIntegrationsConfigFresh: vi.fn().mockResolvedValue({}),
   setIntegrationsConfig: vi.fn(),
+  integrationsConfigStore: { get: async () => ({}), set: async () => {} },
+  integrationsConfigReadStore: { get: async () => ({}), set: async () => {} },
 }));
 vi.mock("@/lib/services/users.service", () => ({
   usersService: { read: vi.fn().mockResolvedValue({ id: 1n, name: "Demo", email: "d@x.ca", image: null, status: "active" }) },

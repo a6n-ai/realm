@@ -124,7 +124,18 @@ describe("inviteUserAction (integration)", () => {
       .values({ name: "Other Org", clientCode: `${MARK}-other`, parentOrganizationId: null })
       .returning({ id: organization.id });
     const [admin] = await db.select({ id: users.id }).from(users).where(eq(users.email, ADMIN));
-    await db.update(session).set({ activeOrganizationId: other.id }).where(eq(session.userId, admin.id));
+    // getSession is served from the signed cookie cache, so a DB-only update is invisible. Activate the org
+    // through the API (refreshing the cookie), then drop the membership that made the switch legal.
+    await db.insert(member).values({ organizationId: other.id, userId: admin.id, role: "member" });
+    const switched = await auth.api.setActiveOrganization({
+      body: { organizationId: other.id },
+      headers: requestHeaders.current,
+      returnHeaders: true,
+    });
+    const pairs = [...requestHeaders.current.get("cookie")!.split("; "), ...switched.headers.getSetCookie().map((c) => c.split(";")[0])];
+    const jar = new Map(pairs.map((kv) => [kv.split("=")[0], kv] as const));
+    requestHeaders.current = new Headers({ cookie: [...jar.values()].join("; ") });
+    await db.delete(member).where(and(eq(member.organizationId, other.id), eq(member.userId, admin.id)));
 
     await expect(inviteUserAction({ email: INVITEE, name: "Invitee", role: "member" })).rejects.toThrow(/can't invite staff/);
 

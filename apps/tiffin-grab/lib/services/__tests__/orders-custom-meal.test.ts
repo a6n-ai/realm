@@ -5,6 +5,7 @@ import { nextWeekday } from "@foundry/commons";
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
 const { db } = await import("@/db/client");
+const { deleteNonSystemUsers } = await import("@/db/test-helpers");
 const schema = await import("@/db/schema");
 const { deliveries, ledgerEntries, orderActivities, orders, payments, users, customMealPricing, mealSizeItems, mealSizes } = schema;
 const { createOrder } = await import("../orders.service");
@@ -17,7 +18,7 @@ async function reset() {
   await db.delete(orderActivities);
   await db.delete(payments);
   await db.delete(orders);
-  await db.delete(users).where(ne(users.isSystem, true));
+  await deleteNonSystemUsers();
   await db.delete(customMealPricing);
   // db/seed.sql wipes every meal_size_items row on reseed but keeps custom
   // meal_sizes, so a leftover custom size would come back with no items.

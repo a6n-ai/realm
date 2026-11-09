@@ -10,6 +10,7 @@ vi.mock("@/lib/payments/stripe", async (orig) => ({
 }));
 
 const { db } = await import("@/db/client");
+const { deleteNonSystemUsers } = await import("@/db/test-helpers");
 const { orders, payments, orderActivities, ledgerEntries, users, walletLedger, notifications, notificationOutbox, organization, deliveryZones } = await import("@/db/schema");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { nextWeekday } = await import("@foundry/commons");
@@ -40,7 +41,7 @@ async function wipe() {
   const customerIds = db.select({ id: users.id }).from(users).where(ne(users.isSystem, true));
   await db.delete(notificationOutbox).where(inArray(notificationOutbox.recipientId, customerIds));
   await db.delete(notifications).where(inArray(notifications.userId, customerIds));
-  await db.delete(users).where(ne(users.isSystem, true));
+  await deleteNonSystemUsers();
 }
 
 const suffix = Math.random().toString(36).slice(2);

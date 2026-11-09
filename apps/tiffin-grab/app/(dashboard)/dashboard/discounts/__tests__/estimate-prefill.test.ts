@@ -11,6 +11,7 @@ vi.mock("@/lib/services/orders.service", async (importOriginal) => ({
 }));
 
 const { db } = await import("@/db/client");
+const { deleteNonSystemUsers } = await import("@/db/test-helpers");
 const { orders, payments, orderActivities, ledgerEntries, users } = await import("@/db/schema");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { nextWeekday } = await import("@foundry/commons");
@@ -22,7 +23,7 @@ async function reset() {
   await db.delete(orderActivities);
   await db.delete(payments);
   await db.delete(orders);
-  await db.delete(users).where(ne(users.isSystem, true));
+  await deleteNonSystemUsers();
 }
 
 async function seed() {

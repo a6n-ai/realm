@@ -1,6 +1,7 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq, ne } from "drizzle-orm";
 import { db } from "@/db/client";
+import { deleteNonSystemUsers } from "@/db/test-helpers";
 import { users } from "@/db/schema";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
@@ -8,7 +9,7 @@ vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 const { findExistingByContact, provisionCustomerByPhone, STAFF_ACCOUNT_MESSAGE } = await import("../customers.service");
 
 async function reset() {
-  await db.delete(users).where(ne(users.isSystem, true));
+  await deleteNonSystemUsers();
 }
 
 describe("findExistingByContact", () => {

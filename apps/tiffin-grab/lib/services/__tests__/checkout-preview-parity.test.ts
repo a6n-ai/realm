@@ -12,6 +12,7 @@ vi.mock("@/lib/auth/guards", async (orig) => ({ ...(await orig<typeof import("@/
 
 const { previewPrice } = await import("@/app/(dashboard)/dashboard/inquiries/[id]/order/actions");
 const { db } = await import("@/db/client");
+const { deleteNonSystemUsers } = await import("@/db/test-helpers");
 const { discounts, coupons, couponRedemptions, deliveries, ledgerEntries, orderActivities, orders, payments, users, walletLedger } =
   await import("@/db/schema");
 const { createOrder } = await import("../orders.service");
@@ -36,7 +37,7 @@ async function reset() {
   await db.delete(payments);
   await db.delete(orderActivities);
   await db.delete(orders);
-  await db.delete(users).where(ne(users.isSystem, true));
+  await deleteNonSystemUsers();
   await setPaymentConfig({ methods: [] });
   await setProvinceTaxes({});
   await sharedCache("app-settings").evictAll();

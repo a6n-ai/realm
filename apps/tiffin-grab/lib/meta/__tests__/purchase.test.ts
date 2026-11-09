@@ -10,6 +10,7 @@ vi.mock("../capi", () => ({
 }));
 
 const { db } = await import("@/db/client");
+const { deleteNonSystemUsers } = await import("@/db/test-helpers");
 const { deliveries, ledgerEntries, notificationOutbox, orderActivities, orders, payments, users } = await import("@/db/schema");
 const { createOrder } = await import("@/lib/services/orders.service");
 const { claimPayment, verifyPayment } = await import("@/lib/payments/verification");
@@ -28,7 +29,7 @@ async function reset() {
   await db
     .delete(notificationOutbox)
     .where(inArray(notificationOutbox.recipientId, db.select({ id: users.id }).from(users).where(ne(users.isSystem, true))));
-  await db.delete(users).where(ne(users.isSystem, true));
+  await deleteNonSystemUsers();
   await setPaymentConfig({ methods: [] });
   await sharedCache("app-settings").evictAll();
 }

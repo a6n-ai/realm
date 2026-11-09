@@ -8,7 +8,7 @@ import { db } from "@/db/client";
 import {
   couponRedemptions, deliveries, deliveryFrequencies, dishes, ledgerEntries, mealSelections, menuItems, menuWeeks, orders, payments, plans, users, walletLedger,
 } from "@/db/schema";
-import { attachDishToPlans, categoryIdFor, testPlanId } from "@/db/test-helpers";
+import { attachDishToPlans, categoryIdFor, testPlanId, deleteNonSystemUsers } from "@/db/test-helpers";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { thisWeekStartIso } from "@/lib/menu/delivery-dates";
 import type { GridCell } from "../meals-grid";
@@ -25,7 +25,7 @@ async function reset() {
   await db.delete(mealSelections); await db.delete(menuItems); await db.delete(menuWeeks); await db.delete(deliveries);
   // Orders other suites leave behind still hold money rows that restrict deleting them.
   await db.delete(walletLedger); await db.delete(ledgerEntries); await db.delete(couponRedemptions); await db.delete(payments);
-  await db.delete(orders); await db.delete(dishes); await db.delete(users).where(ne(users.isSystem, true));
+  await db.delete(orders); await db.delete(dishes); await deleteNonSystemUsers();
   await db.delete(plans).where(like(plans.key, "veg_no_sabzi_%"));
 }
 

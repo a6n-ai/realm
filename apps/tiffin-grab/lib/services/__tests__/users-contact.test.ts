@@ -2,6 +2,7 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq, ne } from "drizzle-orm";
 import { ValidationError } from "@foundry/commons";
 import { db } from "@/db/client";
+import { deleteNonSystemUsers } from "@/db/test-helpers";
 import { users } from "@/db/schema";
 
 // Importing the users service transitively evaluates NextAuth(), which can't
@@ -12,7 +13,7 @@ const { usersService, ContactTakenError } = await import("../users.service");
 
 let custId: string;
 async function reset() {
-  await db.delete(users).where(ne(users.isSystem, true));
+  await deleteNonSystemUsers();
 }
 
 describe("usersService.updateContact", () => {

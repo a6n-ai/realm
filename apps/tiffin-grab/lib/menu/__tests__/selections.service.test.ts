@@ -3,7 +3,7 @@ import { eq, inArray, ne } from "drizzle-orm";
 import { ValidationError } from "@foundry/commons";
 import { db } from "@/db/client";
 import { deliveries, dishes, mealSelections, mealSizeItems, mealSizes, menuItems, menuWeeks, orderActivities, orders, users } from "@/db/schema";
-import { attachDishToPlans, categoryIdFor, testPlanId } from "@/db/test-helpers";
+import { attachDishToPlans, categoryIdFor, testPlanId, deleteNonSystemUsers } from "@/db/test-helpers";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
@@ -27,7 +27,7 @@ let vegDishBigintId: bigint;
 
 async function reset() {
   await db.delete(mealSelections); await db.delete(menuItems); await db.delete(menuWeeks); await db.delete(deliveries);
-  await db.delete(orders); await db.delete(dishes).where(inArray(dishes.name, TEST_DISH_NAMES)); await db.delete(users).where(ne(users.isSystem, true));
+  await db.delete(orders); await db.delete(dishes).where(inArray(dishes.name, TEST_DISH_NAMES)); await deleteNonSystemUsers();
 }
 
 // A scheduled row for FUTURE_MONDAY, far from its cutoff — day-membership and cutoff both now

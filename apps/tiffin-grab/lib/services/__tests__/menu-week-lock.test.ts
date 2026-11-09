@@ -6,7 +6,7 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { ne } from "drizzle-orm";
 import { db } from "@/db/client";
 import { dishes, mealSelections, menuItems, menuWeeks, orders, users } from "@/db/schema";
-import { attachDishToPlans, categoryIdFor, testPlanId } from "@/db/test-helpers";
+import { attachDishToPlans, categoryIdFor, testPlanId, deleteNonSystemUsers } from "@/db/test-helpers";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 const { menuService } = await import("../menu.service");
@@ -19,7 +19,7 @@ const FUTURE_MONDAY = (() => {
 
 async function reset() {
   await db.delete(mealSelections); await db.delete(menuItems); await db.delete(menuWeeks);
-  await db.delete(orders); await db.delete(dishes); await db.delete(users).where(ne(users.isSystem, true));
+  await db.delete(orders); await db.delete(dishes); await deleteNonSystemUsers();
 }
 
 async function seedWeek(status: "draft" | "released") {

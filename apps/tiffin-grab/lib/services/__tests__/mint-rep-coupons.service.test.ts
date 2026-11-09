@@ -5,6 +5,7 @@ import { ValidationError, nextWeekday, zonedDateIso } from "@foundry/commons";
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
 const { db } = await import("@/db/client");
+const { deleteNonSystemUsers } = await import("@/db/test-helpers");
 const { coupons, couponRedemptions, ledgerEntries, orders, payments, users } = await import("@/db/schema");
 const { couponsService } = await import("../coupons.service");
 const { createOrder } = await import("../orders.service");
@@ -19,7 +20,7 @@ async function reset() {
   await db.delete(coupons);
   await db.delete(payments);
   await db.delete(orders);
-  await db.delete(users).where(ne(users.isSystem, true));
+  await deleteNonSystemUsers();
 }
 
 // A sales rep (role member) — mintRepDaily needs a real owner row (FK).

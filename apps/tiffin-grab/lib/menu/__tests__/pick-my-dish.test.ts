@@ -9,7 +9,7 @@ vi.mock("next/cache", () => ({ revalidatePath: () => undefined }));
 const { db } = await import("@/db/client");
 const { deliveries, dishes, ledgerEntries, mealSelections, menuItems, menuWeeks, orderActivities, orders, payments, users } =
   await import("@/db/schema");
-const { attachDishToPlans, categoryIdFor, testPlanId } = await import("@/db/test-helpers");
+const { attachDishToPlans, categoryIdFor, testPlanId, deleteNonSystemUsers } = await import("@/db/test-helpers");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { createOrder } = await import("@/lib/services/orders.service");
 const { pickMyDish } = await import("@/app/(customer)/me/meals/actions");
@@ -27,7 +27,7 @@ async function reset() {
   await db.delete(payments);
   await db.delete(orders);
   await db.delete(dishes).where(eq(dishes.name, "TEST_MEAL_DISH"));
-  await db.delete(users).where(ne(users.isSystem, true));
+  await deleteNonSystemUsers();
 }
 
 // Mirrors the (customer)/me/deliveries harness: a real order via createOrder,

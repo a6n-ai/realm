@@ -4,6 +4,7 @@ import { and, eq, inArray, ne } from "drizzle-orm";
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
 const { db } = await import("@/db/client");
+const { deleteNonSystemUsers } = await import("@/db/test-helpers");
 const { couponRedemptions, coupons, deliveries, ledgerEntries, notificationOutbox, orderActivities, orders, payments, users, walletLedger } =
   await import("@/db/schema");
 const { createOrder } = await import("../orders.service");
@@ -33,7 +34,7 @@ async function reset() {
   await db
     .delete(notificationOutbox)
     .where(inArray(notificationOutbox.recipientId, db.select({ id: users.id }).from(users).where(ne(users.isSystem, true))));
-  await db.delete(users).where(ne(users.isSystem, true));
+  await deleteNonSystemUsers();
   await setPaymentConfig({ methods: [] });
   await sharedCache("app-settings").evictAll();
 }

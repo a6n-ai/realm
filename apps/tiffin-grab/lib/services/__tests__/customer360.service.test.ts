@@ -4,6 +4,7 @@ import { eq, ne } from "drizzle-orm";
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
 const { db } = await import("@/db/client");
+const { deleteNonSystemUsers } = await import("@/db/test-helpers");
 const { users, inquiries, leadSources, orders, payments, orderActivities, inquiryActivities, walletLedger } = await import("@/db/schema");
 const { awardCustomerBroadcast } = await import("../customer-payouts.service");
 const { getCustomer360 } = await import("../customers.service");
@@ -15,7 +16,7 @@ async function reset() {
   await db.delete(payments);
   await db.delete(orders);
   await db.delete(inquiries);
-  await db.delete(users).where(ne(users.isSystem, true));
+  await deleteNonSystemUsers();
 }
 
 describe("getCustomer360 (integration)", () => {

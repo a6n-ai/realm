@@ -18,6 +18,8 @@ vi.mock("@/lib/services/app-settings.service", () => ({
   getIntegrationsConfig: async () => ({}),
   getIntegrationsConfigFresh: async () => ({}),
   setIntegrationsConfig: async () => {},
+  integrationsConfigStore: { get: async () => ({}), set: async () => {} },
+  integrationsConfigReadStore: { get: async () => ({}), set: async () => {} },
   getPaymentConfig: async () => ({}),
 }));
 

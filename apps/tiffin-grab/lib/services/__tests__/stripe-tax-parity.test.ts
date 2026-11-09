@@ -15,6 +15,7 @@ const calc = vi.fn(async (_s: unknown, i: { amountCents: number }) => {
 vi.mock("@foundry/payments/stripe", async (orig) => ({ ...(await orig<object>()), calculateTax: (...a: [unknown, { amountCents: number }]) => calc(...a) }));
 
 const { db } = await import("@/db/client");
+const { deleteNonSystemUsers } = await import("@/db/test-helpers");
 const { deliveries, ledgerEntries, orderActivities, orders, payments, users, walletLedger } = await import("@/db/schema");
 const { createOrder } = await import("../orders.service");
 const { reprice } = await import("@/app/(public)/subscribe/actions");
@@ -27,7 +28,7 @@ async function reset() {
   await db.delete(payments);
   await db.delete(orderActivities);
   await db.delete(orders);
-  await db.delete(users).where(ne(users.isSystem, true));
+  await deleteNonSystemUsers();
 }
 
 async function input() {

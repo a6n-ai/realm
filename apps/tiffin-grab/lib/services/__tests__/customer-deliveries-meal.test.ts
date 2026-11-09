@@ -5,7 +5,7 @@ vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
 const { db } = await import("@/db/client");
 const { deliveries, dishes, menuItems, menuWeeks, orders, users } = await import("@/db/schema");
-const { attachDishToPlans, categoryIdFor, testPlanId } = await import("@/db/test-helpers");
+const { attachDishToPlans, categoryIdFor, testPlanId, deleteNonSystemUsers } = await import("@/db/test-helpers");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { myDeliveryMeal } = await import("../customer-deliveries.service");
 
@@ -29,7 +29,7 @@ async function reset() {
   await db.delete(deliveries);
   await db.delete(orders);
   await db.delete(dishes).where(eq(dishes.name, TEST_DISH_NAME));
-  await db.delete(users).where(ne(users.isSystem, true));
+  await deleteNonSystemUsers();
 }
 
 describe("myDeliveryMeal (integration)", () => {

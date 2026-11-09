@@ -1,6 +1,6 @@
-import { count, eq, inArray } from "drizzle-orm";
+import { count, eq, inArray, ne } from "drizzle-orm";
 import { db } from "./client";
-import { categoryPlans, dishCategories, dishes, plans, users } from "./schema";
+import { categoryPlans, dishCategories, dishes, notificationOutbox, plans, users } from "./schema";
 import { databaseUrl } from "../lib/runtime/env";
 
 /**
@@ -12,6 +12,16 @@ export async function ensureSystemUser(): Promise<void> {
   const [sys] = await db.select({ id: users.id }).from(users).where(eq(users.isSystem, true)).limit(1);
   if (sys) return;
   await db.insert(users).values({ name: "System", email: "system@tiffingrab.internal", role: "admin", isSystem: true });
+}
+
+/**
+ * Test teardown: remove every non-system user. Order creation enqueues notification_outbox rows that
+ * reference the user (FK), so they go first or the delete fails on whatever the DB already holds.
+ */
+export async function deleteNonSystemUsers(): Promise<void> {
+  const ids = db.select({ id: users.id }).from(users).where(ne(users.isSystem, true));
+  await db.delete(notificationOutbox).where(inArray(notificationOutbox.recipientId, ids));
+  await db.delete(users).where(ne(users.isSystem, true));
 }
 
 /**

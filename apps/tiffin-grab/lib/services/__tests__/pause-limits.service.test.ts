@@ -5,6 +5,7 @@ import { nextWeekday } from "@foundry/commons";
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
 const { db } = await import("@/db/client");
+const { deleteNonSystemUsers } = await import("@/db/test-helpers");
 const { orders, payments, orderActivities, ledgerEntries, users, subscriptionPauses, durationPackages, app } = await import("@/db/schema");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const svc = await import("../orders.service");
@@ -38,7 +39,7 @@ async function reset() {
   await db.delete(orderActivities);
   await db.delete(payments);
   await db.delete(orders);
-  await db.delete(users).where(ne(users.isSystem, true));
+  await deleteNonSystemUsers();
   await db.delete(durationPackages).where(eq(durationPackages.weeks, TEST_WEEKS));
   if (originalAppDefaults) {
     await db.update(app).set({

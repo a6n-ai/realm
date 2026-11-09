@@ -6,7 +6,7 @@ vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
 const { db } = await import("@/db/client");
 const { deliveries, dishes, ledgerEntries, mealSelections, menuItems, menuWeeks, orderActivities, orders, payments, users } = await import("@/db/schema");
-const { attachDishToPlans, categoryIdFor, testPlanId } = await import("@/db/test-helpers");
+const { attachDishToPlans, categoryIdFor, testPlanId, deleteNonSystemUsers } = await import("@/db/test-helpers");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { createOrder, ordersService } = await import("../orders.service");
 const {
@@ -37,7 +37,7 @@ async function reset() {
   await db.delete(orders);
   await db.delete(menuWeeks);
   await db.delete(dishes).where(inArray(dishes.name, TEST_DISH_NAMES));
-  await db.delete(users).where(ne(users.isSystem, true));
+  await deleteNonSystemUsers();
 }
 
 // M5V is a seeded Toronto zone -> lands "active" with materialized rows.

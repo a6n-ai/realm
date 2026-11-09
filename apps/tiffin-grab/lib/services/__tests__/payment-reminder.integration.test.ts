@@ -10,6 +10,7 @@ vi.mock("next/headers", () => ({
 }));
 
 const { db } = await import("@/db/client");
+const { deleteNonSystemUsers } = await import("@/db/test-helpers");
 const { account, deliveries, ledgerEntries, notificationOutbox, orderActivities, orders, payments, session, users, walletLedger } =
   await import("@/db/schema");
 const { auth } = await import("@/lib/auth");
@@ -34,7 +35,7 @@ async function reset() {
   await db.delete(notificationOutbox).where(eq(notificationOutbox.event, "payment_reminder"));
   await db.delete(session).where(inArray(session.userId, customers()));
   await db.delete(account).where(inArray(account.userId, customers()));
-  await db.delete(users).where(ne(users.isSystem, true));
+  await deleteNonSystemUsers();
   await setPaymentConfig({ methods: [] });
   await sharedCache("app-settings").evictAll();
 }

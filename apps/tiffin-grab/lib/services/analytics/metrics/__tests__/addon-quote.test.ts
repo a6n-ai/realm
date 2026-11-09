@@ -4,6 +4,7 @@ import { ne } from "drizzle-orm";
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
 const { db } = await import("@/db/client");
+const { deleteNonSystemUsers } = await import("@/db/test-helpers");
 const { orders, payments, orderActivities, ledgerEntries, users, walletLedger, notifications, notificationOutbox, organization } = await import("@/db/schema");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { nextWeekday } = await import("@foundry/commons");
@@ -30,7 +31,7 @@ async function wipe() {
   const customerIds = db.select({ id: users.id }).from(users).where(ne(users.isSystem, true));
   await db.delete(notificationOutbox).where(inArray(notificationOutbox.recipientId, customerIds));
   await db.delete(notifications).where(inArray(notifications.userId, customerIds));
-  await db.delete(users).where(ne(users.isSystem, true));
+  await deleteNonSystemUsers();
 }
 
 const base = { lineItems: [], subtotal: 100, taxLines: [{ name: "HST", ratePct: 5, amount: 5 }], taxTotal: 5, total: 105 };

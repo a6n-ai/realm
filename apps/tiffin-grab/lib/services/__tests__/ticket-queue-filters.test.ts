@@ -6,6 +6,7 @@ import { eq, ne } from "drizzle-orm";
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
 const { db } = await import("@/db/client");
+const { deleteNonSystemUsers } = await import("@/db/test-helpers");
 const { ticketMessages, tickets, users } = await import("@/db/schema");
 const { ticketsService } = await import("../tickets.service");
 const { parseComplaintFilters, complaintHref } = await import("../analytics/complaint-filters");
@@ -16,7 +17,7 @@ const DAY = 24 * 60 * 60 * 1000;
 async function reset() {
   await db.delete(ticketMessages);
   await db.delete(tickets);
-  await db.delete(users).where(ne(users.isSystem, true));
+  await deleteNonSystemUsers();
 }
 
 async function seed() {

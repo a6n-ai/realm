@@ -5,6 +5,7 @@ import { ValidationError, nextWeekday } from "@foundry/commons";
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
 const { db } = await import("@/db/client");
+const { deleteNonSystemUsers } = await import("@/db/test-helpers");
 const { coupons, couponRedemptions, ledgerEntries, orderActivities, orders, payments, users } = await import("@/db/schema");
 const { couponsService } = await import("../coupons.service");
 const { ledgerService } = await import("../ledger.service");
@@ -24,7 +25,7 @@ async function reset() {
   await db.delete(payments);
   await db.delete(orderActivities);
   await db.delete(orders);
-  await db.delete(users).where(ne(users.isSystem, true));
+  await deleteNonSystemUsers();
 }
 
 const baseInput = async (over: Partial<{ phone: string; couponCode: string; repCoupon: { code: string; requestedAmount: number } }> = {}) => {

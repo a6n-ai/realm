@@ -4,6 +4,7 @@ import { inArray, ne } from "drizzle-orm";
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
 const { db } = await import("@/db/client");
+const { deleteNonSystemUsers } = await import("@/db/test-helpers");
 const { organization } = await import("@/db/schema");
 const { deliveries, deliveryFrequencies, ledgerEntries, mealSizes, orderActivities, orders, payments, plans, ticketMessages, tickets, users } =
   await import("@/db/schema");
@@ -35,7 +36,7 @@ async function reset() {
   await db.delete(payments);
   await db.delete(orderActivities);
   await db.delete(orders);
-  await db.delete(users).where(ne(users.isSystem, true));
+  await deleteNonSystemUsers();
 }
 
 async function makeUser(email: string) {

@@ -5,6 +5,7 @@ import { cutoffMsFor, nextWeekday, ValidationError } from "@foundry/commons";
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
 const { db } = await import("@/db/client");
+const { deleteNonSystemUsers } = await import("@/db/test-helpers");
 const { deliveries, deliveryFrequencies, ledgerEntries, orderActivities, orders, payments, users } = await import("@/db/schema");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { getAppSettings } = await import("../app-settings.service");
@@ -18,7 +19,7 @@ async function reset() {
   await db.delete(orderActivities);
   await db.delete(payments);
   await db.delete(orders);
-  await db.delete(users).where(ne(users.isSystem, true));
+  await deleteNonSystemUsers();
   await db.update(deliveryFrequencies).set({ daysPerWeek: 5 }).where(eq(deliveryFrequencies.key, "5_day"));
 }
 

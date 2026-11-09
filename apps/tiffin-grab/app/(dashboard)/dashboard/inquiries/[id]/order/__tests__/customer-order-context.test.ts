@@ -4,6 +4,7 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { ne } from "drizzle-orm";
 import { nextWeekday } from "@foundry/commons";
 import { db } from "@/db/client";
+import { deleteNonSystemUsers } from "@/db/test-helpers";
 import { deliveries, ledgerEntries, orders, payments, users } from "@/db/schema";
 
 const visible = vi.hoisted(() => ({ orgs: "all" as "all" | string[] }));
@@ -25,7 +26,7 @@ async function reset() {
   await db.delete(ledgerEntries);
   await db.delete(payments);
   await db.delete(orders);
-  await db.delete(users).where(ne(users.isSystem, true));
+  await deleteNonSystemUsers();
 }
 
 describe("customerOrderContext: phone and email on two accounts", () => {

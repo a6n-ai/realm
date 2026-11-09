@@ -10,6 +10,7 @@ vi.mock("@/lib/realtime/publish-inbox", async (orig) => {
 });
 
 const { db } = await import("@/db/client");
+const { deleteNonSystemUsers } = await import("@/db/test-helpers");
 const { addons, deliveries, ledgerEntries, orderActivities, orderAddons, orders, payments, users } = await import("@/db/schema");
 const { invalidateCatalogSnapshot, loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { mealSizeAddons } = await import("@/lib/catalog/types");
@@ -32,7 +33,7 @@ async function reset() {
   await db.delete(orderActivities);
   await db.delete(payments);
   await db.delete(orders);
-  await db.delete(users).where(ne(users.isSystem, true));
+  await deleteNonSystemUsers();
   await setPaymentConfig({ methods: [] });
   await sharedCache("app-settings").evictAll();
 }

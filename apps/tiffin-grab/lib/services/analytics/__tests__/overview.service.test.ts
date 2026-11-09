@@ -5,6 +5,7 @@ vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 vi.mock("@/lib/auth/session", () => ({ getSession: async () => null }));
 
 const { db } = await import("@/db/client");
+const { deleteNonSystemUsers } = await import("@/db/test-helpers");
 const { deliveries, deliveryFrequencies, mealSizes, orders, payments, plans, users } = await import("@/db/schema");
 const { getTrialToPlanConversion } = await import("../overview.service");
 const { buildAnalyticsScope } = await import("../metrics/scope");
@@ -19,7 +20,7 @@ async function reset() {
   await db.delete(deliveries);
   await db.delete(payments);
   await db.delete(orders);
-  await db.delete(users).where(ne(users.isSystem, true));
+  await deleteNonSystemUsers();
 }
 
 let n = 0;

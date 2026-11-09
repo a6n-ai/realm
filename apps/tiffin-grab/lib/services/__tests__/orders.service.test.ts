@@ -2,6 +2,7 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { asc, desc, eq, inArray, ne, sql } from "drizzle-orm";
 import { ValidationError, nextWeekday } from "@foundry/commons";
 import { db } from "@/db/client";
+import { deleteNonSystemUsers } from "@/db/test-helpers";
 import { deliveries, ledgerEntries, orderActivities, orders, payments, users } from "@/db/schema";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 
@@ -13,7 +14,7 @@ async function reset() {
   await db.delete(ledgerEntries);
   await db.delete(payments);
   await db.delete(orders);
-  await db.delete(users).where(ne(users.isSystem, true));
+  await deleteNonSystemUsers();
 }
 
 const baseInput = (mealSizePublicId: string, planKey: string) => ({

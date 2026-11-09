@@ -2,7 +2,7 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq, like, ne } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, deliveryFrequencies, dishes, menuItems, menuWeeks, orders, plans, users } from "@/db/schema";
-import { attachDishToPlans, categoryIdFor, testPlanId } from "@/db/test-helpers";
+import { attachDishToPlans, categoryIdFor, testPlanId, deleteNonSystemUsers } from "@/db/test-helpers";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { thisWeekStartIso } from "@/lib/menu/delivery-dates";
 
@@ -16,7 +16,7 @@ const IMG = { url: "/api/files/x.jpg", filePath: "x.jpg", fileName: "x.jpg", nam
 
 async function reset() {
   await db.delete(menuItems); await db.delete(menuWeeks); await db.delete(deliveries);
-  await db.delete(orders); await db.delete(dishes); await db.delete(users).where(ne(users.isSystem, true));
+  await db.delete(orders); await db.delete(dishes); await deleteNonSystemUsers();
   await db.delete(plans).where(like(plans.key, "veg_no_sabzi_%"));
 }
 
