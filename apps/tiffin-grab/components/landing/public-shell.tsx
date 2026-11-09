@@ -12,6 +12,7 @@ import { loadLandingPromos } from "@/lib/landing/promos";
 import { referHeadline } from "@/components/landing/refer/refer-content";
 import { ActionPill } from "@/components/landing/refer/action-pill";
 import { EdgeTint } from "@/components/landing/edge-tint";
+import { WebMcpTools } from "@/components/landing/webmcp-tools";
 import { areaSlug } from "@/lib/landing/areas";
 
 // One shell for every public page: the landing header, the ink close band and
@@ -26,6 +27,7 @@ export async function PublicShell({ children }: { children: ReactNode }) {
   return (
     <div className="tg-light-root">
     <div className="tg-land customer-app">
+      <WebMcpTools />
       <LandingHeader refer={offer?.on ?? false} rating={<Suspense fallback={null}><NavRating /></Suspense>} />
       {/* Route changes cross-fade the page under a header that stays put (see landing.css). Keyed by
           path: an unkeyed default also ran on every streamed Suspense reveal, so the first visit

@@ -6,11 +6,12 @@ const APEX_PUBLIC_EXACT = new Set([
   "/refund-policy", "/delivery-policy", "/refer", "/terms-and-conditions", "/terms-and-conditions/", "/privacy-policy",
   "/privacy-policy/", "/refund-policy/", "/delivery-policy/", "/legal/", "/favicon.ico", "/opengraph-image.png",
   "/twitter-image.png", "/robots.txt", "/sitemap.xml", "/llms.txt", "/pricing.md", "/.well-known/api-catalog",
+  "/.well-known/mcp/server-card.json", "/.well-known/ai-catalog.json",
   // The landing header asks this on every apex view; a 302 to app. cost a cross-origin hop.
   // The session cookie spans both hosts (AUTH_COOKIE_DOMAIN), so the apex answers it directly.
   "/api/auth/get-session",
 ]);
-const APEX_PUBLIC_PREFIX = ["/menu/", "/locations/", "/refer/", "/r/", "/_next/", "/api/files/", "/api/analytics", "/api/public/", "/lottie/", "/uploads/", "/landing/", "/vendor/", "/brand/"];
+const APEX_PUBLIC_PREFIX = ["/menu/", "/locations/", "/refer/", "/r/", "/_next/", "/api/files/", "/api/analytics", "/api/public/", "/.well-known/agent-skills/", "/lottie/", "/uploads/", "/landing/", "/vendor/", "/brand/"];
 // First path segments the app host really serves: its own route folders under app/ (the (auth),
 // (customer), (dashboard) and (public) groups, minus anything the apex answers) plus /api. Keep it
 // current: when you add a top-level folder to those groups, add its segment here, or the apex 404s it.

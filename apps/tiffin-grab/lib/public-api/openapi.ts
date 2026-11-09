@@ -210,7 +210,7 @@ export function docsMarkdown(origin: string): string {
       lines.push("");
     }
   }
-  lines.push("## Discovery", "", `- Catalog: ${origin}/.well-known/api-catalog`, `- OpenAPI: ${base}/openapi.json`, "");
+  lines.push("## Discovery", "", `- Catalog: ${origin}/.well-known/api-catalog`, `- OpenAPI: ${base}/openapi.json`, `- MCP server (Streamable HTTP, read-only, no auth): ${origin}/api/public/mcp`, "");
   return lines.join("\n");
 }
 
@@ -225,6 +225,8 @@ export function apiCatalog(origin: string) {
         "service-doc": [{ href: `${base}/docs`, type: "text/markdown" }],
         status: [{ href: `${base}/health`, type: "application/json" }],
       },
+      // The same data as MCP tools (lib/public-api/mcp.ts), documented in the guide above.
+      { anchor: `${origin}/api/public/mcp`, "service-doc": [{ href: `${base}/docs`, type: "text/markdown" }] },
     ],
   };
 }

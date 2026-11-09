@@ -34,7 +34,7 @@ describe("api description", () => {
         "service-desc": [{ href: "https://tiffingrab.ca/api/public/v1/openapi.json", type: "application/openapi+json" }],
         "service-doc": [{ href: "https://tiffingrab.ca/api/public/v1/docs", type: "text/markdown" }],
         status: [{ href: "https://tiffingrab.ca/api/public/v1/health", type: "application/json" }],
-      }],
+      }, { anchor: "https://tiffingrab.ca/api/public/mcp", "service-doc": [{ href: "https://tiffingrab.ca/api/public/v1/docs", type: "text/markdown" }] }],
     });
   });
 

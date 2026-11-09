@@ -3,6 +3,8 @@ import { parseWindow } from "@/lib/landing/areas";
 const FSA = /^[ABCEGHJ-NPRSTVXY]\d[ABCEGHJ-NPRSTV-Z]$/;
 const LDU = /^\d[ABCEGHJ-NPRSTV-Z]\d$/;
 
+export const POSTAL_HINT = "postal must be a Canadian postal code or its first three characters, like M5V 2T6";
+
 /** "m5v 2t6" -> "M5V2T6"; null unless it is a Canadian FSA (M5V) or a full postal code. */
 export function normalizePostal(raw: string | null | undefined): string | null {
   const p = (raw ?? "").toUpperCase().replace(/[\s-]/g, "");
