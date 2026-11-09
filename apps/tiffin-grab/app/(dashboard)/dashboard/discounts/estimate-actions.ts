@@ -7,7 +7,7 @@ import { db } from "@/db/client";
 import { customerAddresses, deliveryFrequencies, mealSizes, orderAddons, orders, plans, users } from "@/db/schema";
 import { requirePermission, requireStaff } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
-import { quoteQuery } from "@/components/wizard/selections";
+import { quoteQuery } from "@/lib/wizard/selections";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";

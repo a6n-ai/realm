@@ -14,7 +14,7 @@ import {
 import { Input } from "@foundry/ui/input";
 import { PhoneInput } from "@foundry/ui/phone-input";
 import { accountFormSchema, type AccountFormValues } from "./schema";
-import { updateMyContact } from "@/app/(dashboard)/dashboard/account/actions";
+import { updateMyContact } from "@/lib/account/actions";
 
 export function AccountForm({ phone, email, defaultCountry }: { phone: string; email: string; defaultCountry: CountryCode }) {
   const router = useRouter();

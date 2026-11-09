@@ -12,14 +12,14 @@ import {
   updateMyContact,
   updateMyPreferences,
   updateMyProfile,
-} from "@/app/(dashboard)/dashboard/account/actions";
-import { removeMyAvatar, updateMyAvatar } from "@/app/(dashboard)/dashboard/account/avatar-actions";
+} from "@/lib/account/actions";
+import { removeMyAvatar, updateMyAvatar } from "@/lib/account/avatar-actions";
 import { ChangeEmailForm } from "@/components/account/leaves/change-email-form";
 import { ChangePasswordForm } from "@/components/account/leaves/change-password-form";
 import { DeleteAccountForm } from "@/components/account/leaves/delete-account-form";
 import { PinForm } from "@foundry/auth-ui";
 import { GoogleConnectionField } from "@/components/account/leaves/google-connection-field";
-import { setMyPin, removeMyPin } from "@/app/(dashboard)/dashboard/account/actions";
+import { setMyPin, removeMyPin } from "@/lib/account/actions";
 import { kitAuthUi } from "./auth-ui-kit";
 import { SettingsBlock } from "./settings-block";
 import { Avatar } from "./avatar";

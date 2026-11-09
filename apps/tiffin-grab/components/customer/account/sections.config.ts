@@ -9,7 +9,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import type { RoleValue } from "@foundry/commons";
-import { isSectionAllowed } from "@/app/(dashboard)/dashboard/account/nav.config";
+import { isSectionAllowed } from "@/lib/account/nav.config";
 
 export type AccountSectionKey =
   | "profile"

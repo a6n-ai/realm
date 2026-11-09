@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { RoleValue } from "@foundry/commons";
 import { cn } from "@foundry/ui/cn";
-import { ACCOUNT_NAV } from "./nav.config";
+import { ACCOUNT_NAV } from "@/lib/account/nav.config";
 
 // Left sub-nav for the account settings shell. Driven entirely by ACCOUNT_NAV so
 // the visible items match the per-page guards. usePathname drives the active

@@ -1,4 +1,4 @@
-import { requireAccountUser } from "@/app/(dashboard)/dashboard/account/current-user";
+import { requireAccountUser } from "@/lib/account/current-user";
 import { AccountPage } from "@/components/customer/account/account-page";
 import { sectionFromSlug, sectionsForRole } from "@/components/customer/account/sections.config";
 import { addressScopeFor, addressService } from "@/lib/services/addresses.service";

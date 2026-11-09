@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { AddressSection, AddressSectionSkeleton } from "@/components/account/sections/address-section";
-import { requireSectionAccess } from "../current-user";
+import { requireSectionAccess } from "@/lib/account/current-user";
 
 export default function AccountAddressPage() {
   return (

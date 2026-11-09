@@ -18,7 +18,7 @@ import {
 } from "@foundry/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@foundry/ui/popover";
 import { cn } from "@foundry/ui/cn";
-import { updateMyPreferences } from "@/app/(dashboard)/dashboard/account/actions";
+import { updateMyPreferences } from "@/lib/account/actions";
 
 const ALLERGEN_OPTIONS = [
   "Peanuts", "Tree nuts", "Dairy", "Eggs", "Gluten", "Soy", "Shellfish", "Fish", "Sesame",

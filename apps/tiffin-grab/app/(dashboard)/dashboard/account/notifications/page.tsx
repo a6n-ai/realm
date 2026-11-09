@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { NotificationsSection } from "@/components/account/sections/notifications-section";
 import { NotificationsSectionSkeleton } from "@/components/account/sections/notifications-section-skeleton";
-import { requireSectionAccess } from "../current-user";
+import { requireSectionAccess } from "@/lib/account/current-user";
 
 export default function AccountNotificationsPage() {
   return (

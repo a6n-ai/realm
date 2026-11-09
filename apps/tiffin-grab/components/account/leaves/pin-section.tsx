@@ -13,7 +13,7 @@ import {
 } from "@foundry/ui/form";
 import { Input } from "@foundry/ui/input";
 import { PinOtp } from "@/components/pin-otp";
-import { setMyPin, removeMyPin } from "@/app/(dashboard)/dashboard/account/actions";
+import { setMyPin, removeMyPin } from "@/lib/account/actions";
 
 const setSchema = z
   .object({

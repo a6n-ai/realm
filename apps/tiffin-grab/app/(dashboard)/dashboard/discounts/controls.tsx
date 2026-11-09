@@ -4,7 +4,7 @@ import * as React from "react";
 import { ChevronsUpDownIcon, XIcon } from "lucide-react";
 import { tzOffsetMinutes } from "@foundry/commons";
 import type { planType } from "@/db/schema/catalog";
-import { KIND_LABELS, ALL_KINDS, CREATABLE_KINDS } from "./kind-labels";
+import { KIND_LABELS, ALL_KINDS, CREATABLE_KINDS } from "@/lib/coupons/kind-labels";
 import { Badge } from "@foundry/ui/badge";
 import { Button } from "@foundry/ui/button";
 import { Input } from "@foundry/ui/input";

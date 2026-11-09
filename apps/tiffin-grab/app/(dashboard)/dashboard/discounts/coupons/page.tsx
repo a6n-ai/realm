@@ -9,7 +9,7 @@ import { findCustomerGroup } from "@/lib/services/customer-groups.service";
 import { getPaymentConfig } from "@/lib/services/app-settings.service";
 import { parseSort, type SortState } from "@/lib/list/sort";
 import { epochBoundsWhere, withDefaultMonth } from "@/lib/list/default-month";
-import { CREATABLE_KINDS, KIND_LABELS } from "../kind-labels";
+import { CREATABLE_KINDS, KIND_LABELS } from "@/lib/coupons/kind-labels";
 import { CouponsManager, CouponsManagerSkeleton } from "./coupons-manager";
 import { requestNow } from "@/lib/dates/request-now";
 

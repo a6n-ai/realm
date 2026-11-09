@@ -7,7 +7,7 @@ import { DeleteAccountSection } from "@/components/account/sections/delete-accou
 import { googleSignInEnabled } from "@foundry/auth";
 import { GoogleSection } from "@/components/account/sections/google-section";
 import { hasGoogleLinked } from "@/lib/auth/google-link";
-import { requireAccountUser } from "../current-user";
+import { requireAccountUser } from "@/lib/account/current-user";
 
 export default function AccountSecurityPage() {
   return (

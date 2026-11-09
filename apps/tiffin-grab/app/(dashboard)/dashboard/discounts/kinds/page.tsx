@@ -6,7 +6,7 @@ import { db } from "@/db/client";
 import { couponRedemptions, coupons } from "@/db/schema";
 import { getDiscountPolicy, getMoneyFormatter } from "@/lib/services/app-settings.service";
 import { epochBoundsWhere, withDefaultMonth } from "@/lib/list/default-month";
-import { ALL_KINDS, KIND_LABELS } from "../kind-labels";
+import { ALL_KINDS, KIND_LABELS } from "@/lib/coupons/kind-labels";
 import { DiscountStats, DiscountStatsSkeleton } from "../discount-stats";
 import { KindsForm, KindsFormSkeleton } from "./form";
 import { requestNow } from "@/lib/dates/request-now";

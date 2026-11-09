@@ -11,7 +11,7 @@ import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
 } from "@foundry/ui/form";
 import { Input } from "@foundry/ui/input";
-import { updateMyProfile } from "@/app/(dashboard)/dashboard/account/actions";
+import { updateMyProfile } from "@/lib/account/actions";
 
 const profileFormSchema = z.object({
   name: z.string().max(120, "Name is too long"),

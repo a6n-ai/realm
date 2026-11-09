@@ -6,7 +6,7 @@ import { db } from "@/db/client";
 import { couponRedemptions, coupons, users, orders } from "@/db/schema";
 import { parseSort, type SortState } from "@/lib/list/sort";
 import { parseFilterState, type FacetDef } from "@/components/ds";
-import { ALL_KINDS, KIND_LABELS } from "../kind-labels";
+import { ALL_KINDS, KIND_LABELS } from "@/lib/coupons/kind-labels";
 import { epochBoundsWhere, withListDates } from "@/lib/list/default-month";
 import { DiscountLogs, DiscountLogsSkeleton } from "./discount-logs";
 import { getMoneyFormatter } from "@/lib/services/app-settings.service";

@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { Switch } from "@foundry/ui/switch";
 import { Label } from "@foundry/ui/label";
 import { SectionCard } from "@/components/ds";
-import { updateMyPreferences } from "@/app/(dashboard)/dashboard/account/actions";
+import { updateMyPreferences } from "@/lib/account/actions";
 
 type Channel = "email" | "sms";
 

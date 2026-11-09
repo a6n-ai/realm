@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { ProfileSection } from "@/components/account/sections/profile-section";
-import { requireAccountUser } from "../current-user";
+import { requireAccountUser } from "@/lib/account/current-user";
 
 export default function AccountProfilePage() {
   return (
