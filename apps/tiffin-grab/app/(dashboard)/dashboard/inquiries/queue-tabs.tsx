@@ -12,6 +12,7 @@ const TABS: { value: QueueTab; label: string }[] = [
   { value: "upcoming", label: "Upcoming" },
   { value: "open", label: "All open" },
   { value: "closed", label: "Closed" },
+  { value: "quick", label: "Quick adds" },
 ];
 
 /** Switching tabs keeps the other filters and resets the page. */

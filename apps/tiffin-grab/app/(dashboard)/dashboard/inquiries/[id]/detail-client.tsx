@@ -116,6 +116,7 @@ export function InquiryDetailClient({
   prefill,
   unmatched,
   existing,
+  nextQuickHref,
 }: {
   inquiryId: string;
   subStatus: SubStatus | null;
@@ -137,6 +138,8 @@ export function InquiryDetailClient({
   prefill: Partial<OrderFormInput>;
   unmatched: string[];
   existing: { publicId: string; fullName: string } | null;
+  /** Next unhandled quick add (see nextQuickAdd); absent when the pile is empty. */
+  nextQuickHref?: string;
 }) {
   const tz = useTimezone();
   const router = useRouter();
@@ -197,7 +200,14 @@ export function InquiryDetailClient({
       <section className="bg-card flex flex-col gap-4 rounded-xl border p-4 sm:p-5 lg:flex-row lg:items-start lg:justify-between">
         <div className="flex min-w-0 flex-col gap-3">
           <div className="flex flex-col gap-1">
-            <h1 className="text-xl font-semibold break-words">{displayName(contact)}</h1>
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-xl font-semibold break-words">{displayName(contact)}</h1>
+              {nextQuickHref && (
+                <Button variant="outline" size="sm" asChild>
+                  <Link href={nextQuickHref}>Next quick add</Link>
+                </Button>
+              )}
+            </div>
             <p className="text-muted-foreground text-xs break-words">
               {[contact.phone ? formatPhone(contact.phone) : null, contact.email, sourceLabel, `Added ${formatEpoch(createdAt, { mode: "date", timeZone: tz })}`].filter(Boolean).join(" · ")}
             </p>

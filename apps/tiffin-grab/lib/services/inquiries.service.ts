@@ -58,9 +58,12 @@ export type PipelineSortColumn =
   | "nextFollowUp"
   | "created";
 
-export type QueueTab = "due" | "overdue" | "upcoming" | "open" | "closed";
+export type QueueTab = "due" | "overdue" | "upcoming" | "open" | "closed" | "quick";
 
 const openSql = sql`${inquiries.stage} not in ('converted', 'lost')`;
+
+/** SQL twin of isQuickAdd (lib/inquiries/quick-add.ts): open, generated name not yet replaced. */
+export const quickAddSql = sql`(${openSql} and ${inquiries.leadNumber} is not null and ${inquiries.fullName} = 'Lead ' || ${inquiries.leadNumber})`;
 
 /** Same buckets as the Inquiries KPI cards. `all` is their union (null sub-status on a closed stage is in none of them). */
 export const INQUIRY_BUCKETS = ["lead", "follow_up", "took", "lost"] as const;
@@ -100,6 +103,7 @@ function queuePredicate(tab: QueueTab, dayStart: number, dayEnd: number): SQL {
     case "upcoming": return sql`(${openSql} and ${next} >= ${dayEnd})`;
     case "open": return openSql;
     case "closed": return sql`not (${openSql})`;
+    case "quick": return quickAddSql;
   }
 }
 
@@ -652,12 +656,23 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
 
   async queueCounts(condition: Condition | undefined, dayStart: number, dayEnd: number): Promise<Record<QueueTab, number>> {
     const where = conditionToSql(condition, inquiriesResolver());
-    const tabs: QueueTab[] = ["due", "overdue", "upcoming", "open", "closed"];
+    const tabs: QueueTab[] = ["due", "overdue", "upcoming", "open", "closed", "quick"];
     const [row] = await db
       .select(Object.fromEntries(tabs.map((t) => [t, sql<number>`cast(count(*) filter (where ${queuePredicate(t, dayStart, dayEnd)}) as int)`])) as Record<QueueTab, SQL<number>>)
       .from(inquiries)
       .where(where);
     return row;
+  }
+
+  /** Oldest unhandled quick add the viewer's list would show (same `condition`), other than `excludeId`. */
+  async nextQuickAdd(condition: Condition | undefined, excludeId?: bigint): Promise<{ publicId: string } | null> {
+    const [row] = await db
+      .select({ publicId: inquiries.publicId })
+      .from(inquiries)
+      .where(and(conditionToSql(condition, inquiriesResolver()), quickAddSql, excludeId != null ? ne(inquiries.id, excludeId) : undefined))
+      .orderBy(asc(inquiries.createdAt), asc(inquiries.id))
+      .limit(1);
+    return row ?? null;
   }
 
   /** `condition` is a list filter (owner, source, …) resolved like the list's, so cards match the rows. */

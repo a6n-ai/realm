@@ -258,7 +258,7 @@ describe("inquiriesService queue tabs", () => {
     expect(await names("upcoming")).toEqual(["E"]);
     expect(await names("open")).toEqual(["A", "B", "C", "E"]);
     expect(await names("closed")).toEqual(["F"]);
-    expect(await inquiriesService.queueCounts(undefined, D, D + 86_400_000)).toEqual({ due: 2, overdue: 1, upcoming: 1, open: 4, closed: 1 });
+    expect(await inquiriesService.queueCounts(undefined, D, D + 86_400_000)).toEqual({ due: 2, overdue: 1, upcoming: 1, open: 4, closed: 1, quick: 0 });
   });
 
   it("dayEnd boundary is exclusive for due", async () => {

@@ -1,6 +1,7 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { ensureSystemUser } from "@/db/test-helpers";
 import { db } from "@/db/client";
+import { eq } from "drizzle-orm";
 import { inquiries, inquiryActivities, leadCounters } from "@/db/schema";
 import { ValidationError } from "@foundry/commons";
 
@@ -65,6 +66,38 @@ describe("quick-add leads", () => {
       await inquiriesService.create({ fullName: "B", phone: "+16475552301", sourceKey: "facebook" });
       const r = await inquiriesService.createOrFold({ fullName: "B2", phone: "+16475552399", whatsappPhone: "+16475552301", sourceKey: "facebook" });
       expect(r.folded).toBe(true);
+    });
+  });
+
+  describe("quick adds queue", () => {
+    const D = 0;
+    const listQuick = async () =>
+      (await inquiriesService.listForPipeline(undefined, { page: 0, size: 50 }, { column: "created", dir: "asc" }, { tab: "quick", dayStart: D, dayEnd: D + 1 })).items.map((r) => r.publicId);
+
+    it("lists only untouched quick adds, oldest first", async () => {
+      const a = await inquiriesService.create({ phone: "+16475554001", sourceKey: "facebook" });
+      const b = await inquiriesService.create({ phone: "+16475554002", sourceKey: "facebook" });
+      const c = await inquiriesService.create({ phone: "+16475554003", sourceKey: "facebook" });
+      await inquiriesService.create({ fullName: "Named", phone: "+16475554004", sourceKey: "facebook" });
+      await db.update(inquiries).set({ fullName: "Real Name" }).where(eq(inquiries.id, b.id));
+      expect(await listQuick()).toEqual([a.publicId, c.publicId]);
+    });
+
+    it("nextQuickAdd returns the oldest, skipping excludeId", async () => {
+      const x = await inquiriesService.create({ phone: "+16475554101", sourceKey: "facebook" });
+      const y = await inquiriesService.create({ phone: "+16475554102", sourceKey: "facebook" });
+      expect(await inquiriesService.nextQuickAdd(undefined)).toEqual({ publicId: x.publicId });
+      expect(await inquiriesService.nextQuickAdd(undefined, x.id)).toEqual({ publicId: y.publicId });
+    });
+
+    it("nextQuickAdd returns null when none", async () => {
+      await inquiriesService.create({ fullName: "Named", phone: "+16475554201", sourceKey: "facebook" });
+      expect(await inquiriesService.nextQuickAdd(undefined)).toBeNull();
+    });
+
+    it("queueCounts includes quick", async () => {
+      await inquiriesService.create({ phone: "+16475554301", sourceKey: "facebook" });
+      expect((await inquiriesService.queueCounts(undefined, D, D + 1)).quick).toBe(1);
     });
   });
 });

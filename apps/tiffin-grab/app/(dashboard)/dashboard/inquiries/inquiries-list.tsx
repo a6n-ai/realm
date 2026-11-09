@@ -2,7 +2,8 @@
 
 import { DAY_MS } from "@foundry/commons/util/dates";
 import { pageOffset } from "@foundry/design-system/filters/parse-filter-state";
-import { useState, useTransition, type ReactNode } from "react";
+import { useEffect, useState, useTransition, type ReactNode } from "react";
+import { cn } from "@foundry/ui/cn";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -147,6 +148,7 @@ export function InquiriesList({
   staff,
   reassignAction,
   dayStart,
+  highlight,
 }: {
   spec: FacetDef[];
   rows: PipelineRow[];
@@ -160,6 +162,8 @@ export function InquiriesList({
   staff?: StaffOption[];
   reassignAction?: (inquiryId: string, ownerId: string) => Promise<ActionResult>;
   dayStart: number;
+  /** publicId the Next lead button points at: highlighted and scrolled into view. */
+  highlight?: string;
 }) {
   const tz = useTimezone();
   const router = useRouter();
@@ -177,6 +181,13 @@ export function InquiriesList({
   }
   const active = dialog ? rows.find((r) => r.publicId === dialog.id) : undefined;
   const close = (open: boolean) => { if (!open) setDialog(null); };
+  useEffect(() => {
+    if (!highlight) return;
+    // Desktop row and mobile card both render; scroll whichever one is visible.
+    const els = document.querySelectorAll<HTMLElement>("[data-highlighted-lead], .highlighted-lead");
+    [...els].find((el) => el.offsetParent !== null)?.scrollIntoView({ block: "center" });
+  }, [highlight]);
+  const highlightClass = "bg-primary/8 ring-2 ring-inset ring-primary/40";
 
   return (
     <div className="flex flex-col gap-4">
@@ -190,7 +201,7 @@ export function InquiriesList({
         rowKey={(r) => r.publicId}
         sort={sort}
         onRowClick={(r) => router.push(`/dashboard/inquiries/${r.publicId}`)}
-        rowClassName={() => "group"}
+        rowClassName={(r) => cn("group", r.publicId === highlight && `${highlightClass} highlighted-lead`)}
         filters={<ListSearchFilters spec={spec} placeholder="Search inquiries…" shortPlaceholder="Search…" dateControl="external" />}
         emptyIcon={ClipboardListIcon}
         emptyMessage={emptyMessage}
@@ -199,7 +210,10 @@ export function InquiriesList({
         mobileCard={(r) => {
           const sub = r.subStatus as SubStatus | null;
           return (
-            <div className="flex items-start justify-between gap-2">
+            <div
+              className={cn("flex items-start justify-between gap-2", r.publicId === highlight && `${highlightClass} -m-2 rounded-md p-2`)}
+              data-highlighted-lead={r.publicId === highlight ? "" : undefined}
+            >
               <div className="flex min-w-0 flex-col gap-1">
                 <Link href={`/dashboard/inquiries/${r.publicId}`} className="truncate font-medium">{displayName(r)}</Link>
                 <span className="text-muted-foreground text-xs">{r.phone ? formatPhone(r.phone) : "No phone"} · {r.source}</span>
