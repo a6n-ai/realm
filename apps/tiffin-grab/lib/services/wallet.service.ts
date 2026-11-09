@@ -44,7 +44,7 @@ const recordRedemptionDiscount: WalletDeps<BusinessEvent>["recordRedemptionDisco
 // recentTransactions/earnSpendTotals/moneyValue/activeRate/redeem into the
 // shared @foundry/wallet package (createWalletService) — puchkaman reuses the
 // same factory. Only the tiffin-grab-specific piece (the wallet cap) is wired here.
-const baseWalletService = createWalletService<BusinessEvent>({
+export const walletService = createWalletService<BusinessEvent>({
   db,
   tables: { walletLedger, eventPayout, coinRate },
   orders,
@@ -54,8 +54,6 @@ const baseWalletService = createWalletService<BusinessEvent>({
   // award() skips, adjust() refuses, filterUnderCap() splits a batch.
   maxBalance: () => getMaxWalletBalance(),
 });
-
-export const walletService = baseWalletService;
 
 // App-bound wrappers around the package's transaction-aware redemption
 // primitives — callers already inside a tx (createOrder) don't need to know
@@ -184,7 +182,7 @@ export async function awardOrderCoins(
   const { currency } = await getAppSettings();
   let rate: number;
   try {
-    rate = await baseWalletService.activeRate(currency);
+    rate = await walletService.activeRate(currency);
   } catch (e) {
     if (!(e instanceof ValidationError)) throw e;
     await note(`No coins earned: no coin value set for ${currency}`);

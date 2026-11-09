@@ -42,4 +42,3 @@ export async function countCustomers(scope: AnalyticsScope, extra: Extra = {}): 
   return n;
 }
 
-export { ordersDrillHref } from "@/lib/analytics/drill";

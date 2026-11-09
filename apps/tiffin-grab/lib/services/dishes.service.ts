@@ -1,28 +1,12 @@
-import { and, asc, eq, isNotNull, ne, type SQL } from "drizzle-orm";
+import { eq, ne } from "drizzle-orm";
 import { ValidationError } from "@foundry/commons";
 import { UpdatableRepository } from "@foundry/database";
-import type { FileDetail } from "@foundry/storage/model";
 import { db } from "@/db/client";
 import { dishes, plans } from "@/db/schema";
 import { RESOURCES } from "@/lib/catalog/resource-config";
 import { dishNameKey } from "@/lib/menu/similar-dishes";
 import { SessionUpdatableService } from "./session-service";
 import { parsePatch } from "./parse-patch";
-
-/** A plan's display tag, rendered verbatim — the code never interprets it. */
-export type PlanTag = { label: string; color: string };
-
-export type CustomerDish = {
-  publicId: string;
-  name: string;
-  description: string | null;
-  image: FileDetail | null;
-  category: string | null;
-  // Tag of the single plan this dish is on. Replaces the old veg/non-veg
-  // dot: what a dish "is" comes from the plan an admin put it on, not from a
-  // hardcoded key.
-  planTags: PlanTag[];
-};
 
 class DishesService extends SessionUpdatableService<typeof dishes> {
   private schema = RESOURCES.dishes.schema;
@@ -70,44 +54,6 @@ class DishesService extends SessionUpdatableService<typeof dishes> {
     return 1;
   }
 
-  // Customer-facing read: active dishes that actually have a photo, for meal-size
-  // slideshows. Text-only (imageless) dishes are excluded so those surfaces stay photo-driven.
-  async listActiveWithImages(): Promise<CustomerDish[]> {
-    const rows = await this.selectWithPlanTag(and(eq(dishes.active, true), isNotNull(dishes.image))!);
-    return rows.map((r) => ({ ...r, image: r.image as FileDetail }));
-  }
-
-  // Menu gallery: all active dishes — DishImage falls back to a gradient tile when
-  // image is null so seed catalogs still browse like a food app.
-  async listActive(): Promise<CustomerDish[]> {
-    const rows = await this.selectWithPlanTag(eq(dishes.active, true));
-    return rows.map((r) => ({ ...r, image: (r.image as FileDetail | null) ?? null }));
-  }
-
-  private async selectWithPlanTag(where: SQL) {
-    const rows = await db
-      .select({
-        publicId: dishes.publicId,
-        name: dishes.name,
-        description: dishes.description,
-        image: dishes.image,
-        category: dishes.category,
-        planLabel: plans.tagLabel,
-        planColor: plans.tagColor,
-      })
-      .from(dishes)
-      .innerJoin(plans, eq(plans.id, dishes.planId))
-      .where(where)
-      .orderBy(asc(dishes.name));
-    return rows.map((r) => ({
-      publicId: r.publicId,
-      name: r.name,
-      description: r.description,
-      image: r.image,
-      category: r.category,
-      planTags: r.planLabel && r.planColor ? [{ label: r.planLabel, color: r.planColor }] : [],
-    }));
-  }
 }
 const repo = new UpdatableRepository(db, dishes, dishes.publicId, dishes.id);
 export const dishesService = new DishesService(repo);

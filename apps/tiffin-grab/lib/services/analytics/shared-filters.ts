@@ -2,40 +2,10 @@ import { and, asc, eq, exists, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveryZones, mealSizes, orders, organization, plans, tickets } from "@/db/schema";
 import { ticketOrgWhere } from "./complaint-filters";
-import { noOrgs, resolveAnalyticsScope } from "./metrics/scope";
-import { parseAnalyticsFilters as parseAnalyticsFiltersSync, type AnalyticsFilterOptions, type AnalyticsFilters, type AnalyticsSearchParams } from "./shared-filter-params";
+import { noOrgs } from "./metrics/scope";
+import type { AnalyticsFilterOptions } from "./shared-filter-params";
 
-export {
-  ANALYTICS_FILTER_PARAMS,
-  currentMonthEpochRange,
-  hasDimensionFilters,
-  hasDateFilter,
-  type AnalyticsSearchParams,
-  type AnalyticsFilters,
-  type AnalyticsFilterOptions,
-} from "./shared-filter-params";
-
-/**
- * Parse URL filters through `resolveAnalyticsScope`: dates default to the current business month and
- * `orgIds` is the session's visible orgs narrowed by `org` (throws NoFranchiseAccessError otherwise).
- */
-export async function parseAnalyticsFilters(
-  sp: AnalyticsSearchParams,
-  session: Parameters<typeof resolveAnalyticsScope>[1],
-): Promise<AnalyticsFilters> {
-  const scope = await resolveAnalyticsScope(sp, session);
-  return {
-    from: scope.fromMs,
-    to: scope.toMs,
-    plans: scope.plans,
-    mealSizes: scope.mealSizes,
-    zones: scope.zones,
-    orgIds: scope.orgIds,
-  };
-}
-
-/** Dimension-only parse (no date default). Prefer `parseAnalyticsFilters` for pages. */
-export { parseAnalyticsFiltersSync };
+export { ANALYTICS_FILTER_PARAMS, currentMonthEpochRange, type AnalyticsSearchParams, type AnalyticsFilterOptions } from "./shared-filter-params";
 
 /** `visibleOrgIds` limits the franchise list (the session's visible set). */
 export async function getAnalyticsFilterOptions(

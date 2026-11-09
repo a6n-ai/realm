@@ -12,7 +12,7 @@ import { ORDER_TONE } from "@/components/analytics/status-tones";
 import { getSession } from "@/lib/auth/session";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import { scopeOrAlert } from "@/components/analytics/franchise-unavailable";
-import { ordersDrillHref } from "@/lib/services/analytics/metrics/orders";
+import { ordersDrillHref } from "@/lib/analytics/drill";
 import { DATE_BASIS_LABEL, type AnalyticsScope } from "@/lib/services/analytics/metrics/scope";
 import {
   getCustomerStats,

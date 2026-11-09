@@ -221,20 +221,6 @@ class DishCategoriesService extends SessionUpdatableService<typeof dishCategorie
     return (await this.findSwapPairId(fromKey, toKey, planId)) != null;
   }
 
-  /**
-   * Is (fromKey, toKey) allowed to swap on planId? Plan-scoped eligibility
-   * (category_swap_pairs row for this exact plan) plus: at least one dish
-   * exists in toKey on planId — a category with no dish on this plan can't
-   * receive a swap into it here, which replaces the old plans.restricted
-   * direction guard.
-   */
-  async isSwapPairAllowed(fromKey: string, toKey: string, planId: bigint): Promise<boolean> {
-    const pairId = await this.findSwapPairId(fromKey, toKey, planId);
-    if (!pairId) return false;
-    const [toDish] = await db.select({ id: dishes.id }).from(dishes).where(and(eq(dishes.category, toKey), eq(dishes.planId, planId))).limit(1);
-    return Boolean(toDish);
-  }
-
   async listSwapPairs() {
     // Small table, admin-only read: resolve both sides against one category
     // lookup rather than joining dish_categories twice (drizzle needs an
@@ -446,8 +432,7 @@ class DishCategoriesService extends SessionUpdatableService<typeof dishCategorie
   /**
    * Every (from, to) pair allowed on ANY plan this meal size's composition reaches:
    * a pair rule for that plan (or for all plans) AND a dish in toKey on that plan —
-   * isSwapPairAllowed's rule, run for every pair and plan in four queries instead of
-   * several per pair per plan. Keys are `from>to`, each with its exchange rule: for the same
+   * the rule, run for every pair and plan in four queries. Keys are `from>to`, each with its exchange rule: for the same
    * pair a meal-size rule beats a plan rule beats an all-plans rule, whatever the row order.
    */
   private async allowedSwapPairKeys(mealSizeId: bigint): Promise<Map<string, SwapPairRule>> {
@@ -494,11 +479,6 @@ class DishCategoriesService extends SessionUpdatableService<typeof dishCategorie
       out.set(key, { overrides: p.exchangeOverrides, naturalFallback: p.naturalFallback, receivesMissing: p.receivesMissing });
     }
     return out;
-  }
-
-  /** Is (fromKey, toKey) allowed to swap on ANY plan this meal size's composition reaches? */
-  async isSwapPairAllowedForMealSize(fromKey: string, toKey: string, mealSizeId: bigint): Promise<boolean> {
-    return (await this.allowedSwapPairKeys(mealSizeId)).has(`${fromKey}>${toKey}`);
   }
 
   /** The pair's exchange rule (override lines + other amounts) on this meal size; null when the pair isn't allowed there. */

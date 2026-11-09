@@ -12,21 +12,6 @@ export const ANALYTICS_FILTER_PARAMS = ["from", "to", "plan", "mealSize", "zone"
 
 export type AnalyticsSearchParams = Partial<Record<(typeof ANALYTICS_FILTER_PARAMS)[number], string>>;
 
-export type AnalyticsFilters = {
-  /** Inclusive range start, epoch ms (DateRangePicker). */
-  from?: number;
-  /** Inclusive range end, epoch ms. */
-  to?: number;
-  plans: string[];
-  mealSizes: string[];
-  /** Delivery zone names. */
-  zones: string[];
-  /** Same semantics as AnalyticsScope.orgIds: "all" = unscoped, [] = nothing (fail closed). */
-  orgIds: "all" | string[];
-};
-
-export type DimensionFilters = Omit<AnalyticsFilters, "orgIds">;
-
 export const list = (raw: string | undefined): string[] =>
   (raw ?? "")
     .split(",")
@@ -48,36 +33,6 @@ export const epoch = (raw: string | undefined): number | undefined => {
 export function currentMonthEpochRange(timezone: string, now = Date.now()): { from: number; to: number } {
   const bounds = monthBounds(currentMonth(timezone, now));
   return zonedRangeMs(bounds.from, bounds.to, timezone);
-}
-
-/** Dimension + date parse only; orgIds is deliberately absent. It must come from `resolveAnalyticsScope`, which checks the session. */
-export function parseAnalyticsFilters(
-  sp: AnalyticsSearchParams,
-  opts?: { timezone?: string; now?: number },
-): DimensionFilters {
-  let from = epoch(sp.from);
-  let to = epoch(sp.to);
-  // Analytics always scopes to a date range; missing params mean the current month.
-  if (from == null && to == null && opts?.timezone) {
-    const range = currentMonthEpochRange(opts.timezone, opts.now);
-    from = range.from;
-    to = range.to;
-  }
-  return {
-    from,
-    to,
-    plans: list(sp.plan),
-    mealSizes: list(sp.mealSize),
-    zones: list(sp.zone),
-  };
-}
-
-export function hasDimensionFilters(f: AnalyticsFilters): boolean {
-  return f.plans.length > 0 || f.mealSizes.length > 0 || f.zones.length > 0;
-}
-
-export function hasDateFilter(f: AnalyticsFilters): boolean {
-  return f.from != null || f.to != null;
 }
 
 export type AnalyticsFilterOptions = {
