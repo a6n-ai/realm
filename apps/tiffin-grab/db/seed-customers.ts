@@ -42,8 +42,6 @@ import { wordpressImportSql } from "../lib/orders/wordpress-import-sql";
 export const MIGRATION_TAG = "Migrated from WordPress";
 const WP_STATUSES = ["wc-processing", "wc-paused", "wc-on-hold"];
 
-// ---------- WordPress read ----------
-
 export type WpRow = {
   id: number;
   status: string;
@@ -136,8 +134,6 @@ export function remainingTiffins(history: string | null, totalTiffins: string | 
   const n = last != null ? Number(last) : Number(totalTiffins);
   return Math.max(0, Math.round(Number.isFinite(n) ? n : 0));
 }
-
-// ---------- field mapping (pure) ----------
 
 export type MigrationRecord = {
   wpOrderId: number;
@@ -277,8 +273,6 @@ export function mapRow(row: WpRow): MigrationRecord {
   };
 }
 
-// ---------- dedup ----------
-
 /** One plan per customer (phone). A renewal bought before the running plan ended shows up
  * as a second active order: same product, days and persons, so its balance is added to
  * the first (the customer paid for both). A genuinely different second plan cannot ride
@@ -318,8 +312,6 @@ export function mixedKindDuplicates(kept: MigrationRecord[], dropped: MigrationR
     return k && isCustomMeal(k.productText) !== isCustomMeal(d.productText) ? [{ kept: k, dropped: d }] : [];
   });
 }
-
-// ---------- meal size matching ----------
 
 type CatalogSnapshot = Awaited<ReturnType<typeof loadCatalogSnapshot>>;
 type CatalogMealSize = CatalogSnapshot["mealSizes"][number];
@@ -365,8 +357,6 @@ export function matchMealSize(productText: string, planKey: "veg" | "non-veg", m
   if (!fallback) throw new Error(`No meal size available for plan ${planKey}`);
   return { mealSize: fallback, isCustomFallback: true };
 }
-
-// ---------- plan ----------
 
 /** Base meal + add-on portions. An extra sabzi keeps its own diet; an extra roti, rice,
  * raita or salad joins the base meal's row for that category (whatever diet that row is
@@ -482,8 +472,6 @@ function printReport(totalRows: number, results: PlanResult[], duplicates: Migra
     );
   }
 }
-
-// ---------- apply ----------
 
 type Outcome = "created" | "refreshed" | "unchanged (already started)" | "failed";
 
@@ -634,8 +622,6 @@ async function apply(planned: Extract<PlanResult, { kind: "planned" }>[], snapsh
   for (const [k, v] of Object.entries(counts)) console.log(`${k}: ${v}`);
 }
 
-// ---------- renewals of a started plan ----------
-
 /** A started plan is never touched again, so a renewal WordPress folds into it after the
  * start would vanish. Each such renewal becomes its own plan, starting the day after the
  * running one's last delivery (sequential plans are fine; overlapping ones are not). */
@@ -671,8 +657,6 @@ export async function renewalsOfStartedPlans(
   }
   return out;
 }
-
-// ---------- balance check ----------
 
 /** Tiffins left in our DB vs WordPress's live counter, per imported plan. A pending plan must
  * equal WordPress after a refresh; a started plan must not have gone down on WordPress since
