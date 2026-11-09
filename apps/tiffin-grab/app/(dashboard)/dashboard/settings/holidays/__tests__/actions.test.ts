@@ -12,7 +12,7 @@ vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/lib/auth/guards", () => ({ requirePermission }));
 vi.mock("@/lib/auth/session", () => ({ getSession: async () => ({ user: { id: "u1" } }) }));
 vi.mock("@/lib/services/session-service", () => ({ currentUserId: async () => 7n }));
-vi.mock("@/lib/services/orders.service", () => ({ resolveSessionVisibleOrgIds: async () => ["org_a"] }));
+vi.mock("@/lib/auth/visible-orgs", () => ({ resolveSessionVisibleOrgIds: async () => ["org_a"] }));
 vi.mock("@/lib/services/holidays.service", () => ({ createHoliday, reapplyHoliday, renameHoliday, removeHoliday, placeHolidayDay }));
 
 const { createHolidayAction, placeHolidayDayAction, reapplyHolidayAction, removeHolidayAction, renameHolidayAction } = await import("../actions");

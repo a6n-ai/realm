@@ -2,7 +2,8 @@ import { pageOffset } from "@foundry/design-system/filters/parse-filter-state";
 import { Suspense } from "react";
 import type { Condition } from "@foundry/commons/model/condition";
 import { getSession } from "@/lib/auth/session";
-import { resolveMemberVisibleOrgIds, listOrganizations } from "@/lib/services/organizations.service";
+import { listOrganizations } from "@/lib/services/organizations.service";
+import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import { INVITABLE_ROLES } from "@/lib/auth/permissions";
 import { parseSort } from "@foundry/design-system/list-sort";
 import { SectionCard, parseFilterState, type FacetDef } from "@/components/ds";
@@ -106,7 +107,7 @@ async function UsersData({ searchParams }: { searchParams: SearchParams }) {
 
   const { condition, page } = parseFilterState(SPEC, sp);
 
-  const visibleOrgIds = await resolveMemberVisibleOrgIds(session);
+  const visibleOrgIds = await resolveSessionVisibleOrgIds(session);
   const orgIds = visibleOrgIds === "all" ? (await listOrganizations()).map((o) => o.id) : visibleOrgIds;
   const allRows = await getMembersForOrgs(orgIds);
 

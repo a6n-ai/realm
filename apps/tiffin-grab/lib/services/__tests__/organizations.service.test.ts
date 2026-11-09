@@ -3,9 +3,9 @@ import { eq, inArray, like } from "drizzle-orm";
 
 const { db } = await import("@/db/client");
 const { organization, member, users } = await import("@/db/schema");
+const { resolveSessionVisibleOrgIds } = await import("@/lib/auth/visible-orgs");
 const {
   getMemberOrganizations,
-  resolveMemberVisibleOrgIds,
   listOrganizations,
   addMember,
   removeMember,
@@ -253,7 +253,7 @@ describe("updateMemberRole (integration)", () => {
   });
 });
 
-describe("resolveMemberVisibleOrgIds (integration)", () => {
+describe("resolveSessionVisibleOrgIds (integration)", () => {
   afterEach(reset);
 
   it("returns the member's own org ids for a normal staff session", async () => {
@@ -267,7 +267,7 @@ describe("resolveMemberVisibleOrgIds (integration)", () => {
       .returning({ id: users.id, publicId: users.publicId });
     await db.insert(member).values({ organizationId: org.id, userId: user.id, role: "admin" });
 
-    const orgIds = await resolveMemberVisibleOrgIds({ user: { id: user.publicId } });
+    const orgIds = await resolveSessionVisibleOrgIds({ user: { id: user.publicId } });
 
     expect(orgIds).toEqual([org.id]);
   });
@@ -278,13 +278,13 @@ describe("resolveMemberVisibleOrgIds (integration)", () => {
       .values({ name: "Customer", email: `customer-${Math.random().toString(36).slice(2)}@test.invalid`, role: "admin" })
       .returning({ publicId: users.publicId });
 
-    const orgIds = await resolveMemberVisibleOrgIds({ user: { id: user.publicId } });
+    const orgIds = await resolveSessionVisibleOrgIds({ user: { id: user.publicId } });
 
     expect(orgIds).toEqual([]);
   });
 
   it("returns an empty array for a null session", async () => {
-    const orgIds = await resolveMemberVisibleOrgIds(null);
+    const orgIds = await resolveSessionVisibleOrgIds(null);
 
     expect(orgIds).toEqual([]);
   });

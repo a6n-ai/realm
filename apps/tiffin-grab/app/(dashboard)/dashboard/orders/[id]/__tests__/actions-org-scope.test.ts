@@ -21,6 +21,7 @@ vi.mock("next/cache", () => ({ revalidatePath: () => {} }));
 vi.mock("@/lib/realtime/bus", () => ({ realtimeBus: { publish: () => {} } }));
 vi.mock("@/db/client", () => ({ db: {} }));
 vi.mock("@/lib/services/orders.service", () => svc);
+vi.mock("@/lib/auth/visible-orgs", () => ({ resolveSessionVisibleOrgIds: svc.resolveSessionVisibleOrgIds }));
 vi.mock("@/lib/payments/verification", () => ({ verifyPayment: svc.verifyPayment, rejectPayment: svc.rejectPayment, updatePaymentReference: svc.updatePaymentReference }));
 vi.mock("@/lib/services/session-service", () => ({ currentUserId: async () => 7n }));
 vi.mock("@/lib/services/payment-reminder", () => ({ sendPaymentReminder: svc.sendPaymentReminder }));

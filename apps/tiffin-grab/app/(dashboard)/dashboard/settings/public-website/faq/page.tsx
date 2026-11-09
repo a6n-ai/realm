@@ -4,7 +4,7 @@ import { PageHeader } from "@/components/ds";
 import { requirePermission } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { listAllFaqs } from "@/lib/services/faqs.service";
-import { resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";
+import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import { FaqManager, FaqManagerSkeleton } from "./manager";
 
 export default function PublicFaqSettingsPage() {

@@ -12,7 +12,7 @@ import { getSession } from "@/lib/auth/session";
 import { withListDates } from "@/lib/list/default-month";
 import { parseRenewalsFilter } from "@/lib/renewals/filters";
 import { getAppSettings } from "@/lib/services/app-settings.service";
-import { resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";
+import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import {
   listRenewalsForExport,
   listRenewedCustomersForExport,

@@ -1,7 +1,8 @@
 import { Suspense } from "react";
 import { getSession } from "@/lib/auth/session";
 import { INVITABLE_ROLES } from "@/lib/auth/permissions";
-import { getMemberOrganizations, resolveMemberVisibleOrgIds, listOrganizations } from "@/lib/services/organizations.service";
+import { getMemberOrganizations, listOrganizations } from "@/lib/services/organizations.service";
+import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import { SectionCard } from "@/components/ds";
 import { StatCards, StatCardsSkeleton } from "@/components/dashboard/stat-cards";
 import { inviteBucket, inviteStats, type InviteBucket } from "../org-stats";
@@ -47,7 +48,7 @@ export default function InvitesPage({ searchParams }: { searchParams: SearchPara
 
 async function InvitesData({ searchParams }: { searchParams: SearchParams }) {
   const session = await getSession();
-  const visible = await resolveMemberVisibleOrgIds(session);
+  const visible = await resolveSessionVisibleOrgIds(session);
   const orgIds = visible === "all" ? (await listOrganizations()).map((o) => o.id) : visible;
 
   const [rows, directOrgs] = await Promise.all([getInvitationsForOrgs(orgIds), getMemberOrganizations(session)]);

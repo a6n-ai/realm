@@ -10,7 +10,6 @@ import { NotFoundError, ValidationError, cutoffMsFor } from "@foundry/commons";
 import type { Condition } from "@foundry/commons/model/condition";
 import type { Page, PageRequest } from "@foundry/commons/util/pagination";
 import { BaseRepository, UpdatableRepository, pageOrder } from "@foundry/database";
-import { resolveVisibleOrgIds } from "@foundry/auth";
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { orderPaymentStatuses, paidStatusOf } from "@/lib/payments/order-payments";
 import { clearLookOutOnEnd } from "@/lib/orders/look-out";
@@ -24,7 +23,6 @@ import {
   deliveryMoves,
   mealSelections,
   deliveryFrequencies,
-  member,
   mealSizes,
   orderActivities,
   orderAddons,
@@ -36,7 +34,7 @@ import {
   type AddonRequest,
   type PaymentProof,
 } from "@/db/schema";
-import { SessionBaseService, SessionUpdatableService, resolveUserId } from "./session-service";
+import { SessionBaseService, SessionUpdatableService } from "./session-service";
 import type { SortState } from "@foundry/design-system/list-sort";
 import { buildBoundedDeliveryRows, tripsFor } from "@/lib/orders/bounded-deliveries";
 import { cancelDeliveries, dropVoidRows } from "./deliveries.service";
@@ -93,23 +91,6 @@ export type OrderSortColumn = "name" | "deployment" | "status" | "start" | "tota
 // plans (inner, non-nullable FK — safe) and users (left, nullable
 // currentOwner — display-only), but the count runs on the base `orders` table
 // alone with the identical `where` so the nullable owner join can't inflate it.
-// Client-scoping: which orgs a session may see. super_admin bypasses to "all";
-// everyone else is scoped to their `member` rows — zero rows means zero orders,
-// never the whole table (see @foundry/auth resolveVisibleOrgIds).
-export async function resolveSessionVisibleOrgIds(session: {
-  user: { id: string; platformRole?: string | null };
-} | null): Promise<"all" | string[]> {
-  if (!session) return [];
-  const userId = await resolveUserId(db, session.user.id);
-  if (!userId) return [];
-  const memberOrgIds = await db
-    .select({ organizationId: member.organizationId })
-    .from(member)
-    .where(eq(member.userId, userId))
-    .then((rows) => rows.map((r) => r.organizationId));
-  return resolveVisibleOrgIds({ platformRole: session.user.platformRole ?? null, memberOrgIds });
-}
-
 /** Staff actions that take an order public id: refuse an order outside the caller's organizations. */
 export async function assertOrderVisible(publicId: string, visible: "all" | string[]): Promise<void> {
   if (visible !== "all" && visible.length === 0) throw new NotFoundError("Order not found");

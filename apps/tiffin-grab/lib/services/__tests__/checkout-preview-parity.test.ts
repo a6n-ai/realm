@@ -7,7 +7,7 @@ vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 vi.mock("@/lib/auth/session", () => ({ getSession: async () => null }));
 
 // Staff who see every org, so the estimate can match the customer's account and read their wallet.
-vi.mock("@/lib/services/orders.service", async (orig) => ({ ...(await orig<typeof import("@/lib/services/orders.service")>()), resolveSessionVisibleOrgIds: async () => "all" as const }));
+vi.mock("@/lib/auth/visible-orgs", () => ({ resolveSessionVisibleOrgIds: async () => "all" as const }));
 vi.mock("@/lib/auth/guards", async (orig) => ({ ...(await orig<typeof import("@/lib/auth/guards")>()), requireStaff: async () => undefined }));
 
 const { previewPrice } = await import("@/app/(dashboard)/dashboard/inquiries/[id]/order/actions");

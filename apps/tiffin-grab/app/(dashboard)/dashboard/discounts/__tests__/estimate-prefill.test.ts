@@ -5,10 +5,7 @@ const visible = vi.hoisted(() => ({ ids: "all" as "all" | string[] }));
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 vi.mock("@/lib/auth/guards", () => ({ requirePermission: async () => {}, requireStaff: async () => {} }));
 vi.mock("@/lib/auth/session", () => ({ getSession: async () => ({ user: { id: "usr_staff" } }) }));
-vi.mock("@/lib/services/orders.service", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/lib/services/orders.service")>()),
-  resolveSessionVisibleOrgIds: async () => visible.ids,
-}));
+vi.mock("@/lib/auth/visible-orgs", () => ({ resolveSessionVisibleOrgIds: async () => visible.ids }));
 
 const { db } = await import("@/db/client");
 const { deleteNonSystemUsers } = await import("@/db/test-helpers");

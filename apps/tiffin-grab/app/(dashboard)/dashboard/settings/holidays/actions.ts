@@ -6,7 +6,7 @@ import { requirePermission } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { humanDate } from "@/lib/deliveries-view";
 import { createHoliday, dismissHolidayDay, placeHolidayDay, reapplyHoliday, removeHoliday, renameHoliday, type HolidayPreview, type HolidayRun } from "@/lib/services/holidays.service";
-import { resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";
+import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import { currentUserId } from "@/lib/services/session-service";
 
 // The permission is checked here; which organizations the caller may touch is enforced again inside the service.

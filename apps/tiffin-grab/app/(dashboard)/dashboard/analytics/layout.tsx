@@ -13,7 +13,7 @@ import { categoryLabel, SUBCATEGORIES, TICKET_CATEGORIES } from "@/lib/support/t
 import { PRIORITY_OPTIONS } from "@/lib/support/ticket-priority";
 import { STATUS_OPTIONS } from "@/lib/services/analytics/complaint-filters";
 import { getSession } from "@/lib/auth/session";
-import { resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";
+import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import { AnalyticsTabs } from "./analytics-tabs";
 
 const REVENUE_FACETS: FacetDef[] = [

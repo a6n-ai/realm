@@ -10,7 +10,7 @@ import { BreakdownBarChart, CalendarHeatmap, PartsDonut, TrendLineChart } from "
 import { grainUnitForRange } from "@/lib/analytics/revenue";
 import { ORDER_TONE } from "@/components/analytics/status-tones";
 import { getSession } from "@/lib/auth/session";
-import { resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";
+import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import { scopeOrAlert } from "@/components/analytics/franchise-unavailable";
 import { ordersDrillHref } from "@/lib/services/analytics/metrics/orders";
 import { DATE_BASIS_LABEL, type AnalyticsScope } from "@/lib/services/analytics/metrics/scope";

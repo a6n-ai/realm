@@ -17,7 +17,7 @@ import { requireStaff } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { getCustomerDashboard } from "@/lib/services/customers.service";
 import { getAppSettings } from "@/lib/services/app-settings.service";
-import { resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";
+import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import { coversAllOrgs, getTodayCounts, getTodayQueue } from "@/lib/services/today.service";
 import { staffFirstName } from "@/lib/services/overview.service";
 import { OVERVIEW_KINDS, isTodayKind, type TodayKind } from "@/lib/today/types";

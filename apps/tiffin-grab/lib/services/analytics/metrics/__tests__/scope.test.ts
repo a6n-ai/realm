@@ -9,7 +9,7 @@ import { isoDateInZone } from "@foundry/commons/util/dates";
 const toSql = (q: ReturnType<typeof ordersScope>) => new PgDialect().sqlToQuery(q!).sql;
 
 const visibleMock = vi.hoisted(() => vi.fn());
-vi.mock("@/lib/services/orders.service", () => ({ resolveSessionVisibleOrgIds: visibleMock }));
+vi.mock("@/lib/auth/visible-orgs", () => ({ resolveSessionVisibleOrgIds: visibleMock }));
 vi.mock("@/lib/services/app-settings.service", () => ({ getAppSettings: async () => ({ timezone: "America/Toronto" }) }));
 
 const TZ = "America/Toronto";

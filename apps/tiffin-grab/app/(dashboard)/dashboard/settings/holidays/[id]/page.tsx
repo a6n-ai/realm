@@ -9,7 +9,7 @@ import { getSession } from "@/lib/auth/session";
 import { humanDate } from "@/lib/deliveries-view";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { getHolidayDetail, listNeedsPlacing } from "@/lib/services/holidays.service";
-import { resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";
+import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import { ClosedDaysTable, NeedsPlacingTable } from "../holidays-table";
 import { requestNow } from "@/lib/dates/request-now";
 

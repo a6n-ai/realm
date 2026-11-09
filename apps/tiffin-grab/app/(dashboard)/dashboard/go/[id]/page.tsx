@@ -4,7 +4,7 @@ import { db } from "@/db/client";
 import { deliveries, orders } from "@/db/schema";
 import { requireStaff } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
-import { resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";
+import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 
 /**
  * Short link from anything that only knows an id — an OptimoRoute stop's orderNo (dlv_…),

@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { requireStaff } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
-import { assertDeliveryVisible, resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";
+import { assertDeliveryVisible } from "@/lib/services/orders.service";
+import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import { currentUserId } from "@/lib/services/session-service";
 import { moveMissedDelivery, reconcileMissedDeliveries } from "@/lib/services/missed-deliveries.service";
 import { runAction, type ActionResult } from "@/lib/actions/action-result";

@@ -6,7 +6,7 @@ import { requirePermission } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { listDeclarableOrganizations, listHolidays, listNeedsPlacing } from "@/lib/services/holidays.service";
-import { resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";
+import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import { HolidayDialog } from "./holiday-dialog";
 import { HolidaysTable, HolidaysTableSkeleton, NeedsPlacingTable } from "./holidays-table";
 import { requestNow } from "@/lib/dates/request-now";

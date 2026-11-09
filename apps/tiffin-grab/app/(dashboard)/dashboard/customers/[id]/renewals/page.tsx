@@ -2,7 +2,7 @@ import Link from "next/link";
 import { RefreshCwIcon } from "lucide-react";
 import { zonedDateIso } from "@foundry/commons";
 import { EmptyState } from "@/components/ds";
-import { resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";
+import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import { getCustomerRenewal } from "@/lib/services/renewals.service";
 import { RenewalActions, RenewalSections } from "../../../renewals/customers/[id]/renewal-body";
 import { loadViewer } from "../data";

@@ -5,7 +5,8 @@ import { loadReceipt } from "@/lib/billing/receipt";
 import { renderReceiptPdf } from "@/lib/billing/receipt-pdf";
 import { verifyReceiptSignature } from "@/lib/billing/receipt-link";
 import { assertOwnsOrder } from "@/lib/services/customer-deliveries.service";
-import { assertOrderVisible, resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";
+import { assertOrderVisible } from "@/lib/services/orders.service";
+import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import { currentUserId } from "@/lib/services/session-service";
 
 // A signed link (the emailed attachment) opens without a session. Otherwise staff see orders in

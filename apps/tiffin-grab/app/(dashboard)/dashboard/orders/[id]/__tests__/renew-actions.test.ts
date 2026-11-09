@@ -22,8 +22,8 @@ vi.mock("@/lib/services/create-order", () => ({
 }));
 vi.mock("@/lib/services/orders.service", () => ({
   assertOrderVisible: m.assertOrderVisible,
-  resolveSessionVisibleOrgIds: async () => "all",
 }));
+vi.mock("@/lib/auth/visible-orgs", () => ({ resolveSessionVisibleOrgIds: async () => "all" }));
 vi.mock("@/lib/services/quick-renew.service", () => ({
   defaultPaymentMethodId: m.defaultMethod,
   loadRenewContext: m.loadRenewContext,

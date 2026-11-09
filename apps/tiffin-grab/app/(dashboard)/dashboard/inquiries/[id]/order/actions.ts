@@ -11,7 +11,7 @@ import { getSession } from "@/lib/auth/session";
 import { db } from "@/db/client";
 import { coupons, orders } from "@/db/schema";
 import { inquiriesService } from "@/lib/services/inquiries.service";
-import { resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";
+import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import type { CreateOrderInput } from "@/lib/services/create-order";
 import { couponsService, type AvailableCoupon } from "@/lib/services/coupons.service";
 import { userIdByPublicId } from "@/lib/services/session-service";

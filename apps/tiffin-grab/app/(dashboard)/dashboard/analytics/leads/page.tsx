@@ -1,6 +1,6 @@
 import { getSession } from "@/lib/auth/session";
 import { scopeOrAlert } from "@/components/analytics/franchise-unavailable";
-import { resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";
+import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import { Skeleton } from "@foundry/ui/skeleton";
 import Link from "next/link";
 import { Suspense } from "react";

@@ -3,7 +3,8 @@ import { desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import { invitation, member, users } from "@/db/schema";
 import { getSession } from "@/lib/auth/session";
-import { resolveMemberVisibleOrgIds, listOrganizations } from "@/lib/services/organizations.service";
+import { listOrganizations } from "@/lib/services/organizations.service";
+import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import { getMembersForOrgs } from "../members/members-query";
 import { countPendingInvites } from "../invites/invites-query";
 import { SectionCard } from "@/components/ds";
@@ -33,7 +34,7 @@ export default function OrganizationOverviewPage() {
 
 async function OverviewData() {
   const session = await getSession();
-  const visible = await resolveMemberVisibleOrgIds(session);
+  const visible = await resolveSessionVisibleOrgIds(session);
   const allOrgs = await listOrganizations();
   const orgIds = visible === "all" ? allOrgs.map((o) => o.id) : visible;
 

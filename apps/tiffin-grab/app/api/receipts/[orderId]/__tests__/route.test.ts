@@ -8,8 +8,8 @@ const ownedOrders = vi.hoisted(() => new Set<string>());
 
 vi.mock("@/lib/auth/session", () => ({ getSession: async () => session.current }));
 vi.mock("@/lib/services/session-service", () => ({ currentUserId: async () => userId.current }));
+vi.mock("@/lib/auth/visible-orgs", () => ({ resolveSessionVisibleOrgIds: async () => ["org_a"] }));
 vi.mock("@/lib/services/orders.service", () => ({
-  resolveSessionVisibleOrgIds: async () => ["org_a"],
   assertOrderVisible: async (id: string) => {
     if (!visibleOrders.has(id)) throw new NotFoundError("Order not found");
   },

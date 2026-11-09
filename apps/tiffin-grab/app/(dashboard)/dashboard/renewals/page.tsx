@@ -11,7 +11,7 @@ import { getSession } from "@/lib/auth/session";
 import { loadOwnerOptions } from "@/lib/list/facet-options";
 import { UNASSIGNED_OWNER } from "@/lib/list/presets";
 import { getAppSettings } from "@/lib/services/app-settings.service";
-import { resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";
+import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import { countRenewals, listRenewals, listRenewedCustomers, type RenewalRange } from "@/lib/services/renewals.service";
 import { SectionDateRange } from "@/components/filters/section-date-range";
 import { withListDates } from "@/lib/list/default-month";

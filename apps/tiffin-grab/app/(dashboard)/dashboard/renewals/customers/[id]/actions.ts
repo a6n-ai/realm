@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { requirePermission } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { sendRenewalReminderNow } from "@/lib/notifications/renewal-reminder";
-import { assertOrderVisible, resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";
+import { assertOrderVisible } from "@/lib/services/orders.service";
+import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import { runAction, type ActionResult } from "@/lib/actions/action-result";
 
 /** Send the renewal reminder email now for one of this customer's running plans. */

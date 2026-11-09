@@ -3,7 +3,7 @@ import { and, gte, inArray, lte, sql, type SQL } from "drizzle-orm";
 import type { AnyColumn } from "drizzle-orm";
 import { deliveryZones, mealSizes, orders, plans } from "@/db/schema";
 import { getAppSettings } from "@/lib/services/app-settings.service";
-import { resolveSessionVisibleOrgIds } from "@/lib/services/orders.service";
+import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import { currentMonthEpochRange, epoch, list } from "../shared-filter-params";
 import { isoDateInZone } from "@foundry/commons/util/dates";
 
