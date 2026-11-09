@@ -10,7 +10,7 @@ import { SectionCard } from "@/components/ds";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { Button } from "@foundry/ui/button";
 import { Form } from "@foundry/ui/form";
-import { AddressFormFields } from "@foundry/ui/address-form-fields";
+import { AddressFormFields } from "@foundry/address/ui";
 import { updateMyAddress } from "@/lib/account/actions";
 
 const ADDRESS_FIELDS: { name: keyof ProfileAddressValues; className?: string }[] = [

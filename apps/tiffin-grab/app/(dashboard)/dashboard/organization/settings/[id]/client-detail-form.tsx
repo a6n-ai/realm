@@ -7,7 +7,7 @@ import { MapPinIcon } from "lucide-react";
 import { Button } from "@foundry/ui/button";
 import { Input } from "@foundry/ui/input";
 import { Label } from "@foundry/ui/label";
-import { AddressFields, defaultAddressUi, type AddressFieldSlotProps } from "@foundry/ui/address-fields";
+import { AddressFields, defaultAddressUi, type AddressFieldSlotProps } from "@foundry/address/ui";
 import type { OrgLocation } from "@foundry/commons";
 import { SectionCard } from "@/components/ds";
 import { StaticMapClient } from "@/components/maps/static-map-client";

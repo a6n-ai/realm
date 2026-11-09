@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, type ReactNode } from "react";
-import { usePresence } from "@foundry/realtime/client";
+import { usePresence, useTyping } from "@foundry/realtime/client";
 import { IconTile, Pill, Skeleton } from "@/components/customer/kit";
 import { cn, FONT } from "@/components/customer/kit/cn";
 import { ChatMessageList, useMessageComposer, type ChatMessage, type ChatUi } from "@foundry/design-system";
@@ -118,7 +118,8 @@ export function TicketThread({
 }
 
 function Composer({ ticketId, closed, channel }: { ticketId: string; closed: boolean; channel: string }) {
-  const c = useMessageComposer({ action: (form) => replyTicket(ticketId, form), channel, peerRole: "staff" });
+  const typing = useTyping(channel, "staff");
+  const c = useMessageComposer({ action: (form) => replyTicket(ticketId, form), typing });
 
   if (closed) {
     return <p className="c-surface rounded-2xl bg-card p-4 text-subhead text-[var(--muted-foreground,#6E6558)]">This chat is completed. Need more help? Start a new ticket from Support.</p>;

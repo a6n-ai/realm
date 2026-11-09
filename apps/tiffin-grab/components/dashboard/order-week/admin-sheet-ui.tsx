@@ -2,7 +2,7 @@
 
 import { useId, type ReactNode } from "react";
 import { CircleAlert, Info } from "lucide-react";
-import { AddressFields as FoundryAddressFields } from "@foundry/ui/address-fields";
+import { AddressFields as FoundryAddressFields } from "@foundry/address/ui";
 import { Button } from "@foundry/ui/button";
 import { Input } from "@foundry/ui/input";
 import { Label } from "@foundry/ui/label";

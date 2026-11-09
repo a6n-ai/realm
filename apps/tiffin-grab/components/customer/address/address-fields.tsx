@@ -1,12 +1,12 @@
 "use client";
 
-import { AddressFields as FoundryAddressFields, type AddressFieldsProps as FoundryProps, type AddressUi } from "@foundry/ui/address-fields";
+import { AddressFields as FoundryAddressFields, type AddressFieldsProps as FoundryProps, type AddressUi } from "@foundry/address/ui";
 import { Field, Select } from "@/components/customer/kit";
 import { cn, FONT } from "@/components/customer/kit/cn";
 import { DeliveryAreaNote, useDeliveryArea } from "./delivery-area";
 
-export { deriveSuggestUrl } from "@foundry/ui/address-fields";
-export type { ResolvedPlaceFields as ResolvedPlace } from "@foundry/ui/address-fields";
+export { deriveSuggestUrl } from "@foundry/address/ui";
+export type { ResolvedPlaceFields as ResolvedPlace } from "@foundry/address/ui";
 
 const kitAddressUi: AddressUi = {
   Field: ({ id, label, error, wide, inputProps, overlay, combo, footer }) => (

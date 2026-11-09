@@ -17,6 +17,7 @@ import {
 import { Skeleton } from "@foundry/ui/skeleton";
 import { cn } from "@foundry/ui/cn";
 import type { RealtimeRole } from "@foundry/realtime";
+import { useTyping } from "@foundry/realtime/client";
 import { useMessageComposer } from "@foundry/design-system";
 import { ChatComposer } from "@/components/support/chat-composer";
 import { ReassignControl } from "@/components/reassign/reassign-control";
@@ -212,7 +213,8 @@ export function ReplyBox({
   channel?: string;
   peerRole?: RealtimeRole;
 }) {
-  const c = useMessageComposer({ action: replyTicket.bind(null, ticketId), channel, peerRole });
+  const typing = useTyping(channel ?? null, peerRole ?? "staff");
+  const c = useMessageComposer({ action: replyTicket.bind(null, ticketId), typing: channel ? typing : undefined });
   if (closed) {
     return <p className="text-muted-foreground rounded-lg border border-dashed p-3 text-sm">This ticket is closed. Reopen it to continue the conversation.</p>;
   }

@@ -21,7 +21,8 @@ import { Skeleton } from "@foundry/ui/skeleton";
 import { PageShell, PageHeader, SectionCard } from "@/components/ds";
 import { TicketStatusBadge } from "../ticket-badges";
 import { TicketControls, ReplyBox, ReplyBoxSkeleton, StatusPills, TicketControlsSkeleton } from "./ticket-controls";
-import { OrderStatusBadge, PresenceDot } from "@/components/ds";
+import { OrderStatusBadge } from "@/components/ds";
+import { CustomerPresenceDot } from "@/components/support/customer-presence-dot";
 import { cn } from "@foundry/ui/cn";
 import { ChatMessageListSkeleton } from "@foundry/design-system";
 import { ChatPane } from "./chat-pane";
@@ -171,7 +172,7 @@ async function ConversationData({ params }: { params: Promise<{ id: string }> })
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <StatusPills ticketId={ticket.publicId} status={ticket.status as TicketStatus} />
-        <PresenceDot channel={channel} peerRole="customer" label="Customer" />
+        <CustomerPresenceDot channel={channel} />
       </div>
       <ChatPane
         timezone={timezone}
