@@ -17,6 +17,7 @@ import type { FacetDef, Option } from "@/components/ds";
 import { DatedByChip } from "./dated-by-chip";
 import { PaymentStatusPill } from "./payment-status-pill";
 import { PaymentDetailDialog } from "./payment-detail-dialog";
+import { MethodName } from "@/components/payments/stripe-mark";
 import { methodLabel, PAYMENT_METHOD_OPTIONS, PAYMENT_STATUS_OPTIONS, type PaymentRow, type PaymentSortKey } from "./payment-facets";
 import type { SortState } from "@foundry/design-system/list-sort";
 import { sendPaymentReminderAction } from "../orders/[id]/actions";
@@ -107,7 +108,7 @@ export function PaymentsTable({
               {r.orderPublicId}
             </Link>
           </TableCell>
-          <TableCell>{methodLabel(r.method)}</TableCell>
+          <TableCell><MethodName method={r.method}>{methodLabel(r.method)}</MethodName></TableCell>
           <TableCell>
             <PaymentStatusPill status={r.status} />
           </TableCell>

@@ -23,6 +23,7 @@ import { ClaimPayment } from "./claim-payment";
 import { cardBrandLabel } from "@/lib/billing/payment-labels";
 import { GroupHeader, QuietPagination, groupByMonth } from "./finance-kit";
 import { MonthGroupSkeleton } from "@/components/customer/skeleton-parts";
+import { MethodName } from "@/components/payments/stripe-mark";
 import { formatMoney } from "@/lib/format/money";
 
 type PayStatus = CustomerBill["payments"][number]["status"];
@@ -178,7 +179,7 @@ function BillRow({
           <p key={h} className="text-muted-foreground text-xs">{h}</p>
         ))}
         {details.map((d) => (
-          <p key={d} className="text-muted-foreground text-xs">{d}</p>
+          <p key={d} className="text-muted-foreground text-xs"><MethodName method="stripe">{d}</MethodName></p>
         ))}
       </div>
       <div className="flex shrink-0 flex-col items-end gap-2">

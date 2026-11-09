@@ -637,7 +637,7 @@ export function SegmentedBar({
   );
 }
 
-type ListRow = { label: string; meta?: string; tip?: ReactNode; href?: string; color: string; text: string; share: number };
+type ListRow = { label: string; icon?: ReactNode; meta?: string; tip?: ReactNode; href?: string; color: string; text: string; share: number };
 
 /** Dot, label, value and share per row; the figures under a donut or gauge. */
 function PartsList({ rows, footnote }: { rows: ListRow[]; footnote?: ReactNode }) {
@@ -650,7 +650,7 @@ function PartsList({ rows, footnote }: { rows: ListRow[]; footnote?: ReactNode }
         <>
           <span className="size-2.5 shrink-0 rounded-full" style={{ background: p.color }} />
           <span className="min-w-0 flex-1">
-            <span className="block truncate">{p.label}</span>
+            <span className="flex items-center gap-1.5 truncate">{p.icon}<span className="truncate">{p.label}</span></span>
             {p.meta ? <span className="text-muted-foreground block truncate text-xs">{p.meta}</span> : null}
           </span>
           <span className="font-semibold tabular-nums">{p.text}</span>
@@ -745,7 +745,7 @@ export function PartsDonut({
         text: p.aside ?? formatValue(p.value, format, currency),
         share: listTotal > 0 ? Math.round((p.value / listTotal) * 100) : 0,
       }))
-    : folded.map((p) => ({ label: p.label, meta: undefined, tip: undefined, href: p.href, color: p.color, text: formatValue(p.value, format, currency), share: p.share }));
+    : folded.map((p) => ({ label: p.label, icon: p.icon, meta: undefined, tip: undefined, href: p.href, color: p.color, text: formatValue(p.value, format, currency), share: p.share }));
   return (
     <div className="flex h-full flex-col items-center gap-4">
       <ChartContainer config={config} className="aspect-square shrink-0" style={{ height: DONUT_PX }}>
@@ -754,7 +754,7 @@ export function PartsDonut({
             content={<ChartTooltipContent hideLabel className="min-w-40 gap-2.5" formatter={valueFormatter(format, currency)} />}
           />
           <Pie
-            data={folded.map((p) => ({ ...p, fill: p.color }))}
+            data={folded.map(({ icon: _icon, ...p }) => ({ ...p, fill: p.color }))}
             dataKey="value"
             nameKey="label"
             innerRadius={DONUT_INNER}

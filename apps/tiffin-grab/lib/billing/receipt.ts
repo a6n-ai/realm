@@ -13,6 +13,8 @@ import { getAppSettings } from "@/lib/services/app-settings.service";
 export type ReceiptPayment = {
   date: number;
   method: string;
+  /** Paid by card through Stripe. */
+  card: boolean;
   /** Stripe PaymentIntent id or the customer's e-Transfer reference. */
   reference: string | null;
   /** What was charged, card fee included. */
@@ -120,6 +122,7 @@ export async function loadReceipt(orderPublicId: string, now = Date.now()): Prom
     return {
       date: p.capturedAt ?? p.createdAt,
       method: paymentMethodLabel(p),
+      card: p.method === "stripe",
       reference: p.method === "stripe" ? p.providerRef : p.reference,
       amount,
       cardFee,
@@ -129,7 +132,7 @@ export async function loadReceipt(orderPublicId: string, now = Date.now()): Prom
   });
   // WordPress imports have no payment row: they were paid on the old site.
   if (isWordpressImport({ deploymentId: o.code }) && !kept.some((p) => inStatuses(CAPTURED, p.status))) {
-    receiptPayments.unshift({ date: o.createdAt, method: "Paid on our previous website", reference: null, amount: Number(o.total), cardFee: 0, refunded: 0, status: "paid" });
+    receiptPayments.unshift({ date: o.createdAt, method: "Paid on our previous website", card: false, reference: null, amount: Number(o.total), cardFee: 0, refunded: 0, status: "paid" });
   }
 
   const sum = (xs: number[]) => round2(xs.reduce((a, b) => a + b, 0));

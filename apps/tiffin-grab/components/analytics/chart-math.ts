@@ -1,7 +1,8 @@
+import type { ReactNode } from "react";
 import { slotTone, type Tone } from "@/lib/analytics/tone";
 
 export { slotTone, type Tone };
-export type Part = { label: string; value: number; tone?: Tone; href?: string };
+export type Part = { label: string; value: number; tone?: Tone; href?: string; icon?: ReactNode };
 export type SharedPart = Part & { share: number; color: string };
 
 export const TONE_COLOR: Record<Exclude<Tone, "chart">, string> = {

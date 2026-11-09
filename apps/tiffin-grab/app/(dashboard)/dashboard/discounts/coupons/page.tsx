@@ -133,7 +133,7 @@ async function CouponsData({ searchParams }: { searchParams: SearchParams }) {
     { label: "Expiring in 7 days", value: live.filter(isExpiring).length.toLocaleString(), href: href({ expiring: "1" }) },
     { label: "Redemptions", value: couponRows.reduce((n, c) => n + c.redemptionCount, 0).toLocaleString() },
   ];
-  const paymentMethods = (await getPaymentConfig()).methods.map((m) => ({ value: m.id, label: m.id === "stripe" ? "Card (Stripe)" : m.label }));
+  const paymentMethods = (await getPaymentConfig()).methods.map((m) => ({ value: m.id, label: m.id === "stripe" ? "Card" : m.label }));
   const groupId = sp.newForGroup;
   const presetGroup = groupId ? await findCustomerGroup(groupId) : null;
   return (

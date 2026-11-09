@@ -9,6 +9,7 @@ import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@foundry/design-system/timezone-provider";
 import type { MoneyLedgerTx } from "@/lib/services/customer-finances.service";
 import { MONEY_LEDGER_FACETS } from "./money-ledger-facets";
+import { MethodName } from "@/components/payments/stripe-mark";
 import { paymentMethodLabel } from "@/lib/billing/payment-labels";
 import { FilterBar, GroupHeader, QuietPagination, groupByMonth } from "./finance-kit";
 import { FilterBarSkeleton, MonthGroupSkeleton } from "@/components/customer/skeleton-parts";
@@ -65,7 +66,7 @@ function MoneyTxRow({ tx, currency }: { tx: MoneyLedgerTx; currency: string }) {
   const method = tx.payment ? paymentMethodLabel(tx.payment) : null;
   const details: { label: string; value: ReactNode }[] = [
     tx.orderDeploymentId ? { label: "Order", value: tx.orderDeploymentId } : null,
-    method ? { label: "Paid with", value: method } : null,
+    method ? { label: "Paid with", value: <MethodName method={tx.payment!.method}>{method}</MethodName> } : null,
     tx.payment?.providerRef ? { label: "Transaction ID", value: <CopyValue label="Transaction ID" value={tx.payment.providerRef} /> } : null,
     tx.payment?.reference ? { label: "Your reference", value: tx.payment.reference } : null,
     tx.memo ? { label: "Note", value: tx.memo } : null,
@@ -80,7 +81,7 @@ function MoneyTxRow({ tx, currency }: { tx: MoneyLedgerTx; currency: string }) {
           <div className="min-w-0 flex-1">
             <p className="truncate text-subhead font-semibold">
               {typeLabel(tx.type)}
-              {method ? <span className="font-normal text-muted-foreground"> · {method}</span> : null}
+              {method ? <span className="font-normal text-muted-foreground"> · <MethodName method={tx.payment!.method}>{method}</MethodName></span> : null}
             </p>
             <p className="text-footnote tabular-nums text-muted-foreground">
               {formatEpoch(tx.createdAt, { mode: "datetime", timeZone: tz })}

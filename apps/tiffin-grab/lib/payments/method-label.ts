@@ -4,7 +4,7 @@ export type PaymentMethod = (typeof payments.method.enumValues)[number];
 
 /** full: emails and the order payments panel. short: staff tables, filters and the Today feed. customer: the customer's own bills. */
 const LABELS = {
-  full: { etransfer: "Interac e-Transfer", cash: "Cash", manual: "Manual", simulated: "Simulated", stripe: "Card (Stripe)" },
+  full: { etransfer: "Interac e-Transfer", cash: "Cash", manual: "Manual", simulated: "Simulated", stripe: "Card" },
   short: { etransfer: "e-Transfer", cash: "Cash", manual: "Manual", simulated: "Simulated", stripe: "Card" },
   customer: { etransfer: "e-Transfer", cash: "Cash", manual: "Recorded by staff", simulated: "Test payment", stripe: "Card" },
 } as const satisfies Record<string, Record<PaymentMethod, string>>;

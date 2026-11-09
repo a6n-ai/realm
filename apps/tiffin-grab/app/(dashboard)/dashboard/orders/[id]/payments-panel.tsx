@@ -1,5 +1,6 @@
 "use client";
 
+import { MethodName } from "@/components/payments/stripe-mark";
 import { paymentMethodLabel } from "@/lib/payments/method-label";
 import type { ReactNode } from "react";
 import { inStatuses, PAID, PENDING, UNPAID } from "@/lib/payments/status";
@@ -311,7 +312,7 @@ function PaymentRow({
             <span className="font-medium tabular-nums">{formatMoney(Number(payment.amount), currency)}</span>
             <Badge variant="secondary">{isVoid ? "Void" : statusLabel(payment.status)}</Badge>
             <span className="text-muted-foreground text-xs uppercase tracking-wide">
-              {paymentMethodLabel(payment.method, "full")}
+              <MethodName method={payment.method}>{paymentMethodLabel(payment.method, "full")}</MethodName>
             </span>
             {isAddon && <Badge variant="outline">Add-ons</Badge>}
             {refundNeeded && <Badge variant="destructive-light">Refund needed</Badge>}

@@ -9,6 +9,7 @@ import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@foundry/design-system/timezone-provider";
 import { PaymentStatusPill } from "./payment-status-pill";
 import { ReferenceEditor } from "../orders/[id]/reference-editor";
+import { MethodName } from "@/components/payments/stripe-mark";
 import { methodLabel, type PaymentRow } from "./payment-facets";
 
 /** One payment row (reference editable in place); `footer` carries the caller's actions (e.g. approve/reject). */
@@ -53,7 +54,7 @@ export function PaymentDetailDialog({
               {payment.email && <span className="text-muted-foreground block">{payment.email}</span>}
               {payment.phone && <span className="text-muted-foreground block">{payment.phone}</span>}
             </Field>
-            <Field label="Method">{methodLabel(payment.method)}</Field>
+            <Field label="Method"><MethodName method={payment.method}>{methodLabel(payment.method)}</MethodName></Field>
             <Field label="Reference">
               <ReferenceEditor key={payment.publicId} orderId={payment.orderPublicId} paymentId={payment.publicId} reference={payment.reference} allowAdd={payment.method !== "simulated"} label="" />
             </Field>

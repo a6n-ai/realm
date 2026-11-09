@@ -1,7 +1,8 @@
-import { Document, Page, renderToBuffer, StyleSheet, Text, View } from "@react-pdf/renderer";
+import { Document, Page, Path, renderToBuffer, StyleSheet, Svg, Text, View } from "@react-pdf/renderer";
 import type { Line } from "@/lib/billing/pay-lines";
 import type { Receipt } from "./receipt";
 import { isoToUtcDate } from "@foundry/commons/util/dates";
+import { STRIPE_MARK_PATH } from "@/lib/payments/stripe-mark-path";
 import { formatMoney } from "@/lib/format/money";
 
 // Built-in Helvetica only covers WinAnsi: no U+2212 minus, so negatives use "-".
@@ -87,10 +88,17 @@ export async function renderReceiptPdf(r: Receipt): Promise<Uint8Array> {
           {r.payments.length === 0 ? <Text style={s.muted}>No payments yet.</Text> : r.payments.map((p, i) => (
             <View key={i} style={s.table}>
               <Text style={{ width: "18%" }}>{day(p.date)}</Text>
-              <Text style={{ width: "40%" }}>
-                {p.method}
-                {p.reference ? <Text style={s.muted}>{`  ${p.reference}`}</Text> : null}
-              </Text>
+              <View style={{ width: "40%", flexDirection: "row", alignItems: "center" }}>
+                {p.card ? (
+                  <Svg viewBox="0 0 24 24" style={{ width: 9, height: 9, marginRight: 4 }}>
+                    <Path d={STRIPE_MARK_PATH} fill="#635BFF" />
+                  </Svg>
+                ) : null}
+                <Text>
+                  {p.method}
+                  {p.reference ? <Text style={s.muted}>{`  ${p.reference}`}</Text> : null}
+                </Text>
+              </View>
               <Text style={[s.muted, { width: "16%" }]}>{p.status === "paid" ? "Paid" : p.status === "refunded" ? "Refunded" : "Pending"}</Text>
               <Text style={{ width: "26%", textAlign: "right" }}>
                 {money(p.amount)}

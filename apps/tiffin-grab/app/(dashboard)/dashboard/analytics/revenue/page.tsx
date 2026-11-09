@@ -20,6 +20,7 @@ import { PAID } from "@/lib/payments/status";
 import { grainUnitForRange, type DiscountLine, type DiscountSource } from "@/lib/analytics/revenue";
 import { NeedsReview } from "./needs-review";
 import { isoDateInZone, isoToUtcDate } from "@foundry/commons/util/dates";
+import { StripeMark } from "@/components/payments/stripe-mark";
 import { requestNow } from "@/lib/dates/request-now";
 import { getMoneyFormatter } from "@/lib/services/app-settings.service";
 
@@ -280,7 +281,7 @@ async function RevenueCalendar({ scope }: { scope: AnalyticsScope }) {
 async function MethodChart({ scope }: { scope: AnalyticsScope }) {
   const report = await loadReport(scope);
   const href = links(scope);
-  return <PartsDonut format="currency" caption="Net revenue" parts={report.byMethod.map((m) => ({ label: m.method, value: m.amount, tone: slotTone(m.key, METHOD_SLOTS), href: href(PAID, [m.key]) }))} />;
+  return <PartsDonut format="currency" caption="Net revenue" parts={report.byMethod.map((m) => ({ label: m.method, icon: m.key === "stripe" ? <StripeMark /> : undefined, value: m.amount, tone: slotTone(m.key, METHOD_SLOTS), href: href(PAID, [m.key]) }))} />;
 }
 
 // Fixed slots so a method or discount source keeps its colour whatever its rank in the range.

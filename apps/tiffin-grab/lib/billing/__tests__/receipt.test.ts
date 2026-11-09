@@ -35,7 +35,7 @@ describe("renderReceiptPdf", () => {
       lines: [{ label: "20 tiffins", amount: 200 }, { label: "Coupon SAVE10", amount: -20 }],
       taxLines: [{ label: "HST 13%", amount: 23.4 }],
       orderTotal: 203.4,
-      payments: [{ date: 1_790_000_000_000, method: "Visa ••4242", reference: "pi_123", amount: 208.9, cardFee: 5.5, refunded: 10, status: "paid" }],
+      payments: [{ date: 1_790_000_000_000, method: "Visa ••4242", card: true, reference: "pi_123", amount: 208.9, cardFee: 5.5, refunded: 10, status: "paid" }],
       cardFees: 5.5, paid: 208.9, refunded: 10, balanceDue: 0,
     };
     const bytes = await renderReceiptPdf(r);
