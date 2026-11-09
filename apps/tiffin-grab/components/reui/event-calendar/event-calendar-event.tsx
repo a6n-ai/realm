@@ -40,7 +40,7 @@ import {
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@/components/ui/tooltip"
+} from "@foundry/ui/tooltip"
 import { RepeatIcon } from "lucide-react"
 
 /** Event color presets; each stays legible on light and dark surfaces. */

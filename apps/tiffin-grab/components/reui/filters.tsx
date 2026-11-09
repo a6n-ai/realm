@@ -22,11 +22,11 @@ import {
 import { cva } from "class-variance-authority"
 
 import { cn } from "@foundry/ui/cn"
-import { Button } from "@/components/ui/button"
+import { Button } from "@foundry/ui/button"
 import {
   ButtonGroup,
   ButtonGroupText,
-} from "@/components/ui/button-group"
+} from "@foundry/ui/button-group"
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -38,21 +38,21 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Input } from "@/components/ui/input"
+} from "@foundry/ui/dropdown-menu"
+import { Input } from "@foundry/ui/input"
 import {
   InputGroup,
   InputGroupAddon,
   InputGroupButton,
   InputGroupInput,
   InputGroupText,
-} from "@/components/ui/input-group"
-import { Kbd } from "@/components/ui/kbd"
+} from "@foundry/ui/input-group"
+import { Kbd } from "@foundry/ui/kbd"
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-} from "@/components/ui/tooltip"
+} from "@foundry/ui/tooltip"
 import { AlertCircleIcon, XIcon, CheckIcon } from "lucide-react"
 
 // Radix ScrollArea's viewport child is display:table, so a max-height on it

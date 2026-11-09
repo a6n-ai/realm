@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import type { PluginLogo } from "@foundry/commons/plugin";
 import { Card, EmptyState, SearchInput } from "@/components/ds";
-import { Button } from "@/components/ui/button";
+import { Button } from "@foundry/ui/button";
 import { PLUGIN_DISPLAY, PLUGIN_METAS, type Tone } from "@/lib/plugins";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { IconTile, IconTileSkeleton } from "./_components/icon-tile";

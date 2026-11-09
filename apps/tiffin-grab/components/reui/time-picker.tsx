@@ -22,13 +22,13 @@ import type {
 import { cn } from "@foundry/ui/cn"
 import { flushSync } from "react-dom"
 
-import { Button } from "@/components/ui/button"
+import { Button } from "@foundry/ui/button"
 import {
   InputGroup,
   InputGroupAddon,
   InputGroupButton,
   InputGroupInput,
-} from "@/components/ui/input-group"
+} from "@foundry/ui/input-group"
 import {
   Popover,
   PopoverContent,

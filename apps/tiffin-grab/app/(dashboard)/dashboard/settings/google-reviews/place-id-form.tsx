@@ -3,9 +3,9 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
+import { Button } from "@foundry/ui/button";
 import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
+import { Input } from "@foundry/ui/input";
 import { saveGoogleReviewsPlaceId } from "./actions";
 
 const PLACE_ID_FINDER = "https://developers.google.com/maps/documentation/javascript/examples/places-placeid-finder";

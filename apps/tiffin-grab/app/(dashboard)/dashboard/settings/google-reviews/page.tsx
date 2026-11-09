@@ -6,7 +6,7 @@ import { Skeleton } from "@foundry/ui/skeleton";
 import { PageHeader, SectionCard } from "@/components/ds";
 import { Alert, AlertAction, AlertDescription, AlertTitle } from "@/components/reui/alert";
 import { Badge } from "@/components/reui/badge";
-import { Button } from "@/components/ui/button";
+import { Button } from "@foundry/ui/button";
 import { integrationsConfigStore } from "@/lib/services/app-settings.service";
 import { PlaceIdForm } from "./place-id-form";
 import { RetryButton } from "./retry-button";

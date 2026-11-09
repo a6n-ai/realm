@@ -18,7 +18,7 @@ import { RadioGroup, RadioGroupItem } from "@foundry/ui/radio-group";
 import { Badge } from "@/components/reui/badge";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { toggleVariants } from "@/components/ui/toggle";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@foundry/ui/tooltip";
 import { DateInput } from "@/components/dashboard/date-fields";
 import { DeliveryAreaNote } from "@/components/customer/address/delivery-area";
 import { ScheduleCard } from "@/components/wizard/schedule-card";

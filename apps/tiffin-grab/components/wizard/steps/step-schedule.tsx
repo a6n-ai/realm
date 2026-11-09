@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { Info } from "lucide-react";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@foundry/ui/tooltip";
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
 import { WEEK_DAYS, mealAllowedDays, scheduleError, selectableFrequencies, servesWeekends, tiffinBounds, type WizardSelections } from "@/lib/wizard/selections";
 import { CurrentPlanHint, type CurrentPlanSummary } from "../current-plan-hint";

@@ -5,7 +5,7 @@ import { ArrowDownIcon, ArrowUpIcon } from "lucide-react";
 import { Card, CardContent } from "@foundry/ui/card";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { Badge } from "@/components/reui/badge";
-import { Separator } from "@/components/ui/separator";
+import { Separator } from "@foundry/ui/separator";
 import { cn } from "@foundry/ui/cn";
 import { StatBar } from "@foundry/design-system";
 import { isValidAnalyticsCardCount } from "@/lib/analytics/card-rules";

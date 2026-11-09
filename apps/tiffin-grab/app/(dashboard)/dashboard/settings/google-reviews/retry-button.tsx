@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useTransition } from "react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@foundry/ui/button";
 
 export function RetryButton() {
   const router = useRouter();

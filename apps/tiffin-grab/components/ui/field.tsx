@@ -5,7 +5,7 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@foundry/ui/cn"
 
 import { Label } from "@foundry/ui/label"
-import { Separator } from "@/components/ui/separator"
+import { Separator } from "@foundry/ui/separator"
 
 function FieldSet({ className, ...props }: React.ComponentProps<"fieldset">) {
   return (

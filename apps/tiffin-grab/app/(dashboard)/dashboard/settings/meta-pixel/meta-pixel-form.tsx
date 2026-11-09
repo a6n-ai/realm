@@ -4,9 +4,9 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/reui/alert";
-import { Button } from "@/components/ui/button";
+import { Button } from "@foundry/ui/button";
 import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
+import { Input } from "@foundry/ui/input";
 import { removeMetaPixelToken, saveMetaPixelSettings, sendMetaPixelTestEvent } from "./actions";
 
 export function MetaPixelForm({

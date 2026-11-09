@@ -22,7 +22,7 @@ import { addDays, format } from "date-fns"
 import { Slot } from "radix-ui"
 
 import { cn } from "@foundry/ui/cn"
-import { Button } from "@/components/ui/button"
+import { Button } from "@foundry/ui/button"
 import { Calendar } from "@foundry/ui/calendar"
 import {
   DropdownMenu,
@@ -31,7 +31,7 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+} from "@foundry/ui/dropdown-menu"
 import {
   Popover,
   PopoverContent,
@@ -42,7 +42,7 @@ import {
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@/components/ui/tooltip"
+} from "@foundry/ui/tooltip"
 import { CalendarIcon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon } from "lucide-react"
 
 /** Configured nav button variant/size (viewConfig.navButtonVariant/Size)
