@@ -1,6 +1,7 @@
 "use client";
 import { ArrowDownLeft, ArrowUpRight, CalendarCheck, Check, House, Info, MapPin, Pencil, Truck } from "lucide-react";
-import { Card, Pill, Sheet, StatusDot, type DeliveryStatus, type Tone } from "@/components/customer/kit";
+import { Card, Pill, Sheet, StatusDot, type Tone } from "@/components/customer/kit";
+import { STATUS_TONE, type DeliveryStatus } from "@/lib/deliveries/status";
 import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
 import { humanDate, isPastPause, type Trip } from "@/lib/deliveries-view";
 import { dayNote, deliveryLine, isDone, moveNotes, weekdayShort, type EatingRow } from "@/lib/deliveries-view/eating";
@@ -15,19 +16,20 @@ export const dayNum = (iso: string) => d(iso).getUTCDate();
 export const weekday = (iso: string) => WD.format(d(iso));
 
 export function statusMeta(t: Trip): { label: string; tone: Tone; dot: DeliveryStatus | null } {
+  const m = (label: string, dot: DeliveryStatus, tone: Tone = STATUS_TONE[dot]) => ({ label, tone, dot });
   // A day a holiday closed reads Holiday whatever its row status (paused, or held and tagged after the fact).
-  if (t.holidayName) return { label: "Holiday", tone: "neutral", dot: "holiday" };
+  if (t.holidayName) return m("Holiday", "holiday");
   switch (t.status) {
-    case "upcoming": return { label: t.isMakeup ? "Make-up" : "Upcoming", tone: "up", dot: "upcoming" };
-    case "delivered": return { label: "Delivered", tone: "ok", dot: "delivered" };
-    case "unconfirmed": return { label: "Awaiting confirmation", tone: "neutral", dot: "upcoming" };
-    case "cutoff-passed": return { label: "Being prepared", tone: "ok", dot: "delivered" };
-    case "rescheduled": return { label: "Moved", tone: "hold", dot: "hold" };
-    case "locked": return { label: "Closed", tone: "neutral", dot: "hold" };
-    case "paused": return { label: "Paused", tone: "vac", dot: "paused" };
-    case "combined-into": return { label: "Moved", tone: "neutral", dot: "combined" };
-    case "holiday": return { label: "Holiday", tone: "neutral", dot: "holiday" };
-    case "failed": return isPastPause(t) ? { label: "Paused", tone: "vac", dot: "paused" } : { label: "Not delivered", tone: "hold", dot: "hold" };
+    case "upcoming": return m(t.isMakeup ? "Make-up" : "Upcoming", "upcoming");
+    case "delivered": return m("Delivered", "delivered");
+    case "unconfirmed": return m("Awaiting confirmation", "upcoming", "neutral");
+    case "cutoff-passed": return m("Being prepared", "delivered");
+    case "rescheduled": return m("Moved", "hold");
+    case "locked": return m("Closed", "hold", "neutral");
+    case "paused": return m("Paused", "paused");
+    case "combined-into": return m("Moved", "combined");
+    case "holiday": return m("Holiday", "holiday");
+    case "failed": return isPastPause(t) ? m("Paused", "paused") : m("Not delivered", "hold");
   }
 }
 
@@ -36,7 +38,7 @@ const MOVED_TRIP: Trip["status"][] = ["rescheduled", "combined-into", "holiday"]
 /** A moved-away eating day reads "Moved" even while its old trip keeps delivering other days. */
 export function rowMeta(row: EatingRow): ReturnType<typeof statusMeta> {
   if (row.trip.holidayName) return statusMeta(row.trip);
-  return row.movedTo && !MOVED_TRIP.includes(row.trip.status) ? { label: "Moved", tone: "neutral", dot: "combined" } : statusMeta(row.trip);
+  return row.movedTo && !MOVED_TRIP.includes(row.trip.status) ? { label: "Moved", tone: STATUS_TONE.combined, dot: "combined" } : statusMeta(row.trip);
 }
 
 /** Card facts for a moved-away day: where its tiffin is eaten now, not the old trip's count. */

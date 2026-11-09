@@ -1,6 +1,7 @@
 import type { MealSlot } from "./meal-types";
 import { DAYS, type PosterItem } from "./poster";
 import { addDaysIso } from "@/lib/dates";
+import { deliveryTripState } from "@/lib/deliveries/status";
 
 /** What this customer has on a menu day, from their own delivery rows. */
 export type MyDay = "pick" | "locked" | "delivered" | "paused" | "hold" | null;
@@ -92,8 +93,9 @@ function mine(rows: DeliveryRow[], date: string, today: string, nowMs: number): 
     if (date < today) return "delivered";
     return live.some((r) => r.cutoffAt > nowMs) ? "pick" : "locked";
   }
-  if (rows.some((r) => r.status === "paused")) return "paused";
-  if (rows.some((r) => r.status === "skipped")) return "hold";
+  const states = rows.map((r) => deliveryTripState({ status: r.status }));
+  if (states.includes("paused")) return "paused";
+  if (states.includes("hold")) return "hold";
   return null;
 }
 

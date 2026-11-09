@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { epochToDate, formatDateOnly, formatDeliveryTime, formatEpoch, formatMenuWeekRange } from "../datetime";
+import { formatDateOnly, formatDeliveryTime, formatEpoch, formatMenuWeekRange } from "../datetime";
 
 const ms = Date.UTC(2026, 5, 22, 18, 30, 0); // 2026-06-22T18:30:00Z
 
@@ -14,10 +14,6 @@ describe("formatEpoch", () => {
     const tor = formatEpoch(ms, { timeZone: "America/Toronto", mode: "time" });
     const kol = formatEpoch(ms, { timeZone: "Asia/Kolkata", mode: "time" });
     expect(tor).not.toEqual(kol);
-  });
-
-  it("epochToDate round-trips the instant", () => {
-    expect(epochToDate(ms).getTime()).toBe(ms);
   });
 });
 

@@ -4,7 +4,8 @@ import { Truck } from "lucide-react";
 import { useRef, useState, type KeyboardEvent } from "react";
 import { cn, FONT, FOCUS, SPRING } from "./cn";
 import { Reason } from "./notice";
-import { StatusDot, StatusRing, STATUS_LABEL, type DeliveryStatus } from "./status";
+import { StatusDot, StatusRing } from "./status";
+import { STATUS_LABEL, type DeliveryStatus } from "@/lib/deliveries/status";
 import { addDaysIso, isoToUtcDate, mondayIndex } from "@/lib/dates";
 
 const WD = new Intl.DateTimeFormat("en-CA", { weekday: "short", timeZone: "UTC" });

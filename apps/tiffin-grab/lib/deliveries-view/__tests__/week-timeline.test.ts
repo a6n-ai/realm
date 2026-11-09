@@ -13,7 +13,7 @@ describe("weekTimeline", () => {
       "2026-10-14": [dot("2026-10-14", ["2026-10-14"], { status: "skipped" })],
       "2026-10-16": [dot("2026-10-16", ["2026-10-16"])],
     };
-    const r = weekTimeline(agenda, "2026-10-12", 0);
+    const r = weekTimeline(agenda, "2026-10-12");
     expect(r.trips).toEqual([
       { day: "mon", units: 2, days: ["mon", "tue"], status: "delivered" },
       { day: "wed", units: 1, days: ["wed"], status: "hold" },
@@ -24,6 +24,6 @@ describe("weekTimeline", () => {
 
   it("drops covered days that fall in another week", () => {
     const agenda: Agenda = { "2026-10-16": [dot("2026-10-16", ["2026-10-16", "2026-10-19"])] };
-    expect(weekTimeline(agenda, "2026-10-12", 0).trips[0]!.days).toEqual(["fri"]);
+    expect(weekTimeline(agenda, "2026-10-12").trips[0]!.days).toEqual(["fri"]);
   });
 });

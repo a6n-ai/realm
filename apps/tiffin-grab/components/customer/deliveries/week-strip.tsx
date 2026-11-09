@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { ChevronLeft, ChevronRight, Truck } from "lucide-react";
-import { STATUS_COLOR, STATUS_LABEL } from "@/components/customer/kit";
+import { STATUS_COLOR, STATUS_LABEL } from "@/lib/deliveries/status";
 import { cn, FOCUS } from "@/components/customer/kit/cn";
 import { weekDays, weekTimeline, type Agenda } from "@/lib/deliveries-view/week";
 import type { DayOfWeek } from "@/lib/menu/delivery-days";
@@ -38,7 +38,7 @@ export function WeekStrip({ firstWeek, lastWeek, week: propWeek, today, selected
     setSeen(propWeek);
     setWeek(propWeek);
   }
-  const { trips, dayStatus } = weekTimeline(agenda, week, now);
+  const { trips, dayStatus } = weekTimeline(agenda, week);
   const isos = weekDays(week);
   const thisWeek = mondayOfIso(today);
   const arrives = new Map(trips.map((t) => [t.day, t.units]));

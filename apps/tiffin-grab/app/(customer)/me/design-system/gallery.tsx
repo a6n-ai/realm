@@ -5,8 +5,9 @@ import { CalendarDays, Pause, Inbox, Home, UtensilsCrossed, User } from "lucide-
 import { useState } from "react";
 import {
   ActionRow, BottomBar, Button, CoinChip, EmptyState, ListGroup, ListRow, MenuSection, NavPill, PageHeader, SelectableCard, StatTile, TabBar, ThemeToggle, Card, Chip, Countdown, DateStrip, Field, MonthGrid, Notice, Pill, Reason, Segmented,
-  Sheet, Skeleton, StatusDot, StatusRing, Stepper, Tabs, Toast, Toggle, type DeliveryStatus,
+  Sheet, Skeleton, StatusDot, StatusRing, Stepper, Tabs, Toast, Toggle,
 } from "@/components/customer/kit";
+import type { DeliveryStatus } from "@/lib/deliveries/status";
 
 const S: DeliveryStatus[] = ["delivered", "upcoming", "paused", "hold", "combined"];
 

@@ -2,10 +2,6 @@ import { parseIsoDateUtc } from "@foundry/commons";
 import { dateTimeFormat } from "@/lib/intl/date-format";
 import { addDaysIso } from "@/lib/dates";
 
-export function epochToDate(ms: number): Date {
-  return new Date(ms);
-}
-
 type AbsoluteMode = "date" | "datetime" | "time";
 
 const PRESETS: Record<AbsoluteMode, Intl.DateTimeFormatOptions> = {

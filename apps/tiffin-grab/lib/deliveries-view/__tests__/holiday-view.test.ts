@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { actionAvailability, buildTrips, type CalendarDayInput, type PlanContext } from "../index";
-import { dotStatus, type AgendaDot } from "../week";
+import type { AgendaDot } from "../week";
+import { deliveryTripState } from "@/lib/deliveries/status";
 import { actionModel } from "@/components/customer/deliveries/action-model";
 
 const plan: PlanContext = { cutoffHour: 18, timezone: "America/Toronto", lastDeliveryDate: "2030-01-14", deliveryWeekdays: ["mon", "wed", "fri"] };
@@ -41,7 +42,7 @@ describe("a holiday in the trip model", () => {
 
   it("the week dot is a holiday first", () => {
     const dot: AgendaDot = { orderId: "o", status: "paused", cutoffAt: now + 1000, deliveryDate: "2030-01-09", truck: true, units: 1, covers: ["2030-01-09"], holiday: "Diwali" };
-    expect(dotStatus(dot, now)).toBe("holiday");
-    expect(dotStatus({ ...dot, holiday: null }, now)).toBe("paused");
+    expect(deliveryTripState(dot)).toBe("holiday");
+    expect(deliveryTripState({ ...dot, holiday: null })).toBe("paused");
   });
 });

@@ -1,7 +1,7 @@
 "use client";
 import { ChevronLeft, ChevronRight, Info, Truck } from "lucide-react";
 import { Popover } from "radix-ui";
-import { STATUS_COLOR, STATUS_LABEL, type DeliveryStatus } from "@/components/customer/kit";
+import { STATUS_COLOR, STATUS_LABEL, type DeliveryStatus } from "@/lib/deliveries/status";
 import { cn, FOCUS } from "@/components/customer/kit/cn";
 import { TripTimeline } from "@/components/wizard/trip-timeline";
 import { weekDays, weekTimeline, type Agenda } from "@/lib/deliveries-view/week";
@@ -36,7 +36,7 @@ interface Props {
 
 /** The deliveries week as the subscribe flow's trip timeline: trucks and bars in delivery-status colours, days tappable. */
 export function WeekTimeline({ firstWeek, lastWeek, week, today, selectedDay, agenda, now, onPickDay, onWeek, isDisabled, onDisabledTap, deliveryDay }: Props) {
-  const { trips, dayStatus } = weekTimeline(agenda, week, now);
+  const { trips, dayStatus } = weekTimeline(agenda, week);
   const isos = weekDays(week);
   const thisWeek = mondayOfIso(today);
   const dimBefore = week < thisWeek ? 7 : week > thisWeek ? 0 : isos.indexOf(today);

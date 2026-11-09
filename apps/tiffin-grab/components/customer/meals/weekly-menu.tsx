@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useRef, useState, type KeyboardEvent } from "react";
 import { ArrowRight, Check, Clock, CookingPot, Heart, Lock, Pause, UtensilsCrossed } from "lucide-react";
-import { EmptyState, IconTile, Pill, Segmented, StatusDot, panelId, tabId, type DeliveryStatus, type IconTint } from "@/components/customer/kit";
+import { EmptyState, IconTile, Pill, Segmented, StatusDot, panelId, tabId, type IconTint } from "@/components/customer/kit";
+import type { DeliveryStatus } from "@/lib/deliveries/status";
 import { buttonClass } from "@/components/customer/kit/button-class";
 import { cn, FOCUS } from "@/components/customer/kit/cn";
 import { useSwipePages } from "@/components/customer/kit/use-swipe-pages";

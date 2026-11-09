@@ -1,5 +1,5 @@
 import { addDaysIso, isoToUtcDate, mondayIndex, mondayOfIso } from "@/lib/dates";
-import type { DeliveryStatus } from "@/components/customer/kit";
+import { deliveryTripState, type DeliveryStatus } from "@/lib/deliveries/status";
 
 export type AgendaDot = { orderId: string; status: "scheduled" | "paused" | "skipped" | "cancelled"; cutoffAt: number; deliveryDate: string; truck: boolean; units: number; covers: string[]; moved?: boolean; holiday?: string | null; optimoCompletionStatus?: string | null; deliveryId?: string; /** A hold that began as a pause: still drawn as Paused. */ lapsedPause?: boolean };
 export type Agenda = Record<string, AgendaDot[]>;
@@ -16,17 +16,6 @@ export function parseWeekParam(p: string | undefined): string | null {
 /** The plan's start week until it starts, then the current week. */
 export function defaultWeek(today: string, planFirst: string | null | undefined): string {
   return mondayOfIso(planFirst && planFirst > today ? planFirst : today);
-}
-
-export function dotStatus(d: AgendaDot, now: number): DeliveryStatus {
-  if (d.holiday) return "holiday";
-  if (d.moved) return "combined";
-  if (d.status === "paused") return "paused";
-  if (d.status === "skipped") return d.lapsedPause ? "paused" : "hold";
-  if (d.optimoCompletionStatus === "failed") return "hold";
-  if (d.optimoCompletionStatus === "success") return "delivered";
-  // Not confirmed by OptimoRoute or an admin yet, whatever the cutoff says.
-  return "upcoming";
 }
 
 /**
@@ -56,7 +45,7 @@ type Weekday = (typeof WEEKDAY)[number];
 const weekdayOf = (iso: string): Weekday => WEEKDAY[mondayIndex(iso)]!;
 
 /** One week of the agenda as timeline trips: each truck day carries the eating days in its week, coloured by status. */
-export function weekTimeline(agenda: Agenda, monday: string, now: number): {
+export function weekTimeline(agenda: Agenda, monday: string): {
   trips: { day: Weekday; units: number; days: Weekday[]; status: DeliveryStatus }[];
   dayStatus: Partial<Record<Weekday, DeliveryStatus>>;
 } {
@@ -66,11 +55,11 @@ export function weekTimeline(agenda: Agenda, monday: string, now: number): {
   const trips = new Map<string, { day: Weekday; units: number; days: Weekday[]; status: DeliveryStatus }>();
   for (const iso of days) {
     for (const d of agenda[iso] ?? []) {
-      dayStatus[weekdayOf(iso)] ??= dotStatus(d, now);
+      dayStatus[weekdayOf(iso)] ??= deliveryTripState(d);
       if (!d.truck || trips.has(d.deliveryDate)) continue;
       const covers = d.covers.filter((c) => inWeek.has(c));
       // A moved-away truck day still delivers: the trip keeps its own status.
-      trips.set(d.deliveryDate, { day: weekdayOf(d.deliveryDate), units: d.units, days: (covers.length ? covers : [iso]).map(weekdayOf), status: dotStatus({ ...d, moved: false }, now) });
+      trips.set(d.deliveryDate, { day: weekdayOf(d.deliveryDate), units: d.units, days: (covers.length ? covers : [iso]).map(weekdayOf), status: deliveryTripState({ ...d, moved: false }) });
     }
   }
   return { trips: [...trips.values()], dayStatus };

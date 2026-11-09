@@ -6,30 +6,28 @@ import { EventCalendar } from "@/components/reui/event-calendar/event-calendar";
 import { EventCalendarContent } from "@/components/reui/event-calendar/event-calendar-content";
 import { EventCalendarNav } from "@/components/reui/event-calendar/event-calendar-nav";
 import type { CalendarEvent } from "@/components/reui/event-calendar/event-calendar-types";
-import { STATUS_COLOR, type DeliveryStatus } from "@/components/customer/kit";
-import { dotStatus, type Agenda, type AgendaDot } from "@/lib/deliveries-view/week";
+import { STATUS_COLOR, STATUS_LABEL, deliveryTripState, type DeliveryStatus } from "@/lib/deliveries/status";
+import type { Agenda, AgendaDot } from "@/lib/deliveries-view/week";
 import { addDaysIso, isoToLocalDate, localIso } from "@/lib/dates";
 
 // The statuses staff set in the delivery status dropdown, which splits two the customer strip merges:
 // past the cutoff an unconfirmed day is awaiting confirmation, and a driver-failed drop is not an admin hold.
 export type BoxStatus = DeliveryStatus | "awaiting" | "not-delivered";
 export const BOX_COLOR: Record<BoxStatus, string> = { ...STATUS_COLOR, awaiting: "#8b5cf6", "not-delivered": "#b91c1c" };
+// Staff wording: a held day reads "On hold" and a combined one "Moved" (the customer kit says "Not delivered" / "Combined").
 export const BOX_LABEL: Record<BoxStatus, string> = {
-  delivered: "Delivered",
-  upcoming: "Upcoming",
+  ...STATUS_LABEL,
   awaiting: "Awaiting confirmation",
-  paused: "Paused",
   hold: "On hold",
   "not-delivered": "Not delivered",
   combined: "Moved",
-  holiday: "Holiday",
 };
 
 // Chips are narrow: the two long labels get a short form there; the panel keeps the full words.
 const CHIP_LABEL: Partial<Record<BoxStatus, string>> = { awaiting: "To confirm", "not-delivered": "Missed" };
 
 export function boxStatus(d: AgendaDot, now: number): BoxStatus {
-  const s = dotStatus(d, now);
+  const s = deliveryTripState(d);
   if (s === "hold") return d.optimoCompletionStatus === "failed" ? "not-delivered" : "hold";
   return s === "upcoming" && d.cutoffAt <= now ? "awaiting" : s;
 }

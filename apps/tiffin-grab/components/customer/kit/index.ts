@@ -12,7 +12,7 @@ export { Chip, Pill, type Tone } from "./pill";
 export { Select } from "./select";
 export { Sheet } from "./sheet";
 export { Skeleton } from "./skeleton";
-export { STATUS_COLOR, STATUS_LABEL, StatusDot, StatusRing, type DeliveryStatus } from "./status";
+export { StatusDot, StatusRing } from "./status";
 export { Segmented, Tabs, panelId, tabId, type TabItem } from "./tabs";
 export { Toast } from "./toast";
 export { BottomBar, TabBar, type TabBarItem } from "./bottom-bar";
