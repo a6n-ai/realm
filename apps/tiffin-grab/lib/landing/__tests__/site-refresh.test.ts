@@ -12,7 +12,7 @@ vi.mock("@/lib/cache", () => ({
   }),
 }));
 vi.mock("next/cache", () => ({ revalidatePath: revalidate }));
-vi.mock("@/lib/runtime/background", () => ({ runInBackground: () => {} }));
+vi.mock("@foundry/cloud/background", () => ({ runInBackground: () => {} }));
 vi.mock("@/lib/landing/site-boundaries", async (orig) => ({
   ...(await orig<typeof import("@/lib/landing/site-boundaries")>()),
   loadWindowEdges: async () => [],

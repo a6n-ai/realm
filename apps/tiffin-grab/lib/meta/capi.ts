@@ -1,5 +1,5 @@
 import { postMetaEvent, type SendMetaEventArgs } from "@foundry/meta-pixel";
-import { runInBackground } from "@/lib/runtime/background";
+import { runInBackground } from "@foundry/cloud/background";
 import { metaPixel } from "@/lib/services/meta-pixel/config";
 
 /**

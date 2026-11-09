@@ -1,7 +1,7 @@
 import { revalidatePath } from "next/cache";
 import { sharedCache } from "@/lib/cache";
 import { computeSiteNextAt } from "@/lib/landing/site-boundaries";
-import { runInBackground } from "@/lib/runtime/background";
+import { runInBackground } from "@foundry/cloud/background";
 import { scheduleSiteRefreshWake } from "@/lib/runtime/workflow-wake";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 

@@ -1,5 +1,5 @@
 import type { RealtimeEvent } from "@foundry/realtime";
-import { runInBackground } from "@/lib/runtime/background";
+import { runInBackground } from "@foundry/cloud/background";
 import { realtimeBus } from "./bus";
 import { PAYMENTS_INBOX, TICKETS_INBOX } from "./inbox";
 import { notifyChannel } from "./notify";
