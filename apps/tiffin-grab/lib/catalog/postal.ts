@@ -2,7 +2,12 @@ import { ValidationError } from "@foundry/commons";
 import { matchPostalZone } from "@foundry/delivery";
 
 // Canada Post format A1A 1A1. D, F, I, O, Q, U never appear; W and Z never start one.
-const CANADIAN_POSTAL = /^[ABCEGHJ-NPRSTVXY]\d[ABCEGHJ-NPRSTV-Z]\d[ABCEGHJ-NPRSTV-Z]\d$/;
+const FSA = "[ABCEGHJ-NPRSTVXY]\\d[ABCEGHJ-NPRSTV-Z]";
+const FSA_ONLY = new RegExp(`^${FSA}$`);
+const CANADIAN_POSTAL = new RegExp(`^${FSA}\\d[ABCEGHJ-NPRSTV-Z]\\d$`);
+
+/** A Canadian forward sortation area ("M5V"), as the public API accepts it alongside a full code. */
+export const isPostalFsa = (raw: string): boolean => FSA_ONLY.test(raw);
 
 /** A full Canadian postal code, normalized to "A1A 1A1". A bare prefix like "M8" matched
  * a zone and let an undeliverable order through, so every address and order goes here. */

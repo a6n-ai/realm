@@ -11,6 +11,7 @@ import { menuService } from "@/lib/services/menu.service";
 import { contactBody, deliveryBody, faqBody, menuBody, plansBody, promotionsBody, referralBody } from "@/lib/public-api/data";
 import { deliveryCheck } from "@/lib/public-api/postal";
 import { publicOrigin } from "@/lib/routing/apex";
+import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 
 // Answers shared through Workers KV (L1 in-process, then KV) for an hour, cleared by every public-site edit
 // (publicApiCache in revalidate-site.ts). MCP tool calls are POSTs, which the edge cache never stores. Bodies are plain JSON.
@@ -25,7 +26,10 @@ export const loadPublic = {
     return deliveryBody(facts, catalog, publicOrigin());
   }),
   /** `postal` already normalized (normalizePostal). */
-  check: async (postal: string) => deliveryCheck((await loadCatalogSnapshot()).zones, postal),
+  check: async (postal: string) => {
+    const orgId = await resolveRequestOrg();
+    return deliveryCheck((await loadCatalogSnapshot(orgId)).zones, postal, orgId);
+  },
   promotions: cached("promotions", async () => promotionsBody(await loadLandingPromos(), publicOrigin())),
   // The brand's published week, as /menu shows it.
   menu: cached("menu", async () => {

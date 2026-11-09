@@ -3,9 +3,9 @@ import { apiCatalog, docsMarkdown, openApi } from "@/lib/public-api/openapi";
 import { deliveryCheck, normalizePostal } from "@/lib/public-api/postal";
 
 const zones = [
-  { name: "Toronto", active: true, postalPrefixes: ["M4", "M5"], slotWindow: "11:00 AM – 2:00 PM" },
-  { name: "East York", active: true, postalPrefixes: ["M4B"], slotWindow: "3:00 PM – 6:00 PM" },
-  { name: "Old", active: false, postalPrefixes: ["L9"], slotWindow: null },
+  { name: "Toronto", active: true, radiusKm: null, postalPrefixes: ["M4", "M5"], slotWindow: "11:00 AM – 2:00 PM" },
+  { name: "East York", active: true, radiusKm: null, postalPrefixes: ["M4B"], slotWindow: "3:00 PM – 6:00 PM" },
+  { name: "Old", active: false, radiusKm: null, postalPrefixes: ["L9"], slotWindow: null },
 ];
 
 describe("normalizePostal", () => {
@@ -14,12 +14,12 @@ describe("normalizePostal", () => {
 });
 
 describe("deliveryCheck", () => {
-  it("longest prefix wins: M4B is East York, not Toronto's M4", () => {
-    expect(deliveryCheck(zones, "M4B1A1")).toMatchObject({ served: true, area: "East York", window: { from: "3 PM", to: "6 PM" } });
-    expect(deliveryCheck(zones, "M4C")).toMatchObject({ area: "Toronto" });
+  it("longest prefix wins: M4B is East York, not Toronto's M4", async () => {
+    expect(await deliveryCheck(zones, "M4B1A1")).toMatchObject({ served: true, area: "East York", window: { from: "3 PM", to: "6 PM" } });
+    expect(await deliveryCheck(zones, "M4C")).toMatchObject({ area: "Toronto" });
   });
-  it("ignores inactive zones and unknown codes", () => {
-    expect(deliveryCheck(zones, "L9T")).toEqual({ postal: "L9T", served: false, area: null, window: null });
+  it("ignores inactive zones and unknown codes", async () => {
+    expect(await deliveryCheck(zones, "L9T")).toEqual({ postal: "L9T", served: false, area: null, window: null });
   });
 });
 

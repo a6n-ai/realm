@@ -1,5 +1,6 @@
 import { db } from "../db/client";
 import { sql } from "drizzle-orm";
+import { assertLocalDb } from "../db/is-local-db";
 import { hashPassword } from "../lib/auth/password";
 
 /**
@@ -8,16 +9,8 @@ import { hashPassword } from "../lib/auth/password";
  * disable the forced /set-password gate on that account. Run against prod by accident
  * (a stale DATABASE_URL is all it takes) it would hand out a known login.
  *
- * Same guard vitest.teardown.ts uses: local databases only, no exceptions.
+ * Local databases only, via the same guard the seed-qa-*.ts scripts use (tunnel ports and sslmode included).
  */
-function isLocalDb(url: string): boolean {
-  try {
-    const h = new URL(url).hostname;
-    return h === "localhost" || h === "127.0.0.1" || h === "::1";
-  } catch {
-    return false;
-  }
-}
 
 // Defaults mirror e2e/helpers/auth.ts, so `pnpm test:e2e` logs in with what this writes.
 const ADMIN_EMAIL = process.env.E2E_ADMIN_EMAIL ?? "info@foodmonks.ca";
@@ -26,13 +19,7 @@ const CUSTOMER_EMAIL = process.env.E2E_CUSTOMER_EMAIL ?? "customer@tiffingrab.ca
 const CUSTOMER_PASSWORD = process.env.E2E_CUSTOMER_PASSWORD ?? "Customer123!";
 
 async function main() {
-  const dbUrl = process.env.DATABASE_URL ?? "";
-  if (!isLocalDb(dbUrl)) {
-    throw new Error(
-      "reseed-e2e-users refuses to run: DATABASE_URL is not a local database. " +
-        "These are throwaway e2e credentials and must never reach a deployed environment.",
-    );
-  }
+  assertLocalDb("reseed-e2e-users");
 
   // Hashed at runtime with the app's own hasher. The admin hash used to be a hardcoded
   // bcrypt string, which stopped working at the scrypt cutover — packages/auth has no
