@@ -18,7 +18,7 @@ const nextConfig: NextConfig = {
   // Git-hosted @foundry/* ship raw .ts. Workspace links used to be compiled as
   // monorepo source; tarballs under node_modules need transpilePackages or
   // Turbopack reports "Unknown module type" (seen on deploy-tiffin-grab).
-  transpilePackages: ["@foundry/commons", "@foundry/database", "@foundry/routes", "@foundry/themes", "@foundry/ui", "@foundry/design-system", "@foundry/crm", "@foundry/realtime", "@foundry/email", "@foundry/auth", "@foundry/auth-ui", "@foundry/clover", "@foundry/payments", "@foundry/google-reviews", "@foundry/google-analytics", "@foundry/meta-pixel", "@foundry/places", "@foundry/storage", "@foundry/cloud", "@foundry/maps", "@foundry/wallet", "@foundry/shortlinks", "@foundry/discounts", "@foundry/delivery", "@foundry/region-map", "@foundry/address", "@foundry/coupons", "@relay/engine", "@relay/email"],
+  transpilePackages: ["@foundry/commons", "@foundry/database", "@foundry/routes", "@foundry/themes", "@foundry/ui", "@foundry/design-system", "@foundry/crm", "@foundry/realtime", "@foundry/auth", "@foundry/auth-ui", "@foundry/clover", "@foundry/payments", "@foundry/google-reviews", "@foundry/google-analytics", "@foundry/meta-pixel", "@foundry/places", "@foundry/storage", "@foundry/cloud", "@foundry/maps", "@foundry/wallet", "@foundry/shortlinks", "@foundry/discounts", "@foundry/delivery", "@foundry/region-map", "@foundry/address", "@foundry/coupons", "@relay/engine", "@relay/email"],
   turbopack: {
     root: monorepoRoot,
     // maplibre (1.2 MB) is only loaded inside map effects; keep it out of the server bundle.

@@ -6,6 +6,7 @@ import { deliveries, orders, reviewNudges, users } from "@/db/schema";
 import { appOrigin, authSecret } from "@/lib/runtime/env";
 import { getAppSettings, integrationsConfigStore } from "@/lib/services/app-settings.service";
 import { reviewNudgeStore } from "@/lib/services/review-nudge.service";
+import { renderEmailTemplate } from "@relay/email";
 import { reviewNudgeEmailProvider } from "./review-nudge-provider";
 
 /** Customers with at least one past-dated scheduled delivery and no nudge yet. */
@@ -58,6 +59,7 @@ export async function runReviewNudges(): Promise<Response> {
       configStore: integrationsConfigStore,
       nudgeStore: reviewNudgeStore,
       emailProvider: reviewNudgeEmailProvider(),
+      renderEmail: renderEmailTemplate,
       unsubscribeSecret,
       baseUrl,
     });

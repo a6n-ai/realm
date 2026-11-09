@@ -20,7 +20,6 @@ overrides:
   "@foundry/discounts": "github:a6n-ai/foundry#path:packages/discounts"
   "@foundry/coupons": "github:a6n-ai/foundry#path:packages/coupons"
   "@foundry/design-system": "github:a6n-ai/foundry#path:packages/design-system"
-  "@foundry/email": "github:a6n-ai/foundry#path:packages/email"
   "@foundry/realtime": "github:a6n-ai/foundry#path:packages/realtime"
   "@foundry/themes": "github:a6n-ai/foundry#path:packages/themes"
   "@foundry/ui": "github:a6n-ai/foundry#path:packages/ui"
