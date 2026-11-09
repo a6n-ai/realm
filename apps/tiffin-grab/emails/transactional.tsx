@@ -388,14 +388,13 @@ export const TEMPLATES: EmailTemplate[] = [
   },
   {
     event: "account_deletion_confirm",
-    subject: "Confirm deleting your Tiffin Grab account",
+    subject: "Your Tiffin Grab account was deleted",
     element: (
-      <Layout preview="Confirm that you want to permanently delete your account.">
+      <Layout preview="Your Tiffin Grab account has been deleted.">
         <Eyebrow>Account</Eyebrow>
-        <Title lead="Confirm account" accent="deletion." />
-        <P>We got a request to permanently delete your Tiffin Grab account. This can't be undone.</P>
-        <Cta href="{{url}}">Delete my account</Cta>
-        <Note>Didn't ask for this? Ignore this email and your account stays active.</Note>
+        <Title lead="Your account was" accent="deleted." />
+        <P>As you asked, we deleted your Tiffin Grab account and signed you out everywhere. Your personal details are removed from it.</P>
+        <Note>Didn't do this? Reply to this email right away and we'll look into it. You're always welcome to sign up again.</Note>
       </Layout>
     ),
   },
@@ -624,6 +623,120 @@ export const TEMPLATES: EmailTemplate[] = [
         <P>Hi {"{{order.customerName}}"}, your receipt for order {"{{order.code}}"} ({"{{order.mealSize}}"}) is attached as a PDF.</P>
         <Cta href={`${BASE}/me/wallet?tab=bills`}>View my bills</Cta>
         <Note>It lists the order, any add-ons, and every payment with its method and transaction ID.</Note>
+      </Layout>
+    ),
+  },
+  {
+    event: "order_completed",
+    subject: "Your Tiffin Grab plan is complete",
+    element: (
+      <Layout preview="Every tiffin on your plan has been delivered.">
+        <Eyebrow>Plan complete</Eyebrow>
+        <Title lead="Every tiffin is" accent="delivered." />
+        <P>Hi {"{{order.customerName}}"}, every tiffin on order {"{{order.code}}"} has been delivered. Thanks for eating with us.</P>
+        <Cta href={`${BASE}/me/renew`}>Renew my plan</Cta>
+        <Note>Same meal, new dates. You can change the start date and number of weeks before you pay.</Note>
+      </Layout>
+    ),
+  },
+  {
+    event: "order_cancelled",
+    subject: "Your Tiffin Grab order {{order.code}} was cancelled",
+    element: (
+      <Layout preview="Your order has been cancelled.">
+        <Eyebrow>Order</Eyebrow>
+        <Title lead="Your order was" accent="cancelled." />
+        <P>Hi {"{{order.customerName}}"}, order {"{{order.code}}"} has been cancelled and no more tiffins will be delivered for it.</P>
+        <Cta href={`${BASE}/me/deliveries`}>View my deliveries</Cta>
+        <Note>Questions? Just reply to this email.</Note>
+      </Layout>
+    ),
+  },
+  {
+    event: "refund_issued",
+    subject: "Your Tiffin Grab refund of {{payment.amount}}",
+    element: (
+      <Layout preview="We refunded your payment.">
+        <Eyebrow>Refund</Eyebrow>
+        <Title lead="Your refund is" accent="on its way." />
+        <P>Hi {"{{payment.customerName}}"}, we refunded part or all of your payment.</P>
+        <Details
+          rows={[
+            ["Refunded", "{{payment.amount}}"],
+            ["Order", "{{payment.orderCode}}"],
+          ]}
+        />
+        <Cta href={`${BASE}/me/wallet?tab=bills`}>View my bills</Cta>
+        <Note>Card refunds can take a few business days to show on your statement.</Note>
+      </Layout>
+    ),
+  },
+  {
+    event: "wallet_redeemed",
+    subject: "{{wallet.coins}} coins applied to your Tiffin Grab order",
+    element: (
+      <Layout preview="Your coins were applied to your order.">
+        <Eyebrow>Wallet</Eyebrow>
+        <Title lead="Coins" accent="applied." />
+        <P>Hi {"{{wallet.customerName}}"}, we applied your coins to order {"{{wallet.orderCode}}"}.</P>
+        <Details
+          rows={[
+            ["Coins spent", "{{wallet.coins}}"],
+            ["Value", "{{wallet.value}}"],
+            ["Order", "{{wallet.orderCode}}"],
+          ]}
+        />
+        <Cta href={`${BASE}/me/wallet`}>View my wallet</Cta>
+      </Layout>
+    ),
+  },
+  {
+    event: "menu_released",
+    subject: "This week's Tiffin Grab menu is out",
+    element: (
+      <Layout preview="The menu for the week of {{menuWeek.weekStartIso}} is live.">
+        <Eyebrow>This week's menu</Eyebrow>
+        <Title lead="Your menu is" accent="out." />
+        <P>The menu for the week of {"{{menuWeek.weekStartIso}}"} is live. Pick your meals before the cutoff, or keep the default and we'll cook that.</P>
+        <Cta href={`${BASE}/me/deliveries`}>Choose my meals</Cta>
+      </Layout>
+    ),
+  },
+  {
+    event: "ticket_reply",
+    subject: "New reply on your Tiffin Grab ticket",
+    element: (
+      <Layout preview="Our team replied to {{ticket.subject}}.">
+        <Eyebrow>Support</Eyebrow>
+        <Title lead="We replied to your" accent="ticket." />
+        <P>Our team replied to your ticket "{"{{ticket.subject}}"}".</P>
+        <Cta href={`${BASE}/me/support/{{ticket.code}}`}>Read the reply</Cta>
+      </Layout>
+    ),
+  },
+  {
+    event: "ticket_resolved",
+    subject: "Your Tiffin Grab ticket was resolved",
+    element: (
+      <Layout preview="Your ticket has been marked resolved.">
+        <Eyebrow>Support</Eyebrow>
+        <Title lead="Your ticket is" accent="resolved." />
+        <P>We marked your ticket "{"{{ticket.subject}}"}" as resolved.</P>
+        <Cta href={`${BASE}/me/support/{{ticket.code}}`}>View the ticket</Cta>
+        <Note>Still need help? Open it and let us know, or start a new ticket.</Note>
+      </Layout>
+    ),
+  },
+  {
+    event: "inquiry_converted",
+    subject: "Welcome to Tiffin Grab",
+    element: (
+      <Layout preview="Your order is set up.">
+        <Eyebrow>Welcome</Eyebrow>
+        <Title lead="Welcome to Tiffin" accent="Grab." />
+        <P>Hi {"{{order.customerName}}"}, we set up order {"{{order.code}}"} for you. Sign in to pick meals, move a tiffin or change an address any day.</P>
+        <Cta href={`${BASE}/me/deliveries`}>View my deliveries</Cta>
+        <Note>Questions? Just reply to this email.</Note>
       </Layout>
     ),
   },

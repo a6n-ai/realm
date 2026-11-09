@@ -10,6 +10,7 @@ describe("EVENTS", () => {
   it("lists every event but the ledger-only adjustment", () => {
     expect(NOTIFICATION_EVENTS).toContain("holiday_declared");
     expect(NOTIFICATION_EVENTS).not.toContain("manual_adjustment");
+    expect(NOTIFICATION_EVENTS).not.toContain("order_paused");
   });
   it("categorises from the registry", () => {
     expect(eventCategory("order_receipt")).toBe("orders");

@@ -52,6 +52,14 @@ export const EVENTS: Record<AppEvent, EventDef> = {
   },
   order_completed: {
     category: "orders",
+    channels: ["email", "in_app"],
+    vars: {
+      entity: "order",
+      fields: [
+        { name: "code", label: "Order code" },
+        { name: "customerName", label: "Customer name" },
+      ],
+    },
   },
   order_cancelled: {
     category: "orders",
@@ -82,11 +90,13 @@ export const EVENTS: Record<AppEvent, EventDef> = {
   },
   refund_issued: {
     category: "payments",
+    channels: ["email", "in_app"],
     vars: {
       entity: "payment",
       fields: [
         { name: "amount", label: "Amount" },
         { name: "orderCode", label: "Order code" },
+        { name: "customerName", label: "Customer name" },
       ],
     },
   },
@@ -97,7 +107,6 @@ export const EVENTS: Record<AppEvent, EventDef> = {
       entity: "menuWeek",
       fields: [
         { name: "weekStartIso", label: "Week starting" },
-        { name: "cutoffLabel", label: "Cutoff" },
       ],
     },
   },
@@ -114,9 +123,24 @@ export const EVENTS: Record<AppEvent, EventDef> = {
   },
   wallet_redeemed: {
     category: "wallet",
+    channels: ["email", "in_app"],
+    vars: {
+      entity: "wallet",
+      fields: [
+        { name: "coins", label: "Coins spent" },
+        { name: "value", label: "Value applied" },
+        { name: "orderCode", label: "Order code" },
+        { name: "customerName", label: "Customer name" },
+      ],
+    },
   },
   inquiry_created: {
     category: "inquiries",
+    channels: ["in_app"],
+    vars: {
+      entity: "inquiry",
+      fields: [{ name: "customerName", label: "Customer name" }],
+    },
   },
   inquiry_follow_up: {
     category: "inquiries",
@@ -128,9 +152,25 @@ export const EVENTS: Record<AppEvent, EventDef> = {
   },
   inquiry_converted: {
     category: "inquiries",
+    channels: ["in_app"],
+    vars: {
+      entity: "order",
+      fields: [
+        { name: "code", label: "Order code" },
+        { name: "customerName", label: "Customer name" },
+      ],
+    },
   },
   ticket_created: {
     category: "support",
+    channels: ["in_app"],
+    vars: {
+      entity: "ticket",
+      fields: [
+        { name: "subject", label: "Subject" },
+        { name: "code", label: "Ticket code" },
+      ],
+    },
   },
   ticket_reply: {
     category: "support",
@@ -145,6 +185,14 @@ export const EVENTS: Record<AppEvent, EventDef> = {
   },
   ticket_resolved: {
     category: "support",
+    channels: ["email", "in_app"],
+    vars: {
+      entity: "ticket",
+      fields: [
+        { name: "subject", label: "Subject" },
+        { name: "code", label: "Ticket code" },
+      ],
+    },
   },
   signup: {
     category: "account",
@@ -163,6 +211,7 @@ export const EVENTS: Record<AppEvent, EventDef> = {
   },
   account_deletion_confirm: {
     category: "account",
+    channels: ["email"],
   },
   password_changed: {
     category: "account",
@@ -296,7 +345,10 @@ export const EVENTS: Record<AppEvent, EventDef> = {
   },
 };
 
-export const NOTIFICATION_EVENTS: string[] = (Object.keys(EVENTS) as AppEvent[]).filter((e) => e !== "manual_adjustment");
+/** Never listed in settings or templates: manual_adjustment is ledger-only; order_paused has no whole-plan pause to send for. */
+export const HIDDEN_EVENTS: string[] = ["manual_adjustment", "order_paused"];
+
+export const NOTIFICATION_EVENTS: string[] = (Object.keys(EVENTS) as AppEvent[]).filter((e) => !HIDDEN_EVENTS.includes(e));
 
 /** `{{order.*}}` variables for an order email; one fallback for a missing name. */
 export const orderTemplateVars = <T extends Record<string, string>>(code: string, customerName: string | null | undefined, extra: T = {} as T) => ({

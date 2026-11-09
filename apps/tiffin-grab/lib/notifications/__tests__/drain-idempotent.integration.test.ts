@@ -22,6 +22,8 @@ afterEach(async () => {
 
 describe("drain under duplicate queue messages", () => {
   it("sends each pending row once when two drains race", async () => {
+    // Other suites leave pending rows (a ticket or inquiry fans out to staff) that would fill the drain's claim budget.
+    await db.delete(notificationOutbox).where(eq(notificationOutbox.status, "pending"));
     for (let i = 0; i < 5; i++) {
       const [u] = await db.insert(users).values({ name: MARK, email: `${MARK}-${i}@example.test`, role: "user", status: "active" }).returning({ id: users.id });
       userIds.push(u.id);

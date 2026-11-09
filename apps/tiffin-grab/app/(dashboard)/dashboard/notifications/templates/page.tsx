@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { LayersIcon, CheckCircleIcon, CircleSlashIcon } from "lucide-react";
 import { appEvent } from "@/db/schema";
+import { HIDDEN_EVENTS } from "@/lib/notifications/events";
 import { listTemplates } from "@/lib/services/notification-template.service";
 import { parseSort, type SortState } from "@foundry/design-system/list-sort";
 import { SectionCard, StatCard, StatGrid, SkeletonStatCards } from "@/components/ds";
@@ -32,7 +33,7 @@ async function loadTemplateItems(): Promise<{ items: TemplateStatus[]; configure
   }
 
   const items: TemplateStatus[] = appEvent.enumValues
-    .filter((ev) => ev !== "manual_adjustment")
+    .filter((ev) => !HIDDEN_EVENTS.includes(ev))
     .map((event) => {
       const e = agg.get(event);
       const channels = e

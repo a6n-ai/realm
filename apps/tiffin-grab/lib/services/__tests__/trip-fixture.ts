@@ -1,6 +1,6 @@
 import { eq, inArray, like } from "drizzle-orm";
 import { db } from "@/db/client";
-import { deliveries, deliveryCategorySwaps, dishCategories, orderActivities, orders, payments, users } from "@/db/schema";
+import { deliveries, deliveryCategorySwaps, dishCategories, notificationOutbox, orderActivities, orders, payments, users } from "@/db/schema";
 import { invalidateCatalogSnapshot, loadCatalogSnapshot } from "@/lib/catalog/load";
 import type { DayOfWeek } from "@/lib/menu/delivery-days";
 import { materializeDeliveries } from "../deliveries.service";
@@ -31,7 +31,9 @@ export async function resetTrips(deploymentId: string, userPrefix: string) {
     await db.delete(payments).where(inArray(payments.orderId, ids));
     await db.delete(orders).where(inArray(orders.id, ids));
   }
-  await db.delete(users).where(like(users.email, `${userPrefix.replace(/[\\%_]/g, "\\$&")}%@test.invalid`));
+  const mineUsers = like(users.email, `${userPrefix.replace(/[\\%_]/g, "\\$&")}%@test.invalid`);
+  await db.delete(notificationOutbox).where(inArray(notificationOutbox.recipientId, db.select({ id: users.id }).from(users).where(mineUsers)));
+  await db.delete(users).where(mineUsers);
 }
 
 /** MWF order eating all 7 days for 1 week from MON, materialized: Mon [Mon,Tue], Wed [Wed,Thu], Fri [Fri,Sat,Sun]. */

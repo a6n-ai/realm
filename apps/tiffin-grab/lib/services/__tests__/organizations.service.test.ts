@@ -2,7 +2,7 @@ import { afterAll, afterEach, beforeEach, describe, expect, it } from "vitest";
 import { eq, inArray, like } from "drizzle-orm";
 
 const { db } = await import("@/db/client");
-const { organization, member, users } = await import("@/db/schema");
+const { organization, member, notificationOutbox, users } = await import("@/db/schema");
 const { resolveSessionVisibleOrgIds } = await import("@/lib/auth/visible-orgs");
 const {
   getMemberOrganizations,
@@ -28,6 +28,7 @@ async function reset() {
   const testOrgIds = testOrgs.map((o) => o.id);
   if (testOrgIds.length) await db.delete(member).where(inArray(member.organizationId, testOrgIds));
   await db.delete(organization).where(like(organization.clientCode, "test-svc-%"));
+  await db.delete(notificationOutbox).where(inArray(notificationOutbox.recipientId, db.select({ id: users.id }).from(users).where(like(users.email, "%@test.invalid"))));
   await db.delete(users).where(like(users.email, "%@test.invalid"));
 }
 
