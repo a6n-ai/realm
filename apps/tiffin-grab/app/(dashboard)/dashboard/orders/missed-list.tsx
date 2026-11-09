@@ -9,7 +9,7 @@ import { Badge } from "@foundry/ui/badge";
 import { Button } from "@foundry/ui/button";
 import { TableCell } from "@foundry/ui/table";
 import { DataTable, ResponsiveDialog, RowActionTooltipButton, type Column, type FacetDef } from "@/components/ds";
-import { ListSearchFilters } from "@/components/filters/list-search-filters";
+import { ListSearchFilters } from "@/components/filters/filters";
 import { MISSED_WHY } from "@/lib/missed-filter";
 import { humanDate } from "@/lib/deliveries-view";
 import type { MissedDeliveryRow } from "@/lib/services/missed-deliveries.service";

@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { SlidersHorizontalIcon } from "lucide-react";
 import type { CouponKind, DiscountPolicy } from "@/db/schema/coupons";
 import { DataTable, SectionCard, type Column, type FacetDef } from "@/components/ds";
-import { ListSearchFilters } from "@/components/filters/list-search-filters";
+import { ListSearchFilters } from "@/components/filters/filters";
 import { Button } from "@foundry/ui/button";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { Switch } from "@foundry/ui/switch";

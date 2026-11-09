@@ -4,7 +4,7 @@ import { pageOffset } from "@/lib/list/pagination";
 import Link from "next/link";
 import { PlusIcon, UsersIcon } from "lucide-react";
 import { DataTable, ListPagination, type Column, type FacetDef } from "@/components/ds";
-import { ListSearchFilters } from "@/components/filters/list-search-filters";
+import { ListSearchFilters } from "@/components/filters/filters";
 import { Button } from "@foundry/ui/button";
 import { TableCell } from "@foundry/ui/table";
 import { GroupRowActions } from "./group-quick-actions";

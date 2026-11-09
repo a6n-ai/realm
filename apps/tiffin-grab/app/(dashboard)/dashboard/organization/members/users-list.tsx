@@ -3,7 +3,7 @@
 import { pageOffset } from "@/lib/list/pagination";
 import { UsersIcon } from "lucide-react";
 import { DataTable, ListPagination, SkeletonFilterBar, type Column, type FacetDef } from "@/components/ds";
-import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
+import { ReuiFacetFilters } from "@/components/filters/filters";
 import type { SortState } from "@/lib/list/sort";
 import { UserRow, UserRowCard } from "./user-row";
 import type { UserStatusValue } from "./actions";

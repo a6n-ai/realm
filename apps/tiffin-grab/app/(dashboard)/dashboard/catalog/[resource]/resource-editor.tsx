@@ -13,7 +13,7 @@ import { Controller, useFieldArray, useForm } from "react-hook-form";
 import { Badge } from "@foundry/ui/badge";
 import { Button } from "@foundry/ui/button";
 import { DataTable, ListPagination, ResponsiveDialog, type Column, type FacetDef } from "@/components/ds";
-import { ListSearchFilters } from "@/components/filters/list-search-filters";
+import { ListSearchFilters } from "@/components/filters/filters";
 import { MealCard } from "@/components/marketing/meal-card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@foundry/ui/form";
 import { Input } from "@foundry/ui/input";

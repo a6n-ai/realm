@@ -5,7 +5,7 @@ import Link from "next/link";
 import { UsersIcon } from "lucide-react";
 import { formatPhone } from "@foundry/commons";
 import { DataTable, ListPagination, OrderStatusBadge, type Column, type FacetDef } from "@/components/ds";
-import { ListSearchFilters } from "@/components/filters/list-search-filters";
+import { ListSearchFilters } from "@/components/filters/filters";
 import { TableCell } from "@foundry/ui/table";
 import type { SortState } from "@/lib/list/sort";
 import type { CustomerRow, CustomerSortColumn } from "@/lib/services/customers.service";

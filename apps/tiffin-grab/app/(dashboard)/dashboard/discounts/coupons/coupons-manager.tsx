@@ -8,7 +8,7 @@ import type { CouponConfig, CouponKind } from "@/db/schema/coupons";
 import { DataTable, RowActionTooltipButton, SectionCard, type Column, type FacetDef, type StatItem } from "@/components/ds";
 import { DiscountStats, DiscountStatsSkeleton } from "../discount-stats";
 import { useTimezone } from "@/components/providers/timezone-provider";
-import { ListSearchFilters } from "@/components/filters/list-search-filters";
+import { ListSearchFilters } from "@/components/filters/filters";
 import type { SortState } from "@/lib/list/sort";
 import type { CouponSortColumn } from "./page";
 import { Button } from "@foundry/ui/button";

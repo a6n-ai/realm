@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import type { DiscountPolicy } from "@/db/schema/coupons";
 import { DataTable, RowActionTooltipButton, SectionCard, type Column, type FacetDef, type StatItem } from "@/components/ds";
 import { DiscountStats, DiscountStatsSkeleton } from "../discount-stats";
-import { ListSearchFilters } from "@/components/filters/list-search-filters";
+import { ListSearchFilters } from "@/components/filters/filters";
 import { Badge } from "@foundry/ui/badge";
 import { Button } from "@foundry/ui/button";
 import { Skeleton } from "@foundry/ui/skeleton";

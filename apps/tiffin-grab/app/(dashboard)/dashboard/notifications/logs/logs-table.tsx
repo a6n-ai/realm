@@ -4,7 +4,7 @@ import { pageOffset } from "@/lib/list/pagination";
 import { useState, type ReactNode } from "react";
 import { BellIcon } from "lucide-react";
 import { DataTable, ListPagination, ResponsiveDialog, type Column, type FacetDef } from "@/components/ds";
-import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
+import { ReuiFacetFilters } from "@/components/filters/filters";
 import { TableCell } from "@foundry/ui/table";
 import { Badge } from "@foundry/ui/badge";
 import { eventLabel } from "@relay/engine/ui/template-status";

@@ -7,7 +7,7 @@ import { Button } from "@foundry/ui/button";
 import { useListNav } from "@/components/ds";
 import type { FacetDef } from "@/components/ds";
 import { SectionDateRange } from "@/components/filters/section-date-range";
-import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
+import { ReuiFacetFilters } from "@/components/filters/filters";
 import { pruneSubcategories } from "./subcategory-prune";
 import { franchiseFacets } from "./franchise-facet";
 import type { AnalyticsFilterOptions } from "@/lib/services/analytics/shared-filter-params";

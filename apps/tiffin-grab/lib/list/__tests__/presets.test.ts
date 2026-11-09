@@ -1,13 +1,8 @@
 import { describe, expect, it } from "vitest";
-import type { FacetDef } from "@foundry/design-system";
+import { facetFields, type FacetDef } from "@foundry/design-system";
 import {
-  activePresetKey,
-  applyPreset,
   canonicalParams,
-  facetFields,
-  managedKeys,
   presetFromCanonical,
-  type FilterPreset,
 } from "../presets";
 
 const spec: FacetDef[] = [
@@ -20,21 +15,8 @@ const spec: FacetDef[] = [
 const fields = facetFields(spec);
 
 describe("filter presets", () => {
-  const presets: FilterPreset[] = [{ key: "mine", label: "Mine", params: { status: "active", owner: "usr_me" } }];
-  const managed = managedKeys(presets, fields);
-
   it("facet fields skip search and dates", () => {
     expect(fields).toEqual(["status", "owner", "plan"]);
-  });
-
-  it("apply clears other picks and page, keeps search and dates", () => {
-    const sp = applyPreset(new URLSearchParams("plan=veg&page=3&q=ram&from=1"), presets[0], managed);
-    expect(Object.fromEntries(sp)).toEqual({ q: "ram", from: "1", status: "active", owner: "usr_me" });
-  });
-
-  it("active only on an exact match of managed keys", () => {
-    expect(activePresetKey(new URLSearchParams("owner=usr_me&status=active&q=x"), presets, managed)).toBe("mine");
-    expect(activePresetKey(new URLSearchParams("owner=usr_me&status=active&plan=veg"), presets, managed)).toBeNull();
   });
 });
 

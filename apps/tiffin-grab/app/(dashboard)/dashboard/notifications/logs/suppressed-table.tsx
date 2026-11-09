@@ -5,7 +5,7 @@ import Link from "next/link";
 import { ShieldOffIcon } from "lucide-react";
 import { ClearSuppressionButton } from "../unsubscribed/suppression-actions";
 import { DataTable, ListPagination, type Column, type FacetDef } from "@/components/ds";
-import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
+import { ReuiFacetFilters } from "@/components/filters/filters";
 import { TableCell } from "@foundry/ui/table";
 import { Badge } from "@foundry/ui/badge";
 import { formatEpoch } from "@/lib/format/datetime";

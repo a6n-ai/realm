@@ -5,7 +5,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { CoinsIcon, WalletIcon } from "lucide-react";
 import { DataTable, ListPagination, type Column, type FacetDef, type SortState } from "@/components/ds";
-import { ListSearchFilters } from "@/components/filters/list-search-filters";
+import { ListSearchFilters } from "@/components/filters/filters";
 import { TableCell } from "@foundry/ui/table";
 import { RowActionTooltipButton } from "@/components/ds/row-action-tooltip-button";
 import { GiveOneCustomerDialog } from "../give/give-one-customer-dialog";

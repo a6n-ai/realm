@@ -4,7 +4,7 @@ import { pageOffset } from "@/lib/list/pagination";
 import Link from "next/link";
 import { CoinsIcon } from "lucide-react";
 import { DataTable, ListPagination, type Column, type FacetDef, type SortState } from "@/components/ds";
-import { ListSearchFilters } from "@/components/filters/list-search-filters";
+import { ListSearchFilters } from "@/components/filters/filters";
 import { TableCell } from "@foundry/ui/table";
 import { MemoCell } from "@/components/dashboard/memo-cell";
 

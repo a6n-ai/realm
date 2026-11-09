@@ -21,7 +21,7 @@ import {
   type FacetDef,
   type Option,
 } from "@/components/ds";
-import { ListSearchFilters } from "@/components/filters/list-search-filters";
+import { ListSearchFilters } from "@/components/filters/filters";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@/components/providers/timezone-provider";
 import { rejectPaymentAction, sendPaymentReminderAction, verifyPaymentAction } from "../../orders/[id]/actions";

@@ -3,7 +3,7 @@
 import { HistoryIcon } from "lucide-react";
 import { TableCell } from "@foundry/ui/table";
 import { DataTable, ListPagination, type Column } from "@/components/ds";
-import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
+import { ReuiFacetFilters } from "@/components/filters/filters";
 import { useTimezone } from "@/components/providers/timezone-provider";
 import { CRON_RUN_FACETS } from "@/lib/cron/facets";
 import type { CronRunListRow } from "@/lib/cron/run";

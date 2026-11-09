@@ -8,7 +8,7 @@ import { Button } from "@foundry/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@foundry/ui/tabs";
 import { TableCell } from "@foundry/ui/table";
 import { DataTable, PageHeader, PageShell, ResponsiveDialog, SearchInput, SectionCard, type FacetDef } from "@/components/ds";
-import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
+import { ReuiFacetFilters } from "@/components/filters/filters";
 import { RowActionTooltipButton } from "@/components/ds/row-action-tooltip-button";
 import { Alert, AlertDescription } from "@/components/reui/alert";
 import { useTimezone } from "@/components/providers/timezone-provider";
