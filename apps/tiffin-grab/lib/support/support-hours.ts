@@ -1,15 +1,9 @@
 import { dateTimeFormat } from "@/lib/intl/date-format";
 import { DAY_NAMES } from "@/lib/dates";
 
-/** One weekday's support window, "HH:MM" 24h in the app timezone. */
-export type DayHours = { open: string; close: string };
+import type { DayHours, SupportHours } from "@/db/schema/app";
 
-export type SupportHours = {
-  /** Index 0 = Sunday (JS `getDay`). null = no support that day. */
-  days: (DayHours | null)[];
-  /** Usual time to a first reply, in hours. null = not promised. */
-  replyWithinHours: number | null;
-};
+export type { DayHours, SupportHours };
 
 export const SUPPORT_HOURS_DEFAULT: SupportHours = { days: Array(7).fill(null), replyWithinHours: null };
 

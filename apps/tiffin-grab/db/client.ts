@@ -1,7 +1,7 @@
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-import { trackOutbox } from "@/lib/notifications/outbox-dirty";
+import { AsyncLocalStorage } from "node:async_hooks";
 import { isWorkers } from "@/lib/runtime/platform";
 import * as schema from "./schema";
 import { isProduction } from "@/lib/runtime/env";
@@ -19,18 +19,25 @@ if (!onWorkers && !process.env.DATABASE_URL) {
   }
 }
 
-// A transaction that enqueued notifications wakes the outbox consumer after it commits,
-// never inside it. A rollback throws past the signal.
-function signalAfterCommit(d: Db): Db {
+const pending = new AsyncLocalStorage<Set<() => Promise<void>>>();
+
+/** Queues `hook` to run once the enclosing db.transaction commits (once per transaction, however often queued). No-op outside one. */
+export function onCommit(hook: () => Promise<void>): void {
+  pending.getStore()?.add(hook);
+}
+
+// Hooks run after the transaction commits, never inside it. A rollback throws past them.
+function runAfterCommit(d: Db): Db {
   const raw = d.transaction.bind(d) as (fn: never, cfg?: never) => Promise<unknown>;
   d.transaction = (async (fn: never, cfg?: never) => {
-    const { value, dirty } = await trackOutbox(() => raw(fn, cfg));
-    if (dirty) {
-      // Committed work must never fail on a wake-up; the per-minute tick is the backstop.
+    const hooks = new Set<() => Promise<void>>();
+    const value = await pending.run(hooks, () => raw(fn, cfg));
+    for (const hook of hooks) {
+      // Committed work must never fail on a hook; the per-minute tick is the backstop for the outbox wake-up.
       try {
-        await (await import("@/lib/notifications/outbox-signal")).signalOutbox();
+        await hook();
       } catch (err) {
-        console.error("outbox signal after commit failed", err);
+        console.error("after-commit hook failed", err);
       }
     }
     return value;
@@ -51,7 +58,7 @@ function nodeDb(): Db {
       prepare: false,
     });
   if (!isProduction()) globalForDb.__tiffinGrabPg = client;
-  return signalAfterCommit(drizzle(client, { schema }));
+  return runAfterCommit(drizzle(client, { schema }));
 }
 
 // Workers forbid reusing a socket across requests, so each request gets its own
@@ -65,7 +72,7 @@ function requestDb(): Db {
   if (!d) {
     const hd = (env as { HYPERDRIVE?: { connectionString: string } }).HYPERDRIVE;
     if (!hd) throw new Error("HYPERDRIVE binding missing");
-    d = signalAfterCommit(drizzle(postgres(hd.connectionString, { max: 5, prepare: false }), { schema }));
+    d = runAfterCommit(drizzle(postgres(hd.connectionString, { max: 5, prepare: false }), { schema }));
     perRequest.set(ctx, d);
   }
   return d;
