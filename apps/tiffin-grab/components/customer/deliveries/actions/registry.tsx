@@ -8,7 +8,6 @@ import type { ActionSheetProps } from "./types";
 
 export type { ActionSheetProps } from "./types";
 
-/** One sheet per TripAction. */
 export const ACTION_SHEETS: Record<TripAction, ComponentType<ActionSheetProps>> = {
   pick: PickSheet,
   swap: SwapSheet,

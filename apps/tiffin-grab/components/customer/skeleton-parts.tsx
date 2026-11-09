@@ -63,7 +63,6 @@ export function GroupHeaderSkeleton() {
   );
 }
 
-/** FilterBar: the capsule filter trigger. */
 export function FilterBarSkeleton() {
   return <Skeleton className="h-9 w-28 rounded-full" />;
 }
@@ -77,7 +76,6 @@ export function TabsSkeleton({ widths = ["w-20", "w-24", "w-16", "w-32"] }: { wi
   );
 }
 
-/** A month group: header + ListGroup. */
 export function MonthGroupSkeleton({ rows = 3, ...row }: { rows?: number } & Parameters<typeof ListRowSkeleton>[0]) {
   return (
     <div>

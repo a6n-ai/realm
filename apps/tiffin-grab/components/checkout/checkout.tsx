@@ -112,7 +112,6 @@ const addressOf = (c: Contact): AddressDraft => ({
 
 const oneLine = (a: AddressDraft) => [a.addressUnit ? `${a.addressUnit}–${a.addressLine}` : a.addressLine, a.city, a.postalCode].filter(Boolean).join(", ");
 
-/** A saved address's fields in the checkout contact shape. */
 function addressFields(a: SavedAddress): Partial<Contact> {
   return {
     addressLine: a.addressLine,

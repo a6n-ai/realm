@@ -21,7 +21,6 @@ type Rate = { perCoin: number; currency: string } | null;
 const worth = (rate: Rate, coins: number) =>
   rate ? formatMoney(coins * rate.perCoin, rate.currency) : null;
 
-/** "20" + "coins", or "5%" + "back" for percentage rewards. */
 const reward = (s: ReferralSettings, v: number) => (s.mode === "pct" ? { value: `${v}%`, unit: "back" } : { value: v, unit: v === 1 ? "coin" : "coins" });
 
 function HowItWorks({ settings, rate }: { settings: ReferralSettings; rate: Rate }) {
