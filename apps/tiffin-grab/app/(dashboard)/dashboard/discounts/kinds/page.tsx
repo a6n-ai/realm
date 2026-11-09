@@ -1,5 +1,6 @@
+import { couponLiveSql } from "@/lib/coupons/status-sql";
 import { Suspense } from "react";
-import { and, desc, eq, gt, isNull, or, sql } from "drizzle-orm";
+import { desc, eq, sql } from "drizzle-orm";
 import { parseFilterState, type FacetDef } from "@/components/ds";
 import { db } from "@/db/client";
 import { couponRedemptions, coupons } from "@/db/schema";
@@ -42,7 +43,7 @@ async function KindsData({ searchParams }: { searchParams: SearchParams }) {
     db
       .select({ kind: coupons.kind, n: sql<number>`cast(count(*) as int)` })
       .from(coupons)
-      .where(and(eq(coupons.active, true), or(isNull(coupons.expiresAt), gt(coupons.expiresAt, now))))
+      .where(couponLiveSql(now))
       .groupBy(coupons.kind),
     // Redemptions in the section date range, grouped by the coupon's kind.
     db

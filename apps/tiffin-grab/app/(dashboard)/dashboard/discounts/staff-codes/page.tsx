@@ -1,6 +1,8 @@
+import { couponStatus } from "@/lib/coupons/status";
+import { couponExpiredSql, couponLiveSql } from "@/lib/coupons/status-sql";
 import { STAFF_ROLES } from "@/lib/auth/roles";
 import { Suspense } from "react";
-import { and, eq, exists, gt, ilike, inArray, isNull, lte, or, sql, type SQL } from "drizzle-orm";
+import { and, eq, exists, ilike, inArray, or, sql, type SQL } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { pageOrder } from "@foundry/database";
 import { parseFilterState, type FacetDef } from "@/components/ds";
@@ -85,8 +87,8 @@ async function StaffCodesData({ searchParams }: { searchParams: SearchParams }) 
   const left = sql`${used} < ${budget}`;
   const statusWhere: Record<string, SQL | undefined> = {
     used: sql`${used} >= ${budget}`,
-    unused: and(left, eq(coupons.active, true), or(isNull(coupons.expiresAt), gt(coupons.expiresAt, now))),
-    expired: and(left, eq(coupons.active, true), lte(coupons.expiresAt, now)),
+    unused: and(left, couponLiveSql(now)),
+    expired: and(left, couponExpiredSql(now)),
     revoked: and(left, eq(coupons.active, false)),
   };
 
@@ -189,7 +191,7 @@ async function StaffCodesData({ searchParams }: { searchParams: SearchParams }) 
       issuer: c.issuerName ?? c.issuerEmail ?? "Unknown",
       uses: count,
       maxUses,
-      status: count >= maxUses ? "used" : !c.active ? "revoked" : c.expiresAt != null && c.expiresAt <= now ? "expired" : "unused",
+      status: count >= maxUses ? "used" : !c.active ? "revoked" : couponStatus(c, now) === "expired" ? "expired" : "unused",
       customer: c.customerName ?? c.customerEmail,
       orderPublicId: c.orderPublicId,
       applied: c.applied == null ? null : Number(c.applied),

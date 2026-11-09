@@ -1,3 +1,4 @@
+import { couponStatus } from "@/lib/coupons/status";
 import { isStaffRole } from "@/lib/auth/roles";
 import { round2 } from "@foundry/discounts";
 import { randomInt } from "node:crypto";
@@ -668,8 +669,9 @@ class CouponsService extends SessionUpdatableService<typeof coupons> {
 
   private windowError(coupon: Coupon): string | null {
     const now = Date.now();
-    if (coupon.startsAt != null && now < coupon.startsAt) return "This coupon is not active yet";
-    if (coupon.expiresAt != null && now > coupon.expiresAt) return "This coupon has expired";
+    const status = couponStatus(coupon, now);
+    if (status === "scheduled") return "This coupon is not active yet";
+    if (status === "expired") return "This coupon has expired";
     return null;
   }
 

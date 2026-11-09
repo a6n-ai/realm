@@ -1,3 +1,4 @@
+import { couponStatus, type CouponStatus } from "@/lib/coupons/status";
 import type { WaiverKind } from "@/lib/catalog/types";
 
 export type DiscountKind = "delivery" | "duration" | "meal_size";
@@ -18,7 +19,7 @@ export interface DiscountDto {
   endsAtMs: number | null;
 }
 
-export type DiscountStatus = "active" | "inactive" | "scheduled" | "expired";
+export type DiscountStatus = CouponStatus;
 export type RowType = DiscountKind | "coupon";
 
 export interface AllRow {
@@ -41,15 +42,8 @@ export const TYPE_LABELS: Record<RowType, string> = {
 
 export const COUPONS_HREF = "/dashboard/discounts/coupons";
 
-export function discountStatus(
-  s: { active: boolean; startsAtMs?: number | null; endsAtMs?: number | null },
-  now: number,
-): DiscountStatus {
-  if (!s.active) return "inactive";
-  if (s.startsAtMs != null && s.startsAtMs > now) return "scheduled";
-  if (s.endsAtMs != null && s.endsAtMs < now) return "expired";
-  return "active";
-}
+export const discountStatus = (s: { active: boolean; startsAtMs?: number | null; endsAtMs?: number | null }, now: number): DiscountStatus =>
+  couponStatus({ active: s.active, startsAt: s.startsAtMs, expiresAt: s.endsAtMs }, now);
 
 const fmt = (n: number) => `${Number(n)}`;
 
