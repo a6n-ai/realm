@@ -11,7 +11,7 @@ const MESSAGE: Record<Exclude<AttachResult, "attached">, string> = {
   already: "You already joined with a friend's code.",
 };
 
-/** Refer tab, Google sign-ups: the signed-in owner enters a friend's code themselves. */
+/** Refer tab: the signed-in owner enters a friend's code themselves. */
 export async function enterReferralCode(raw: string): Promise<{ ok: true } | { ok: false; error: string }> {
   const userId = await currentUserId();
   if (userId == null) return { ok: false, error: "Sign in again to add a code." };

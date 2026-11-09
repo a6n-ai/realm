@@ -38,7 +38,7 @@ const { attachReferral, getOrCreateReferralCode, getReferralSummary, staffAttach
 const RATE = 0.1;
 vi.spyOn(walletService, "activeRate").mockResolvedValue(RATE);
 
-const PHONES = Array.from({ length: 42 }, (_, i) => `+164755500${50 + i}`);
+const PHONES = Array.from({ length: 43 }, (_, i) => `+164755500${50 + i}`);
 const phone = (n: number) => `+164755500${n}`;
 
 afterEach(() => {
@@ -281,18 +281,21 @@ describe("getReferralSummary", () => {
 });
 
 describe("getReferralSummary: entering a code later", () => {
-  // Email sign-ups type the code in the subscribe step; the box is for Google sign-ups.
-  it("offers the code box only to a new Google sign-up, until they are referred or have paid", async () => {
+  it("offers the code box to any new customer (email or Google), until they are referred or have paid", async () => {
     const fresh = await makeUser(83);
-    expect((await getReferralSummary(fresh)).canEnterCode).toBe(false);
+    expect((await getReferralSummary(fresh)).canEnterCode).toBe(true);
     await db.insert(account).values({ accountId: `g-${fresh}`, providerId: "google", userId: fresh });
     expect((await getReferralSummary(fresh)).canEnterCode).toBe(true);
 
     const { friend } = await refer(84, 85);
-    await db.insert(account).values({ accountId: `g-${friend}`, providerId: "google", userId: friend });
     expect((await getReferralSummary(friend)).canEnterCode).toBe(false);
 
-    await placeFor(83);
+    const payer = await makeUser(92);
+    await placeFor(92);
+    expect((await getReferralSummary(payer)).canEnterCode).toBe(false);
+    expect(await attachReferral(payer, await getOrCreateReferralCode(fresh))).toBe("not_eligible");
+
+    expect(await attachReferral(fresh, await getOrCreateReferralCode(payer))).toBe("attached");
     expect((await getReferralSummary(fresh)).canEnterCode).toBe(false);
   });
 });
