@@ -23,6 +23,7 @@ import type { DropOffValue } from "@/lib/catalog/drop-off";
 import { refreshStopBestEffort, removeStopsBestEffort, restoreStopsBestEffort, type OptimoSyncedRow } from "@/lib/services/optimoroute/stops";
 import { enqueueNotification } from "@/lib/notifications/enqueue";
 import { orderTemplateVars } from "@/lib/notifications/events";
+import { enqueueOrderNotice } from "@/lib/notifications/order-notice";
 import { LABEL_STATUS } from "@/lib/deliveries/label-status";
 import { nextOpenPlanDay } from "@/lib/deliveries/next-open-day";
 import { assertDayOutsideOtherPlans, otherPlanDays } from "./order-window";
@@ -460,6 +461,13 @@ export async function maybeComplete(orderId: bigint): Promise<boolean> {
       note: "Plan over: every delivery is done", organizationId: updated[0]!.organizationId,
     });
     await clearLookOutOnEnd(tx, orderId, "plan over");
+    await enqueueOrderNotice(tx, orderId, {
+      event: "order_completed",
+      title: "Your plan is complete",
+      body: "Every tiffin on order {code} has been delivered. Thanks for eating with us.",
+      href: "/me/renew",
+      dedupeKey: `order_completed:${orderId}`,
+    });
     return true;
   });
 }

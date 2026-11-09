@@ -20,6 +20,7 @@ import { type OrderPricingSnapshot } from "@/lib/pricing";
 import { round2 } from "@foundry/commons/util/money";
 import { couponsService } from "@/lib/services/coupons.service";
 import { enqueueNotification, enqueueStaffNotification } from "@/lib/notifications/enqueue";
+import { enqueueOrderNotice } from "@/lib/notifications/order-notice";
 import { receiptAttachments } from "@/lib/billing/receipt-link";
 import { shiftMissedDeliveries } from "@/lib/services/deliveries.service";
 import { removeStopsBestEffort, type OptimoSyncedRow } from "@/lib/services/optimoroute/stops";
@@ -365,23 +366,31 @@ export async function refundOrder(
 // refunded order whose coins were never reversed.
 export async function refundPaymentInTx(
   tx: Tx,
-  i: { orderId: bigint; orderPublicId: string; userId: bigint | null; paymentId: bigint; actorInternalId: bigint | null; note: string; /** The Stripe webhook already wrote the ledger refund row(s): it is the only Stripe ledger writer. */ ledgerRecorded?: boolean },
+  i: { orderId: bigint; orderPublicId: string; userId: bigint | null; paymentId: bigint; actorInternalId: bigint | null; note: string; /** What this refund returned; defaults to the charged amount still unrefunded. */ refundedAmount?: number; /** The Stripe webhook already wrote the ledger refund row(s): it is the only Stripe ledger writer. */ ledgerRecorded?: boolean },
 ): Promise<void> {
   // Keep this UPDATE before the ledger-sum read: its row lock serializes concurrent refunds of one payment.
   await tx.update(payments).set({ status: "refunded" }).where(eq(payments.id, i.paymentId));
   await tx.insert(orderActivities).values({ orderId: i.orderId, type: "payment_refunded", note: i.note, createdBy: i.actorInternalId });
-  if (!i.ledgerRecorded && i.userId) {
-    const [{ already }] = await tx
-      .select({ already: sql<string>`coalesce(sum(${ledgerEntries.amount}), 0)` })
-      .from(ledgerEntries)
-      .where(and(eq(ledgerEntries.paymentId, i.paymentId), eq(ledgerEntries.type, "refund")));
-    const [{ amount, surcharge }] = await tx.select({ amount: payments.amount, surcharge: payments.surchargeAmount }).from(payments).where(eq(payments.id, i.paymentId));
-    // Charged basis (amount + surcharge), the same one Stripe's refund rows use.
-    const remainder = round2(Number(amount) + Number(surcharge) - Number(already));
-    if (remainder > 0) {
-      await ledgerService.record(tx, { userId: i.userId, orderId: i.orderId, paymentId: i.paymentId, direction: "debit", type: "refund", amount: remainder, memo: i.note });
-    }
+  const [{ already }] = await tx
+    .select({ already: sql<string>`coalesce(sum(${ledgerEntries.amount}), 0)` })
+    .from(ledgerEntries)
+    .where(and(eq(ledgerEntries.paymentId, i.paymentId), eq(ledgerEntries.type, "refund")));
+  const [{ amount, surcharge, paymentRef }] = await tx.select({ amount: payments.amount, surcharge: payments.surchargeAmount, paymentRef: payments.publicId }).from(payments).where(eq(payments.id, i.paymentId));
+  // Charged basis (amount + surcharge), the same one Stripe's refund rows use.
+  const charged = round2(Number(amount) + Number(surcharge));
+  const remainder = round2(charged - Number(already));
+  if (!i.ledgerRecorded && i.userId && remainder > 0) {
+    await ledgerService.record(tx, { userId: i.userId, orderId: i.orderId, paymentId: i.paymentId, direction: "debit", type: "refund", amount: remainder, memo: i.note });
   }
+  const refunded = formatMoney(i.refundedAmount ?? (remainder > 0 ? remainder : charged));
+  await enqueueOrderNotice(tx, i.orderId, {
+    event: "refund_issued",
+    title: "Your refund was issued",
+    body: `We refunded ${refunded} for order {code}.`,
+    href: "/me/wallet?tab=bills",
+    dedupeKey: `refund_issued:${paymentRef}`,
+    vars: (o) => ({ payment: { amount: refunded, orderCode: o.code, customerName: o.customerName } }),
+  });
   // An add-on payment refund leaves the plan payment paid: the order's rewards stay.
   const [paid] = await tx.select({ addon: payments.addonRequest }).from(payments).where(eq(payments.id, i.paymentId)).limit(1);
   if (paid?.addon) return;

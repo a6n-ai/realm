@@ -713,6 +713,25 @@ export async function createOrder(
       });
     }
 
+    if (coinRedemption && coinRedemption.currencyValue > 0 && userId != null) {
+      await enqueueNotification(tx, {
+        event: "wallet_redeemed",
+        recipientId: userId,
+        title: "Coins applied to your order",
+        body: `${coinRedemption.coinsSpent} coins (${formatMoney(coinRedemption.currencyValue)}) were applied to order ${deploymentId}.`,
+        href: "/me/wallet",
+        data: {
+          wallet: {
+            coins: String(coinRedemption.coinsSpent),
+            value: formatMoney(coinRedemption.currencyValue),
+            orderCode: deploymentId,
+            customerName: input.contact.fullName || "there",
+          },
+        },
+        dedupeKey: `wallet_redeemed:${order.publicId}`,
+      });
+    }
+
     await tx.insert(orderActivities).values({
       orderId: order.id,
       type: "created",

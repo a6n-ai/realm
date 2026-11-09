@@ -56,6 +56,7 @@ import { eatingDaysError, orderDeliveryDays, planDaysError, planDeliveryDays, pl
 import { mealSizeAllowedDays, mealSizeServesWeekends } from "./weekend-dish";
 import { getAppSettings } from "./app-settings.service";
 import { lockOrder, withOrderLock } from "./order-lock";
+import { enqueueOrderNotice } from "@/lib/notifications/order-notice";
 
 // Moved to create-order.ts; kept here for app/(public)/checkout/actions.ts (out of scope this pass) and the integration tests.
 // app/(public)/checkout/actions.ts still imports these from here.
@@ -799,6 +800,12 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
         createdBy: actorId,
       });
       await clearLookOutOnEnd(tx, row.id, "order cancelled");
+      await enqueueOrderNotice(tx, row.id, {
+        event: "order_cancelled",
+        title: "Your order was cancelled",
+        body: "Order {code} has been cancelled.",
+        dedupeKey: `order_cancelled:${row.publicId}`,
+      });
     });
     // External API call, deliberately outside the tx — see walletService.award above for the
     // same reasoning: a synced stop OptimoRoute still has must not survive a cancelled order.

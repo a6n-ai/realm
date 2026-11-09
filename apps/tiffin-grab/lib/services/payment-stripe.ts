@@ -5,7 +5,7 @@ import { isWordpressImport } from "@/lib/orders/wordpress-import";
 import { and, eq, gte, inArray, like, lte, sql } from "drizzle-orm";
 import { createLogger } from "@foundry/commons/logger";
 import type Stripe from "stripe";
-import { NotFoundError, ValidationError } from "@foundry/commons";
+import { formatMoney, NotFoundError, ValidationError } from "@foundry/commons";
 import {
   chargeSavedCard, createAndConfirmIntent, defaultCard, ensureCustomer, fetchIntentStatus,
   listCards, listIntents, previewConfirmationToken, refundIntent, surchargeCents, type CardPreview, type SavedCard,
@@ -24,6 +24,7 @@ import {
 import { ledgerService } from "./ledger.service";
 import { PAY_IN_PROGRESS, withCustomerPayLock } from "./customer-pay-lock";
 import { enqueueStaffNotification } from "@/lib/notifications/enqueue";
+import { enqueueOrderNotice } from "@/lib/notifications/order-notice";
 import { getAppSettings } from "./app-settings.service";
 import { settleAddonPayment } from "./order-addons.service";
 import { verifyPayment, refundPaymentInTx } from "@/lib/payments/verification";
@@ -247,10 +248,20 @@ export async function recordStripeRefund(n: { piId: string; eventId: string; amo
         paymentId: pay.id,
         actorInternalId: null,
         ledgerRecorded: true,
+        refundedAmount: Number(fromCents(deltaCents)),
         note: `Refunded in Stripe (${fromCents(n.amountRefundedCents)})`,
       });
     } else {
       await tx.insert(orderActivities).values({ orderId: order!.id, type: "payment_refunded", note: `Partial Stripe refund ${fromCents(deltaCents)}` });
+      const refunded = formatMoney(Number(fromCents(deltaCents)));
+      await enqueueOrderNotice(tx, order!.id, {
+        event: "refund_issued",
+        title: "Part of your payment was refunded",
+        body: `We refunded ${refunded} for order {code}.`,
+        href: "/me/wallet?tab=bills",
+        dedupeKey: `refund_issued:${n.eventId}`,
+        vars: (o) => ({ payment: { amount: refunded, orderCode: o.code, customerName: o.customerName } }),
+      });
     }
   });
 }
