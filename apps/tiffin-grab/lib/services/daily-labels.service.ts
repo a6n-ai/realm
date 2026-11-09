@@ -224,8 +224,30 @@ export async function loadDayDeliveries(
 
 /** Every delivery for the date, including ones the packing sheet leaves out once the day has passed. */
 export async function listDayDeliveryStatuses(dateIso: string): Promise<DayDeliveryStatusRow[]> {
-  const now = Date.now();
-  const rows = await loadDayDeliveries(dateIso, STATUS_DAY_STATUSES);
+  return toStatusRows(await loadDayDeliveries(dateIso, STATUS_DAY_STATUSES), Date.now());
+}
+
+/**
+ * The Overview "Today's service" card: every delivery's status, plus labels per meal size counted
+ * the way `dailyLabelSheet` prints them (one per eating day per person, scheduled only, none until
+ * the week is released) without resolving any dishes. One delivery load instead of two, and no
+ * per-row menu lookups.
+ */
+export async function dayServiceSummary(dateIso: string): Promise<{ rows: DayDeliveryStatusRow[]; labelsByMealSize: Map<string, number> }> {
+  const [rows, week] = await Promise.all([loadDayDeliveries(dateIso, STATUS_DAY_STATUSES), menuService.getReleasedWeek(mondayOfIso(dateIso))]);
+  const labelsByMealSize = new Map<string, number>();
+  const scheduled = week ? rows.filter((r) => r.delivery.status === "scheduled") : [];
+  if (scheduled.length) {
+    const extrasById = await loadExtraDates(db, scheduled.map((r) => r.delivery.id));
+    for (const { delivery, order, mealSizeName } of scheduled) {
+      const labels = occurrenceDates(delivery, extrasById.get(delivery.id)).length * order.persons;
+      labelsByMealSize.set(mealSizeName, (labelsByMealSize.get(mealSizeName) ?? 0) + labels);
+    }
+  }
+  return { rows: toStatusRows(rows, Date.now()), labelsByMealSize };
+}
+
+function toStatusRows(rows: DayDeliveryRow[], now: number): DayDeliveryStatusRow[] {
   return rows
     .map((row) => ({
       deliveryPublicId: row.delivery.publicId,

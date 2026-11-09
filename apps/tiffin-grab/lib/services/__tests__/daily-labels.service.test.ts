@@ -18,7 +18,14 @@ import { attachDishToPlans, categoryIdFor, testPlanId } from "@/db/test-helpers"
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
-const { dailyLabelSheet } = await import("../daily-labels.service");
+const { dailyLabelSheet, dayServiceSummary } = await import("../daily-labels.service");
+
+// The Overview card counts labels without resolving dishes; it must always agree with the printed sheet.
+async function expectSummaryMatchesSheet(date: string, labels: { mealSizeName: string }[]) {
+  const sheet = new Map<string, number>();
+  for (const l of labels) sheet.set(l.mealSizeName, (sheet.get(l.mealSizeName) ?? 0) + 1);
+  expect((await dayServiceSummary(date)).labelsByMealSize).toEqual(sheet);
+}
 
 // A Monday far enough out that its cutoff has not elapsed.
 const MONDAY = (() => {
@@ -216,6 +223,7 @@ describe("dailyLabelSheet (integration)", () => {
     expect(sheet.labels).toHaveLength(2);
     expect(sheet.labels.every((l) => l.forDate === MONDAY)).toBe(true);
     expect(sheet.labels[0]!.lines.map((l) => l.dish)).toEqual(sheet.labels[1]!.lines.map((l) => l.dish));
+    await expectSummaryMatchesSheet(MONDAY, sheet.labels);
   });
 
   it("maps each pick to its own container size", async () => {
@@ -304,6 +312,7 @@ describe("dailyLabelSheet (integration)", () => {
     expect(sheet.labels.map((l) => l.personIndex)).toEqual([1, 2]);
     // 2 people x 2 sabzi containers.
     expect(sheet.counts.reduce((n, c) => n + c.count, 0)).toBe(4);
+    await expectSummaryMatchesSheet(MONDAY, sheet.labels);
   });
 
   it("excludes deliveries that are not scheduled", async () => {
@@ -311,6 +320,7 @@ describe("dailyLabelSheet (integration)", () => {
     const sheet = await dailyLabelSheet(MONDAY);
     expect(sheet.labels).toEqual([]);
     expect(sheet.counts).toEqual([]);
+    await expectSummaryMatchesSheet(MONDAY, sheet.labels);
   });
 
   it("resolves nothing when the week is not released, rather than guessing a menu", async () => {
@@ -318,6 +328,7 @@ describe("dailyLabelSheet (integration)", () => {
     const sheet = await dailyLabelSheet(MONDAY);
     expect(sheet.menuWeekPublicId).toBeNull();
     expect(sheet.labels).toEqual([]);
+    await expectSummaryMatchesSheet(MONDAY, sheet.labels);
   });
 
   it("is empty for a day with no deliveries", async () => {
@@ -355,6 +366,17 @@ describe("dailyLabelSheet (integration)", () => {
     expect(sheet.labels[1].lines.map((l) => l.dish)).toEqual([`${DISH_PREFIX}Bhindi`, `${DISH_PREFIX}Bhindi`]);
     expect(sheet.counts.filter((c) => c.dish === `${DISH_PREFIX}Bhindi`).reduce((n, c) => n + c.count, 0)).toBe(2);
     expect(sheet.counts.reduce((n, c) => n + c.count, 0)).toBe(4);
+    await expectSummaryMatchesSheet(MONDAY, sheet.labels);
+  });
+
+  it("Overview summary counts persons x covered days like the sheet, without resolving dishes", async () => {
+    const tue = new Date(`${MONDAY}T00:00:00.000Z`);
+    tue.setUTCDate(tue.getUTCDate() + 1);
+    await db.update(orders).set({ persons: 2 }).where(eq(orders.id, order.id));
+    await db.update(deliveries).set({ coversDates: [MONDAY, tue.toISOString().slice(0, 10)], tiffinUnits: 2 }).where(eq(deliveries.orderId, order.id));
+    const sheet = await dailyLabelSheet(MONDAY);
+    expect(sheet.labels).toHaveLength(4);
+    await expectSummaryMatchesSheet(MONDAY, sheet.labels);
   });
 
   it("legacy rows (covers_dates null) get no day tag", async () => {

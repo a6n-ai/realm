@@ -2,7 +2,7 @@ import { ChartCard } from "@/components/analytics/chart-card";
 import type { Part } from "@/components/analytics/chart-math";
 import { SegmentedBar } from "@/components/analytics/charts";
 import { getAppSettings } from "@/lib/services/app-settings.service";
-import { dailyLabelSheet, listDayDeliveryStatuses } from "@/lib/services/daily-labels.service";
+import { dayServiceSummary } from "@/lib/services/daily-labels.service";
 import { deliveryGroup } from "./delivery-groups";
 import { FooterLink } from "./footer-link";
 import { Badge } from "@/components/reui/badge";
@@ -11,12 +11,10 @@ import Link from "next/link";
 const hourLabel = (h: number) => `${h % 12 || 12}:00 ${h < 12 ? "AM" : "PM"}`;
 
 export async function ServiceCard({ today }: { today: string }) {
-  const [rows, sheet, settings] = await Promise.all([listDayDeliveryStatuses(today), dailyLabelSheet(today), getAppSettings()]);
+  const [{ rows, labelsByMealSize: kitchen }, settings] = await Promise.all([dayServiceSummary(today), getAppSettings()]);
   const scheduled = rows.filter((r) => deliveryGroup(r) === "scheduled");
   const delivered = scheduled.filter((r) => r.status === "Delivered").length;
   const count = (g: string) => rows.filter((r) => deliveryGroup(r) === g).length;
-  const kitchen = new Map<string, number>();
-  for (const l of sheet.labels) kitchen.set(l.mealSizeName, (kitchen.get(l.mealSizeName) ?? 0) + 1);
 
   return (
     <ChartCard title="Today's service" subtitle={`Order cutoff ${hourLabel(settings.cutoffHour)} the evening before`}>
