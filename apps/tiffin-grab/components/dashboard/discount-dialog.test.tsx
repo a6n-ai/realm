@@ -5,6 +5,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 
 const saveItem = vi.fn().mockResolvedValue(undefined);
 vi.mock("@/app/(dashboard)/dashboard/catalog/actions", () => ({ saveItem: (...a: unknown[]) => saveItem(...a) }));
+vi.mock("@/components/app-currency", () => ({ useAppCurrency: () => "CAD" }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 vi.mock("@foundry/ui/use-mobile", () => ({ useIsMobile: () => false }));
 
