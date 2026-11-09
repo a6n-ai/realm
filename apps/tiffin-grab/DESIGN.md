@@ -111,7 +111,7 @@ Card 24, input and date cell 16, chip 10, pill 9999, button 14 (hero CTA 9999), 
 
 # Customer design system (derived from /subscribe)
 
-Source of truth: `components/wizard/*`, `app/(public)/subscribe/*`. Living guide: `/me/design-system` (dev only). Kit: `components/customer/kit` (no shadcn / `@foundry/ui` in the customer app). Tokens: `app/globals.css`, section "Customer design system", scoped to `.customer-app`.
+Source of truth: `components/wizard/*`, `app/(public)/subscribe/*`. Kit: `components/customer/kit` (no shadcn / `@foundry/ui` in the customer app). Tokens: `app/globals.css`, section "Customer design system", scoped to `.customer-app`.
 
 ## Principles
 1. Bold type, big soft cards, pill controls, saffron on cream. One italic saffron accent word per title.

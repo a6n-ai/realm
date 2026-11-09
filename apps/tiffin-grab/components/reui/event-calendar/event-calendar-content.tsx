@@ -1,5 +1,5 @@
 // Title: Event Calendar Content
-// Description: Active-view switchboard rendering month, week, day, N-days, or agenda; swappable per view via the components prop.
+// Description: Active-view switchboard rendering the month view; swappable per view via the components prop.
 
 "use client"
 
@@ -8,26 +8,14 @@ import {
   useEventCalendarSelector,
   useEventCalendarViewConfig,
 } from "@/components/reui/event-calendar/event-calendar"
-import { EventCalendarAgendaView } from "@/components/reui/event-calendar/event-calendar-agenda-view"
 import { EventCalendarMonthView } from "@/components/reui/event-calendar/event-calendar-month-view"
-import { EventCalendarResourceView } from "@/components/reui/event-calendar/event-calendar-resource-view"
-import {
-  EventCalendarDaysView,
-  EventCalendarDayView,
-  EventCalendarWeekView,
-} from "@/components/reui/event-calendar/event-calendar-time-grid"
 import type { CalendarView } from "@/components/reui/event-calendar/event-calendar-types"
 import { Slot } from "radix-ui"
 
 import { cn } from "@foundry/ui/cn"
 
-const DEFAULT_VIEW_COMPONENTS: Record<CalendarView, ComponentType> = {
+const DEFAULT_VIEW_COMPONENTS: Partial<Record<CalendarView, ComponentType>> = {
   month: EventCalendarMonthView,
-  week: EventCalendarWeekView,
-  day: EventCalendarDayView,
-  days: EventCalendarDaysView,
-  agenda: EventCalendarAgendaView,
-  resource: EventCalendarResourceView,
 }
 
 interface EventCalendarContentProps extends HTMLAttributes<HTMLDivElement> {
@@ -56,7 +44,7 @@ function EventCalendarContent({
   }
   // A spread copies keys that hold `undefined`, so `components={{ month: isPro
   // ? ProMonth : undefined }}` would erase the default and render <undefined />.
-  const ActiveView = resolved[view] ?? DEFAULT_VIEW_COMPONENTS[view]
+  const ActiveView = resolved[view] ?? EventCalendarMonthView
 
   const Comp = asChild ? Slot.Root : "div"
 
