@@ -84,4 +84,12 @@ describe("inquiriesService.updateContact", () => {
     const note = acts.find((a) => a.type === "note");
     expect(note?.note).toContain(`Name changed from ${q.fullName} to Priya S.`);
   });
+
+  it("lost lead with a newer open lead for the same person can still be renamed", async () => {
+    const old = await quick("+16475555101");
+    await db.update(inquiries).set({ stage: "lost" }).where(eq(inquiries.id, old.id));
+    await quick("+16475555101");
+    const r = await inquiriesService.updateContact(old.publicId, { fullName: "Old Lead Real Name" });
+    expect(r.fullName).toBe("Old Lead Real Name");
+  });
 });

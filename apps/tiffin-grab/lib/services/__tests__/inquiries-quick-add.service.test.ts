@@ -55,6 +55,14 @@ describe("quick-add leads", () => {
   });
 
   describe("whatsapp dedup", () => {
+    it("whatsapp-only lead uses the whatsapp number as its phone", async () => {
+      const a = await inquiriesService.create({ whatsappPhone: "+16475552401", sourceKey: "facebook" });
+      expect(a.phone).toBe("+16475552401");
+      expect(a.fullName).toBe(`Lead ${a.leadNumber}`);
+      const r = await inquiriesService.createOrFold({ phone: "+16475552401", sourceKey: "facebook" });
+      expect(r.folded).toBe(true);
+    });
+
     it("phone matching an open lead's whatsapp folds", async () => {
       const a = await inquiriesService.create({ fullName: "A", phone: "+16475552201", whatsappPhone: "+16475552202", sourceKey: "facebook" });
       expect(a.whatsappPhone).toBe("+16475552202");

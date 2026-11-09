@@ -302,8 +302,9 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
   async createOrFold(values: Record<string, unknown>): Promise<{ inquiry: typeof inquiries.$inferSelect; folded: boolean }> {
     const clean = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : null);
     let fullName = clean(values.fullName);
-    const rawPhone = clean(values.phone);
-    const rawWhatsapp = clean(values.whatsappPhone);
+    // WhatsApp-only contact: that number is their phone (keeps the open-phone unique index and dedup working).
+    const rawPhone = clean(values.phone) ?? clean(values.whatsappPhone);
+    const rawWhatsapp = clean(values.phone) ? clean(values.whatsappPhone) : null;
     const rawEmail = clean(values.email);
     if (!fullName && !rawPhone) throw new ValidationError("Enter a name or phone number");
     let phone: string | null = null;
@@ -419,7 +420,10 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
       } else throw new ValidationError("Enter a name or phone number");
     }
 
-    const other = await this.findOpenMatch(phone, email, inq.id, whatsappPhone);
+    // Only an open lead can collide (a lost one may share the person's newer open lead), and only on changed contact.
+    const contactChanged = phone !== inq.phone || whatsappPhone !== inq.whatsappPhone || email !== inq.email;
+    const isOpen = inq.stage !== "lost";
+    const other = isOpen && contactChanged ? await this.findOpenMatch(phone, email, inq.id, whatsappPhone) : null;
     const collision = (o: { publicId: string }) =>
       new ValidationError(`Another open lead has this phone or email (${o.publicId}). Open that lead instead.`);
     if (other) throw collision(other);
