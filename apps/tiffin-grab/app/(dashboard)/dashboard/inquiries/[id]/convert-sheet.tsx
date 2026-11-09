@@ -79,12 +79,10 @@ export function ConvertSheet({
   const header = (
     <div className="flex flex-col gap-3">
         <section className="bg-muted/30 space-y-2 rounded-xl border p-3">
-          <p className="text-muted-foreground/80 text-xs font-semibold tracking-[0.08em] uppercase">
-            From the inquiry
-          </p>
-          <p className="text-sm font-medium">
-            {displayName(contact)}
-            {contact.phone ? <span className="text-muted-foreground"> · {formatPhone(contact.phone)}</span> : null}
+          <p className="text-muted-foreground text-xs font-medium">From the inquiry</p>
+          <p className="flex flex-wrap gap-x-3 text-sm font-medium">
+            <span>{displayName(contact)}</span>
+            {contact.phone ? <span className="text-muted-foreground">{formatPhone(contact.phone)}</span> : null}
           </p>
           {chips.length ? (
             <div className="flex flex-wrap gap-1.5">

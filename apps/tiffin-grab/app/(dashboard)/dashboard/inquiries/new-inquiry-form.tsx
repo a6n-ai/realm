@@ -47,7 +47,7 @@ export const LAST_SOURCE_KEY = "inquiry:last-source";
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <p className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">{children}</p>
+    <p className="text-muted-foreground text-xs font-medium">{children}</p>
   );
 }
 

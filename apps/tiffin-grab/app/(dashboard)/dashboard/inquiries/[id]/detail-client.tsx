@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useTransition, type ReactNode } from "react";
 import {
-  CalendarClockIcon, MessageSquarePlusIcon, ShoppingBagIcon, type LucideIcon,
+  CalendarClockIcon, MailIcon, MessageCircleIcon, MessageSquarePlusIcon, PhoneIcon, ShoppingBagIcon, type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@foundry/ui/button";
@@ -48,12 +48,13 @@ type Interest = {
   quotedPrice: string | null;
 };
 
-function InfoRow({ label, value }: { label: string; value: ReactNode }) {
+/** One block of the Details rail: divided, not boxed, so the rail reads as one panel. */
+function DetailSection({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <div className="flex items-baseline justify-between gap-3 text-sm">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="text-right font-medium break-all">{value}</span>
-    </div>
+    <section className="flex flex-col gap-2 border-t py-4 first:border-t-0 first:pt-1 last:pb-0">
+      <h3 className="text-sm font-medium">{title}</h3>
+      {children}
+    </section>
   );
 }
 
@@ -67,10 +68,10 @@ function Card({ title, children, className }: { title?: string; children: ReactN
 }
 
 // Same icons and colours as the list's row quick actions.
-function QuickAction({ icon: Icon, tone, label, onClick, href, external }: {
-  icon: LucideIcon; tone: string; label: string; onClick?: () => void; href?: string; external?: boolean;
+function QuickAction({ icon: Icon, label, onClick, href, external }: {
+  icon: LucideIcon; label: string; onClick?: () => void; href?: string; external?: boolean;
 }) {
-  const icon = <Icon className={tone} aria-hidden />;
+  const icon = <Icon className="text-muted-foreground" aria-hidden />;
   return href ? (
     <Button asChild variant="outline" size="sm">
       <a href={href} onClick={onClick} {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}>{icon}{label}</a>
@@ -196,6 +197,7 @@ export function InquiryDetailClient({
     });
   }
 
+  const whatsapp = contact.whatsappPhone ?? contact.phone;
   const followUp = nextFollowUpAt != null && !terminal ? <FollowUpValue next={nextFollowUpAt} dayStart={dayStart} dayEnd={dayEnd} tz={tz} /> : <span className="text-muted-foreground">None</span>;
 
   return (
@@ -213,9 +215,15 @@ export function InquiryDetailClient({
                 </Button>
               )}
             </div>
-            <p className="text-muted-foreground text-xs break-words">
-              {[contact.phone ? formatPhone(contact.phone) : null, contact.email, sourceLabel, `Added ${formatEpoch(createdAt, { mode: "date", timeZone: tz })}`].filter(Boolean).join(" · ")}
-            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {contact.phone ? <QuickAction icon={PhoneIcon} label={formatPhone(contact.phone)} href={`tel:${contact.phone}`} /> : null}
+            {whatsapp ? (
+              <QuickAction icon={MessageCircleIcon} label={`WhatsApp ${formatPhone(whatsapp)}`} href={`https://wa.me/${whatsapp.replace(/\D/g, "")}`} external />
+            ) : null}
+            {contact.email ? <QuickAction icon={MailIcon} label={contact.email} href={`mailto:${contact.email}`} /> : null}
+            <span className="text-muted-foreground text-sm">{sourceLabel}</span>
+            <span className="text-muted-foreground text-sm">Added {formatEpoch(createdAt, { mode: "date", timeZone: tz })}</span>
           </div>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
             <StatusPill subStatus={subStatus} />
@@ -240,11 +248,14 @@ export function InquiryDetailClient({
         </div>
 
         <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-          <QuickAction icon={MessageSquarePlusIcon} tone="text-violet-600 dark:text-violet-400" label="Add note" onClick={() => setNoteKind("note")} />
+          <QuickAction icon={MessageSquarePlusIcon} label="Add note" onClick={() => setNoteKind("note")} />
           {terminal ? null : (
             <>
-              <QuickAction icon={CalendarClockIcon} tone="text-teal-600 dark:text-teal-400" label="Set follow-up" onClick={() => setNoteKind("follow_up")} />
-              <QuickAction icon={ShoppingBagIcon} tone="text-primary" label="Convert to order" onClick={() => setConvertOpen(true)} />
+              <QuickAction icon={CalendarClockIcon} label="Set follow-up" onClick={() => setNoteKind("follow_up")} />
+              <Button size="sm" onClick={() => setConvertOpen(true)}>
+                <ShoppingBagIcon aria-hidden />
+                Convert to order
+              </Button>
             </>
           )}
           {took && convertedOrderHref ? (
@@ -265,45 +276,36 @@ export function InquiryDetailClient({
           <InquiryTimeline activities={activities} currency={currency} onAddNote={() => setNoteKind("note")} />
         </Card>
 
-        <aside className="flex min-w-0 flex-col gap-4">
-          <Card title="Follow-up">
-            <p className="text-sm">{followUp}</p>
-            {terminal ? null : (
-              <fieldset disabled={pickPending} className="min-w-0">
-                <FollowUpPicker timeZone={tz} value={null} onChange={(v) => { if (v) saveFollowUp(v.at); }} />
-              </fieldset>
-            )}
+        <aside className="min-w-0 lg:sticky lg:top-4">
+          <Card title="Details" className="gap-0">
+            <DetailSection title="Follow-up">
+              <p className="text-sm">{followUp}</p>
+              {terminal ? null : (
+                <fieldset disabled={pickPending} className="min-w-0">
+                  <FollowUpPicker timeZone={tz} value={null} onChange={(v) => { if (v) saveFollowUp(v.at); }} />
+                </fieldset>
+              )}
+            </DetailSection>
+            <DetailSection title="Interest">
+              {interestChips.length ? (
+                <dl className="flex flex-col gap-1.5">
+                  {interestChips.map((c) => (
+                    <div key={c.label} className="grid grid-cols-[7rem_minmax(0,1fr)] gap-3 text-sm">
+                      <dt className="text-muted-foreground">{c.label}</dt>
+                      <dd className="font-medium tabular-nums break-words">{c.value}</dd>
+                    </div>
+                  ))}
+                </dl>
+              ) : (
+                <p className="text-muted-foreground text-sm">No interest recorded yet. Add it as a note after the call.</p>
+              )}
+            </DetailSection>
+            {notes ? (
+              <DetailSection title="Initial notes">
+                <p className="text-sm break-words whitespace-pre-wrap">{notes}</p>
+              </DetailSection>
+            ) : null}
           </Card>
-
-          <Card title="Contact">
-            <div className="flex flex-col gap-2">
-              <InfoRow label="Name" value={displayName(contact)} />
-              <InfoRow label="Phone" value={contact.phone ? formatPhone(contact.phone) : "No phone"} />
-              <InfoRow label="WhatsApp" value={contact.whatsappPhone ? formatPhone(contact.whatsappPhone) : "Same as phone"} />
-              <InfoRow label="Email" value={contact.email || "No email"} />
-              <InfoRow label="Source" value={sourceLabel} />
-              <InfoRow label="Owner" value={owner.name ?? "Unassigned"} />
-            </div>
-          </Card>
-
-          {interestChips.length ? (
-            <Card title="Interest">
-              <div className="flex flex-wrap gap-1.5">
-                {interestChips.map((c) => (
-                  <span key={c.label} className="bg-muted/40 text-foreground inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs">
-                    <span className="text-muted-foreground">{c.label}:</span>
-                    <span className="tabular-nums">{c.value}</span>
-                  </span>
-                ))}
-              </div>
-            </Card>
-          ) : null}
-
-          {notes ? (
-            <Card title="Initial notes">
-              <p className="text-sm break-words whitespace-pre-wrap">{notes}</p>
-            </Card>
-          ) : null}
         </aside>
       </div>
 

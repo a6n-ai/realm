@@ -95,7 +95,7 @@ export function QuickAddDialog({ trigger, sources }: { trigger: React.ReactNode;
               </p>
             </div>
             <div className="flex flex-col gap-2">
-              <p className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">Source</p>
+              <p className="text-muted-foreground text-xs font-medium">Source</p>
               <div role="radiogroup" aria-label="Source" className="flex flex-wrap gap-2">
                 {sources.map((s) => (
                   <button
