@@ -112,6 +112,10 @@ jobs:
           APP: ${{ inputs.app }}
           NEXT_PUBLIC_SITE_URL: ${{ inputs.site-url }}
           NEXT_PUBLIC_BETTER_AUTH_URL: ${{ inputs.site-url }}
+          BETTER_AUTH_URL: ${{ inputs.site-url }}
+          # Build only: page-data collection imports lib/auth, which rejects a missing secret. Server env is
+          # read at runtime (only NEXT_PUBLIC_* is inlined), so the Worker uses its real wrangler secret.
+          BETTER_AUTH_SECRET: build-time-placeholder-not-used-at-runtime
           # DATABASE_URL (job env) is read at import time by db/client on Node during `next build`; the Worker uses Hyperdrive.
       - name: Deploy
         run: |
