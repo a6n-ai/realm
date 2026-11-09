@@ -1,4 +1,5 @@
-import { and, eq, exists, inArray, isNull, like, not, or, sql } from "drizzle-orm";
+import { and, eq, exists, inArray, isNull, not, or, sql } from "drizzle-orm";
+import { wordpressImportSql } from "./wordpress-import-sql";
 import { db } from "@/db/client";
 import { orders, payments } from "@/db/schema";
 import { PAYMENT_REVIEW_STATUSES, PAYMENT_SETTLED_STATUSES } from "./display-status";
@@ -15,7 +16,7 @@ export function fulfillmentReadyOrder() {
   return and(
     eq(orders.status, "active"),
     or(
-      and(eq(orders.total, "0"), like(orders.deploymentId, "wc-%")),
+      and(eq(orders.total, "0"), wordpressImportSql),
       exists(
         db
           .select({ _: sql`1` })

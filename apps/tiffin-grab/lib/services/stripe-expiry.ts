@@ -1,4 +1,5 @@
-import { and, eq, inArray, isNull, lt, lte, ne, not, or, sql, type SQL } from "drizzle-orm";
+import { and, eq, inArray, isNull, lt, lte, ne, not, or, type SQL } from "drizzle-orm";
+import { wordpressImportSql } from "@/lib/orders/wordpress-import-sql";
 import { db } from "@/db/client";
 import { orderActivities, orders, payments } from "@/db/schema";
 import { stripeRuntime } from "@/lib/payments/stripe";
@@ -52,7 +53,7 @@ export async function cancelUnpaidStripeOrders(extra: SQL | undefined, note = "U
     .innerJoin(payments, eq(payments.orderId, orders.id))
     .where(and(
       eq(orders.status, "pending"),
-      not(sql`${orders.deploymentId} like 'wc-%'`),
+      not(wordpressImportSql),
       eq(payments.method, "stripe"),
       inArray(payments.status, [...UNPAID]),
       isNull(payments.addonRequest),
@@ -96,7 +97,7 @@ export async function hasChargeInFlight(userId: bigint): Promise<boolean> {
     .where(and(
       eq(orders.userId, userId),
       eq(orders.status, "pending"),
-      not(sql`${orders.deploymentId} like 'wc-%'`),
+      not(wordpressImportSql),
       eq(payments.method, "stripe"),
       inArray(payments.status, [...UNPAID]),
       isNull(payments.addonRequest),

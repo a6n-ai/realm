@@ -1,4 +1,6 @@
 import { isCustomerRole } from "@/lib/auth/roles";
+import { wordpressImportSql } from "@/lib/orders/wordpress-import-sql";
+import { isWordpressImport } from "@/lib/orders/wordpress-import";
 import { randomInt } from "node:crypto";
 import { and, desc, eq, ilike, inArray, isNull, ne, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
@@ -82,7 +84,7 @@ async function hasOrderHistory(q: Tx | typeof db, userId: bigint): Promise<boole
     .leftJoin(payments, eq(payments.orderId, orders.id))
     .where(and(
       eq(orders.userId, userId),
-      or(inArray(payments.status, [...PAID, "refunded"]), ilike(orders.deploymentId, "wc-%")),
+      or(inArray(payments.status, [...PAID, "refunded"]), wordpressImportSql),
     ))
     .limit(1);
   return row != null;
@@ -152,10 +154,10 @@ export async function staffAttachReferral(customerId: bigint, rawCode: string, a
       .select({ order: orders, payStatus: payments.status })
       .from(orders)
       .leftJoin(payments, eq(payments.orderId, orders.id))
-      .where(and(eq(orders.userId, customerId), or(inArray(payments.status, [...PAID, "refunded"]), ilike(orders.deploymentId, "wc-%"))))
+      .where(and(eq(orders.userId, customerId), or(inArray(payments.status, [...PAID, "refunded"]), wordpressImportSql)))
       .orderBy(orders.createdAt);
     const first = history[0];
-    if (history.length > 1 || first?.order.deploymentId?.startsWith("wc-")) return { result: "repeat_customer" as const };
+    if (history.length > 1 || (first && isWordpressImport(first.order))) return { result: "repeat_customer" as const };
     // A refunded first order can't qualify, and a later one would be their second.
     if (first && first.payStatus === "refunded") return { result: "repeat_customer" as const };
 

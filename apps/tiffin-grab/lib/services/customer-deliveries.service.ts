@@ -1,4 +1,5 @@
 import { loadExtraDates } from "@/lib/services/delivery-extras";
+import { isWordpressImport } from "@/lib/orders/wordpress-import";
 import { NotFoundError, ValidationError, weekdayKey, zonedDateIso } from "@foundry/commons";
 import type { FileDetail } from "@foundry/storage/model";
 import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lt, lte, or, sql } from "drizzle-orm";
@@ -690,7 +691,7 @@ export async function myEndedPlan(userId: bigint): Promise<EndedPlan | null> {
       .orderBy(asc(deliveries.deliveryDate));
     const done = rows.filter((r) => r.status === "scheduled" && r.optimoCompletionStatus === "success");
     if (done.length === 0) continue;
-    const [correction] = o.deploymentId.startsWith("wc-")
+    const [correction] = isWordpressImport(o)
       ? await db.select({ id: orderActivities.id }).from(orderActivities)
         .where(and(eq(orderActivities.orderId, o.id), or(
           sql`${orderActivities.note} like 'WordPress balance correction%'`,

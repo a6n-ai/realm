@@ -16,7 +16,7 @@
  * `wc-<wordpress order id>`: a `pending` one is refreshed with WordPress's current
  * balance and address; one staff already started is never touched again.
  */
-import { and, eq, inArray, isNull, like, ne, or, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, ne, or, sql } from "drizzle-orm";
 import mysql from "mysql2/promise";
 import { emailSchema, zonedDateIso } from "@foundry/commons";
 import { db } from "./client";
@@ -35,6 +35,8 @@ import { parseCustomMealName } from "../lib/custom-meal/parse-wp";
 import { compositionName, mealPlanKey, normalizeItems, type CategoryUnit, type CustomMealItem } from "../lib/custom-meal/composition";
 import { findOrCreateCustomMealSize, loadCategoryUnits } from "../lib/services/custom-meal.service";
 import { addDaysIso, isWeekendDay } from "@/lib/dates";
+import { wordpressDeploymentId } from "../lib/orders/wordpress-import";
+import { wordpressImportSql } from "../lib/orders/wordpress-import-sql";
 
 export const MIGRATION_TAG = "Migrated from WordPress";
 const WP_STATUSES = ["wc-processing", "wc-paused", "wc-on-hold"];
@@ -491,7 +493,7 @@ async function brandOrgId(): Promise<string | null> {
 
 export async function applyOne(r: Extract<PlanResult, { kind: "planned" }>, snapshot: CatalogSnapshot, orgId: string | null, today: string): Promise<Outcome> {
   const x = r.record;
-  const deploymentId = `wc-${x.wpOrderId}`;
+  const deploymentId = wordpressDeploymentId(x.wpOrderId);
   // phoneSchema() crashes under tsx (libphonenumber CJS/ESM interop); planSeed already
   // required 10 NANP digits, so this is the E.164 form phoneSchema would store.
   const phone = `+1${x.phone}`;
@@ -566,7 +568,7 @@ export async function applyOne(r: Extract<PlanResult, { kind: "planned" }>, snap
 
     // A renewal merged into this record may already be imported under its own id (an earlier
     // run kept it separately); that order is this plan, so refresh it rather than add another.
-    const planIds = [deploymentId, ...x.mergedWpOrderIds.map((id) => `wc-${id}`)];
+    const planIds = [deploymentId, ...x.mergedWpOrderIds.map((id) => wordpressDeploymentId(id))];
     const found = await tx.select({ id: orders.id, status: orders.status, deploymentId: orders.deploymentId }).from(orders)
       .where(inArray(orders.deploymentId, planIds));
     const existingOrder = found.find((o) => o.deploymentId === deploymentId) ?? found[0];
@@ -648,19 +650,19 @@ export async function renewalsOfStartedPlans(
   units: Map<string, CategoryUnit>,
 ): Promise<Extract<PlanResult, { kind: "planned" }>[]> {
   const inDb = await db.select({ id: orders.id, deploymentId: orders.deploymentId, status: orders.status, tiffinCount: orders.tiffinCount, pricingSnapshot: orders.pricingSnapshot })
-    .from(orders).where(like(orders.deploymentId, "wc-%"));
+    .from(orders).where(wordpressImportSql);
   const byId = new Map(inDb.map((o) => [o.deploymentId, o]));
   const rowById = new Map(rows.map((r) => [r.id, r]));
   const out: Extract<PlanResult, { kind: "planned" }>[] = [];
   for (const { record: x } of planned) {
     const ids = [x.wpOrderId, ...x.mergedWpOrderIds];
-    const started = ids.map((i) => byId.get(`wc-${i}`)).find((o) => o && o.status !== "pending" && o.status !== "cancelled");
+    const started = ids.map((i) => byId.get(wordpressDeploymentId(i))).find((o) => o && o.status !== "pending" && o.status !== "cancelled");
     if (!started) continue;
     const known = new Set([Number(started.deploymentId.slice(3)), ...((started.pricingSnapshot as OrderPricingSnapshot | null)?.wordpress?.mergedOrderIds ?? [])]);
-    const fresh = ids.filter((i) => !known.has(i) && !byId.has(`wc-${i}`));
+    const fresh = ids.filter((i) => !known.has(i) && !byId.has(wordpressDeploymentId(i)));
     // Only when WordPress holds more than every plan here combined: an older import may
     // already carry a renewal without listing it in mergedOrderIds.
-    const here = ids.map((i) => byId.get(`wc-${i}`)).filter((o) => o && o.status !== "cancelled").reduce((n, o) => n + o!.tiffinCount, 0);
+    const here = ids.map((i) => byId.get(wordpressDeploymentId(i))).filter((o) => o && o.status !== "cancelled").reduce((n, o) => n + o!.tiffinCount, 0);
     if (!fresh.length || x.tiffinCount <= here) continue;
     const [last] = await db.select({ d: sql<string>`max(${deliveries.deliveryDate})::text` }).from(deliveries).where(eq(deliveries.orderId, started.id));
     for (const id of fresh) {
@@ -683,10 +685,10 @@ export async function balanceCheck(planned: Extract<PlanResult, { kind: "planned
   // A household's other person sits in the set-aside list, but a 2-person plan here carries both balances.
   const householdLeft = (x: MigrationRecord) => sameHousehold.filter((d) => d.phone === x.phone && d.productText === x.productText).reduce((n, d) => n + d.tiffinCount, 0);
   const inDb = await db.select({ deploymentId: orders.deploymentId, status: orders.status, tiffinCount: orders.tiffinCount, persons: orders.persons })
-    .from(orders).where(like(orders.deploymentId, "wc-%"));
+    .from(orders).where(wordpressImportSql);
   const byId = new Map(inDb.map((o) => [o.deploymentId, o]));
   // Same lookup as applyOne: a plan may sit under its own id or a merged renewal's.
-  const planIdsOf = (x: MigrationRecord) => [x.wpOrderId, ...x.mergedWpOrderIds].map((id) => `wc-${id}`);
+  const planIdsOf = (x: MigrationRecord) => [x.wpOrderId, ...x.mergedWpOrderIds].map((id) => wordpressDeploymentId(id));
   const wanted = new Set(planned.flatMap((r) => planIdsOf(r.record)));
   let match = 0;
   const willRefresh: string[] = [];
@@ -735,10 +737,10 @@ if (isDirectRun) {
     // A plan staff cancelled here is over, even while WordPress still lists it; dropping it
     // lets a replacement order on the same phone import instead of being called a duplicate.
     const cancelledHere = new Set((await db.select({ deploymentId: orders.deploymentId }).from(orders)
-      .where(and(eq(orders.status, "cancelled"), like(orders.deploymentId, "wc-%")))).map((o) => o.deploymentId));
+      .where(and(eq(orders.status, "cancelled"), wordpressImportSql))).map((o) => o.deploymentId));
     const allRows = await readWordPress();
-    const rows = allRows.filter((r) => !cancelledHere.has(`wc-${r.id}`));
-    const stale = allRows.filter((r) => cancelledHere.has(`wc-${r.id}`)).map((r) => `wc-${r.id}`);
+    const rows = allRows.filter((r) => !cancelledHere.has(wordpressDeploymentId(r.id)));
+    const stale = allRows.filter((r) => cancelledHere.has(wordpressDeploymentId(r.id))).map((r) => wordpressDeploymentId(r.id));
     console.log(`Cancelled here, still active on WordPress (close them there): ${stale.length}${stale.length ? `\n  ${stale.join(", ")}` : ""}`);
     const snapshot = await loadCatalogSnapshot();
     const units = await loadCategoryUnits();

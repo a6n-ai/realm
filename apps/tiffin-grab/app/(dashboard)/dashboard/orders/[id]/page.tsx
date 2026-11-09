@@ -1,4 +1,5 @@
 import { isAdmin } from "@/lib/auth/roles";
+import { isWordpressImport } from "@/lib/orders/wordpress-import";
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { EyeIcon, FileDownIcon, PackageIcon } from "lucide-react";
@@ -155,7 +156,7 @@ async function OrderDetail({
   const planType = (planRow?.planType ?? "tiffin") as "tiffin" | "healthy";
   // Second wave: everything below needs only order/planRow, so run it together
   // instead of five sequential round trips.
-  const migratedWaiting = order.deploymentId.startsWith("wc-") && order.status === "pending";
+  const migratedWaiting = isWordpressImport(order) && order.status === "pending";
   const claimContexts: Record<string, NonNullable<Awaited<ReturnType<typeof getClaimPaymentContext>>>> = {};
   // Ended plans get no subscription week, so their counts come straight from the delivery rows.
   const ended = order.status === "completed" || order.status === "cancelled";
@@ -212,7 +213,7 @@ async function OrderDetail({
 
   // A WordPress-imported plan waiting to be started: where WordPress left off, and when the
   // balance runs out if it starts on its next due date.
-  const migratedPending = order.status === "pending" && order.deploymentId.startsWith("wc-");
+  const migratedPending = order.status === "pending" && isWordpressImport(order);
   const addonOptions = mealSizeAddons(catalogSnapshot).map((a) => ({
     key: a.key,
     name: a.name,
@@ -257,7 +258,7 @@ async function OrderDetail({
 
   const frequencyRow = catalogSnapshot.frequencies.find((f) => f.id === order.frequencyId);
   // Saving eating days moves a WordPress plan imported as MWF onto the 5-day route (changeEatingDays).
-  const deliveryRow = order.deploymentId.startsWith("wc-") ? catalogSnapshot.frequencies.find((f) => f.key === "5_day") ?? frequencyRow : frequencyRow;
+  const deliveryRow = isWordpressImport(order) ? catalogSnapshot.frequencies.find((f) => f.key === "5_day") ?? frequencyRow : frequencyRow;
   const canEditEating = frequencyRow != null && order.trialLength == null
     && (order.status === "active" || order.status === "paused" || order.status === "pending");
   const eatingAction = canEditEating ? (
@@ -376,7 +377,7 @@ async function OrderDetail({
           <Link href={`/dashboard/orders/${unpaidRenewal.publicId}`}>Renewal {unpaidRenewal.deploymentId} waiting for payment</Link>
         </Badge>
       )}
-      <ActivateCancelControls orderId={order.publicId} status={order.status} migrated={order.deploymentId.startsWith("wc-")} paidPending={!order.deploymentId.startsWith("wc-") && order.payments.some((p) => p.method === "stripe" && p.status === "paid")} migration={migration} />
+      <ActivateCancelControls orderId={order.publicId} status={order.status} migrated={isWordpressImport(order)} paidPending={!isWordpressImport(order) && order.payments.some((p) => p.method === "stripe" && p.status === "paid")} migration={migration} />
       {canAddAddons && (
         <AddAddonsControl
           orderId={order.publicId}

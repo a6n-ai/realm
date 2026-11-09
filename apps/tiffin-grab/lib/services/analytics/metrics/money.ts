@@ -3,7 +3,7 @@ import { and, inArray, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, ledgerEntries, mealSizes, orders, payments, plans } from "@/db/schema";
 import { CAPTURED, SETTLED_STATUSES } from "@/lib/analytics/revenue";
-import { WP_MIGRATED } from "./migrated";
+import { WP_MIGRATED } from "@/lib/orders/wordpress-import-sql";
 import { dateWhere, localDay, ordersScope, type AnalyticsScope } from "./scope";
 import { isoDateInZone } from "@/lib/dates";
 

@@ -1,4 +1,5 @@
 import { round2 } from "@foundry/discounts";
+import { isWordpressImport } from "@/lib/orders/wordpress-import";
 import { and, asc, eq, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, ledgerEntries, mealSizes, orders, payments, plans, users } from "@/db/schema";
@@ -132,7 +133,7 @@ export async function loadReceipt(orderPublicId: string, now = Date.now()): Prom
     };
   });
   // WordPress imports have no payment row: they were paid on the old site.
-  if (o.code.startsWith("wc-") && !kept.some((p) => RECEIVED.includes(p.status))) {
+  if (isWordpressImport({ deploymentId: o.code }) && !kept.some((p) => RECEIVED.includes(p.status))) {
     receiptPayments.unshift({ date: o.createdAt, method: "Paid on our previous website", reference: null, amount: Number(o.total), cardFee: 0, refunded: 0, status: "paid" });
   }
 

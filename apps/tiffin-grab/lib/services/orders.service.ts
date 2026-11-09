@@ -1,4 +1,6 @@
 import { isCustomerRole } from "@/lib/auth/roles";
+import { wordpressImportSql } from "@/lib/orders/wordpress-import-sql";
+import { isWordpressImport } from "@/lib/orders/wordpress-import";
 import { formatMoney, generateCode, NotFoundError, ValidationError, phoneSchema, emailSchema, parseIsoDateUtc, cutoffMsFor, zonedDateIso } from "@foundry/commons";
 import { createLogger } from "@foundry/commons/logger";
 import { trackConversion } from "@/lib/services/tracking";
@@ -1086,7 +1088,7 @@ export async function verifyPayment(
 
     // After coupons/coins settle so they apply even when the start fails. WordPress-migrated pending orders are started by staff.
     // A cancelled order is only seen here when staff cancelled it after settle's own check; startPaidStripeOrder flags it.
-    if ((order.status === "pending" || order.status === "cancelled") && pay.method === "stripe" && !order.deploymentId.startsWith("wc-")) {
+    if ((order.status === "pending" || order.status === "cancelled") && pay.method === "stripe" && !isWordpressImport(order)) {
       const { started } = await startPaidStripeOrder(tx, order, actorInternalId);
       if (started) [order] = await tx.select().from(orders).where(eq(orders.id, order.id)).limit(1);
     }
@@ -2165,7 +2167,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
     const order = await this.read(publicId);
     const actorId = await this.currentUserId();
     // A paid Stripe order the payment could not start (overlap): staff start it once the conflict is gone.
-    if (order.status === "pending" && order.userId != null && !order.deploymentId.startsWith("wc-")) {
+    if (order.status === "pending" && order.userId != null && !isWordpressImport(order)) {
       const [pay] = await db.select({ status: payments.status }).from(payments)
         .where(and(eq(payments.orderId, order.id), eq(payments.method, "stripe"), eq(payments.status, "paid"))).limit(1);
       if (pay) {
@@ -2242,7 +2244,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       await tx.execute(sql`select pg_advisory_xact_lock(${idRow.id})`);
       const [order] = await tx.select().from(orders).where(eq(orders.publicId, publicId)).for("update").limit(1);
       if (!order) throw new NotFoundError(`Order not found: ${publicId}`);
-      if (order.status !== "pending" || !order.deploymentId.startsWith("wc-")) {
+      if (order.status !== "pending" || !isWordpressImport(order)) {
         throw new ValidationError("Only a pending plan migrated from WordPress can be started here");
       }
       await assertStartNotHoliday(tx, order.organizationId, startDate);
@@ -2418,7 +2420,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
 
       // WordPress plans all ride the 5-day route; one imported as MWF moves onto it here.
       const [freq] = await tx.select({ id: deliveryFrequencies.id, key: deliveryFrequencies.key, weekdays: deliveryFrequencies.weekdays }).from(deliveryFrequencies)
-        .where(order.deploymentId.startsWith("wc-") ? eq(deliveryFrequencies.key, "5_day") : eq(deliveryFrequencies.id, order.frequencyId)).limit(1);
+        .where(isWordpressImport(order) ? eq(deliveryFrequencies.key, "5_day") : eq(deliveryFrequencies.id, order.frequencyId)).limit(1);
       if (!freq) throw new ValidationError("Delivery frequency not found");
       const toFiveDay = freq.id !== order.frequencyId;
       const frequency = { frequencyKey: freq.key, weekdays: freq.weekdays as DayOfWeek[] | null };
@@ -2535,7 +2537,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
   async startAllMigrated(fromDate: string): Promise<{ started: number; failed: { deploymentId: string; error: string }[] }> {
     const waiting = await db.select({ publicId: orders.publicId, deploymentId: orders.deploymentId, startDate: orders.startDate })
       .from(orders)
-      .where(and(eq(orders.status, "pending"), sql`${orders.deploymentId} like 'wc-%'`))
+      .where(and(eq(orders.status, "pending"), wordpressImportSql))
       .orderBy(asc(orders.deploymentId));
     let started = 0;
     const failed: { deploymentId: string; error: string }[] = [];
@@ -2734,7 +2736,7 @@ export const changeOrderEatingDays = (publicId: string, days: DayOfWeek[]): Prom
 export const startAllMigratedOrders = (fromDate: string) => ordersService.startAllMigrated(fromDate);
 export async function countMigratedWaiting(): Promise<number> {
   const [row] = await db.select({ n: sql<number>`count(*)::int` }).from(orders)
-    .where(and(eq(orders.status, "pending"), sql`${orders.deploymentId} like 'wc-%'`));
+    .where(and(eq(orders.status, "pending"), wordpressImportSql));
   return row?.n ?? 0;
 }
 export const pauseOrder = (publicId: string, window: { from: string; until: string; indefinite?: boolean }): Promise<void> =>

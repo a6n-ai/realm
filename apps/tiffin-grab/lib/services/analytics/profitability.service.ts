@@ -6,7 +6,7 @@ import { getProfitabilityAssumptions } from "@/lib/services/app-settings.service
 import { costBreakdown, decorateDay, kpis, rollup, type CostPart, type Grain, type ProfitabilityAssumptions, type ProfitabilityKpis, type ProfitRow } from "@/lib/analytics/profitability";
 import { chartPeriod } from "@/lib/analytics/buckets";
 import { CAPTURED, moneyDate, netExTax, refundExTax, revenueBy, revenueTotals } from "./metrics/money";
-import { WP_MIGRATED } from "./metrics/migrated";
+import { WP_MIGRATED } from "@/lib/orders/wordpress-import-sql";
 import { dateWhere, ordersScope, type AnalyticsScope } from "./metrics/scope";
 import { eachDate, isoDateInZone, utcIso } from "@/lib/dates";
 

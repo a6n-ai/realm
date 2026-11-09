@@ -1,4 +1,5 @@
 import "server-only";
+import { isWordpressImport } from "@/lib/orders/wordpress-import";
 import { and, eq, gte, inArray, like, lte, sql } from "drizzle-orm";
 import { createLogger } from "@foundry/commons/logger";
 import type Stripe from "stripe";
@@ -691,7 +692,7 @@ export async function reconcileStripe(range: { from: number; to: number }, curso
     for (const u of unpaid) {
       const o = byId.get(u.orderId);
       // Mirrors verifyPayment: a void add-on link is only recorded (refund needed); wc- orders are started by staff.
-      u.row.effect = u.voided ? "plain" : u.addon ? "addons" : o?.status === "pending" && !o.deploymentId.startsWith("wc-") ? "start" : "plain";
+      u.row.effect = u.voided ? "plain" : u.addon ? "addons" : o?.status === "pending" && !isWordpressImport(o) ? "start" : "plain";
     }
   }
   // Absence from the range proves nothing, so each paid row not seen is checked by retrieving its own PI.
