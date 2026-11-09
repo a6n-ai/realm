@@ -379,6 +379,13 @@
       "when": 1794174344834,
       "tag": "0053_drop_feature_flags",
       "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "7",
+      "when": 1794210320058,
+      "tag": "0054_glamorous_silvermane",
+      "breakpoints": true
     }
   ]
 }
