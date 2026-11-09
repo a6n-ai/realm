@@ -26,7 +26,7 @@ const { deleteNonSystemUsers } = await import("@/db/test-helpers");
 const { deliveries, ledgerEntries, orderActivities, orders, payments, users } = await import("@/db/schema");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { createOrder, ordersService } = await import("../orders.service");
-const { skipDelivery, rescheduleDelivery, pauseRange } = await import("../deliveries.service");
+const { skipDelivery, rescheduleDelivery } = await import("../deliveries.service");
 
 async function reset() {
   await db.delete(deliveries);
@@ -115,15 +115,5 @@ describe("OptimoRoute cleanup on skip/cancel", () => {
 
     expect(res.merged).toBe(true);
     expect(deleted).toEqual([rows[0].publicId]);
-  });
-
-  it("pausing a range deletes the synced stops it pauses", async () => {
-    const o = await makeOrder();
-    const rows = (await db.select().from(deliveries).where(eq(deliveries.orderId, o.id))).sort((a, b) => a.deliveryDate.localeCompare(b.deliveryDate));
-    await db.update(deliveries).set({ routeSyncedAt: 1000 }).where(eq(deliveries.id, rows[1].id));
-
-    await pauseRange(o.publicId, rows[1].deliveryDate, rows[1].deliveryDate);
-
-    expect(deleted).toEqual([rows[1].publicId]);
   });
 });

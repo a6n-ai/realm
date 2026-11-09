@@ -70,17 +70,3 @@ export async function assertDaysPauseAllowed(orderId: bigint, dates: string[], e
     throw new ValidationError("pause days limit exceeded");
   }
 }
-
-export async function assertPauseAllowed(orderId: bigint, from: string, until: string, isIndefinite: boolean): Promise<void> {
-  const [limits, usage] = await Promise.all([getPauseLimits(orderId), getPauseUsage(orderId)]);
-  if (usage.hasOpenPause) throw new ValidationError("already paused — resume first");
-  if (limits.maxPauses != null && usage.count >= limits.maxPauses) throw new ValidationError("pause limit reached");
-  const span = spanDays(from, until);
-  if (limits.maxPauseStretchDays != null) {
-    if (isIndefinite) throw new ValidationError("indefinite pause not allowed on this plan");
-    if (span > limits.maxPauseStretchDays) throw new ValidationError("pause range too long");
-  }
-  if (limits.maxPauseDaysTotal != null && usage.daysUsed + span > limits.maxPauseDaysTotal) {
-    throw new ValidationError("pause days limit exceeded");
-  }
-}

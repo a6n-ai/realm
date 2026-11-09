@@ -8,7 +8,7 @@ import { loadCatalogSnapshot } from "@/lib/catalog/load";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 const { selectionsService } = await import("../selections.service");
-const { pauseRange, skipDelivery } = await import("@/lib/services/deliveries.service");
+const { skipDelivery } = await import("@/lib/services/deliveries.service");
 
 const FUTURE_MONDAY = (() => {
   const d = new Date(Date.now() + 56 * 86400000);
@@ -145,7 +145,7 @@ describe("selectionsService.setSelection", () => {
   // against `deliveries` below.
 
   it("rejects a pick for a paused delivery", async () => {
-    await pauseRange(order.publicId, FUTURE_MONDAY, FUTURE_MONDAY);
+    await db.update(deliveries).set({ status: "paused" }).where(eq(deliveries.orderId, order.id));
     await expect(selectionsService.setSelection({ order, menuWeek: week, dayOfWeek: "mon", slot: "sabzi", personIndex: 1, pickIndex: 1, dishPublicId: vegDishPublicId }))
       .rejects.toBeInstanceOf(ValidationError);
   });

@@ -1,6 +1,6 @@
 import { ValidationError, cutoffMsFor, parseIsoDateUtc, weekdayKey, zonedDateIso } from "@foundry/commons";
 import { createLogger } from "@foundry/commons/logger";
-import { and, asc, eq, gt, gte, inArray, isNotNull, isNull, lte, ne, not, or, sql } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, isNotNull, isNull, lte, ne, not, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
 import { deliveries, deliveryCategorySwaps, deliveryExtraTiffins, deliveryFrequencies, deliveryMoves, deliveryZones, orderActivities, orders, payments, users } from "@/db/schema";
@@ -230,83 +230,6 @@ export async function loadOrderIdByPublicId(tx: Tx, publicId: string): Promise<b
     .where(eq(deliveries.publicId, publicId)).limit(1);
   if (!row) throw new ValidationError("Delivery not found");
   return row.orderId;
-}
-
-/** Pre-lock lookup by the order's own public_id, so we know what to lock before reading anything else. */
-async function loadOrderIdByOrderPublicId(tx: Tx, orderPublicId: string): Promise<bigint> {
-  const [row] = await tx.select({ id: orders.id }).from(orders).where(eq(orders.publicId, orderPublicId)).limit(1);
-  if (!row) throw new ValidationError("Order not found");
-  return row.id;
-}
-
-/**
- * Marks every future scheduled original in [from, until] as paused. Make-ups (non-null
- * makeupForDeliveryId) are immutable and simply excluded, never a reason to reject. Rows already
- * past their own snapshotted cutoff are likewise excluded, not rejected — a range that lands
- * entirely in the past, or matches nothing at all, is a successful no-op returning 0.
- */
-export async function pauseRange(orderPublicId: string, from: string, until: string): Promise<number> {
-  const isoDateRegex = /^\d{4}-\d{2}-\d{2}$/;
-  if (!isoDateRegex.test(from) || !isoDateRegex.test(until)) {
-    throw new ValidationError("Pause dates must be ISO YYYY-MM-DD");
-  }
-  if (from > until) throw new ValidationError("Pause start must be on or before pause end");
-
-  let orderId: bigint;
-  let pausedRows: OptimoSyncedRow[] = [];
-  const updatedCount = await db.transaction(async (tx) => {
-    orderId = await loadOrderIdByOrderPublicId(tx, orderPublicId);
-    await tx.execute(sql`select pg_advisory_xact_lock(${orderId})`);
-
-    const updated = await tx.update(deliveries)
-      .set({ status: "paused" })
-      .where(and(
-        eq(deliveries.orderId, orderId),
-        eq(deliveries.status, "scheduled"),
-        isNull(deliveries.makeupForDeliveryId),
-        gte(deliveries.deliveryDate, from),
-        lte(deliveries.deliveryDate, until),
-        gt(deliveries.cutoffAt, Date.now()),
-      ))
-      .returning({ id: deliveries.id, publicId: deliveries.publicId, routeSyncedAt: deliveries.routeSyncedAt });
-    pausedRows = updated;
-    return updated.length;
-  });
-  await deleteFromOptimoRouteBestEffort(pausedRows);
-  return updatedCount;
-}
-
-/**
- * Reverts paused rows to scheduled. Ignores 'skipped' rows by design — skip is a deliberate
- * single-delivery act that only an explicit unskip undoes.
- *
- * Plain resume (no `fromDate`): every FUTURE paused row (cutoff not passed) comes back.
- * Resume-from (`fromDate`): only paused days on/after `fromDate` (with a future cutoff) come back.
- * The range pause has no entry point today (move-only deliveries); this stays for its redesign.
- */
-export async function resumeOrder(orderPublicId: string, fromDate?: string): Promise<number> {
-  if (fromDate && !/^\d{4}-\d{2}-\d{2}$/.test(fromDate)) {
-    throw new ValidationError("Resume date must be ISO YYYY-MM-DD");
-  }
-  let orderId: bigint;
-  const updatedCount = await db.transaction(async (tx) => {
-    orderId = await loadOrderIdByOrderPublicId(tx, orderPublicId);
-    await tx.execute(sql`select pg_advisory_xact_lock(${orderId})`);
-
-    const conds = [
-      eq(deliveries.orderId, orderId),
-      eq(deliveries.status, "paused"),
-      gt(deliveries.cutoffAt, Date.now()),
-    ];
-    if (fromDate) conds.push(gte(deliveries.deliveryDate, fromDate));
-
-    const updated = await tx.update(deliveries)
-      .set({ status: "scheduled" })
-      .where(and(...conds))
-      .returning({ id: deliveries.id });
-    return updated.length;
-  });
-  return updatedCount;
 }
 
 /**

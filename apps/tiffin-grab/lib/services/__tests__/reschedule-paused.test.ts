@@ -10,7 +10,7 @@ const { db } = await import("@/db/client");
 const { deliveries, ledgerEntries, orders, payments, users } = await import("@/db/schema");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { createOrder } = await import("../orders.service");
-const { rescheduleDelivery, pauseRange } = await import("../deliveries.service");
+const { rescheduleDelivery } = await import("../deliveries.service");
 
 const createdOrderIds: bigint[] = [];
 const createdUserIds: bigint[] = [];
@@ -61,7 +61,7 @@ describe("rescheduleDelivery on a paused trip", () => {
     const order = await makeOrder(false);
     const rows = await db.select().from(deliveries).where(eq(deliveries.orderId, order.id));
     const dates = rows.map((r) => r.deliveryDate).sort();
-    await pauseRange(order.publicId, dates[0], dates[dates.length - 1]);
+    await db.update(deliveries).set({ status: "paused" }).where(eq(deliveries.orderId, order.id));
     const paused = (await db.select().from(deliveries).where(eq(deliveries.orderId, order.id)))
       .find((r) => r.deliveryDate === dates[0])!;
     expect(paused.status).toBe("paused");

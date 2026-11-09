@@ -16,7 +16,7 @@ import type { GridCell } from "../meals-grid";
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 const { resolveDeliveryMeal } = await import("../resolve-delivery-meal");
 const { buildMealsGrid } = await import("../meals-grid");
-const { skipDelivery, pauseRange } = await import("@/lib/services/deliveries.service");
+const { skipDelivery } = await import("@/lib/services/deliveries.service");
 
 const SETTINGS = { timezone: "UTC", cutoffHour: 23 };
 const THIS_MONDAY = thisWeekStartIso(Date.now(), SETTINGS.timezone);
