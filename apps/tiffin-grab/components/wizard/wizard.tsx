@@ -14,7 +14,8 @@ import { useBounceAfterPaid } from "@/lib/payments/paid-flag";
 import { BottomBar, Button, Sheet, buttonClass } from "@/components/customer/kit";
 import { AddonsPanel } from "./addons-panel";
 import { trialSendDays } from "@/lib/trial/schedule";
-import { adjacentWizardStep, firstBlockedStep, initialSelections, mealNote, nextBlockedReason, offeredAddons, pickedAddons, mealAllowedDays, selectionIsTrial, servesWeekends, reconcileSelections, QUOTE_CODES_KEY, QUOTE_COINS_KEY, WIZARD_ORIGIN_KEY, WIZARD_PLAN_STEPS_KEY, WIZARD_STEP_KEY, WIZARD_STORAGE_KEY, type WizardOrigin, type WizardSelections } from "@/lib/wizard/selections";
+import { adjacentWizardStep, firstBlockedStep, initialSelections, mealNote, nextBlockedReason, offeredAddons, pickedAddons, mealAllowedDays, selectionIsTrial, servesWeekends, reconcileSelections, type WizardOrigin, type WizardSelections } from "@/lib/wizard/selections";
+import { wizardSession } from "@/lib/wizard/session";
 import { StepBaseline } from "./steps/step-baseline";
 import { StepBundle } from "./steps/step-bundle";
 import { StepSchedule } from "./steps/step-schedule";
@@ -82,7 +83,7 @@ export function Wizard({
   const setStep = (n: number | ((s: number) => number)) =>
     setStepState((s) => {
       const next = typeof n === "function" ? n(s) : n;
-      try { sessionStorage.setItem(WIZARD_STEP_KEY, String(next)); } catch { /* storage unavailable */ }
+      try { wizardSession.saveStep(next); } catch { /* storage unavailable */ }
       return next;
     });
   const [selections, setSelections] = useState<WizardSelections>(() => reconcileSelections(catalog, initial));
@@ -99,12 +100,12 @@ export function Wizard({
     try {
       // The quote is the newer intent; a cart saved earlier in this tab must not replace it.
       if (quote) return;
-      if (sessionStorage.getItem(WIZARD_ORIGIN_KEY) !== origin) return;
-      const raw = sessionStorage.getItem(WIZARD_STORAGE_KEY);
+      if (wizardSession.origin() !== origin) return;
+      const raw = wizardSession.selectionsRaw();
       if (!raw) return;
       const saved = JSON.parse(raw) as WizardSelections;
       if (saved.planKey != null && !catalog.plans.some((p) => p.key === saved.planKey)) return;
-      let savedStep = Number(sessionStorage.getItem(WIZARD_STEP_KEY));
+      let savedStep = wizardSession.step();
       const savedTrial = trial != null && catalog.mealSizes.some((m) => m.publicId === saved.mealSizeId && m.trial);
       if (savedTrial && savedStep === 2) savedStep = 3;
       const restored = reconcileSelections(catalog, { ...initial, ...saved });
@@ -146,12 +147,7 @@ export function Wizard({
   const [atCheckout, setAtCheckout] = useState(false);
 
   const deploy = () => {
-    sessionStorage.setItem(WIZARD_STORAGE_KEY, JSON.stringify(selections));
-    sessionStorage.setItem(WIZARD_ORIGIN_KEY, origin);
-    sessionStorage.setItem(WIZARD_PLAN_STEPS_KEY, JSON.stringify(stepLabels));
-    const codes = quote?.codes.length ? quote.codes : promoCodes;
-    if (codes.length) sessionStorage.setItem(QUOTE_CODES_KEY, JSON.stringify(codes));
-    if (quote?.coins) sessionStorage.setItem(QUOTE_COINS_KEY, String(quote.coins));
+    wizardSession.saveHandoff({ selections, origin, planSteps: stepLabels, codes: quote?.codes.length ? quote.codes : promoCodes, coins: quote?.coins });
     const meal = catalog.mealSizes.find((m) => m.publicId === selections.mealSizeId);
     const contentIds = [selections.planKey, meal?.key].filter((x): x is string => !!x);
     const eventId = crypto.randomUUID();

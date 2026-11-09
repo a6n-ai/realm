@@ -2,7 +2,8 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
-import { WIZARD_STORAGE_KEY, type WizardSelections } from "@/lib/wizard/selections";
+import { type WizardSelections } from "@/lib/wizard/selections";
+import { WIZARD_STORAGE_KEY } from "@/lib/wizard/session";
 import type { CardCheckoutContext } from "@/lib/payments/card-checkout-context";
 import { Checkout } from "../checkout";
 import { enterAddress } from "./address-helper";

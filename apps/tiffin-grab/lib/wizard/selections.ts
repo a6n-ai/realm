@@ -7,21 +7,7 @@ export interface WizardSelections extends PricingSelections {
   planKey: string | null;
 }
 
-export const WIZARD_STORAGE_KEY = "tiffin.wizard";
-
-// Which flow wrote WIZARD_STORAGE_KEY — checkout's "Edit plan" back-link returns
-// the customer to /subscribe or /me/renew, both of which use the same stepper.
-export const WIZARD_ORIGIN_KEY = "tiffin.wizard.origin";
 export type WizardOrigin = "subscribe" | "renew" | "trial";
-
-// The plan steps the customer came through (JSON string[]), so checkout's Plan segment keeps the
-// same ticks: one for quick renew, the wizard's Baseline/Bundle/… for subscribe and trial.
-export const WIZARD_PLAN_STEPS_KEY = "tiffin.wizard.planSteps";
-
-// One-shot flags from Quick Renew: open checkout on Pay, with this saved address (publicId).
-
-// Wizard step to reopen on when "Edit plan" comes back from checkout.
-export const WIZARD_STEP_KEY = "tiffin.wizard.step";
 
 /**
  * The subscribe wizard still sells one person per order and no separate
@@ -251,11 +237,6 @@ export function selectionsFromPriorOrder(
  */
 export const QUOTE_PARAMS = ["p", "m", "f", "d", "w", "a", "c", "k"] as const;
 export type QuoteParams = Partial<Record<(typeof QUOTE_PARAMS)[number], string>>;
-
-/** Coupon codes from the quote, handed from the stepper to checkout, which tries them on its first price. */
-export const QUOTE_CODES_KEY = "tiffin.quote.codes";
-/** Coins the customer agreed to use (`k`), handed to checkout the same way; its server price clamps them. */
-export const QUOTE_COINS_KEY = "tiffin.quote.coins";
 
 /** The link's query for these picks (no leading "?"). */
 export function quoteLinkQuery(s: { planKey: string; mealSizeId: string; frequencyKey: string; eatingDays: string[]; durationWeeks: number; addonSelections?: { key: string; qty: number }[]; codes: string[]; coins?: number }): string {

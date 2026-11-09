@@ -38,12 +38,13 @@ import type { CardSource } from "@/lib/services/payment-stripe";
 import { createWebsiteInquiry } from "@/app/(marketing)/contact/actions";
 import { toast } from "sonner";
 import { emailSchema, phoneSchema } from "@foundry/commons";
-import { firstBlockedStep, mealNote, pickedAddons, QUOTE_CODES_KEY, QUOTE_COINS_KEY, reconcileSelections, WIZARD_ORIGIN_KEY, WIZARD_PLAN_STEPS_KEY, WIZARD_STEP_KEY, WIZARD_STORAGE_KEY, type WizardOrigin, type WizardSelections } from "@/lib/wizard/selections";
+import { asWizardOrigin, originHref, parsePlanSteps, wizardSession } from "@/lib/wizard/session";
+import { firstBlockedStep, mealNote, pickedAddons, reconcileSelections, type WizardOrigin, type WizardSelections } from "@/lib/wizard/selections";
 
 function isPlanRenewalCheckout(lastTiffin: string | null): boolean {
   if (lastTiffin) return true;
   try {
-    return sessionStorage.getItem(WIZARD_ORIGIN_KEY) === "renew";
+    return wizardSession.origin() === "renew";
   } catch {
     return false;
   }
@@ -129,13 +130,6 @@ function formatChargeHint(item: { chargeType: "none" | "fixed" | "percent"; char
 }
 
 const noSubscribe = () => () => {};
-const parsePlanSteps = (raw: string | null): string[] => {
-  try {
-    const v: unknown = raw ? JSON.parse(raw) : null;
-    if (Array.isArray(v) && v.length > 0 && v.every((x) => typeof x === "string")) return v;
-  } catch { /* stale or hand-edited storage: fall back */ }
-  return ["Plan"];
-};
 const PRICE_RELOAD_KEY = "tiffin.checkout.price-reload";
 
 /** Quick renew's plan picks over this order's own delivery fields (drop-off and address type belong to Delivery, not Plan). */
@@ -239,9 +233,9 @@ export function Checkout({
   const seed = (raw: string) => seedFrom(JSON.parse(raw) as WizardSelections);
   // Read during render on a client navigation (wizard → checkout) so the page arrives filled and the
   // page transition animates real content; the server snapshot is null, so a full load seeds after hydration.
-  const storedRaw = useSyncExternalStore(noSubscribe, () => (prefill ? sessionStorage.getItem(WIZARD_STORAGE_KEY) : null), () => null);
-  const storedOrigin = useSyncExternalStore(noSubscribe, () => sessionStorage.getItem(WIZARD_ORIGIN_KEY), () => null);
-  const storedPlanSteps = useSyncExternalStore(noSubscribe, () => sessionStorage.getItem(WIZARD_PLAN_STEPS_KEY), () => null);
+  const storedRaw = useSyncExternalStore(noSubscribe, () => (prefill ? wizardSession.selectionsRaw() : null), () => null);
+  const storedOrigin = useSyncExternalStore(noSubscribe, wizardSession.origin, () => null);
+  const storedPlanSteps = useSyncExternalStore(noSubscribe, wizardSession.planStepsRaw, () => null);
   // Kept in state: markPaid clears storage, and the paid screen must still show the same bar.
   const [planSteps, setPlanSteps] = useState<string[]>(() => (plan ? ["Plan"] : handoff ? handoff.planSteps : parsePlanSteps(storedPlanSteps)));
   const [ownSelections, setSelections] = useState<WizardSelections | null>(() => (plan ? seedFrom(plan.selections) : handoff ? seedFrom(handoff.selections) : storedRaw ? seed(storedRaw) : null));
@@ -302,7 +296,7 @@ export function Checkout({
   );
   // Where "Edit plan" sends the customer back to — the flow that actually wrote
   // WIZARD_STORAGE_KEY, not always the full wizard.
-  const [origin, setOrigin] = useState<WizardOrigin>(plan ? "renew" : handoff ? handoff.origin : storedOrigin === "renew" || storedOrigin === "trial" ? storedOrigin : "subscribe");
+  const [origin, setOrigin] = useState<WizardOrigin>(plan ? "renew" : handoff ? handoff.origin : asWizardOrigin(storedOrigin));
   const reduce = useReducedMotion();
   // Stripe.js loads while the customer is still on the address step, so the wallet button is ready on Pay.
   useWarmStripe(cardContext?.publishableKey);
@@ -446,30 +440,28 @@ export function Checkout({
       quoted = handoff?.quoteCodes ?? [];
       quotedCoins = handoff?.quoteCoins ?? 0;
     } else {
-      const raw = sessionStorage.getItem(WIZARD_STORAGE_KEY);
+      const raw = wizardSession.selectionsRaw();
       if (!raw) { router.replace("/subscribe"); return; }
       if (prefill == null) { router.replace("/subscribe"); return; }
       s = selections ?? seed(raw);
-      const storedOriginKey = sessionStorage.getItem(WIZARD_ORIGIN_KEY);
+      const storedOriginKey = wizardSession.origin();
       // The catalog dropped something this cart needs (a meal size, a frequency): it can't be
       // priced, so send the customer to the wizard step that asks for it instead of a dead end.
       const blockedAt = catalog ? firstBlockedStep(catalog, s) : null;
       if (blockedAt != null) {
-        sessionStorage.setItem(WIZARD_STORAGE_KEY, JSON.stringify(s));
-        sessionStorage.setItem(WIZARD_STEP_KEY, String(blockedAt));
-        router.replace(storedOriginKey === "renew" ? "/me/renew" : storedOriginKey === "trial" ? "/me/trial" : "/subscribe");
+        wizardSession.saveSelections(s);
+        wizardSession.saveStep(blockedAt);
+        router.replace(originHref(storedOriginKey));
         return;
       }
       // A full page load seeds here: sessionStorage is only readable on the client, after hydration.
       // eslint-disable-next-line react-hooks/set-state-in-effect
       if (!selections) setSelections(s);
-      if (sessionStorage.getItem(WIZARD_ORIGIN_KEY) === "renew") setOrigin("renew");
-      if (sessionStorage.getItem(WIZARD_ORIGIN_KEY) === "trial") setOrigin("trial");
-      setPlanSteps(parsePlanSteps(sessionStorage.getItem(WIZARD_PLAN_STEPS_KEY)));
+      if (storedOriginKey === "renew" || storedOriginKey === "trial") setOrigin(storedOriginKey);
+      setPlanSteps(parsePlanSteps(wizardSession.planStepsRaw()));
       // Codes from a staff estimate or promo link go in with the first price; a code that doesn't land (expired,
       // used, beaten by a better one) is dropped and named, so the total shown is the one charged.
-      try { quoted = JSON.parse(sessionStorage.getItem(QUOTE_CODES_KEY) ?? "[]") as string[]; } catch { /* unreadable: no codes */ }
-      quotedCoins = Math.max(0, Math.floor(Number(sessionStorage.getItem(QUOTE_COINS_KEY)) || 0));
+      ({ codes: quoted, coins: quotedCoins } = wizardSession.quote());
     }
     // Coins the customer agreed to on the estimate: tried with the first price, dropped if refused.
     refreshPrice(s, quoted, null, quotedCoins || undefined).then(
@@ -477,7 +469,7 @@ export function Checkout({
         sessionStorage.removeItem(PRICE_RELOAD_KEY);
         let coins = quotedCoins;
         if (coins) {
-          sessionStorage.removeItem(QUOTE_COINS_KEY);
+          wizardSession.clearQuoteCoins();
           coins = r.coinsError ? 0 : (r.coinsApplied?.coins ?? 0);
           setAppliedCoins(coins);
           setCoinsInput(coins ? String(coins) : "");
@@ -487,7 +479,7 @@ export function Checkout({
           if (coins !== quotedCoins) await refreshPrice(s, quoted, null, undefined).catch(() => undefined);
           return;
         }
-        sessionStorage.removeItem(QUOTE_CODES_KEY);
+        wizardSession.clearQuoteCodes();
         const kept = quoted.filter((c) => r.appliedCoupons.some((a) => a.code.toUpperCase() === c));
         if (kept.length !== quoted.length || coins !== quotedCoins) await refreshPrice(s, kept, null, coins || undefined).catch(() => undefined);
         setAppliedCodes(kept);
@@ -765,8 +757,7 @@ export function Checkout({
         toast.error(res.error);
         return;
       }
-      sessionStorage.removeItem(WIZARD_STORAGE_KEY);
-      sessionStorage.removeItem(WIZARD_STEP_KEY);
+      wizardSession.clearDraft();
       // Out-of-zone: server created a waitlist inquiry, not an order — show the
       // waitlist confirmation instead of routing to activation.
       if (res.waitlisted) {
@@ -857,7 +848,7 @@ export function Checkout({
   const deliveryType = selections.trialDays != null
     ? `Trial · ${selections.trialDays} ${selections.trialDays === 1 ? "day" : "days"}`
     : (freq?.name ?? null);
-  const editHref = origin === "renew" ? "/me/renew" : origin === "trial" ? "/me/trial" : "/subscribe";
+  const editHref = originHref(origin);
 
   const phoneValid = phoneSchema().safeParse(contact.phone.trim()).success;
   const emailValid = emailSchema.safeParse(contact.email.trim()).success;

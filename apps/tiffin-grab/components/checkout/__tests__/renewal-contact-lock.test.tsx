@@ -2,11 +2,10 @@
 import { render, screen, cleanup, fireEvent, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
-  WIZARD_ORIGIN_KEY,
-  WIZARD_STORAGE_KEY,
   initialSelections,
   type WizardSelections,
 } from "@/lib/wizard/selections";
+import { WIZARD_ORIGIN_KEY, WIZARD_STORAGE_KEY } from "@/lib/wizard/session";
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
 import { Checkout } from "../checkout";
 import "./address-helper";
