@@ -1,4 +1,5 @@
 import { couponStatus } from "@/lib/coupons/status";
+import { hasPaidOrder } from "@/lib/orders/paid-history";
 import { isStaffRole } from "@/lib/auth/roles";
 import { round2 } from "@foundry/commons/util/money";
 import { randomInt } from "node:crypto";
@@ -644,11 +645,7 @@ class CouponsService extends SessionUpdatableService<typeof coupons> {
       }
     }
     if (coupon.kind === "first_order") {
-      const [{ n }] = await db
-        .select({ n: sql<number>`cast(count(*) as int)` })
-        .from(orders)
-        .where(eq(orders.userId, userId));
-      if (n > 0) return "This coupon is only valid on your first order";
+      if (await hasPaidOrder(db, userId)) return "This coupon is only valid on your first order";
     }
     return null;
   }

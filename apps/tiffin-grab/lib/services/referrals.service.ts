@@ -5,6 +5,7 @@ import { isCustomerRole } from "@/lib/auth/roles";
 import { CAPTURED } from "@/lib/payments/status";
 import { paymentStatusIn } from "@/lib/payments/status-sql";
 import { wordpressImportSql } from "@/lib/orders/wordpress-import-sql";
+import { hasPaidOrder } from "@/lib/orders/paid-history";
 import { isWordpressImport } from "@/lib/orders/wordpress-import";
 import { randomInt } from "node:crypto";
 import { and, desc, eq, ilike, inArray, isNull, ne, or, sql } from "drizzle-orm";
@@ -79,21 +80,6 @@ function publicFirstName(name: string | null): string | null {
   return first[0].toUpperCase() + first.slice(1);
 }
 
-/** Not new: ever paid (a refund doesn't make them new again), or a migrated
- * WordPress customer — their imported wc- orders carry no payment row. */
-async function hasOrderHistory(q: Tx | typeof db, userId: bigint): Promise<boolean> {
-  const [row] = await q
-    .select({ id: orders.id })
-    .from(orders)
-    .leftJoin(payments, eq(payments.orderId, orders.id))
-    .where(and(
-      eq(orders.userId, userId),
-      or(paymentStatusIn(CAPTURED), wordpressImportSql),
-    ))
-    .limit(1);
-  return row != null;
-}
-
 export type AttachResult = "attached" | "unknown_code" | "self" | "not_eligible" | "already";
 
 /**
@@ -120,7 +106,7 @@ export async function attachReferral(userId: bigint, rawCode: string): Promise<A
     if (!referrer) return "unknown_code";
     if (referrer.id === userId) return "self";
 
-    if (await hasOrderHistory(tx, userId)) return "not_eligible";
+    if (await hasPaidOrder(tx, userId)) return "not_eligible";
     // No referring back the person who referred you: a 2-cycle pays both twice.
     const [back] = await tx.select({ by: users.referredByUserId }).from(users).where(eq(users.id, referrer.id)).limit(1);
     if (back?.by === userId) return "not_eligible";
@@ -314,7 +300,7 @@ export async function getReferralSummary(userId: bigint): Promise<ReferralSummar
       .orderBy(desc(referrals.createdAt)),
     db.select({ by: users.referredByUserId }).from(users).where(eq(users.id, userId)).limit(1),
     db.select({ id: account.id }).from(account).where(and(eq(account.userId, userId), eq(account.providerId, "google"))).limit(1),
-    hasOrderHistory(db, userId),
+    hasPaidOrder(db, userId),
   ]);
   return {
     code,
