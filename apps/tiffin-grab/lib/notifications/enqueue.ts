@@ -1,10 +1,9 @@
 import { STAFF_ROLES } from "@/lib/auth/roles";
 import { enqueue, enqueueToRole, type EnqueueInput, type EnqueueToRoleInput } from "@relay/engine";
-import { db } from "@/db/client";
+import { db, type Tx } from "@/db/client";
 import { notificationTables, usersRef } from "./tables";
 import { markOutboxDirty } from "./outbox-dirty";
 
-type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type Event = (typeof notificationTables.notificationOutbox.event.enumValues)[number];
 type Channel = (typeof notificationTables.notificationOutbox.channel.enumValues)[number];
 

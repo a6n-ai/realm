@@ -5,7 +5,7 @@ import { ValidationError, cutoffMsFor, parseIsoDateUtc, weekdayKey, zonedDateIso
 import { createLogger } from "@foundry/commons/logger";
 import { and, asc, eq, gte, inArray, isNotNull, isNull, ne, not, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
-import { db } from "@/db/client";
+import { db, type Tx } from "@/db/client";
 import { deliveries, deliveryCategorySwaps, deliveryExtraTiffins, deliveryFrequencies, deliveryMoves, deliveryZones, orderActivities, orders, payments, users } from "@/db/schema";
 import { mealSizeAllowedDays, mealSizeServesWeekends } from "./weekend-dish";
 import { getAppSettings } from "./app-settings.service";
@@ -31,6 +31,7 @@ import { clearLookOutOnEnd } from "@/lib/orders/look-out";
 import { holdAwaitingReconcile, humanDate } from "@/lib/deliveries-view";
 import { isCustomerPaused, isLapsedPause, lapsePausedRows, lapsedPauseDates, releasePausedRows, restoreStopsBestEffort } from "./pause-state";
 import { addDaysIso, isWeekendDay, utcIso } from "@foundry/commons/util/dates";
+import { lockOrder } from "./order-lock";
 
 const log = createLogger("deliveries.service");
 
@@ -39,7 +40,6 @@ async function assertOrderNotTrial(tx: Tx, orderId: bigint): Promise<void> {
   if (row?.trialLength != null) throw new ValidationError("A trial can only have its dishes edited.");
 }
 
-export type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type Order = typeof orders.$inferSelect;
 type Delivery = typeof deliveries.$inferSelect;
 
@@ -231,7 +231,7 @@ export async function skipDelivery(
   let missedDates: string[] = [];
   await db.transaction(async (tx) => {
     orderId = await loadOrderIdByPublicId(tx, deliveryPublicId);
-    await tx.execute(sql`select pg_advisory_xact_lock(${orderId})`);
+    await lockOrder(tx, orderId);
     // Re-read post-lock: a concurrent request may have mutated this row while we waited.
     const row = await loadByPublicId(tx, deliveryPublicId);
     assertOriginal(row);
@@ -281,7 +281,7 @@ export async function adminSetDeliveryStatus(
   let resumed = null as { orderId: bigint; dates: string[] } | null;
   await db.transaction(async (tx) => {
     const orderId = await loadOrderIdByPublicId(tx, deliveryPublicId);
-    await tx.execute(sql`select pg_advisory_xact_lock(${orderId})`);
+    await lockOrder(tx, orderId);
     let row = await loadByPublicId(tx, deliveryPublicId);
     // A paused day past its cutoff did not go out: it is a hold first, then the rules for a hold apply.
     if (isCustomerPaused(row) && isCutoffPassed(row.cutoffAt, Date.now())) {
@@ -441,7 +441,7 @@ export async function maybeComplete(orderId: bigint): Promise<boolean> {
     // Lock before any read it guards on: without this, a concurrent reconcileMakeups can insert
     // a fresh make-up (new scheduled debt) between our reads and the update below, and we'd still
     // flip the order to "completed" out from under an outstanding delivery.
-    await tx.execute(sql`select pg_advisory_xact_lock(${orderId})`);
+    await lockOrder(tx, orderId);
 
     const { timezone } = await getAppSettings();
     const today = appTodayIso(timezone);
@@ -500,7 +500,7 @@ export async function completeFinishedOrders(): Promise<{ checked: number; compl
  * even on an old order whose frequency doesn't fit. If the limit would leave nothing, the frequency's days stand,
  * so a make-up always finds a slot. `trial` picks how a trial's own send days count.
  */
-export async function loadPlanDays(tx: Tx, order: Order, o: { trial?: TrialDays; weekdaysOnly?: boolean } = {}): Promise<Set<string>> {
+export async function loadPlanDays(tx: Tx | typeof db, order: Order, o: { trial?: TrialDays; weekdaysOnly?: boolean } = {}): Promise<Set<string>> {
   const [freq] = await tx.select({ key: deliveryFrequencies.key, weekdays: deliveryFrequencies.weekdays }).from(deliveryFrequencies)
     .where(eq(deliveryFrequencies.id, order.frequencyId)).limit(1);
   const allowed = await mealSizeAllowedDays(order.mealSizeId, tx);
@@ -829,7 +829,7 @@ export async function rescheduleDelivery(
   const refreshIds: bigint[] = [];
   const moveOnce = async (tx: Tx) => {
     const orderId = await loadOrderIdByPublicId(tx, deliveryPublicId);
-    await tx.execute(sql`select pg_advisory_xact_lock(${orderId})`);
+    await lockOrder(tx, orderId);
     await assertOrderNotTrial(tx, orderId);
     // A paused day past its cutoff is a hold by now; convert it before reading the row.
     await lapsePausedRows(tx, orderId);
@@ -1020,7 +1020,7 @@ export async function redeliverTrip(
   let targetId: bigint;
   const result = await db.transaction(async (tx) => {
     const orderId = await loadOrderIdByPublicId(tx, deliveryPublicId);
-    await tx.execute(sql`select pg_advisory_xact_lock(${orderId})`);
+    await lockOrder(tx, orderId);
     await assertOrderNotTrial(tx, orderId);
     const row = await loadByPublicId(tx, deliveryPublicId);
     if (row.status !== "scheduled") throw new ValidationError(`Cannot re-deliver a ${row.status} delivery`);
@@ -1088,7 +1088,7 @@ export async function grantComplimentaryTiffin(
   const result = await db.transaction(async (tx) => {
     const [found] = await tx.select({ id: orders.id }).from(orders).where(eq(orders.publicId, orderPublicId)).limit(1);
     if (!found) throw new ValidationError("Order not found");
-    await tx.execute(sql`select pg_advisory_xact_lock(${found.id})`);
+    await lockOrder(tx, found.id);
     const [order] = await tx.select().from(orders).where(eq(orders.id, found.id)).limit(1);
     if (!order) throw new ValidationError("Order not found");
     const pays = await tx.select({ status: payments.status }).from(payments).where(and(eq(payments.orderId, order.id), isNull(payments.addonRequest)));
@@ -1193,7 +1193,7 @@ export async function setDeliveryAddress(
 ): Promise<void> {
   const deliveryId = await db.transaction(async (tx) => {
     const orderId = await loadOrderIdByPublicId(tx, deliveryPublicId);
-    await tx.execute(sql`select pg_advisory_xact_lock(${orderId})`);
+    await lockOrder(tx, orderId);
     // Re-read post-lock: a concurrent request may have mutated this row while we waited.
     const row = await loadByPublicId(tx, deliveryPublicId);
     // NOTE: no assertOriginal — re-addressing a make-up is the one mutation make-ups permit.
@@ -1252,7 +1252,7 @@ export async function setDeliveryAddress(
 export async function clearDeliveryAddress(deliveryPublicId: string, actorId: bigint | null): Promise<void> {
   await db.transaction(async (tx) => {
     const orderId = await loadOrderIdByPublicId(tx, deliveryPublicId);
-    await tx.execute(sql`select pg_advisory_xact_lock(${orderId})`);
+    await lockOrder(tx, orderId);
     const row = await loadByPublicId(tx, deliveryPublicId);
     assertMutable(row);
     if (row.status !== "scheduled") throw new ValidationError(`Cannot re-address a ${row.status} delivery`);

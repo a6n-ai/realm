@@ -1,10 +1,10 @@
 import { ValidationError } from "@foundry/commons";
 import { and, eq, gte } from "drizzle-orm";
-import { db } from "@/db/client";
+import { db, type Tx } from "@/db/client";
 import { holidays, orders } from "@/db/schema";
 import { humanDate } from "@/lib/deliveries-view";
 
-export type Db = typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0];
+export type Db = typeof db | Tx;
 export type HolidayDay = { id: bigint; date: string; name: string };
 
 /** Holidays on or after `from` for one organization, keyed by ISO date. */

@@ -12,7 +12,7 @@ import {
 } from "@foundry/wallet";
 import { and, eq, sql } from "drizzle-orm";
 import { ValidationError } from "@foundry/commons";
-import { db } from "@/db/client";
+import { db, type Tx } from "@/db/client";
 import { coinRate, eventPayout, ledgerEntries, orderActivities, orders, users, walletLedger } from "@/db/schema";
 import type { OrderPricingSnapshot } from "@/lib/pricing";
 import { coinsUnderCap, earnCoins } from "@/lib/wallet/earn-coins";
@@ -22,8 +22,6 @@ import { getAppSettings, getCoinEarnPct, getMaxWalletBalance } from "./app-setti
 export type BusinessEvent = (typeof walletLedger.eventType.enumValues)[number];
 export type WalletTx = PackageWalletTx<BusinessEvent>;
 
-// A transaction handle from db.transaction — same shape as orders.service.ts's Tx.
-type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 // The app's own money ledger. Kept here rather than in the package because
 // ledger_entries is app-local and its columns differ between apps. Typed via

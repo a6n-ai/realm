@@ -5,7 +5,7 @@ import { and, eq, gt, isNotNull, lte, sql } from "drizzle-orm";
 import { formatMoney, NotFoundError, ValidationError } from "@foundry/commons";
 import { createLogger } from "@foundry/commons/logger";
 import { findMethod } from "@foundry/payments";
-import { db } from "@/db/client";
+import { db, type Tx } from "@/db/client";
 import { deliveries, mealSizes, orderActivities, orderAddons, orders, payments, users, type AddonRequest, type PaymentProof } from "@/db/schema";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { countsWithAddons, orderAddonValues } from "@/lib/menu/order-addon-items";
@@ -23,10 +23,10 @@ import { ledgerService } from "./ledger.service";
 import { chargedCents, refundStripePayment, tryChargeLock } from "./payment-stripe";
 import { cancelOpenIntent } from "./stripe-expiry";
 import { openTiffinCount } from "./tiffin-counts";
+import { lockOrder } from "./order-lock";
 
 const log = createLogger("order-addons.service");
 
-type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type PaymentMethodValue = (typeof payments.method.enumValues)[number];
 type Order = typeof orders.$inferSelect;
 type TaxRate = { name: string; ratePct: number; amount?: number };
@@ -428,7 +428,7 @@ export async function settleAddonPayment(
     if (!inStatuses(SETTLEABLE, pay.status)) return { outcome: "already_paid" as const };
     // Same order as verifyPayment and cancel(): payment row, customer row, the order's advisory lock, then the order row.
     await tx.execute(sql`select 1 from ${users} where ${users.id} = (select ${orders.userId} from ${orders} where ${orders.id} = ${pay.orderId}) for key share`);
-    await tx.execute(sql`select pg_advisory_xact_lock(${pay.orderId})`);
+    await lockOrder(tx, pay.orderId);
     const req = pay.addonRequest;
     const [order] = await tx.select().from(orders).where(eq(orders.id, pay.orderId)).for("update").limit(1);
     if (!order?.userId) throw new NotFoundError("Order not found");

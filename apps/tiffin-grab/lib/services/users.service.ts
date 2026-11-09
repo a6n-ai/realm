@@ -4,7 +4,7 @@ import { isCustomerRole, isStaffRole } from "@/lib/auth/roles";
 import { UpdatableRepository } from "@foundry/database";
 import { AuthError, ValidationError, phoneSchema, emailSchema, pinSchema, type RoleValue } from "@foundry/commons";
 import { and, eq, ne, sql } from "drizzle-orm";
-import { db } from "@/db/client";
+import { db, type Tx } from "@/db/client";
 import { account, addressTags, deliveryStrategies, invitation, session, users } from "@/db/schema";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { SessionUpdatableService, recordAudit, requireUserId } from "./session-service";
@@ -20,8 +20,6 @@ const REDACT_FIELDS = new Set(["pinHash", "password"]);
 const isUsernameConflict = (e: unknown) => isUniqueViolation(e, "users_username_unique");
 
 // A transaction handle (the callback arg of db.transaction), for helpers that
-// must write inside a caller's tx.
-type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 export function redactUserChanges(
   changes: Record<string, { from: unknown; to: unknown }> | null,
@@ -413,7 +411,7 @@ class UsersService extends SessionUpdatableService<typeof users> {
   // Write (create-or-update) the credential-provider password for an internal
   // user id. The account table carries no unique on (user_id, provider_id), so we
   // check-then-write rather than upsert. Callers own the passwordSet flag.
-  private async writeCredentialPassword(tx: DbTx, userInternalId: bigint, hash: string) {
+  private async writeCredentialPassword(tx: Tx, userInternalId: bigint, hash: string) {
     const [acct] = await tx
       .select({ id: account.id })
       .from(account)

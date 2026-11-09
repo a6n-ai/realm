@@ -1,12 +1,10 @@
 import { BaseRepository } from "@foundry/database";
 import { eq, sql } from "drizzle-orm";
-import { db } from "@/db/client";
+import { db, type Tx } from "@/db/client";
 import { ledgerEntries } from "@/db/schema";
 import { SessionBaseService } from "./session-service";
 
 // A transaction handle (or the base db) — the money ledger is written inside the
-// same tx as the order/payment/redemption it records.
-type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 type LedgerDirection = (typeof ledgerEntries.direction.enumValues)[number];
 type LedgerEntryType = (typeof ledgerEntries.type.enumValues)[number];

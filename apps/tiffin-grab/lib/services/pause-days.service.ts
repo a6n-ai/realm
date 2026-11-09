@@ -15,6 +15,7 @@ import { loadExtraDates } from "./delivery-extras";
 import { dateCounts } from "@/lib/menu/coverage";
 import type { Reader } from "./pause-state";
 import { CUSTOMER_PAUSED, isCustomerPaused, isLapsedPause, lapsePausedRows, lapsedPauseDates, pauseRows, releasePausedRows, restoreStopsBestEffort, retireLegacyPaused } from "./pause-state";
+import { lockOrder } from "./order-lock";
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -90,7 +91,7 @@ export async function pauseDays(orderPublicId: string, dates: string[], actorId:
   // Eating days of a trip that keeps going out: they leave the truck after this commits.
   const partial: { deliveryPublicId: string; deliveryId: bigint; eat: string }[] = [];
   const result = await db.transaction(async (tx) => {
-    await tx.execute(sql`select pg_advisory_xact_lock(${order.id})`);
+    await lockOrder(tx, order.id);
     await lapsePausedRows(tx, order.id);
     const { byEat, eats } = await carriersFor(tx, order.id, wanted[0]!, wanted.at(-1)!);
     const missing = wanted.filter((d) => !byEat.has(d));
@@ -183,7 +184,7 @@ export async function releasePausedDaysDetailed(orderPublicId: string, dates: st
   let left: typeof stayPaused = [];
   let chargedOn: bigint | null = null;
   const resumedTrips = await db.transaction(async (tx) => {
-    await tx.execute(sql`select pg_advisory_xact_lock(${order.id})`);
+    await lockOrder(tx, order.id);
     await lapsePausedRows(tx, order.id);
     // Picked eating days → the paused trips carrying them (Sat resumes Friday's truck).
     let wanted: string[] | null = null;
@@ -261,7 +262,7 @@ export async function releasePausedDaysDetailed(orderPublicId: string, dates: st
 export async function lapseElapsedPauses(orderId: bigint): Promise<number> {
   let retired = false;
   const n = await db.transaction(async (tx) => {
-    await tx.execute(sql`select pg_advisory_xact_lock(${orderId})`);
+    await lockOrder(tx, orderId);
     retired = await retireLegacyPaused(tx, orderId);
     return lapsePausedRows(tx, orderId);
   });

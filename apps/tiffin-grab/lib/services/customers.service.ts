@@ -9,7 +9,7 @@ import { NotFoundError, ValidationError, phoneSchema, emailSchema } from "@found
 import type { Condition } from "@foundry/commons/model/condition";
 import type { Page, PageRequest } from "@foundry/commons/util/pagination";
 import { conditionToSql, columnResolver, pageOrder } from "@foundry/database";
-import { db } from "@/db/client";
+import { db, type Tx } from "@/db/client";
 import { auditLog, customerAddresses, orderActivities, walletLedger } from "@/db/schema";
 import { alias } from "drizzle-orm/pg-core";
 import { unexpired } from "@foundry/wallet";
@@ -23,7 +23,6 @@ import { ledgerService } from "./ledger.service";
 import { displayName } from "@/lib/inquiries/display";
 import { appOrigin } from "@/lib/runtime/env";
 
-type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 // Shown whenever checkout resolves an existing account whose role isn't
 // "user" — a staff/admin account must never become an order's owner, whether

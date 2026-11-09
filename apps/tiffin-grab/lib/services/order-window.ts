@@ -6,7 +6,7 @@ import { parseIsoDateUtc, ValidationError } from "@foundry/commons";
 import { and, eq, inArray, isNull, ne, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, mealSizes, orders } from "@/db/schema";
-import type { Tx } from "./deliveries.service";
+import type { Tx } from "@/db/client";
 import { utcIso } from "@foundry/commons/util/dates";
 
 export type OrderWindow = { id: bigint; startDate: string; durationWeeks: number };

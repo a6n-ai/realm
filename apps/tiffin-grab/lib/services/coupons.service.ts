@@ -5,7 +5,7 @@ import { randomInt } from "node:crypto";
 import { ValidationError } from "@foundry/commons";
 import { UpdatableRepository } from "@foundry/database";
 import { and, eq, inArray, ne, notInArray, sql } from "drizzle-orm";
-import { db } from "@/db/client";
+import { db, type Tx } from "@/db/client";
 import { couponRedemptions, coupons, customerGroupMembers, orders, payments, users } from "@/db/schema";
 import type { CouponConfig, CouponKind } from "@/db/schema/coupons";
 import type { PricingLine } from "@/lib/pricing";
@@ -14,7 +14,6 @@ import { ledgerService } from "./ledger.service";
 import { repAllowanceFor } from "./rep-allowance";
 import { SessionUpdatableService } from "./session-service";
 
-type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type Coupon = typeof coupons.$inferSelect;
 
 const num = (v: string | null): number => (v == null ? 0 : Number(v));

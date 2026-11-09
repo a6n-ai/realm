@@ -1,13 +1,12 @@
 import { and, eq } from "drizzle-orm";
 import { createHash } from "node:crypto";
 import { ValidationError } from "@foundry/commons";
-import { db } from "@/db/client";
+import { db, type Tx } from "@/db/client";
 import { customMealPricing, dishCategories, mealSizeItems, mealSizes, plans } from "@/db/schema";
 import { resolveCompositionRows } from "./catalog.service";
 import { invalidateCatalogSnapshot } from "@/lib/catalog/load";
 import { compositionName, mealPlanKey, normalizeItems, sizeCompositionKey, type CategoryUnit, type CustomMealItem } from "@/lib/custom-meal/composition";
 
-export type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 /** Same item rows and category-on-plan rule as Catalog meal sizes (each item keeps its own plan). */
 async function compositionRows(items: CustomMealItem[]) {
@@ -55,9 +54,9 @@ export async function upsertPricing(
 
 export async function findOrCreateCustomMealSize(
   rawItems: CustomMealItem[],
-  opts: { actorId: bigint | null; tx?: DbTx; basePrice?: number; planKey?: string },
+  opts: { actorId: bigint | null; tx?: Tx; basePrice?: number; planKey?: string },
 ): Promise<{ id: bigint; publicId: string; name: string; created: boolean }> {
-  const run = async (tx: DbTx) => {
+  const run = async (tx: Tx) => {
     const units = await loadCategoryUnits(tx);
     for (const i of rawItems) if (!units.has(i.category)) throw new ValidationError(`Unknown category: ${i.category}`);
     const items = normalizeItems(rawItems, units);

@@ -17,7 +17,7 @@
 // lib/menu/meal-validation.ts — shared with listValidSwapOptionsForDelivery so
 // apply never accepts a quantity the options API would not have offered.
 import { ValidationError } from "@foundry/commons";
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveryCategorySwaps, orderActivities, orders } from "@/db/schema";
 import { firstBrokenSwap, validateProposedSwap } from "@/lib/menu/meal-validation";
@@ -25,6 +25,7 @@ import { coveredDates, swapAppliesTo } from "@/lib/menu/coverage";
 import { assertMutable, loadByPublicId, loadOrderIdByPublicId } from "./deliveries.service";
 import { dishCategoriesService } from "./dish-categories.service";
 import { loadCompositionContext } from "./swap-options.service";
+import { lockOrder } from "./order-lock";
 
 export async function applyDeliverySwap(
   deliveryPublicId: string,
@@ -42,7 +43,7 @@ export async function applyDeliverySwap(
 
   await db.transaction(async (tx) => {
     const orderId = await loadOrderIdByPublicId(tx, deliveryPublicId);
-    await tx.execute(sql`select pg_advisory_xact_lock(${orderId})`);
+    await lockOrder(tx, orderId);
     const [trialOrder] = await tx.select({ trialLength: orders.trialLength }).from(orders).where(eq(orders.id, orderId)).limit(1);
     if (trialOrder?.trialLength != null) throw new ValidationError("A trial can only have its dishes edited.");
     // Re-read post-lock: a concurrent request may have mutated this row while we waited.
@@ -110,7 +111,7 @@ export async function removeDeliverySwap(
 ): Promise<void> {
   await db.transaction(async (tx) => {
     const orderId = await loadOrderIdByPublicId(tx, deliveryPublicId);
-    await tx.execute(sql`select pg_advisory_xact_lock(${orderId})`);
+    await lockOrder(tx, orderId);
     const [trialOrder] = await tx.select({ trialLength: orders.trialLength }).from(orders).where(eq(orders.id, orderId)).limit(1);
     if (trialOrder?.trialLength != null) throw new ValidationError("A trial can only have its dishes edited.");
     const row = await loadByPublicId(tx, deliveryPublicId);

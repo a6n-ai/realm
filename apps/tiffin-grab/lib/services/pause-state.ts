@@ -4,12 +4,11 @@ import { cutoffPassedSql, cutoffOpenSql } from "@/lib/dates/cutoff-sql";
 import { ValidationError } from "@foundry/commons";
 import { createLogger } from "@foundry/commons/logger";
 import { and, eq, gt, inArray, isNotNull, isNull, lte, ne, not, sql } from "drizzle-orm";
-import { db } from "@/db/client";
+import { db, type Tx } from "@/db/client";
 import { deliveries, orderActivities, orders, subscriptionPauses } from "@/db/schema";
 
 const log = createLogger("pause-state");
 
-export type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 export type Reader = Pick<typeof db, "select">;
 
 /** Activity note that marks a holiday-closed day staff wrote off instead of placing. */

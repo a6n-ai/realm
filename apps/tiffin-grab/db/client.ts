@@ -90,3 +90,4 @@ export const db: Db = onWorkers
     })
   : nodeDb();
 export { schema };
+export type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];

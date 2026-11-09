@@ -10,7 +10,7 @@ import { randomInt } from "node:crypto";
 import { and, desc, eq, ilike, inArray, isNull, ne, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { ValidationError } from "@foundry/commons";
-import { db } from "@/db/client";
+import { db, type Tx } from "@/db/client";
 import { account, orderActivities, orders, payments, referrals, users, walletLedger } from "@/db/schema";
 import type { OrderPricingSnapshot } from "@/lib/pricing";
 import { referralCoins } from "@/lib/referrals/reward";
@@ -175,7 +175,6 @@ export async function staffAttachReferral(customerId: bigint, rawCode: string, a
   });
 }
 
-type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type Side = "referral_friend" | "referral_referrer";
 
 const firstName = (name: string | null) => (name ?? "").trim().split(/\s+/)[0] || "a customer";

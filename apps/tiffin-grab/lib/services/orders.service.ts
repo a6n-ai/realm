@@ -20,8 +20,8 @@ import { and, asc, desc, eq, gt, inArray, isNotNull, isNull, ne, sql } from "dri
 import { unexpired } from "@foundry/wallet";
 import { inStatuses, PAID } from "@/lib/payments/status";
 import { clearLookOutOnEnd } from "@/lib/orders/look-out";
-import { db } from "@/db/client";
-import { startPaidStripeOrder, type Tx } from "@/lib/payments/verification";
+import { db, type Tx } from "@/db/client";
+import { startPaidStripeOrder } from "@/lib/payments/verification";
 import { ordersListWhere, type OrdersListOpts } from "@/lib/orders/queries";
 import { defaultOwner } from "./default-owner";
 import { getBrandOrgId } from "./organizations.service";
@@ -68,8 +68,9 @@ import { round2 } from "@foundry/commons/util/money";
 import { postCatalogSubtotal } from "@/lib/pricing/discounts";
 import { couponsService } from "./coupons.service";
 import { enqueueNotification } from "@/lib/notifications/enqueue";
-import { cancelDeliveries, deleteFromOptimoRouteBestEffort, dropVoidRows, materializeDeliveries } from "./deliveries.service";
+import { cancelDeliveries, deleteFromOptimoRouteBestEffort, dropVoidRows } from "./deliveries.service";
 import { applyHolidaysToOrder } from "./holiday-apply";
+import { scheduleWrite } from "./schedule-write";
 import { assertStartNotHoliday } from "./holiday-dates";
 import { lapseElapsedPausesSafe } from "./pause-days.service";
 import { retireLegacyPaused } from "./pause-state";
@@ -95,6 +96,7 @@ import { mealSizeAllowedDays, mealSizeServesWeekends } from "./weekend-dish";
 import { getAppSettings, getMaxCoinPctOfSubtotal, getMaxCoinRedeemPctOfBalance, getPaymentConfig } from "./app-settings.service";
 import { quoteCoinCap } from "@/lib/pricing/coin-cap";
 import { isProduction } from "@/lib/runtime/env";
+import { lockOrder, withOrderLock } from "./order-lock";
 
 const log = createLogger("orders.service");
 
@@ -711,9 +713,8 @@ export async function createOrder(
     // those stay pending and start when the card payment settles (startPaidStripeOrder).
     if (order.status === "active") {
       // The order id is not visible to any other transaction yet; the lock is the contract applyHolidaysToOrder expects.
-      await tx.execute(sql`select pg_advisory_xact_lock(${order.id})`);
-      await materializeDeliveries(tx, order);
-      await applyHolidaysToOrder(tx, order, createdBy);
+      await lockOrder(tx, order.id);
+      await scheduleWrite(tx, order, createdBy, { materialize: true });
     }
 
     const recorded = await recordPayment(tx, {
@@ -1355,9 +1356,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
     // update()/transition() path for the same reason createOrder does (see its
     // comment above): those helpers aren't tx-aware, so a raw in-tx write is
     // the smaller change vs threading a tx through the shared service layer.
-    await db.transaction(async (tx) => {
-      // Advisory lock before the orders row is written (every delivery writer takes it first).
-      await tx.execute(sql`select pg_advisory_xact_lock(${order.id})`);
+    await withOrderLock(order.id, async (tx) => {
       // Waitlisted orders skipped the overlap guard at checkout (they held no days); now they will.
       if (order.userId != null) {
         await assertNoPlanOverlap(tx, { userId: order.userId, startDate: order.startDate, durationWeeks: order.durationWeeks, excludeOrderId: order.id });
@@ -1375,8 +1374,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
         toStatus: "active",
         createdBy: actorId,
       });
-      await materializeDeliveries(tx, row);
-      await applyHolidaysToOrder(tx, row, actorId);
+      await scheduleWrite(tx, row, actorId, { materialize: true });
       // An unverified real-method payment earns later, in verifyPayment.
       const [pay] = await tx
         .select({ status: payments.status })
@@ -1399,11 +1397,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
     if (parseIsoDate(startDate) == null || startDate < appTodayIso(timezone)) {
       throw new ValidationError("Pick today or a later date");
     }
-    await db.transaction(async (tx) => {
-      // Advisory lock before the row lock (deliveries.service takes it first); the id comes from a plain read.
-      const [idRow] = await tx.select({ id: orders.id }).from(orders).where(eq(orders.publicId, publicId)).limit(1);
-      if (!idRow) throw new NotFoundError(`Order not found: ${publicId}`);
-      await tx.execute(sql`select pg_advisory_xact_lock(${idRow.id})`);
+    await withOrderLock(publicId, async (tx) => {
       const [order] = await tx.select().from(orders).where(eq(orders.publicId, publicId)).for("update").limit(1);
       if (!order) throw new NotFoundError(`Order not found: ${publicId}`);
       if (order.status !== "pending" || !isWordpressImport(order)) {
@@ -1486,11 +1480,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
   async changeStartDate(publicId: string, startDate: string): Promise<void> {
     const actorId = await this.currentUserId();
     const { timezone, cutoffHour } = await getAppSettings();
-    await db.transaction(async (tx) => {
-      // Advisory lock before the row lock (deliveries.service takes it first); the id comes from a plain read.
-      const [idRow] = await tx.select({ id: orders.id }).from(orders).where(eq(orders.publicId, publicId)).limit(1);
-      if (!idRow) throw new NotFoundError(`Order not found: ${publicId}`);
-      await tx.execute(sql`select pg_advisory_xact_lock(${idRow.id})`);
+    await withOrderLock(publicId, async (tx) => {
       const [order] = await tx.select().from(orders).where(eq(orders.publicId, publicId)).for("update").limit(1);
       if (!order) throw new NotFoundError(`Order not found: ${publicId}`);
       const blocker = await this.startChangeBlocker(order.id, order.status, tx);
@@ -1533,10 +1523,8 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
             cutoffAt: cutoffMsFor(r.deliveryDate, cutoffHour, timezone),
             organizationId: order.organizationId,
           })));
-        } else {
-          await materializeDeliveries(tx, moved!);
         }
-        await applyHolidaysToOrder(tx, moved!, actorId);
+        await scheduleWrite(tx, moved!, actorId, { materialize: !bounded });
         const placed = await tx.select({ deliveryDate: deliveries.deliveryDate, cutoffAt: deliveries.cutoffAt }).from(deliveries)
           .where(eq(deliveries.orderId, order.id)).orderBy(asc(deliveries.deliveryDate));
         const first = placed[0];
@@ -1568,11 +1556,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
     const actorId = await this.currentUserId();
     const { timezone, cutoffHour, minTiffinsPerWeek, maxTiffinsPerWeek } = await getAppSettings();
     const label = (d: readonly string[]) => d.map((x) => x.charAt(0).toUpperCase() + x.slice(1)).join(", ");
-    await db.transaction(async (tx) => {
-      // Advisory lock before the row lock (deliveries.service takes it first); the id comes from a plain read.
-      const [idRow] = await tx.select({ id: orders.id }).from(orders).where(eq(orders.publicId, publicId)).limit(1);
-      if (!idRow) throw new NotFoundError(`Order not found: ${publicId}`);
-      await tx.execute(sql`select pg_advisory_xact_lock(${idRow.id})`);
+    await withOrderLock(publicId, async (tx) => {
       const [order] = await tx.select().from(orders).where(eq(orders.publicId, publicId)).for("update").limit(1);
       if (!order) throw new NotFoundError(`Order not found: ${publicId}`);
       if (!inOrderStatuses(ONGOING, order.status)) {
@@ -1729,7 +1713,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       if (!idRow) throw new NotFoundError(`Order not found: ${publicId}`);
       // Customer lock first, then the order lock: the order verifyPayment and @foundry/wallet take them.
       if (idRow.userId) await tx.select({ id: users.id }).from(users).where(eq(users.id, idRow.userId)).for("update");
-      await tx.execute(sql`select pg_advisory_xact_lock(${idRow.id})`);
+      await lockOrder(tx, idRow.id);
 
       const [order] = await tx.select().from(orders).where(eq(orders.id, idRow.id)).limit(1);
       if (!order) throw new NotFoundError(`Order not found: ${publicId}`);
@@ -1791,8 +1775,7 @@ export async function countMigratedWaiting(): Promise<number> {
 export async function autoResumeIfElapsed(orderId: bigint): Promise<void> {
   await lapseElapsedPausesSafe(orderId);
   const today = appTodayIso((await getAppSettings()).timezone);
-  await db.transaction(async (tx) => {
-    await tx.execute(sql`select pg_advisory_xact_lock(${orderId})`);
+  await withOrderLock(orderId, async (tx) => {
     const open = await tx.select({ id: subscriptionPauses.id, untilDate: subscriptionPauses.untilDate, isIndefinite: subscriptionPauses.isIndefinite })
       .from(subscriptionPauses).where(and(eq(subscriptionPauses.orderId, orderId), isNull(subscriptionPauses.resumedAt)));
     const elapsed = open.filter((r) => !r.isIndefinite && r.untilDate < today);

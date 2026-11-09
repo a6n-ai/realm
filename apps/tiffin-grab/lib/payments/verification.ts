@@ -10,7 +10,7 @@ import { stripeRuntime } from "@/lib/payments/stripe";
 import { and, desc, eq, isNull, or, sql } from "drizzle-orm";
 import { inStatuses, PAID, SETTLEABLE, UNPAID } from "@/lib/payments/status";
 import { paymentStatusIn } from "@/lib/payments/status-sql";
-import { db } from "@/db/client";
+import { db, type Tx } from "@/db/client";
 import { coupons, deliveries, deliveryFrequencies, ledgerEntries, orderActivities, orders, payments, plans, users, type PaymentProof } from "@/db/schema";
 import { sendMetaOrderSubmitted } from "@/lib/meta/order-submitted";
 import { sendMetaPurchaseOnce } from "@/lib/meta/purchase";
@@ -20,8 +20,8 @@ import { round2 } from "@foundry/commons/util/money";
 import { couponsService } from "@/lib/services/coupons.service";
 import { enqueueNotification, enqueueStaffNotification } from "@/lib/notifications/enqueue";
 import { receiptAttachments } from "@/lib/billing/receipt-link";
-import { deleteFromOptimoRouteBestEffort, materializeDeliveries, shiftMissedDeliveries, type OptimoSyncedRow } from "@/lib/services/deliveries.service";
-import { applyHolidaysToOrder } from "@/lib/services/holiday-apply";
+import { deleteFromOptimoRouteBestEffort, shiftMissedDeliveries, type OptimoSyncedRow } from "@/lib/services/deliveries.service";
+import { scheduleWrite } from "@/lib/services/schedule-write";
 import { upcomingHolidays } from "@/lib/services/holiday-dates";
 import { paidStartDate } from "@/lib/orders/paid-start";
 import { ledgerService } from "@/lib/services/ledger.service";
@@ -32,10 +32,10 @@ import { awardReferral, reverseReferral } from "@/lib/services/referrals.service
 import { getAppSettings, getPaymentConfig } from "@/lib/services/app-settings.service";
 import { publishPaymentsInbox, publishUserRefresh } from "@/lib/realtime/publish-inbox";
 import { utcIso } from "@foundry/commons/util/dates";
+import { lockOrder } from "@/lib/services/order-lock";
 
 const log = createLogger("payments.verification");
 
-export type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 /** Receipt extras for payment_approved: card fee, taxes (Stripe Tax lines included), the card used and the total charged. */
 export function receiptVars(
@@ -87,7 +87,7 @@ async function flagPaidNotStarted(tx: Tx, order: typeof orders.$inferSelect, not
 // the overlap guard runs here with the final dates. A start that can't happen leaves the
 // order pending with a note: the money is already in, staff resolve it.
 export async function startPaidStripeOrder(tx: Tx, order: typeof orders.$inferSelect, actorId: bigint | null): Promise<{ started: boolean; reason?: string }> {
-  await tx.execute(sql`select pg_advisory_xact_lock(${order.id})`);
+  await lockOrder(tx, order.id);
   const [current] = await tx.select({ status: orders.status }).from(orders).where(eq(orders.id, order.id)).for("update").limit(1);
   // Staff cancelled it after settle's outside check: the money is in, nobody else will flag it.
   if (current?.status === "cancelled" || current?.status === "completed") {
@@ -123,8 +123,7 @@ export async function startPaidStripeOrder(tx: Tx, order: typeof orders.$inferSe
     note: startDate === order.startDate ? null : `Start moved to ${startDate}`,
     createdBy: actorId,
   });
-  await materializeDeliveries(tx, row!);
-  await applyHolidaysToOrder(tx, row!, actorId);
+  await scheduleWrite(tx, row!, actorId, { materialize: true });
   return { started: true };
 }
 
@@ -151,7 +150,7 @@ export async function verifyPayment(
     // Same lock order as cancel and activate (order advisory lock, then the
     // customer), so a verify racing either one waits instead of deadlocking, and
     // reads the order's status only after a concurrent activate has committed.
-    await tx.execute(sql`select pg_advisory_xact_lock(${pay.orderId})`);
+    await lockOrder(tx, pay.orderId);
     let [order] = await tx.select().from(orders).where(eq(orders.id, pay.orderId)).limit(1);
     if (!order?.userId) throw new NotFoundError("Order not found");
     const orderUserId = order.userId;

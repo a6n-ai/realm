@@ -8,7 +8,8 @@ import { deliveries, deliveryCategorySwaps, deliveryExtraTiffins, deliveryMoves,
 import { openPlanDays } from "@/lib/deliveries/next-open-day";
 import { humanDate } from "@/lib/deliveries-view";
 import { getAppSettings } from "./app-settings.service";
-import { loadPlanDays, type OptimoSyncedRow, type Tx } from "./deliveries.service";
+import type { Tx } from "@/db/client";
+import { loadPlanDays, type OptimoSyncedRow } from "./deliveries.service";
 import { upcomingHolidays, type HolidayDay } from "./holiday-dates";
 import { otherPlanDays } from "./order-window";
 import { HOLIDAY_DISMISSED, pauseRows } from "./pause-state";

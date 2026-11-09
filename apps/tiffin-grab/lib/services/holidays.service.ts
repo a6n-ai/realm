@@ -8,18 +8,19 @@ import { createLogger } from "@foundry/commons/logger";
 import { alias } from "drizzle-orm/pg-core";
 import { and, asc, desc, eq, gt, gte, inArray, isNull, not, sql } from "drizzle-orm";
 import { dedupeKeyStartsWith } from "@/lib/notifications/dedupe-prefix";
-import { db } from "@/db/client";
+import { db, type Tx } from "@/db/client";
 import { deliveries, holidays, orderActivities, orders, organization, users } from "@/db/schema";
 import { humanDate } from "@/lib/deliveries-view";
 import { enqueueNotification } from "@/lib/notifications/enqueue";
 import { notificationTables } from "@/lib/notifications/tables";
 import { getAppSettings } from "./app-settings.service";
 import { getBrandOrgId } from "./organizations.service";
-import { deleteFromOptimoRouteBestEffort, type OptimoSyncedRow, type Tx } from "./deliveries.service";
+import { deleteFromOptimoRouteBestEffort, type OptimoSyncedRow } from "./deliveries.service";
 import { applyHolidaysToOrder, placeHolidayExtras, undoHolidayForOrder, type HolidayApplied, type HolidayUndone } from "./holiday-apply";
 import { removeStopsBestEffort } from "./pause-days.service";
 import { HOLIDAY_DISMISSED, HOLIDAY_DISMISSED_NOTE } from "./pause-state";
 import { isRealDate } from "@foundry/commons/util/dates";
+import { lockOrder } from "./order-lock";
 
 const log = createLogger("holidays.service");
 const sources = alias(deliveries, "holiday_sources");
@@ -161,7 +162,7 @@ async function applyToOrders(holiday: Holiday, notify: boolean, actorId: bigint 
     try {
       // One order per transaction: one plan failing must not roll the others back.
       const applied = await db.transaction(async (tx) => {
-        await tx.execute(sql`select pg_advisory_xact_lock(${o.id})`);
+        await lockOrder(tx, o.id);
         const [order] = await tx.select().from(orders).where(eq(orders.id, o.id)).limit(1);
         if (!order) return [];
         const done = await applyHolidaysToOrder(tx, order, actorId);
@@ -241,7 +242,7 @@ export async function removeHoliday(publicId: string, actorId: bigint | null, vi
   for (const o of tagged) {
     try {
       const undone = await db.transaction(async (tx) => {
-        await tx.execute(sql`select pg_advisory_xact_lock(${o.id})`);
+        await lockOrder(tx, o.id);
         const res = await undoHolidayForOrder(tx, o.id, holiday.id, actorId);
         if (res.restored.length + res.left.length + res.owed.length > 0) await announceRemoved(tx, o.id, holiday, res);
         return res;
@@ -280,7 +281,7 @@ export async function placeHolidayDay(deliveryPublicId: string, fromDate: string
     .where(and(eq(deliveries.publicId, deliveryPublicId), scope(visible))).limit(1);
   if (!found) throw new NotFoundError("Delivery not found");
   const dates = await db.transaction(async (tx) => {
-    await tx.execute(sql`select pg_advisory_xact_lock(${found.orderId})`);
+    await lockOrder(tx, found.orderId);
     const [order] = await tx.select().from(orders).where(eq(orders.id, found.orderId)).limit(1);
     if (!order) throw new NotFoundError("Delivery not found");
     return placeHolidayExtras(tx, order, found.id, fromDate, actorId);
@@ -299,7 +300,7 @@ export async function dismissHolidayDay(deliveryPublicId: string, actorId: bigin
     .where(and(eq(deliveries.publicId, deliveryPublicId), scope(visible))).limit(1);
   if (!found) throw new NotFoundError("Delivery not found");
   await db.transaction(async (tx) => {
-    await tx.execute(sql`select pg_advisory_xact_lock(${found.orderId})`);
+    await lockOrder(tx, found.orderId);
     const [row] = await tx.select({ date: deliveries.deliveryDate, organizationId: deliveries.organizationId, holidayName: holidays.name })
       .from(deliveries).innerJoin(holidays, eq(holidays.id, deliveries.holidayId))
       .where(and(
