@@ -1,8 +1,9 @@
 import { ValidationError } from "@foundry/commons";
 import { UpdatableRepository } from "@foundry/database";
-import { and, desc, eq, notInArray, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, notInArray, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { coupons, promotions } from "@/db/schema";
+import { couponStatus } from "@/lib/coupons/status";
 import { pickLive } from "@/lib/promotions/live";
 import { SessionUpdatableService } from "./session-service";
 
@@ -28,13 +29,25 @@ class PromotionsService extends SessionUpdatableService<typeof promotions> {
         sql`(${promotions.startsAt} is null or ${promotions.startsAt} <= ${now})`,
         sql`(${promotions.endsAt} is null or ${promotions.endsAt} > ${now})`,
       ));
-    return pickLive(rows, now);
+    const live = pickLive(rows, now);
+    const codes = [...new Set(live.flatMap((p) => (p.couponCode ? [p.couponCode.toUpperCase()] : [])))];
+    if (codes.length === 0) return live;
+    const linked = await db
+      .select({ code: coupons.code, active: coupons.active, startsAt: coupons.startsAt, expiresAt: coupons.expiresAt, maxRedemptions: coupons.maxRedemptions, redemptionCount: coupons.redemptionCount })
+      .from(coupons)
+      .where(inArray(sql`upper(${coupons.code})`, codes));
+    const redeemable = new Set(
+      linked
+        .filter((c) => couponStatus(c, now) === "active" && (c.maxRedemptions == null || c.redemptionCount < c.maxRedemptions))
+        .map((c) => c.code.toUpperCase()),
+    );
+    return live.filter((p) => !p.couponCode || redeemable.has(p.couponCode.toUpperCase()));
   }
 
   // A linked code must be a real, active, customer-facing coupon (never a rep's lane or issued code).
-  async assertLinkableCoupon(code: string): Promise<string> {
+  async assertLinkableCoupon(code: string, endsAt: number | null = null): Promise<string> {
     const [c] = await db
-      .select({ code: coupons.code })
+      .select({ code: coupons.code, expiresAt: coupons.expiresAt })
       .from(coupons)
       .where(and(
         sql`upper(${coupons.code}) = ${code.trim().toUpperCase()}`,
@@ -43,6 +56,9 @@ class PromotionsService extends SessionUpdatableService<typeof promotions> {
       ))
       .limit(1);
     if (!c) throw new ValidationError(`Coupon ${code.trim().toUpperCase()} is not an active public coupon`);
+    if (c.expiresAt != null && (endsAt == null || endsAt > c.expiresAt)) {
+      throw new ValidationError(`Coupon ${c.code} expires ${new Date(c.expiresAt).toISOString().slice(0, 10)}: end the promotion by then`);
+    }
     return c.code;
   }
 }

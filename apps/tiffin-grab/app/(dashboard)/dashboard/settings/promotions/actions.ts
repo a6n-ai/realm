@@ -39,7 +39,7 @@ export async function savePromotionAction(publicId: string | null, input: Promot
     const parsed = schema.safeParse(input);
     if (!parsed.success) throw new ValidationError(parsed.error.issues[0]?.message ?? "Invalid promotion");
     const v = parsed.data;
-    const couponCode = v.couponCode ? await promotionsService.assertLinkableCoupon(v.couponCode) : null;
+    const couponCode = v.couponCode ? await promotionsService.assertLinkableCoupon(v.couponCode, v.endsAt) : null;
     // Stored html is rendered on the public site, so it always goes through the email sanitizer first.
     const html = v.html?.trim() ? sanitizeEmailHtml(v.html).html : null;
     const values = { ...v, couponCode, html, body: v.body?.trim() ? v.body : null };
