@@ -8,7 +8,7 @@ import { Button } from "@foundry/ui/button";
 import { Card } from "@foundry/ui/card";
 import { Separator } from "@foundry/ui/separator";
 import { Switch } from "@foundry/ui/switch";
-import { Field, FieldGroup, FieldLabel, FieldTitle } from "@/components/ui/field";
+import { Field, FieldContent, FieldDescription, FieldGroup, FieldLabel, FieldTitle } from "@/components/ui/field";
 import { Alert, AlertAction, AlertDescription } from "@/components/reui/alert";
 
 export interface EmailTypeRow {
@@ -65,6 +65,39 @@ export function SaveBar({
   );
 }
 
+export interface SwitchRow {
+  id: string;
+  label: string;
+  hint?: string;
+  checked: boolean;
+  disabled?: boolean;
+  onChange: (on: boolean) => void;
+}
+
+/** ReUI c-switch-6: one bordered list, name left, switch right, separators between rows. */
+export function SwitchList({ rows }: { rows: SwitchRow[] }) {
+  return (
+    <Card className="p-0">
+      <FieldGroup className="gap-0">
+        {rows.map((r, i) => (
+          <Fragment key={r.id}>
+            {i > 0 && <Separator />}
+            <Field data-disabled={r.disabled || undefined}>
+              <FieldLabel className="justify-between px-4 py-3">
+                <FieldContent>
+                  <FieldTitle>{r.label}</FieldTitle>
+                  {r.hint && <FieldDescription className="text-xs tabular-nums">{r.hint}</FieldDescription>}
+                </FieldContent>
+                <Switch checked={r.checked} disabled={r.disabled} onCheckedChange={r.onChange} />
+              </FieldLabel>
+            </Field>
+          </Fragment>
+        ))}
+      </FieldGroup>
+    </Card>
+  );
+}
+
 export function TrackedEmailsForm({
   types,
   onSave,
@@ -115,25 +148,15 @@ export function TrackedEmailsForm({
                 )}
               </div>
               {rows[0]?.locked && <p className="text-xs text-muted-foreground">{LOCKED_COPY}</p>}
-              <Card className="p-0">
-                <FieldGroup className="gap-0">
-                  {rows.map((r, i) => (
-                    <Fragment key={r.event}>
-                      {i > 0 && <Separator />}
-                      <Field data-disabled={r.locked || undefined}>
-                        <FieldLabel className="justify-between px-4 py-3">
-                          <FieldTitle>{r.label}</FieldTitle>
-                          <Switch
-                            checked={draft.includes(r.event)}
-                            disabled={r.locked || pending}
-                            onCheckedChange={(v) => setDraft((d) => (v ? [...d, r.event] : d.filter((e) => e !== r.event)))}
-                          />
-                        </FieldLabel>
-                      </Field>
-                    </Fragment>
-                  ))}
-                </FieldGroup>
-              </Card>
+              <SwitchList
+                rows={rows.map((r) => ({
+                  id: r.event,
+                  label: r.label,
+                  checked: draft.includes(r.event),
+                  disabled: r.locked || pending,
+                  onChange: (v: boolean) => setDraft((d) => (v ? [...d, r.event] : d.filter((e) => e !== r.event))),
+                }))}
+              />
             </section>
           );
         })}

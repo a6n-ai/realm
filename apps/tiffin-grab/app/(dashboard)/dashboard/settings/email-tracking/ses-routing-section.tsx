@@ -1,14 +1,9 @@
 "use client";
 
-import { Fragment, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { toast } from "sonner";
-import { Card } from "@foundry/ui/card";
-import { Separator } from "@foundry/ui/separator";
-import { Switch } from "@foundry/ui/switch";
-import { Field, FieldContent, FieldDescription, FieldGroup, FieldTitle } from "@/components/ui/field";
-import { Badge } from "@/components/reui/badge";
 import { EMAIL_EVENT_TYPES, type EmailEventRouting, type EmailEventType, type EmailStream } from "@relay/email/events/types";
-import { LoadErrorAlert, SaveBar } from "./email-tracking-section";
+import { LoadErrorAlert, SaveBar, SwitchList } from "./email-tracking-section";
 import { EVENT_NAME, FORCED_NOTE, STREAM_NAME, routingChanges } from "./event-names";
 
 const FORCED: readonly EmailEventType[] = ["bounce", "complaint"];
@@ -22,7 +17,6 @@ export interface StreamState {
 }
 
 const toggle = (list: EmailEventType[], t: EmailEventType) => (list.includes(t) ? list.filter((x) => x !== t) : [...list, t]);
-const COL = "w-20 shrink-0 text-center";
 
 export function SesRoutingSection({ streams, onSave }: { streams: StreamState[]; onSave: Save }) {
   if (streams.length === 0) return <p className="text-sm text-muted-foreground">Not set up for this app.</p>;
@@ -75,52 +69,40 @@ function StreamList({ state, onSave }: { state: StreamState; onSave: Save }) {
             onReset={() => setDraft(saved)}
             onSave={save}
           />
-          <Card className="p-0">
-            <FieldGroup className="gap-0">
-              <div className="flex items-center gap-2 px-4 py-2 text-xs font-medium text-muted-foreground">
-                <span className="flex-1">Event</span>
-                <span className={COL}>In Logs</span>
-                <span className={COL}>In totals</span>
-              </div>
-              {rows.map((t) => {
-                const forced = FORCED.includes(t);
-                const hint = forced ? FORCED_NOTE : volume[t] !== undefined ? `Last 30 days: ${volume[t]?.toLocaleString()}` : undefined;
-                return (
-                  <Fragment key={t}>
-                    <Separator />
-                    <Field orientation="horizontal" className="px-4 py-3">
-                      <FieldContent>
-                        <FieldTitle>{EVENT_NAME[t]}</FieldTitle>
-                        {hint && <FieldDescription className="text-xs tabular-nums">{hint}</FieldDescription>}
-                      </FieldContent>
-                      <span className={COL}>
-                        <Switch
-                          size="sm"
-                          aria-label={`${EVENT_NAME[t]}: show per email in Logs`}
-                          checked={forced || draft.webhook.includes(t)}
-                          disabled={forced || pending}
-                          onCheckedChange={() => setDraft((d) => ({ ...d, webhook: toggle(d.webhook, t) }))}
-                        />
-                      </span>
-                      <span className={COL}>
-                        {draft.counts === null ? (
-                          <Badge variant="outline">Not set up</Badge>
-                        ) : (
-                          <Switch
-                            size="sm"
-                            aria-label={`${EVENT_NAME[t]}: count in totals`}
-                            checked={draft.counts.includes(t)}
-                            disabled={pending}
-                            onCheckedChange={() => setDraft((d) => ({ ...d, counts: toggle(d.counts ?? [], t) }))}
-                          />
-                        )}
-                      </span>
-                    </Field>
-                  </Fragment>
-                );
-              })}
-            </FieldGroup>
-          </Card>
+          <div className="grid items-start gap-6 md:grid-cols-2">
+            <div className="flex flex-col gap-2">
+              <h4 className="text-sm font-medium">Shown per email in Logs</h4>
+              <SwitchList
+                rows={rows.map((t) => {
+                  const forced = FORCED.includes(t);
+                  return {
+                    id: t,
+                    label: EVENT_NAME[t],
+                    hint: forced ? FORCED_NOTE : volume[t] !== undefined ? `Last 30 days: ${volume[t]?.toLocaleString()}` : undefined,
+                    checked: forced || draft.webhook.includes(t),
+                    disabled: forced || pending,
+                    onChange: () => setDraft((d) => ({ ...d, webhook: toggle(d.webhook, t) })),
+                  };
+                })}
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <h4 className="text-sm font-medium">Counted in totals</h4>
+              {draft.counts === null ? (
+                <p className="text-sm text-muted-foreground">Not set up for {name.toLowerCase()}.</p>
+              ) : (
+                <SwitchList
+                  rows={rows.map((t) => ({
+                    id: t,
+                    label: EVENT_NAME[t],
+                    checked: draft.counts?.includes(t) ?? false,
+                    disabled: pending,
+                    onChange: () => setDraft((d) => ({ ...d, counts: toggle(d.counts ?? [], t) })),
+                  }))}
+                />
+              )}
+            </div>
+          </div>
         </>
       )}
     </section>
