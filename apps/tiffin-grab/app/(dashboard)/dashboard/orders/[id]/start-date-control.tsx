@@ -4,7 +4,6 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Button } from "@foundry/ui/button";
 import { Label } from "@foundry/ui/label";
-import { Switch } from "@foundry/ui/switch";
 import { TriangleAlertIcon } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/reui/alert";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@foundry/ui/tooltip";
@@ -82,10 +81,20 @@ export function StartDateControl({
       description="The plan hasn't started, so its deliveries are rescheduled from the new date. Nothing else changes."
       footer={
         <div className="flex justify-end gap-2">
-          <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-          <Button variant={force ? "destructive" : "default"} disabled={pending || !value || value === startDate} onClick={save}>
-            {pending ? "Saving…" : force ? "Force change" : "Save"}
-          </Button>
+          {force ? (
+            <>
+              <Button variant="outline" disabled={pending} onClick={() => setForce(false)}>Back</Button>
+              <Button variant="destructive" disabled={pending || !value || value === startDate} onClick={save}>
+                {pending ? "Saving…" : "Confirm force change"}
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+              <Button variant="destructive" onClick={() => { setForce(true); setError(null); }}>Force change</Button>
+              <Button disabled={pending || !value || value === startDate} onClick={save}>{pending ? "Saving…" : "Save"}</Button>
+            </>
+          )}
         </div>
       }
     >
@@ -93,16 +102,10 @@ export function StartDateControl({
         <Label htmlFor="order-start-date">Start date</Label>
         <DateInput id="order-start-date" min={earliest} value={value} onChange={setValue} className="w-48" />
         <p className="text-muted-foreground text-xs">Earliest {earliest} · starts on {allowedDays.map(dayName).join(", ")}</p>
-        {forceMinDate < minDate && (
-          <div className="flex items-center gap-2">
-            <Switch id="order-start-force" checked={force} onCheckedChange={setForce} />
-            <Label htmlFor="order-start-force">Ignore cutoff (earliest {forceMinDate})</Label>
-          </div>
-        )}
         {force && (
           <Alert variant="warning">
             <TriangleAlertIcon />
-            <AlertTitle>The cutoff for this day has passed</AlertTitle>
+            <AlertTitle>Forcing ignores the cutoff</AlertTitle>
             <AlertDescription>
               <ul className="list-disc ps-4">
                 <li>OptimoRoute may already have this day&apos;s routes: re-sync the day or add the stop by hand.</li>
