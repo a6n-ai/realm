@@ -7,7 +7,7 @@ import { pushInAppNotification } from "@/lib/notifications/push";
 import { db } from "@/db/client";
 import { bookings, studioSessionOccurrences, studioSessions } from "@/db/schema";
 import { ATTENDANCE_MODES, CLASS_BOOKING_TYPES, SESSION_CATEGORIES, type AttendanceMode, type SessionCategory } from "@/db/schema/studio";
-import type { SortState } from "@/lib/list/sort";
+import type { SortState } from "@foundry/design-system/list-sort";
 import { CLASS_COLORS } from "@/lib/sessions/format";
 import { expandPattern, maxWindowMinutes, type RepeatPattern } from "@/lib/sessions/pattern";
 import { parsePhotos } from "@/lib/sessions/photos";

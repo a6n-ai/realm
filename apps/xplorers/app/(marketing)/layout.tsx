@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { Bricolage_Grotesque, DM_Sans } from "next/font/google";
 import { SiteHeader } from "@/components/marketing/site-header";
 import { SiteFooter } from "@/components/marketing/site-footer";
-import { TimezoneProvider } from "@/components/providers/timezone-provider";
+import { TimezoneProvider } from "@foundry/design-system/timezone-provider";
 import { getAppClock } from "@/lib/services/app-settings.service";
 import "@/app/marketing.css";
 

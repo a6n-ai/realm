@@ -14,7 +14,7 @@ import { InviteBanner } from "@/components/customer/invite-banner";
 import { CustomerShell } from "@/components/customer/customer-shell";
 import { CustomerHeaderActions } from "@/components/customer/customer-header-actions";
 import { PageTransition } from "@/components/motion/page-transition";
-import { TimezoneProvider } from "@/components/providers/timezone-provider";
+import { TimezoneProvider } from "@foundry/design-system/timezone-provider";
 import { getAppClock } from "@/lib/services/app-settings.service";
 import { friendsService } from "@/lib/services/friends.service";
 import { personalizationService } from "@/lib/services/personalization.service";

@@ -11,7 +11,7 @@ import {
 import { Skeleton } from "@foundry/ui/skeleton";
 import { requirePermission } from "@/lib/auth/guards";
 import { formatAppDay } from "@/lib/app-clock";
-import { parseSort } from "@/lib/list/sort";
+import { parseSort } from "@foundry/design-system/list-sort";
 import { getAppClock } from "@/lib/services/app-settings.service";
 import { customerStats, listCustomersPage, type CustomerSortColumn } from "@/lib/services/customers.service";
 import { CustomersList, CustomersListSkeleton } from "./customers-list";

@@ -5,7 +5,7 @@ import { PageHeader, PageShell, SectionCard, parseFilterState } from "@foundry/d
 import { Button } from "@foundry/ui/button";
 import { requirePermission, roleCan } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
-import { parseSort } from "@/lib/list/sort";
+import { parseSort } from "@foundry/design-system/list-sort";
 import { monthGrid } from "@/lib/sessions/calendar";
 import { isRealDay, parseRange, toCalendarSessions } from "@/lib/sessions/calendar-events";
 import { formatSessionTime } from "@/lib/sessions/format";

@@ -15,7 +15,7 @@ import { AppBreadcrumbs } from "@/components/dashboard/app-breadcrumbs";
 import { AppBrand } from "@/components/dashboard/app-brand";
 import { AppBottomNav } from "@/components/dashboard/app-bottom-nav";
 import { ModeToggle } from "@/components/mode-toggle";
-import { TimezoneProvider } from "@/components/providers/timezone-provider";
+import { TimezoneProvider } from "@foundry/design-system/timezone-provider";
 import { getAppClock } from "@/lib/services/app-settings.service";
 import { OrgSwitcher } from "@/components/dashboard/org-switcher";
 

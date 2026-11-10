@@ -2,7 +2,7 @@ import { and as cAnd, eq as cEq } from "@foundry/commons/model/condition";
 import { parseFilterState, type FacetDef } from "@foundry/design-system";
 import { requireAdmin } from "@/lib/auth/guards";
 import { formatAppWhen } from "@/lib/app-clock";
-import { parseSort } from "@/lib/list/sort";
+import { parseSort } from "@foundry/design-system/list-sort";
 import { getAppClock } from "@/lib/services/app-settings.service";
 import { paymentsService } from "@/lib/services/payments.service";
 import { PAYMENT_SORT_COLUMNS } from "./payment-facets";

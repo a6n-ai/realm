@@ -5,7 +5,7 @@ import { columnResolver, conditionToSql, pageOrder } from "@foundry/database";
 import { and, eq, exists, getTableColumns, isNull, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { member, organization, session as sessionTable, users } from "@/db/schema";
-import type { SortState } from "@/lib/list/sort";
+import type { SortState } from "@foundry/design-system/list-sort";
 import { resolveOrgScopeMode } from "@/lib/services/org-scope";
 import { usersRepository, type UserRow } from "./users.repository";
 import { currentUserId, SessionUpdatableService } from "./session-service";

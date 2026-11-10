@@ -4,7 +4,7 @@ import type { Page, PageRequest } from "@foundry/commons/util/pagination";
 import { columnResolver, conditionToSql, pageOrder } from "@foundry/database";
 import { db } from "@/db/client";
 import { bookings, friendships, ledgerEntries, payments, studioSessionOccurrences, studioSessions, users } from "@/db/schema";
-import type { SortState } from "@/lib/list/sort";
+import type { SortState } from "@foundry/design-system/list-sort";
 
 export type CustomerSortColumn = "name" | "email" | "joined" | "bookings" | "spent" | "lastBooking";
 

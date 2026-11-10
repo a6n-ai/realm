@@ -6,7 +6,7 @@ import { formatMoney } from "@foundry/commons";
 import { DataTable, ListPagination, ListSearchFilters, type Column, type FacetDef } from "@foundry/design-system";
 import { Badge } from "@foundry/ui/badge";
 import { TableCell } from "@foundry/ui/table";
-import type { SortState } from "@/lib/list/sort";
+import type { SortState } from "@foundry/design-system/list-sort";
 import type { LedgerPageRow, LedgerSortColumn } from "@/lib/services/ledger.service";
 
 export type LedgerTableRow = LedgerPageRow & { whenLabel: string };

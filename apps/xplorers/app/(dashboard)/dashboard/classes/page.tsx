@@ -5,7 +5,7 @@ import { PageHeader, PageShell, SectionCard, parseFilterState } from "@foundry/d
 import { Button } from "@foundry/ui/button";
 import { requirePermission, roleCan } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
-import { parseSort } from "@/lib/list/sort";
+import { parseSort } from "@foundry/design-system/list-sort";
 import { studioSessionsService } from "@/lib/services/studio-sessions.service";
 import { CLASS_FACETS, CLASS_SORT_COLUMNS } from "@/lib/studio/list-spec";
 import { ClassesTable, ClassesTableSkeleton } from "./classes-table";

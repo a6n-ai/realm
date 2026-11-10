@@ -2,7 +2,7 @@ import { desc, eq, sql } from "drizzle-orm";
 import type { Condition } from "@foundry/commons/model/condition";
 import type { Page, PageRequest } from "@foundry/commons/util/pagination";
 import { BaseRepository, columnResolver, conditionToSql, pageOrder } from "@foundry/database";
-import type { SortState } from "@/lib/list/sort";
+import type { SortState } from "@foundry/design-system/list-sort";
 import { db } from "@/db/client";
 import { ledgerEntries, users } from "@/db/schema";
 import { SessionBaseService } from "./session-service";

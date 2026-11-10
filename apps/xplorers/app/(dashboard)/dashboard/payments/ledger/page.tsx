@@ -5,7 +5,7 @@ import { parseFilterState, SectionCard, StatGrid, type FacetDef } from "@foundry
 import { LEDGER_DIRECTIONS, LEDGER_ENTRY_TYPES } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth/guards";
 import { formatAppWhen } from "@/lib/app-clock";
-import { parseSort } from "@/lib/list/sort";
+import { parseSort } from "@foundry/design-system/list-sort";
 import { getAppClock } from "@/lib/services/app-settings.service";
 import { ledgerService } from "@/lib/services/ledger.service";
 import type { SearchParams } from "../payments-data";

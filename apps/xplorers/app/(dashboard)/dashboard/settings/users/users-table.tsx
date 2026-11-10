@@ -6,7 +6,7 @@ import { DataTable, ListPagination, type Column } from "@foundry/design-system";
 import { UsersIcon } from "lucide-react";
 import type { RoleValue } from "@foundry/commons";
 import { UserAvatar } from "@/components/ds";
-import type { SortState } from "@/lib/list/sort";
+import type { SortState } from "@foundry/design-system/list-sort";
 import type { UserSortColumn, UserStatusValue } from "@/lib/services/users.service";
 import { RoleSelect, StatusActions } from "./user-row";
 

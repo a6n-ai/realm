@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import type { Area, CropperProps } from "react-easy-crop";
 import { ResponsiveDialog } from "@foundry/design-system";
 import { Button } from "@foundry/ui/button";
-import { getCroppedBlob } from "@/lib/images/crop";
+import { getCroppedBlob } from "@foundry/design-system/image-crop";
 import { removeMyAvatar, updateMyAvatar } from "@/app/(customer)/me/account/avatar-actions";
 
 // react-easy-crop's default export is a class with `defaultProps`; next/dynamic's

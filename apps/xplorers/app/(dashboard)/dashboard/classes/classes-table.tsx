@@ -10,7 +10,7 @@ import {
   type Column,
   type FacetDef,
 } from "@foundry/design-system";
-import type { SortState } from "@/lib/list/sort";
+import type { SortState } from "@foundry/design-system/list-sort";
 import { CATEGORY_LABELS } from "@/lib/sessions/format";
 import type { SessionCategory } from "@/db/schema/studio";
 import type { ClassSortColumn } from "@/lib/services/studio-sessions.service";

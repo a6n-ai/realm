@@ -5,7 +5,7 @@ import { UsersIcon } from "lucide-react";
 import { INVITABLE_ROLES } from "@/lib/auth/permissions";
 import { requirePermission } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
-import { parseSort } from "@/lib/list/sort";
+import { parseSort } from "@foundry/design-system/list-sort";
 import { usersService, type UserSortColumn } from "@/lib/services/users.service";
 import { InviteUserButton } from "./invite-user-button";
 import { UsersTable, UsersTableSkeleton } from "./users-table";
