@@ -1,9 +1,9 @@
 import { signRealtimeToken } from "@foundry/realtime";
 import { authorizeChannel } from "@/lib/realtime/authorize";
-import { realtimeConfig } from "@/lib/realtime/config";
+import { realtimeConfigFromEnv } from "@foundry/realtime/server";
 
 export async function GET(request: Request): Promise<Response> {
-  const cfg = realtimeConfig();
+  const cfg = realtimeConfigFromEnv();
   if (!cfg) return new Response("Not found", { status: 404 });
 
   const channel = new URL(request.url).searchParams.get("channel");
