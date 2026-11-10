@@ -50,7 +50,7 @@ type SearchParams = Promise<Record<string, string | undefined>>;
 
 // The work-queue tabs mark "ignores the date range" with an icon beside the date filter.
 function listNote(view?: string) {
-  if (view === "free") return "Orders with a free tiffin delivered in the date range";
+  if (view === "free") return "Orders created in the date range that were given free tiffins";
   return undefined;
 }
 
@@ -128,8 +128,8 @@ async function StartMigratedAction() {
 }
 
 /**
- * The Free tiffins tab follows the date range: free tiffins delivered so far inside it, the same count as
- * Analytics → Revenue. The work-queue tabs (Look out for, Payment review, Missed) stay on every date.
+ * The Free tiffins cards follow the date range: free tiffins delivered so far inside it, the same count as
+ * Analytics → Revenue. The list and its count go by order creation date, like the other lists. The work-queue tabs (Look out for, Payment review, Missed) stay on every date.
  */
 async function freeRange(raw: Awaited<SearchParams>): Promise<FreeTiffinRange> {
   const [sp, { timezone }] = await Promise.all([withDefaultMonth(raw), getAppSettings()]);
@@ -145,7 +145,7 @@ async function OrdersViews({ searchParams }: { searchParams: SearchParams }) {
     countLookOutOrders(visible),
     countMissedDeliveries(visible),
     countPaymentReviewOrders(visible),
-    countFreeTiffinOrders(visible, await freeRange(await searchParams)),
+    countFreeTiffinOrders(visible, await withListDates(await searchParams)),
   ]);
   return <OrdersViewTabs lookOutCount={lookOutCount} missedCount={missedCount} paymentReviewCount={paymentReviewCount} freeCount={freeCount} />;
 }
@@ -192,11 +192,11 @@ async function OrdersStats({ searchParams }: { searchParams: SearchParams }) {
   if (view === "free") {
     const fr = await freeRange(await searchParams);
     const today = zonedDateIso(requestNow(), (await getAppSettings()).timezone);
-    const [count, f] = await Promise.all([countFreeTiffinOrders(visible, fr), getFreeTiffinStats(visible, fr, today)]);
+    const [count, f] = await Promise.all([countFreeTiffinOrders(visible, await withListDates(await searchParams)), getFreeTiffinStats(visible, fr, today)]);
     return (
       <StatCards
         items={[
-          { label: "Orders", value: count, icon: GiftIcon, hint: "With a free tiffin in the range", href: ordersListHref(dates, { view: "free" }) },
+          { label: "Orders", value: count, icon: GiftIcon, hint: "Created in the range, given free tiffins", href: ordersListHref(dates, { view: "free" }) },
           { label: "Free tiffins delivered", value: f.delivered, icon: PackageCheckIcon, hint: "In the date range, up to today" },
           { label: "Still to deliver", value: f.toDeliver, icon: TruckIcon, hint: "Scheduled after today" },
         ]}
@@ -297,14 +297,12 @@ async function OrdersData({ searchParams }: { searchParams: SearchParams }) {
     datesAll ||
     lookOutOnly ||
     paymentReview ||
-    freeTiffins ||
     raw.missed === "yes" ||
     cancelledAt ||
     raw.status === "running" ||
     raw.status === "soon";
   // A flagged, unpaid or missed-day order stays on its tab however old it is. The date picker
   // writes the current month onto every URL, so the bounds are dropped here, not just left unset.
-  // Free tiffins drops them too, but filters by free-tiffin delivery date instead (freeRange).
   const sp = ignoreCreatedAt ? { ...raw, from: undefined, to: undefined } : await withListDates(raw);
   const cancelRange = cancelledAt ? await withDefaultMonth(raw) : null;
   const sort = parseSort(
@@ -347,7 +345,6 @@ async function OrdersData({ searchParams }: { searchParams: SearchParams }) {
       lookOutOnly,
       paymentReview,
       freeTiffins,
-      freeRange: freeTiffins ? await freeRange(raw) : undefined,
       missedAsOf,
       cancelledInRange:
         cancelRange?.from != null && cancelRange.to != null

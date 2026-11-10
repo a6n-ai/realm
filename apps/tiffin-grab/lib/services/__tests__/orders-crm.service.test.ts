@@ -126,8 +126,9 @@ describe("order CRM queries (integration)", () => {
     const day = String(row.start);
     await db.update(schema.deliveries).set({ complimentaryNote: "Apology" })
       .where(and(eq(schema.deliveries.orderId, row.id), eq(schema.deliveries.deliveryDate, day)));
-    expect(await countFreeTiffinOrders("all", { from: day, to: day })).toBe(1);
-    expect(await countFreeTiffinOrders("all", { from: "2099-01-01", to: "2099-01-31" })).toBe(0);
+    // The tab count goes by order creation date, like the Orders list.
+    expect(await countFreeTiffinOrders("all", { from: String(Date.now() - 3_600_000), to: String(Date.now() + 3_600_000) })).toBe(1);
+    expect(await countFreeTiffinOrders("all", { from: "0", to: "1000" })).toBe(0);
     const ranged = await listOrdersPage(undefined, { page: 0, size: 10 }, undefined, "all", { freeTiffins: true, freeRange: { from: day, to: day } });
     expect(ranged.items.map((r) => r.publicId)).toEqual([given.publicId]);
 

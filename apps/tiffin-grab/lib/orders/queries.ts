@@ -4,6 +4,7 @@ import type { Condition, FilterCondition } from "@foundry/commons/model/conditio
 import { conditionToSql, columnResolver } from "@foundry/database";
 import { and, eq, gt, ilike, inArray, isNotNull, isNull, ne, or, sql, type SQL } from "drizzle-orm";
 import { UNASSIGNED_OWNER } from "@/lib/list/presets";
+import { epochBoundsWhere } from "@/lib/list/default-month";
 import { hasMissedDeliveries } from "@/lib/services/missed-where";
 import { PENDING } from "@/lib/payments/status";
 import { paymentStatusIn } from "@/lib/payments/status-sql";
@@ -91,7 +92,9 @@ export const freeTiffinsWhere = (range?: FreeTiffinRange) =>
           and ${deliveries.status} = 'scheduled' and ${deliveries.deliveryDate} between ${range.from} and ${range.to})`
       : undefined,
   );
-export const countFreeTiffinOrders = (visible: "all" | string[], range?: FreeTiffinRange) => countVisibleOrders(freeTiffinsWhere(range), visible);
+/** Free-tiffin orders, optionally only those created inside an epoch-ms window (the list's date picker). */
+export const countFreeTiffinOrders = (visible: "all" | string[], created?: { from?: string; to?: string }) =>
+  countVisibleOrders(and(freeTiffinsWhere(), created ? epochBoundsWhere(orders.createdAt, created) : undefined), visible);
 
 function filterValues(f: FilterCondition): string[] {
   return f.operator === "in" ? (f.value as string[]) : [String(f.value)];
