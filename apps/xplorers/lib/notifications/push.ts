@@ -1,7 +1,7 @@
 import type { AppEvent } from "@/db/schema/wallet";
 import { db } from "@/db/client";
 import { notifications } from "@/db/schema";
-import { runInBackground } from "@/lib/runtime/background";
+import { runInBackground } from "@foundry/cloud/background";
 import { broadcastNotification } from "./broadcast";
 
 /** Materialize an in-app feed row and ping the user's SSE bell. */
