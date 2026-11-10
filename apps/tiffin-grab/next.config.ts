@@ -57,8 +57,11 @@ const nextConfig: NextConfig = {
     ]);
     // Agent discovery (RFC 8288): the site described for machines, and pages as markdown (proxy.ts serves
     // it on Accept: text/markdown). The public JSON API is advertised through the api-catalog relation (RFC 9727).
+    // Cloudflare Early Hints replays only preload/preconnect entries as a 103, so the home hero poster
+    // (fixed URL, unlike hashed /_next assets) starts downloading before the Worker answers.
+    const heroHints = '</landing/stock/hero-poster-mobile.webp>; rel="preload"; as="image"; type="image/webp"; media="(max-width: 767px)", </landing/stock/hero-poster.webp>; rel="preload"; as="image"; type="image/webp"; media="(min-width: 768px)"';
     const links = [
-      { source: "/", headers: [{ key: "Link", value: '</llms.txt>; rel="describedby"; type="text/plain", </pricing.md>; rel="describedby"; type="text/markdown", </>; rel="alternate"; type="text/markdown", </.well-known/api-catalog>; rel="api-catalog"' }] },
+      { source: "/", headers: [{ key: "Link", value: `</llms.txt>; rel="describedby"; type="text/plain", </pricing.md>; rel="describedby"; type="text/markdown", </>; rel="alternate"; type="text/markdown", </.well-known/api-catalog>; rel="api-catalog", ${heroHints}` }] },
       ...["/pricing", "/faq", "/locations"].map((source) => ({ source, headers: [{ key: "Link", value: `<${source}>; rel="alternate"; type="text/markdown"` }] })),
     ];
     return [...cache, ...links];
