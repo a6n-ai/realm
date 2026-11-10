@@ -57,7 +57,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@foundry/ui/popover"
-import { ScrollArea } from "@/components/ui/scroll-area"
+import { ScrollArea } from "@foundry/ui/scroll-area"
 import { PlusIcon } from "lucide-react"
 
 // Layout-effect on the client (measure before paint, no flash), plain effect on

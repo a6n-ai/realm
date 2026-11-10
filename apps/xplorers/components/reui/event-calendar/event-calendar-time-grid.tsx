@@ -53,7 +53,7 @@ import { addDays, addMinutes, differenceInMinutes, format } from "date-fns"
 import { Slot } from "radix-ui"
 
 import { cn } from "@foundry/ui/cn"
-import { ScrollArea } from "@/components/ui/scroll-area"
+import { ScrollArea } from "@foundry/ui/scroll-area"
 
 /** Current time, refreshed on an interval and on tab focus. */
 function useNow(intervalMs = 30_000): Date {

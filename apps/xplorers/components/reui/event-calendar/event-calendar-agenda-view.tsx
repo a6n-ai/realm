@@ -22,12 +22,12 @@ import type {
   EventCalendarDateRange,
   EventCalendarSegment,
 } from "@/components/reui/event-calendar/event-calendar-types"
-import { IconStack } from "@/components/reui/icon-stack"
+import { IconStack } from "@foundry/ui/icon-stack"
 import { addDays, format } from "date-fns"
 import { Slot } from "radix-ui"
 
 import { cn } from "@foundry/ui/cn"
-import { ScrollArea } from "@/components/ui/scroll-area"
+import { ScrollArea } from "@foundry/ui/scroll-area"
 import { CalendarIcon } from "lucide-react"
 
 // The agenda window length is the agendaDayCount SETTING (the store derives

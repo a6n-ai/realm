@@ -4,7 +4,7 @@ import { GeistMono } from "geist/font/mono";
 import { ThemeProvider, THEME_STORAGE_KEY, themeInitScript } from "@foundry/themes";
 import { SITE_NAME, SITE_PITCH, SITE_TAGLINE, SITE_URL } from "@/lib/brand";
 import { buildMetadata } from "@/lib/seo";
-import { InlineScript } from "@/components/inline-script";
+import { InlineScript } from "@foundry/ui/inline-script";
 import "./globals.css";
 import "./crm.css";
 

@@ -54,7 +54,7 @@ import { addDays, addMinutes } from "date-fns"
 import { Slot } from "radix-ui"
 
 import { cn } from "@foundry/ui/cn"
-import { ScrollArea } from "@/components/ui/scroll-area"
+import { ScrollArea } from "@foundry/ui/scroll-area"
 
 const EMPTY_ALL_DAY_SEGMENTS: EventCalendarSegment[] = []
 
