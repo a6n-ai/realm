@@ -4,7 +4,9 @@ import { RUNNING, inOrderStatuses } from "@/lib/orders/status";
 import { pageOffset } from "@foundry/design-system/filters/parse-filter-state";
 import Link from "next/link";
 import { UsersIcon } from "lucide-react";
-import { formatPhone } from "@foundry/commons";
+import { formatMoney, formatPhone } from "@foundry/commons";
+import { useTimezone } from "@foundry/design-system/timezone-provider";
+import { formatDateOnly, formatEpoch } from "@/lib/format/datetime";
 import { DataTable, ListPagination, OrderStatusBadge, type Column, type FacetDef } from "@/components/ds";
 import { ListSearchFilters } from "@/components/filters/reui-facet-filters";
 import { TableCell } from "@foundry/ui/table";
@@ -14,13 +16,13 @@ import { CustomerInviteCell } from "./customer-invite-cell";
 // Single source of truth for the table's columns. DataTable renders the header
 // and DataTable.Skeleton renders the loading twin from this same array, so the
 // two can never drift. (The leading "#" and ID columns are added by DataTable.)
-const COLUMNS: readonly Column<CustomerSortColumn | "latestStatus" | "planCompletion" | "invite">[] = [
+const COLUMNS: readonly Column<CustomerSortColumn | "invite">[] = [
   { key: "name", label: "Name", sortable: true },
   { key: "email", label: "Email", sortable: true },
   { key: "phone", label: "Phone", sortable: true },
-  { key: "orders", label: "Orders", sortable: true, align: "right" },
-  { key: "latestStatus", label: "Latest status" },
-  { key: "planCompletion", label: "Plan Completion" },
+  { key: "paid", label: "Total paid", sortable: true, align: "right" },
+  { key: "latestOrder", label: "Latest order", sortable: true },
+  { key: "lastDelivered", label: "Last delivered", sortable: true },
   { key: "invite", label: "Actions", align: "right" },
 ];
 
@@ -39,6 +41,7 @@ export function CustomersList({
   size: number;
   sort: SortState<CustomerSortColumn>;
 }) {
+  const tz = useTimezone();
   return (
     <div className="space-y-4">
       <DataTable
@@ -63,13 +66,18 @@ export function CustomersList({
             </TableCell>
             <TableCell>{c.email ?? "(no email)"}</TableCell>
             <TableCell>{c.phone ? formatPhone(c.phone) : "no phone"}</TableCell>
-            <TableCell className="text-right tabular-nums">{c.orderCount}</TableCell>
+            <TableCell className="text-right tabular-nums">{formatMoney(Number(c.totalPaid))}</TableCell>
             <TableCell>
-              {c.latestStatus ? <OrderStatusBadge status={c.latestStatus} /> : "—"}
+              {c.latestOrderAt && c.latestStatus ? (
+                <div className="flex items-center gap-2 whitespace-nowrap">
+                  <span className="tabular-nums">{formatEpoch(c.latestOrderAt, { mode: "date", timeZone: tz })}</span>
+                  <OrderStatusBadge status={c.latestStatus} />
+                </div>
+              ) : (
+                "—"
+              )}
             </TableCell>
-            <TableCell>
-              {c.planCompletionDate ? c.planCompletionDate : "—"}
-            </TableCell>
+            <TableCell className="whitespace-nowrap tabular-nums">{c.lastDelivered ? formatDateOnly(c.lastDelivered) : "—"}</TableCell>
             <TableCell>
               <CustomerInviteCell
                 publicId={c.publicId}

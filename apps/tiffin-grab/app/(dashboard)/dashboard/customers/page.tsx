@@ -13,23 +13,21 @@ import { countPendingInvites, listCustomersPage, type CustomerSortColumn } from 
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { listableMealSizes, mealSizeAddons } from "@/lib/catalog/types";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
-import { parseSort } from "@foundry/design-system/list-sort";
 import { Button } from "@foundry/ui/button";
 import { Skeleton } from "@foundry/ui/skeleton";
 import {
   PageShell,
   PageHeader,
   SectionCard,
-  parseFilterState,
-  type FacetDef,
 } from "@/components/ds";
-import { ORDER_STATUS_PILLS } from "../orders/status-pills";
 import { CustomersList, CustomersListSkeleton } from "./customers-list";
+import { CUSTOMER_SPEC, customerListQuery } from "./list-query";
+import { CustomersExportButton } from "./customers-export-button";
 import { NewCustomerSheet } from "./new-customer-sheet";
 import { InvitePendingButton } from "./invite-pending-button";
 import { MarkSectionRead } from "@/components/dashboard/mark-section-read";
 import { SectionDateRange } from "@/components/filters/section-date-range";
-import { epochBoundsWhere, withDefaultMonth, withListDates } from "@/lib/list/default-month";
+import { epochBoundsWhere, withDefaultMonth } from "@/lib/list/default-month";
 import { customersListHref } from "@/lib/list/customers-drill";
 import { requestNow } from "@/lib/dates/request-now";
 
@@ -64,9 +62,14 @@ export default function CustomersPage({ searchParams }: { searchParams: SearchPa
       <SectionCard
         title="All customers"
         action={
-          <Suspense fallback={null}>
-            <InvitePendingAction />
-          </Suspense>
+          <div className="flex items-center gap-2">
+            <Suspense fallback={null}>
+              <InvitePendingAction />
+            </Suspense>
+            <Suspense fallback={null}>
+              <CustomersExportButton />
+            </Suspense>
+          </div>
         }
       >
         <Suspense fallback={<CustomersListSkeleton />}>
@@ -164,71 +167,9 @@ async function CustomersStats({ searchParams }: { searchParams: SearchParams }) 
 
 async function CustomersData({ searchParams }: { searchParams: SearchParams }) {
   await requireStaff();
-
-  const sp = await withListDates(await searchParams);
-  const sort = parseSort(sp, ["name", "email", "phone", "orders"], { column: "orders", dir: "desc" });
-
-  const spec: FacetDef[] = [
-    { kind: "dateRange", field: "createdAt", label: "Joined" },
-    {
-      kind: "select",
-      field: "planCompletesInDays",
-      label: "Plan Completes In",
-      options: [
-        { value: "3", label: "Next 3 days" },
-        { value: "4", label: "Next 4 days" },
-        { value: "5", label: "Next 5 days" },
-        { value: "7", label: "Next 7 days" },
-        { value: "14", label: "Next 14 days" },
-      ],
-    },
-    {
-      kind: "select",
-      field: "activePlan",
-      label: "Active plan",
-      options: [
-        { value: "yes", label: "Has active plan" },
-        { value: "no", label: "No active plan" },
-      ],
-    },
-    {
-      kind: "select",
-      field: "customerType",
-      label: "Customer type",
-      options: [
-        { value: "none", label: "No orders" },
-        { value: "ordered", label: "Has orders (1+)" },
-        { value: "new", label: "New (1 order)" },
-        { value: "repeat", label: "Repeat (2+ orders)" },
-      ],
-    },
-    {
-      kind: "select",
-      field: "latestStatus",
-      label: "Latest order",
-      options: ORDER_STATUS_PILLS.filter((p) => p.value !== "ongoing").map((p) => ({ value: p.value, label: p.label })),
-    },
-    { kind: "search", fields: ["name", "phone", "email"] },
-  ];
-
-  // planCompletesInDays is a derived value, not a column: the full spec drives the
-  // filter UI, the DB condition is parsed without it and it goes in as a custom filter.
-  const parsed = Number(sp.planCompletesInDays);
-  const planCompletesInDays = sp.planCompletesInDays && Number.isFinite(parsed) ? parsed : undefined;
-  const CUSTOM = ["planCompletesInDays", "activePlan", "customerType", "latestStatus"];
-  const dsSpec = spec.filter((s) => s.kind !== "select" || !CUSTOM.includes(s.field));
-  const pick = <T extends string>(v: string | undefined, allowed: readonly T[]) => allowed.find((a) => a === v);
-  const latestStatusOptions = ORDER_STATUS_PILLS.filter((p) => p.value !== "ongoing").map((p) => p.value);
-  const { condition: dbCondition, page: dbPage } = parseFilterState(dsSpec, sp);
-
-  const result = await listCustomersPage(dbCondition, dbPage, sort, {
-    planCompletesInDays,
-    activePlan: pick(sp.activePlan, ["yes", "no"]),
-    customerType: pick(sp.customerType, ["none", "ordered", "new", "repeat"]),
-    latestStatus: pick(sp.latestStatus, latestStatusOptions),
-  });
-
-  return <CustomersList spec={spec} rows={result.items} total={result.total} page={dbPage.page} size={dbPage.size} sort={sort} />;
+  const { sort, condition, page, custom } = await customerListQuery(await searchParams);
+  const result = await listCustomersPage(condition, page, sort, custom);
+  return <CustomersList spec={CUSTOMER_SPEC} rows={result.items} total={result.total} page={page.page} size={page.size} sort={sort} />;
 }
 
 async function NewCustomerAction() {

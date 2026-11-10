@@ -242,13 +242,16 @@ export type CustomerRow = {
   name: string | null;
   email: string | null;
   phone: string | null;
-  orderCount: number;
   latestStatus: string | null;
+  latestOrderAt: number | null;
+  /** Sum of settled payments (PAID) across all their orders, as a numeric string. */
+  totalPaid: string;
+  /** ISO date of the last tiffin OptimoRoute or staff confirmed delivered. */
+  lastDelivered: string | null;
   // True once they've proven the email (invite link, checkout verify link, or
   // an email-code sign-in) — i.e. they've used the account. Not "has a
   // password": customers sign in by email code and may never set one.
   joined: boolean;
-  planCompletionDate: string | null;
   /** Latest welcome email and latest menu reminder, for the row's status icons. */
   lastInvite: SendState | null;
   lastReminder: SendState | null;
@@ -259,7 +262,8 @@ export type SendState = { status: string; at: number; deliveredAt: number | null
 
 const sendStateJson = sql`json_build_object('status', o.status, 'at', o.created_at, 'deliveredAt', o.delivered_at, 'openedAt', o.opened_at)`;
 
-export type CustomerSortColumn = "name" | "email" | "phone" | "orders";
+export type CustomerSortColumn = "name" | "email" | "phone" | "paid" | "latestOrder" | "lastDelivered";
+export const CUSTOMER_SORT_KEYS: readonly CustomerSortColumn[] = ["name", "email", "phone", "paid", "latestOrder", "lastDelivered"];
 
 // Server-side unified filters (Condition) + offset pagination + unpaginated
 // total — mirrors ordersService.listOrdersPage / inquiriesService.listForPipeline.
@@ -272,7 +276,7 @@ export type CustomerSortColumn = "name" | "email" | "phone" | "orders";
 export async function listCustomersPage(
   condition: Condition | undefined,
   page: PageRequest,
-  sort: SortState<CustomerSortColumn> = { column: "orders", dir: "desc" },
+  sort: SortState<CustomerSortColumn> = { column: "latestOrder", dir: "desc" },
   customFilters?: {
     planCompletesInDays?: number;
     activePlan?: "yes" | "no";
@@ -328,11 +332,20 @@ export async function listCustomersPage(
     extraWhere,
   );
 
+  // Correlated per row; payments/deliveries are reached through the customer's orders.
+  const totalPaid = sql<string>`(select coalesce(sum(p.amount), 0) from ${payments} p join ${orders} o on o.id = p.order_id
+    where o.user_id = ${users.id} and p.status in (${sql.join(PAID.map((v) => sql`${v}`), sql`, `)}))`;
+  const latestOrderAt = sql<number | null>`max(${orders.createdAt})`.mapWith((v) => (v == null ? null : Number(v)));
+  // Delivered = still scheduled and confirmed (same rule as tiffin-counts.ts).
+  const lastDelivered = sql<string | null>`(select max(d.delivery_date) from ${deliveries} d join ${orders} o on o.id = d.order_id
+    where o.user_id = ${users.id} and d.status = 'scheduled' and d.optimo_completion_status = 'success')`;
   const SORT_COL = {
     name: users.name,
     email: users.email,
     phone: users.phone,
-    orders: sql`count(${orders.id})`,
+    paid: totalPaid,
+    latestOrder: sql`max(${orders.createdAt})`,
+    lastDelivered,
   } as const;
   const col = SORT_COL[sort.column] ?? users.name;
 
@@ -343,10 +356,11 @@ export async function listCustomersPage(
         name: users.name,
         email: users.email,
         phone: users.phone,
-        orderCount: sql<number>`count(${orders.id})`.mapWith(Number),
         latestStatus: sql<string | null>`(array_agg(${orders.status} order by ${orders.createdAt} desc))[1]`,
+        latestOrderAt,
+        totalPaid,
+        lastDelivered,
         joined: users.emailVerified,
-        planCompletionDate: planCompletionSubquery,
         // Correlated, but only for the page's rows (25ish). The invite row carries
         // only an address (no account id on it), hence the email match.
         // ponytail: unindexed recipient_email scan per row; add an index if the outbox grows large.
