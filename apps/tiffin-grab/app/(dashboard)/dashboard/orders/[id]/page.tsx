@@ -249,12 +249,14 @@ async function OrderDetail({
   const notStarted = startBlocker == null;
   const startDays = order.trialLength != null ? (order.trialWeekdays ?? []) : (planRow?.allowedStartDays ?? []);
   const startToday = appToday(settings.timezone, settings.cutoffHour);
+  const calendarToday = appToday(settings.timezone);
   const startAction = (
     <StartDateControl
       blockedReason={startBlocker}
       orderId={order.publicId}
       startDate={order.startDate}
       minDate={order.trialLength != null ? earliestTrialIso(startToday, startDays) : utcIso(nextWeekday(startToday))}
+      forceMinDate={order.trialLength != null ? earliestTrialIso(calendarToday, startDays) : utcIso(nextWeekday(calendarToday))}
       otherPlanEnd={otherPlanEnd}
       allowedDays={startDays}
     />

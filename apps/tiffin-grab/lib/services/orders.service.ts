@@ -537,7 +537,10 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
   // from the new date. An eating-days plan lays out its paid tiffin count rather than
   // whole weeks: changeEatingDays stretches durationWeeks to the plan's calendar span,
   // so weeks x days no longer equals what was bought.
-  async changeStartDate(publicId: string, startDate: string): Promise<void> {
+  // `force` (staff with order:write, gated in the action) ignores the cutoff: the earliest day
+  // counts from today's calendar date and the first delivery may already be past its cutoff.
+  async changeStartDate(publicId: string, startDate: string, opts: { force?: boolean } = {}): Promise<void> {
+    const force = opts.force === true;
     const actorId = await this.currentUserId();
     const { timezone, cutoffHour } = await getAppSettings();
     await withOrderLock(publicId, async (tx) => {
@@ -546,7 +549,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       const blocker = await this.startChangeBlocker(order.id, order.status, tx);
       if (blocker) throw new ValidationError(blocker);
       if (startDate === order.startDate) return;
-      const today = appToday(timezone, cutoffHour);
+      const today = force ? appToday(timezone) : appToday(timezone, cutoffHour);
       if (order.trialLength != null) {
         assertTrialStart(startDate, order.trialWeekdays ?? [], today);
       } else {
@@ -584,7 +587,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
         await scheduleWrite(tx, moved!, actorId, { materialize: !bounded });
         const placed = await tx.select({ deliveryDate: deliveries.deliveryDate, cutoffAt: deliveries.cutoffAt }).from(deliveries)
           .where(eq(deliveries.orderId, order.id)).orderBy(asc(deliveries.deliveryDate));
-        assertFirstDeliveryOpen(placed[0]);
+        if (!force) assertFirstDeliveryOpen(placed[0]);
         if (bounded && placed.length) {
           // The overlap guard reads durationWeeks: keep it at the span these rows occupy.
           const spanDays = daysBetween(startDate, placed.at(-1)!.deliveryDate) + 1;
@@ -594,7 +597,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       await tx.insert(orderActivities).values({
         orderId: order.id,
         type: "note",
-        note: `Start date moved from ${order.startDate} to ${startDate}`,
+        note: `Start date moved from ${order.startDate} to ${startDate}${force ? " (forced past cutoff)" : ""}`,
         createdBy: actorId,
         organizationId: order.organizationId,
       });

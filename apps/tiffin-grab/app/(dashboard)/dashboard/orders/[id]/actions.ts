@@ -8,6 +8,7 @@ import { db } from "@/db/client";
 import { deliveries, orders, users } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { getSession } from "@/lib/auth/session";
+import { requirePermission } from "@/lib/auth/guards";
 import { setOrderLookOut } from "@/lib/orders/look-out";
 import { ordersService } from "@/lib/services/orders.service";
 import { rejectPayment, updatePaymentReference, verifyPayment } from "@/lib/payments/verification";
@@ -36,8 +37,11 @@ export async function startMigrated(orderId: string, startDate: string): Promise
   return orderAction({ order: orderId, orderPage: orderId }, () => ordersService.startMigrated(orderId, startDate));
 }
 
-export async function changeStartDateAction(orderId: string, startDate: string): Promise<ActionResult> {
-  return orderAction({ order: orderId, orderPage: orderId }, () => ordersService.changeStartDate(orderId, startDate));
+export async function changeStartDateAction(orderId: string, startDate: string, force = false): Promise<ActionResult> {
+  return orderAction({ order: orderId, orderPage: orderId }, async () => {
+    if (force) await requirePermission({ order: ["write"] });
+    await ordersService.changeStartDate(orderId, startDate, { force });
+  });
 }
 
 export async function changeEatingDaysAction(orderId: string, days: DayOfWeek[]): Promise<ActionResult> {

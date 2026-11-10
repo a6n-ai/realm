@@ -4,6 +4,9 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Button } from "@foundry/ui/button";
 import { Label } from "@foundry/ui/label";
+import { Switch } from "@foundry/ui/switch";
+import { TriangleAlertIcon } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/reui/alert";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@foundry/ui/tooltip";
 import { ResponsiveDialog } from "@/components/ds";
 import { unwrapAction } from "@/lib/actions/unwrap";
@@ -17,10 +20,13 @@ export function StartDateControl({
   orderId,
   startDate,
   minDate,
+  forceMinDate = minDate,
   allowedDays,
   blockedReason = null,
   otherPlanEnd = null,
 }: {
+  /** Earliest start when the cutoff is ignored (today's calendar date, not tomorrow's after cutoff). */
+  forceMinDate?: string;
   /** First free day after the customer's other running plans, when they have any. */
   otherPlanEnd?: string | null;
   /** Why the start can't move; shown as a tooltip on a disabled Edit. */
@@ -34,7 +40,9 @@ export function StartDateControl({
   const [open, setOpen] = useState(false);
   const [value, setValue] = useState(startDate);
   const [error, setError] = useState<string | null>(null);
+  const [force, setForce] = useState(false);
   const [pending, start] = useTransition();
+  const earliest = force ? forceMinDate : minDate;
 
   if (blockedReason) {
     return (
@@ -54,7 +62,7 @@ export function StartDateControl({
     start(async () => {
       setError(null);
       try {
-        await unwrapAction(changeStartDateAction(orderId, value));
+        await unwrapAction(changeStartDateAction(orderId, value, force));
         setOpen(false);
         router.refresh();
       } catch (e) {
@@ -67,7 +75,7 @@ export function StartDateControl({
       open={open}
       onOpenChange={(o) => {
         setOpen(o);
-        if (o) { setValue(startDate); setError(null); }
+        if (o) { setValue(startDate); setError(null); setForce(false); }
       }}
       trigger={<Button size="sm" variant="ghost" className="-my-1 h-7 px-2">Edit</Button>}
       title="Change start date"
@@ -75,14 +83,36 @@ export function StartDateControl({
       footer={
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-          <Button disabled={pending || !value || value === startDate} onClick={save}>{pending ? "Saving…" : "Save"}</Button>
+          <Button variant={force ? "destructive" : "default"} disabled={pending || !value || value === startDate} onClick={save}>
+            {pending ? "Saving…" : force ? "Force change" : "Save"}
+          </Button>
         </div>
       }
     >
       <div className="grid gap-2">
         <Label htmlFor="order-start-date">Start date</Label>
-        <DateInput id="order-start-date" min={minDate} value={value} onChange={setValue} className="w-48" />
-        <p className="text-muted-foreground text-xs">Earliest {minDate} · starts on {allowedDays.map(dayName).join(", ")}</p>
+        <DateInput id="order-start-date" min={earliest} value={value} onChange={setValue} className="w-48" />
+        <p className="text-muted-foreground text-xs">Earliest {earliest} · starts on {allowedDays.map(dayName).join(", ")}</p>
+        {forceMinDate < minDate && (
+          <div className="flex items-center gap-2">
+            <Switch id="order-start-force" checked={force} onCheckedChange={setForce} />
+            <Label htmlFor="order-start-force">Ignore cutoff (earliest {forceMinDate})</Label>
+          </div>
+        )}
+        {force && (
+          <Alert variant="warning">
+            <TriangleAlertIcon />
+            <AlertTitle>The cutoff for this day has passed</AlertTitle>
+            <AlertDescription>
+              <ul className="list-disc ps-4">
+                <li>OptimoRoute may already have this day&apos;s routes: re-sync the day or add the stop by hand.</li>
+                <li>Kitchen counts, labels and meal picks may already be final for that day.</li>
+                <li>The customer can&apos;t pause, swap or move the first day: it is already locked.</li>
+                <li>The customer is not notified of the new date.</li>
+              </ul>
+            </AlertDescription>
+          </Alert>
+        )}
         {otherPlanEnd && otherPlanEnd > minDate ? (
           <p className="text-muted-foreground text-xs text-pretty">
             This customer has another plan running; its first free day is {otherPlanEnd}. A start that overlaps it is refused.{" "}
