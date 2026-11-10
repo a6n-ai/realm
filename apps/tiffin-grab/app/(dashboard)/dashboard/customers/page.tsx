@@ -23,6 +23,9 @@ import {
 import { CustomersList, CustomersListSkeleton } from "./customers-list";
 import { CUSTOMER_SPEC, customerListQuery } from "./list-query";
 import { CustomersExportButton } from "./customers-export-button";
+import { CustomerPaymentsList, CustomerPaymentsListSkeleton } from "./customer-payments-list";
+import Link from "next/link";
+import { Tabs, TabsList, TabsTrigger } from "@foundry/ui/tabs";
 import { NewCustomerSheet } from "./new-customer-sheet";
 import { InvitePendingButton } from "./invite-pending-button";
 import { MarkSectionRead } from "@/components/dashboard/mark-section-read";
@@ -33,11 +36,19 @@ import { requestNow } from "@/lib/dates/request-now";
 
 type SearchParams = Promise<Record<string, string | undefined>>;
 
-// The page shell returns synchronously (no top-level await), so `loading.tsx`
-// never fires — instead each async child below streams into its own <Suspense>
-// with a skeleton that mirrors that component. Header title paints instantly;
-// the action button and the table fill in as their data resolves.
-export default function CustomersPage({ searchParams }: { searchParams: SearchParams }) {
+// The shell awaits only searchParams (to pick the tab); each data child below streams
+// into its own <Suspense> with a skeleton that mirrors it, so the header paints at once
+// and the action button and table fill in as their data resolves.
+export default async function CustomersPage({ searchParams }: { searchParams: SearchParams }) {
+  const sp = await searchParams;
+  const tab = sp.tab === "payments" ? "payments" : "all";
+  // Switching tabs keeps the date range and search; sort and page belong to the other table.
+  const tabHref = (t: string) => {
+    const qs = new URLSearchParams(Object.entries(sp).filter((e): e is [string, string] => e[1] != null && !["tab", "sort", "dir", "page"].includes(e[0])));
+    if (t !== "all") qs.set("tab", t);
+    const q = qs.toString();
+    return `/dashboard/customers${q ? `?${q}` : ""}`;
+  };
   return (
     <PageShell>
       <MarkSectionRead section="customers" />
@@ -59,23 +70,43 @@ export default function CustomersPage({ searchParams }: { searchParams: SearchPa
           <CustomersStats searchParams={searchParams} />
         </Suspense>
       </div>
-      <SectionCard
-        title="All customers"
-        action={
-          <div className="flex items-center gap-2">
-            <Suspense fallback={null}>
-              <InvitePendingAction />
-            </Suspense>
+      <Tabs value={tab}>
+        <TabsList variant="line" aria-label="Customer lists">
+          <TabsTrigger value="all" asChild>
+            <Link href={tabHref("all")} prefetch={false}>All customers</Link>
+          </TabsTrigger>
+          <TabsTrigger value="payments" asChild>
+            <Link href={tabHref("payments")} prefetch={false}>Payments</Link>
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
+      {tab === "payments" ? (
+        <SectionCard
+          title="Customer payments"
+          action={
             <Suspense fallback={null}>
               <CustomersExportButton />
             </Suspense>
-          </div>
-        }
-      >
-        <Suspense fallback={<CustomersListSkeleton />}>
-          <CustomersData searchParams={searchParams} />
-        </Suspense>
-      </SectionCard>
+          }
+        >
+          <Suspense fallback={<CustomerPaymentsListSkeleton />}>
+            <CustomersData searchParams={searchParams} tab="payments" />
+          </Suspense>
+        </SectionCard>
+      ) : (
+        <SectionCard
+          title="All customers"
+          action={
+            <Suspense fallback={null}>
+              <InvitePendingAction />
+            </Suspense>
+          }
+        >
+          <Suspense fallback={<CustomersListSkeleton />}>
+            <CustomersData searchParams={searchParams} tab="all" />
+          </Suspense>
+        </SectionCard>
+      )}
     </PageShell>
   );
 }
@@ -165,11 +196,12 @@ async function CustomersStats({ searchParams }: { searchParams: SearchParams }) 
   return <StatCards items={stats} />;
 }
 
-async function CustomersData({ searchParams }: { searchParams: SearchParams }) {
+async function CustomersData({ searchParams, tab }: { searchParams: SearchParams; tab: "all" | "payments" }) {
   await requireStaff();
   const { sort, condition, page, custom } = await customerListQuery(await searchParams);
   const result = await listCustomersPage(condition, page, sort, custom);
-  return <CustomersList spec={CUSTOMER_SPEC} rows={result.items} total={result.total} page={page.page} size={page.size} sort={sort} />;
+  const List = tab === "payments" ? CustomerPaymentsList : CustomersList;
+  return <List spec={CUSTOMER_SPEC} rows={result.items} total={result.total} page={page.page} size={page.size} sort={sort} />;
 }
 
 async function NewCustomerAction() {

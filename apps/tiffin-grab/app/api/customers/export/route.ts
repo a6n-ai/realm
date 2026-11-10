@@ -6,7 +6,7 @@ import { formatEpoch } from "@/lib/format/datetime";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { listCustomersPage } from "@/lib/services/customers.service";
 
-const HEADERS = ["Name", "Email", "Phone", "Total paid", "Latest order", "Latest order status", "Last delivered"];
+const HEADERS = ["Name", "Email", "Phone", "Total paid", "Free tiffins", "Cancelled orders", "Latest order", "Latest order status", "Last delivered"];
 // shortcut: one query capped at 10k customers; page through listCustomersPage if the book outgrows it.
 const MAX_ROWS = 10_000;
 
@@ -23,6 +23,8 @@ export const GET = handler(async (request: Request): Promise<Response> => {
     Email: c.email ?? "",
     Phone: c.phone ?? "",
     "Total paid": Number(c.totalPaid),
+    "Free tiffins": c.freeTiffins,
+    "Cancelled orders": c.cancelledOrders,
     "Latest order": c.latestOrderAt ? formatEpoch(c.latestOrderAt, { mode: "date", timeZone: timezone }) : "",
     "Latest order status": c.latestStatus ?? "",
     "Last delivered": c.lastDelivered ?? "",

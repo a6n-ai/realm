@@ -246,6 +246,9 @@ export type CustomerRow = {
   latestOrderAt: number | null;
   /** Sum of settled payments (PAID) across all their orders, as a numeric string. */
   totalPaid: string;
+  /** Complimentary tiffins staff gave across all orders. */
+  freeTiffins: number;
+  cancelledOrders: number;
   /** ISO date of the last tiffin OptimoRoute or staff confirmed delivered. */
   lastDelivered: string | null;
   // True once they've proven the email (invite link, checkout verify link, or
@@ -262,8 +265,8 @@ export type SendState = { status: string; at: number; deliveredAt: number | null
 
 const sendStateJson = sql`json_build_object('status', o.status, 'at', o.created_at, 'deliveredAt', o.delivered_at, 'openedAt', o.opened_at)`;
 
-export type CustomerSortColumn = "name" | "email" | "phone" | "paid" | "latestOrder" | "lastDelivered";
-export const CUSTOMER_SORT_KEYS: readonly CustomerSortColumn[] = ["name", "email", "phone", "paid", "latestOrder", "lastDelivered"];
+export type CustomerSortColumn = "name" | "email" | "phone" | "paid" | "free" | "cancelled" | "latestOrder" | "lastDelivered";
+export const CUSTOMER_SORT_KEYS: readonly CustomerSortColumn[] = ["name", "email", "phone", "paid", "free", "cancelled", "latestOrder", "lastDelivered"];
 
 // Server-side unified filters (Condition) + offset pagination + unpaginated
 // total — mirrors ordersService.listOrdersPage / inquiriesService.listForPipeline.
@@ -339,11 +342,15 @@ export async function listCustomersPage(
   // Delivered = still scheduled and confirmed (same rule as tiffin-counts.ts).
   const lastDelivered = sql<string | null>`(select max(d.delivery_date) from ${deliveries} d join ${orders} o on o.id = d.order_id
     where o.user_id = ${users.id} and d.status = 'scheduled' and d.optimo_completion_status = 'success')`;
+  const freeTiffins = sql<number>`cast(coalesce(sum(${orders.complimentaryTiffins}), 0) as int)`;
+  const cancelledOrders = sql<number>`cast(count(${orders.id}) filter (where ${orders.status} = 'cancelled') as int)`;
   const SORT_COL = {
     name: users.name,
     email: users.email,
     phone: users.phone,
     paid: totalPaid,
+    free: freeTiffins,
+    cancelled: cancelledOrders,
     latestOrder: sql`max(${orders.createdAt})`,
     lastDelivered,
   } as const;
@@ -359,6 +366,8 @@ export async function listCustomersPage(
         latestStatus: sql<string | null>`(array_agg(${orders.status} order by ${orders.createdAt} desc))[1]`,
         latestOrderAt,
         totalPaid,
+        freeTiffins,
+        cancelledOrders,
         lastDelivered,
         joined: users.emailVerified,
         // Correlated, but only for the page's rows (25ish). The invite row carries
