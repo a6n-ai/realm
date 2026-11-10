@@ -18,7 +18,7 @@ import { Input } from "@foundry/ui/input";
 import { authClient, signIn } from "@/lib/auth/client";
 import { landingPathFor, safeCallback, signupHref } from "@/lib/auth/landing";
 import { LAST_USER_COOKIE } from "@/lib/auth/last-user-cookie";
-import { promptGoogleOneTap } from "@/lib/auth/one-tap";
+import { promptGoogleOneTap } from "@foundry/auth-ui/google-one-tap-prompt";
 import { AUTH_BUTTON, AUTH_INPUT, AuthLogo, appAuthUi } from "@/components/auth/auth-kit";
 
 const schema = z.object({
@@ -89,7 +89,7 @@ export function LoginForm({
               },
               // No account for that Google email: sign-up lives on /signup.
               onRefused: () => router.replace(signupHref(callbackUrl, { error: "signup_disabled" })),
-            })
+            }, process.env.NEXT_PUBLIC_BETTER_AUTH_URL)
           }
         />
       ) : null}
