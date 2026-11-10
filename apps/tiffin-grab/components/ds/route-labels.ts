@@ -20,7 +20,7 @@ export const ROUTE_LABELS: Record<string, string> = {
   "optimoroute-sync": "Route sync",
   "review-nudge": "Review emails",
   "mint-rep-coupons": "Rep coupons",
-  payments: "Payment",
+  payments: "Payments",
   clover: "Clover",
   plugins: "Plugins",
   discounts: "Discounts",

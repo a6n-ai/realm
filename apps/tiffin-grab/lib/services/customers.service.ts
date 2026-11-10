@@ -3,7 +3,7 @@ import { parseCustomerContact, requireEmail } from "@/lib/services/contact";
 import { inOrderStatuses, RUNNING } from "@/lib/orders/status";
 import { pageOffset } from "@foundry/design-system/filters/parse-filter-state";
 import { isCustomerRole } from "@/lib/auth/roles";
-import { inStatuses, PAID, PENDING } from "@/lib/payments/status";
+import { inStatuses, PAID, PENDING, UNPAID } from "@/lib/payments/status";
 import { and, asc, desc, eq, gte, ilike, inArray, isNotNull, like, or, sql } from "drizzle-orm";
 import { NotFoundError, ValidationError, phoneSchema, emailSchema } from "@foundry/commons";
 import type { Condition } from "@foundry/commons/model/condition";
@@ -641,6 +641,14 @@ export async function getCustomer360(userPublicId: string) {
   ]);
 
   const orderIds = orderRows.map((o) => o.id);
+  // Delivered = still scheduled and confirmed by OptimoRoute or staff (same rule as tiffin-counts.ts).
+  const lastDeliveredPromise = orderIds.length
+    ? db
+        .select({ date: sql<string | null>`max(${deliveries.deliveryDate})` })
+        .from(deliveries)
+        .where(and(inArray(deliveries.orderId, orderIds), eq(deliveries.status, "scheduled"), eq(deliveries.optimoCompletionStatus, "success")))
+        .then(([r]) => r?.date ?? null)
+    : Promise.resolve(null);
   const paymentRows = orderIds.length
     ? await db
         .select({
@@ -662,10 +670,18 @@ export async function getCustomer360(userPublicId: string) {
     const key = p.orderId.toString();
     if (!paymentStatusByOrder.has(key)) paymentStatusByOrder.set(key, p.status);
   }
+  const sumOf = (rows: typeof paymentRows) => rows.reduce((sum, p) => sum + Number(p.amount), 0);
+  const paid = paymentRows.filter((p) => inStatuses(PAID, p.status));
+  const unpaid = paymentRows.filter((p) => inStatuses(UNPAID, p.status));
   const payment = {
-    totalPaid: paymentRows.filter((p) => inStatuses(PAID, p.status)).reduce((sum, p) => sum + Number(p.amount), 0),
+    totalPaid: sumOf(paid),
+    paidCount: paid.length,
+    lastPaidAt: paid.reduce<number | null>((at, p) => Math.max(at ?? 0, p.capturedAt ?? p.createdAt), null),
     pendingCount: planPayments.filter((p) => inStatuses(PENDING, p.status)).length,
+    outstanding: { count: unpaid.length, amount: sumOf(unpaid) },
+    refunded: sumOf(paymentRows.filter((p) => p.status === "refunded")),
     lastMethod: paymentRows[0]?.method ?? null,
+    lastDeliveredDate: await lastDeliveredPromise,
   };
 
   const timeline = [

@@ -29,7 +29,7 @@ const SORT_COL = {
   amount: payments.amount,
 } as const;
 
-type Sp = { q?: string; sort?: string; dir?: string; status?: string; method?: string; attention?: string; owner?: string; kind?: string; from?: string; to?: string; basis?: string };
+type Sp = { q?: string; sort?: string; dir?: string; status?: string; method?: string; attention?: string; owner?: string; from?: string; to?: string; basis?: string };
 
 /** The date picker writes epoch-ms `from`/`to` params; either end may be open. */
 export function dateRangeWhere(col: AnyColumn, sp: { from?: string; to?: string }): SQL | undefined {
@@ -216,9 +216,10 @@ function ownerWhere(v?: string) {
 /** Newest first by default, server-paginated like Orders. `where` pins a tab's own rule. */
 export async function listPayments(
   sp: Sp,
-  opts: { where?: SQL } = {},
+  opts: { where?: SQL; allTime?: boolean; unpaged?: boolean } = {},
 ): Promise<{ rows: PaymentRow[]; total: number; page: number; size: number; sort: SortState<PaymentSortKey> }> {
-  const dated = await withListDates(sp);
+  // The customer tab has no date picker, so it lists every payment instead of the default month.
+  const dated = opts.allTime ? { ...sp, from: undefined, to: undefined } : await withListDates(sp);
   const { page } = parseFilterState([], dated);
   const sort = parseSort(dated, PAYMENT_SORT_KEYS, { column: "time", dir: "desc" });
   const q = dated.q?.trim();
@@ -236,7 +237,6 @@ export async function listPayments(
       : dateRangeWhere(payments.createdAt, dated),
     attentionWhere(attention),
     ownerWhere(dated.owner),
-    dated.kind === "addon" ? sql`${payments.addonRequest} is not null` : dated.kind === "plan" ? sql`${payments.addonRequest} is null` : undefined,
     q
       ? or(
           ilike(orders.publicId, `%${q}%`),
@@ -270,6 +270,7 @@ export async function listPayments(
         name: users.name,
         email: users.email,
         phone: users.phone,
+        customerPublicId: users.publicId,
         orderPublicId: orders.publicId,
         providerRef: payments.providerRef,
         providerCheckedAt: payments.providerCheckedAt,
@@ -291,8 +292,9 @@ export async function listPayments(
       .leftJoin(users, eq(users.id, orders.userId))
       .where(where)
       .orderBy(...pageOrder(sort.dir, col, payments.id))
-      .limit(page.size)
-      .offset(pageOffset(page.page, page.size)),
+      // shortcut: unpaged (exports) caps at 10k rows, fine for one customer; stream if it backs a global export.
+      .limit(opts.unpaged ? 10_000 : page.size)
+      .offset(opts.unpaged ? 0 : pageOffset(page.page, page.size)),
   ]);
 
   return {

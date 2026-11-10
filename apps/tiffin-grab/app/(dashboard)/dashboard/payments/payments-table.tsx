@@ -17,27 +17,33 @@ import type { FacetDef, Option } from "@/components/ds";
 import { DatedByChip } from "./dated-by-chip";
 import { PaymentStatusPill } from "./payment-status-pill";
 import { PaymentDetailDialog } from "./payment-detail-dialog";
+import { CustomerLink } from "./customer-link";
 import { MethodName, StripeMark } from "@/components/payments/stripe-mark";
 import { methodLabel, PAYMENT_METHOD_OPTIONS, PAYMENT_STATUS_OPTIONS, type PaymentRow, type PaymentSortKey } from "./payment-facets";
 import type { SortState } from "@foundry/design-system/list-sort";
 import { sendPaymentReminderAction } from "../orders/[id]/actions";
 
-const COLUMNS: readonly Column<PaymentSortKey | "actions">[] = [
+/** "all" is the Payments listing (who paid); "customer" is one customer's tab (which order it paid for). */
+type Scope = "all" | "customer";
+
+const columnsFor = (scope: Scope): readonly Column<PaymentSortKey | "actions">[] => [
   { key: "time", label: "Time", sortable: true },
-  { key: "customer", label: "Customer", sortable: true },
-  { key: "order", label: "Order", sortable: true },
+  scope === "all" ? { key: "customer", label: "Customer", sortable: true } : { key: "order", label: "Order", sortable: true },
   { key: "method", label: "Method", sortable: true },
   { key: "status", label: "Status", sortable: true },
   { key: "amount", label: "Amount", sortable: true, align: "right" },
   { key: "actions", label: "", align: "right" },
 ];
 
-const buildSpec = (ownerOptions: Option[]): FacetDef[] => [
+const buildSpec = (scope: Scope, ownerOptions: Option[]): FacetDef[] => [
   { kind: "multi", field: "status", label: "Status", options: [...PAYMENT_STATUS_OPTIONS] },
   { kind: "multi", field: "method", label: "Method", options: PAYMENT_METHOD_OPTIONS.map((o) => (o.value === "stripe" ? { ...o, icon: <StripeMark /> } : o)) },
-  { kind: "select", field: "owner", label: "Owner", options: ownerOptions },
-  { kind: "select", field: "kind", label: "Type", options: [{ value: "plan", label: "Plan" }, { value: "addon", label: "Add-on" }] },
-  { kind: "dateRange", field: "createdAt", label: "Created" },
+  ...(scope === "all"
+    ? ([
+        { kind: "select", field: "owner", label: "Owner", options: ownerOptions },
+        { kind: "dateRange", field: "createdAt", label: "Created" },
+      ] satisfies FacetDef[])
+    : []),
   { kind: "search", fields: [] },
 ];
 
@@ -47,14 +53,16 @@ export function PaymentsTable({
   page,
   size,
   sort,
-  ownerOptions,
+  ownerOptions = [],
+  scope = "all",
 }: {
   rows: PaymentRow[];
   total: number;
   page: number;
   size: number;
   sort: SortState<PaymentSortKey>;
-  ownerOptions: Option[];
+  ownerOptions?: Option[];
+  scope?: Scope;
 }) {
   const tz = useTimezone();
   const [viewing, setViewing] = useState<PaymentRow | null>(null);
@@ -81,7 +89,7 @@ export function PaymentsTable({
     <div className="space-y-4">
     <DataTable
       serialOffset={pageOffset(page, size)}
-      columns={COLUMNS}
+      columns={columnsFor(scope)}
       rows={rows}
       rowKey={(r) => r.publicId}
       sort={sort as SortState<PaymentSortKey | "actions">}
@@ -90,8 +98,8 @@ export function PaymentsTable({
       rowClassName={() => "group/row"}
       filters={
         <>
-          <ListSearchFilters spec={buildSpec(ownerOptions)} placeholder="Search order, customer, reference…" shortPlaceholder="Search…" dateControl="external" />
-          <DatedByChip />
+          <ListSearchFilters spec={buildSpec(scope, ownerOptions)} placeholder={scope === "all" ? "Search order, customer, reference…" : "Search order, reference…"} shortPlaceholder="Search…" dateControl="external" />
+          {scope === "all" && <DatedByChip />}
         </>
       }
       emptyIcon={ReceiptTextIcon}
@@ -102,12 +110,16 @@ export function PaymentsTable({
           <TableCell className="whitespace-nowrap tabular-nums text-muted-foreground">
             {formatEpoch(r.createdAt, { mode: "datetime", timeZone: tz })}
           </TableCell>
-          <TableCell className="text-muted-foreground">{r.email ?? "-"}</TableCell>
-          <TableCell className="font-medium">
-            <Link href={`/dashboard/orders/${r.orderPublicId}`} className="hover:underline">
-              {r.orderPublicId}
-            </Link>
-          </TableCell>
+          {scope === "all" ? (
+            <TableCell className="text-muted-foreground"><CustomerLink row={r} /></TableCell>
+          ) : (
+            <TableCell className="font-medium">
+              <Link href={`/dashboard/orders/${r.orderPublicId}`} onClick={(e) => e.stopPropagation()} className="hover:underline">
+                {r.orderPublicId}
+              </Link>
+              {r.isAddon && <span className="text-muted-foreground ml-1.5 text-xs font-normal">Add-ons</span>}
+            </TableCell>
+          )}
           <TableCell><MethodName method={r.method}>{methodLabel(r.method)}</MethodName></TableCell>
           <TableCell>
             <PaymentStatusPill status={r.status} />
@@ -130,6 +142,6 @@ export function PaymentsTable({
   );
 }
 
-export function PaymentsTableSkeleton() {
-  return <DataTable.Skeleton columns={COLUMNS} hasId />;
+export function PaymentsTableSkeleton({ scope = "all" }: { scope?: Scope }) {
+  return <DataTable.Skeleton columns={columnsFor(scope)} hasId />;
 }

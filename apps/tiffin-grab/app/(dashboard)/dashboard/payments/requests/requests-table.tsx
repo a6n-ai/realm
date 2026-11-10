@@ -1,7 +1,6 @@
 "use client";
 
 import { pageOffset } from "@foundry/design-system/filters/parse-filter-state";
-import Link from "next/link";
 import { inStatuses, UNPAID } from "@/lib/payments/status";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -28,13 +27,13 @@ import { rejectPaymentAction, sendPaymentReminderAction, verifyPaymentAction } f
 import { sendTone } from "../../customers/customer-invite-cell";
 import { PAYMENT_STATUS_OPTIONS, type PaymentRow, type PaymentSortKey } from "../payment-facets";
 import { PaymentStatusPill } from "../payment-status-pill";
+import { CustomerLink } from "../customer-link";
 import { PaymentDetailDialog } from "../payment-detail-dialog";
 import type { SortState } from "@foundry/design-system/list-sort";
 
 const buildSpec = (ownerOptions: Option[]): FacetDef[] => [
   { kind: "pills", field: "status", label: "Status", options: [...PAYMENT_STATUS_OPTIONS] },
   { kind: "select", field: "owner", label: "Owner", options: ownerOptions },
-  { kind: "select", field: "kind", label: "Type", options: [{ value: "plan", label: "Plan" }, { value: "addon", label: "Add-on" }] },
   { kind: "dateRange", field: "createdAt", label: "Submitted" },
   { kind: "search", fields: [] },
 ];
@@ -44,8 +43,7 @@ const buildSpec = (ownerOptions: Option[]): FacetDef[] => [
 // payment ID is in the detail dialog (row click).
 const COLUMNS: readonly Column<PaymentSortKey | "reference" | "proof" | "actions">[] = [
   { key: "time", label: "Submitted", sortable: true, width: "w-44" },
-  { key: "customer", label: "Customer", sortable: true, width: "w-36" },
-  { key: "order", label: "Order", sortable: true, width: "w-36" },
+  { key: "customer", label: "Customer", sortable: true, width: "w-48" },
   { key: "reference", label: "Reference", width: "w-20" },
   { key: "proof", label: "Proof", width: "w-14" },
   { key: "status", label: "Status", sortable: true, width: "w-36" },
@@ -137,12 +135,7 @@ export function RequestsTable({
             <TableCell className="whitespace-nowrap tabular-nums text-muted-foreground">
               {formatEpoch(r.createdAt, { mode: "datetime", timeZone: tz })}
             </TableCell>
-            <TableCell className="text-muted-foreground truncate" title={r.email ?? undefined}>{r.email ?? "-"}</TableCell>
-            <TableCell>
-              <Link href={`/dashboard/orders/${r.orderPublicId}`} className="block truncate hover:underline">
-                {r.orderPublicId}
-              </Link>
-            </TableCell>
+            <TableCell className="text-muted-foreground"><CustomerLink row={r} /></TableCell>
             <TableCell className="font-mono text-xs">{r.reference ?? "-"}</TableCell>
             <TableCell>
               {r.proofThumb ? (

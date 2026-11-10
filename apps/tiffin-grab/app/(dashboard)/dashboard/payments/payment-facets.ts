@@ -18,6 +18,7 @@ export type PaymentRow = {
   name: string | null;
   email: string | null;
   phone: string | null;
+  customerPublicId: string | null;
   orderPublicId: string;
   providerRef: string | null;
   providerCheckedAt: number | null;

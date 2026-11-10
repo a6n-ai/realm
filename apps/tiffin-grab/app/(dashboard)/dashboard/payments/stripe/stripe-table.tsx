@@ -1,7 +1,6 @@
 "use client";
 
 import { pageOffset } from "@foundry/design-system/filters/parse-filter-state";
-import Link from "next/link";
 import { inStatuses, UNPAID } from "@/lib/payments/status";
 import { useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
@@ -21,6 +20,7 @@ import { useTimezone } from "@foundry/design-system/timezone-provider";
 import type { SortState } from "@foundry/design-system/list-sort";
 import { PAYMENT_STATUS_OPTIONS, STRIPE_FACETS, type PaymentRow, type PaymentSortKey } from "../payment-facets";
 import { PaymentStatusPill } from "../payment-status-pill";
+import { CustomerLink } from "../customer-link";
 import { PaymentDetailDialog } from "../payment-detail-dialog";
 import { sendPaymentReminderAction } from "../../orders/[id]/actions";
 import { sendTone } from "../../customers/customer-invite-cell";
@@ -38,8 +38,7 @@ const SPEC: FacetDef[] = [
 type Key = PaymentSortKey | "card" | "actions";
 const COLUMNS: readonly Column<Key>[] = [
   { key: "time", label: "Submitted", sortable: true, width: "w-44" },
-  { key: "customer", label: "Customer", sortable: true, width: "w-36" },
-  { key: "order", label: "Order", sortable: true, width: "w-36" },
+  { key: "customer", label: "Customer", sortable: true, width: "w-48" },
   { key: "card", label: "Card", width: "w-28" },
   { key: "status", label: "Status", sortable: true, width: "w-36" },
   { key: "amount", label: "Amount", sortable: true, align: "right", width: "w-24" },
@@ -142,13 +141,10 @@ export function StripeTable({
             <TableCell className="whitespace-nowrap tabular-nums text-muted-foreground">
               {formatEpoch(r.createdAt, { mode: "datetime", timeZone: tz })}
             </TableCell>
-            <TableCell className="text-muted-foreground truncate" title={r.email ?? undefined}>{r.email ?? "-"}</TableCell>
-            <TableCell>
+            <TableCell className="text-muted-foreground">
               <div className="flex min-w-0 items-center gap-1.5 whitespace-nowrap">
-                <Link href={`/dashboard/orders/${r.orderPublicId}`} className="truncate hover:underline">
-                  {r.orderPublicId}
-                </Link>
-                {r.isAddon && <span className="text-xs text-muted-foreground">Add-ons</span>}
+                <CustomerLink row={r} />
+                {r.isAddon && <span className="text-xs">Add-ons</span>}
               </div>
             </TableCell>
             <TableCell className="whitespace-nowrap text-xs">
