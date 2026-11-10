@@ -37,7 +37,7 @@ import { earliestNewPlanStart, lastRunningTiffinDate } from "./order-window";
 import { getAppSettings } from "./app-settings.service";
 import { getPauseLimits, getPauseUsage } from "./pause-limits.service";
 import { currentUserId } from "./session-service";
-import { deliveredTiffinCount, type DeliveryForCounts } from "./tiffin-counts";
+import { deliveredTiffinCount, scheduledTiffinCount, type DeliveryForCounts } from "./tiffin-counts";
 import { mealSizeAllowedDays, mealSizeServesWeekends } from "./weekend-dish";
 import { isoToUtcDate, mondayOfIso } from "@foundry/commons/util/dates";
 
@@ -457,6 +457,10 @@ export type TiffinCounts = {
   delivered: number;
   /** total − delivered: future scheduled days and tiffins not yet delivered (failed, not moved). */
   remaining: number;
+  /** Part of remaining on a dated trip (upcoming or awaiting confirmation). */
+  scheduled: number;
+  /** remaining − scheduled: on hold / missed tiffins that still need a date. */
+  unscheduled: number;
   /** Tiffins per delivery day = persons. */
   persons: number;
   /** Latest delivery_date on any row. */
@@ -523,11 +527,14 @@ export async function orderTiffinCounts(orderPublicId: string): Promise<TiffinCo
   const deliveryWeekdays = planDeliveryDays(order, { key: order.frequencyKey, weekdays: order.weekdays as DayOfWeek[] | null }, { weekdaysOnly: true });
 
   const total = order.tiffinCount + order.complimentaryTiffins;
+  const scheduled = scheduledTiffinCount(rows as DeliveryForCounts[]);
   return {
     total,
     complimentary: order.complimentaryTiffins,
     delivered,
     remaining: total - delivered,
+    scheduled,
+    unscheduled: Math.max(0, total - delivered - scheduled),
     persons: order.persons,
     lastDeliveryDate,
     deliveryWeekdays,

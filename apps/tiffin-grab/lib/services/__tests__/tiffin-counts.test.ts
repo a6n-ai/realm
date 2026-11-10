@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { deliveredTiffinCount, remainingTiffinCount, type DeliveryForCounts } from "../tiffin-counts";
+import { deliveredTiffinCount, remainingTiffinCount, scheduledTiffinCount, type DeliveryForCounts } from "../tiffin-counts";
 
 const past = 1;
 const future = Date.now() + 1e9;
@@ -10,6 +10,18 @@ function row(over: Partial<DeliveryForCounts>): DeliveryForCounts {
 }
 
 describe("tiffin-counts", () => {
+  it("scheduled counts unconfirmed dated trips only, so an on-hold tiffin shows as needing a date", () => {
+    const rows = [
+      row({ cutoffAt: past, optimoCompletionStatus: "success" }),
+      row({ cutoffAt: past }), // out today, not confirmed yet
+      row({ cutoffAt: future }),
+      row({ status: "skipped", cutoffAt: past }), // on hold, never moved
+      { ...row({ cutoffAt: future }), mergedIntoDeliveryId: 7n },
+    ];
+    expect(scheduledTiffinCount(rows)).toBe(2);
+    expect(remainingTiffinCount(4, rows, now) - scheduledTiffinCount(rows)).toBe(1);
+  });
+
   it("sums confirmed scheduled rows' tiffinUnits as delivered", () => {
     const rows = [row({ cutoffAt: past, tiffinUnits: 2, optimoCompletionStatus: "success" }), row({ cutoffAt: future, tiffinUnits: 2 })];
     expect(deliveredTiffinCount(rows, now)).toBe(2);

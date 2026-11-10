@@ -30,6 +30,16 @@ export function deliveredTiffinCount(rows: DeliveryForCounts[], nowMs: number): 
   return units;
 }
 
+/** Tiffins on a dated trip not yet confirmed (upcoming, or out today). remaining − this = tiffins with no date yet. */
+export function scheduledTiffinCount(rows: (DeliveryForCounts & { mergedIntoDeliveryId?: bigint | null })[]): number {
+  let units = 0;
+  for (const r of rows) {
+    if (r.status !== "scheduled" || r.optimoCompletionStatus === "success" || r.mergedIntoDeliveryId != null) continue;
+    units += r.tiffinUnits;
+  }
+  return units;
+}
+
 export function remainingTiffinCount(tiffinCount: number, rows: DeliveryForCounts[], nowMs: number): number {
   return tiffinCount - deliveredTiffinCount(rows, nowMs);
 }

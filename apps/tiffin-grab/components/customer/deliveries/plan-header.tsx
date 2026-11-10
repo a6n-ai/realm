@@ -69,6 +69,7 @@ export function PlanHeader({ name, sub, counts, renew, color, actions, plans, re
             sub.fullyPaused ? "All upcoming days paused" : null,
             ...(sub.addons ?? []).map((a) => `+ ${a.name}${a.qty > 1 ? ` ×${a.qty}` : ""}`),
             `${counts.remaining} of ${counts.total} tiffins left`,
+            counts.unscheduled ? `${counts.unscheduled} to reschedule` : null,
             counts.complimentary ? `incl. ${counts.complimentary} free` : null,
           ].filter(Boolean).map((x, i) => <span key={i} className={cn("inline-flex items-center gap-1.5", MUTED)}><span aria-hidden>·</span>{x}</span>)}
         </p>

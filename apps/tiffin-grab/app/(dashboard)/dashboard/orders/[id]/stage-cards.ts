@@ -19,7 +19,7 @@ export type StageInput = {
   tiffinCount: number;
   complimentaryTiffins: number;
   persons: number;
-  counts: { total: number; delivered: number; remaining: number } | null;
+  counts: { total: number; delivered: number; remaining: number; scheduled?: number; unscheduled?: number } | null;
   next: { date: string; driver: string | null } | null;
   /** Last non-cancelled delivery date, same rule as the orders list. */
   lastTiffin: string | null;
@@ -63,7 +63,13 @@ export function stageCards(i: StageInput): StatCardItem[] {
     label: "Tiffins left",
     value: `${i.counts?.remaining ?? total} / ${total}`,
     icon: PackageIcon,
-    hint: [`${i.counts?.delivered ?? 0} delivered`, ...extras].join(" · "),
+    ...(i.counts?.unscheduled ? { tone: "bad" as const } : {}),
+    hint: [
+      `${i.counts?.delivered ?? 0} delivered`,
+      i.counts?.scheduled != null ? `${i.counts.scheduled} scheduled` : null,
+      i.counts?.unscheduled ? `${i.counts.unscheduled} need a date` : null,
+      ...extras,
+    ].filter(Boolean).join(" · "),
   };
   const delivered: StatCardItem = {
     label: "Delivered",

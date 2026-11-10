@@ -108,6 +108,7 @@ export function OrderWeekHub({ data, canEditDeliveryStatus = false, readOnly = f
         <span className="font-medium">{plan.sub.mealSizeName}</span>
         <span className="text-muted-foreground tabular-nums">
           {plan.counts.remaining} of {plan.counts.total} tiffins left
+          {plan.counts.remaining > 0 && ` (${plan.counts.scheduled} scheduled${plan.counts.unscheduled ? `, ${plan.counts.unscheduled} need a date` : ""})`}
         </span>
         {!plan.sub.trial && !readOnly && (
           <div className="ml-auto flex gap-2">

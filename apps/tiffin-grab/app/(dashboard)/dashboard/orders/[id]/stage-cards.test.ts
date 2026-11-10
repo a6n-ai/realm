@@ -38,6 +38,12 @@ describe("order stage cards", () => {
     expect(card({ notStarted: true, counts: null, complimentaryTiffins: 2 }, "Tiffins left")?.value).toBe("22 / 22");
   });
 
+  it("Tiffins left breaks down scheduled vs needing a date, and flags the gap", () => {
+    const left = card({ counts: { total: 16, delivered: 14, remaining: 2, scheduled: 1, unscheduled: 1 } }, "Tiffins left");
+    expect(left?.hint).toBe("14 delivered · 1 scheduled · 1 need a date");
+    expect(left?.tone).toBe("bad");
+  });
+
   it("cancelled shows what was delivered, never tiffins left", () => {
     const cards = labels({ status: "cancelled", cancelledOn: "2026-10-10" });
     expect(cards).not.toContain("Tiffins left");
