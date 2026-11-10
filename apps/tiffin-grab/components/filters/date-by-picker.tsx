@@ -3,16 +3,18 @@
 import { usePathname, useSearchParams } from "next/navigation";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
 import { useListNav } from "@/components/ds";
-import type { DateBy } from "@/lib/renewals/filters";
 
-/** Which date the top range filters on. Options come from the server (DATE_BY) so labels live in one place. */
-export function DateByPicker({ value, options }: { value: DateBy; options: readonly { value: DateBy; label: string }[] }) {
+/**
+ * Which date the top range filters on, as `?dateBy=`. The first option is the default and
+ * leaves the param off the URL. Options come from the server so labels live in one place.
+ */
+export function DateByPicker({ value, options }: { value: string; options: readonly { value: string; label: string }[] }) {
   const nav = useListNav();
   const pathname = usePathname();
   const params = useSearchParams();
   const change = (v: string) => {
     const sp = new URLSearchParams(params.toString());
-    if (v === "last") sp.delete("dateBy");
+    if (v === options[0]?.value) sp.delete("dateBy");
     else sp.set("dateBy", v);
     sp.delete("page");
     nav(`${pathname}?${sp.toString()}`);

@@ -48,6 +48,14 @@ export const CUSTOMER_SPEC: FacetDef[] = [
 // parsed without them and they go to listCustomersPage as custom filters.
 const CUSTOM = ["planCompletesInDays", "activePlan", "customerType", "latestStatus"];
 const DB_SPEC = CUSTOMER_SPEC.filter((s) => s.kind !== "select" || !CUSTOM.includes(s.field));
+const DB_SPEC_NO_DATE = DB_SPEC.filter((s) => s.kind !== "dateRange");
+
+/** What the page's date range filters on. `joined` (the default) is the account's creation date. */
+export const CUSTOMER_DATE_BY = [
+  { value: "joined", label: "Customer joined" },
+  { value: "ordered", label: "Order date" },
+] as const;
+export type CustomerDateBy = (typeof CUSTOMER_DATE_BY)[number]["value"];
 
 /** The Customers listing's filters, sort and page from the URL. The page and its Excel export share it, so both list the same rows. */
 export async function customerListQuery(raw: Record<string, string | undefined>) {
@@ -55,8 +63,12 @@ export async function customerListQuery(raw: Record<string, string | undefined>)
   const sort = parseSort(sp, CUSTOMER_SORT_KEYS, { column: "latestOrder", dir: "desc" });
   const parsed = Number(sp.planCompletesInDays);
   const pick = <T extends string>(v: string | undefined, allowed: readonly T[]) => allowed.find((a) => a === v);
-  const { condition, page } = parseFilterState(DB_SPEC, sp);
+  const dateBy: CustomerDateBy = sp.dateBy === "ordered" ? "ordered" : "joined";
+  // Order date: the range moves off users.created_at onto "placed an order in the range".
+  const { condition, page } = parseFilterState(dateBy === "ordered" ? DB_SPEC_NO_DATE : DB_SPEC, sp);
+  const ms = (v: string | undefined) => (v && Number.isFinite(Number(v)) ? Number(v) : undefined);
   return {
+    dateBy,
     sort,
     condition,
     page,
@@ -65,6 +77,7 @@ export async function customerListQuery(raw: Record<string, string | undefined>)
       activePlan: pick(sp.activePlan, ["yes", "no"] as const),
       customerType: pick(sp.customerType, ["none", "ordered", "new", "repeat"] as const),
       latestStatus: pick(sp.latestStatus, LATEST_STATUS_OPTIONS.map((o) => o.value)),
+      orderedIn: dateBy === "ordered" ? { from: ms(sp.from), to: ms(sp.to) } : undefined,
     },
   };
 }

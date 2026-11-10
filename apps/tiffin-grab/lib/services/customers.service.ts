@@ -285,6 +285,8 @@ export async function listCustomersPage(
     activePlan?: "yes" | "no";
     customerType?: "none" | "ordered" | "new" | "repeat";
     latestStatus?: string;
+    /** Only customers with an order created in this epoch-ms window; either end may be open. */
+    orderedIn?: { from?: number; to?: number };
   }
 ): Promise<Page<CustomerRow>> {
   const planCompletionSubquery = sql<string>`(
@@ -318,8 +320,15 @@ export async function listCustomersPage(
     ? sql`(select o.status from ${orders} o where o.user_id = ${users.id} order by o.created_at desc limit 1) = ${f.latestStatus}`
     : undefined;
 
+  const oi = f?.orderedIn;
+  const orderedInWhere = oi && (oi.from != null || oi.to != null)
+    ? sql`exists (select 1 from ${orders} o where o.user_id = ${users.id}
+        ${oi.from != null ? sql`and o.created_at >= ${oi.from}` : sql``} ${oi.to != null ? sql`and o.created_at <= ${oi.to}` : sql``})`
+    : undefined;
+
   const where = and(
     eq(users.role, "user"),
+    orderedInWhere,
     activePlanWhere,
     customerTypeWhere,
     latestStatusWhere,

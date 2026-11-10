@@ -15,7 +15,7 @@ import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import { countRenewals, listRenewals, listRenewedCustomers, type RenewalRange } from "@/lib/services/renewals.service";
 import { SectionDateRange } from "@/components/filters/section-date-range";
 import { withListDates } from "@/lib/list/default-month";
-import { DateByPicker } from "./date-by-picker";
+import { DateByPicker } from "@/components/filters/date-by-picker";
 import { DATE_BY, ENDED_DAYS, ENDING_DAYS, RENEWAL_STATUSES, RENEWED_DAYS, statusLabel, parseRenewalsFilter, renewalsQuery, type RenewalsFilter } from "@/lib/renewals/filters";
 import { RenewalFactsLegend } from "./fact-tags";
 import { RenewalsExportButton } from "./renewals-export-button";

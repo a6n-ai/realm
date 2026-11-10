@@ -21,7 +21,8 @@ import {
   SectionCard,
 } from "@/components/ds";
 import { CustomersList, CustomersListSkeleton } from "./customers-list";
-import { CUSTOMER_SPEC, customerListQuery } from "./list-query";
+import { CUSTOMER_DATE_BY, CUSTOMER_SPEC, customerListQuery } from "./list-query";
+import { DateByPicker } from "@/components/filters/date-by-picker";
 import { CustomersExportButton } from "./customers-export-button";
 import { CustomerPaymentsList, CustomerPaymentsListSkeleton } from "./customer-payments-list";
 import Link from "next/link";
@@ -63,7 +64,8 @@ export default async function CustomersPage({ searchParams }: { searchParams: Se
       />
       {/* The date range filters the cards: one group, tighter than the page rhythm. */}
       <div className="flex flex-col gap-3">
-        <div className="flex">
+        <div className="flex flex-wrap items-center gap-2">
+          <DateByPicker value={sp.dateBy === "ordered" ? "ordered" : "joined"} options={CUSTOMER_DATE_BY} />
           <SectionDateRange />
         </div>
         <Suspense fallback={<StatCardsSkeleton count={5} />}>
