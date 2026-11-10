@@ -30,7 +30,6 @@ describe("inquiriesService.updateContact", () => {
     const r = await inquiriesService.updateContact(q.publicId, { fullName: "Priya S." });
     expect(r.fullName).toBe("Priya S.");
     expect(isQuickAdd(r)).toBe(false);
-    expect(await inquiriesService.nextQuickAdd(undefined)).toBeNull();
   });
 
   it("blank name keeps generated name", async () => {

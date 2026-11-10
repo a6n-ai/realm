@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { eq } from "drizzle-orm";
 import { zonedDateIso } from "@foundry/commons";
-import { ArrowRightIcon, ClipboardListIcon, ListPlusIcon, PlusIcon, UploadIcon, InboxIcon, UsersIcon, TrendingUpIcon, XCircleIcon } from "lucide-react";
+import { ArrowLeftIcon, ArrowRightIcon, ClipboardListIcon, ListPlusIcon, PlusIcon, UploadIcon, InboxIcon, UsersIcon, TrendingUpIcon, XCircleIcon } from "lucide-react";
 import { StatCards, StatCardsSkeleton } from "@/components/dashboard/stat-cards";
 import Link from "next/link";
 import { db } from "@/db/client";
@@ -189,13 +189,12 @@ async function InquiryStats({ searchParams }: { searchParams: SearchParams }) {
   );
 }
 
-/** Keeps the viewer's filters, jumps to the Quick adds tab (first page, oldest first) and highlights `publicId`. */
-function nextLeadQuery(sp: Awaited<SearchParams>, publicId: string): string {
+/** Keeps the viewer's tab, filters and sort, and highlights `publicId` (pinned as the first row). */
+function leadQuery(sp: Awaited<SearchParams>, publicId: string): string {
   const next = new URLSearchParams();
   for (const [k, v] of Object.entries(sp)) {
-    if (typeof v === "string" && !["queue", "bucket", "page", "sort", "dir", "highlight"].includes(k)) next.set(k, v);
+    if (typeof v === "string" && k !== "highlight" && k !== "page") next.set(k, v);
   }
-  next.set("queue", "quick");
   next.set("highlight", publicId);
   return next.toString();
 }
@@ -242,7 +241,10 @@ async function InquiriesData({ searchParams }: { searchParams: SearchParams }) {
   const { condition, page } = parseFilterState(spec, { ...sp, owner: resolveOwnerParam(sp.owner, viewer) });
   const todayIso = zonedDateIso(requestNow(), timezone);
   const { start: dayStart, end: dayEnd } = dayRange(todayIso, timezone);
-  const [result, counts, nextQuick] = await Promise.all([
+  // Next/Previous lead stay on this list: the recommended lead is pinned as the first row and
+  // highlighted, whatever tab or page it would otherwise fall on.
+  const highlight = typeof sp.highlight === "string" ? sp.highlight : undefined;
+  const [result, counts, nextLead, prevLead, pinned] = await Promise.all([
     inquiriesService.listForPipeline(
       condition,
       page,
@@ -251,27 +253,42 @@ async function InquiriesData({ searchParams }: { searchParams: SearchParams }) {
       bucket ? inquiryBucketWhere(bucket) : undefined,
     ),
     inquiriesService.queueCounts(condition, dayStart, dayEnd),
-    inquiriesService.nextQuickAdd(condition),
+    inquiriesService.nextLead(condition, dayStart, dayEnd, highlight ? { publicId: highlight, dir: "next" } : undefined),
+    highlight ? inquiriesService.nextLead(condition, dayStart, dayEnd, { publicId: highlight, dir: "prev" }) : null,
+    highlight ? inquiriesService.listForPipeline(undefined, { page: 0, size: 1 }, sort, undefined, eq(inquiries.publicId, highlight)) : null,
   ]);
+  const pinnedRow = pinned?.items[0];
+  const rows = pinnedRow ? [pinnedRow, ...result.items.filter((r) => r.publicId !== pinnedRow.publicId)] : result.items;
+  const leadHref = (publicId: string) => `/dashboard/inquiries?${leadQuery(sp, publicId)}`;
   const staff = canReassignRecords ? await listAssignableStaff() : [];
 
   return (
     <div className="flex flex-col gap-4">
     <div className="flex flex-wrap items-center justify-between gap-2">
       <QueueTabs counts={counts} />
-      {nextQuick && (
-        <Button variant="outline" size="sm" asChild>
-          <Link href={`/dashboard/inquiries?${nextLeadQuery(sp, nextQuick.publicId)}`} prefetch={false}>
-            Next lead
-            <ArrowRightIcon className="size-4" />
-          </Link>
-        </Button>
-      )}
+      <div className="flex items-center gap-2">
+        {prevLead && (
+          <Button variant="outline" size="sm" asChild>
+            <Link href={leadHref(prevLead.publicId)} prefetch={false}>
+              <ArrowLeftIcon className="size-4" />
+              Previous lead
+            </Link>
+          </Button>
+        )}
+        {nextLead && (
+          <Button variant="outline" size="sm" asChild>
+            <Link href={leadHref(nextLead.publicId)} prefetch={false}>
+              Next lead
+              <ArrowRightIcon className="size-4" />
+            </Link>
+          </Button>
+        )}
+      </div>
     </div>
     <InquiriesList
       emptyMessage={EMPTY_COPY[queue]}
       spec={spec}
-      rows={result.items}
+      rows={rows}
       total={result.total}
       page={page.page}
       size={page.size}
@@ -280,7 +297,7 @@ async function InquiriesData({ searchParams }: { searchParams: SearchParams }) {
       staff={staff}
       reassignAction={reassignInquiry}
       dayStart={dayStart}
-      highlight={typeof sp.highlight === "string" ? sp.highlight : undefined}
+      highlight={pinnedRow?.publicId}
       emptyCta={
         <AddInquirySheet
           defaultCountry={sheet.defaultCountry}

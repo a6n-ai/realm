@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useTransition, type ReactNode } from "react";
 import {
-  CalendarClockIcon, MailIcon, MessageCircleIcon, MessageSquarePlusIcon, PhoneIcon, ShoppingBagIcon, type LucideIcon,
+  ArrowLeftIcon, ArrowRightIcon, CalendarClockIcon, MailIcon, MessageCircleIcon, MessageSquarePlusIcon, PhoneIcon, ShoppingBagIcon, type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@foundry/ui/button";
@@ -119,7 +119,8 @@ export function InquiryDetailClient({
   prefill,
   unmatched,
   existing,
-  nextQuickHref,
+  prevLeadHref,
+  nextLeadHref,
 }: {
   inquiryId: string;
   subStatus: SubStatus | null;
@@ -143,8 +144,9 @@ export function InquiryDetailClient({
   prefill: Partial<OrderFormInput>;
   unmatched: string[];
   existing: { publicId: string; fullName: string } | null;
-  /** Next unhandled quick add (see nextQuickAdd); absent when the pile is empty. */
-  nextQuickHref?: string;
+  /** Neighbours in the recommended-lead cycle (inquiriesService.nextLead); absent when nothing else is due. */
+  prevLeadHref?: string;
+  nextLeadHref?: string;
 }) {
   const tz = useTimezone();
   const router = useRouter();
@@ -209,9 +211,20 @@ export function InquiryDetailClient({
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-xl font-semibold break-words">{displayName(contact)}</h1>
               {canEditContact && <EditContactDialog inquiryId={inquiryId} contact={contact} />}
-              {nextQuickHref && (
+              {prevLeadHref && (
                 <Button variant="outline" size="sm" asChild>
-                  <Link href={nextQuickHref}>Next quick add</Link>
+                  <Link href={prevLeadHref}>
+                    <ArrowLeftIcon />
+                    Previous lead
+                  </Link>
+                </Button>
+              )}
+              {nextLeadHref && (
+                <Button variant="outline" size="sm" asChild>
+                  <Link href={nextLeadHref}>
+                    Next lead
+                    <ArrowRightIcon />
+                  </Link>
                 </Button>
               )}
             </div>

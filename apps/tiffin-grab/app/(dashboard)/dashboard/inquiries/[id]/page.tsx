@@ -63,7 +63,6 @@ async function InquiryDetail({ params }: { params: Promise<{ id: string }> }) {
   ]);
   // Same default scope as the list's landing view: the viewer's own leads.
   const viewer = (await getSession())?.user.id;
-  const nextQuick = await inquiriesService.nextQuickAdd(viewer ? facetEq("owner", viewer) : undefined, inq.id);
 
   const enabledSlots = slots.map((s) => ({ key: s.key, label: s.label }));
   const convertCatalog = {
@@ -105,6 +104,12 @@ async function InquiryDetail({ params }: { params: Promise<{ id: string }> }) {
 
   const todayIso = zonedDateIso(requestNow(), timezone);
   const { start: dayStart, end: dayEnd } = dayRange(todayIso, timezone);
+  // Recommended-lead cycle around this one (see nextLead), in the viewer's own leads.
+  const leadScope = viewer ? facetEq("owner", viewer) : undefined;
+  const [prevLead, nextLead] = await Promise.all([
+    inquiriesService.nextLead(leadScope, dayStart, dayEnd, { publicId: inq.publicId, dir: "prev" }),
+    inquiriesService.nextLead(leadScope, dayStart, dayEnd, { publicId: inq.publicId, dir: "next" }),
+  ]);
 
   // Status changes from the old stage model (no sub-status recorded) are noise now; notes, calls and the rest stay.
   const timeline: TimelineActivity[] = activities
@@ -156,7 +161,8 @@ async function InquiryDetail({ params }: { params: Promise<{ id: string }> }) {
         prefill={prefill}
         unmatched={unmatched}
         existing={existing}
-        nextQuickHref={nextQuick ? `/dashboard/inquiries/${nextQuick.publicId}` : undefined}
+        prevLeadHref={prevLead ? `/dashboard/inquiries/${prevLead.publicId}` : undefined}
+        nextLeadHref={nextLead ? `/dashboard/inquiries/${nextLead.publicId}` : undefined}
       />
   );
 }

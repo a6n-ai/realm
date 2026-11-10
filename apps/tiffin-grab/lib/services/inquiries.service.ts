@@ -9,6 +9,7 @@ import { ValidationError, phoneSchema, emailSchema } from "@foundry/commons";
 import type { Condition, FilterCondition } from "@foundry/commons/model/condition";
 import type { PageRequest } from "@foundry/commons/util/pagination";
 import { and, asc, desc, eq, getTableColumns, inArray, isNull, ne, notInArray, or, sql, type SQL } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { db, type Tx } from "@/db/client";
 import { enqueueNotification, enqueueStaffNotification } from "@/lib/notifications/enqueue";
 import { enqueueOrderNotice } from "@/lib/notifications/order-notice";
@@ -778,15 +779,49 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
     return row;
   }
 
-  /** Oldest unhandled quick add the viewer's list would show (same `condition`), other than `excludeId`. */
-  async nextQuickAdd(condition: Condition | undefined, excludeId?: bigint): Promise<{ publicId: string } | null> {
-    const [row] = await db
-      .select({ publicId: inquiries.publicId })
-      .from(inquiries)
-      .where(and(conditionToSql(condition, inquiriesResolver()), quickAddSql, excludeId != null ? ne(inquiries.id, excludeId) : undefined))
-      .orderBy(asc(inquiries.createdAt), asc(inquiries.id))
-      .limit(1);
-    return row ?? null;
+  /**
+   * The recommended lead to work next, within the viewer's list (same `condition`). Order: overdue
+   * follow-ups (longest overdue first), follow-ups due today, untouched quick adds, then other open
+   * leads with no follow-up date (oldest first) — the Due and Overdue queues together.
+   *
+   * With `from` it cycles: the lead after (`next`) or before (`prev`) that one in this order,
+   * wrapping round at either end. A lead that was just worked (closed, or follow-up moved past
+   * today) ranks after the whole queue, so Next restarts at the top recommendation.
+   */
+  async nextLead(
+    condition: Condition | undefined,
+    dayStart: number,
+    dayEnd: number,
+    from?: { publicId: string; dir: "next" | "prev" },
+  ): Promise<{ publicId: string } | null> {
+    const t = alias(inquiries, "cur");
+    const asc_ = from?.dir !== "prev";
+    type Tb = typeof inquiries | typeof t;
+    const rankOf = (tb: Tb) => sql`case
+      when not (${tb.stage} not in ('converted', 'lost')) then 4
+      when ${tb.nextFollowUpAt} < ${dayStart} then 0
+      when ${tb.nextFollowUpAt} < ${dayEnd} then 1
+      when ${tb.nextFollowUpAt} is not null then 4
+      when ${tb.leadNumber} is not null and ${tb.fullName} = 'Lead ' || ${tb.leadNumber} then 2
+      else 3 end`;
+    const parts = (tb: Tb) => [rankOf(tb), sql`coalesce(${tb.nextFollowUpAt}, 0)`, sql`${tb.createdAt}`, sql`${tb.id}`];
+    const pick = (cursor: SQL | undefined) =>
+      db
+        .select({ publicId: inquiries.publicId })
+        .from(inquiries)
+        .where(and(
+          conditionToSql(condition, inquiriesResolver()),
+          or(queuePredicate("overdue", dayStart, dayEnd), queuePredicate("due", dayStart, dayEnd)),
+          from ? ne(inquiries.publicId, from.publicId) : undefined,
+          cursor,
+        ))
+        .orderBy(...parts(inquiries).map((p) => (asc_ ? sql`${p} asc` : sql`${p} desc`)))
+        .limit(1)
+        .then(([r]) => r ?? null);
+    if (!from) return pick(undefined);
+    const mine = sql`(${sql.join(parts(inquiries), sql`, `)})`;
+    const theirs = sql`(select ${sql.join(parts(t), sql`, `)} from ${inquiries} as "cur" where ${t.publicId} = ${from.publicId})`;
+    return (await pick(asc_ ? sql`${mine} > ${theirs}` : sql`${mine} < ${theirs}`)) ?? pick(undefined);
   }
 
   /** `condition` is a list filter (owner, source, …) resolved like the list's, so cards match the rows. */
