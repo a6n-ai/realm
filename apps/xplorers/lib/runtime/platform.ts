@@ -1,7 +1,4 @@
-/** True inside a Cloudflare Worker (OpenNext); false on Node (EC2, dev, vitest). */
-export function isWorkers(): boolean {
-  return typeof navigator !== "undefined" && navigator.userAgent === "Cloudflare-Workers";
-}
+import { isWorkers } from "@foundry/commons/runtime/platform";
 
 /**
  * The one client-IP header this runtime's edge sets and a client cannot forge.

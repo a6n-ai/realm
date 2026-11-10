@@ -1,18 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { isWorkers, trustedIpHeaders } from "./platform";
-
-describe("isWorkers", () => {
-  afterEach(() => vi.unstubAllGlobals());
-
-  it("is false under Node", () => {
-    expect(isWorkers()).toBe(false);
-  });
-
-  it("is true when the Workers runtime identifies itself", () => {
-    vi.stubGlobal("navigator", { userAgent: "Cloudflare-Workers" });
-    expect(isWorkers()).toBe(true);
-  });
-});
+import { trustedIpHeaders } from "./platform";
 
 describe("trustedIpHeaders", () => {
   afterEach(() => vi.unstubAllGlobals());

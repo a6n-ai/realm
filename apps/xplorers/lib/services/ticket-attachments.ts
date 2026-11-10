@@ -2,7 +2,7 @@ import { nanoid } from "nanoid";
 import { ValidationError } from "@foundry/commons";
 import { filesSecuredAccess, filesService, securedFilesService } from "@/lib/files";
 import type { Attachment } from "@/db/schema";
-import { sniffUploadImage } from "@/lib/images/validate";
+import { sniffUploadImage } from "@foundry/commons/util/image-sniff";
 
 const MAX_BYTES = 5 * 1024 * 1024;
 const MAX_FILES = 4;

@@ -1,5 +1,5 @@
 import { ValidationError } from "@foundry/commons";
-import { dateTimeFormat } from "@/lib/intl/date-format";
+import { dateTimeFormat } from "@foundry/commons/util/intl-format";
 
 type DateParts = {
   year: string;

@@ -1,4 +1,4 @@
-import { dateTimeFormat } from "@/lib/intl/date-format";
+import { dateTimeFormat } from "@foundry/commons/util/intl-format";
 
 export const CURRENCIES = ["CAD", "SGD", "USD", "EUR", "GBP", "AUD", "INR"] as const;
 export type AppCurrency = (typeof CURRENCIES)[number];

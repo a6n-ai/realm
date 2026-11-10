@@ -4,7 +4,7 @@ import type { ClassBookingType } from "@/db/schema/studio";
 import { priceLine } from "@/lib/pricing/price-line";
 import type { PriceTable } from "@/lib/pricing/types";
 import { dayKey } from "./timezone";
-import { dateTimeFormat } from "@/lib/intl/date-format";
+import { dateTimeFormat } from "@foundry/commons/util/intl-format";
 
 export type BoardTone = "muted" | "action" | "ink";
 

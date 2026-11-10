@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { dateTimeFormat } from "./date-format";
+import { dateTimeFormat } from "@foundry/commons/util/intl-format";
 import { dayKey } from "@/lib/sessions/timezone";
 import { formatSessionDay, formatSessionTime } from "@/lib/sessions/format";
 

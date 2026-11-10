@@ -5,7 +5,7 @@ import { Role } from "@foundry/commons";
 import { getSession } from "@/lib/auth/session";
 import { filesService } from "@/lib/files";
 import { usersService } from "@/lib/services/users.service";
-import { sniffImageType, extFor, MAX_AVATAR_BYTES } from "@/lib/images/validate";
+import { sniffImageType, extFor, MAX_AVATAR_BYTES } from "@foundry/commons/util/image-sniff";
 import { ownAvatarKey } from "@/lib/images/avatar-key";
 
 function forgetOld(url: string | null | undefined, userId: string) {

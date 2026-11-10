@@ -15,7 +15,8 @@ import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db/client";
 import { account, invitation, member, organization, rateLimit, session, users, verification } from "@/db/schema";
 import { recordAudit } from "@/lib/services/session-service";
-import { isWorkers, trustedIpHeaders } from "@/lib/runtime/platform";
+import { isWorkers } from "@foundry/commons/runtime/platform";
+import { trustedIpHeaders } from "@/lib/runtime/platform";
 import { betterAuthPassword } from "./password";
 import { sendAuthOtp, sendStaffInvitation } from "./security-events";
 
