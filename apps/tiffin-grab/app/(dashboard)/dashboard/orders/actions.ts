@@ -3,8 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { revalidateOrder } from "@/lib/revalidate";
 import { ValidationError } from "@foundry/commons";
-import { requireAdmin, requireStaff } from "@/lib/auth/guards";
+import { requireAdmin, requirePermission, requireStaff } from "@/lib/auth/guards";
 import { currentUserId } from "@/lib/services/session-service";
+import { z } from "zod";
+import { eq } from "drizzle-orm";
+import { db } from "@/db/client";
+import { orderActivities, orders } from "@/db/schema";
 import { inquiriesService } from "@/lib/services/inquiries.service";
 import { assertOrderVisible, ordersService } from "@/lib/services/orders.service";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
@@ -128,6 +132,33 @@ export async function emailPaymentLinkAction(orderPublicId: string, paymentPubli
     await requireStaff();
     await assertOrderVisible(orderPublicId, await resolveSessionVisibleOrgIds(await getSession()));
     await sendPaymentReminder(orderPublicId, paymentPublicId ?? (await findUnpaidPayment(orderPublicId)), await currentUserId());
+  });
+  if ("ok" in res) revalidateOrder(orderPublicId);
+  return res;
+}
+
+const orderNoteSchema = z.string().trim().min(1, "Write a note first").max(2000, "Keep the note under 2000 characters");
+
+// Staff note on the order's activity log, from the Next order card. The author comes from the session.
+export async function addOrderNoteAction(orderPublicId: string, note: string): Promise<ActionResult> {
+  const res = await runAction(async () => {
+    await requirePermission({ order: ["write"] });
+    await assertOrderVisible(orderPublicId, await resolveSessionVisibleOrgIds(await getSession()));
+    const parsed = orderNoteSchema.safeParse(note);
+    if (!parsed.success) throw new ValidationError(parsed.error.issues[0]?.message ?? "Invalid note");
+    const [order] = await db
+      .select({ id: orders.id, organizationId: orders.organizationId })
+      .from(orders)
+      .where(eq(orders.publicId, orderPublicId))
+      .limit(1);
+    if (!order) throw new ValidationError("Order not found");
+    await db.insert(orderActivities).values({
+      orderId: order.id,
+      type: "note",
+      note: parsed.data,
+      createdBy: await currentUserId(),
+      organizationId: order.organizationId,
+    });
   });
   if ("ok" in res) revalidateOrder(orderPublicId);
   return res;
