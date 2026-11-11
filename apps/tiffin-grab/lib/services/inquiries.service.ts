@@ -8,7 +8,7 @@ import { BaseRepository, UpdatableRepository, conditionToSql, columnResolver, pa
 import { ValidationError, phoneSchema, emailSchema } from "@foundry/commons";
 import type { Condition, FilterCondition } from "@foundry/commons/model/condition";
 import type { PageRequest } from "@foundry/commons/util/pagination";
-import { and, asc, desc, eq, getTableColumns, inArray, isNull, ne, notInArray, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, count, desc, eq, getTableColumns, inArray, isNull, ne, notInArray, or, sql, type SQL } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db, type Tx } from "@/db/client";
 import { enqueueNotification, enqueueStaffNotification } from "@/lib/notifications/enqueue";
@@ -898,6 +898,16 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
       .where(and(recommendedQueue(condition, dayStart, dayEnd), eq(inquiries.publicId, publicId)))
       .limit(1);
     return row != null;
+  }
+
+  /** 1-based rank of `publicId` in the due queue, in nextLead's order. Meaningful when inQueue is true. */
+  async queuePosition(condition: Condition | undefined, dayStart: number, dayEnd: number, publicId: string): Promise<number> {
+    const { mine, theirs } = recommendedPosition(publicId, dayStart, dayEnd);
+    const [row] = await db
+      .select({ n: count() })
+      .from(inquiries)
+      .where(and(recommendedQueue(condition, dayStart, dayEnd), sql`${mine} < ${theirs}`));
+    return (row?.n ?? 0) + 1;
   }
 
   /** `condition` is a list filter (owner, source, …) resolved like the list's, so cards match the rows. */

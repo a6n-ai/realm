@@ -146,6 +146,7 @@ async function NextLead({ searchParams }: { searchParams: SearchParams }) {
         inquiriesService.inQueue(scope, dayStart, dayEnd, lead.publicId),
       ])
     : [null, null, [], false];
+  const position = lead && leadInQueue ? await inquiriesService.queuePosition(scope, dayStart, dayEnd, lead.publicId) : null;
   const upNextRows = upNextIds.length
     ? await inquiriesService.listForPipeline(scope, { page: 0, size: upNextIds.length }, undefined, undefined, inArray(inquiries.publicId, upNextIds)).then((r) => r.items)
     : [];
@@ -162,6 +163,7 @@ async function NextLead({ searchParams }: { searchParams: SearchParams }) {
       dayEnd={dayEnd}
       dueCount={counts.due + counts.overdue}
       leadInQueue={leadInQueue}
+      position={position}
       upcomingCount={counts.upcoming}
       owner={{ current: leadOwner, options: ownerOptions.map((o) => ({ ...o, href: leadOwnerHref(sp, o.value) })) }}
       prevHref={prev ? `/dashboard/inquiries?${leadQuery(sp, prev.publicId)}` : undefined}

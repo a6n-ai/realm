@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { formatMoney } from "@foundry/commons";
+import { Avatar, AvatarFallback } from "@foundry/ui/avatar";
 import { Button } from "@foundry/ui/button";
 import type { NextOrderReason, NextOrderRow } from "@/lib/services/next-order.service";
 import { ContactChips } from "@/components/dashboard/next-item/contact-chips";
@@ -49,7 +50,7 @@ export function NextOrderCard({ row, currency, now, queueCount, owner, prevHref,
     ? {
         identity: (
           <div className="flex flex-wrap items-center gap-2">
-            <div className="bg-muted flex size-10 shrink-0 items-center justify-center rounded-lg text-sm font-medium">{initials(row.customerName)}</div>
+            <Avatar><AvatarFallback>{initials(row.customerName)}</AvatarFallback></Avatar>
             <Link href={`/dashboard/orders/${row.publicId}`} className="min-w-0 truncate font-medium hover:underline">
               {row.customerName}
             </Link>

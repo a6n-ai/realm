@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Badge } from "@/components/reui/badge";
+import { Avatar, AvatarFallback } from "@foundry/ui/avatar";
 import { Button } from "@foundry/ui/button";
 import { humanDate } from "@/lib/deliveries-view";
 import { isClosedTrack } from "@/lib/renewals/status";
@@ -46,7 +47,7 @@ export function NextRenewalCard({ row, today, queueCount, owner, prevHref, nextH
     ? {
         identity: (
           <div className="flex flex-wrap items-center gap-2">
-            <div className="bg-muted flex size-10 shrink-0 items-center justify-center rounded-lg text-sm font-medium">{initials(row.customerName)}</div>
+            <Avatar><AvatarFallback>{initials(row.customerName)}</AvatarFallback></Avatar>
             <Link href={openHref(row)} className="min-w-0 truncate font-medium hover:underline">
               {row.customerName}
             </Link>

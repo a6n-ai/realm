@@ -57,6 +57,7 @@ const base: Omit<NextLeadCardProps, "lead"> = {
   dayEnd: DAY_END,
   dueCount: 12,
   leadInQueue: true,
+  position: null,
   upcomingCount: 3,
   owner: owner("me"),
   upNext: [],
@@ -103,6 +104,11 @@ describe("NextLeadCard", () => {
     expect(screen.getByRole("link", { name: "Previous lead" })).toHaveAttribute("href", "/dashboard/inquiries?lead=a");
     expect(screen.getByRole("link", { name: "Next lead" })).toHaveAttribute("href", "/dashboard/inquiries?lead=b");
     expect(screen.getByText("12 due")).toBeInTheDocument();
+  });
+
+  it("shows the queue position as 'N of M due' when the lead is ranked", () => {
+    render(<NextLeadCard {...base} lead={lead()} position={3} />);
+    expect(screen.getByText("3 of 12 due")).toBeInTheDocument();
   });
 
   it("renders no Previous or Next link without hrefs", () => {

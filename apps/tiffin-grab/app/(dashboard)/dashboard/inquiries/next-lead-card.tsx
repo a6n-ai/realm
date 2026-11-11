@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { formatMoney } from "@foundry/commons";
 import { eq } from "@foundry/commons/model/condition";
+import { Avatar, AvatarFallback } from "@foundry/ui/avatar";
 import { Button } from "@foundry/ui/button";
 import { displayName } from "@/lib/inquiries/display";
 import { ALL_OWNERS, ME, resolveOwnerParam } from "@/lib/list/presets";
@@ -32,6 +33,8 @@ export type NextLeadCardProps = {
   dueCount: number;
   /** Whether the card's lead is itself in the due queue; decides how many are "more" beyond the strip. */
   leadInQueue: boolean;
+  /** 1-based rank of the lead in the due queue; null when it is not in the queue. */
+  position: number | null;
   upcomingCount: number;
   owner: { current: string; options: OwnerChoice[] };
   prevHref?: string;
@@ -41,7 +44,7 @@ export type NextLeadCardProps = {
   allOpenHref: string;
 };
 
-export function NextLeadCard({ lead, timeZone, currency, now, dayStart, dayEnd, dueCount, leadInQueue, upcomingCount, owner, prevHref, nextHref, upNext, upcomingHref, allOpenHref }: NextLeadCardProps) {
+export function NextLeadCard({ lead, timeZone, currency, now, dayStart, dayEnd, dueCount, leadInQueue, position, upcomingCount, owner, prevHref, nextHref, upNext, upcomingHref, allOpenHref }: NextLeadCardProps) {
   const leadHref = lead ? `/dashboard/inquiries/${lead.publicId}` : "";
   const facts: [string, string | null][] = lead
     ? [
@@ -56,9 +59,9 @@ export function NextLeadCard({ lead, timeZone, currency, now, dayStart, dayEnd, 
     ? {
         identity: (
           <div className="flex flex-wrap items-center gap-2">
-            <div className="bg-muted flex size-10 shrink-0 items-center justify-center rounded-lg text-sm font-medium">
-              {initials(displayName(lead))}
-            </div>
+            <Avatar>
+              <AvatarFallback>{initials(displayName(lead))}</AvatarFallback>
+            </Avatar>
             <Link href={leadHref} className="min-w-0 truncate font-medium hover:underline">
               {displayName(lead)}
             </Link>
@@ -111,7 +114,7 @@ export function NextLeadCard({ lead, timeZone, currency, now, dayStart, dayEnd, 
       title="Next lead"
       noun="lead"
       owner={{ current: owner.current, options: owner.options }}
-      dueText={`${dueCount} due`}
+      dueText={position ? `${position} of ${dueCount} due` : `${dueCount} due`}
       prevHref={prevHref}
       nextHref={nextHref}
       item={item}

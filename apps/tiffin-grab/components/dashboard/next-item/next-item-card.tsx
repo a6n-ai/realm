@@ -6,6 +6,7 @@ import { ALL_OWNERS, ME } from "@/lib/list/presets";
 import { Button } from "@foundry/ui/button";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { OwnerPicker, type OwnerOption } from "./owner-picker";
+import { NextItemError } from "./next-item-error";
 
 export type OwnerChoice = OwnerOption;
 export type NextItemFact = [label: string, value: string | null];
@@ -32,6 +33,8 @@ export type NextItemCardProps = {
   nextHref?: string;
   item: NextItemView | null;
   empty: ReactNode;
+  /** Loader failure: shown inline in place of the body, with Retry. */
+  error?: string;
 };
 
 export function scopeHint(current: string, options: OwnerChoice[]): string {
@@ -58,7 +61,7 @@ function QueueArrow({ label, href, icon: Icon }: { label: string; href?: string;
   );
 }
 
-export function NextItemCard({ title, noun, owner, dueText, prevHref, nextHref, item, empty }: NextItemCardProps) {
+export function NextItemCard({ title, noun, owner, dueText, prevHref, nextHref, item, empty, error }: NextItemCardProps) {
   const label = owner.options.find((o) => o.value === owner.current)?.label ?? "Me";
   const facts = item?.facts.filter((f): f is [string, string] => f[1] != null && f[1] !== "") ?? [];
   const action = (
@@ -76,7 +79,7 @@ export function NextItemCard({ title, noun, owner, dueText, prevHref, nextHref, 
   );
   return (
     <SectionCard title={title} action={action}>
-      {item ? (
+      {error ? <NextItemError message={error} /> : item ? (
         <>
           <div className="flex flex-col gap-4">
             {item.identity}

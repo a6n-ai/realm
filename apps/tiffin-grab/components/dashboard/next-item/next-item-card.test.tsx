@@ -56,3 +56,13 @@ describe("UpNextStrip", () => {
     expect(within(region).getByRole("group", { name: "Up next leads tiles" })).toBeInTheDocument();
   });
 });
+
+describe("NextItemCard error", () => {
+  it("shows the inline error with Retry in place of the body", () => {
+    wrap(<NextItemCard title="Next lead" noun="lead" owner={owner} dueText="3 due" item={view()} empty={null} error="Timed out" />);
+    expect(screen.getByText("Could not load this queue")).toBeInTheDocument();
+    expect(screen.getByText("Timed out")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
+    expect(screen.queryByText("Priya")).not.toBeInTheDocument();
+  });
+});
