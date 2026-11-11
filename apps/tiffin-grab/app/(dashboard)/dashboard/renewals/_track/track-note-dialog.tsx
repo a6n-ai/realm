@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { Loader2Icon } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@foundry/ui/button";
 import {
@@ -88,6 +89,7 @@ export function TrackNoteDialog({
             disabled={pending || (kind === "note" && note.trim() === "") || (kind === "follow_up" && (closed || followUp === null))}
             onClick={save}
           >
+            {pending && <Loader2Icon className="animate-spin" />}
             Save
           </Button>
         </DialogFooter>

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import type { LucideIcon } from "lucide-react";
+import { Loader2Icon, type LucideIcon } from "lucide-react";
 import * as React from "react";
 import { cn } from "@foundry/ui/cn";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@foundry/ui/tooltip";
@@ -31,9 +31,15 @@ export const RowActionTooltipButton = React.forwardRef<
     hint?: string;
     /** Renders a real link (cmd/middle-click, new tab) instead of a button. */
     href?: string;
+    /** The action is running: spinner in place of the icon, and disabled until it settles. */
+    pending?: boolean;
   }
->(function RowActionTooltipButton({ icon: Icon, label, onClick, disabled, tone, hint, href }, ref) {
-  const icon = <Icon className={cn("size-4 transition-transform duration-200 group-hover/row:scale-110", tone)} />;
+>(function RowActionTooltipButton({ icon: Icon, label, onClick, disabled, tone, hint, href, pending }, ref) {
+  const icon = pending ? (
+    <Loader2Icon aria-hidden className={cn("size-4 animate-spin", tone)} />
+  ) : (
+    <Icon className={cn("size-4 transition-transform duration-200 group-hover/row:scale-110", tone)} />
+  );
   const stop = (e: React.MouseEvent) => e.stopPropagation();
   return (
     <Tooltip>
@@ -47,7 +53,8 @@ export const RowActionTooltipButton = React.forwardRef<
             ref={ref}
             type="button"
             aria-label={label}
-            disabled={disabled}
+            aria-busy={pending || undefined}
+            disabled={disabled || pending}
             className={BTN}
             onClick={(e) => {
               stop(e);

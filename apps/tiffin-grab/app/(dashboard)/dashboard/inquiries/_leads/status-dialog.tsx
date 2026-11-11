@@ -12,7 +12,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger,
 } from "@foundry/ui/dropdown-menu";
 import {
-  ArrowRightIcon, BadgeCheckIcon, CalendarClockIcon, ChevronDownIcon, CreditCardIcon, MapPinOffIcon, MessageSquareReplyIcon,
+  ArrowRightIcon, BadgeCheckIcon, CalendarClockIcon, ChevronDownIcon, CreditCardIcon, Loader2Icon, MapPinOffIcon, MessageSquareReplyIcon,
   PhoneMissedIcon, RepeatIcon, SparklesIcon, ThumbsUpIcon, UtensilsIcon, XCircleIcon, type LucideIcon,
 } from "lucide-react";
 import { cn } from "@foundry/ui/cn";
@@ -421,7 +421,10 @@ export function NoteDialog({
         />
         <FollowUpPicker timeZone={timeZone} value={followUp} onChange={setFollowUp} />
         <DialogFooter>
-          <Button disabled={pending || (kind === "note" && note.trim() === "") || (kind === "follow_up" && followUp === null)} onClick={save}>Save</Button>
+          <Button disabled={pending || (kind === "note" && note.trim() === "") || (kind === "follow_up" && followUp === null)} onClick={save}>
+            {pending && <Loader2Icon className="animate-spin" />}
+            Save
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
