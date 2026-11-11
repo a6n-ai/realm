@@ -137,13 +137,14 @@ async function NextLead({ searchParams }: { searchParams: SearchParams }) {
   const chosenId = typeof sp.lead === "string" ? sp.lead : undefined;
   const chosen = chosenId ? await rowOf(chosenId) : null;
   const lead = chosen ?? (await inquiriesService.nextLead(scope, dayStart, dayEnd).then((n) => (n ? rowOf(n.publicId) : null)));
-  const [prev, next, upNextIds] = lead
+  const [prev, next, upNextIds, leadInQueue] = lead
     ? await Promise.all([
         inquiriesService.nextLead(scope, dayStart, dayEnd, { publicId: lead.publicId, dir: "prev" }),
         inquiriesService.nextLead(scope, dayStart, dayEnd, { publicId: lead.publicId, dir: "next" }),
         inquiriesService.upNext(scope, dayStart, dayEnd, lead.publicId, UP_NEXT_COUNT),
+        inquiriesService.inQueue(scope, dayStart, dayEnd, lead.publicId),
       ])
-    : [null, null, []];
+    : [null, null, [], false];
   const upNextRows = upNextIds.length
     ? await inquiriesService.listForPipeline(scope, { page: 0, size: upNextIds.length }, undefined, undefined, inArray(inquiries.publicId, upNextIds)).then((r) => r.items)
     : [];
@@ -159,6 +160,7 @@ async function NextLead({ searchParams }: { searchParams: SearchParams }) {
       dayStart={dayStart}
       dayEnd={dayEnd}
       dueCount={counts.due + counts.overdue}
+      leadInQueue={leadInQueue}
       upcomingCount={counts.upcoming}
       owner={{ current: leadOwner, options: ownerOptions.map((o) => ({ ...o, href: leadOwnerHref(sp, o.value) })) }}
       prevHref={prev ? `/dashboard/inquiries?${leadQuery(sp, prev.publicId)}` : undefined}

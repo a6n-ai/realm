@@ -56,6 +56,7 @@ const base: Omit<NextLeadCardProps, "lead"> = {
   dayStart: DAY_START,
   dayEnd: DAY_END,
   dueCount: 12,
+  leadInQueue: true,
   upcomingCount: 3,
   owner: owner("me"),
   upNext: [],
@@ -71,7 +72,7 @@ describe("NextLeadCard", () => {
     expect(screen.getByRole("link", { name: "Asha Rao" })).toHaveAttribute("href", "/dashboard/inquiries/inq_1");
     expect(screen.getByRole("link", { name: /Call/ })).toHaveAttribute("href", "tel:4165550123");
     expect(screen.getByRole("link", { name: /WhatsApp/ })).toHaveAttribute("href", "https://wa.me/4165550123");
-    expect(screen.getByRole("link", { name: "Open lead" })).toHaveAttribute("href", "/dashboard/inquiries/inq_1");
+    expect(screen.getByRole("button", { name: "Open lead" })).toBeInTheDocument();
     expect(screen.getByText("Asked about veg thali")).toBeInTheDocument();
     expect(screen.getByText("created 3d ago")).toBeInTheDocument();
     expect(screen.getByText("Instagram")).toBeInTheDocument();
@@ -111,7 +112,7 @@ describe("NextLeadCard", () => {
 
   it("shows the empty state with Upcoming and All open links for the chosen owner", () => {
     render(<NextLeadCard {...base} lead={null} />);
-    expect(screen.getByText("No leads due — you're clear.")).toBeInTheDocument();
+    expect(screen.getByText("No leads due. You're clear.")).toBeInTheDocument();
     expect(screen.getByText("3 upcoming")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Upcoming" })).toHaveAttribute("href", "/dashboard/inquiries?queue=upcoming&owner=me");
     expect(screen.getByRole("link", { name: "All open" })).toHaveAttribute("href", "/dashboard/inquiries?queue=open&owner=me");
@@ -172,7 +173,7 @@ describe("NextLeadCard", () => {
     ] as unknown as NextLeadCardProps["upNext"];
     render(<NextLeadCard {...base} lead={lead()} upNext={up} />);
     expect(screen.getByRole("link", { name: /Hari/ })).toHaveAttribute("href", "/dashboard/inquiries?lead=inq_8");
-    expect(screen.queryByRole("button", { name: /^Set follow-up for|^Add note for|^Change status/ })).toBeNull();
+    expect(within(screen.getByRole("region", { name: "Up next leads" })).queryByRole("button")).toBeNull();
   });
   it("omits the owner name on up-next tiles unless the card is all owners", () => {
     const up = [{ ...lead({ publicId: "inq_9", fullName: "Fay", ownerName: "Ravi Shah" }), href: "/dashboard/inquiries?lead=inq_9" }] as unknown as NextLeadCardProps["upNext"];

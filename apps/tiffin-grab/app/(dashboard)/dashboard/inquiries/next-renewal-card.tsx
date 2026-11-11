@@ -8,9 +8,9 @@ import { humanDate } from "@/lib/deliveries-view";
 import { isClosedTrack } from "@/lib/renewals/status";
 import type { NextRenewalRow } from "@/lib/services/next-renewal.service";
 import { TrackStatusMenu } from "../renewals/_track/track-status";
-import { ContactChips } from "./_leads/contact-chips";
-import { NextLeadOwnerPicker } from "./next-lead-actions";
-import { scopeHint, type OwnerChoice } from "./next-lead-card";
+import { ContactChips } from "@/components/dashboard/next-item/contact-chips";
+import { OwnerPicker } from "@/components/dashboard/next-item/owner-picker";
+import { scopeHint, type OwnerChoice } from "@/components/dashboard/next-item/next-item-card";
 import { RowTrackActions } from "./renewals-queue-list";
 
 export type NextRenewalCardProps = {
@@ -80,7 +80,7 @@ export function NextRenewalCard({ row, today, queueCount, owner, prevHref, nextH
   const picker = (
     <div className="flex items-center gap-2">
       <span className="text-muted-foreground text-xs">{scopeHint(owner.current, owner.options)}</span>
-      <NextLeadOwnerPicker label={owner.options.find((o) => o.value === owner.current)?.label ?? "Me"} options={owner.options} />
+      <OwnerPicker label={owner.options.find((o) => o.value === owner.current)?.label ?? "Me"} options={owner.options} />
     </div>
   );
   return (

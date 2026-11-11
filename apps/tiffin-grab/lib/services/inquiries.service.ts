@@ -877,6 +877,16 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
     return [...after, ...before].map((r) => r.publicId);
   }
 
+  /** Whether a lead is in the due queue that `upNext` and `nextLead` walk; the card's "N more" counts from it. */
+  async inQueue(condition: Condition | undefined, dayStart: number, dayEnd: number, publicId: string): Promise<boolean> {
+    const [row] = await db
+      .select({ publicId: inquiries.publicId })
+      .from(inquiries)
+      .where(and(recommendedQueue(condition, dayStart, dayEnd), eq(inquiries.publicId, publicId)))
+      .limit(1);
+    return row != null;
+  }
+
   /** `condition` is a list filter (owner, source, …) resolved like the list's, so cards match the rows. */
   async groupCounts(where: SQL | undefined, condition?: Condition): Promise<{ lead: number; followUp: number; took: number; lost: number }> {
     const cnt = (p: SQL) => sql<number>`cast(count(*) filter (where ${p}) as int)`;

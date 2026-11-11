@@ -9,7 +9,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Skeleton } from "@foundry/ui/skeleton";
 import { ALL_OWNERS, ME } from "@/lib/list/presets";
 import type { NextOrderReason, NextOrderRow } from "@/lib/services/next-order.service";
-import { ContactChips } from "../inquiries/_leads/contact-chips";
+import { ContactChips } from "@/components/dashboard/next-item/contact-chips";
 import { NextOrderActions } from "./next-order-actions";
 
 const DAY_MS = 86_400_000;
