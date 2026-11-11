@@ -12,6 +12,7 @@ import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 import { buildPricingCatalog } from "@/lib/pricing/build-catalog";
 import { postCatalogSubtotal } from "@/lib/pricing/discounts";
+import { loadMealCostFloor } from "@/lib/pricing/meal-cost";
 import { priceSubscription, type PricingResult, type PricingSelections } from "@/lib/pricing";
 import { quoteTrial } from "@/lib/trial/quote";
 import { applyDiscountLane } from "@/lib/services/discount-lane";
@@ -161,12 +162,14 @@ async function quote(
   const session = await getSession();
   const userId = session?.user?.id ? await userIdByPublicId(session.user.id) : null;
 
+  const costFloor = await loadMealCostFloor(selections.mealSizeId, base.tiffinCount);
   const lane = await applyDiscountLane({
     postCatalog,
     planType,
     userId,
     paymentMethodId: methodId,
     manualCodes: typeof couponCodes === "string" ? [couponCodes] : couponCodes,
+    costFloor,
     strict: false,
   });
   const { best } = lane;

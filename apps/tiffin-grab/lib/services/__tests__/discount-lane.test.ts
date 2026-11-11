@@ -68,6 +68,37 @@ describe("discount lane equals the old createOrder and preview lanes", () => {
     expect((await applyDiscountLane({ ...args, rep: { ...args.rep, actorId: null }, strict: false })).lines).toEqual([]);
   });
 
+  it("refuses staff coupons that would sell below cost, keeps auto ones", async () => {
+    const auto = { coupon: { ...coupon("AUTO"), autoApply: true }, amount: 10 };
+    const staff = { coupon: { ...coupon("STAFF", "fixed"), autoApply: false }, amount: 50 };
+    resolve.mockResolvedValue(best([auto, staff]));
+    const preview = await applyDiscountLane({
+      postCatalog: 100, userId: 1n, paymentMethodId: "stripe", costFloor: 70, strict: false,
+    });
+    expect(preview.applied.map((a) => a.coupon.code)).toEqual(["AUTO"]);
+    expect(preview.best.manualErrors).toContainEqual({ code: "STAFF", error: "This discount would sell below cost" });
+    resolve.mockResolvedValue(best([auto, staff]));
+    await expect(applyDiscountLane({
+      postCatalog: 100, userId: 1n, paymentMethodId: "stripe", costFloor: 70, strict: true,
+    })).rejects.toThrow(/below cost/);
+  });
+
+  it("refuses a rep discount that would sell below cost", async () => {
+    resolve.mockResolvedValue(best([]));
+    validateRep.mockResolvedValue({ label: "REP", amount: 40 });
+    const preview = await applyDiscountLane({
+      postCatalog: 100, userId: 1n, paymentMethodId: "stripe",
+      rep: { code: "REP", requestedAmount: 40, actorId: 9n }, costFloor: 70, strict: false,
+    });
+    expect(preview.rep).toBeNull();
+    expect(preview.error).toMatch(/below cost/);
+    resolve.mockResolvedValue(best([]));
+    await expect(applyDiscountLane({
+      postCatalog: 100, userId: 1n, paymentMethodId: "stripe",
+      rep: { code: "REP", requestedAmount: 40, actorId: 9n }, costFloor: 70, strict: true,
+    })).rejects.toThrow(/below cost/);
+  });
+
   const coinCases: [string, number, number, number, number, number | null, number | null, number | "max"][] = [
     ["capped by pct", 100, 100, 5000, 0.01, 30, null, "max"],
     ["capped by wallet share", 100, 100, 1000, 0.01, null, 20, "max"],

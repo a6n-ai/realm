@@ -1,0 +1,1 @@
+ALTER TABLE "meal_sizes" ADD COLUMN "cost_price" numeric(10, 2);

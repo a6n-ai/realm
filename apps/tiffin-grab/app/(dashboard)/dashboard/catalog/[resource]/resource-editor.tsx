@@ -721,6 +721,10 @@ function Cell({ f, value, options }: { f: FieldDef; value: unknown; options: Opt
     return value ? <CheckIcon className="text-ok size-4" /> : <span className="text-muted-foreground/50">—</span>;
   }
   if (isNumberType(f)) {
+    // Optional blanks (cost price, macros when un-hidden) must not render as $0.
+    if (value == null || value === "") {
+      return <span className="text-muted-foreground/50">—</span>;
+    }
     return <span className="tabular-nums">{formatNumber(f, Number(value), money)}</span>;
   }
   return <span>{String(value)}</span>;

@@ -98,11 +98,12 @@ describe("blank numeric fields (form feeds \"\")", () => {
   it("meal-sizes: blank macros round-trip to null instead of 0", () => {
     const out = RESOURCES["meal-sizes"].schema.parse({
       key: "x", name: "X", tier: "budget", planId: "pln_test", items: [],
-      kcalMin: "300", kcalMax: "500", proteinG: "", carbsG: "", fatG: "", basePrice: "10",
+      kcalMin: "300", kcalMax: "500", proteinG: "", carbsG: "", fatG: "", basePrice: "10", costPrice: "",
     });
     expect(out.proteinG).toBeNull();
     expect(out.carbsG).toBeNull();
     expect(out.fatG).toBeNull();
+    expect(out.costPrice).toBeNull();
   });
 
   it("meal-sizes: requires a plan and a category on every composition row", () => {

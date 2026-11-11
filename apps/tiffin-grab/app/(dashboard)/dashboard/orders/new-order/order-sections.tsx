@@ -474,7 +474,7 @@ export function DiscountsSection({ d, customerLabel }: { d: Draft; customerLabel
             {/* Only a matched customer has a wallet; a new customer gets no coins row. */}
             {d.coinPreview && <CoinsField onOrder coins={d.coinPreview} setCoins={d.setCoinsWanted} />}
 
-            <CustomerCodeField onOrder subtotal={d.subtotal} apply={d.applyStaffCode} note={`New order: ${customerLabel}`} />
+            <CustomerCodeField onOrder subtotal={d.subtotal} maxStaffDiscount={d.maxStaffDiscount} apply={d.applyStaffCode} note={`New order: ${customerLabel}`} />
 
             {repInfo && !(repInfo.available === false && repInfo.reason === "disabled") && (
               repInfo.available ? (

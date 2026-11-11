@@ -187,6 +187,7 @@ export function EstimateDialog({ open, onOpenChange, fromOrder }: { open: boolea
 
             <CustomerCodeField
               subtotal={estimate?.preview?.subtotal ?? 0}
+              maxStaffDiscount={estimate?.maxStaffDiscount ?? null}
               apply={estimate?.apply}
               note={who?.fullName ? `Estimate: ${who.fullName}` : "Order estimate"}
             />

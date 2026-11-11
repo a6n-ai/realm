@@ -63,6 +63,10 @@ export type EstimateState = {
   coupons: StaffCouponPreview | null;
   /** The matched customer's coins on this quote; null for a new customer. */
   coins: StaffCoinPreview | null;
+  /** Kitchen COGS for this quote; caps staff codes so the plan isn't sold below cost. */
+  costFloor: number | null;
+  /** Largest staff discount that still stays above cost; null when cost is unset. */
+  maxStaffDiscount: number | null;
   /** How many coins the customer wants to use; "max" (the default) takes all this order allows. */
   setCoins: (coins: number | "max") => void;
   codes: string[];
@@ -103,6 +107,8 @@ export function useOrderDraft({
   const [couponCodes, setCouponCodes] = useState<string[]>([]);
   const [couponInput, setCouponInput] = useState("");
   const [coupons, setCoupons] = useState<StaffCouponPreview | null>(null);
+  const [costFloor, setCostFloor] = useState<number | null>(null);
+  const [maxStaffDiscount, setMaxStaffDiscount] = useState<number | null>(null);
   // An estimate shows the best price (all allowed coins); a real order spends none until staff opt in.
   const [coinsWanted, setCoinsWanted] = useState<number | "max">(estimateOnly ? "max" : 0);
   const [coinPreview, setCoinPreview] = useState<StaffCoinPreview | null>(null);
@@ -356,9 +362,12 @@ export function useOrderDraft({
 
   const shownPreview = preview;
   const subtotal = shownPreview?.subtotal ?? 0;
-  const ceiling = repInfo?.available
+  const allowanceCeiling = repInfo?.available
     ? round2(Math.min((subtotal * repInfo.capPct) / 100, repInfo.capAmount))
     : 0;
+  const ceiling = maxStaffDiscount == null
+    ? allowanceCeiling
+    : round2(Math.min(allowanceCeiling, maxStaffDiscount));
 
   useEffect(() => {
     let cancelled = false;
@@ -399,6 +408,8 @@ export function useOrderDraft({
         setPreview("error" in r ? null : r.preview);
         setCoupons("error" in r ? null : r.coupons);
         setCoinPreview("error" in r ? null : r.coins);
+        setCostFloor("error" in r ? null : r.costFloor);
+        setMaxStaffDiscount("error" in r ? null : r.maxStaffDiscount);
         coinPreviewFor.current = "error" in r ? null : pricedFor;
         const bulk = bulkCodes.current;
         if (bulk && !("error" in r)) {
@@ -412,6 +423,8 @@ export function useOrderDraft({
         if (cancelled) return;
         setPreview(null);
         setCoinPreview(null);
+        setCostFloor(null);
+        setMaxStaffDiscount(null);
         coinPreviewFor.current = null;
         setPreviewError("Couldn't price this order. Check your connection and try again.");
       });
@@ -502,6 +515,8 @@ export function useOrderDraft({
       link: shownPreview ? link : null,
       coupons,
       coins: coinPreview,
+      costFloor,
+      maxStaffDiscount,
       setCoins: setCoinsWanted,
       codes: couponCodes,
       apply: applyCoupon,
@@ -510,7 +525,7 @@ export function useOrderDraft({
     });
     // Every input to the text also reprices, so the preview alone is the trigger.
   });
-  useEffect(() => repricePreview(), [shownPreview, previewError, coupons, couponCodes.join(), coinPreview]);
+  useEffect(() => repricePreview(), [shownPreview, previewError, coupons, couponCodes.join(), coinPreview, costFloor, maxStaffDiscount]);
 
   const orderFields = ["planKey", "mealSizeId", "frequencyKey", "eatingDays", "persons", "mealSlots", "durationWeeks", "startDate"] as const;
   async function continueToPayment() {
@@ -656,6 +671,8 @@ export function useOrderDraft({
     schedule,
     subtotal,
     ceiling,
+    costFloor,
+    maxStaffDiscount,
     missing,
     liveDraft,
     continueToPayment,

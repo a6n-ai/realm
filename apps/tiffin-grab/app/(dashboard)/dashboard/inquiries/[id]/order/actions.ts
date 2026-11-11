@@ -16,11 +16,14 @@ import type { CreateOrderInput } from "@/lib/services/create-order";
 import { couponsService, type AvailableCoupon } from "@/lib/services/coupons.service";
 import { userIdByPublicId } from "@/lib/services/session-service";
 import { postCatalogSubtotal } from "@/lib/pricing/discounts";
+import { maxDiscountAboveCost } from "@/lib/pricing/cost-floor";
+import { loadMealCostFloor } from "@/lib/pricing/meal-cost";
 import type { AppliedCoupon } from "@/app/(public)/subscribe/actions";
 import { getAppSettings, getDiscountPolicy, getMaxCoinPctOfSubtotal, getMaxCoinRedeemPctOfBalance, getPaymentConfig } from "@/lib/services/app-settings.service";
 import { capRedemption } from "@foundry/wallet";
 import { coinCapMessage, coinLimits, quoteCoinCap } from "@/lib/pricing/coin-cap";
 import { applyDiscountLane } from "@/lib/services/discount-lane";
+import { round2 } from "@foundry/commons/util/money";
 import { walletService } from "@/lib/services/wallet.service";
 import { repAllowanceZone } from "@/lib/services/rep-allowance";
 import { findMethod } from "@foundry/payments";
@@ -199,7 +202,18 @@ export type StaffCouponPreview = {
 };
 /** The matched customer's wallet on this quote: what they hold, the most this order takes, and what is applied. */
 export type StaffCoinPreview = { balance: number; maxCoins: number; used: number; value: number; message: string | null };
-export type StaffPricePreview = { preview: PricingResult; coupons: StaffCouponPreview; coins: StaffCoinPreview | null };
+export type StaffPricePreview = {
+  preview: PricingResult;
+  coupons: StaffCouponPreview;
+  coins: StaffCoinPreview | null;
+  /** Kitchen COGS for this quote (cost × tiffins); null when the meal size has no cost price. */
+  costFloor: number | null;
+  /**
+   * Largest staff/manual discount that still stays above cost after auto coupons.
+   * Null when cost is unset (allowance ceiling alone applies).
+   */
+  maxStaffDiscount: number | null;
+};
 
 // The account createOrder would bill, when the contact matches exactly one. Usage-capped and
 // first-order coupons are judged against it; no match leaves those gates to createOrder. An
@@ -245,6 +259,7 @@ async function quotePrice(
     (await priceWithTax({ selections, catalog, adjustments, address, methodTaxes, reference: "admin-preview", cache: true })).pricing;
   const base = await quote([]);
   const plan = snap.plans.find((p) => p.key === input.planKey);
+  const costFloor = await loadMealCostFloor(input.selections.mealSizeId, base.tiffinCount);
 
   // Customer coupons, then the rep discount on top: the lane createOrder prices through, against
   // the subtotal after catalog discounts.
@@ -261,6 +276,7 @@ async function quotePrice(
     manualCode: input.couponCode,
     manualCodes: input.couponCodes,
     rep: code ? { code, requestedAmount: repAmount, actorId } : undefined,
+    costFloor,
     strict: false,
   });
   const { best, error, lines } = lane;
@@ -288,9 +304,16 @@ async function quotePrice(
     };
   }
 
+  // Room left for a staff code after autos only — the UI Max button uses this so a
+  // generated code is not immediately refused as below cost.
+  const autoAmount = lane.applied.filter((a) => a.coupon.autoApply).reduce((s, a) => s + a.amount, 0);
+  const maxStaffDiscount = maxDiscountAboveCost(round2(postCatalog - autoAmount), costFloor);
+
   return {
     preview: lines.length > 0 ? await quote(lines) : base,
     coins: coinPreview,
+    costFloor,
+    maxStaffDiscount,
     coupons: {
       applied,
       error,

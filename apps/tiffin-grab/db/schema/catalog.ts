@@ -70,6 +70,9 @@ export const mealSizes = pgTable("meal_sizes", {
   carbsG: integer("carbs_g"),
   fatG: integer("fat_g"),
   basePrice: numeric("base_price", { precision: 10, scale: 2 }).notNull(),
+  // Internal cost per tiffin for margin/COGS. Admin Catalog only — never sent in the
+  // public/customer catalog snapshot.
+  costPrice: numeric("cost_price", { precision: 10, scale: 2 }),
   trial: boolean("trial").notNull().default(false),
   // Days this size can be eaten and delivered on (e.g. non-veg only, while Tue/Thu are veg-only). Null or
   // empty = every day. Enforced by allowedDaysError/frequencyFits (lib/menu/delivery-days.ts).

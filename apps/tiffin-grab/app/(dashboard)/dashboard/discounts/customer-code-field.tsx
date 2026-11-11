@@ -17,7 +17,20 @@ import { useCopy } from "@/lib/hooks/use-copy";
 // Issues a one-off code on the rep's own allowance, capped against this order, and applies it to
 // the estimate so the total shown is what the customer pays after entering it at checkout.
 /** `onOrder`: staff create the order themselves, so the code is redeemed on it, not typed at checkout. */
-export function CustomerCodeField({ subtotal, apply, note, onOrder = false }: { subtotal: number; apply?: (code: string) => void; note: string; onOrder?: boolean }) {
+export function CustomerCodeField({
+  subtotal,
+  maxStaffDiscount = null,
+  apply,
+  note,
+  onOrder = false,
+}: {
+  subtotal: number;
+  /** Server-computed room above kitchen cost after auto coupons; null when cost is unset. */
+  maxStaffDiscount?: number | null;
+  apply?: (code: string) => void;
+  note: string;
+  onOrder?: boolean;
+}) {
   const fmtMoney = useFormatMoney();
   const tz = useTimezone();
   const [allowance, setAllowance] = useState<RepCodeAllowance | null>(null);
@@ -38,8 +51,12 @@ export function CustomerCodeField({ subtotal, apply, note, onOrder = false }: { 
     if (issued && apply) apply(issued.code);
   }, [issued, apply]);
 
-  // The server caps the code at redeem time too; this keeps the quoted total honest.
-  const ceiling = allowance ? round2(Math.min(allowance.capAmount, (subtotal * allowance.capPct) / 100)) : 0;
+  // Allowance dual ceiling, then the cost floor so a code can't sell the plan at a loss.
+  const allowanceCeiling = allowance ? round2(Math.min(allowance.capAmount, (subtotal * allowance.capPct) / 100)) : 0;
+  const ceiling = maxStaffDiscount == null
+    ? allowanceCeiling
+    : round2(Math.min(allowanceCeiling, maxStaffDiscount));
+  const limitedByCost = maxStaffDiscount != null && maxStaffDiscount < allowanceCeiling;
   const value = Number(amount);
   const valid = allowance != null && allowance.left > 0 && value > 0 && value <= ceiling;
 
@@ -97,7 +114,9 @@ export function CustomerCodeField({ subtotal, apply, note, onOrder = false }: { 
             <Button type="button" variant="outline" disabled={ceiling <= 0} onClick={() => setAmount(String(ceiling))}>Max</Button>
           </div>
           <p className="text-muted-foreground text-xs tabular-nums">
-            {subtotal > 0 ? `Up to ${fmtMoney(ceiling)} on this order` : "Price the order first"} · {allowance.left} of {allowance.total} left today
+            {subtotal > 0
+              ? `Up to ${fmtMoney(ceiling)} on this order${limitedByCost ? " (keeps price above cost)" : ""}`
+              : "Price the order first"} · {allowance.left} of {allowance.total} left today
           </p>
           <Button type="button" variant="outline" disabled={!valid || busy} onClick={() => void generate()}>
             {busy ? "Creating…" : "Generate code"}
