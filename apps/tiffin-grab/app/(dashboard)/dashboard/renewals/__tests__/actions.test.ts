@@ -9,6 +9,7 @@ const m = vi.hoisted(() => ({
   addTrackNote: vi.fn(),
   logTrackActivity: vi.fn(),
   revalidatePath: vi.fn(),
+  warn: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/guards", () => ({ requirePermission: m.requirePermission }));
@@ -22,6 +23,7 @@ vi.mock("@/lib/services/renewal-tracking.service", () => ({
   logTrackActivity: m.logTrackActivity,
 }));
 vi.mock("next/cache", () => ({ revalidatePath: m.revalidatePath }));
+vi.mock("@foundry/commons/logger", () => ({ createLogger: () => ({ warn: m.warn }) }));
 
 const actions = await import("../actions");
 
@@ -37,6 +39,14 @@ describe("renewal tracking actions", () => {
     expect(m.assertOrderVisible).toHaveBeenCalledWith("ord_1", "all");
     expect(m.assertOrderVisible.mock.invocationCallOrder[0]).toBeLessThan(m.setTrackStatus.mock.invocationCallOrder[0]);
     expect(m.setTrackStatus).toHaveBeenCalledWith("ord_1", { status: "expected" });
+  });
+
+  it("returns an error and skips the service when the order guard denies access", async () => {
+    m.assertOrderVisible.mockRejectedValueOnce(new ValidationError("Order not found"));
+    expect(await actions.setTrackStatusAction("ord_1", "cus_1", { status: "expected" })).toEqual({
+      error: "Order not found",
+    });
+    expect(m.setTrackStatus).not.toHaveBeenCalled();
   });
 
   it("returns a service ValidationError as a failed result", async () => {
@@ -71,6 +81,21 @@ describe("sendRenewalReminderAction", () => {
   it("does not log when already sent today", async () => {
     m.sendRenewalReminderNow.mockResolvedValue("already-sent");
     expect(await actions.sendRenewalReminderAction("ord_1", "cus_1")).toEqual({ ok: true, message: "Already sent today" });
+    expect(m.logTrackActivity).not.toHaveBeenCalled();
+  });
+
+  it("still reports the reminder sent when the activity log write fails", async () => {
+    m.sendRenewalReminderNow.mockResolvedValue("sent");
+    m.logTrackActivity.mockRejectedValueOnce(new Error("db down"));
+    expect(await actions.sendRenewalReminderAction("ord_1", "cus_1")).toEqual({ ok: true, message: "Reminder sent" });
+    expect(m.warn).toHaveBeenCalledWith(expect.objectContaining({ orderPublicId: "ord_1" }), expect.any(String));
+  });
+
+  it("does not send when the order guard denies access", async () => {
+    m.assertOrderVisible.mockRejectedValueOnce(new ValidationError("Order not found"));
+    const res = await actions.sendRenewalReminderAction("ord_1", "cus_1");
+    expect(res).toEqual({ error: "Order not found" });
+    expect(m.sendRenewalReminderNow).not.toHaveBeenCalled();
     expect(m.logTrackActivity).not.toHaveBeenCalled();
   });
 });

@@ -10,6 +10,9 @@ import { addTrackNote, logTrackActivity, setTrackStatus } from "@/lib/services/r
 import type { LostReason } from "@/lib/services/inquiries.service";
 import type { TrackStatus } from "@/lib/renewals/status";
 import { runAction, type ActionResult } from "@/lib/actions/action-result";
+import { createLogger } from "@foundry/commons/logger";
+
+const logger = createLogger("renewals:actions");
 
 async function guardOrder(orderPublicId: string) {
   await requirePermission({ order: ["write"] });
@@ -28,7 +31,11 @@ export async function sendRenewalReminderAction(orderPublicId: string, customerP
   const res = await runAction(async () => {
     await guardOrder(orderPublicId);
     if ((await sendRenewalReminderNow(orderPublicId)) !== "sent") return "Already sent today";
-    await logTrackActivity(orderPublicId, { type: "reminder_sent" });
+    try {
+      await logTrackActivity(orderPublicId, { type: "reminder_sent" });
+    } catch (err) {
+      logger.warn({ err, orderPublicId }, "reminder sent but activity log failed");
+    }
     return "Reminder sent";
   });
   revalidateRenewals(customerPublicId);
