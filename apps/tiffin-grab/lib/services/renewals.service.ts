@@ -6,7 +6,7 @@ import type { Page, PageRequest } from "@foundry/commons/util/pagination";
 import { db } from "@/db/client";
 import { deliveries, ledgerEntries, mealSizes, messageSuppression, notificationOutbox, orders, payments, plans, renewals as renewalRecords, tickets, users, walletLedger } from "@/db/schema";
 import { unexpired } from "@foundry/wallet";
-import type { DateBy, PlanType, RenewalsFilter, TrackFilter } from "@/lib/renewals/filters";
+import { renewalQueueFilter, type DateBy, type PlanType, type RenewalsFilter, type TrackFilter } from "@/lib/renewals/filters";
 import { UNASSIGNED_OWNER } from "@/lib/list/presets";
 import { lastTiffinSql, renewalStatusSql, visibleOrgWhere, type RenewalStatus } from "@/lib/orders/queries";
 import { addDaysIso, DAY_MS, daysBetween } from "@foundry/commons/util/dates";
@@ -262,6 +262,29 @@ export async function countRenewals(visible: "all" | string[], type: PlanType | 
     .from(orders)
     .where(and(typeWhere(type), visibleOrgWhere(visible), runningOrDone, rangeWhere(range)));
   return r;
+}
+
+export type TrackQueueCounts = { due: number; overdue: number; upcoming: number; open: number; closed: number };
+/** The Inquiries Renewals queues: the follow-up lists ignore the top range (as listRenewals does), Open and Closed use it. */
+export async function countTrackQueues(visible: "all" | string[], filter: RenewalsFilter, today: string, range: RenewalRange, day: DayBounds): Promise<TrackQueueCounts> {
+  if (visible !== "all" && visible.length === 0) return { due: 0, overdue: 0, upcoming: 0, open: 0, closed: 0 };
+  const base = { ...filter, type: null, ending: null, ended: null, status: null, renewed: null };
+  const countWhere = (f: RenewalsFilter) =>
+    db
+      .select({ count: sql<number>`cast(count(*) as int)` })
+      .from(orders)
+      .leftJoin(users, eq(orders.userId, users.id))
+      .leftJoin(renewalRecords, eq(renewalRecords.orderId, orders.id))
+      .where(renewalsWhere(visible, f, today, range, day))
+      .then(([r]) => r.count);
+  const [due, overdue, upcoming, open, closed] = await Promise.all([
+    countWhere({ ...base, ...renewalQueueFilter("due") }),
+    countWhere({ ...base, ...renewalQueueFilter("overdue") }),
+    countWhere({ ...base, ...renewalQueueFilter("upcoming") }),
+    countWhere({ ...base, ...renewalQueueFilter("open") }),
+    countWhere({ ...base, ...renewalQueueFilter("closed") }),
+  ]);
+  return { due, overdue, upcoming, open, closed };
 }
 
 // ── Renewed customers ────────────────────────────────────────────────────────

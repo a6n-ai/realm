@@ -1,5 +1,7 @@
 // No "use client" and no db: the server page parses with it and builds the facet spec from the options.
+import { zonedDateIso } from "@foundry/commons";
 import type { RenewalStatus } from "@/lib/orders/queries";
+import type { RenewalRange } from "@/lib/services/renewals.service";
 import { TRACK_STATUSES, type TrackStatus } from "@/lib/renewals/status";
 
 /** Plans (regular and trial, narrowed by `type`), or every customer who has renewed. */
@@ -25,6 +27,17 @@ export const TRACK_FILTERS: readonly TrackFilter[] = [...TRACK_STATUSES, "new"];
 
 export const FOLLOW_UP_KINDS = ["due", "overdue", "upcoming", "none"] as const;
 export type FollowUpKind = (typeof FOLLOW_UP_KINDS)[number];
+/** Open = not closed, a plan nobody has touched included. */
+export const OPEN_TRACKS: TrackFilter[] = ["new", "unresponsive", "expected", "follow_up", "pending_payment"];
+export const CLOSED_TRACKS: TrackFilter[] = ["renewed", "not_renewed"];
+/** The Inquiries Renewals queues: the three follow-up lists, or the Open and Closed staff statuses. */
+export const RENEWAL_QUEUES = ["due", "overdue", "upcoming", "open", "closed"] as const;
+export type RenewalQueue = (typeof RENEWAL_QUEUES)[number];
+export function renewalQueueFilter(queue: RenewalQueue): Pick<RenewalsFilter, "followUp" | "track"> {
+  if (queue === "open") return { followUp: null, track: OPEN_TRACKS };
+  if (queue === "closed") return { followUp: null, track: CLOSED_TRACKS };
+  return { followUp: queue, track: null };
+}
 
 /**
  * What the top date range filters on: the plan's last tiffin (default), its order date, any delivery
@@ -140,5 +153,15 @@ export const rowStatus = (s: RenewalStatus, lastTiffin: string | null, today: st
   s !== "none" ? s : lastTiffin != null && lastTiffin < today ? "lapsed" : "not_renewed";
 
 /** Trials read Converted / Not converted; the rest of the labels are shared. */
+/** The top date range on its chosen date: ISO days in the app timezone for tiffin dates, epoch ms for the order date. */
+export function resolveRange(f: RenewalsFilter, timezone: string): RenewalRange {
+  return {
+    by: f.dateBy,
+    fromMs: f.from,
+    toMs: f.to,
+    fromIso: f.from != null ? zonedDateIso(f.from, timezone) : null,
+    toIso: f.to != null ? zonedDateIso(f.to, timezone) : null,
+  };
+}
 export const statusLabel = (s: RenewalStatusFilter, trial = false): string =>
   trial && s === "renewed" ? "Converted" : trial && s === "not_renewed" ? "Not converted" : STATUS_LABEL[s];

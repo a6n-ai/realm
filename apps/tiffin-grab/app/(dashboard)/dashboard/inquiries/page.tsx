@@ -6,7 +6,7 @@ import { StatCards, StatCardsSkeleton } from "@/components/dashboard/stat-cards"
 import Link from "next/link";
 import { db } from "@/db/client";
 import { deliveryZones, inquiries } from "@/db/schema";
-import { requireStaff } from "@/lib/auth/guards";
+import { requireStaff, roleCan } from "@/lib/auth/guards";
 import { LOST_REASON_LABELS } from "@/lib/services/analytics/leads.service";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { listActiveLeadSources } from "@/lib/services/lead-sources.service";
@@ -19,6 +19,7 @@ import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { listableMealSizes } from "@/lib/catalog/types";
 import { Button } from "@foundry/ui/button";
 import { Skeleton } from "@foundry/ui/skeleton";
+import { Tabs, TabsList, TabsTrigger } from "@foundry/ui/tabs";
 import {
   PageShell,
   PageHeader,
@@ -32,6 +33,7 @@ import { InquiriesList, InquiriesListSkeleton } from "./inquiries-list";
 import { reassignInquiry } from "./actions";
 import { SUB_STATUSES, SUB_STATUS_META } from "@/lib/inquiries/status";
 import { QueueTabs } from "./queue-tabs";
+import { RenewalsQueue } from "./renewals-queue";
 import { MarkSectionRead } from "@/components/dashboard/mark-section-read";
 import { SectionDateRange } from "@/components/filters/section-date-range";
 import { epochBoundsWhere, withDefaultMonth } from "@/lib/list/default-month";
@@ -96,13 +98,42 @@ export default async function InquiriesPage({ searchParams }: { searchParams: Se
 
       <SectionCard title="Follow-up queue">
         <Suspense fallback={<InquiriesListSkeleton />}>
-          <InquiriesData searchParams={searchParams} />
+          <QueueSection searchParams={searchParams} />
         </Suspense>
       </SectionCard>
     </PageShell>
   );
 }
 
+/** Leads (the default) or Renewals, the plans that need a follow-up. The switch shows only to viewers who can read orders. */
+async function QueueSection({ searchParams }: { searchParams: SearchParams }) {
+  const sp = await searchParams;
+  const canRenewals = roleCan((await getSession())?.user.role ?? "", { order: ["read"] });
+  const renewals = canRenewals && sp.view === "renewals";
+  return (
+    <div className="flex flex-col gap-4">
+      {canRenewals && <QueueViewSwitch view={renewals ? "renewals" : "leads"} owner={sp.owner} />}
+      {renewals ? <RenewalsQueue sp={sp} /> : <InquiriesData searchParams={searchParams} />}
+    </div>
+  );
+}
+function QueueViewSwitch({ view, owner }: { view: "leads" | "renewals"; owner: string | undefined }) {
+  const keep = owner ? `owner=${encodeURIComponent(owner)}` : "";
+  const leadsHref = keep ? `/dashboard/inquiries?${keep}` : "/dashboard/inquiries";
+  const renewalsHref = `/dashboard/inquiries?${["view=renewals", keep].filter(Boolean).join("&")}`;
+  return (
+    <Tabs value={view}>
+      <TabsList variant="line" aria-label="Follow-up views">
+        <TabsTrigger value="leads" asChild>
+          <Link href={leadsHref} prefetch={false}>Leads</Link>
+        </TabsTrigger>
+        <TabsTrigger value="renewals" asChild>
+          <Link href={renewalsHref} prefetch={false}>Renewals</Link>
+        </TabsTrigger>
+      </TabsList>
+    </Tabs>
+  );
+}
 async function loadSheetData() {
   const [{ defaultCountry, timezone }, sources, zones, catalog] = await Promise.all([
     getAppSettings(),

@@ -10,7 +10,7 @@ const { orders, payments, orderActivities, ledgerEntries, users, walletLedger, d
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { nextWeekday } = await import("@foundry/commons");
 const { createOrder } = await import("../create-order");
-const { countRenewals, getCustomerRenewal, listRenewals, listRenewedCustomers, reminderDelivery } = await import("../renewals.service");
+const { countRenewals, countTrackQueues, getCustomerRenewal, listRenewals, listRenewedCustomers, reminderDelivery } = await import("../renewals.service");
 const { addTrackNote, setTrackStatus } = await import("../renewal-tracking.service");
 const { messageSuppression } = await import("@/db/schema");
 const { addDaysIso: addDays, dayRange } = await import("@foundry/commons/util/dates");
@@ -165,6 +165,21 @@ describe("renewals service (integration)", () => {
     expect(await on(p.last)).toEqual([p.publicId]);
   });
 
+  it("countTrackQueues: each queue counts its plans; a closed plan never counts as due", async () => {
+    const dayStart = Date.parse("2099-05-10T00:00:00Z");
+    const dayEnd = dayStart + 86_400_000;
+    const due = await plan();
+    const overdue = await plan();
+    const upcoming = await plan();
+    await plan();
+    const closed = await plan();
+    await setTrackStatus(due.publicId, { status: "follow_up", nextFollowUpAt: dayStart + 1000 });
+    await setTrackStatus(overdue.publicId, { status: "follow_up", nextFollowUpAt: dayStart - 1 });
+    await setTrackStatus(upcoming.publicId, { status: "follow_up", nextFollowUpAt: dayEnd + 1000 });
+    await setTrackStatus(closed.publicId, { status: "not_renewed", lostReason: "price", nextFollowUpAt: dayStart + 1000 });
+    const counts = await countTrackQueues("all", { ...f0, type: null }, "2099-05-10", open, { dayStart, dayEnd });
+    expect(counts).toEqual({ due: 1, overdue: 1, upcoming: 1, open: 4, closed: 1 });
+  });
   it("rows carry the fact chips and money, and the cards match the list", async () => {
     const before = await plan("completed");
     const p = await plan();

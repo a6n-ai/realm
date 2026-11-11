@@ -13,11 +13,11 @@ import { loadOwnerOptions } from "@/lib/list/facet-options";
 import { UNASSIGNED_OWNER, resolveOwnerParam } from "@/lib/list/presets";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
-import { countRenewals, listRenewals, listRenewedCustomers, type RenewalRange } from "@/lib/services/renewals.service";
+import { countRenewals, listRenewals, listRenewedCustomers } from "@/lib/services/renewals.service";
 import { SectionDateRange } from "@/components/filters/section-date-range";
 import { withListDates } from "@/lib/list/default-month";
 import { DateByPicker } from "@/components/filters/date-by-picker";
-import { DATE_BY, ENDED_DAYS, ENDING_DAYS, RENEWAL_STATUSES, RENEWED_DAYS, statusLabel, parseRenewalsFilter, renewalsQuery, type RenewalsFilter } from "@/lib/renewals/filters";
+import { DATE_BY, ENDED_DAYS, ENDING_DAYS, RENEWAL_STATUSES, RENEWED_DAYS, resolveRange, statusLabel, parseRenewalsFilter, renewalsQuery, type RenewalsFilter } from "@/lib/renewals/filters";
 import { RenewalFactsLegend } from "./fact-tags";
 import { RenewalsExportButton } from "./renewals-export-button";
 import { RenewalsList, RenewalsListSkeleton, RenewedCustomersList, RenewedCustomersListSkeleton } from "./renewals-list";
@@ -32,17 +32,6 @@ async function scope() {
   const today = zonedDateIso(requestNow(), timezone);
   const day = dayRange(today, timezone);
   return { visible, timezone, today, viewer: session?.user.id, day: { dayStart: day.start, dayEnd: day.end } };
-}
-
-/** The top range on its chosen date: ISO days in the app timezone for tiffin dates, epoch ms for the order date. */
-function resolveRange(f: RenewalsFilter, timezone: string): RenewalRange {
-  return {
-    by: f.dateBy,
-    fromMs: f.from,
-    toMs: f.to,
-    fromIso: f.from != null ? zonedDateIso(f.from, timezone) : null,
-    toIso: f.to != null ? zonedDateIso(f.to, timezone) : null,
-  };
 }
 
 export default async function RenewalsPage({ searchParams }: { searchParams: SearchParams }) {
