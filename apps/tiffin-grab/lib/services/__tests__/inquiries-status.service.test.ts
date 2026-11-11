@@ -24,6 +24,8 @@ vi.mock("../create-order", async (orig) => {
 });
 
 vi.mock("@/lib/auth/guards", () => ({ requireStaff: async () => ({}) }));
+// The bulk action checks org visibility; these tests act as staff who see every organization.
+vi.mock("@/lib/auth/visible-orgs", () => ({ resolveSessionVisibleOrgIds: async () => "all" }));
 vi.mock("next/cache", () => ({ revalidatePath: () => {} }));
 
 const { inquiriesService } = await import("../inquiries.service");

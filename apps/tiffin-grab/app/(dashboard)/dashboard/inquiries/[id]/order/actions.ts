@@ -10,7 +10,7 @@ import { runAction, type ActionResult } from "@/lib/actions/action-result";
 import { getSession } from "@/lib/auth/session";
 import { db } from "@/db/client";
 import { coupons, orders } from "@/db/schema";
-import { inquiriesService } from "@/lib/services/inquiries.service";
+import { assertInquiriesVisible, inquiriesService } from "@/lib/services/inquiries.service";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import type { CreateOrderInput } from "@/lib/services/create-order";
 import { couponsService, type AvailableCoupon } from "@/lib/services/coupons.service";
@@ -330,6 +330,7 @@ export async function convertInquiry(
 ): Promise<ActionResult<{ publicId: string; deploymentId: string; paymentPublicId: string; payUrl: string | null }>> {
   return runAction(async () => {
     await requireStaff();
+    await assertInquiriesVisible([inquiryId], await resolveSessionVisibleOrgIds(await getSession()));
     const result = await inquiriesService.convert(inquiryId, input);
     revalidatePath("/dashboard/orders");
     revalidatePath("/dashboard/inquiries");

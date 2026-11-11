@@ -10,7 +10,8 @@ import { canReassign } from "@/lib/services/reassign";
 import { listAssignableStaff } from "@/lib/services/assignable-staff";
 import { reassignInquiry } from "../actions";
 import { requireStaff } from "@/lib/auth/guards";
-import { inquiriesService } from "@/lib/services/inquiries.service";
+import { assertInquiriesVisible, inquiriesService } from "@/lib/services/inquiries.service";
+import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { findExistingByContact } from "@/lib/services/customers.service";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
@@ -43,6 +44,7 @@ async function InquiryDetail({ params }: { params: Promise<{ id: string }> }) {
 
   let inq;
   try {
+    await assertInquiriesVisible([id], await resolveSessionVisibleOrgIds(await getSession()));
     inq = await inquiriesService.read(id);
   } catch (e) {
     if (e instanceof NotFoundError) notFound();

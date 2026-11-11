@@ -2,7 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { requireStaff } from "@/lib/auth/guards";
+import { getSession } from "@/lib/auth/session";
+import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import {
+  assertInquiriesVisible,
   inquiriesService,
   type ActivityType,
   type LostReason,
@@ -15,6 +18,12 @@ import { QUICK_ADD_MAX, parsePastedPhones } from "./quick-add/parse-phones";
 
 // Every action returns { error } instead of throwing: production redacts thrown messages and the
 // POST shows up as a 500, so staff saw a generic error for a plain validation miss.
+
+/** Staff only, and every lead touched must be in one of the viewer's organizations (franchise staff never reach another franchise's leads). */
+async function guardInquiries(...ids: string[]): Promise<void> {
+  await requireStaff();
+  await assertInquiriesVisible(ids, await resolveSessionVisibleOrgIds(await getSession()));
+}
 
 export async function createInquiry(input: {
   fullName?: string;
@@ -77,7 +86,7 @@ export async function updateInquiryContact(
   input: { fullName?: string | null; phone?: string | null; whatsappPhone?: string | null; email?: string | null },
 ): Promise<ActionResult<{ fullName: string | null }>> {
   return runAction(async () => {
-    await requireStaff();
+    await guardInquiries(inquiryId);
     const inq = await inquiriesService.updateContact(inquiryId, input);
     revalidatePath("/dashboard/inquiries");
     revalidatePath(`/dashboard/inquiries/${inquiryId}`);
@@ -90,7 +99,7 @@ export async function logActivity(
   input: { type: ActivityType; outcome?: string; note?: string; nextFollowUpAt?: number; amount?: number },
 ) {
   return runAction(async () => {
-    await requireStaff();
+    await guardInquiries(inquiryId);
     await inquiriesService.logActivity(inquiryId, input);
     revalidatePath(`/dashboard/inquiries/${inquiryId}`);
     revalidatePath("/dashboard/inquiries");
@@ -103,6 +112,7 @@ export async function clearFollowUp(inquiryId: string): Promise<ActionResult> {
     const parsed = z.string().trim().min(1).max(64).safeParse(inquiryId);
     if (!parsed.success) throw new ValidationError("Invalid inquiry");
     const id = parsed.data;
+    await guardInquiries(id);
     await inquiriesService.clearFollowUp(id);
     revalidatePath(`/dashboard/inquiries/${id}`);
     revalidatePath("/dashboard/inquiries");
@@ -114,7 +124,7 @@ export async function updateStatus(
   input: { subStatus: SubStatus | null; note?: string; nextFollowUpAt?: number | null; lostReason?: LostReason },
 ): Promise<ActionResult<{ previous: SubStatus | null }>> {
   return runAction(async () => {
-    await requireStaff();
+    await guardInquiries(inquiryId);
     const { previous } = await inquiriesService.setStatus(inquiryId, input);
     revalidatePath("/dashboard/inquiries");
     revalidatePath(`/dashboard/inquiries/${inquiryId}`);
@@ -124,7 +134,7 @@ export async function updateStatus(
 
 export async function addNote(inquiryId: string, note: string, nextFollowUpAt?: number) {
   return runAction(async () => {
-    await requireStaff();
+    await guardInquiries(inquiryId);
     await inquiriesService.addNote(inquiryId, note, nextFollowUpAt);
     revalidatePath(`/dashboard/inquiries/${inquiryId}`);
     revalidatePath("/dashboard/inquiries");
@@ -133,7 +143,7 @@ export async function addNote(inquiryId: string, note: string, nextFollowUpAt?: 
 
 export async function reassignInquiry(inquiryId: string, ownerId: string): Promise<ActionResult> {
   return runAction(async () => {
-    await requireStaff();
+    await guardInquiries(inquiryId);
     await inquiriesService.reassign(inquiryId, ownerId);
     revalidatePath("/dashboard/inquiries");
     revalidatePath(`/dashboard/inquiries/${inquiryId}`);
@@ -142,7 +152,7 @@ export async function reassignInquiry(inquiryId: string, ownerId: string): Promi
 
 export async function reassignInquiries(inquiryIds: string[], ownerId: string) {
   return runAction(async () => {
-    await requireStaff();
+    await guardInquiries(...inquiryIds);
     const count = await inquiriesService.reassignMany(inquiryIds, ownerId);
     revalidatePath("/dashboard/inquiries");
     return { count };
@@ -157,6 +167,7 @@ export async function bulkSetStatus(
     await requireStaff();
     const ids = [...new Set(inquiryIds)];
     if (ids.length > 200) throw new ValidationError("Update at most 200 inquiries at a time");
+    await guardInquiries(...ids);
     if (isClosed(subStatus) ? subStatus !== "undeliverable" : !SUB_STATUS_META[subStatus].pickable) {
       throw new ValidationError("That status can't be set in bulk");
     }

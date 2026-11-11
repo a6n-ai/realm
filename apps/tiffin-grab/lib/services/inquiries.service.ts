@@ -5,7 +5,7 @@ import { orderStatusIn } from "@/lib/orders/status-sql";
 import { pageOffset } from "@foundry/design-system/filters/parse-filter-state";
 import { STAFF_ROLES } from "@/lib/auth/roles";
 import { BaseRepository, UpdatableRepository, conditionToSql, columnResolver, pageOrder } from "@foundry/database";
-import { ValidationError, phoneSchema, emailSchema } from "@foundry/commons";
+import { NotFoundError, ValidationError, phoneSchema, emailSchema } from "@foundry/commons";
 import type { Condition, FilterCondition } from "@foundry/commons/model/condition";
 import type { PageRequest } from "@foundry/commons/util/pagination";
 import { and, asc, count, desc, eq, getTableColumns, inArray, isNull, ne, notInArray, or, sql, type SQL } from "drizzle-orm";
@@ -118,6 +118,22 @@ type LostReason = (typeof inquiries.lostReason.enumValues)[number];
 
 const newWhere = (visible: "all" | string[]) =>
   and(eq(inquiries.stage, "new"), visible === "all" ? undefined : inArray(inquiries.organizationId, visible));
+
+/**
+ * Every inquiry in `publicIds` must sit in one of the viewer's organizations, the same rule as
+ * assertOrderVisible: a row with no organization counts only for "all". One miss fails the whole call,
+ * and a hidden lead reads as not found so ids from another franchise are not confirmed to exist.
+ */
+export async function assertInquiriesVisible(publicIds: readonly string[], visible: "all" | string[]): Promise<void> {
+  const ids = [...new Set(publicIds)];
+  if (ids.length === 0) return;
+  if (visible !== "all" && visible.length === 0) throw new NotFoundError("Inquiry not found");
+  const rows = await db
+    .select({ id: inquiries.id })
+    .from(inquiries)
+    .where(and(inArray(inquiries.publicId, ids), visible === "all" ? undefined : inArray(inquiries.organizationId, visible)));
+  if (rows.length !== ids.length) throw new NotFoundError("Inquiry not found");
+}
 
 const recommendCur = alias(inquiries, "cur");
 
