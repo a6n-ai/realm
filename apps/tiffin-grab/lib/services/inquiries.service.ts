@@ -775,8 +775,26 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
           createdAt: inquiries.createdAt,
           lastTouchAt: agg.lastTouchAt,
           nextFollowUpAt: inquiries.nextFollowUpAt,
+          planInterest: inquiries.planInterest,
+          mealSizeInterest: inquiries.mealSizeInterest,
+          quotedPrice: inquiries.quotedPrice,
+          attempts: sql<number>`cast((
+            select count(*) from inquiry_activities a
+            where a.inquiry_id = ${inquiries.id} and a.type = 'call'
+          ) as int)`,
           lastNote: sql<string | null>`(
             select a.note from inquiry_activities a
+            where a.inquiry_id = ${inquiries.id} and a.note is not null
+            order by a.created_at desc limit 1
+          )`,
+          lastNoteAt: sql<number | null>`(
+            select a.created_at from inquiry_activities a
+            where a.inquiry_id = ${inquiries.id} and a.note is not null
+            order by a.created_at desc limit 1
+          )`,
+          lastNoteBy: sql<string | null>`(
+            select u.name from inquiry_activities a
+            left join users u on u.id = a.created_by
             where a.inquiry_id = ${inquiries.id} and a.note is not null
             order by a.created_at desc limit 1
           )`,

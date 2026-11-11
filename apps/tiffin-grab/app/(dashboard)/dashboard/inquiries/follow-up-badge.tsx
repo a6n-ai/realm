@@ -13,7 +13,7 @@ export function ago(ms: number, now: number): string {
 
 export function FollowUpBadge({ lead, dayStart, dayEnd, now, timeZone }: { lead: PipelineRow; timeZone: string; now: number; dayStart: number; dayEnd: number }) {
   const at = lead.nextFollowUpAt;
-  if (at == null) return <Badge variant="outline">No follow-up</Badge>;
+  if (at == null) return <Badge variant="warning-light">No follow-up set</Badge>;
   if (at < dayStart) return <Badge variant="destructive-light">Overdue · {ago(at, now)}</Badge>;
   if (at < dayEnd) return <Badge variant="warning-light">Due {formatEpoch(at, { mode: "time", timeZone })}</Badge>;
   return <Badge variant="secondary">{formatEpoch(at, { mode: "datetime", timeZone })}</Badge>;

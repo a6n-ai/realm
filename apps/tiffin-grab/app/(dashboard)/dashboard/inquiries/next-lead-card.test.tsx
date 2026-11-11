@@ -2,7 +2,7 @@
 import "@testing-library/jest-dom/vitest";
 import type { ReactElement } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render as rtlRender, screen } from "@testing-library/react";
+import { cleanup, render as rtlRender, screen, within } from "@testing-library/react";
 import { eq } from "@foundry/commons/model/condition";
 import { TimezoneProvider } from "@foundry/design-system/timezone-provider";
 import { TooltipProvider } from "@foundry/ui/tooltip";
@@ -51,6 +51,7 @@ const owner = (current: string): NextLeadCardProps["owner"] => ({
 
 const base: Omit<NextLeadCardProps, "lead"> = {
   timeZone: "UTC",
+  currency: "CAD",
   now: NOW,
   dayStart: DAY_START,
   dayEnd: DAY_END,
@@ -72,7 +73,8 @@ describe("NextLeadCard", () => {
     expect(screen.getByRole("link", { name: /WhatsApp/ })).toHaveAttribute("href", "https://wa.me/4165550123");
     expect(screen.getByRole("link", { name: "Open lead" })).toHaveAttribute("href", "/dashboard/inquiries/inq_1");
     expect(screen.getByText("Asked about veg thali")).toBeInTheDocument();
-    expect(screen.getByText(/Instagram · created 3d ago/)).toBeInTheDocument();
+    expect(screen.getByText("created 3d ago")).toBeInTheDocument();
+    expect(screen.getByText("Instagram")).toBeInTheDocument();
   });
 
   it("hides Call and WhatsApp when the lead has no phone", () => {
@@ -92,7 +94,7 @@ describe("NextLeadCard", () => {
     expect(screen.getByText("Nov 12, 2026, 1:00 AM")).toBeInTheDocument();
     later.unmount();
     render(<NextLeadCard {...base} lead={lead({ nextFollowUpAt: null })} />);
-    expect(screen.getByText("No follow-up")).toBeInTheDocument();
+    expect(screen.getByText("No follow-up set")).toBeInTheDocument();
   });
 
   it("renders Previous and Next as links only when hrefs are given", () => {
@@ -130,38 +132,52 @@ describe("NextLeadCard", () => {
     expect(screen.getByText("Ravi Shah's queue")).toBeInTheDocument();
   });
 
-  it("shows up to 6 up-next cards in a labelled strip, each name opening its lead page", () => {
-    const up = ["Bea", "Carl", "Dana", "Eli", "Finn", "Gus"].map((name, i) =>
-      lead({ publicId: `inq_${i + 2}`, fullName: name, ownerName: "Ravi Shah" }),
-    ) as unknown as NextLeadCardProps["upNext"];
+  it("shows plan, meal size, quoted and attempts facts, hiding the ones with no value", () => {
+    render(<NextLeadCard {...base} lead={lead({ planInterest: "Veg 4wk", mealSizeInterest: "Regular", quotedPrice: "240.00", attempts: 2 } as Partial<PipelineRow>)} />);
+    expect(screen.getByText("Veg 4wk")).toBeInTheDocument();
+    expect(screen.getByText("Regular")).toBeInTheDocument();
+    expect(screen.getByText("$240.00")).toBeInTheDocument();
+    expect(screen.getByText("2")).toBeInTheDocument();
+  });
+  it("hides the quoted fact when there is no quote", () => {
+    render(<NextLeadCard {...base} lead={lead({ quotedPrice: null, planInterest: null, mealSizeInterest: null, attempts: 0 } as Partial<PipelineRow>)} />);
+    expect(screen.queryByText("Quoted")).not.toBeInTheDocument();
+    expect(screen.queryByText("Plan")).not.toBeInTheDocument();
+  });
+  it("shows the last note with its author and age", () => {
+    render(<NextLeadCard {...base} lead={lead({ lastNoteBy: "Asha", lastNoteAt: NOW - 2 * 86_400_000 } as Partial<PipelineRow>)} />);
+    expect(screen.getByText("Asha, 2d ago")).toBeInTheDocument();
+  });
+  it("shows up to 6 up-next tiles, each linking to the lead in the card with the owner's count left over", () => {
+    const up = ["Bea", "Carl", "Dana", "Eli", "Finn", "Gus"].map((name, i) => ({
+      ...lead({ publicId: `inq_${i + 2}`, fullName: name, ownerName: "Ravi Shah" }),
+      href: `/dashboard/inquiries?lead=inq_${i + 2}`,
+    })) as unknown as NextLeadCardProps["upNext"];
     render(<NextLeadCard {...base} owner={owner("all")} lead={lead()} upNext={up} />);
     const strip = screen.getByRole("region", { name: "Up next leads" });
-    const rows = up.map((r) => screen.getByRole("link", { name: r.fullName ?? "" }));
-    expect(rows).toHaveLength(6);
-    expect(strip).toContainElement(rows[0]);
-    expect(rows[0]).toHaveAttribute("href", "/dashboard/inquiries/inq_2");
-    expect(rows[5]).toHaveAttribute("href", "/dashboard/inquiries/inq_7");
-    expect(screen.getAllByText("Ravi Shah")).toHaveLength(6);
-    expect(screen.getAllByRole("button", { name: "Change status" })).toHaveLength(6);
-    expect(screen.getAllByRole("button", { name: /^Add note for/ })).toHaveLength(6);
+    const tiles = up.map((r) => screen.getByRole("link", { name: new RegExp(r.fullName ?? "") }));
+    expect(tiles).toHaveLength(6);
+    expect(strip).toContainElement(tiles[0]);
+    expect(tiles[0]).toHaveAttribute("href", "/dashboard/inquiries?lead=inq_2");
+    expect(tiles[5]).toHaveAttribute("href", "/dashboard/inquiries?lead=inq_7");
+    expect(screen.getAllByText(/Ravi Shah/)).toHaveLength(6);
+    expect(within(strip).queryAllByRole("button")).toHaveLength(0);
+    expect(screen.getByText("Up next, 5 more")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "View all open" })).toHaveAttribute("href", "/dashboard/inquiries?queue=open&owner=me");
   });
-
-  it("hides Set follow-up on a closed up-next lead and has no Open button on up-next rows", () => {
+  it("has no inline controls on up-next tiles, even for a closed lead", () => {
     const up = [
       { ...lead({ publicId: "inq_8", fullName: "Hari", subStatus: "took_plan" }), href: "/dashboard/inquiries?lead=inq_8" },
       { ...lead({ publicId: "inq_9", fullName: "Ivy", subStatus: null }), href: "/dashboard/inquiries?lead=inq_9" },
     ] as unknown as NextLeadCardProps["upNext"];
     render(<NextLeadCard {...base} lead={lead()} upNext={up} />);
-    expect(screen.getAllByRole("button", { name: /^Set follow-up for/ })).toHaveLength(1);
-    expect(screen.getByRole("link", { name: "Hari" })).toHaveAttribute("href", "/dashboard/inquiries/inq_8");
-    expect(screen.queryByRole("link", { name: "Open Hari" })).toBeNull();
-    expect(screen.queryByRole("link", { name: "Open Ivy" })).toBeNull();
+    expect(screen.getByRole("link", { name: /Hari/ })).toHaveAttribute("href", "/dashboard/inquiries?lead=inq_8");
+    expect(screen.queryByRole("button", { name: /^Set follow-up for|^Add note for|^Change status/ })).toBeNull();
   });
-
-  it("omits the owner name on up-next rows unless the card is all owners", () => {
+  it("omits the owner name on up-next tiles unless the card is all owners", () => {
     const up = [{ ...lead({ publicId: "inq_9", fullName: "Fay", ownerName: "Ravi Shah" }), href: "/dashboard/inquiries?lead=inq_9" }] as unknown as NextLeadCardProps["upNext"];
     render(<NextLeadCard {...base} lead={lead()} upNext={up} />);
-    expect(screen.getByRole("link", { name: "Fay" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Fay/ })).toBeInTheDocument();
     expect(screen.queryByText("Ravi Shah")).not.toBeInTheDocument();
   });
 });

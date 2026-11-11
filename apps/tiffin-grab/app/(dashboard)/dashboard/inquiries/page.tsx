@@ -125,7 +125,7 @@ async function NextLead({ searchParams }: { searchParams: SearchParams }) {
   const canRenewals = roleCan(session?.user.role ?? "", { order: ["read"] });
   if (!viewer || (canRenewals && sp.view === "renewals")) return null;
 
-  const { timezone } = await getAppSettings();
+  const { timezone, currency } = await getAppSettings();
   const now = requestNow();
   const { start: dayStart, end: dayEnd } = dayRange(zonedDateIso(now, timezone), timezone);
   const leadOwner = typeof sp.leadOwner === "string" ? sp.leadOwner : ME;
@@ -147,13 +147,14 @@ async function NextLead({ searchParams }: { searchParams: SearchParams }) {
   const upNextRows = upNextIds.length
     ? await inquiriesService.listForPipeline(scope, { page: 0, size: upNextIds.length }, undefined, undefined, inArray(inquiries.publicId, upNextIds)).then((r) => r.items)
     : [];
-  const upNext = upNextIds.flatMap((id) => upNextRows.filter((r) => r.publicId === id));
+  const upNext = upNextIds.flatMap((id) => upNextRows.filter((r) => r.publicId === id).map((r) => ({ ...r, href: `/dashboard/inquiries?${leadQuery(sp, r.publicId)}` })));
   const ownerOptions = [{ value: ME, label: "Me" }, { value: ALL_OWNERS, label: "All owners" }, ...owners];
 
   return (
     <NextLeadCard
       lead={lead}
       timeZone={timezone}
+      currency={currency}
       now={now}
       dayStart={dayStart}
       dayEnd={dayEnd}
