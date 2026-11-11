@@ -95,7 +95,7 @@ function ChangeStatusDialog({
   const [note, setNote] = useState("");
   const [followUp, setFollowUp] = useState<FollowUpValue | null>(null);
   // The service rejects a follow-up on a closed plan, so the picker only appears for open ones.
-  const hideFollowUp = isClosedTrack(from) || isClosedTrack(to);
+  const hideFollowUp = isClosedTrack(to);
   const submit = () => onSave(note.trim() || undefined, hideFollowUp ? undefined : followUp?.at);
   return (
     <Dialog open onOpenChange={onOpenChange}>

@@ -54,9 +54,7 @@ export function TrackNoteDialog({
             nextFollowUpAt: followUp?.at,
           }));
         }
-        onOpenChange(false);
-        setNote("");
-        setFollowUp(null);
+        handleOpenChange(false);
         router.refresh();
       } catch (e) {
         toast.error(e instanceof Error ? e.message : "Could not save");
@@ -64,8 +62,16 @@ export function TrackNoteDialog({
     });
   }
 
+  function handleOpenChange(next: boolean) {
+    if (!next) {
+      setNote("");
+      setFollowUp(null);
+    }
+    onOpenChange(next);
+  }
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="flex flex-col gap-4 sm:max-w-md" onClick={(e) => e.stopPropagation()}>
         <DialogHeader>
           <DialogTitle>{TITLE[kind]}</DialogTitle>
