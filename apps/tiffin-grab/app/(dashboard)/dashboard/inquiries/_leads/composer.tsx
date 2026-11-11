@@ -81,8 +81,12 @@ export function Composer({ inquiryId, timeZone, onSaved }: { inquiryId: string; 
 }
 
 /** Desktop: inline card. Mobile: a button that opens the same composer in a top drawer. */
-export function InlineComposer({ inquiryId, timeZone }: { inquiryId: string; timeZone: string }) {
-  const [open, setOpen] = useState(false);
+export function InlineComposer({ inquiryId, timeZone, open, onOpenChange }: {
+  inquiryId: string;
+  timeZone: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
   return (
     <>
       <Card className="hidden lg:block">
@@ -93,9 +97,9 @@ export function InlineComposer({ inquiryId, timeZone }: { inquiryId: string; tim
           <Composer inquiryId={inquiryId} timeZone={timeZone} />
         </CardContent>
       </Card>
-      <Button variant="outline" className="lg:hidden" onClick={() => setOpen(true)}>Log activity</Button>
-      <ResponsiveDialog open={open} onOpenChange={setOpen} title="Log activity" description="Saved to the lead's activity timeline.">
-        <Composer inquiryId={inquiryId} timeZone={timeZone} onSaved={() => setOpen(false)} />
+      <Button variant="outline" className="lg:hidden" onClick={() => onOpenChange(true)}>Log activity</Button>
+      <ResponsiveDialog open={open} onOpenChange={onOpenChange} title="Log activity" description="Saved to the lead's activity timeline.">
+        <Composer inquiryId={inquiryId} timeZone={timeZone} onSaved={() => onOpenChange(false)} />
       </ResponsiveDialog>
     </>
   );

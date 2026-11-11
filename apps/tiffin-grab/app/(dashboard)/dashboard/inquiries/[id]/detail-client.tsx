@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useTransition, type ReactNode } from "react";
 import {
-  ArrowLeftIcon, ArrowRightIcon, PencilIcon, PhoneIcon, ShoppingBagIcon, type LucideIcon,
+  ArrowLeftIcon, ArrowRightIcon, MessageCircleIcon, PencilIcon, PhoneIcon, ShoppingBagIcon, StickyNoteIcon, type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@foundry/ui/button";
@@ -23,7 +23,8 @@ import { unwrapAction } from "@/lib/actions/unwrap";
 import type { ActionResult } from "@/lib/actions/action-result";
 import { NoteDialog, StatusMenu, type NoteKind } from "../_leads/status-dialog";
 import { InlineComposer } from "../_leads/composer";
-import { ContactChips } from "@/components/dashboard/next-item/contact-chips";
+import { ContactChips, whatsappHref } from "@/components/dashboard/next-item/contact-chips";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@foundry/ui/collapsible";
 import { BreadcrumbLabel } from "@/components/dashboard/app-breadcrumbs";
 import { InquiryTimeline, type TimelineActivity } from "./inquiry-timeline";
 import { ConvertSheet } from "./convert-sheet";
@@ -135,6 +136,8 @@ export function InquiryDetailClient({
   const [convertOpen, setConvertOpen] = useState(() => sp.get("convert") === "1" && !terminal);
   const [noteKind, setNoteKind] = useState<NoteKind | null>(null);
   const [pickPending, startPick] = useTransition();
+  const [composerOpen, setComposerOpen] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
 
 
   function saveFollowUp(at: number) {
@@ -191,9 +194,10 @@ export function InquiryDetailClient({
 
   const name = displayName(contact);
   const addPhone = !contact.phone && canEditContact;
+  const waHref = whatsappHref(contact);
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4 pb-24 lg:pb-0">
       <BreadcrumbLabel segment={inquiryId} label={name} />
       <Card>
         <CardContent className="flex flex-col gap-3">
@@ -273,7 +277,7 @@ export function InquiryDetailClient({
               onMarkDone={markFollowUpDone}
             />
           )}
-          <InlineComposer inquiryId={inquiryId} timeZone={tz} />
+          <InlineComposer inquiryId={inquiryId} timeZone={tz} open={composerOpen} onOpenChange={setComposerOpen} />
           <Card className="min-w-0">
             <CardHeader>
               <CardTitle>Activity</CardTitle>
@@ -284,7 +288,12 @@ export function InquiryDetailClient({
           </Card>
         </div>
 
+        <Collapsible open={detailsOpen} onOpenChange={setDetailsOpen} asChild>
         <aside className="min-w-0 lg:sticky lg:top-4">
+          <CollapsibleTrigger asChild>
+            <Button variant="outline" className="w-full lg:hidden">Details</Button>
+          </CollapsibleTrigger>
+          <CollapsibleContent forceMount className="mt-4 lg:mt-0 lg:block">
           <Card>
             <CardHeader>
               <CardTitle>Details</CardTitle>
@@ -311,7 +320,26 @@ export function InquiryDetailClient({
               ) : null}
             </CardContent>
           </Card>
+          </CollapsibleContent>
         </aside>
+        </Collapsible>
+      </div>
+
+      <div className="bg-background fixed inset-x-0 bottom-0 z-30 flex gap-2 border-t p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] lg:hidden">
+        {contact.phone ? (
+          <Button asChild variant="outline" className="flex-1">
+            <a href={`tel:${contact.phone}`}><PhoneIcon aria-hidden />Call</a>
+          </Button>
+        ) : null}
+        {waHref ? (
+          <Button asChild variant="outline" className="flex-1">
+            <a href={waHref} target="_blank" rel="noopener noreferrer"><MessageCircleIcon aria-hidden />WhatsApp</a>
+          </Button>
+        ) : null}
+        <Button variant="outline" className="flex-1" onClick={() => setComposerOpen(true)}>
+          <StickyNoteIcon aria-hidden />
+          Note
+        </Button>
       </div>
 
       {noteKind ? (
