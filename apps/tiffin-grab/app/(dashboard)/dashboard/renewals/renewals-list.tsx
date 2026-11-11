@@ -18,7 +18,6 @@ import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@foundry/design-system/timezone-provider";
 import { EstimateButton } from "./estimate-button";
 
-
 const COLUMNS: readonly Column<"customer" | "plan" | "last" | "status" | "coins" | "spent" | "total" | "actions">[] = [
   // Widths sum to ~1090px with the # and Order columns, so all nine fit a 1440px screen.
   { key: "customer", label: "Customer", width: "w-40" },
@@ -46,7 +45,6 @@ function whenLabel(lastTiffin: string, today: string) {
   if (d === -1) return "yesterday";
   return d > 0 ? `in ${d} days` : `${-d} days ago`;
 }
-
 
 /** Rows open the customer's renewal page; an order with no account falls back to the order. */
 const renewalHref = (r: { customerPublicId: string | null; orderPublicId: string }) =>

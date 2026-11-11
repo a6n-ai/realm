@@ -1,5 +1,4 @@
 import { appTodayIso } from "@/lib/dates/today";
-import { zonedDateIso } from "@foundry/commons";
 import { dayRange } from "@foundry/commons/util/dates";
 import { handler } from "@foundry/routes";
 import {
@@ -11,14 +10,13 @@ import {
 import { requirePermission } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { withListDates } from "@/lib/list/default-month";
-import { parseRenewalsFilter } from "@/lib/renewals/filters";
+import { parseRenewalsFilter, resolveRange } from "@/lib/renewals/filters";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import { resolveOwnerParam } from "@/lib/list/presets";
 import {
   listRenewalsForExport,
   listRenewedCustomersForExport,
-  type RenewalRange,
 } from "@/lib/services/renewals.service";
 
 export const GET = handler(async (request: Request): Promise<Response> => {
@@ -31,13 +29,7 @@ export const GET = handler(async (request: Request): Promise<Response> => {
   const session = await getSession();
   const [visible, { timezone }] = await Promise.all([resolveSessionVisibleOrgIds(session), getAppSettings()]);
   const today = appTodayIso(timezone);
-  const range: RenewalRange = {
-    by: f.dateBy,
-    fromMs: f.from,
-    toMs: f.to,
-    fromIso: f.from != null ? zonedDateIso(f.from, timezone) : null,
-    toIso: f.to != null ? zonedDateIso(f.to, timezone) : null,
-  };
+  const range = resolveRange(f, timezone);
   const day = dayRange(today, timezone);
   const owner = resolveOwnerParam(f.owner ?? undefined, session?.user.id) ?? null;
 

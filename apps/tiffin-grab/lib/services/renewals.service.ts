@@ -89,7 +89,7 @@ function statusWhere(f: RenewalsFilter, today: string) {
 }
 
 /** Staff track status, where "new" is a plan with no effective status. */
-function trackWhere(track: TrackFilter[] | null) {
+function trackWhere(track: readonly TrackFilter[] | null) {
   if (!track) return undefined;
   const statuses = track.filter((t): t is TrackStatus => t !== "new");
   return or(

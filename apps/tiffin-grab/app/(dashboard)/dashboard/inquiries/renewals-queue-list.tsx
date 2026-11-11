@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CalendarClockIcon, MessageSquarePlusIcon, RefreshCwIcon } from "lucide-react";
 import { zonedDateIso } from "@foundry/commons";
@@ -87,7 +88,13 @@ export function RenewalsQueueList({ rows, total, page, size, queue, today, spec 
           return (
             <>
               <TableCell className="font-medium">
-                {r.customerName}
+                {r.customerPublicId ? (
+                  <Link href={`/dashboard/renewals/customers/${r.customerPublicId}`} className="hover:underline">
+                    {r.customerName}
+                  </Link>
+                ) : (
+                  r.customerName
+                )}
                 {r.phone && <span className="text-muted-foreground ml-2 text-xs font-normal tabular-nums">{r.phone}</span>}
               </TableCell>
               <TableCell>
