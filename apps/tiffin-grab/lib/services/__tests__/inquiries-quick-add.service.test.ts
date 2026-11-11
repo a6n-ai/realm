@@ -119,6 +119,26 @@ describe("quick-add leads", () => {
       expect(await inquiriesService.nextLead(undefined, dayStart, dayEnd, { publicId: today.publicId, dir: "next" })).toEqual(ids[0]);
     });
 
+    it("upNext wraps past the end of the queue and never repeats the current lead", async () => {
+      const DAY = 864e5;
+      const dayStart = Date.now() - DAY / 2;
+      const dayEnd = dayStart + DAY;
+      const mk = async (phone: string, next: number | null, fullName?: string) => {
+        const r = await inquiriesService.create({ phone, sourceKey: "facebook", ...(fullName ? { fullName } : {}) });
+        await db.update(inquiries).set({ nextFollowUpAt: next }).where(eq(inquiries.id, r.id));
+        return r;
+      };
+      const open = await mk("+16475554501", null, "Named Open");
+      const quick = await mk("+16475554502", null);
+      const today = await mk("+16475554503", dayStart + 1000);
+      const overdue = await mk("+16475554504", dayStart - 1000);
+      const order = [overdue, today, quick, open].map((r) => r.publicId);
+
+      expect(await inquiriesService.upNext(undefined, dayStart, dayEnd, quick.publicId, 3)).toEqual([open.publicId, order[0], order[1]]);
+      expect(await inquiriesService.upNext(undefined, dayStart, dayEnd, quick.publicId, 6)).toEqual([open.publicId, order[0], order[1]]);
+      expect(await inquiriesService.upNext(undefined, dayStart, dayEnd, open.publicId, 2)).toEqual([order[0], order[1]]);
+    });
+
     it("nextLead returns null when nothing is due", async () => {
       const r = await inquiriesService.create({ fullName: "Later", phone: "+16475554201", sourceKey: "facebook" });
       await db.update(inquiries).set({ nextFollowUpAt: Date.now() + 10 * 864e5 }).where(eq(inquiries.id, r.id));

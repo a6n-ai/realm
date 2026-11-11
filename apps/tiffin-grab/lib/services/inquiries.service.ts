@@ -841,16 +841,20 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
     return (await pick(asc_ ? sql`${mine} > ${theirs}` : sql`${mine} < ${theirs}`)) ?? pick(undefined);
   }
 
-  /** The `limit` leads that follow `afterPublicId` in nextLead's order, within the same queue and list. Does not wrap. */
+  /**
+   * The `limit` leads after `afterPublicId` in nextLead's order, wrapping to the top of the queue at
+   * the end the same way Previous/Next do. Never includes `afterPublicId` or repeats a lead.
+   */
   async upNext(condition: Condition | undefined, dayStart: number, dayEnd: number, afterPublicId: string, limit: number): Promise<string[]> {
     const { mine, theirs } = recommendedPosition(afterPublicId, dayStart, dayEnd);
-    const rows = await db
-      .select({ publicId: inquiries.publicId })
-      .from(inquiries)
-      .where(and(recommendedQueue(condition, dayStart, dayEnd), sql`${mine} > ${theirs}`))
-      .orderBy(...recommendedOrder(inquiries, dayStart, dayEnd).map((p) => sql`${p} asc`))
-      .limit(limit);
-    return rows.map((r) => r.publicId);
+    const queue = recommendedQueue(condition, dayStart, dayEnd);
+    const order = recommendedOrder(inquiries, dayStart, dayEnd).map((p) => sql`${p} asc`);
+    const pick = (cursor: SQL, n: number) =>
+      db.select({ publicId: inquiries.publicId }).from(inquiries).where(and(queue, cursor)).orderBy(...order).limit(n);
+    const after = await pick(sql`${mine} > ${theirs}`, limit);
+    if (after.length >= limit) return after.map((r) => r.publicId);
+    const before = await pick(sql`${mine} < ${theirs}`, limit - after.length);
+    return [...after, ...before].map((r) => r.publicId);
   }
 
   /** `condition` is a list filter (owner, source, …) resolved like the list's, so cards match the rows. */
