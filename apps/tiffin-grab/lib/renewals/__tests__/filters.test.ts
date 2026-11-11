@@ -1,13 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { parseRenewalsFilter, renewalsQuery, type RenewalsFilter } from "../filters";
+import { parseRenewalsFilter, renewalsQuery, statusLabel, type RenewalsFilter } from "../filters";
 
 const base: RenewalsFilter = {
-  tab: "renewals", type: null, track: null, followUp: null, dateBy: "last", ending: null, ended: null, status: null, renewed: null, from: null, to: null, q: "",
+  tab: "renewals", type: "regular", track: null, followUp: null, dateBy: "last", ending: null, ended: null, status: null, renewed: null, from: null, to: null, q: "",
 };
 
 describe("renewals filter", () => {
   it("has no window by default: the top date range (last tiffin) does the narrowing", () => {
     expect(parseRenewalsFilter({})).toEqual(base);
+  });
+  it("the Renewals tab lists regular plans; the customers tab has no plan type", () => {
+    expect(parseRenewalsFilter({ tab: "renewals" }).type).toBe("regular");
+    expect(parseRenewalsFilter({ tab: "customers" }).type).toBeNull();
   });
 
   it("reads the tab, date type, range, windows, status and search, ignoring values off the menu", () => {
@@ -16,8 +20,9 @@ describe("renewals filter", () => {
     expect(parseRenewalsFilter({ ending: "5", ended: "8", status: "maybe", dateBy: "whenever" })).toEqual(base);
   });
 
-  it("maps the retired trials tab to the trial type on the plans list", () => {
+  it("maps the Trial conversion tab (?tab=trials) to the trial type on the plans list", () => {
     expect(parseRenewalsFilter({ tab: "trials" })).toEqual({ ...base, type: "trial" });
+    expect(parseRenewalsFilter({ tab: "trials", type: "regular" }).type).toBe("trial");
   });
 
   it("reads type, track csv and follow-up, dropping junk values", () => {
@@ -26,6 +31,11 @@ describe("renewals filter", () => {
     expect(parseRenewalsFilter({ type: "both", track: "bogus", followUp: "soon" })).toEqual(base);
   });
 
+  it("labels a status per tab: trials read Converted and Not converted", () => {
+    expect(statusLabel("renewed", true)).toBe("Converted");
+    expect(statusLabel("not_renewed", true)).toBe("Not converted");
+    expect(statusLabel("renewed")).toBe("Renewed");
+  });
   it("round-trips through the query string", () => {
     for (const f of [
       base,
@@ -33,8 +43,8 @@ describe("renewals filter", () => {
       { ...base, type: "regular", track: ["new", "follow_up"], followUp: "due", owner: "me" },
       { ...base, ended: 30, status: "lapsed", q: "ram" },
       { ...base, dateBy: "ordered", from: 1_790_000_000_000, to: 1_791_000_000_000 },
-      { ...base, tab: "customers", renewed: 30 },
-      { ...base, tab: "customers", from: 1, to: 2, q: "ram" },
+      { ...base, tab: "customers", type: null, renewed: 30 },
+      { ...base, tab: "customers", type: null, from: 1, to: 2, q: "ram" },
       { ...base, status: "booked_unpaid", from: 5, to: 9 },
     ] satisfies RenewalsFilter[]) {
       expect(parseRenewalsFilter(Object.fromEntries(new URLSearchParams(renewalsQuery(f))))).toEqual(f);

@@ -84,8 +84,8 @@ export function parseRenewalsFilter(sp: Record<string, string | undefined>): Ren
   if (tab === "customers") {
     return { tab, type: null, track: null, followUp: null, dateBy, ending: null, ended: null, status: null, renewed: pick(sp.renewed, RENEWED_DAYS), from, to, q };
   }
-  // The retired Trial conversion tab (?tab=trials) is the trial type on the plans list.
-  const type = pickOne(sp.type, PLAN_TYPES) ?? (sp.tab === "trials" ? "trial" : null);
+  // Renewals lists regular plans; Trial conversion (?tab=trials) is the trial type. Both are plan types, not tabs.
+  const type = sp.tab === "trials" ? "trial" : (pickOne(sp.type, PLAN_TYPES) ?? "regular");
   const status = sp.status === "booked_unpaid" ? "booked_unpaid" : RENEWAL_STATUSES.find((s) => s === sp.status) ?? null;
   return {
     tab,
@@ -139,4 +139,6 @@ export type RenewalRowStatus = Exclude<RenewalStatusFilter, "booked_unpaid">;
 export const rowStatus = (s: RenewalStatus, lastTiffin: string | null, today: string): RenewalRowStatus =>
   s !== "none" ? s : lastTiffin != null && lastTiffin < today ? "lapsed" : "not_renewed";
 
-export const statusLabel = (s: RenewalStatusFilter): string => STATUS_LABEL[s];
+/** Trials read Converted / Not converted; the rest of the labels are shared. */
+export const statusLabel = (s: RenewalStatusFilter, trial = false): string =>
+  trial && s === "renewed" ? "Converted" : trial && s === "not_renewed" ? "Not converted" : STATUS_LABEL[s];

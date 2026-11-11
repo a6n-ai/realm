@@ -10,8 +10,7 @@ import { StatCards, StatCardsSkeleton } from "@/components/dashboard/stat-cards"
 import { requirePermission } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { loadOwnerOptions } from "@/lib/list/facet-options";
-import { ME, UNASSIGNED_OWNER, resolveOwnerParam } from "@/lib/list/presets";
-import { TRACK_STATUSES, trackLabel } from "@/lib/renewals/status";
+import { UNASSIGNED_OWNER, resolveOwnerParam } from "@/lib/list/presets";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import { countRenewals, listRenewals, listRenewedCustomers, type RenewalRange } from "@/lib/services/renewals.service";
@@ -55,6 +54,7 @@ export default async function RenewalsPage({ searchParams }: { searchParams: Sea
   const spec = facetSpec(f, ownerOptions);
   // Same page/size rules as every other list (default 25, sizes 10/25/50/100).
   const { page } = parseFilterState(spec, sp);
+  const tab = f.tab === "customers" ? "customers" : f.type === "trial" ? "trials" : "renewals";
   return (
     <PageShell>
       <PageHeader
@@ -77,10 +77,13 @@ export default async function RenewalsPage({ searchParams }: { searchParams: Sea
           <RenewalsCards f={f} />
         </Suspense>
       </div>
-      <Tabs value={f.tab}>
+      <Tabs value={tab}>
         <TabsList variant="line" aria-label="Renewal lists">
           <TabsTrigger value="renewals" asChild>
-            <Link href={`/dashboard/renewals${renewalsQuery({ ...f, tab: "renewals", status: null, renewed: null })}`} prefetch={false}>Renewals</Link>
+            <Link href={`/dashboard/renewals${renewalsQuery({ ...f, tab: "renewals", type: "regular", status: null, renewed: null })}`} prefetch={false}>Renewals</Link>
+          </TabsTrigger>
+          <TabsTrigger value="trials" asChild>
+            <Link href={`/dashboard/renewals${renewalsQuery({ ...f, tab: "renewals", type: "trial", status: null, renewed: null })}`} prefetch={false}>Trial conversion</Link>
           </TabsTrigger>
           <TabsTrigger value="customers" asChild>
             <Link href={`/dashboard/renewals${renewalsQuery({ ...f, tab: "customers", ending: null, ended: null, status: null, track: null, followUp: null })}`} prefetch={false}>Renewed customers</Link>
@@ -88,7 +91,7 @@ export default async function RenewalsPage({ searchParams }: { searchParams: Sea
         </TabsList>
       </Tabs>
       <SectionCard
-        title={f.tab === "customers" ? "Customers who renewed" : "Plans"}
+        title={tab === "customers" ? "Customers who renewed" : tab === "trials" ? "Trials" : "Plans"}
         action={f.tab === "customers" ? undefined : <RenewalFactsLegend />}
       >
         <Suspense
@@ -106,7 +109,7 @@ export default async function RenewalsPage({ searchParams }: { searchParams: Sea
   );
 }
 
-/** The standard facet bar under the top date range. Field names are the query params parseRenewalsFilter reads. */
+/** The standard facet bar under the top date range: Ending / Ended windows, Status, Owner and search. */
 function facetSpec(f: RenewalsFilter, ownerOptions: { value: string; label: string }[]): FacetDef[] {
   if (f.tab === "customers") {
     return [
@@ -114,40 +117,30 @@ function facetSpec(f: RenewalsFilter, ownerOptions: { value: string; label: stri
       { kind: "search", fields: ["name", "phone", "email"] },
     ];
   }
+  const trial = f.type === "trial";
   return [
-    { kind: "select", field: "type", label: "Type", options: [{ value: "regular", label: "Regular" }, { value: "trial", label: "Trial" }] },
-    { kind: "pills", field: "track", label: "Status", options: [...TRACK_STATUSES.map((s) => ({ value: s, label: trackLabel(s) })), { value: "new", label: "New" }] },
-    {
-      kind: "select",
-      field: "followUp",
-      label: "Follow-up",
-      options: [
-        { value: "due", label: "Due today" },
-        { value: "overdue", label: "Overdue" },
-        { value: "upcoming", label: "Upcoming" },
-        { value: "none", label: "None set" },
-      ],
-    },
     { kind: "select", field: "ending", label: "Ending within", options: ENDING_DAYS.map((d) => ({ value: String(d), label: d === 0 ? "Today" : `${d} ${d === 1 ? "day" : "days"}` })) },
     { kind: "select", field: "ended", label: "Ended in last", options: ENDED_DAYS.map((d) => ({ value: String(d), label: `${d} days` })) },
-    { kind: "pills", field: "status", label: "Renewal", options: RENEWAL_STATUSES.map((s) => ({ value: s, label: statusLabel(s) })) },
+    { kind: "pills", field: "status", label: "Status", options: RENEWAL_STATUSES.map((s) => ({ value: s, label: statusLabel(s, trial) })) },
     ...(ownerOptions.length
-      ? [{ kind: "select" as const, field: "owner", label: "Owner", options: [{ value: ME, label: "Mine" }, { value: UNASSIGNED_OWNER, label: "Unassigned" }, ...ownerOptions] }]
+      ? [{ kind: "select" as const, field: "owner", label: "Owner", options: [{ value: UNASSIGNED_OWNER, label: "Unassigned" }, ...ownerOptions] }]
       : []),
     { kind: "search", fields: ["fullName", "deploymentId", "phone"] },
   ];
 }
-
 async function RenewalsCards({ f }: { f: RenewalsFilter }) {
   const { visible, today, timezone } = await scope();
-  const c = await countRenewals(visible, f.type, today, resolveRange(f, timezone));
-  const noun = f.type === "trial" ? "trials" : "plans";
-  // Cards count the date range only. Ending, ended, track, owner and search stay off the link
+  // The renewed-customers tab keeps the regular-plan cards above it.
+  const type = f.type ?? "regular";
+  const trial = type === "trial";
+  const c = await countRenewals(visible, type, today, resolveRange(f, timezone));
+  const noun = trial ? "trials" : "plans";
+  // Cards count the date range only. Ending, ended, owner and search stay off the link
   // so the list total equals the card. The customers tab lists people, so a plan card opens the plan desk.
   const href = (status: RenewalsFilter["status"]) =>
     `/dashboard/renewals${renewalsQuery({
       tab: "renewals",
-      type: f.type,
+      type,
       track: null,
       followUp: null,
       dateBy: f.dateBy,
@@ -162,10 +155,10 @@ async function RenewalsCards({ f }: { f: RenewalsFilter }) {
   return (
     <StatCards
       items={[
-        { label: f.type === "trial" ? "Trials" : "Plans", value: c.plans, icon: PackageIcon, hint: `Running or finished ${noun} in this range`, href: href(null) },
-        { label: "Renewed", value: c.renewed, icon: CalendarCheckIcon, hint: "Next plan paid or running", href: href("renewed") },
+        { label: trial ? "Trials" : "Plans", value: c.plans, icon: PackageIcon, hint: `Running or finished ${noun} in this range`, href: href(null) },
+        { label: trial ? "Converted" : "Renewed", value: c.renewed, icon: CalendarCheckIcon, hint: "Next plan paid or running", href: href("renewed") },
         { label: "Booked, not paid", value: c.renewedNotPaid, icon: WalletIcon, hint: "Next plan unpaid or waitlisted", href: href("booked_unpaid") },
-        { label: "Not renewed", value: c.notRenewed, icon: HourglassIcon, hint: "Still running, nothing booked after", href: href("not_renewed") },
+        { label: trial ? "Not converted" : "Not renewed", value: c.notRenewed, icon: HourglassIcon, hint: "Still running, nothing booked after", href: href("not_renewed") },
         {
           label: "Lapsed",
           value: c.lapsed,
@@ -183,7 +176,7 @@ async function RenewalsData({ f, page, size, spec }: { f: RenewalsFilter; page: 
   const { visible, today, timezone, viewer, day } = await scope();
   const owner = resolveOwnerParam(f.owner ?? undefined, viewer) ?? null;
   const result = await listRenewals(visible, { ...f, owner }, today, { page, size }, resolveRange(f, timezone), day);
-  return <RenewalsList rows={result.items} total={result.total} page={page} size={size} type={f.type} followUp={f.followUp != null} today={today} spec={spec} />;
+  return <RenewalsList rows={result.items} total={result.total} page={page} size={size} trial={f.type === "trial"} today={today} spec={spec} />;
 }
 
 async function RenewedCustomersData({ f, page, size, spec }: { f: RenewalsFilter; page: number; size: number; spec: FacetDef[] }) {
