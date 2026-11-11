@@ -89,6 +89,19 @@ describe("inquiriesService.logActivity + markLost", () => {
     expect(quote?.amount).toBe(450000);
   });
 
+  it("logActivity rejects a follow-up on a closed or converted lead", async () => {
+    const inq = await makeInquiry();
+    await inquiriesService.setStatus(inq.publicId, { subStatus: "lost", lostReason: "price" });
+    await expect(
+      inquiriesService.logActivity(inq.publicId, { type: "callback", nextFollowUpAt: Date.now() + 86_400_000 }),
+    ).rejects.toThrow("A closed lead cannot have a follow-up");
+    const converted = await makeInquiry();
+    await inquiriesService.update(converted.publicId, { stage: "converted" });
+    await expect(
+      inquiriesService.logActivity(converted.publicId, { type: "callback", nextFollowUpAt: Date.now() + 86_400_000 }),
+    ).rejects.toThrow(ValidationError);
+  });
+
   it("does not advance stage for a plain call", async () => {
     const inq = await makeInquiry();
     await inquiriesService.logActivity(inq.publicId, { type: "call", outcome: "no answer" });

@@ -3,11 +3,11 @@ import { formatMoney } from "@foundry/commons";
 import { eq } from "@foundry/commons/model/condition";
 import { Avatar, AvatarFallback } from "@foundry/ui/avatar";
 import { Button } from "@foundry/ui/button";
-import { displayName } from "@/lib/inquiries/display";
+import { displayName, planLabelFor } from "@/lib/inquiries/display";
 import { ALL_OWNERS, ME, resolveOwnerParam } from "@/lib/list/presets";
 import type { PipelineRow } from "@/lib/services/inquiries.service";
 import { ContactChips } from "@/components/dashboard/next-item/contact-chips";
-import { initials } from "@/components/dashboard/next-item/initials";
+import { initials } from "@foundry/ui/initials";
 import { NextItemCard, NextItemEmpty, type NextItemView, type OwnerChoice } from "@/components/dashboard/next-item/next-item-card";
 import { NextItemOpenButton } from "@/components/dashboard/next-item/open-button";
 import { UpNextStrip, type UpNextTile } from "@/components/dashboard/next-item/up-next-strip";
@@ -42,13 +42,14 @@ export type NextLeadCardProps = {
   upNext: UpNextRow[];
   upcomingHref: string;
   allOpenHref: string;
+  plans: { key: string; name: string }[];
 };
 
-export function NextLeadCard({ lead, timeZone, currency, now, dayStart, dayEnd, dueCount, leadInQueue, position, upcomingCount, owner, prevHref, nextHref, upNext, upcomingHref, allOpenHref }: NextLeadCardProps) {
+export function NextLeadCard({ lead, timeZone, currency, now, dayStart, dayEnd, dueCount, leadInQueue, position, upcomingCount, owner, prevHref, nextHref, upNext, upcomingHref, allOpenHref, plans }: NextLeadCardProps) {
   const leadHref = lead ? `/dashboard/inquiries/${lead.publicId}` : "";
   const facts: [string, string | null][] = lead
     ? [
-        ["Plan", lead.planInterest],
+        ["Plan", planLabelFor(plans, lead.planInterest)],
         ["Meal size", lead.mealSizeInterest],
         ["Quoted", lead.quotedPrice == null ? null : formatMoney(Number(lead.quotedPrice), currency)],
         ["Source", lead.source],

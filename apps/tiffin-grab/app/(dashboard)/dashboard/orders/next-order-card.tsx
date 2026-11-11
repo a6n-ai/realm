@@ -4,7 +4,7 @@ import { Avatar, AvatarFallback } from "@foundry/ui/avatar";
 import { Button } from "@foundry/ui/button";
 import type { NextOrderReason, NextOrderRow } from "@/lib/services/next-order.service";
 import { ContactChips } from "@/components/dashboard/next-item/contact-chips";
-import { initials } from "@/components/dashboard/next-item/initials";
+import { initials } from "@foundry/ui/initials";
 import { NextItemCard, NextItemEmpty, type NextItemView, type OwnerChoice } from "@/components/dashboard/next-item/next-item-card";
 import { ReasonBadge } from "@/components/dashboard/next-item/reason-badge";
 import { UpNextStrip, type UpNextTile } from "@/components/dashboard/next-item/up-next-strip";

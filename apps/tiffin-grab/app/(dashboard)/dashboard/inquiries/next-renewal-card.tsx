@@ -6,7 +6,7 @@ import { humanDate } from "@/lib/deliveries-view";
 import { isClosedTrack } from "@/lib/renewals/status";
 import type { NextRenewalRow } from "@/lib/services/next-renewal.service";
 import { ContactChips } from "@/components/dashboard/next-item/contact-chips";
-import { initials } from "@/components/dashboard/next-item/initials";
+import { initials } from "@foundry/ui/initials";
 import { NextItemCard, NextItemEmpty, NextItemSkeleton, type NextItemView, type OwnerChoice } from "@/components/dashboard/next-item/next-item-card";
 import { NextItemOpenButton } from "@/components/dashboard/next-item/open-button";
 import { ReasonBadge } from "@/components/dashboard/next-item/reason-badge";

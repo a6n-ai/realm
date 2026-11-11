@@ -50,9 +50,10 @@ const FILTERS: ActivityFilter[] = [
   { key: "status", label: "Status", types: ["status_change"] },
 ];
 
-export function TrackTimeline({ activities, onAddNote }: { activities: TrackActivity[]; onAddNote: () => void }) {
+export function TrackTimeline({ activities, onAddNote, now }: { activities: TrackActivity[]; onAddNote: () => void; now: number }) {
   return (
     <ActivityTimeline
+      now={now}
       items={activities.map((a) => {
         const { icon, tone } = nodeFor(a);
         return {

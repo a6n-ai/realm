@@ -19,7 +19,8 @@ export default async function CustomerRenewalPage({ params }: { params: Promise<
   const [visible, { timezone }] = await Promise.all([resolveSessionVisibleOrgIds(session), getAppSettings()]);
   const data = await getCustomerRenewal(visible, id);
   if (!data) notFound();
-  const today = zonedDateIso(requestNow(), timezone);
+  const now = requestNow();
+  const today = zonedDateIso(now, timezone);
   const { customer } = data;
 
   return (
@@ -30,7 +31,7 @@ export default async function CustomerRenewalPage({ params }: { params: Promise<
         subtitle={[customer.phone, customer.email].filter(Boolean).join(" · ") || undefined}
         actions={<RenewalActions data={data} isAdmin={isAdmin(session)} />}
       />
-      <RenewalSections data={data} today={today} timezone={timezone} />
+      <RenewalSections data={data} today={today} now={now} timezone={timezone} />
     </PageShell>
   );
 }

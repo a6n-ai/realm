@@ -29,13 +29,15 @@ export type ActivityItem = {
 export type ActivityFilter = { key: string; label: string; types: readonly string[] | null };
 
 /** `grouped` adds day headers, and under the unfiltered list collapses `system` items per day. */
+/** `now` comes from the server page: a client Date.now() here would hydrate Today/Yesterday differently. */
 export function ActivityTimeline({
-  items, filters, onAddNote, grouped = false,
+  items, filters, onAddNote, grouped = false, now,
 }: {
   items: ActivityItem[];
   filters: ActivityFilter[];
   onAddNote: () => void;
   grouped?: boolean;
+  now: number;
 }) {
   const tz = useTimezone();
   const [filter, setFilter] = useState(filters[0]?.key ?? "");
@@ -117,8 +119,8 @@ export function ActivityTimeline({
   }
 
   const collapse = types === null;
-  const todayKey = zonedDateIso(Date.now(), tz);
-  const yesterdayKey = zonedDateIso(Date.now() - 86_400_000, tz);
+  const todayKey = zonedDateIso(now, tz);
+  const yesterdayKey = zonedDateIso(now - 86_400_000, tz);
   const days: { key: string; rows: ActivityItem[] }[] = [];
   for (const r of rows) {
     const key = zonedDateIso(r.createdAt, tz);

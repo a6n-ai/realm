@@ -15,7 +15,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@foundry/ui/tooltip";
 import { EditContactDialog } from "./edit-contact-dialog";
 import { formatMoney } from "@foundry/commons";
 import { useTimezone } from "@foundry/design-system/timezone-provider";
-import { displayName } from "@/lib/inquiries/display";
+import { displayName, planLabelFor } from "@/lib/inquiries/display";
 import { formatEpoch } from "@/lib/format/datetime";
 import { isClosed, type SubStatus } from "@/lib/inquiries/status";
 import { clearFollowUp, logActivity } from "../actions";
@@ -84,6 +84,7 @@ export function InquiryDetailClient({
   dayStart,
   dayEnd,
   createdAt,
+  now,
   currency,
   convertedOrderHref,
   canEditContact,
@@ -108,6 +109,8 @@ export function InquiryDetailClient({
   dayStart: number;
   dayEnd: number;
   createdAt: number;
+  /** Server request clock, for the timeline's Today/Yesterday labels. */
+  now: number;
   currency: string;
   convertedOrderHref?: string;
   contact: { fullName: string | null; phone: string | null; whatsappPhone: string | null; email: string | null; leadNumber: number | null };
@@ -162,10 +165,7 @@ export function InquiryDetailClient({
     });
   }
 
-  const planLabel =
-    catalog.plans.find((p) => p.key === interest.planInterest)?.name ??
-    catalog.plans.find((p) => p.name.toLowerCase() === interest.planInterest?.trim().toLowerCase())?.name ??
-    interest.planInterest;
+  const planLabel = planLabelFor(catalog.plans, interest.planInterest);
   const mealLabel =
     catalog.mealSizes.find((m) => m.id === interest.mealSizeInterest)?.name ??
     catalog.mealSizes.find((m) => m.name.toLowerCase() === interest.mealSizeInterest?.trim().toLowerCase())?.name ??
@@ -197,7 +197,7 @@ export function InquiryDetailClient({
   const waHref = whatsappHref(contact);
 
   return (
-    <div className="flex flex-col gap-4 pb-24 lg:pb-0">
+    <div className="flex flex-col gap-4 pb-[calc(var(--tabbar-h,4rem)+6.5rem)] md:pb-24 lg:pb-0">
       <BreadcrumbLabel segment={inquiryId} label={name} />
       <Card>
         <CardContent className="flex flex-col gap-3">
@@ -277,13 +277,13 @@ export function InquiryDetailClient({
               onMarkDone={markFollowUpDone}
             />
           )}
-          <InlineComposer inquiryId={inquiryId} timeZone={tz} open={composerOpen} onOpenChange={setComposerOpen} />
+          <InlineComposer inquiryId={inquiryId} timeZone={tz} open={composerOpen} onOpenChange={setComposerOpen} terminal={terminal} />
           <Card className="min-w-0">
             <CardHeader>
               <CardTitle>Activity</CardTitle>
             </CardHeader>
             <CardContent>
-              <InquiryTimeline activities={activities} currency={currency} onAddNote={() => setNoteKind("note")} />
+              <InquiryTimeline activities={activities} currency={currency} onAddNote={() => setNoteKind("note")} now={now} />
             </CardContent>
           </Card>
         </div>
@@ -293,7 +293,7 @@ export function InquiryDetailClient({
           <CollapsibleTrigger asChild>
             <Button variant="outline" className="w-full lg:hidden">Details</Button>
           </CollapsibleTrigger>
-          <CollapsibleContent forceMount className="mt-4 lg:mt-0 lg:block">
+          <CollapsibleContent forceMount className="mt-4 max-lg:data-[state=closed]:hidden lg:mt-0 lg:block">
           <Card>
             <CardHeader>
               <CardTitle>Details</CardTitle>
@@ -325,7 +325,7 @@ export function InquiryDetailClient({
         </Collapsible>
       </div>
 
-      <div className="bg-background fixed inset-x-0 bottom-0 z-30 flex gap-2 border-t p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] lg:hidden">
+      <div className="bg-background fixed inset-x-0 bottom-[calc(var(--tabbar-h,4rem)+max(0.75rem,env(safe-area-inset-bottom)))] z-30 flex gap-2 border-t p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:bottom-0 lg:hidden">
         {contact.phone ? (
           <Button asChild variant="outline" className="flex-1">
             <a href={`tel:${contact.phone}`}><PhoneIcon aria-hidden />Call</a>

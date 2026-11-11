@@ -131,7 +131,7 @@ async function NextLead({ searchParams }: { searchParams: SearchParams }) {
   const { start: dayStart, end: dayEnd } = dayRange(zonedDateIso(now, timezone), timezone);
   const leadOwner = typeof sp.leadOwner === "string" ? sp.leadOwner : ME;
   const scope = leadScope(leadOwner, viewer);
-  const [owners, counts] = await Promise.all([loadOwnerOptions(), inquiriesService.queueCounts(scope, dayStart, dayEnd)]);
+  const [owners, counts, catalog] = await Promise.all([loadOwnerOptions(), inquiriesService.queueCounts(scope, dayStart, dayEnd), loadCatalogSnapshot()]);
   const rowOf = (publicId: string) =>
     inquiriesService.listForPipeline(scope, { page: 0, size: 1 }, undefined, undefined, eq(inquiries.publicId, publicId)).then((r) => r.items[0] ?? null);
 
@@ -171,6 +171,7 @@ async function NextLead({ searchParams }: { searchParams: SearchParams }) {
       upNext={upNext}
       upcomingHref={`/dashboard/inquiries?queue=upcoming&owner=${encodeURIComponent(leadOwner)}`}
       allOpenHref={`/dashboard/inquiries?queue=open&owner=${encodeURIComponent(leadOwner)}`}
+      plans={catalog.plans.map((p) => ({ key: p.key, name: p.name }))}
     />
   );
 }

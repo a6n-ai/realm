@@ -526,6 +526,9 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
   ) {
     assertFiniteFollowUp(input.nextFollowUpAt);
     const inq = await this.read(publicId);
+    if (input.nextFollowUpAt != null && (inq.stage === "converted" || isClosed(inq.subStatus as SubStatus | null))) {
+      throw new ValidationError("A closed lead cannot have a follow-up");
+    }
     await inquiryActivitiesService.create({
       inquiryId: inq.id,
       type: input.type,

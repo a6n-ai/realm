@@ -22,11 +22,12 @@ export default async function CustomerRenewalsTab({ params }: { params: Promise<
       />
     );
   }
+  const now = requestNow();
   return (
     <>
       {/* Adjust coins already sits in the page header, so no second coins button here. */}
       <RenewalActions data={data} isAdmin={isAdmin} giveCoins={false} />
-      <RenewalSections data={data} today={zonedDateIso(requestNow(), timezone)} timezone={timezone} />
+      <RenewalSections data={data} today={zonedDateIso(now, timezone)} now={now} timezone={timezone} />
     </>
   );
 }

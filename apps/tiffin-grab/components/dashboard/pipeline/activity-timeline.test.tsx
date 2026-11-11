@@ -26,7 +26,7 @@ const items = [
 
 describe("ActivityTimeline grouped", () => {
   it("collapses system events under All and shows a day header", () => {
-    render(<TimezoneProvider tz="UTC"><ActivityTimeline items={items} filters={FILTERS} onAddNote={() => undefined} grouped /></TimezoneProvider>);
+    render(<TimezoneProvider tz="UTC"><ActivityTimeline items={items} filters={FILTERS} onAddNote={() => undefined} grouped now={NOW} /></TimezoneProvider>);
     expect(screen.getByText("Today")).toBeInTheDocument();
     expect(screen.getByText("Note one")).toBeInTheDocument();
     expect(screen.queryByText("Status moved")).not.toBeInTheDocument();
@@ -35,7 +35,7 @@ describe("ActivityTimeline grouped", () => {
   });
 
   it("filters to calls and does not collapse system events", () => {
-    render(<TimezoneProvider tz="UTC"><ActivityTimeline items={items} filters={FILTERS} onAddNote={() => undefined} grouped /></TimezoneProvider>);
+    render(<TimezoneProvider tz="UTC"><ActivityTimeline items={items} filters={FILTERS} onAddNote={() => undefined} grouped now={NOW} /></TimezoneProvider>);
     fireEvent.click(screen.getByRole("button", { name: "Calls" }));
     expect(screen.getByText("Call one")).toBeInTheDocument();
     expect(screen.queryByText("Note one")).not.toBeInTheDocument();

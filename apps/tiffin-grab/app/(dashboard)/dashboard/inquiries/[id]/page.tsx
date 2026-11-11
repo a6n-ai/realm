@@ -102,7 +102,8 @@ async function InquiryDetail({ params }: { params: Promise<{ id: string }> }) {
     if (ord) convertedOrderHref = `/dashboard/orders/${ord.publicId}`;
   }
 
-  const todayIso = zonedDateIso(requestNow(), timezone);
+  const now = requestNow();
+  const todayIso = zonedDateIso(now, timezone);
   const { start: dayStart, end: dayEnd } = dayRange(todayIso, timezone);
   // Recommended-lead cycle around this one (see nextLead), in the viewer's own leads.
   const leadScope = viewer ? facetEq("owner", viewer) : undefined;
@@ -137,6 +138,7 @@ async function InquiryDetail({ params }: { params: Promise<{ id: string }> }) {
         dayStart={dayStart}
         dayEnd={dayEnd}
         createdAt={inq.createdAt}
+        now={now}
         currency={currency}
         convertedOrderHref={convertedOrderHref}
         contact={{ fullName: inq.fullName, phone: inq.phone, whatsappPhone: inq.whatsappPhone, email: inq.email, leadNumber: inq.leadNumber }}

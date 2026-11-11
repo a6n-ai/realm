@@ -29,7 +29,7 @@ function gapLabel(days: number) {
 }
 
 /** Each plan on a vertical timeline (ReUI c-timeline pattern, as in the order activity log): dates, size, total, what followed. The focus plan is tracked in the Follow-up section, so its row has no tracking. */
-export function PlanHistory({ plans, today, customerPublicId, focusOrderPublicId }: { plans: RenewalPlan[]; today: string; customerPublicId: string; focusOrderPublicId: string }) {
+export function PlanHistory({ plans, today, now, customerPublicId, focusOrderPublicId }: { plans: RenewalPlan[]; today: string; now: number; customerPublicId: string; focusOrderPublicId: string }) {
   return (
     <Timeline defaultValue={plans.filter((p) => p.lastTiffin != null && p.lastTiffin < today).length}>
       {plans.map((p, i) => {
@@ -75,7 +75,7 @@ export function PlanHistory({ plans, today, customerPublicId, focusOrderPublicId
                     </Button>
                   </CollapsibleTrigger>
                   <CollapsibleContent className="pt-3">
-                    <PlanTrack plan={p} customerPublicId={customerPublicId} />
+                    <PlanTrack plan={p} customerPublicId={customerPublicId} now={now} />
                   </CollapsibleContent>
                 </Collapsible>
               )}

@@ -32,7 +32,7 @@ export function RenewalActions({ data, isAdmin, giveCoins = true }: { data: Cust
 }
 
 /** How often and how fast one customer renews, each plan and what followed it, and the reminders sent. */
-export function RenewalSections({ data, today, timezone }: { data: CustomerRenewal; today: string; timezone: string }) {
+export function RenewalSections({ data, today, now, timezone }: { data: CustomerRenewal; today: string; now: number; timezone: string }) {
   const { customer, plans, reminders } = data;
   const paid = plans.filter((p) => !p.trial);
   // One renewal per plan that something followed: the same rule as the Next plan badge.
@@ -64,10 +64,10 @@ export function RenewalSections({ data, today, timezone }: { data: CustomerRenew
         ]}
       />
       <SectionCard title="Follow-up" subtitle={`${focus.mealSize} · ${focus.code}. The plan that is running, or the last one.`}>
-        <PlanTrack plan={focus} customerPublicId={customer.publicId} />
+        <PlanTrack plan={focus} customerPublicId={customer.publicId} now={now} />
       </SectionCard>
       <SectionCard title="Plan history" subtitle="Oldest first. Each plan shows what came after it.">
-        <PlanHistory plans={plans} today={today} customerPublicId={customer.publicId} focusOrderPublicId={focus.orderPublicId} />
+        <PlanHistory plans={plans} today={today} now={now} customerPublicId={customer.publicId} focusOrderPublicId={focus.orderPublicId} />
       </SectionCard>
       <SectionCard title="Renewal reminders" subtitle="Emails sent 5 days and 1 day before a plan's last tiffin. Status comes from AWS; hover it for details.">
         <div className="flex flex-col gap-4">

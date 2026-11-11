@@ -10,7 +10,7 @@ import { isClosedTrack } from "@/lib/renewals/status";
 import type { RenewalPlan } from "@/lib/services/renewals.service";
 
 /** One plan's tracking: status board, quick actions, and its activity log. */
-export function PlanTrack({ plan, customerPublicId }: { plan: RenewalPlan; customerPublicId: string }) {
+export function PlanTrack({ plan, customerPublicId, now }: { plan: RenewalPlan; customerPublicId: string; now: number }) {
   const [kind, setKind] = useState<TrackNoteKind | null>(null);
   const closed = isClosedTrack(plan.track.status);
   return (
@@ -35,7 +35,7 @@ export function PlanTrack({ plan, customerPublicId }: { plan: RenewalPlan; custo
           </Button>
         )}
       </div>
-      <TrackTimeline activities={plan.activities} onAddNote={() => setKind("note")} />
+      <TrackTimeline activities={plan.activities} onAddNote={() => setKind("note")} now={now} />
       {kind && (
         <TrackNoteDialog
           orderPublicId={plan.orderPublicId}

@@ -95,14 +95,16 @@ const FILTERS: ActivityFilter[] = [
 ];
 
 export function InquiryTimeline({
-  activities, currency, onAddNote,
+  activities, currency, onAddNote, now,
 }: {
   activities: TimelineActivity[];
   currency: string;
   onAddNote: () => void;
+  now: number;
 }) {
   return (
     <ActivityTimeline
+      now={now}
       items={activities.map((a) => {
         const { icon, tone } = nodeFor(a);
         const body = a.type === "reinquiry" ? (a.note?.includes("\n") ? a.note.slice(a.note.indexOf("\n") + 1) : null) : a.note;

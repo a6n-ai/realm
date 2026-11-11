@@ -63,9 +63,18 @@ const base: Omit<NextLeadCardProps, "lead"> = {
   upNext: [],
   upcomingHref: "/dashboard/inquiries?queue=upcoming&owner=me",
   allOpenHref: "/dashboard/inquiries?queue=open&owner=me",
+  plans: [{ key: "plan_veg", name: "Veg Weekly" }],
 };
 
 afterEach(cleanup);
+
+describe("NextLeadCard plan facts", () => {
+  it("shows the catalog plan name instead of the stored plan key", () => {
+    render(<NextLeadCard {...base} lead={lead({ planInterest: "plan_veg" })} />);
+    expect(screen.getByText("Veg Weekly")).toBeInTheDocument();
+    expect(screen.queryByText("plan_veg")).not.toBeInTheDocument();
+  });
+});
 
 describe("NextLeadCard", () => {
   it("shows the lead with Call, WhatsApp and Open lead links", () => {

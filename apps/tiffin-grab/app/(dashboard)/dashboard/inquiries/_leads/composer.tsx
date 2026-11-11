@@ -17,7 +17,7 @@ export const CALL_OUTCOMES = ["Answered", "Voicemail", "No answer"] as const;
 type Mode = "note" | "call" | "follow_up";
 
 /** Note, call outcome and follow-up on one draft. Saves through the same actions as the note dialog. */
-export function Composer({ inquiryId, timeZone, onSaved }: { inquiryId: string; timeZone: string; onSaved?: () => void }) {
+export function Composer({ inquiryId, timeZone, onSaved, terminal = false }: { inquiryId: string; timeZone: string; onSaved?: () => void; terminal?: boolean }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [mode, setMode] = useState<Mode>("note");
@@ -54,7 +54,7 @@ export function Composer({ inquiryId, timeZone, onSaved }: { inquiryId: string; 
         <TabsList>
           <TabsTrigger value="note">Note</TabsTrigger>
           <TabsTrigger value="call">Call outcome</TabsTrigger>
-          <TabsTrigger value="follow_up">Follow-up</TabsTrigger>
+          {terminal ? null : <TabsTrigger value="follow_up">Follow-up</TabsTrigger>}
         </TabsList>
         <TabsContent value="note" className="flex flex-col gap-3">
           <Textarea aria-label="Note" placeholder="Add a note" value={text} onChange={(e) => setText(e.target.value)} />
@@ -67,10 +67,12 @@ export function Composer({ inquiryId, timeZone, onSaved }: { inquiryId: string; 
           </ToggleGroup>
           <Textarea aria-label="Call notes" placeholder="Notes (optional)" value={text} onChange={(e) => setText(e.target.value)} />
         </TabsContent>
-        <TabsContent value="follow_up" className="flex flex-col gap-3">
-          <FollowUpPicker timeZone={timeZone} value={followUp} onChange={setFollowUp} />
-          <Textarea aria-label="Follow-up notes" placeholder="What to follow up on (optional)" value={text} onChange={(e) => setText(e.target.value)} />
-        </TabsContent>
+        {terminal ? null : (
+          <TabsContent value="follow_up" className="flex flex-col gap-3">
+            <FollowUpPicker timeZone={timeZone} value={followUp} onChange={setFollowUp} />
+            <Textarea aria-label="Follow-up notes" placeholder="What to follow up on (optional)" value={text} onChange={(e) => setText(e.target.value)} />
+          </TabsContent>
+        )}
       </Tabs>
       {error ? <p role="alert" className="text-destructive text-sm">{error}</p> : null}
       <div className="flex justify-end">
@@ -81,11 +83,12 @@ export function Composer({ inquiryId, timeZone, onSaved }: { inquiryId: string; 
 }
 
 /** Desktop: inline card. Mobile: a button that opens the same composer in a top drawer. */
-export function InlineComposer({ inquiryId, timeZone, open, onOpenChange }: {
+export function InlineComposer({ inquiryId, timeZone, open, onOpenChange, terminal = false }: {
   inquiryId: string;
   timeZone: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  terminal?: boolean;
 }) {
   return (
     <>
@@ -94,12 +97,12 @@ export function InlineComposer({ inquiryId, timeZone, open, onOpenChange }: {
           <CardTitle>Log activity</CardTitle>
         </CardHeader>
         <CardContent>
-          <Composer inquiryId={inquiryId} timeZone={timeZone} />
+          <Composer inquiryId={inquiryId} timeZone={timeZone} terminal={terminal} />
         </CardContent>
       </Card>
       <Button variant="outline" className="lg:hidden" onClick={() => onOpenChange(true)}>Log activity</Button>
       <ResponsiveDialog open={open} onOpenChange={onOpenChange} title="Log activity" description="Saved to the lead's activity timeline.">
-        <Composer inquiryId={inquiryId} timeZone={timeZone} onSaved={() => onOpenChange(false)} />
+        <Composer inquiryId={inquiryId} timeZone={timeZone} terminal={terminal} onSaved={() => onOpenChange(false)} />
       </ResponsiveDialog>
     </>
   );
