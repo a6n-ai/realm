@@ -101,7 +101,13 @@ below comes from an incident (2026-09-24/25).
    reseed; do not patch it.
 8. **Touching prod bookkeeping (`__drizzle_migrations`) needs explicit owner
    approval.** Say which row and why, and record the hash so it can be restored.
-9. **Verify after deploy.** Row count and newest `created_at` in prod
+9. **Push the whole generated set, nothing else.** A migration is exactly three files
+   from `drizzle-kit generate`: `<tag>.sql`, `meta/<NNNN>_snapshot.json` and its
+   `meta/_journal.json` entry. All three are required (the deploy reads the journal; the
+   next `db:generate` diffs against the latest snapshot, and without it re-creates every
+   table). Never commit a stray `.sql`/snapshot, and never edit or delete a shipped one.
+   `.githooks/pre-push` and CI enforce this with `scripts/check-migration-journal.mjs`.
+10. **Verify after deploy.** Row count and newest `created_at` in prod
    `__drizzle_migrations` must match the repo journal. The deploy log alone proves
    nothing.
 

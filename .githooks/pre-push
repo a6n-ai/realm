@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# Wired by the root package.json "prepare" script (core.hooksPath=.githooks).
+# Runs the CI migration check against the latest origin/main before anything leaves this machine,
+# so a missing snapshot, a stray file or a migration that collides with main fails here, not on deploy.
+set -euo pipefail
+root="$(git rev-parse --show-toplevel)"
+git fetch --quiet origin main || { echo "pre-push: could not fetch origin/main; migration check skipped" >&2; exit 0; }
+if ! (cd "$root" && node scripts/check-migration-journal.mjs origin/main); then
+  cat >&2 <<'EOF'
+
+Push blocked by the migration check. If main gained a migration since you generated yours:
+  1. take main's apps/<app>/db/migrations/meta/_journal.json and snapshots
+  2. delete your .sql and its snapshot
+  3. rerun `pnpm db:generate` and `pnpm db:migrate`, then commit all three files
+EOF
+  exit 1
+fi

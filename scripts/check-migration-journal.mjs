@@ -77,6 +77,40 @@ for (const app of readdirSync("apps")) {
     if (e.when <= newest) errors.push(`${app}: new ${e.tag} when ${e.when} is not after shipped ${newest}; regenerate it with drizzle-kit generate`);
     if (e.when % 1000 === 0) errors.push(`${app}: new ${e.tag} when ${e.when} looks hand-typed; let drizzle-kit generate stamp it`);
   }
+
+  checkFileSet(app, dir, entries.filter((x) => !known.has(x.tag)));
+}
+
+// A migration ships as exactly three generated files: <tag>.sql, meta/<NNNN>_snapshot.json and its
+// journal entry. Shipped files never change or disappear, and nothing else is added under migrations/.
+function checkFileSet(app, dir, newEntries) {
+  const expected = new Set([join(dir, "meta", "_journal.json")]);
+  for (const e of newEntries) {
+    const sql = join(dir, `${e.tag}.sql`);
+    const snapshot = join(dir, "meta", `${e.tag.slice(0, 4)}_snapshot.json`);
+    for (const f of [sql, snapshot]) {
+      expected.add(f);
+      if (!existsSync(f)) errors.push(`${app}: ${e.tag} is missing ${f}; commit all files drizzle-kit generate wrote`);
+    }
+  }
+  const forkPoint = mergeBase(base);
+  if (!forkPoint) return;
+  const changed = execFileSync("git", ["diff", "--name-status", "--no-renames", forkPoint, "--", dir], { encoding: "utf8" });
+  for (const line of changed.split("\n").filter(Boolean)) {
+    const [status, file] = line.split("\t");
+    if (status === "A" && !expected.has(file)) errors.push(`${app}: ${file} has no journal entry; delete it or regenerate with drizzle-kit generate`);
+    else if (status !== "A" && file !== join(dir, "meta", "_journal.json")) {
+      errors.push(`${app}: shipped ${file} was ${status === "D" ? "deleted" : "changed"}; shipped migrations are append-only`);
+    }
+  }
+}
+
+function mergeBase(ref) {
+  try {
+    return execFileSync("git", ["merge-base", ref, "HEAD"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+  } catch {
+    return null;
+  }
 }
 
 if (errors.length) {
