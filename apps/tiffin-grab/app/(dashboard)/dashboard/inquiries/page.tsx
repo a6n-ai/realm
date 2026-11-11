@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { zonedDateIso } from "@foundry/commons";
 import { ClipboardListIcon, ListPlusIcon, PlusIcon, UploadIcon, InboxIcon, UsersIcon, TrendingUpIcon, XCircleIcon } from "lucide-react";
 import { StatCards, StatCardsSkeleton } from "@/components/dashboard/stat-cards";
@@ -31,6 +31,8 @@ import { AddInquirySheet } from "./new-inquiry-form";
 import { QuickAddDialog } from "./quick-add/quick-add-dialog";
 import { InquiriesList, InquiriesListSkeleton } from "./inquiries-list";
 import { NextLeadCard, NextLeadSkeleton, leadScope } from "./next-lead-card";
+
+const UP_NEXT_COUNT = 4;
 import { reassignInquiry } from "./actions";
 import { SUB_STATUSES, SUB_STATUS_META } from "@/lib/inquiries/status";
 import { QueueTabs } from "./queue-tabs";
@@ -131,12 +133,20 @@ async function NextLead({ searchParams }: { searchParams: SearchParams }) {
   const highlight = typeof sp.highlight === "string" ? sp.highlight : undefined;
   const pinned = highlight ? await rowOf(highlight) : null;
   const lead = pinned ?? (await inquiriesService.nextLead(scope, dayStart, dayEnd).then((n) => (n ? rowOf(n.publicId) : null)));
-  const [prev, next] = lead
+  const [prev, next, upNextIds] = lead
     ? await Promise.all([
         inquiriesService.nextLead(scope, dayStart, dayEnd, { publicId: lead.publicId, dir: "prev" }),
         inquiriesService.nextLead(scope, dayStart, dayEnd, { publicId: lead.publicId, dir: "next" }),
+        inquiriesService.upNext(scope, dayStart, dayEnd, lead.publicId, UP_NEXT_COUNT),
       ])
-    : [null, null];
+    : [null, null, []];
+  const upNextRows = upNextIds.length
+    ? await inquiriesService.listForPipeline(scope, { page: 0, size: upNextIds.length }, undefined, undefined, inArray(inquiries.publicId, upNextIds)).then((r) => r.items)
+    : [];
+  const upNext = upNextIds.flatMap((id) => {
+    const row = upNextRows.find((r) => r.publicId === id);
+    return row ? [{ ...row, href: `/dashboard/inquiries?${leadQuery(sp, id)}` }] : [];
+  });
   const ownerOptions = [{ value: ME, label: "Me" }, { value: ALL_OWNERS, label: "All owners" }, ...owners];
 
   return (
@@ -151,6 +161,7 @@ async function NextLead({ searchParams }: { searchParams: SearchParams }) {
       owner={{ current: leadOwner, options: ownerOptions.map((o) => ({ ...o, href: leadOwnerHref(sp, o.value) })) }}
       prevHref={prev ? `/dashboard/inquiries?${leadQuery(sp, prev.publicId)}` : undefined}
       nextHref={next ? `/dashboard/inquiries?${leadQuery(sp, next.publicId)}` : undefined}
+      upNext={upNext}
       upcomingHref={`/dashboard/inquiries?queue=upcoming&owner=${encodeURIComponent(leadOwner)}`}
       allOpenHref={`/dashboard/inquiries?queue=open&owner=${encodeURIComponent(leadOwner)}`}
     />

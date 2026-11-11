@@ -119,6 +119,35 @@ type LostReason = (typeof inquiries.lostReason.enumValues)[number];
 const newWhere = (visible: "all" | string[]) =>
   and(eq(inquiries.stage, "new"), visible === "all" ? undefined : inArray(inquiries.organizationId, visible));
 
+const recommendCur = alias(inquiries, "cur");
+
+/** Open follow-up queue (Due and Overdue together) within a list's condition. */
+function recommendedQueue(condition: Condition | undefined, dayStart: number, dayEnd: number) {
+  return and(
+    conditionToSql(condition, inquiriesResolver()),
+    or(queuePredicate("overdue", dayStart, dayEnd), queuePredicate("due", dayStart, dayEnd)),
+  );
+}
+
+/** The recommended-lead order, shared by nextLead (cycle) and upNext (list) so they cannot diverge. */
+function recommendedOrder(tb: typeof inquiries | typeof recommendCur, dayStart: number, dayEnd: number): SQL[] {
+  const rank = sql`case
+      when not (${tb.stage} not in ('converted', 'lost')) then 4
+      when ${tb.nextFollowUpAt} < ${dayStart} then 0
+      when ${tb.nextFollowUpAt} < ${dayEnd} then 1
+      when ${tb.nextFollowUpAt} is not null then 4
+      when ${tb.leadNumber} is not null and ${tb.fullName} = 'Lead ' || ${tb.leadNumber} then 2
+      else 3 end`;
+  return [rank, sql`coalesce(${tb.nextFollowUpAt}, 0)`, sql`${tb.createdAt}`, sql`${tb.id}`];
+}
+
+/** Row-value of `publicId` in the recommended order, for `>`/`<` comparisons against other leads. */
+function recommendedPosition(publicId: string, dayStart: number, dayEnd: number) {
+  const mine = sql`(${sql.join(recommendedOrder(inquiries, dayStart, dayEnd), sql`, `)})`;
+  const theirs = sql`(select ${sql.join(recommendedOrder(recommendCur, dayStart, dayEnd), sql`, `)} from ${inquiries} as "cur" where ${recommendCur.publicId} = ${publicId})`;
+  return { mine, theirs };
+}
+
 export function assertFiniteFollowUp(at: number | null | undefined) {
   if (at != null && !Number.isFinite(at)) throw new ValidationError("Invalid follow-up date");
 }
@@ -794,34 +823,34 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
     dayEnd: number,
     from?: { publicId: string; dir: "next" | "prev" },
   ): Promise<{ publicId: string } | null> {
-    const t = alias(inquiries, "cur");
     const asc_ = from?.dir !== "prev";
-    type Tb = typeof inquiries | typeof t;
-    const rankOf = (tb: Tb) => sql`case
-      when not (${tb.stage} not in ('converted', 'lost')) then 4
-      when ${tb.nextFollowUpAt} < ${dayStart} then 0
-      when ${tb.nextFollowUpAt} < ${dayEnd} then 1
-      when ${tb.nextFollowUpAt} is not null then 4
-      when ${tb.leadNumber} is not null and ${tb.fullName} = 'Lead ' || ${tb.leadNumber} then 2
-      else 3 end`;
-    const parts = (tb: Tb) => [rankOf(tb), sql`coalesce(${tb.nextFollowUpAt}, 0)`, sql`${tb.createdAt}`, sql`${tb.id}`];
     const pick = (cursor: SQL | undefined) =>
       db
         .select({ publicId: inquiries.publicId })
         .from(inquiries)
         .where(and(
-          conditionToSql(condition, inquiriesResolver()),
-          or(queuePredicate("overdue", dayStart, dayEnd), queuePredicate("due", dayStart, dayEnd)),
+          recommendedQueue(condition, dayStart, dayEnd),
           from ? ne(inquiries.publicId, from.publicId) : undefined,
           cursor,
         ))
-        .orderBy(...parts(inquiries).map((p) => (asc_ ? sql`${p} asc` : sql`${p} desc`)))
+        .orderBy(...recommendedOrder(inquiries, dayStart, dayEnd).map((p) => (asc_ ? sql`${p} asc` : sql`${p} desc`)))
         .limit(1)
         .then(([r]) => r ?? null);
     if (!from) return pick(undefined);
-    const mine = sql`(${sql.join(parts(inquiries), sql`, `)})`;
-    const theirs = sql`(select ${sql.join(parts(t), sql`, `)} from ${inquiries} as "cur" where ${t.publicId} = ${from.publicId})`;
+    const { mine, theirs } = recommendedPosition(from.publicId, dayStart, dayEnd);
     return (await pick(asc_ ? sql`${mine} > ${theirs}` : sql`${mine} < ${theirs}`)) ?? pick(undefined);
+  }
+
+  /** The `limit` leads that follow `afterPublicId` in nextLead's order, within the same queue and list. Does not wrap. */
+  async upNext(condition: Condition | undefined, dayStart: number, dayEnd: number, afterPublicId: string, limit: number): Promise<string[]> {
+    const { mine, theirs } = recommendedPosition(afterPublicId, dayStart, dayEnd);
+    const rows = await db
+      .select({ publicId: inquiries.publicId })
+      .from(inquiries)
+      .where(and(recommendedQueue(condition, dayStart, dayEnd), sql`${mine} > ${theirs}`))
+      .orderBy(...recommendedOrder(inquiries, dayStart, dayEnd).map((p) => sql`${p} asc`))
+      .limit(limit);
+    return rows.map((r) => r.publicId);
   }
 
   /** `condition` is a list filter (owner, source, …) resolved like the list's, so cards match the rows. */

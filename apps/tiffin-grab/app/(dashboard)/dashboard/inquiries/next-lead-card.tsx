@@ -21,6 +21,9 @@ export function leadScope(leadOwner: string | undefined, viewer: string | undefi
 
 export type OwnerChoice = { value: string; label: string; href: string };
 
+/** A recommended lead below the current one; `href` pins it and keeps the list's params. */
+export type UpNextRow = PipelineRow & { href: string };
+
 export type NextLeadCardProps = {
   lead: PipelineRow | null;
   timeZone: string;
@@ -32,6 +35,7 @@ export type NextLeadCardProps = {
   owner: { current: string; options: OwnerChoice[] };
   prevHref?: string;
   nextHref?: string;
+  upNext: UpNextRow[];
   upcomingHref: string;
   allOpenHref: string;
 };
@@ -60,7 +64,22 @@ function FollowUpBadge({ lead, dayStart, dayEnd, now, timeZone }: Pick<NextLeadC
   return <Badge variant="secondary">{formatEpoch(at, { mode: "datetime", timeZone })}</Badge>;
 }
 
-export function NextLeadCard({ lead, timeZone, now, dayStart, dayEnd, dueCount, upcomingCount, owner, prevHref, nextHref, upcomingHref, allOpenHref }: NextLeadCardProps) {
+function UpNextList({ rows, dayStart, dayEnd, now, timeZone, showOwner }: Pick<NextLeadCardProps, "timeZone" | "now" | "dayStart" | "dayEnd"> & { rows: UpNextRow[]; showOwner: boolean }) {
+  return (
+    <div className="mt-3 flex flex-col gap-1 border-t pt-3">
+      {rows.map((row) => (
+        <Link key={row.publicId} href={row.href} prefetch={false} className="hover:bg-muted/40 flex min-w-0 flex-wrap items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors">
+          <span className="min-w-0 truncate font-medium">{displayName(row)}</span>
+          <StatusPill subStatus={row.subStatus} />
+          <FollowUpBadge lead={row} dayStart={dayStart} dayEnd={dayEnd} now={now} timeZone={timeZone} />
+          {showOwner ? <span className="text-muted-foreground text-xs">{row.ownerName ?? "Unassigned"}</span> : null}
+        </Link>
+      ))}
+    </div>
+  );
+}
+
+export function NextLeadCard({ lead, timeZone, now, dayStart, dayEnd, dueCount, upcomingCount, owner, prevHref, nextHref, upNext, upcomingHref, allOpenHref }: NextLeadCardProps) {
   const hint = scopeHint(owner.current, owner.options);
   const picker = (
     <div className="flex items-center gap-2">
@@ -71,77 +90,80 @@ export function NextLeadCard({ lead, timeZone, now, dayStart, dayEnd, dueCount, 
   return (
     <SectionCard title="Next lead" action={picker}>
       {lead ? (
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:gap-4">
-          <div className="flex min-w-0 flex-1 items-center gap-3">
-            <div className="bg-muted flex size-10 shrink-0 items-center justify-center rounded-lg text-sm font-medium">
-              {displayName(lead).replace(/[^\p{L}\s]/gu, " ").trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join("").toUpperCase() || "#"}
-            </div>
-            <div className="flex min-w-0 flex-col gap-0.5">
-              <div className="flex min-w-0 flex-wrap items-center gap-2">
-                <Link href={`/dashboard/inquiries/${lead.publicId}`} className="truncate font-medium hover:underline">
-                  {displayName(lead)}
-                </Link>
-                <StatusPill subStatus={lead.subStatus} />
+        <>
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:gap-4">
+            <div className="flex min-w-0 flex-1 items-center gap-3">
+              <div className="bg-muted flex size-10 shrink-0 items-center justify-center rounded-lg text-sm font-medium">
+                {displayName(lead).replace(/[^\p{L}\s]/gu, " ").trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join("").toUpperCase() || "#"}
               </div>
-              <p className="text-muted-foreground truncate text-xs">
-                {[lead.phone ? formatPhone(lead.phone) : "No phone", lead.source, `created ${ago(lead.createdAt, now)}`].join(" · ")}
-              </p>
+              <div className="flex min-w-0 flex-col gap-0.5">
+                <div className="flex min-w-0 flex-wrap items-center gap-2">
+                  <Link href={`/dashboard/inquiries/${lead.publicId}`} className="truncate font-medium hover:underline">
+                    {displayName(lead)}
+                  </Link>
+                  <StatusPill subStatus={lead.subStatus} />
+                </div>
+                <p className="text-muted-foreground truncate text-xs">
+                  {[lead.phone ? formatPhone(lead.phone) : "No phone", lead.source, `created ${ago(lead.createdAt, now)}`].join(" · ")}
+                </p>
+              </div>
             </div>
-          </div>
-          <div className="flex min-w-0 flex-col gap-1.5 md:w-64">
-            <div>
-              <FollowUpBadge lead={lead} dayStart={dayStart} dayEnd={dayEnd} now={now} timeZone={timeZone} />
+            <div className="flex min-w-0 flex-col gap-1.5 md:w-64">
+              <div>
+                <FollowUpBadge lead={lead} dayStart={dayStart} dayEnd={dayEnd} now={now} timeZone={timeZone} />
+              </div>
+              {lead.lastNote ? <p className="bg-muted/40 text-muted-foreground line-clamp-2 rounded-md px-3 py-2 text-xs">{lead.lastNote}</p> : null}
             </div>
-            {lead.lastNote ? <p className="bg-muted/40 text-muted-foreground line-clamp-2 rounded-md px-3 py-2 text-xs">{lead.lastNote}</p> : null}
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            {lead.phone ? (
-              <Button variant="default" size="sm" asChild>
-                <a href={`tel:${lead.phone}`}>
-                  <PhoneIcon className="size-4" />
-                  Call
-                </a>
+            <div className="flex flex-wrap items-center gap-2">
+              {lead.phone ? (
+                <Button variant="default" size="sm" asChild>
+                  <a href={`tel:${lead.phone}`}>
+                    <PhoneIcon className="size-4" />
+                    Call
+                  </a>
+                </Button>
+              ) : null}
+              {lead.phone ? (
+                <Button variant="outline" size="sm" asChild>
+                  <a href={`https://wa.me/${lead.phone.replace(/\D/g, "")}`}>
+                    <MessageCircleIcon className="size-4" />
+                    WhatsApp
+                  </a>
+                </Button>
+              ) : null}
+              <NextLeadNoteButton inquiryId={lead.publicId} timeZone={timeZone} />
+              <Button variant="ghost" size="sm" asChild>
+                <Link href={`/dashboard/inquiries/${lead.publicId}`}>Open</Link>
               </Button>
-            ) : null}
-            {lead.phone ? (
-              <Button variant="outline" size="sm" asChild>
-                <a href={`https://wa.me/${lead.phone.replace(/\D/g, "")}`}>
-                  <MessageCircleIcon className="size-4" />
-                  WhatsApp
-                </a>
-              </Button>
-            ) : null}
-            <NextLeadNoteButton inquiryId={lead.publicId} timeZone={timeZone} />
-            <Button variant="ghost" size="sm" asChild>
-              <Link href={`/dashboard/inquiries/${lead.publicId}`}>Open</Link>
-            </Button>
-            <div className="flex items-center gap-1">
-              {prevHref ? (
-                <Button variant="ghost" size="icon-sm" aria-label="Previous lead" asChild>
-                  <Link href={prevHref} prefetch={false}>
+              <div className="flex items-center gap-1">
+                {prevHref ? (
+                  <Button variant="ghost" size="icon-sm" aria-label="Previous lead" asChild>
+                    <Link href={prevHref} prefetch={false}>
+                      <ChevronLeftIcon className="size-4" />
+                    </Link>
+                  </Button>
+                ) : (
+                  <Button variant="ghost" size="icon-sm" aria-label="Previous lead" disabled>
                     <ChevronLeftIcon className="size-4" />
-                  </Link>
-                </Button>
-              ) : (
-                <Button variant="ghost" size="icon-sm" aria-label="Previous lead" disabled>
-                  <ChevronLeftIcon className="size-4" />
-                </Button>
-              )}
-              <span className="text-muted-foreground px-1 text-xs tabular-nums">{dueCount} due</span>
-              {nextHref ? (
-                <Button variant="ghost" size="icon-sm" aria-label="Next lead" asChild>
-                  <Link href={nextHref} prefetch={false}>
+                  </Button>
+                )}
+                <span className="text-muted-foreground px-1 text-xs tabular-nums">{dueCount} due</span>
+                {nextHref ? (
+                  <Button variant="ghost" size="icon-sm" aria-label="Next lead" asChild>
+                    <Link href={nextHref} prefetch={false}>
+                      <ChevronRightIcon className="size-4" />
+                    </Link>
+                  </Button>
+                ) : (
+                  <Button variant="ghost" size="icon-sm" aria-label="Next lead" disabled>
                     <ChevronRightIcon className="size-4" />
-                  </Link>
-                </Button>
-              ) : (
-                <Button variant="ghost" size="icon-sm" aria-label="Next lead" disabled>
-                  <ChevronRightIcon className="size-4" />
-                </Button>
-              )}
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
-        </div>
+          {upNext.length > 0 ? <UpNextList rows={upNext} dayStart={dayStart} dayEnd={dayEnd} now={now} timeZone={timeZone} showOwner={owner.current === ALL_OWNERS} /> : null}
+        </>
       ) : (
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-3">
@@ -186,6 +208,11 @@ export function NextLeadSkeleton() {
           <Skeleton className="h-8 w-20" />
           <Skeleton className="h-8 w-16" />
         </div>
+      </div>
+      <div className="mt-3 flex flex-col gap-1 border-t pt-3">
+        {[0, 1, 2].map((i) => (
+          <Skeleton key={i} className="h-5 w-56 max-w-full" />
+        ))}
       </div>
     </SectionCard>
   );

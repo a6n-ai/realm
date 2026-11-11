@@ -57,6 +57,7 @@ const base: Omit<NextLeadCardProps, "lead"> = {
   dueCount: 12,
   upcomingCount: 3,
   owner: owner("me"),
+  upNext: [],
   upcomingHref: "/dashboard/inquiries?queue=upcoming&owner=me",
   allOpenHref: "/dashboard/inquiries?queue=open&owner=me",
 };
@@ -127,6 +128,26 @@ describe("NextLeadCard", () => {
     unmount();
     render(<NextLeadCard {...base} owner={owner("staff_2")} lead={lead()} />);
     expect(screen.getByText("Ravi Shah's queue")).toBeInTheDocument();
+  });
+
+  it("lists up to 4 up-next leads, each pinned with highlight and the card's leadOwner", () => {
+    const up = ["Bea", "Carl", "Dana", "Eli"].map((name, i) => ({
+      ...lead({ publicId: `inq_${i + 2}`, fullName: name, ownerName: "Ravi Shah" }),
+      href: `/dashboard/inquiries?leadOwner=all&highlight=inq_${i + 2}`,
+    })) as unknown as NextLeadCardProps["upNext"];
+    render(<NextLeadCard {...base} owner={owner("all")} lead={lead()} upNext={up} />);
+    const rows = up.map((r) => screen.getByRole("link", { name: new RegExp(r.fullName ?? "") }));
+    expect(rows).toHaveLength(4);
+    expect(rows[0]).toHaveAttribute("href", "/dashboard/inquiries?leadOwner=all&highlight=inq_2");
+    expect(rows[3]).toHaveAttribute("href", "/dashboard/inquiries?leadOwner=all&highlight=inq_5");
+    expect(screen.getAllByText("Ravi Shah")).toHaveLength(4);
+  });
+
+  it("omits the owner name on up-next rows unless the card is all owners", () => {
+    const up = [{ ...lead({ publicId: "inq_9", fullName: "Fay", ownerName: "Ravi Shah" }), href: "/dashboard/inquiries?highlight=inq_9" }] as unknown as NextLeadCardProps["upNext"];
+    render(<NextLeadCard {...base} lead={lead()} upNext={up} />);
+    expect(screen.getByRole("link", { name: /Fay/ })).toBeInTheDocument();
+    expect(screen.queryByText("Ravi Shah")).not.toBeInTheDocument();
   });
 });
 
