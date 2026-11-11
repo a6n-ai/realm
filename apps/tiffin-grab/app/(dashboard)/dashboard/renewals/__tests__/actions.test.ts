@@ -99,3 +99,32 @@ describe("sendRenewalReminderAction", () => {
     expect(m.logTrackActivity).not.toHaveBeenCalled();
   });
 });
+describe("runtime input validation", () => {
+  it("rejects a forged reminder_sent activity type and skips the service", async () => {
+    expect(
+      await actions.logTrackActivityAction("ord_1", "cus_1", { type: "reminder_sent" } as never),
+    ).toEqual({ error: "Invalid input" });
+    expect(m.logTrackActivity).not.toHaveBeenCalled();
+  });
+  it("rejects an unknown status and skips the service", async () => {
+    expect(await actions.setTrackStatusAction("ord_1", "cus_1", { status: "bogus" } as never)).toEqual({
+      error: "Invalid input",
+    });
+    expect(m.setTrackStatus).not.toHaveBeenCalled();
+  });
+  it("rejects an extra key and skips the service", async () => {
+    expect(
+      await actions.setTrackStatusAction("ord_1", "cus_1", { status: "expected", extra: 1 } as never),
+    ).toEqual({ error: "Invalid input" });
+    expect(m.setTrackStatus).not.toHaveBeenCalled();
+  });
+  it("rejects a note over 2000 characters and skips the service", async () => {
+    const long = "x".repeat(2001);
+    expect(await actions.addTrackNoteAction("ord_1", "cus_1", long)).toEqual({ error: "Invalid input" });
+    expect(await actions.setTrackStatusAction("ord_1", "cus_1", { status: "expected", note: long })).toEqual({
+      error: "Invalid input",
+    });
+    expect(m.addTrackNote).not.toHaveBeenCalled();
+    expect(m.setTrackStatus).not.toHaveBeenCalled();
+  });
+});
