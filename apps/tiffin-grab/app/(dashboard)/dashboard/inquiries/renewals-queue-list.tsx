@@ -17,13 +17,14 @@ import { TrackStatusMenu, TrackStatusPill } from "../renewals/_track/track-statu
 import { TrackNoteDialog, type TrackNoteKind } from "../renewals/_track/track-note-dialog";
 type QueueColumn = "customer" | "plan" | "last" | "status" | "followUp" | "activity" | "actions";
 const COLUMNS: readonly Column<QueueColumn>[] = [
+  // Sum stays under a laptop-width card so the table never scrolls sideways; DataTable stretches it on wider screens.
   { key: "customer", label: "Customer", width: "w-48" },
   { key: "plan", label: "Meal size", width: "w-32" },
-  { key: "last", label: "Last tiffin", width: "w-36" },
-  { key: "status", label: "Status", width: "w-40" },
-  { key: "followUp", label: "Follow-up", width: "w-36" },
-  { key: "activity", label: "Last activity", width: "w-56" },
-  { key: "actions", label: "Actions", align: "right", width: "w-24" },
+  { key: "last", label: "Last tiffin", width: "w-28" },
+  { key: "status", label: "Status", width: "w-32" },
+  { key: "followUp", label: "Follow-up", width: "w-28" },
+  { key: "activity", label: "Last activity", width: "w-32" },
+  { key: "actions", label: "Actions", align: "right", width: "w-20" },
 ];
 const EMPTY_COPY: Record<RenewalQueue, string> = {
   renew: "No plans ending in the next 7 days or lapsed in the last 14 days.",
@@ -88,7 +89,8 @@ export function RenewalsQueueList({ rows, total, page, size, queue, today, spec 
           const overdue = followIso != null && followIso < today;
           return (
             <>
-              <TableCell className="font-medium">
+              {/* One line per cell keeps every row the same height; DataTable shows clipped text on hover. */}
+              <TableCell className="font-medium whitespace-nowrap">
                 {r.customerPublicId ? (
                   <Link href={`/dashboard/renewals/customers/${r.customerPublicId}`} className="hover:underline">
                     {r.customerName}
@@ -98,21 +100,21 @@ export function RenewalsQueueList({ rows, total, page, size, queue, today, spec 
                 )}
                 {r.phone && <span className="text-muted-foreground ml-2 text-xs font-normal tabular-nums">{r.phone}</span>}
               </TableCell>
-              <TableCell>
-                <div className="flex flex-wrap items-center gap-1.5">
-                  {r.mealSize}
+              <TableCell title={r.mealSize}>
+                <div className="flex min-w-0 items-center gap-1.5">
                   {r.trial && <Badge variant="secondary">Trial</Badge>}
+                  <span className="truncate">{r.mealSize}</span>
                 </div>
               </TableCell>
-              <TableCell className="tabular-nums" title={humanDate(r.lastTiffin)}>{humanDate(r.lastTiffin)}</TableCell>
-              <TableCell>
+              <TableCell className="whitespace-nowrap tabular-nums" title={humanDate(r.lastTiffin)}>{humanDate(r.lastTiffin)}</TableCell>
+              <TableCell className="whitespace-nowrap">
                 {r.customerPublicId ? (
                   <TrackStatusMenu orderPublicId={r.orderPublicId} customerPublicId={r.customerPublicId} status={r.track} source={r.trackSource} />
                 ) : (
                   <TrackStatusPill status={r.track} source={r.trackSource} />
                 )}
               </TableCell>
-              <TableCell className="tabular-nums">
+              <TableCell className="whitespace-nowrap tabular-nums">
                 {followIso ? (
                   <span className={overdue ? "text-destructive" : undefined}>
                     {humanDate(followIso)}
@@ -124,7 +126,7 @@ export function RenewalsQueueList({ rows, total, page, size, queue, today, spec 
               </TableCell>
               <TableCell>
                 {r.lastActivity ? (
-                  <span className="text-muted-foreground block max-w-56 truncate text-xs" title={r.lastActivity.note ?? undefined}>
+                  <span className="text-muted-foreground block truncate text-xs" title={r.lastActivity.note ?? ACTIVITY_LABEL[r.lastActivity.type] ?? r.lastActivity.type}>
                     {r.lastActivity.note ?? ACTIVITY_LABEL[r.lastActivity.type] ?? r.lastActivity.type}
                   </span>
                 ) : (
@@ -133,7 +135,7 @@ export function RenewalsQueueList({ rows, total, page, size, queue, today, spec 
               </TableCell>
               <TableCell className="text-right">
                 {r.customerPublicId && (
-                  <div className="flex items-center justify-end gap-1">
+                  <div className="flex flex-nowrap items-center justify-end gap-1">
                     <RowTrackActions orderPublicId={r.orderPublicId} customerPublicId={r.customerPublicId} closed={closed} />
                   </div>
                 )}
