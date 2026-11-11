@@ -143,10 +143,7 @@ async function NextLead({ searchParams }: { searchParams: SearchParams }) {
   const upNextRows = upNextIds.length
     ? await inquiriesService.listForPipeline(scope, { page: 0, size: upNextIds.length }, undefined, undefined, inArray(inquiries.publicId, upNextIds)).then((r) => r.items)
     : [];
-  const upNext = upNextIds.flatMap((id) => {
-    const row = upNextRows.find((r) => r.publicId === id);
-    return row ? [{ ...row, href: `/dashboard/inquiries?${leadQuery(sp, id)}` }] : [];
-  });
+  const upNext = upNextIds.flatMap((id) => upNextRows.filter((r) => r.publicId === id));
   const ownerOptions = [{ value: ME, label: "Me" }, { value: ALL_OWNERS, label: "All owners" }, ...owners];
 
   return (

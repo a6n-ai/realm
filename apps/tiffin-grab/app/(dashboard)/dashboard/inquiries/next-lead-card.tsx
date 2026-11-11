@@ -22,7 +22,7 @@ export function leadScope(leadOwner: string | undefined, viewer: string | undefi
 export type OwnerChoice = { value: string; label: string; href: string };
 
 /** A recommended lead after the current one; `href` shows it in the card and keeps the list's params. */
-export type UpNextRow = PipelineRow & { href: string };
+export type UpNextRow = PipelineRow;
 
 export type NextLeadCardProps = {
   lead: PipelineRow | null;

@@ -19,7 +19,7 @@ function UpNextCard({ row, dayStart, dayEnd, now, timeZone, showOwner }: Omit<St
   return (
     <div className="flex w-64 shrink-0 snap-start flex-col gap-2 rounded-lg border p-3">
       <div className="flex min-w-0 flex-col gap-0.5">
-        <Link href={row.href} prefetch={false} className="truncate text-sm font-medium hover:underline">
+        <Link href={`/dashboard/inquiries/${row.publicId}`} className="truncate text-sm font-medium hover:underline">
           {name}
         </Link>
         {showOwner ? <span className="text-muted-foreground truncate text-xs">{row.ownerName ?? "Unassigned"}</span> : null}

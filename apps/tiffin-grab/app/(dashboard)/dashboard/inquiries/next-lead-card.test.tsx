@@ -130,18 +130,17 @@ describe("NextLeadCard", () => {
     expect(screen.getByText("Ravi Shah's queue")).toBeInTheDocument();
   });
 
-  it("shows up to 6 up-next cards in a labelled strip, each linking to its lead with the card's leadOwner", () => {
-    const up = ["Bea", "Carl", "Dana", "Eli", "Finn", "Gus"].map((name, i) => ({
-      ...lead({ publicId: `inq_${i + 2}`, fullName: name, ownerName: "Ravi Shah" }),
-      href: `/dashboard/inquiries?leadOwner=all&lead=inq_${i + 2}`,
-    })) as unknown as NextLeadCardProps["upNext"];
+  it("shows up to 6 up-next cards in a labelled strip, each name opening its lead page", () => {
+    const up = ["Bea", "Carl", "Dana", "Eli", "Finn", "Gus"].map((name, i) =>
+      lead({ publicId: `inq_${i + 2}`, fullName: name, ownerName: "Ravi Shah" }),
+    ) as unknown as NextLeadCardProps["upNext"];
     render(<NextLeadCard {...base} owner={owner("all")} lead={lead()} upNext={up} />);
     const strip = screen.getByRole("region", { name: "Up next leads" });
     const rows = up.map((r) => screen.getByRole("link", { name: r.fullName ?? "" }));
     expect(rows).toHaveLength(6);
     expect(strip).toContainElement(rows[0]);
-    expect(rows[0]).toHaveAttribute("href", "/dashboard/inquiries?leadOwner=all&lead=inq_2");
-    expect(rows[5]).toHaveAttribute("href", "/dashboard/inquiries?leadOwner=all&lead=inq_7");
+    expect(rows[0]).toHaveAttribute("href", "/dashboard/inquiries/inq_2");
+    expect(rows[5]).toHaveAttribute("href", "/dashboard/inquiries/inq_7");
     expect(screen.getAllByText("Ravi Shah")).toHaveLength(6);
     expect(screen.getAllByRole("button", { name: "Change status" })).toHaveLength(6);
     expect(screen.getAllByRole("button", { name: /^Add note for/ })).toHaveLength(6);
