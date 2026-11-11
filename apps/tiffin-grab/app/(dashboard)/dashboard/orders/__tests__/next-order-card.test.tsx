@@ -6,7 +6,7 @@ import { TooltipProvider } from "@foundry/ui/tooltip";
 import type { NextOrderReason, NextOrderRow } from "@/lib/services/next-order.service";
 import { NextOrderCard, type NextOrderCardProps } from "../next-order-card";
 vi.mock("../actions", () => ({ addOrderNoteAction: vi.fn(), emailPaymentLinkAction: vi.fn() }));
-vi.mock("../[id]/actions", () => ({ verifyPaymentAction: vi.fn(), cancel: vi.fn(async () => undefined) }));
+vi.mock("../[id]/actions", () => ({ verifyPaymentAction: vi.fn(), cancel: vi.fn(async () => ({ ok: true })) }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }) }));
 const NOW = Date.UTC(2026, 10, 11, 12);

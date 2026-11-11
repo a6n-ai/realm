@@ -128,7 +128,10 @@ export function ActivateCancelControls({
               disabled={pending}
               onClick={() => {
                 setConfirmCancel(false);
-                run(() => cancel(orderId));
+                run(async () => {
+                  const res = await cancel(orderId);
+                  if ("error" in res) toast.error(res.error);
+                });
               }}
             >
               Cancel order

@@ -48,10 +48,11 @@ export async function changeEatingDaysAction(orderId: string, days: DayOfWeek[])
   return orderAction({ order: orderId, orderPage: orderId }, () => ordersService.changeEatingDays(orderId, days));
 }
 
-export async function cancel(orderId: string) {
-  await assertOrderAccess({ order: orderId });
-  await cancelOrderAndOpenPayments(orderId, await currentUserId());
-  revalidateOrder(orderId);
+// Returns, not throws: production redacts thrown server-action errors, so the refusal message would be lost.
+export async function cancel(orderId: string): Promise<ActionResult> {
+  return orderAction({ order: orderId, orderPage: orderId }, async () => {
+    await cancelOrderAndOpenPayments(orderId, await currentUserId());
+  });
 }
 
 async function refreshCustomerOf(orderId: string) {

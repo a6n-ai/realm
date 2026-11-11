@@ -89,20 +89,10 @@ export function NextOrderIconActions({ row }: { row: Target }) {
         open={cancelOpen}
         onOpenChange={setCancelOpen}
         pending={pending}
-        onConfirm={() => run(() => cancelOrder(row.publicId), "Order cancelled", () => setCancelOpen(false))}
+        onConfirm={() => run(() => cancel(row.publicId), "Order cancelled", () => setCancelOpen(false))}
       />
     </>
   );
-}
-
-/** `cancel` throws on states it cannot cancel; the card shows that message as a toast instead. */
-async function cancelOrder(orderId: string): Promise<{ ok: true } | { error: string }> {
-  try {
-    await cancel(orderId);
-    return { ok: true };
-  } catch (e) {
-    return { error: e instanceof Error ? e.message : "Couldn't cancel this order" };
-  }
 }
 
 function AddNoteDialog({ orderPublicId, onDone }: { orderPublicId: string; onDone: () => void }) {
