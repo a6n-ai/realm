@@ -94,4 +94,21 @@ describe("inquiriesService.logActivity + markLost", () => {
     await inquiriesService.logActivity(inq.publicId, { type: "call", outcome: "no answer" });
     expect((await inquiriesService.read(inq.publicId)).stage).toBe("new");
   });
+
+  it("clearFollowUp clears the follow-up and logs a Follow-up done activity", async () => {
+    const inq = await makeInquiry();
+    await inquiriesService.logActivity(inq.publicId, { type: "call", nextFollowUpAt: Date.now() + 86_400_000 });
+    await inquiriesService.clearFollowUp(inq.publicId);
+    expect((await inquiriesService.read(inq.publicId)).nextFollowUpAt).toBeNull();
+    const acts = await inquiriesService.listActivities(inq.publicId);
+    expect(acts.find((a) => a.type === "callback")).toMatchObject({ note: "Follow-up done" });
+  });
+
+  it("clearFollowUp rejects when nothing is scheduled or the inquiry is converted", async () => {
+    const inq = await makeInquiry();
+    await expect(inquiriesService.clearFollowUp(inq.publicId)).rejects.toThrow(ValidationError);
+    await inquiriesService.logActivity(inq.publicId, { type: "call", nextFollowUpAt: Date.now() + 86_400_000 });
+    await inquiriesService.update(inq.publicId, { stage: "converted" });
+    await expect(inquiriesService.clearFollowUp(inq.publicId)).rejects.toThrow(ValidationError);
+  });
 });

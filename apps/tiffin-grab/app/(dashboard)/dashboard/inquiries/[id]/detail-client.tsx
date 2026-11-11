@@ -18,7 +18,7 @@ import { useTimezone } from "@foundry/design-system/timezone-provider";
 import { displayName } from "@/lib/inquiries/display";
 import { formatEpoch } from "@/lib/format/datetime";
 import { isClosed, type SubStatus } from "@/lib/inquiries/status";
-import { logActivity } from "../actions";
+import { clearFollowUp, logActivity } from "../actions";
 import { unwrapAction } from "@/lib/actions/unwrap";
 import type { ActionResult } from "@/lib/actions/action-result";
 import { NoteDialog, StatusMenu, type NoteKind } from "../_leads/status-dialog";
@@ -147,6 +147,17 @@ export function InquiryDetailClient({
     });
   }
 
+  function markFollowUpDone() {
+    startPick(async () => {
+      try {
+        await unwrapAction(clearFollowUp(inquiryId));
+        router.refresh();
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Could not mark follow-up done");
+      }
+    });
+  }
+
   const planLabel =
     catalog.plans.find((p) => p.key === interest.planInterest)?.name ??
     catalog.plans.find((p) => p.name.toLowerCase() === interest.planInterest?.trim().toLowerCase())?.name ??
@@ -258,6 +269,7 @@ export function InquiryDetailClient({
               tz={tz}
               pending={pickPending}
               onPick={saveFollowUp}
+              onMarkDone={markFollowUpDone}
             />
           )}
           <Card className="min-w-0">

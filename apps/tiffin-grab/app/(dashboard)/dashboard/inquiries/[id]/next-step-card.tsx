@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CalendarClockIcon } from "lucide-react";
+import { CalendarClockIcon, CheckIcon } from "lucide-react";
 import { zonedDateIso } from "@foundry/commons";
 import { daysBetween } from "@foundry/commons/util/dates";
 import { Button } from "@foundry/ui/button";
@@ -29,13 +29,14 @@ export function FollowUpValue({ next, dayStart, dayEnd, tz }: { next: number; da
 }
 
 /** The one follow-up display on the lead page: scheduled → value + Reschedule; none → warning + Set follow-up. */
-export function NextStepCard({ nextFollowUpAt, dayStart, dayEnd, tz, pending, onPick }: {
+export function NextStepCard({ nextFollowUpAt, dayStart, dayEnd, tz, pending, onPick, onMarkDone }: {
   nextFollowUpAt: number | null;
   dayStart: number;
   dayEnd: number;
   tz: string;
   pending: boolean;
   onPick: (at: number) => void;
+  onMarkDone: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const scheduled = nextFollowUpAt != null;
@@ -68,10 +69,16 @@ export function NextStepCard({ nextFollowUpAt, dayStart, dayEnd, tz, pending, on
       </CardHeader>
       <CardContent>
         {scheduled ? (
-          <p className="text-sm">
-            <span className="text-muted-foreground">Follow-up </span>
-            <FollowUpValue next={nextFollowUpAt} dayStart={dayStart} dayEnd={dayEnd} tz={tz} />
-          </p>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-sm">
+              <span className="text-muted-foreground">Follow-up </span>
+              <FollowUpValue next={nextFollowUpAt} dayStart={dayStart} dayEnd={dayEnd} tz={tz} />
+            </p>
+            <Button variant="ghost" size="sm" disabled={pending} onClick={onMarkDone}>
+              <CheckIcon aria-hidden />
+              Mark done
+            </Button>
+          </div>
         ) : (
           <Alert variant="warning">
             <AlertTitle>No follow-up scheduled</AlertTitle>

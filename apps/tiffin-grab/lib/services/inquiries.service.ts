@@ -541,6 +541,19 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
     }
   }
 
+  async clearFollowUp(publicId: string): Promise<void> {
+    const inq = await this.read(publicId);
+    if (inq.stage === "converted") throw new ValidationError("A converted inquiry cannot change its follow-up");
+    if (inq.nextFollowUpAt == null) throw new ValidationError("No follow-up is scheduled");
+    await this.update(publicId, { nextFollowUpAt: null });
+    await inquiryActivitiesService.create({
+      inquiryId: inq.id,
+      type: "callback",
+      note: "Follow-up done",
+      nextFollowUpAt: null,
+    });
+  }
+
   async setStatus(
     publicId: string,
     input: { subStatus: SubStatus | null; note?: string; nextFollowUpAt?: number | null; lostReason?: LostReason },

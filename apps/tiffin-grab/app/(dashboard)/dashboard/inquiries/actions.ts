@@ -8,6 +8,7 @@ import {
   type LostReason,
 } from "@/lib/services/inquiries.service";
 import { ValidationError } from "@foundry/commons";
+import { z } from "zod";
 import { SUB_STATUS_META, isClosed, type SubStatus } from "@/lib/inquiries/status";
 import { runAction, type ActionResult } from "@/lib/actions/action-result";
 import { QUICK_ADD_MAX, parsePastedPhones } from "./quick-add/parse-phones";
@@ -92,6 +93,18 @@ export async function logActivity(
     await requireStaff();
     await inquiriesService.logActivity(inquiryId, input);
     revalidatePath(`/dashboard/inquiries/${inquiryId}`);
+    revalidatePath("/dashboard/inquiries");
+  });
+}
+
+export async function clearFollowUp(inquiryId: string): Promise<ActionResult> {
+  return runAction(async () => {
+    await requireStaff();
+    const parsed = z.string().trim().min(1).max(64).safeParse(inquiryId);
+    if (!parsed.success) throw new ValidationError("Invalid inquiry");
+    const id = parsed.data;
+    await inquiriesService.clearFollowUp(id);
+    revalidatePath(`/dashboard/inquiries/${id}`);
     revalidatePath("/dashboard/inquiries");
   });
 }
