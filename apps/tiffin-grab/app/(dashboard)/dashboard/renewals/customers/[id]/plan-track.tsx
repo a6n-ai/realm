@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CalendarClockIcon, MailIcon, MessageCircleIcon, PhoneIcon, StickyNoteIcon } from "lucide-react";
+import { CalendarClockIcon, MailIcon, MessageCircleIcon, MessageSquarePlusIcon, PhoneIcon } from "lucide-react";
 import { Button } from "@foundry/ui/button";
 import { TrackStatusBoard } from "../../_track/track-status";
 import { TrackNoteDialog, type TrackNoteKind } from "../../_track/track-note-dialog";
@@ -18,7 +18,7 @@ export function PlanTrack({ plan, customerPublicId }: { plan: RenewalPlan; custo
       <TrackStatusBoard orderPublicId={plan.orderPublicId} customerPublicId={customerPublicId} status={plan.track.status} source={plan.track.source} />
       <div className="flex flex-wrap gap-2">
         <Button type="button" variant="outline" size="sm" onClick={() => setKind("note")}>
-          <StickyNoteIcon /> Add note
+          <MessageSquarePlusIcon className="text-violet-600 dark:text-violet-400" /> Add note
         </Button>
         <Button type="button" variant="outline" size="sm" onClick={() => setKind("call")}>
           <PhoneIcon /> Log call
@@ -31,7 +31,7 @@ export function PlanTrack({ plan, customerPublicId }: { plan: RenewalPlan; custo
         </Button>
         {!closed && (
           <Button type="button" variant="outline" size="sm" onClick={() => setKind("follow_up")}>
-            <CalendarClockIcon /> Set follow-up
+            <CalendarClockIcon className="text-teal-600 dark:text-teal-400" /> Set follow-up
           </Button>
         )}
       </div>
