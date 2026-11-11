@@ -1,5 +1,6 @@
 import { appTodayIso } from "@/lib/dates/today";
 import { zonedDateIso } from "@foundry/commons";
+import { dayRange } from "@foundry/commons/util/dates";
 import { handler } from "@foundry/routes";
 import {
   customerRowToExcelRecord,
@@ -13,6 +14,7 @@ import { withListDates } from "@/lib/list/default-month";
 import { parseRenewalsFilter } from "@/lib/renewals/filters";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
+import { resolveOwnerParam } from "@/lib/list/presets";
 import {
   listRenewalsForExport,
   listRenewedCustomersForExport,
@@ -26,7 +28,8 @@ export const GET = handler(async (request: Request): Promise<Response> => {
   const f = parseRenewalsFilter(sp);
   const columns = parseExportColumns(sp.columns ?? null, f.tab);
 
-  const [visible, { timezone }] = await Promise.all([resolveSessionVisibleOrgIds(await getSession()), getAppSettings()]);
+  const session = await getSession();
+  const [visible, { timezone }] = await Promise.all([resolveSessionVisibleOrgIds(session), getAppSettings()]);
   const today = appTodayIso(timezone);
   const range: RenewalRange = {
     by: f.dateBy,
@@ -35,6 +38,8 @@ export const GET = handler(async (request: Request): Promise<Response> => {
     fromIso: f.from != null ? zonedDateIso(f.from, timezone) : null,
     toIso: f.to != null ? zonedDateIso(f.to, timezone) : null,
   };
+  const day = dayRange(today, timezone);
+  const owner = resolveOwnerParam(f.owner ?? undefined, session?.user.id) ?? null;
 
   const headers = exportHeaders(f.tab, columns);
   const records =
@@ -42,17 +47,19 @@ export const GET = handler(async (request: Request): Promise<Response> => {
       ? (await listRenewedCustomersForExport(visible, { renewedWithin: f.renewed, q: f.q, from: f.from, to: f.to })).map((r) =>
           customerRowToExcelRecord(r, timezone, columns),
         )
-      : (await listRenewalsForExport(visible, f, today, range)).map((r) => planRowToExcelRecord(r, f.tab, today, columns));
+      : (await listRenewalsForExport(visible, { ...f, owner }, today, range, { dayStart: day.start, dayEnd: day.end })).map((r) =>
+          planRowToExcelRecord(r, today, timezone, columns),
+        );
 
   const XLSX = await import("xlsx");
   const sheet = XLSX.utils.json_to_sheet(records, { header: headers });
   const workbook = XLSX.utils.book_new();
-  const sheetName = f.tab === "customers" ? "Renewed customers" : f.tab === "trials" ? "Trials" : "Renewals";
+  const sheetName = f.tab === "customers" ? "Renewed customers" : "Renewals";
   XLSX.utils.book_append_sheet(workbook, sheet, sheetName);
   const buffer = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" }) as Buffer;
 
   const dateIso = appTodayIso(timezone);
-  const fileStem = f.tab === "customers" ? "renewed-customers" : f.tab === "trials" ? "trial-conversions" : "renewals";
+  const fileStem = f.tab === "customers" ? "renewed-customers" : "renewals";
   return new Response(new Uint8Array(buffer), {
     status: 200,
     headers: {

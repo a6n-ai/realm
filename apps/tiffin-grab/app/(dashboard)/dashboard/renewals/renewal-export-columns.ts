@@ -1,6 +1,7 @@
 // Single source of truth for the renewals Excel export's column keys, labels, and row mapping.
 import { zonedDateIso } from "@foundry/commons";
 import { rowStatus, statusLabel, type RenewalsTab } from "@/lib/renewals/filters";
+import { LOST_REASON_LABELS, trackLabel } from "@/lib/renewals/status";
 import type { RenewalRow, RenewedCustomerRow } from "@/lib/services/renewals.service";
 
 export const PLAN_EXPORT_COLUMNS = [
@@ -9,8 +10,13 @@ export const PLAN_EXPORT_COLUMNS = [
   { key: "phone", label: "Phone" },
   { key: "mealSize", label: "Meal size" },
   { key: "plan", label: "Plan" },
+  { key: "type", label: "Type" },
   { key: "lastTiffin", label: "Last tiffin" },
+  { key: "renewal", label: "Renewal" },
   { key: "status", label: "Status" },
+  { key: "lostReason", label: "Lost reason" },
+  { key: "nextFollowUp", label: "Next follow-up" },
+  { key: "lastActivity", label: "Last activity" },
   { key: "priorPlans", label: "Prior renewals" },
   { key: "holds", label: "Hold days" },
   { key: "openTickets", label: "Open tickets" },
@@ -56,19 +62,23 @@ function money(v: string | null | undefined): number | "" {
 
 export function planRowToExcelRecord(
   row: RenewalRow,
-  tab: RenewalsTab,
   today: string,
+  timezone: string,
   columns: readonly string[],
 ): Record<string, string | number> {
-  const status = rowStatus(row.status, row.lastTiffin, today);
   const all: Record<PlanExportColumnKey, string | number> = {
     order: row.code,
     customer: row.customerName,
     phone: row.phone ?? "",
     mealSize: row.mealSize,
     plan: row.planName,
+    type: row.trial ? "Trial" : "Regular",
     lastTiffin: row.lastTiffin,
-    status: statusLabel(status, tab),
+    renewal: statusLabel(rowStatus(row.status, row.lastTiffin, today)),
+    status: trackLabel(row.track),
+    lostReason: row.lostReason ? LOST_REASON_LABELS[row.lostReason] : "",
+    nextFollowUp: row.nextFollowUpAt != null ? zonedDateIso(row.nextFollowUpAt, timezone) : "",
+    lastActivity: row.lastActivity ? `${zonedDateIso(row.lastActivity.at, timezone)} ${row.lastActivity.note ?? row.lastActivity.type}` : "",
     priorPlans: Number(row.priorPlans) || 0,
     holds: Number(row.holds) || 0,
     openTickets: Number(row.openTickets) || 0,

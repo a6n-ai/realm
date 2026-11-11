@@ -11,8 +11,9 @@ const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { nextWeekday } = await import("@foundry/commons");
 const { createOrder } = await import("../create-order");
 const { countRenewals, getCustomerRenewal, listRenewals, listRenewedCustomers, reminderDelivery } = await import("../renewals.service");
+const { addTrackNote, setTrackStatus } = await import("../renewal-tracking.service");
 const { messageSuppression } = await import("@/db/schema");
-const { addDaysIso: addDays } = await import("@foundry/commons/util/dates");
+const { addDaysIso: addDays, dayRange } = await import("@foundry/commons/util/dates");
 
 async function reset() {
   await db.delete(walletLedger);
@@ -57,22 +58,23 @@ describe("renewals service (integration)", () => {
   afterAll(reset);
 
   const open: RenewalRange = { by: "last", fromIso: null, toIso: null, fromMs: null, toMs: null };
-  const f0 = { tab: "renewals" as const, dateBy: "last" as const, ending: null, ended: null, status: null, renewed: null, from: null, to: null, q: "" };
+  const noDay = { dayStart: 0, dayEnd: 0 };
+  const f0 = { tab: "renewals" as const, type: null, track: null, followUp: null, dateBy: "last" as const, ending: null, ended: null, status: null, renewed: null, from: null, to: null, q: "" };
 
   it("ending window: today through N days out, both ends included", async () => {
     const p = await plan();
     const f = (ending: number) => ({ ...f0, ending });
-    expect(ids(await listRenewals("all", f(0), p.last, page, open))).toEqual([p.publicId]);
-    expect(ids(await listRenewals("all", f(2), addDays(p.last, -2), page, open))).toEqual([p.publicId]);
-    expect(ids(await listRenewals("all", f(1), addDays(p.last, -2), page, open))).toEqual([]);
+    expect(ids(await listRenewals("all", f(0), p.last, page, open, noDay))).toEqual([p.publicId]);
+    expect(ids(await listRenewals("all", f(2), addDays(p.last, -2), page, open, noDay))).toEqual([p.publicId]);
+    expect(ids(await listRenewals("all", f(1), addDays(p.last, -2), page, open, noDay))).toEqual([]);
     // Already ended: not "ending".
-    expect(ids(await listRenewals("all", f(7), addDays(p.last, 1), page, open))).toEqual([]);
+    expect(ids(await listRenewals("all", f(7), addDays(p.last, 1), page, open, noDay))).toEqual([]);
   });
 
   it("top date range: last tiffin, ordered or running in range", async () => {
     const p = await plan();
     const [o] = await db.select({ start: orders.startDate, createdAt: orders.createdAt }).from(orders).where(eq(orders.id, p.id));
-    const by = (r: Partial<RenewalRange>) => listRenewals("all", f0, p.last, page, { ...open, ...r }).then(ids);
+    const by = (r: Partial<RenewalRange>) => listRenewals("all", f0, p.last, page, { ...open, ...r }, noDay).then(ids);
     expect(await by({ fromIso: p.last, toIso: p.last })).toEqual([p.publicId]);
     expect(await by({ fromIso: addDays(p.last, 1), toIso: addDays(p.last, 30) })).toEqual([]);
     expect(await by({ by: "ordered", fromMs: o.createdAt - 1000, toMs: o.createdAt + 1000 })).toEqual([p.publicId]);
@@ -84,7 +86,7 @@ describe("renewals service (integration)", () => {
 
   it("top date range: next plan booked in range dates the plan by its renewal", async () => {
     const p = await plan();
-    const by = (r: Partial<RenewalRange>) => listRenewals("all", f0, p.last, page, { ...open, by: "renewed", ...r }).then(ids);
+    const by = (r: Partial<RenewalRange>) => listRenewals("all", f0, p.last, page, { ...open, by: "renewed", ...r }, noDay).then(ids);
     expect(await by({})).toEqual([]);
     const next = await plan();
     const bookedAt = Date.parse("2099-01-01T15:00:00Z");
@@ -98,31 +100,61 @@ describe("renewals service (integration)", () => {
     const done = await plan("completed");
     const today = addDays(running.last, 3);
     const ended = { ...f0, ended: 7 };
-    const listed = await listRenewals("all", ended, today, page, open);
+    const listed = await listRenewals("all", ended, today, page, open, noDay);
     expect(new Set(ids(listed))).toEqual(new Set([running.publicId, done.publicId]));
     expect(listed.items.every((r) => r.status === "none")).toBe(true);
 
     // Status: Lapsed keeps the ended ones; Not renewed wants a running plan, so none here.
-    expect(new Set(ids(await listRenewals("all", { ...ended, status: "lapsed" }, today, page, open)))).toEqual(new Set([running.publicId, done.publicId]));
-    expect(ids(await listRenewals("all", { ...ended, status: "not_renewed" }, today, page, open))).toEqual([]);
+    expect(new Set(ids(await listRenewals("all", { ...ended, status: "lapsed" }, today, page, open, noDay)))).toEqual(new Set([running.publicId, done.publicId]));
+    expect(ids(await listRenewals("all", { ...ended, status: "not_renewed" }, today, page, open, noDay))).toEqual([]);
 
     // A later plan (even unpaid) moves it out of Lapsed; it is still an ended plan.
     const next = await plan();
     await db.update(orders).set({ userId: running.userId, startDate: "2099-01-05", status: "pending" }).where(eq(orders.id, next.id));
-    expect(ids(await listRenewals("all", { ...ended, status: "lapsed" }, today, page, open))).toEqual([done.publicId]);
-    expect(new Set(ids(await listRenewals("all", ended, today, page, open)))).toEqual(new Set([running.publicId, done.publicId]));
+    expect(ids(await listRenewals("all", { ...ended, status: "lapsed" }, today, page, open, noDay))).toEqual([done.publicId]);
+    expect(new Set(ids(await listRenewals("all", ended, today, page, open, noDay)))).toEqual(new Set([running.publicId, done.publicId]));
   });
 
-  it("splits trials from paid plans and respects org visibility", async () => {
+  it("type narrows to trials or regular plans and respects org visibility", async () => {
     const paid = await plan();
     const trial = await plan();
     await db.update(orders).set({ trialLength: 3 }).where(eq(orders.id, trial.id));
-    const f = (tab: "renewals" | "trials") => ({ ...f0, tab, ending: 7 });
+    const f = (type: "regular" | "trial" | null) => ({ ...f0, type, ending: 7 });
     const today = addDays(paid.last, -1);
-    expect(ids(await listRenewals("all", f("renewals"), today, page, open))).toEqual([paid.publicId]);
-    expect(ids(await listRenewals("all", f("trials"), today, page, open))).toEqual([trial.publicId]);
-    expect(ids(await listRenewals([], f("renewals"), today, page, open))).toEqual([]);
-    expect(ids(await listRenewals(["no-such-org"], f("renewals"), today, page, open))).toEqual([]);
+    expect(ids(await listRenewals("all", f("regular"), today, page, open, noDay))).toEqual([paid.publicId]);
+    expect(ids(await listRenewals("all", f("trial"), today, page, open, noDay))).toEqual([trial.publicId]);
+    expect(new Set(ids(await listRenewals("all", f(null), today, page, open, noDay)))).toEqual(new Set([paid.publicId, trial.publicId]));
+    expect(ids(await listRenewals([], f("regular"), today, page, open, noDay))).toEqual([]);
+    expect(ids(await listRenewals(["no-such-org"], f("regular"), today, page, open, noDay))).toEqual([]);
+  });
+
+  it("track: new is an untouched plan; a staff status narrows; an auto-renewed plan reads renewed", async () => {
+    const done = await plan("completed");
+    const untouched = await plan();
+    const touched = await plan();
+    const next = await plan();
+    await db.update(orders).set({ userId: done.userId, startDate: "2099-01-05", status: "active" }).where(eq(orders.id, next.id));
+    await setTrackStatus(touched.publicId, { status: "follow_up" });
+    await addTrackNote(touched.publicId, "Asked for Friday");
+
+    const trackOf = async (track: ("new" | "follow_up" | "renewed")[]) => new Set(ids(await listRenewals("all", { ...f0, track }, touched.last, page, open, noDay)));
+    expect(await trackOf(["new"])).toEqual(new Set([untouched.publicId, next.publicId]));
+    expect(await trackOf(["follow_up"])).toEqual(new Set([touched.publicId]));
+    expect(await trackOf(["renewed"])).toEqual(new Set([done.publicId]));
+
+    const row = (await listRenewals("all", { ...f0, track: ["follow_up"] }, touched.last, page, open, noDay)).items[0];
+    expect(row).toMatchObject({ track: "follow_up", trackSource: "staff", trial: false, lastActivity: { type: "note", note: "Asked for Friday" } });
+  });
+
+  it("follow-up due today lists a plan whose last tiffin is long past, ignoring the ending window", async () => {
+    const p = await plan("completed");
+    const today = addDays(p.last, 30);
+    await setTrackStatus(p.publicId, { status: "follow_up", nextFollowUpAt: Date.parse(`${today}T12:00:00Z`) });
+    const day = dayRange(today, "UTC");
+    const dueDay = { dayStart: day.start, dayEnd: day.end };
+    expect(ids(await listRenewals("all", { ...f0, ending: 7, followUp: "due" }, today, page, open, dueDay))).toEqual([p.publicId]);
+    expect(ids(await listRenewals("all", { ...f0, followUp: "overdue" }, today, page, open, dueDay))).toEqual([]);
+    expect(ids(await listRenewals("all", { ...f0, followUp: "none" }, today, page, open, dueDay))).toEqual([]);
   });
 
   it("rows carry the fact chips and money, and the cards match the list", async () => {
@@ -135,19 +167,19 @@ describe("renewals service (integration)", () => {
     await db.insert(walletLedger).values({ userId: before.userId, direction: "credit", eventType: "order_activated", sourceType: "order", sourceId: `renewals-${p.id}`, coins: 42, orderId: p.id });
 
     const today = addDays(p.last, -1);
-    const list = await listRenewals("all", f0, today, page, open);
+    const list = await listRenewals("all", f0, today, page, open, noDay);
     expect(list.items.find((r) => r.orderPublicId === p.publicId)).toMatchObject({ priorPlans: 1, holds: 1, openTickets: 0, walletCoins: 42, prevOrderTotal: "88.00", status: "none" });
     expect(list.items.find((r) => r.orderPublicId === before.publicId)?.planTotal).toBe("88.00");
 
     // Cards cover the same plans as the unfiltered list: the earlier plan is renewed by this one, this one is still running.
-    const cards = await countRenewals("all", "renewals", today, open);
+    const cards = await countRenewals("all", null, today, open);
     expect(cards).toEqual({ plans: list.total, renewed: 1, renewedNotPaid: 0, notRenewed: 1, lapsed: 0 });
 
     // Status and search narrow the list; search matches name, code or phone.
-    expect(ids(await listRenewals("all", { ...f0, status: "not_renewed" }, today, page, open))).toContain(p.publicId);
-    expect(ids(await listRenewals("all", { ...f0, status: "renewed" }, today, page, open))).toEqual([before.publicId]);
-    expect(ids(await listRenewals("all", { ...f0, q: "nia renew" }, today, page, open))).toContain(p.publicId);
-    expect(ids(await listRenewals("all", { ...f0, q: "nobody-like-this" }, today, page, open))).toEqual([]);
+    expect(ids(await listRenewals("all", { ...f0, status: "not_renewed" }, today, page, open, noDay))).toContain(p.publicId);
+    expect(ids(await listRenewals("all", { ...f0, status: "renewed" }, today, page, open, noDay))).toEqual([before.publicId]);
+    expect(ids(await listRenewals("all", { ...f0, q: "nia renew" }, today, page, open, noDay))).toContain(p.publicId);
+    expect(ids(await listRenewals("all", { ...f0, q: "nobody-like-this" }, today, page, open, noDay))).toEqual([]);
   });
 
   it("renewed customers: only customers with a renewal, newest first, with counts and the plan running now", async () => {

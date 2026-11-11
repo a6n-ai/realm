@@ -1,7 +1,18 @@
 import type { RenewalStatus } from "@/lib/orders/queries";
+import type { LostReason } from "@/lib/services/inquiries.service";
 
 export const TRACK_STATUSES = ["renewed", "unresponsive", "not_renewed", "expected", "follow_up", "pending_payment"] as const;
 export type TrackStatus = (typeof TRACK_STATUSES)[number];
+
+export const LOST_REASON_LABELS: Record<LostReason, string> = {
+  price: "Price",
+  out_of_zone: "Out of zone",
+  no_response: "No response",
+  chose_competitor: "Chose competitor",
+  not_ready: "Not ready",
+  other: "Other",
+  asked_to_stop: "Asked to stop",
+};
 
 const LABELS: Record<TrackStatus, string> = {
   renewed: "Renewed",

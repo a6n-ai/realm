@@ -1,8 +1,9 @@
 // No "use client" and no db: the server page parses with it and builds the facet spec from the options.
 import type { RenewalStatus } from "@/lib/orders/queries";
+import { TRACK_STATUSES, type TrackStatus } from "@/lib/renewals/status";
 
-/** Plans ending or lapsed (paid / trial), or every customer who has renewed. */
-export type RenewalsTab = "renewals" | "trials" | "customers";
+/** Plans (regular and trial, narrowed by `type`), or every customer who has renewed. */
+export type RenewalsTab = "renewals" | "customers";
 
 /** "Ending within N days" choices; 0 is today only. */
 export const ENDING_DAYS = [0, 1, 2, 3, 7] as const;
@@ -10,14 +11,24 @@ export const ENDING_DAYS = [0, 1, 2, 3, 7] as const;
 export const ENDED_DAYS = [7, 14, 30, 60, 90] as const;
 /** Renewed customers tab: "Renewed in the last N days" choices. */
 export const RENEWED_DAYS = [7, 14, 30, 90] as const;
-/** The Status filter: the renewal status, with "none" split by whether the plan is still running. */
+/** The Renewal facet: the computed renewal status, with "none" split by whether the plan is still running. */
 export type RenewalStatusFilter = Exclude<RenewalStatus, "none"> | "not_renewed" | "lapsed" | "booked_unpaid";
 /** Pills. `booked_unpaid` is the KPI drill (unpaid + waitlisted) and is not a pill. */
 export const RENEWAL_STATUSES: readonly Exclude<RenewalStatusFilter, "booked_unpaid">[] = ["renewed", "unpaid", "waitlisted", "not_renewed", "lapsed"];
 
+export const PLAN_TYPES = ["regular", "trial"] as const;
+export type PlanType = (typeof PLAN_TYPES)[number];
+
+/** The Status facet: a staff track status, or "new" for plans nobody has touched. */
+export type TrackFilter = TrackStatus | "new";
+export const TRACK_FILTERS: readonly TrackFilter[] = [...TRACK_STATUSES, "new"];
+
+export const FOLLOW_UP_KINDS = ["due", "overdue", "upcoming", "none"] as const;
+export type FollowUpKind = (typeof FOLLOW_UP_KINDS)[number];
+
 /**
  * What the top date range filters on: the plan's last tiffin (default), its order date, any delivery
- * in range, or when the customer booked the next plan (renewal / trial conversion date).
+ * in range, or when the customer booked the next plan (renewal date).
  */
 export type DateBy = "last" | "ordered" | "running" | "renewed";
 export const DATE_BY: readonly { value: DateBy; label: string }[] = [
@@ -28,17 +39,21 @@ export const DATE_BY: readonly { value: DateBy; label: string }[] = [
 ];
 
 /**
- * `from`/`to`: the top date range, epoch ms (the page fills this month when absent). On the plan tabs
+ * `from`/`to`: the top date range, epoch ms (the page fills this month when absent). On the plan tab
  * `dateBy` says which date it filters; on the customers tab it is the renewal's order date.
+ * `type`, `track` and `followUp` narrow the plan tab only.
  */
 export type RenewalsFilter = {
   tab: RenewalsTab;
+  type: PlanType | null;
+  track: TrackFilter[] | null;
+  followUp: FollowUpKind | null;
   dateBy: DateBy;
   ending: number | null;
   ended: number | null;
   status: RenewalStatusFilter | null;
   renewed: number | null;
-  /** Order owner's user publicId, or UNASSIGNED_OWNER; plan tabs only. */
+  /** Order owner's user publicId, UNASSIGNED_OWNER, or ME; plan tab only. */
   owner?: string | null;
   from: number | null;
   to: number | null;
@@ -50,23 +65,51 @@ const pick = (v: string | undefined, allowed: readonly number[]) => {
   return v != null && v !== "" && allowed.includes(n) ? n : null;
 };
 
+const pickOne = <T extends string>(v: string | undefined, allowed: readonly T[]): T | null => allowed.find((a) => a === v) ?? null;
+
+const pickMany = <T extends string>(v: string | undefined, allowed: readonly T[]): T[] | null => {
+  const list = [...new Set((v ?? "").split(",").map((s) => s.trim()).filter((s): s is T => allowed.includes(s as T)))];
+  return list.length ? list : null;
+};
+
 const ms = (v: string | undefined) => (v && Number.isFinite(Number(v)) ? Number(v) : null);
 
-/** `?tab=`, `?dateBy=`, `?from=&to=`, `?ending=<days>`, `?ended=<days>`, `?status=`, `?renewed=<days>`, `?owner=`, `?q=`. */
+/** `?type=`, `?track=`, `?followUp=`, `?dateBy=`, `?from=&to=`, `?ending=<days>`, `?ended=<days>`, `?status=`, `?renewed=<days>`, `?owner=`, `?q=`. */
 export function parseRenewalsFilter(sp: Record<string, string | undefined>): RenewalsFilter {
-  const tab = sp.tab === "trials" || sp.tab === "customers" ? sp.tab : "renewals";
+  const tab: RenewalsTab = sp.tab === "customers" ? "customers" : "renewals";
   const dateBy = DATE_BY.find((d) => d.value === sp.dateBy)?.value ?? "last";
   const q = sp.q?.trim().replace(/\s+/g, " ") ?? "";
   const from = ms(sp.from);
   const to = ms(sp.to);
-  if (tab === "customers") return { tab, dateBy, ending: null, ended: null, status: null, renewed: pick(sp.renewed, RENEWED_DAYS), from, to, q };
+  if (tab === "customers") {
+    return { tab, type: null, track: null, followUp: null, dateBy, ending: null, ended: null, status: null, renewed: pick(sp.renewed, RENEWED_DAYS), from, to, q };
+  }
+  // The retired Trial conversion tab (?tab=trials) is the trial type on the plans list.
+  const type = pickOne(sp.type, PLAN_TYPES) ?? (sp.tab === "trials" ? "trial" : null);
   const status = sp.status === "booked_unpaid" ? "booked_unpaid" : RENEWAL_STATUSES.find((s) => s === sp.status) ?? null;
-  return { tab, dateBy, ending: pick(sp.ending, ENDING_DAYS), ended: pick(sp.ended, ENDED_DAYS), status, renewed: null, owner: sp.owner || undefined, from, to, q };
+  return {
+    tab,
+    type,
+    track: pickMany(sp.track, TRACK_FILTERS),
+    followUp: pickOne(sp.followUp, FOLLOW_UP_KINDS),
+    dateBy,
+    ending: pick(sp.ending, ENDING_DAYS),
+    ended: pick(sp.ended, ENDED_DAYS),
+    status,
+    renewed: null,
+    owner: sp.owner || undefined,
+    from,
+    to,
+    q,
+  };
 }
 
 export function renewalsQuery(f: RenewalsFilter): string {
   const sp = new URLSearchParams();
   if (f.tab !== "renewals") sp.set("tab", f.tab);
+  if (f.type) sp.set("type", f.type);
+  if (f.track?.length) sp.set("track", f.track.join(","));
+  if (f.followUp) sp.set("followUp", f.followUp);
   if (f.dateBy !== "last") sp.set("dateBy", f.dateBy);
   if (f.ending != null) sp.set("ending", String(f.ending));
   if (f.ended != null) sp.set("ended", String(f.ended));
@@ -89,16 +132,11 @@ const STATUS_LABEL: Record<RenewalStatusFilter, string> = {
   lapsed: "Lapsed",
 };
 
-/** A row's status: "none" reads Not renewed while the plan runs and Lapsed once its last tiffin has passed. */
 /** A row is never the combined `booked_unpaid` bucket; that exists only as a list filter. */
 export type RenewalRowStatus = Exclude<RenewalStatusFilter, "booked_unpaid">;
 
+/** A row's renewal status: "none" reads Not renewed while the plan runs and Lapsed once its last tiffin has passed. */
 export const rowStatus = (s: RenewalStatus, lastTiffin: string | null, today: string): RenewalRowStatus =>
   s !== "none" ? s : lastTiffin != null && lastTiffin < today ? "lapsed" : "not_renewed";
 
-/** Status label; trials read Converted / Not converted / Lapsed. Here, not in a client file: the server page builds the filter options from it. */
-export function statusLabel(s: RenewalStatusFilter, tab: RenewalsTab): string {
-  if (tab === "trials" && s === "renewed") return "Converted";
-  if (tab === "trials" && s === "not_renewed") return "Not converted";
-  return STATUS_LABEL[s];
-}
+export const statusLabel = (s: RenewalStatusFilter): string => STATUS_LABEL[s];

@@ -20,6 +20,12 @@ const plan: RenewalRow = {
   lastTiffin: "2026-10-30",
   planTotal: "120.00",
   status: "none",
+  trial: false,
+  track: null,
+  trackSource: null,
+  lostReason: null,
+  nextFollowUpAt: null,
+  lastActivity: null,
   priorPlans: 2,
   holds: 1,
   openTickets: 0,
@@ -43,7 +49,7 @@ const customer: RenewedCustomerRow = {
 describe("parseExportColumns", () => {
   it("defaults to every plan column when empty", () => {
     expect(parseExportColumns(null, "renewals")).toEqual(PLAN_EXPORT_COLUMNS.map((c) => c.key));
-    expect(parseExportColumns("", "trials")).toEqual(PLAN_EXPORT_COLUMNS.map((c) => c.key));
+    expect(parseExportColumns("", "renewals")).toEqual(PLAN_EXPORT_COLUMNS.map((c) => c.key));
   });
 
   it("keeps only known keys in request order", () => {
@@ -57,13 +63,35 @@ describe("parseExportColumns", () => {
 
 describe("planRowToExcelRecord", () => {
   it("maps only the requested columns with Excel headers", () => {
-    const row = planRowToExcelRecord(plan, "renewals", "2026-10-30", ["order", "status", "totalSpent"]);
-    expect(row).toEqual({ Order: "TG-100", Status: "Not renewed", "Total spent": 400 });
+    const row = planRowToExcelRecord(plan, "2026-10-30", "America/Toronto", ["order", "renewal", "status", "totalSpent"]);
+    expect(row).toEqual({ Order: "TG-100", Renewal: "Not renewed", Status: "New", "Total spent": 400 });
   });
 
-  it("uses trial labels on the trials tab", () => {
-    const row = planRowToExcelRecord({ ...plan, status: "renewed" }, "trials", "2026-10-30", ["status"]);
-    expect(row).toEqual({ Status: "Converted" });
+  it("writes the staff track, lost reason, next follow-up and last activity in the app timezone", () => {
+    const row = planRowToExcelRecord(
+      {
+        ...plan,
+        track: "not_renewed",
+        trackSource: "staff",
+        lostReason: "price",
+        nextFollowUpAt: null,
+        lastActivity: { type: "call", note: "No answer", at: Date.parse("2026-10-31T15:00:00Z") },
+      },
+      "2026-10-30",
+      "America/Toronto",
+      ["status", "lostReason", "nextFollowUp", "lastActivity"],
+    );
+    expect(row).toEqual({ Status: "Not renewed", "Lost reason": "Price", "Next follow-up": "", "Last activity": "2026-10-31 No answer" });
+  });
+
+  it("labels a trial and a follow-up date", () => {
+    const row = planRowToExcelRecord(
+      { ...plan, trial: true, track: "follow_up", trackSource: "staff", nextFollowUpAt: Date.parse("2026-11-02T15:00:00Z") },
+      "2026-10-30",
+      "America/Toronto",
+      ["type", "status", "nextFollowUp"],
+    );
+    expect(row).toEqual({ Type: "Trial", Status: "Follow up", "Next follow-up": "2026-11-02" });
   });
 });
 

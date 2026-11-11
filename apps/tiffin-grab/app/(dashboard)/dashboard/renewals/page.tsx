@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { CalendarCheckIcon, CalendarX2Icon, HourglassIcon, PackageIcon, RefreshCwIcon, WalletIcon } from "lucide-react";
 import { zonedDateIso } from "@foundry/commons";
+import { dayRange } from "@foundry/commons/util/dates";
 import { Tabs, TabsList, TabsTrigger } from "@foundry/ui/tabs";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { PageShell, PageHeader, SectionCard, parseFilterState, type FacetDef } from "@/components/ds";
@@ -9,7 +10,8 @@ import { StatCards, StatCardsSkeleton } from "@/components/dashboard/stat-cards"
 import { requirePermission } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { loadOwnerOptions } from "@/lib/list/facet-options";
-import { UNASSIGNED_OWNER } from "@/lib/list/presets";
+import { ME, UNASSIGNED_OWNER, resolveOwnerParam } from "@/lib/list/presets";
+import { TRACK_STATUSES, trackLabel } from "@/lib/renewals/status";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import { countRenewals, listRenewals, listRenewedCustomers, type RenewalRange } from "@/lib/services/renewals.service";
@@ -26,8 +28,11 @@ type SearchParams = Promise<Record<string, string | undefined>>;
 
 async function scope() {
   await requirePermission({ order: ["read"] });
-  const [visible, { timezone }] = await Promise.all([resolveSessionVisibleOrgIds(await getSession()), getAppSettings()]);
-  return { visible, timezone, today: zonedDateIso(requestNow(), timezone) };
+  const session = await getSession();
+  const [visible, { timezone }] = await Promise.all([resolveSessionVisibleOrgIds(session), getAppSettings()]);
+  const today = zonedDateIso(requestNow(), timezone);
+  const day = dayRange(today, timezone);
+  return { visible, timezone, today, viewer: session?.user.id, day: { dayStart: day.start, dayEnd: day.end } };
 }
 
 /** The top range on its chosen date: ISO days in the app timezone for tiffin dates, epoch ms for the order date. */
@@ -68,7 +73,7 @@ export default async function RenewalsPage({ searchParams }: { searchParams: Sea
           {f.tab !== "customers" && <DateByPicker value={f.dateBy} options={DATE_BY} />}
           <SectionDateRange />
         </div>
-        <Suspense key={`${f.tab}:${f.dateBy}:${f.from}:${f.to}`} fallback={<StatCardsSkeleton count={5} />}>
+        <Suspense key={`${f.tab}:${f.type}:${f.dateBy}:${f.from}:${f.to}`} fallback={<StatCardsSkeleton count={5} />}>
           <RenewalsCards f={f} />
         </Suspense>
       </div>
@@ -77,16 +82,13 @@ export default async function RenewalsPage({ searchParams }: { searchParams: Sea
           <TabsTrigger value="renewals" asChild>
             <Link href={`/dashboard/renewals${renewalsQuery({ ...f, tab: "renewals", status: null, renewed: null })}`} prefetch={false}>Renewals</Link>
           </TabsTrigger>
-          <TabsTrigger value="trials" asChild>
-            <Link href={`/dashboard/renewals${renewalsQuery({ ...f, tab: "trials", status: null, renewed: null })}`} prefetch={false}>Trial conversion</Link>
-          </TabsTrigger>
           <TabsTrigger value="customers" asChild>
-            <Link href={`/dashboard/renewals${renewalsQuery({ ...f, tab: "customers", ending: null, ended: null, status: null })}`} prefetch={false}>Renewed customers</Link>
+            <Link href={`/dashboard/renewals${renewalsQuery({ ...f, tab: "customers", ending: null, ended: null, status: null, track: null, followUp: null })}`} prefetch={false}>Renewed customers</Link>
           </TabsTrigger>
         </TabsList>
       </Tabs>
       <SectionCard
-        title={f.tab === "customers" ? "Customers who renewed" : f.tab === "trials" ? "Trials" : "Plans"}
+        title={f.tab === "customers" ? "Customers who renewed" : "Plans"}
         action={f.tab === "customers" ? undefined : <RenewalFactsLegend />}
       >
         <Suspense
@@ -104,7 +106,7 @@ export default async function RenewalsPage({ searchParams }: { searchParams: Sea
   );
 }
 
-/** The standard facet bar under the top date range: Ending / Ended windows, Status and search. */
+/** The standard facet bar under the top date range. Field names are the query params parseRenewalsFilter reads. */
 function facetSpec(f: RenewalsFilter, ownerOptions: { value: string; label: string }[]): FacetDef[] {
   if (f.tab === "customers") {
     return [
@@ -113,11 +115,24 @@ function facetSpec(f: RenewalsFilter, ownerOptions: { value: string; label: stri
     ];
   }
   return [
+    { kind: "select", field: "type", label: "Type", options: [{ value: "regular", label: "Regular" }, { value: "trial", label: "Trial" }] },
+    { kind: "pills", field: "track", label: "Status", options: [...TRACK_STATUSES.map((s) => ({ value: s, label: trackLabel(s) })), { value: "new", label: "New" }] },
+    {
+      kind: "select",
+      field: "followUp",
+      label: "Follow-up",
+      options: [
+        { value: "due", label: "Due today" },
+        { value: "overdue", label: "Overdue" },
+        { value: "upcoming", label: "Upcoming" },
+        { value: "none", label: "None set" },
+      ],
+    },
     { kind: "select", field: "ending", label: "Ending within", options: ENDING_DAYS.map((d) => ({ value: String(d), label: d === 0 ? "Today" : `${d} ${d === 1 ? "day" : "days"}` })) },
     { kind: "select", field: "ended", label: "Ended in last", options: ENDED_DAYS.map((d) => ({ value: String(d), label: `${d} days` })) },
-    { kind: "pills", field: "status", label: "Status", options: RENEWAL_STATUSES.map((s) => ({ value: s, label: statusLabel(s, f.tab) })) },
+    { kind: "pills", field: "status", label: "Renewal", options: RENEWAL_STATUSES.map((s) => ({ value: s, label: statusLabel(s) })) },
     ...(ownerOptions.length
-      ? [{ kind: "select" as const, field: "owner", label: "Owner", options: [{ value: UNASSIGNED_OWNER, label: "Unassigned" }, ...ownerOptions] }]
+      ? [{ kind: "select" as const, field: "owner", label: "Owner", options: [{ value: ME, label: "Mine" }, { value: UNASSIGNED_OWNER, label: "Unassigned" }, ...ownerOptions] }]
       : []),
     { kind: "search", fields: ["fullName", "deploymentId", "phone"] },
   ];
@@ -125,15 +140,16 @@ function facetSpec(f: RenewalsFilter, ownerOptions: { value: string; label: stri
 
 async function RenewalsCards({ f }: { f: RenewalsFilter }) {
   const { visible, today, timezone } = await scope();
-  // The renewed-customers tab keeps the paid-plan cards above it.
-  const trials = f.tab === "trials";
-  const c = await countRenewals(visible, trials ? "trials" : "renewals", today, resolveRange(f, timezone));
-  const noun = trials ? "trials" : "plans";
-  // Cards count the date range only. Ending, ended, owner and search stay off the link
+  const c = await countRenewals(visible, f.type, today, resolveRange(f, timezone));
+  const noun = f.type === "trial" ? "trials" : "plans";
+  // Cards count the date range only. Ending, ended, track, owner and search stay off the link
   // so the list total equals the card. The customers tab lists people, so a plan card opens the plan desk.
   const href = (status: RenewalsFilter["status"]) =>
     `/dashboard/renewals${renewalsQuery({
-      tab: f.tab === "customers" ? "renewals" : f.tab,
+      tab: "renewals",
+      type: f.type,
+      track: null,
+      followUp: null,
       dateBy: f.dateBy,
       ending: null,
       ended: null,
@@ -146,10 +162,10 @@ async function RenewalsCards({ f }: { f: RenewalsFilter }) {
   return (
     <StatCards
       items={[
-        { label: trials ? "Trials" : "Plans", value: c.plans, icon: PackageIcon, hint: `Running or finished ${noun} in this range`, href: href(null) },
-        { label: trials ? "Converted" : "Renewed", value: c.renewed, icon: CalendarCheckIcon, hint: "Next plan paid or running", href: href("renewed") },
+        { label: f.type === "trial" ? "Trials" : "Plans", value: c.plans, icon: PackageIcon, hint: `Running or finished ${noun} in this range`, href: href(null) },
+        { label: "Renewed", value: c.renewed, icon: CalendarCheckIcon, hint: "Next plan paid or running", href: href("renewed") },
         { label: "Booked, not paid", value: c.renewedNotPaid, icon: WalletIcon, hint: "Next plan unpaid or waitlisted", href: href("booked_unpaid") },
-        { label: trials ? "Not converted" : "Not renewed", value: c.notRenewed, icon: HourglassIcon, hint: "Still running, nothing booked after", href: href("not_renewed") },
+        { label: "Not renewed", value: c.notRenewed, icon: HourglassIcon, hint: "Still running, nothing booked after", href: href("not_renewed") },
         {
           label: "Lapsed",
           value: c.lapsed,
@@ -164,9 +180,10 @@ async function RenewalsCards({ f }: { f: RenewalsFilter }) {
 }
 
 async function RenewalsData({ f, page, size, spec }: { f: RenewalsFilter; page: number; size: number; spec: FacetDef[] }) {
-  const { visible, today, timezone } = await scope();
-  const result = await listRenewals(visible, f, today, { page, size }, resolveRange(f, timezone));
-  return <RenewalsList rows={result.items} total={result.total} page={page} size={size} tab={f.tab} today={today} spec={spec} />;
+  const { visible, today, timezone, viewer, day } = await scope();
+  const owner = resolveOwnerParam(f.owner ?? undefined, viewer) ?? null;
+  const result = await listRenewals(visible, { ...f, owner }, today, { page, size }, resolveRange(f, timezone), day);
+  return <RenewalsList rows={result.items} total={result.total} page={page} size={size} type={f.type} today={today} spec={spec} />;
 }
 
 async function RenewedCustomersData({ f, page, size, spec }: { f: RenewalsFilter; page: number; size: number; spec: FacetDef[] }) {
