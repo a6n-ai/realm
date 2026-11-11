@@ -3,6 +3,7 @@ import { formatMoney } from "@foundry/commons";
 import { Button } from "@foundry/ui/button";
 import type { NextOrderReason, NextOrderRow } from "@/lib/services/next-order.service";
 import { ContactChips } from "@/components/dashboard/next-item/contact-chips";
+import { initials } from "@/components/dashboard/next-item/initials";
 import { NextItemCard, NextItemEmpty, type NextItemView, type OwnerChoice } from "@/components/dashboard/next-item/next-item-card";
 import { ReasonBadge } from "@/components/dashboard/next-item/reason-badge";
 import { UpNextStrip, type UpNextTile } from "@/components/dashboard/next-item/up-next-strip";
@@ -24,10 +25,6 @@ export type NextOrderCardProps = {
   upNext: UpNextOrder[];
   attentionHref: string;
 };
-
-function initials(name: string): string {
-  return name.replace(/[^\p{L}\s]/gu, " ").trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join("").toUpperCase() || "#";
-}
 
 /** Badge text: payment reasons say how long the payment has been open, in days. */
 export function reasonBadge(reason: NextOrderReason, signalAt: number, now: number, amount: number | null, currency: string) {

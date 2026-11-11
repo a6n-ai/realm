@@ -6,6 +6,7 @@ import { displayName } from "@/lib/inquiries/display";
 import { ALL_OWNERS, ME, resolveOwnerParam } from "@/lib/list/presets";
 import type { PipelineRow } from "@/lib/services/inquiries.service";
 import { ContactChips } from "@/components/dashboard/next-item/contact-chips";
+import { initials } from "@/components/dashboard/next-item/initials";
 import { NextItemCard, NextItemEmpty, type NextItemView, type OwnerChoice } from "@/components/dashboard/next-item/next-item-card";
 import { NextItemOpenButton } from "@/components/dashboard/next-item/open-button";
 import { UpNextStrip, type UpNextTile } from "@/components/dashboard/next-item/up-next-strip";
@@ -56,7 +57,7 @@ export function NextLeadCard({ lead, timeZone, currency, now, dayStart, dayEnd, 
         identity: (
           <div className="flex flex-wrap items-center gap-2">
             <div className="bg-muted flex size-10 shrink-0 items-center justify-center rounded-lg text-sm font-medium">
-              {displayName(lead).replace(/[^\p{L}\s]/gu, " ").trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join("").toUpperCase() || "#"}
+              {initials(displayName(lead))}
             </div>
             <Link href={leadHref} className="min-w-0 truncate font-medium hover:underline">
               {displayName(lead)}

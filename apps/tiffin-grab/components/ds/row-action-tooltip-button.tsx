@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 import * as React from "react";
 import { cn } from "@foundry/ui/cn";
@@ -28,24 +29,34 @@ export const RowActionTooltipButton = React.forwardRef<
     tone?: string;
     /** Tooltip text when it should say more than the aria label. */
     hint?: string;
+    /** Renders a real link (cmd/middle-click, new tab) instead of a button. */
+    href?: string;
   }
->(function RowActionTooltipButton({ icon: Icon, label, onClick, disabled, tone, hint }, ref) {
+>(function RowActionTooltipButton({ icon: Icon, label, onClick, disabled, tone, hint, href }, ref) {
+  const icon = <Icon className={cn("size-4 transition-transform duration-200 group-hover/row:scale-110", tone)} />;
+  const stop = (e: React.MouseEvent) => e.stopPropagation();
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <button
-          ref={ref}
-          type="button"
-          aria-label={label}
-          disabled={disabled}
-          className={BTN}
-          onClick={(e) => {
-            e.stopPropagation();
-            onClick?.();
-          }}
-        >
-          <Icon className={cn("size-4 transition-transform duration-200 group-hover/row:scale-110", tone)} />
-        </button>
+        {href ? (
+          <Link href={href} prefetch={false} aria-label={label} className={BTN} onClick={stop}>
+            {icon}
+          </Link>
+        ) : (
+          <button
+            ref={ref}
+            type="button"
+            aria-label={label}
+            disabled={disabled}
+            className={BTN}
+            onClick={(e) => {
+              stop(e);
+              onClick?.();
+            }}
+          >
+            {icon}
+          </button>
+        )}
       </TooltipTrigger>
       <TooltipContent side="top">{hint ?? label}</TooltipContent>
     </Tooltip>

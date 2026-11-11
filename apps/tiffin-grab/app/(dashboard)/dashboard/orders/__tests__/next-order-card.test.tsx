@@ -50,15 +50,24 @@ describe("Next order card", () => {
     expect(screen.getByRole("button", { name: /Send payment link/ })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Verify payment/ })).not.toBeInTheDocument();
   });
-  it("shows missed and flagged reasons with only note and open actions", () => {
+  it("shows missed and flagged reasons with Open order as the primary and Add note as an icon", () => {
     const { unmount } = render(<NextOrderCard {...base({ row: order({ reason: "missed" }) })} />);
     expect(screen.getByText("Missed deliveries")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Verify payment|Send payment link/ })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Add note/ })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Open order" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Open order" })).toHaveAttribute("href", "/dashboard/orders/ord_1");
+    expect(screen.getByRole("button", { name: "Add note" })).toBeInTheDocument();
     unmount();
     render(<NextOrderCard {...base({ row: order({ reason: "flagged" }) })} />);
     expect(screen.getByText("Flagged")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Open order" })).toBeInTheDocument();
+  });
+  it.each(["missed", "flagged"] as const)("gives a %s order with a payment no payment primary", (reason) => {
+    render(<NextOrderCard {...base({ row: order({ reason, paymentPublicId: "pay_9", amount: 42 }) })} />);
+    expect(screen.queryByRole("button", { name: /Verify payment|Send payment link/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Open order" })).toHaveAttribute("href", "/dashboard/orders/ord_1");
+  });
+  it("keeps one Open order control when a payment action is primary", () => {
+    render(<NextOrderCard {...base({ row: order({ reason: "overdue", paymentPublicId: "pay_2", amount: 42 }) })} />);
+    expect(screen.getAllByRole("link", { name: "Open order" })).toHaveLength(1);
   });
   it("shows the empty state with a link to Waiting on payment", () => {
     render(<NextOrderCard {...base({ row: null, queueCount: 0 })} />);

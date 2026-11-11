@@ -65,7 +65,7 @@ describe("NextRenewalCard", () => {
     expect(screen.getByRole("link", { name: "Asha Rao" })).toHaveAttribute("href", "/dashboard/inquiries/renewals/cus_1");
     expect(screen.getByRole("link", { name: /Call Asha Rao/ })).toHaveAttribute("href", "tel:+16475550001");
     expect(screen.getByRole("link", { name: /WhatsApp/ })).toHaveAttribute("href", "https://wa.me/16475550001");
-    expect(screen.getByRole("button", { name: "Open customer" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Open customer" })).toHaveAttribute("href", "/dashboard/inquiries/renewals/cus_1");
   });
 
   it("offers Add note but hides Set follow-up for a closed plan", () => {
@@ -79,11 +79,12 @@ describe("NextRenewalCard", () => {
     expect(screen.getByRole("button", { name: "Set follow-up" })).toBeInTheDocument();
   });
 
-  it("gives a customer without an account no status or note actions, only Open the order", () => {
+  it("gives a customer without an account no status or note actions, with the estimate and Open order", () => {
     render(<NextRenewalCard {...base} row={row({ customerPublicId: null, phone: null })} upNext={[]} />);
     expect(screen.queryByRole("button", { name: "Add note" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Set follow-up" })).toBeNull();
-    expect(screen.getByRole("button", { name: "Open order" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Open order" })).toHaveAttribute("href", "/dashboard/orders/ord_1");
+    expect(screen.getByRole("button", { name: /Send renewal estimate/ })).toBeInTheDocument();
   });
 
   it("up next shows at most six plans, each linking to its renewal param", () => {

@@ -5,6 +5,7 @@ import { humanDate } from "@/lib/deliveries-view";
 import { isClosedTrack } from "@/lib/renewals/status";
 import type { NextRenewalRow } from "@/lib/services/next-renewal.service";
 import { ContactChips } from "@/components/dashboard/next-item/contact-chips";
+import { initials } from "@/components/dashboard/next-item/initials";
 import { NextItemCard, NextItemEmpty, NextItemSkeleton, type NextItemView, type OwnerChoice } from "@/components/dashboard/next-item/next-item-card";
 import { NextItemOpenButton } from "@/components/dashboard/next-item/open-button";
 import { ReasonBadge } from "@/components/dashboard/next-item/reason-badge";
@@ -26,9 +27,6 @@ export type NextRenewalCardProps = {
   upNext: UpNextRenewal[];
   renewQueueHref: string;
 };
-
-const initials = (name: string) =>
-  name.replace(/[^\p{L}\s]/gu, " ").trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join("").toUpperCase() || "#";
 
 /** Where a plan's name and Open button lead: the customer's renewal page, or the order for a customer without an account. */
 const openHref = (row: NextRenewalRow) => (row.customerPublicId ? `/dashboard/inquiries/renewals/${row.customerPublicId}` : `/dashboard/orders/${row.orderPublicId}`);

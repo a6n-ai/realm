@@ -72,7 +72,7 @@ describe("NextLeadCard", () => {
     expect(screen.getByRole("link", { name: "Asha Rao" })).toHaveAttribute("href", "/dashboard/inquiries/inq_1");
     expect(screen.getByRole("link", { name: /Call/ })).toHaveAttribute("href", "tel:4165550123");
     expect(screen.getByRole("link", { name: /WhatsApp/ })).toHaveAttribute("href", "https://wa.me/4165550123");
-    expect(screen.getByRole("button", { name: "Open lead" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Open lead" })).toHaveAttribute("href", "/dashboard/inquiries/inq_1");
     expect(screen.getByText("Asked about veg thali")).toBeInTheDocument();
     expect(screen.getByText("created 3d ago")).toBeInTheDocument();
     expect(screen.getByText("Instagram")).toBeInTheDocument();

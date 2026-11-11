@@ -53,5 +53,6 @@ describe("UpNextStrip", () => {
     expect(within(region).getAllByRole("link").filter((a) => a.getAttribute("href")?.includes("lead=")).length).toBe(6);
     expect(screen.getByText("Up next, 2 more")).toBeInTheDocument();
     expect(within(region).queryByRole("button")).toBeNull();
+    expect(within(region).getByRole("group", { name: "Up next leads tiles" })).toBeInTheDocument();
   });
 });

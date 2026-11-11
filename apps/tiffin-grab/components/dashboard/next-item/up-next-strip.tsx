@@ -14,7 +14,7 @@ export type UpNextTile = { key: string; href: string; title: string; badge?: Rea
 export function UpNextStrip({ label, tiles, more, viewAllHref }: { label: string; tiles: UpNextTile[]; more: number; viewAllHref: string }) {
   return (
     <section aria-label={`Up next ${label}`} className="mt-3 flex flex-col gap-2 border-t pt-3">
-      <div tabIndex={0} aria-label={`Up next ${label} tiles`} className="focus-visible:ring-ring flex flex-col gap-2 focus-visible:outline-none focus-visible:ring-2 md:snap-x md:flex-row md:gap-3 md:overflow-x-auto md:pb-2">
+      <div role="group" tabIndex={0} aria-label={`Up next ${label} tiles`} className="focus-visible:ring-ring flex flex-col gap-2 focus-visible:outline-none focus-visible:ring-2 md:snap-x md:flex-row md:gap-3 md:overflow-x-auto md:pb-2">
         {tiles.slice(0, MAX_TILES).map((tile, i) => (
           <Link
             key={tile.key}
