@@ -2,7 +2,7 @@ import "server-only";
 import { and, eq, gt, inArray, isNull, ne, sql, type SQL } from "drizzle-orm";
 import { enabledMethods } from "@foundry/payments";
 import { db } from "@/db/client";
-import { customerAddresses, deliveries, deliveryFrequencies, mealSizes, orders, payments, plans, users } from "@/db/schema";
+import { deliveries, deliveryFrequencies, mealSizes, orders, payments, plans } from "@/db/schema";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { toClientCatalog } from "@/lib/catalog/types";
 import type { DayOfWeek } from "@/lib/menu/delivery-days";
@@ -35,9 +35,7 @@ const sourceColumns = {
   status: orders.status,
   trialLength: orders.trialLength,
   endDate: lastDelivery,
-  addressPublicId: sql<string | null>`(select ${customerAddresses.publicId} from ${customerAddresses} where ${customerAddresses.id} = ${orders.addressId})`,
   organizationId: orders.organizationId,
-  sourceMethodId: sql<string | null>`${orders.pricingSnapshot}->>'paymentMethodId'`,
   planKey: plans.key,
   tagColor: plans.tagColor,
   tagLabel: plans.tagLabel,
@@ -60,7 +58,7 @@ type Source = Awaited<ReturnType<typeof sourceQuery>>[number];
 
 /**
  * The rail a renewal is quoted and charged on: card when Stripe is live (the pay link needs it), else the source
- * order's own method if still enabled, else the first enabled. One rule for the preview and renewOrderAction.
+ * order's own method if still enabled, else the first enabled. One rule for every renewal preview.
  */
 export async function defaultPaymentMethodId(sourceMethodId: string | null): Promise<string | null> {
   const enabled = enabledMethods(await getPaymentConfig()).map((m) => m.id);
@@ -69,7 +67,7 @@ export async function defaultPaymentMethodId(sourceMethodId: string | null): Pro
     : (enabled[0] ?? null);
 }
 
-async function build(userId: bigint, orgId: string | null, src: Source | null, staff: boolean): Promise<QuickRenewData | null> {
+async function build(userId: bigint, orgId: string | null, src: Source | null): Promise<QuickRenewData | null> {
   if (!src) return null;
   const [catalog, minStartDate, lastTiffin, savedAddresses] = await Promise.all([
     loadCatalogSnapshot(orgId),
@@ -100,12 +98,10 @@ async function build(userId: bigint, orgId: string | null, src: Source | null, s
     startDate,
   );
   if (!initial) return null;
-  const defaultAddressPublicId = staff
-    ? (savedAddresses.find((a) => a.publicId === src.addressPublicId)?.publicId ?? null)
-    : (savedAddresses.find((a) => a.isDefault) ?? savedAddresses[0])?.publicId ?? null;
+  const defaultAddressPublicId = (savedAddresses.find((a) => a.isDefault) ?? savedAddresses[0])?.publicId ?? null;
   return {
     organizationId: orgId,
-    defaultPaymentMethodId: await defaultPaymentMethodId(staff ? src.sourceMethodId : null),
+    defaultPaymentMethodId: await defaultPaymentMethodId(null),
     catalog: client, initial, sourceOrderPublicId: src.publicId, minStartDate, lastTiffin,
     holidayDates, savedAddresses, addressDropOffs, defaultAddressPublicId,
     tagColor: src.tagColor, tagLabel: src.tagLabel,
@@ -114,16 +110,7 @@ async function build(userId: bigint, orgId: string | null, src: Source | null, s
 
 /** Customer path: source = latest-ending renewable, non-trial order. */
 export async function loadQuickRenewForCustomer(userId: bigint, orgId: string | null): Promise<QuickRenewData | null> {
-  return build(userId, orgId, pickRenewSource(await sourceQuery().where(eq(orders.userId, userId))), false);
-}
-
-/** Staff path: source = this order; the start-date window is still customer-wide. */
-export async function loadQuickRenewForOrder(orderPublicId: string): Promise<QuickRenewData | null> {
-  const [src] = await sourceQuery().where(eq(orders.publicId, orderPublicId)).limit(1);
-  if (!src) return null;
-  const [row] = await db.select({ userId: orders.userId }).from(orders).where(eq(orders.publicId, orderPublicId)).limit(1);
-  if (row?.userId == null) return null;
-  return build(row.userId, src.organizationId, src, true);
+  return build(userId, orgId, pickRenewSource(await sourceQuery().where(eq(orders.userId, userId))));
 }
 
 type UnpaidRenewal = { publicId: string; deploymentId: string; payPublicId: string | null };
@@ -143,7 +130,7 @@ async function queryUnpaidRenewal(userId: bigint, extra: (SQL | undefined)[]): P
 
 /**
  * Staff: a later order of the source order's customer, in the source order's own organization, that is not a running
- * plan yet (unpaid or waitlisted). Renewing again would stack a duplicate on it, so the order page and renewOrderAction refuse.
+ * plan yet (unpaid or waitlisted). The order page links to it so staff do not stack a duplicate.
  */
 export async function findUnpaidRenewal(order: { userId: bigint | null; organizationId: string | null; publicId?: string; startDate?: string }): Promise<UnpaidRenewal | null> {
   if (order.userId == null) return null;
@@ -157,53 +144,4 @@ export async function findUnpaidRenewal(order: { userId: bigint | null; organiza
 /** Customer /me/renew: /me skips org resolution, and the owner's userId already scopes the query, so no org filter. */
 export function findUnpaidRenewalForOwner(userId: bigint): Promise<UnpaidRenewal | null> {
   return queryUnpaidRenewal(userId, []);
-}
-
-/** What a staff renewal takes from the source order, never from the client: owner, contact, plan, address. */
-export async function loadRenewContext(orderPublicId: string) {
-  const [row] = await db
-    .select({
-      publicId: orders.publicId,
-      userId: orders.userId,
-      startDate: orders.startDate,
-      planKey: plans.key,
-      organizationId: orders.organizationId,
-      status: orders.status,
-      trialLength: orders.trialLength,
-      sourceMethodId: sql<string | null>`${orders.pricingSnapshot}->>'paymentMethodId'`,
-      ownerPublicId: users.publicId,
-      ownerName: users.name,
-      email: users.email,
-      phone: users.phone,
-      fullName: orders.fullName,
-      addressLine: orders.addressLine,
-      city: orders.city,
-      postalCode: orders.postalCode,
-      addressPublicId: sql<string | null>`(select ${customerAddresses.publicId} from ${customerAddresses} where ${customerAddresses.id} = ${orders.addressId})`,
-    })
-    .from(orders)
-    .innerJoin(plans, eq(orders.planId, plans.id))
-    .innerJoin(users, eq(orders.userId, users.id))
-    .where(eq(orders.publicId, orderPublicId))
-    .limit(1);
-  return row ?? null;
-}
-
-/** The source order's plan as wizard picks (plan, size, days, persons), so a renewal never trusts those from the client. */
-export async function loadRenewSourceSelections(orderPublicId: string, startDate: string) {
-  const [src] = await sourceQuery().where(eq(orders.publicId, orderPublicId)).limit(1);
-  if (!src) return null;
-  const client = toClientCatalog(await loadCatalogSnapshot(src.organizationId));
-  return renewSelections(
-    client,
-    {
-      planKey: src.planKey,
-      mealSizePublicId: src.mealSizePublicId,
-      frequencyKey: src.frequencyKey,
-      eatingDays: src.eatingDays as DayOfWeek[] | null,
-      durationWeeks: src.durationWeeks,
-      trialLength: src.trialLength,
-    },
-    startDate,
-  );
 }

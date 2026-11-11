@@ -1,4 +1,4 @@
-import { RUNNING, RUNNING_OR_DONE, inOrderStatuses } from "@/lib/orders/status";
+import { RUNNING, inOrderStatuses } from "@/lib/orders/status";
 import { CalendarClockIcon, CoinsIcon, HourglassIcon, PackageIcon, RefreshCwIcon } from "lucide-react";
 import { formatMoney as fmt } from "@foundry/commons";
 import { SectionCard } from "@/components/ds";
@@ -8,20 +8,17 @@ import type { CustomerRenewal } from "@/lib/services/renewals.service";
 import { Alert, AlertDescription, AlertTitle } from "@/components/reui/alert";
 import { formatEpoch } from "@/lib/format/datetime";
 import { EstimateButton } from "../../estimate-button";
-import { RenewControl } from "../../../orders/[id]/renew-control";
 import { ContactButtons, GiveCoinsButton, SendReminderButton } from "./renewal-actions";
 import { PlanHistory, RenewalReminders } from "./renewal-history";
 import { appOrigin } from "@/lib/runtime/env";
 
 const currentPlan = (data: CustomerRenewal) => [...data.plans].reverse().find((p) => inOrderStatuses(RUNNING, p.status));
 
-/** Renewal actions for one customer: contact, reminder, coins, estimate, renew. Shared by the Renewals page header and the customer's Renewals tab. */
+/** Renewal actions for one customer: contact, reminder, coins, estimate. Shared by the Renewals page header and the customer's Renewals tab. */
 export function RenewalActions({ data, isAdmin, giveCoins = true }: { data: CustomerRenewal; isAdmin: boolean; giveCoins?: boolean }) {
   const { customer, plans } = data;
   const current = currentPlan(data);
   const latest = plans[plans.length - 1];
-  // Same rule as the order page's Renew: the newest paid plan, if nothing follows it yet.
-  const renewFrom = [...plans].reverse().find((p) => !p.trial && inOrderStatuses(RUNNING_OR_DONE, p.status));
   const renewUrl = `${appOrigin()}/me/renew`;
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -29,7 +26,6 @@ export function RenewalActions({ data, isAdmin, giveCoins = true }: { data: Cust
       {current && current.next === "none" && !data.emailBlock && <SendReminderButton orderPublicId={current.orderPublicId} customerPublicId={customer.publicId} />}
       {giveCoins && isAdmin && <GiveCoinsButton customerPublicId={customer.publicId} />}
       <EstimateButton orderPublicId={latest.orderPublicId} />
-      {renewFrom && <RenewControl orderId={renewFrom.orderPublicId} canRenew={renewFrom.next === "none"} />}
     </div>
   );
 }
