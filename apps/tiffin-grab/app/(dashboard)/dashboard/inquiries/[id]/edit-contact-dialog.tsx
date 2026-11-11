@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2Icon, PencilIcon } from "lucide-react";
@@ -18,7 +18,7 @@ import { updateInquiryContact } from "../actions";
 type Contact = { fullName: string | null; phone: string | null; whatsappPhone: string | null; email: string | null; leadNumber: number | null };
 
 /** Name, phone, WhatsApp and email. Replacing a generated "Lead <n>" name takes the lead out of Quick adds. */
-export function EditContactDialog({ inquiryId, contact }: { inquiryId: string; contact: Contact }) {
+export function EditContactDialog({ inquiryId, contact, trigger }: { inquiryId: string; contact: Contact; trigger?: ReactNode }) {
   const router = useRouter();
   const quick = isQuickAdd(contact);
   const initial = () => ({
@@ -70,10 +70,12 @@ export function EditContactDialog({ inquiryId, contact }: { inquiryId: string; c
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm">
-          <PencilIcon className="size-4" />
-          Edit lead
-        </Button>
+        {trigger ?? (
+          <Button variant="outline" size="sm">
+            <PencilIcon className="size-4" />
+            Edit lead
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
