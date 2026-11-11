@@ -252,6 +252,9 @@ function CouponsField({ estimate }: { estimate: EstimateState }) {
           </p>
         ))}
       {coupons?.error && <p role="alert" className="text-destructive text-sm">{coupons.error}</p>}
+      {coupons && open.length === 0 && coupons.applied.length === 0 && (
+        <p className="text-muted-foreground text-sm">No coupons for this customer.</p>
+      )}
       {open.length > 0 && (
         <div className="flex flex-wrap items-center gap-2">
           {open.length > 1 && (

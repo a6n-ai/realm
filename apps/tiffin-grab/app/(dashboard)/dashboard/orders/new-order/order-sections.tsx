@@ -456,6 +456,9 @@ export function DiscountsSection({ d, customerLabel }: { d: Draft; customerLabel
                 );
               })}
               {coupons?.error && <p role="alert" className="text-destructive text-xs">{coupons.error}</p>}
+              {coupons && coupons.applied.length === 0 && !coupons.available.some((c) => !couponCodes.includes(c.code.toUpperCase())) && (
+                <p className="text-muted-foreground text-xs">No coupons for this customer.</p>
+              )}
               {coupons && coupons.available.some((c) => !couponCodes.includes(c.code.toUpperCase())) && (
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-muted-foreground text-xs">Available</span>
