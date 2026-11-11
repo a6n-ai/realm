@@ -22,6 +22,7 @@ import { clearFollowUp, logActivity } from "../actions";
 import { unwrapAction } from "@/lib/actions/unwrap";
 import type { ActionResult } from "@/lib/actions/action-result";
 import { NoteDialog, StatusMenu, type NoteKind } from "../_leads/status-dialog";
+import { InlineComposer } from "../_leads/composer";
 import { ContactChips } from "@/components/dashboard/next-item/contact-chips";
 import { BreadcrumbLabel } from "@/components/dashboard/app-breadcrumbs";
 import { InquiryTimeline, type TimelineActivity } from "./inquiry-timeline";
@@ -272,6 +273,7 @@ export function InquiryDetailClient({
               onMarkDone={markFollowUpDone}
             />
           )}
+          <InlineComposer inquiryId={inquiryId} timeZone={tz} />
           <Card className="min-w-0">
             <CardHeader>
               <CardTitle>Activity</CardTitle>
