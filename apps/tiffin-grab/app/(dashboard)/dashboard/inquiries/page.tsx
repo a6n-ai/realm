@@ -30,7 +30,7 @@ import {
 import { AddInquirySheet } from "./new-inquiry-form";
 import { QuickAddDialog } from "./quick-add/quick-add-dialog";
 import { InquiriesList, InquiriesListSkeleton } from "./inquiries-list";
-import { NextLeadCard, NextLeadSkeleton } from "./next-lead-card";
+import { NextLeadCard, NextLeadSkeleton, leadScope } from "./next-lead-card";
 import { reassignInquiry } from "./actions";
 import { SUB_STATUSES, SUB_STATUS_META } from "@/lib/inquiries/status";
 import { QueueTabs } from "./queue-tabs";
@@ -110,7 +110,7 @@ export default async function InquiriesPage({ searchParams }: { searchParams: Se
   );
 }
 
-/** The signed-in user's next lead on the Leads view. Ignores the list's other filters; Previous/Next walk only their leads. */
+/** The next lead on the Leads view, for the card's owner (default: the signed-in user). Ignores the list's other filters; Previous/Next walk that owner's leads. */
 async function NextLead({ searchParams }: { searchParams: SearchParams }) {
   await requireStaff();
   const sp = await searchParams;
@@ -120,29 +120,39 @@ async function NextLead({ searchParams }: { searchParams: SearchParams }) {
   if (!viewer || (canRenewals && sp.view === "renewals")) return null;
 
   const { timezone } = await getAppSettings();
-  const { start: dayStart, end: dayEnd } = dayRange(zonedDateIso(requestNow(), timezone), timezone);
-  const mine = facetEq("owner", viewer);
+  const now = requestNow();
+  const { start: dayStart, end: dayEnd } = dayRange(zonedDateIso(now, timezone), timezone);
+  const leadOwner = typeof sp.leadOwner === "string" ? sp.leadOwner : ME;
+  const scope = leadScope(leadOwner, viewer);
+  const [owners, counts] = await Promise.all([loadOwnerOptions(), inquiriesService.queueCounts(scope, dayStart, dayEnd)]);
   const rowOf = (publicId: string) =>
-    inquiriesService.listForPipeline(mine, { page: 0, size: 1 }, undefined, undefined, eq(inquiries.publicId, publicId)).then((r) => r.items[0] ?? null);
+    inquiriesService.listForPipeline(scope, { page: 0, size: 1 }, undefined, undefined, eq(inquiries.publicId, publicId)).then((r) => r.items[0] ?? null);
 
   const highlight = typeof sp.highlight === "string" ? sp.highlight : undefined;
   const pinned = highlight ? await rowOf(highlight) : null;
-  const lead = pinned ?? (await inquiriesService.nextLead(mine, dayStart, dayEnd).then((n) => (n ? rowOf(n.publicId) : null)));
+  const lead = pinned ?? (await inquiriesService.nextLead(scope, dayStart, dayEnd).then((n) => (n ? rowOf(n.publicId) : null)));
   const [prev, next] = lead
     ? await Promise.all([
-        inquiriesService.nextLead(mine, dayStart, dayEnd, { publicId: lead.publicId, dir: "prev" }),
-        inquiriesService.nextLead(mine, dayStart, dayEnd, { publicId: lead.publicId, dir: "next" }),
+        inquiriesService.nextLead(scope, dayStart, dayEnd, { publicId: lead.publicId, dir: "prev" }),
+        inquiriesService.nextLead(scope, dayStart, dayEnd, { publicId: lead.publicId, dir: "next" }),
       ])
     : [null, null];
+  const ownerOptions = [{ value: ME, label: "Me" }, { value: ALL_OWNERS, label: "All owners" }, ...owners];
 
   return (
     <NextLeadCard
       lead={lead}
       timeZone={timezone}
+      now={now}
       dayStart={dayStart}
+      dayEnd={dayEnd}
+      dueCount={counts.due + counts.overdue}
+      upcomingCount={counts.upcoming}
+      owner={{ current: leadOwner, options: ownerOptions.map((o) => ({ ...o, href: leadOwnerHref(sp, o.value) })) }}
       prevHref={prev ? `/dashboard/inquiries?${leadQuery(sp, prev.publicId)}` : undefined}
       nextHref={next ? `/dashboard/inquiries?${leadQuery(sp, next.publicId)}` : undefined}
-      allOpenHref={`/dashboard/inquiries?owner=${ALL_OWNERS}&queue=open`}
+      upcomingHref={`/dashboard/inquiries?queue=upcoming&owner=${encodeURIComponent(leadOwner)}`}
+      allOpenHref={`/dashboard/inquiries?queue=open&owner=${encodeURIComponent(leadOwner)}`}
     />
   );
 }
@@ -270,6 +280,15 @@ function leadQuery(sp: Awaited<SearchParams>, publicId: string): string {
   }
   next.set("highlight", publicId);
   return next.toString();
+}
+/** Switching the card's owner keeps the list's tab and filters, and drops the pinned lead. */
+function leadOwnerHref(sp: Awaited<SearchParams>, owner: string): string {
+  const next = new URLSearchParams();
+  for (const [k, v] of Object.entries(sp)) {
+    if (typeof v === "string" && k !== "highlight" && k !== "page" && k !== "leadOwner") next.set(k, v);
+  }
+  next.set("leadOwner", owner);
+  return `/dashboard/inquiries?${next.toString()}`;
 }
 
 async function InquiriesData({ searchParams }: { searchParams: SearchParams }) {
