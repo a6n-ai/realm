@@ -119,7 +119,7 @@ type LostReason = (typeof inquiries.lostReason.enumValues)[number];
 const newWhere = (visible: "all" | string[]) =>
   and(eq(inquiries.stage, "new"), visible === "all" ? undefined : inArray(inquiries.organizationId, visible));
 
-function assertFiniteFollowUp(at: number | null | undefined) {
+export function assertFiniteFollowUp(at: number | null | undefined) {
   if (at != null && !Number.isFinite(at)) throw new ValidationError("Invalid follow-up date");
 }
 

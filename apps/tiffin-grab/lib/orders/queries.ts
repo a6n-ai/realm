@@ -36,6 +36,9 @@ export const laterOrderBookedAtSql = laterBookedAt();
 /** When the first plan counted by `laterPaidOrderSql` was booked (epoch ms), or null. */
 export const laterPaidOrderBookedAtSql = laterBookedAt(sql`next_order.trial_length is null`);
 
+/** `laterOrderBookedAtSql`, or `laterPaidOrderBookedAtSql` when `paidPlansOnly` (trial-conversion rule). */
+export const laterBookedAtFor = (paidPlansOnly: boolean) => laterBookedAt(paidPlansOnly ? sql`next_order.trial_length is null` : undefined);
+
 export type RenewalStatus = "renewed" | "unpaid" | "waitlisted" | "none";
 
 /**
