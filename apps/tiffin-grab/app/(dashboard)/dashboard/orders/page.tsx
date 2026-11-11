@@ -31,7 +31,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@foundry/ui/tooltip";
 import { withDefaultMonth, withListDates } from "@/lib/list/default-month";
 import { OrdersList, OrdersListSkeleton } from "./orders-list";
 import { NextOrderSection } from "./next-order-section";
-import { NextOrderSkeleton } from "./next-order-card";
+import { NextItemSkeleton } from "@/components/dashboard/next-item/next-item-card";
 import { OrdersViewTabs } from "./orders-view-tabs";
 import { getFreeTiffinStats, getLookOutStats, getOrdersOverview, getPaymentReviewStats } from "@/lib/services/orders-stats.service";
 import { OrderTagsLegend } from "./row-tags";
@@ -110,7 +110,7 @@ export default async function OrdersPage({
           <OrdersStats searchParams={searchParams} />
         </Suspense>
       </div>
-      <Suspense fallback={<NextOrderSkeleton />}>
+      <Suspense fallback={<NextItemSkeleton title="Next order" />}>
         <NextOrderSection searchParams={searchParams} />
       </Suspense>
       <Suspense fallback={<Skeleton className="h-9 w-56" />}>

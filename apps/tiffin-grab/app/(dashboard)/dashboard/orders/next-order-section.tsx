@@ -8,7 +8,8 @@ import { loadOwnerOptions } from "@/lib/list/facet-options";
 import { ALL_OWNERS, ME, resolveOwnerParam } from "@/lib/list/presets";
 import { requestNow } from "@/lib/dates/request-now";
 import { nextOrder, orderQueueCount, queueOrder, upNextOrders, type OrderQueueScope } from "@/lib/services/next-order.service";
-import { NextOrderCard, type OwnerChoice } from "./next-order-card";
+import type { OwnerChoice } from "@/components/dashboard/next-item/next-item-card";
+import { NextOrderCard } from "./next-order-card";
 
 const UP_NEXT_COUNT = 6;
 
@@ -61,7 +62,7 @@ export async function NextOrderSection({ searchParams }: { searchParams: Promise
       owner={{ current: orderOwner, options: ownerOptions }}
       prevHref={prev ? hrefWith(sp, { order: prev.publicId }) : undefined}
       nextHref={next ? hrefWith(sp, { order: next.publicId }) : undefined}
-      upNext={upNext}
+      upNext={upNext.map((r) => ({ ...r, href: hrefWith(sp, { order: r.publicId }) }))}
       attentionHref={hrefWith(sp, { view: "payment", order: null, orderOwner: null })}
     />
   );

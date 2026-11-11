@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render as rtlRender, screen, waitFor, within } from "@testing-library/react";
+import { TooltipProvider } from "@foundry/ui/tooltip";
 import type { NextOrderReason, NextOrderRow } from "@/lib/services/next-order.service";
 import { NextOrderCard, type NextOrderCardProps } from "../next-order-card";
 vi.mock("../actions", () => ({ addOrderNoteAction: vi.fn(), emailPaymentLinkAction: vi.fn() }));
-vi.mock("../[id]/actions", () => ({ verifyPaymentAction: vi.fn() }));
+vi.mock("../[id]/actions", () => ({ verifyPaymentAction: vi.fn(), cancel: vi.fn(async () => undefined) }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }) }));
 const NOW = Date.UTC(2026, 10, 11, 12);
@@ -17,6 +18,7 @@ const order = (over: Partial<NextOrderRow> & { reason: NextOrderReason }): NextO
   phone: "4165550123",
   planName: "Veg Plan",
   mealSizeName: "Medium",
+  status: "active",
   paymentPublicId: null,
   amount: null,
   signalAt: NOW - 5 * DAY,
@@ -32,6 +34,8 @@ const base = (over: Partial<NextOrderCardProps> = {}): NextOrderCardProps => ({
   attentionHref: "/dashboard/orders?view=payment",
   ...over,
 });
+const render = (ui: React.ReactElement) => rtlRender(<TooltipProvider>{ui}</TooltipProvider>);
+
 afterEach(() => cleanup());
 describe("Next order card", () => {
   it("shows the verify reason with the verify action only", () => {
@@ -51,7 +55,7 @@ describe("Next order card", () => {
     expect(screen.getByText("Missed deliveries")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Verify payment|Send payment link/ })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Add note/ })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Open order" })).toHaveAttribute("href", "/dashboard/orders/ord_1");
+    expect(screen.getByRole("button", { name: "Open order" })).toBeInTheDocument();
     unmount();
     render(<NextOrderCard {...base({ row: order({ reason: "flagged" }) })} />);
     expect(screen.getByText("Flagged")).toBeInTheDocument();
@@ -62,11 +66,24 @@ describe("Next order card", () => {
     expect(screen.getByRole("link", { name: /Waiting on payment/ })).toHaveAttribute("href", "/dashboard/orders?view=payment");
   });
   it("renders at most six up-next cards, each linking to its order", () => {
-    const up = Array.from({ length: 8 }, (_, i) => order({ publicId: `ord_${i + 2}`, customerName: `Customer ${i}`, reason: "pending", paymentPublicId: `pay_${i}`, amount: 10 }));
+    const up = Array.from({ length: 8 }, (_, i) => ({ ...order({ publicId: `ord_${i + 2}`, customerName: `Customer ${i}`, reason: "pending", paymentPublicId: `pay_${i}`, amount: 10 }), href: `/dashboard/orders?order=ord_${i + 2}` }));
     render(<NextOrderCard {...base({ upNext: up })} />);
     const strip = screen.getByRole("region", { name: "Up next orders" });
     const links = within(strip).getAllByRole("link", { name: /Customer \d/ });
     expect(links).toHaveLength(6);
-    expect(links[0]).toHaveAttribute("href", "/dashboard/orders/ord_2");
+    expect(links[0]).toHaveAttribute("href", "/dashboard/orders?order=ord_2");
+  });
+});
+
+describe("Cancel order on the Next order card", () => {
+  it("offers Cancel only while the order can be cancelled, and calls cancel after confirming", async () => {
+    const { cancel } = await import("../[id]/actions");
+    const { unmount } = render(<NextOrderCard {...base({ row: order({ reason: "missed" }) })} />);
+    fireEvent.click(screen.getByRole("button", { name: "Cancel order" }));
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Cancel order" }));
+    await waitFor(() => expect(cancel).toHaveBeenCalledWith("ord_1"));
+    unmount();
+    render(<NextOrderCard {...base({ row: order({ reason: "missed", status: "cancelled" }) })} />);
+    expect(screen.queryByRole("button", { name: "Cancel order" })).not.toBeInTheDocument();
   });
 });

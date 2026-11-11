@@ -27,6 +27,8 @@ export type NextOrderRow = {
   phone: string | null;
   planName: string;
   mealSizeName: string;
+  /** Cancel is offered only while the order is neither cancelled nor completed. */
+  status: string;
   reason: NextOrderReason;
   /** Payment-related reasons only: the payment staff act on, and its amount. */
   paymentPublicId: string | null;
@@ -89,6 +91,7 @@ async function pick(scope: OrderQueueScope, today: string, cursor: SQL | undefin
       phone: users.phone,
       planName: plans.name,
       mealSizeName: mealSizes.name,
+      status: orders.status,
       rank: sql<number>`${rank}`,
       signal: sql<number>`${signal}`,
     })
@@ -120,6 +123,7 @@ async function hydrate(picked: Picked[]): Promise<NextOrderRow[]> {
       phone: p.phone,
       planName: p.planName,
       mealSizeName: p.mealSizeName,
+      status: p.status,
       reason,
       paymentPublicId: pay?.publicId ?? null,
       amount: pay ? Number(pay.amount) : null,

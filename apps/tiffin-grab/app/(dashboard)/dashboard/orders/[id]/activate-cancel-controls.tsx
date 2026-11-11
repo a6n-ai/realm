@@ -8,6 +8,7 @@ import { ResponsiveDialog } from "@/components/ds";
 import { humanDate } from "@/lib/deliveries-view";
 import type { DayOfWeek } from "@/lib/menu/delivery-days";
 import { projectedEndDate, tripsFor } from "@/lib/orders/bounded-deliveries";
+import { CANCEL_ORDER_COPY } from "../cancel-order-dialog";
 import { activate, cancel, startMigrated } from "./actions";
 import { DateInput } from "@/components/dashboard/date-fields";
 
@@ -115,12 +116,12 @@ export function ActivateCancelControls({
             Cancel order
           </Button>
         }
-        title="Cancel this order?"
-        description="This cancels the subscription and all its scheduled deliveries. This cannot be undone."
+        title={CANCEL_ORDER_COPY.title}
+        description={CANCEL_ORDER_COPY.description}
         footer={
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => setConfirmCancel(false)}>
-              Keep order
+              {CANCEL_ORDER_COPY.keep}
             </Button>
             <Button
               variant="destructive"

@@ -1,20 +1,17 @@
-"use client";
 import Link from "next/link";
-import { ArrowUpRightIcon, CheckCircle2Icon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 import { formatMoney } from "@foundry/commons";
-import { SectionCard } from "@/components/ds";
-import { Badge } from "@/components/reui/badge";
 import { Button } from "@foundry/ui/button";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@foundry/ui/dropdown-menu";
-import { Skeleton } from "@foundry/ui/skeleton";
-import { ALL_OWNERS, ME } from "@/lib/list/presets";
 import type { NextOrderReason, NextOrderRow } from "@/lib/services/next-order.service";
 import { ContactChips } from "@/components/dashboard/next-item/contact-chips";
-import { NextOrderActions } from "./next-order-actions";
+import { NextItemCard, NextItemEmpty, type NextItemView, type OwnerChoice } from "@/components/dashboard/next-item/next-item-card";
+import { ReasonBadge } from "@/components/dashboard/next-item/reason-badge";
+import { UpNextStrip, type UpNextTile } from "@/components/dashboard/next-item/up-next-strip";
+import { NextOrderIconActions, NextOrderPrimary } from "./next-order-actions";
 
 const DAY_MS = 86_400_000;
 
-export type OwnerChoice = { value: string; label: string; href: string };
+/** An order after the current one; `href` opens it in the card (`order=`). */
+export type UpNextOrder = NextOrderRow & { href: string };
 
 export type NextOrderCardProps = {
   row: NextOrderRow | null;
@@ -24,7 +21,7 @@ export type NextOrderCardProps = {
   owner: { current: string; options: OwnerChoice[] };
   prevHref?: string;
   nextHref?: string;
-  upNext: NextOrderRow[];
+  upNext: UpNextOrder[];
   attentionHref: string;
 };
 
@@ -38,152 +35,80 @@ export function reasonBadge(reason: NextOrderReason, signalAt: number, now: numb
   const money = amount == null ? "" : ` · ${formatMoney(amount, currency)}`;
   switch (reason) {
     case "verify":
-      return <Badge variant="warning-light">Payment to verify{money}</Badge>;
+      return <ReasonBadge variant="warning-light">Payment to verify{money}</ReasonBadge>;
     case "overdue":
-      return <Badge variant="destructive-light">Payment overdue · {days}d{money}</Badge>;
+      return <ReasonBadge variant="destructive-light">Payment overdue · {days}d{money}</ReasonBadge>;
     case "missed":
-      return <Badge variant="destructive-light">Missed deliveries</Badge>;
+      return <ReasonBadge variant="destructive-light">Missed deliveries</ReasonBadge>;
     case "flagged":
-      return <Badge variant="secondary">Flagged</Badge>;
+      return <ReasonBadge variant="secondary">Flagged</ReasonBadge>;
     case "pending":
-      return <Badge variant="outline">Payment pending{money}</Badge>;
+      return <ReasonBadge variant="outline">Payment pending{money}</ReasonBadge>;
   }
 }
 
-function UpNextStrip({ rows, currency, now }: { rows: NextOrderRow[]; currency: string; now: number }) {
-  return (
-    <section aria-label="Up next orders" className="mt-3 border-t pt-3">
-      <div tabIndex={0} className="focus-visible:ring-ring flex snap-x gap-3 overflow-x-auto pb-2 focus-visible:outline-none focus-visible:ring-2">
-        {rows.slice(0, 6).map((row) => (
-          <div key={row.publicId} className="flex w-64 shrink-0 snap-start flex-col gap-2 rounded-lg border p-3">
-            <div className="flex min-w-0 flex-col gap-0.5">
-              <Link href={`/dashboard/orders/${row.publicId}`} className="truncate text-sm font-medium hover:underline">
-                {row.customerName}
-              </Link>
-              <span className="text-muted-foreground truncate text-xs">{row.code}</span>
-            </div>
-            <div className="flex min-w-0 flex-wrap items-center gap-2">{reasonBadge(row.reason, row.signalAt, now, row.amount, currency)}</div>
-            <NextOrderActions row={row} />
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
 export function NextOrderCard({ row, currency, now, queueCount, owner, prevHref, nextHref, upNext, attentionHref }: NextOrderCardProps) {
-  const ownerLabel = owner.options.find((o) => o.value === owner.current)?.label ?? "Me";
-  const picker = (
-    <div className="flex items-center gap-2">
-      <span className="text-muted-foreground text-xs">{owner.current === ME ? "Your queue" : owner.current === ALL_OWNERS ? "All owners" : `${ownerLabel}'s queue`}</span>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="outline" size="sm">
-            {ownerLabel}
-            <ChevronDownIcon className="size-4" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          {owner.options.map((o) => (
-            <DropdownMenuItem key={o.value} asChild>
-              <Link href={o.href}>{o.label}</Link>
-            </DropdownMenuItem>
-          ))}
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
-  );
+  const item: NextItemView | null = row
+    ? {
+        identity: (
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="bg-muted flex size-10 shrink-0 items-center justify-center rounded-lg text-sm font-medium">{initials(row.customerName)}</div>
+            <Link href={`/dashboard/orders/${row.publicId}`} className="min-w-0 truncate font-medium hover:underline">
+              {row.customerName}
+            </Link>
+            {reasonBadge(row.reason, row.signalAt, now, row.amount, currency)}
+            <div className="ml-auto flex items-center gap-1">
+              <NextOrderIconActions row={row} />
+            </div>
+          </div>
+        ),
+        meta: (
+          <div className="flex flex-col gap-2">
+            <p className="text-muted-foreground text-xs">{[row.code, `${row.planName} · ${row.mealSizeName}`].join(" · ")}</p>
+            <ContactChips name={row.customerName} phone={row.phone} />
+          </div>
+        ),
+        facts: [
+          ["Amount", row.amount == null ? null : formatMoney(row.amount, currency)],
+          ["Plan", row.planName],
+          ["Meal size", row.mealSizeName],
+        ],
+        primary: <NextOrderPrimary row={row} />,
+        upNext:
+          upNext.length > 0 ? (
+            <UpNextStrip
+              label="orders"
+              tiles={upNext.map(
+                (r): UpNextTile => ({
+                  key: r.publicId,
+                  href: r.href,
+                  title: r.customerName,
+                  badge: reasonBadge(r.reason, r.signalAt, now, r.amount, currency),
+                  hint: r.code,
+                }),
+              )}
+              more={Math.max(0, queueCount - 1 - upNext.length)}
+              viewAllHref={attentionHref}
+            />
+          ) : undefined,
+      }
+    : null;
   return (
-    <SectionCard title="Next order" subtitle={`${queueCount} to act on`} action={picker}>
-      {row ? (
-        <>
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:gap-4">
-            <div className="flex min-w-0 flex-1 items-center gap-3">
-              <div className="bg-muted flex size-10 shrink-0 items-center justify-center rounded-lg text-sm font-medium">{initials(row.customerName)}</div>
-              <div className="flex min-w-0 flex-col gap-0.5">
-                <Link href={`/dashboard/orders/${row.publicId}`} className="truncate font-medium hover:underline">
-                  {row.customerName}
-                </Link>
-                <p className="text-muted-foreground truncate text-xs">{[row.code, `${row.planName} · ${row.mealSizeName}`].join(" · ")}</p>
-                <ContactChips name={row.customerName} phone={row.phone} />
-              </div>
-            </div>
-            <div className="flex min-w-0 flex-wrap items-center gap-2 md:w-64">{reasonBadge(row.reason, row.signalAt, now, row.amount, currency)}</div>
-            <div className="flex flex-wrap items-center gap-2">
-              <NextOrderActions row={row} />
-              <Button variant="secondary" size="sm" asChild>
-                <Link href={`/dashboard/orders/${row.publicId}`}>
-                  <ArrowUpRightIcon className="size-4" />
-                  Open order
-                </Link>
-              </Button>
-              <div className="flex items-center gap-1">
-                {prevHref ? (
-                  <Button variant="ghost" size="icon-sm" aria-label="Previous order" asChild>
-                    <Link href={prevHref} prefetch={false}>
-                      <ChevronLeftIcon className="size-4" />
-                    </Link>
-                  </Button>
-                ) : (
-                  <Button variant="ghost" size="icon-sm" aria-label="Previous order" disabled>
-                    <ChevronLeftIcon className="size-4" />
-                  </Button>
-                )}
-                {nextHref ? (
-                  <Button variant="ghost" size="icon-sm" aria-label="Next order" asChild>
-                    <Link href={nextHref} prefetch={false}>
-                      <ChevronRightIcon className="size-4" />
-                    </Link>
-                  </Button>
-                ) : (
-                  <Button variant="ghost" size="icon-sm" aria-label="Next order" disabled>
-                    <ChevronRightIcon className="size-4" />
-                  </Button>
-                )}
-              </div>
-            </div>
-          </div>
-          {upNext.length > 0 ? <UpNextStrip rows={upNext} currency={currency} now={now} /> : null}
-        </>
-      ) : (
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div className="flex items-center gap-3">
-            <div className="bg-muted flex size-10 shrink-0 items-center justify-center rounded-lg">
-              <CheckCircle2Icon className="text-muted-foreground size-5" />
-            </div>
-            <p className="text-sm font-medium">No orders need attention.</p>
-          </div>
+    <NextItemCard
+      title="Next order"
+      noun="order"
+      owner={owner}
+      dueText={`${queueCount} to act on`}
+      prevHref={prevHref}
+      nextHref={nextHref}
+      item={item}
+      empty={
+        <NextItemEmpty title="No orders need attention.">
           <Button variant="outline" size="sm" asChild>
             <Link href={attentionHref} prefetch={false}>Waiting on payment</Link>
           </Button>
-        </div>
-      )}
-    </SectionCard>
-  );
-}
-
-export function NextOrderSkeleton() {
-  return (
-    <SectionCard title="Next order" action={<Skeleton className="h-8 w-40" />}>
-      <div className="flex flex-col gap-3 md:flex-row md:items-center md:gap-4">
-        <div className="flex flex-1 items-center gap-3">
-          <Skeleton className="size-10 shrink-0 rounded-lg" />
-          <div className="flex flex-col gap-2">
-            <Skeleton className="h-4 w-40" />
-            <Skeleton className="h-3 w-56" />
-          </div>
-        </div>
-        <Skeleton className="h-5 w-40 md:w-64" />
-        <div className="flex gap-2">
-          <Skeleton className="h-8 w-20" />
-          <Skeleton className="h-8 w-16" />
-        </div>
-      </div>
-      <div className="mt-3 flex gap-3 border-t pt-3">
-        {[0, 1, 2].map((i) => (
-          <Skeleton key={i} className="h-28 w-64 shrink-0 rounded-lg" />
-        ))}
-      </div>
-    </SectionCard>
+        </NextItemEmpty>
+      }
+    />
   );
 }

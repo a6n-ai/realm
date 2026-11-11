@@ -1,17 +1,19 @@
 "use client";
 import { useState, useTransition } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowUpRightIcon, CheckCheckIcon, MailIcon, MessageSquarePlusIcon } from "lucide-react";
+import { CheckCheckIcon, MailIcon, MessageSquarePlusIcon, XCircleIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@foundry/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@foundry/ui/dialog";
 import { Textarea } from "@foundry/ui/textarea";
+import { RowActionTooltipButton } from "@/components/ds";
+import { NextItemOpenButton } from "@/components/dashboard/next-item/open-button";
+import type { NextOrderRow } from "@/lib/services/next-order.service";
 import { addOrderNoteAction, emailPaymentLinkAction } from "./actions";
-import { verifyPaymentAction } from "./[id]/actions";
-import type { NextOrderReason } from "@/lib/services/next-order.service";
+import { cancel, verifyPaymentAction } from "./[id]/actions";
+import { CancelOrderDialog } from "./cancel-order-dialog";
 
-type Target = { publicId: string; reason: NextOrderReason; paymentPublicId: string | null };
+type Target = Pick<NextOrderRow, "publicId" | "reason" | "paymentPublicId" | "status">;
 
 function useResult() {
   const router = useRouter();
@@ -30,38 +32,72 @@ function useResult() {
   return { pending, run };
 }
 
-/** Verify payment, Send payment link, Add note, Open: only the ones this order's reason calls for. */
-export function NextOrderActions({ row }: { row: Target }) {
+/** The card's one labelled primary: Verify payment when the reason is verify, else Send payment link, else Add note. */
+export function NextOrderPrimary({ row }: { row: Target }) {
   const { pending, run } = useResult();
   const [noteOpen, setNoteOpen] = useState(false);
   const pay = row.paymentPublicId;
+  if (row.reason === "verify" && pay) {
+    return (
+      <Button size="sm" disabled={pending} onClick={() => run(() => verifyPaymentAction(row.publicId, pay), "Payment verified")}>
+        <CheckCheckIcon className="size-4" />
+        Verify payment
+      </Button>
+    );
+  }
+  if (pay) {
+    return (
+      <Button size="sm" disabled={pending} onClick={() => run(() => emailPaymentLinkAction(row.publicId, pay), "Payment link sent")}>
+        <MailIcon className="size-4" />
+        Send payment link
+      </Button>
+    );
+  }
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      {row.reason === "verify" && pay ? (
-        <Button variant="default" size="sm" disabled={pending} onClick={() => run(() => verifyPaymentAction(row.publicId, pay), "Payment verified")}>
-          <CheckCheckIcon className="size-4" />
-          Verify payment
-        </Button>
-      ) : null}
-      {(row.reason === "overdue" || row.reason === "pending") && pay ? (
-        <Button variant="outline" size="sm" disabled={pending} onClick={() => run(() => emailPaymentLinkAction(row.publicId, pay), "Payment link sent")}>
-          <MailIcon className="size-4" />
-          Send payment link
-        </Button>
-      ) : null}
-      <Button variant="outline" size="sm" className="text-violet-600 dark:text-violet-400" onClick={() => setNoteOpen(true)}>
+    <>
+      <Button size="sm" onClick={() => setNoteOpen(true)}>
         <MessageSquarePlusIcon className="size-4" />
         Add note
       </Button>
-      <Button variant="ghost" size="sm" asChild>
-        <Link href={`/dashboard/orders/${row.publicId}`}>
-          <ArrowUpRightIcon className="size-4" />
-          Open
-        </Link>
-      </Button>
       {noteOpen ? <AddNoteDialog orderPublicId={row.publicId} onDone={() => setNoteOpen(false)} /> : null}
-    </div>
+    </>
   );
+}
+
+/** Icon-only secondary actions on the Next order card: Add note (when not the primary), Cancel order, Open. */
+export function NextOrderIconActions({ row }: { row: Target }) {
+  const [noteOpen, setNoteOpen] = useState(false);
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const { pending, run } = useResult();
+  const cancellable = row.status !== "cancelled" && row.status !== "completed";
+  return (
+    <>
+      {row.paymentPublicId ? (
+        <RowActionTooltipButton icon={MessageSquarePlusIcon} label="Add note" tone="text-violet-600 dark:text-violet-400" onClick={() => setNoteOpen(true)} />
+      ) : null}
+      <NextItemOpenButton href={`/dashboard/orders/${row.publicId}`} label="Open order" />
+      {cancellable ? (
+        <RowActionTooltipButton icon={XCircleIcon} label="Cancel order" tone="text-destructive" onClick={() => setCancelOpen(true)} />
+      ) : null}
+      {noteOpen ? <AddNoteDialog orderPublicId={row.publicId} onDone={() => setNoteOpen(false)} /> : null}
+      <CancelOrderDialog
+        open={cancelOpen}
+        onOpenChange={setCancelOpen}
+        pending={pending}
+        onConfirm={() => run(() => cancelOrder(row.publicId), "Order cancelled", () => setCancelOpen(false))}
+      />
+    </>
+  );
+}
+
+/** `cancel` throws on states it cannot cancel; the card shows that message as a toast instead. */
+async function cancelOrder(orderId: string): Promise<{ ok: true } | { error: string }> {
+  try {
+    await cancel(orderId);
+    return { ok: true };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Couldn't cancel this order" };
+  }
 }
 
 function AddNoteDialog({ orderPublicId, onDone }: { orderPublicId: string; onDone: () => void }) {
