@@ -76,7 +76,7 @@ export function RenewalsQueueList({ rows, total, page, size, queue, today, spec 
         rowKey={(r) => r.orderPublicId}
         // Clicks on the status menu and the row actions are excluded by DataTable.
         onRowClick={(r) => {
-          if (r.customerPublicId) router.push(`/dashboard/renewals/customers/${r.customerPublicId}`);
+          if (r.customerPublicId) router.push(`/dashboard/inquiries/renewals/${r.customerPublicId}`);
         }}
         rowClassName={() => "group"}
         filters={<ListSearchFilters spec={spec} placeholder="Search name, order or phone…" shortPlaceholder="Search…" />}
@@ -92,7 +92,7 @@ export function RenewalsQueueList({ rows, total, page, size, queue, today, spec 
               {/* One line per cell keeps every row the same height; DataTable shows clipped text on hover. */}
               <TableCell className="font-medium whitespace-nowrap">
                 {r.customerPublicId ? (
-                  <Link href={`/dashboard/renewals/customers/${r.customerPublicId}`} className="hover:underline">
+                  <Link href={`/dashboard/inquiries/renewals/${r.customerPublicId}`} className="hover:underline">
                     {r.customerName}
                   </Link>
                 ) : (

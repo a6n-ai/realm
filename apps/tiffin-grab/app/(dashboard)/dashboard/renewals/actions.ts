@@ -55,6 +55,7 @@ function revalidateRenewals(customerPublicId: unknown) {
   const customer = z.string().min(1).safeParse(customerPublicId);
   if (!customer.success) return;
   revalidatePath(`/dashboard/renewals/customers/${customer.data}`);
+  revalidatePath(`/dashboard/inquiries/renewals/${customer.data}`);
   revalidatePath(`/dashboard/customers/${customer.data}/renewals`);
 }
 
