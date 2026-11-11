@@ -90,6 +90,7 @@ export function describe(a: TimelineActivity, currency: string): string {
 const FILTERS: ActivityFilter[] = [
   { key: "all", label: "All", types: null },
   { key: "note", label: "Notes", types: ["note"] },
+  { key: "calls", label: "Calls", types: ["call", "whatsapp", "email", "visit"] },
   { key: "status", label: "Status", types: ["stage_change", "converted"] },
 ];
 
@@ -116,10 +117,12 @@ export function InquiryTimeline({
           nextFollowUpAt: a.nextFollowUpAt,
           createdAt: a.createdAt,
           actor: a.actor,
+          system: a.type === "created" || (a.type === "stage_change" && !a.note),
         };
       })}
       filters={FILTERS}
       onAddNote={onAddNote}
+      grouped
     />
   );
 }
