@@ -76,7 +76,10 @@ describe("PauseSheet", () => {
     expect(await screen.findByText("Nothing was resumed.")).toBeInTheDocument();
     expect(onDone).not.toHaveBeenCalled();
     a.release.mockResolvedValueOnce({ ok: true, dates: [THU] });
-    fireEvent.click(screen.getAllByRole("button", { name: "Resume all" })[0]!);
+    // The error shows while the first transition is still pending; a click on the disabled button is dropped.
+    const resumeAll = screen.getAllByRole("button", { name: "Resume all" })[0]!;
+    await waitFor(() => expect(resumeAll).toBeEnabled());
+    fireEvent.click(resumeAll);
     await waitFor(() => expect(onDone).toHaveBeenCalledWith("Thu is back on."));
   });
 
