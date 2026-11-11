@@ -108,7 +108,7 @@ export async function getOrdersOverview(range: { from: number; to: number }, vis
 }
 
 // Same threshold as the Payments page overdue queue (payments/payment-queries.ts OVERDUE_DAYS).
-const OVERDUE_DAYS = 3;
+export const OVERDUE_DAYS = 3;
 
 const hidden = (visible: "all" | string[]) => visible !== "all" && visible.length === 0;
 
