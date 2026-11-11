@@ -11,7 +11,7 @@ import { ResponsiveDialog } from "@/components/ds";
 import type { ActionResult } from "@/lib/actions/action-result";
 import { cancel, sendPaymentReminderAction } from "../../../orders/[id]/actions";
 import { broadcastCustomerPayout } from "../../../wallet/actions";
-import { sendRenewalReminderAction } from "./actions";
+import { sendRenewalReminderAction } from "../../actions";
 
 /** Runs a server action, toasts the outcome, and refreshes the page so the timeline and reminders update. */
 function useRun() {
