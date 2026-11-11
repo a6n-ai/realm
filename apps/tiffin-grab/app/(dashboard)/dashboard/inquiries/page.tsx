@@ -32,7 +32,7 @@ import { QuickAddDialog } from "./quick-add/quick-add-dialog";
 import { InquiriesList, InquiriesListSkeleton } from "./inquiries-list";
 import { NextLeadCard, NextLeadSkeleton, leadScope } from "./next-lead-card";
 
-const UP_NEXT_COUNT = 4;
+const UP_NEXT_COUNT = 6;
 import { reassignInquiry } from "./actions";
 import { SUB_STATUSES, SUB_STATUS_META } from "@/lib/inquiries/status";
 import { QueueTabs } from "./queue-tabs";
@@ -130,9 +130,9 @@ async function NextLead({ searchParams }: { searchParams: SearchParams }) {
   const rowOf = (publicId: string) =>
     inquiriesService.listForPipeline(scope, { page: 0, size: 1 }, undefined, undefined, eq(inquiries.publicId, publicId)).then((r) => r.items[0] ?? null);
 
-  const highlight = typeof sp.highlight === "string" ? sp.highlight : undefined;
-  const pinned = highlight ? await rowOf(highlight) : null;
-  const lead = pinned ?? (await inquiriesService.nextLead(scope, dayStart, dayEnd).then((n) => (n ? rowOf(n.publicId) : null)));
+  const chosenId = typeof sp.lead === "string" ? sp.lead : undefined;
+  const chosen = chosenId ? await rowOf(chosenId) : null;
+  const lead = chosen ?? (await inquiriesService.nextLead(scope, dayStart, dayEnd).then((n) => (n ? rowOf(n.publicId) : null)));
   const [prev, next, upNextIds] = lead
     ? await Promise.all([
         inquiriesService.nextLead(scope, dayStart, dayEnd, { publicId: lead.publicId, dir: "prev" }),
@@ -283,20 +283,20 @@ async function InquiryStats({ searchParams }: { searchParams: SearchParams }) {
   );
 }
 
-/** Keeps the viewer's tab, filters and sort, and highlights `publicId` (pinned as the first row). */
+/** Keeps the viewer's tab, filters and sort, and shows `publicId` in the Next lead card. The list ignores `lead`. */
 function leadQuery(sp: Awaited<SearchParams>, publicId: string): string {
   const next = new URLSearchParams();
   for (const [k, v] of Object.entries(sp)) {
-    if (typeof v === "string" && k !== "highlight" && k !== "page") next.set(k, v);
+    if (typeof v === "string" && k !== "lead" && k !== "page") next.set(k, v);
   }
-  next.set("highlight", publicId);
+  next.set("lead", publicId);
   return next.toString();
 }
-/** Switching the card's owner keeps the list's tab and filters, and drops the pinned lead. */
+/** Switching the card's owner keeps the list's tab and filters, and drops the chosen lead. */
 function leadOwnerHref(sp: Awaited<SearchParams>, owner: string): string {
   const next = new URLSearchParams();
   for (const [k, v] of Object.entries(sp)) {
-    if (typeof v === "string" && k !== "highlight" && k !== "page" && k !== "leadOwner") next.set(k, v);
+    if (typeof v === "string" && k !== "lead" && k !== "page" && k !== "leadOwner") next.set(k, v);
   }
   next.set("leadOwner", owner);
   return `/dashboard/inquiries?${next.toString()}`;
@@ -344,9 +344,7 @@ async function InquiriesData({ searchParams }: { searchParams: SearchParams }) {
   const { condition, page } = parseFilterState(spec, { ...sp, owner: resolveOwnerParam(sp.owner, viewer) });
   const todayIso = zonedDateIso(requestNow(), timezone);
   const { start: dayStart, end: dayEnd } = dayRange(todayIso, timezone);
-  // A lead opened from the Next lead card is pinned as the first row and highlighted, whatever tab or page it would fall on.
-  const highlight = typeof sp.highlight === "string" ? sp.highlight : undefined;
-  const [result, counts, pinned] = await Promise.all([
+  const [result, counts] = await Promise.all([
     inquiriesService.listForPipeline(
       condition,
       page,
@@ -355,10 +353,7 @@ async function InquiriesData({ searchParams }: { searchParams: SearchParams }) {
       bucket ? inquiryBucketWhere(bucket) : undefined,
     ),
     inquiriesService.queueCounts(condition, dayStart, dayEnd),
-    highlight ? inquiriesService.listForPipeline(undefined, { page: 0, size: 1 }, sort, undefined, eq(inquiries.publicId, highlight)) : null,
   ]);
-  const pinnedRow = pinned?.items[0];
-  const rows = pinnedRow ? [pinnedRow, ...result.items.filter((r) => r.publicId !== pinnedRow.publicId)] : result.items;
   const staff = canReassignRecords ? await listAssignableStaff() : [];
 
   return (
@@ -369,7 +364,7 @@ async function InquiriesData({ searchParams }: { searchParams: SearchParams }) {
     <InquiriesList
       emptyMessage={EMPTY_COPY[queue]}
       spec={spec}
-      rows={rows}
+      rows={result.items}
       total={result.total}
       page={page.page}
       size={page.size}
@@ -378,7 +373,6 @@ async function InquiriesData({ searchParams }: { searchParams: SearchParams }) {
       staff={staff}
       reassignAction={reassignInquiry}
       dayStart={dayStart}
-      highlight={pinnedRow?.publicId}
       emptyCta={
         <AddInquirySheet
           defaultCountry={sheet.defaultCountry}

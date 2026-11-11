@@ -96,9 +96,9 @@ describe("NextLeadCard", () => {
   });
 
   it("renders Previous and Next as links only when hrefs are given", () => {
-    render(<NextLeadCard {...base} lead={lead()} prevHref="/dashboard/inquiries?highlight=a" nextHref="/dashboard/inquiries?highlight=b" />);
-    expect(screen.getByRole("link", { name: "Previous lead" })).toHaveAttribute("href", "/dashboard/inquiries?highlight=a");
-    expect(screen.getByRole("link", { name: "Next lead" })).toHaveAttribute("href", "/dashboard/inquiries?highlight=b");
+    render(<NextLeadCard {...base} lead={lead()} prevHref="/dashboard/inquiries?lead=a" nextHref="/dashboard/inquiries?lead=b" />);
+    expect(screen.getByRole("link", { name: "Previous lead" })).toHaveAttribute("href", "/dashboard/inquiries?lead=a");
+    expect(screen.getByRole("link", { name: "Next lead" })).toHaveAttribute("href", "/dashboard/inquiries?lead=b");
     expect(screen.getByText("12 due")).toBeInTheDocument();
   });
 
@@ -130,23 +130,38 @@ describe("NextLeadCard", () => {
     expect(screen.getByText("Ravi Shah's queue")).toBeInTheDocument();
   });
 
-  it("lists up to 4 up-next leads, each pinned with highlight and the card's leadOwner", () => {
-    const up = ["Bea", "Carl", "Dana", "Eli"].map((name, i) => ({
+  it("shows up to 6 up-next cards in a labelled strip, each linking to its lead with the card's leadOwner", () => {
+    const up = ["Bea", "Carl", "Dana", "Eli", "Finn", "Gus"].map((name, i) => ({
       ...lead({ publicId: `inq_${i + 2}`, fullName: name, ownerName: "Ravi Shah" }),
-      href: `/dashboard/inquiries?leadOwner=all&highlight=inq_${i + 2}`,
+      href: `/dashboard/inquiries?leadOwner=all&lead=inq_${i + 2}`,
     })) as unknown as NextLeadCardProps["upNext"];
     render(<NextLeadCard {...base} owner={owner("all")} lead={lead()} upNext={up} />);
-    const rows = up.map((r) => screen.getByRole("link", { name: new RegExp(r.fullName ?? "") }));
-    expect(rows).toHaveLength(4);
-    expect(rows[0]).toHaveAttribute("href", "/dashboard/inquiries?leadOwner=all&highlight=inq_2");
-    expect(rows[3]).toHaveAttribute("href", "/dashboard/inquiries?leadOwner=all&highlight=inq_5");
-    expect(screen.getAllByText("Ravi Shah")).toHaveLength(4);
+    const strip = screen.getByRole("region", { name: "Up next leads" });
+    const rows = up.map((r) => screen.getByRole("link", { name: r.fullName ?? "" }));
+    expect(rows).toHaveLength(6);
+    expect(strip).toContainElement(rows[0]);
+    expect(rows[0]).toHaveAttribute("href", "/dashboard/inquiries?leadOwner=all&lead=inq_2");
+    expect(rows[5]).toHaveAttribute("href", "/dashboard/inquiries?leadOwner=all&lead=inq_7");
+    expect(screen.getAllByText("Ravi Shah")).toHaveLength(6);
+    expect(screen.getAllByRole("button", { name: "Change status" })).toHaveLength(6);
+    expect(screen.getAllByRole("button", { name: /^Add note for/ })).toHaveLength(6);
+  });
+
+  it("hides Set follow-up on a closed up-next lead and opens the detail page from Open", () => {
+    const up = [
+      { ...lead({ publicId: "inq_8", fullName: "Hari", subStatus: "took_plan" }), href: "/dashboard/inquiries?lead=inq_8" },
+      { ...lead({ publicId: "inq_9", fullName: "Ivy", subStatus: null }), href: "/dashboard/inquiries?lead=inq_9" },
+    ] as unknown as NextLeadCardProps["upNext"];
+    render(<NextLeadCard {...base} lead={lead()} upNext={up} />);
+    expect(screen.getAllByRole("button", { name: /^Set follow-up for/ })).toHaveLength(1);
+    expect(screen.getByRole("link", { name: "Open Hari" })).toHaveAttribute("href", "/dashboard/inquiries/inq_8");
+    expect(screen.getByRole("link", { name: "Open Ivy" })).toHaveAttribute("href", "/dashboard/inquiries/inq_9");
   });
 
   it("omits the owner name on up-next rows unless the card is all owners", () => {
-    const up = [{ ...lead({ publicId: "inq_9", fullName: "Fay", ownerName: "Ravi Shah" }), href: "/dashboard/inquiries?highlight=inq_9" }] as unknown as NextLeadCardProps["upNext"];
+    const up = [{ ...lead({ publicId: "inq_9", fullName: "Fay", ownerName: "Ravi Shah" }), href: "/dashboard/inquiries?lead=inq_9" }] as unknown as NextLeadCardProps["upNext"];
     render(<NextLeadCard {...base} lead={lead()} upNext={up} />);
-    expect(screen.getByRole("link", { name: /Fay/ })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Fay" })).toBeInTheDocument();
     expect(screen.queryByText("Ravi Shah")).not.toBeInTheDocument();
   });
 });

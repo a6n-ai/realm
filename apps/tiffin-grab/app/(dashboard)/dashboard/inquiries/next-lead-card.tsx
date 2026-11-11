@@ -3,15 +3,15 @@ import { CheckCircle2Icon, ChevronLeftIcon, ChevronRightIcon, MessageCircleIcon,
 import { formatPhone } from "@foundry/commons";
 import { eq } from "@foundry/commons/model/condition";
 import { SectionCard } from "@/components/ds";
-import { Badge } from "@/components/reui/badge";
 import { Button } from "@foundry/ui/button";
 import { Skeleton } from "@foundry/ui/skeleton";
-import { formatEpoch } from "@/lib/format/datetime";
 import { displayName } from "@/lib/inquiries/display";
 import { ALL_OWNERS, ME, resolveOwnerParam } from "@/lib/list/presets";
 import type { PipelineRow } from "@/lib/services/inquiries.service";
 import { StatusPill } from "./_leads/status-dialog";
+import { ago, FollowUpBadge } from "./follow-up-badge";
 import { NextLeadNoteButton, NextLeadOwnerPicker } from "./next-lead-actions";
+import { UpNextStrip } from "./up-next-strip";
 
 /** The card's owner scope: the signed-in user by default, everyone for "all", or one staff member's publicId. */
 export function leadScope(leadOwner: string | undefined, viewer: string | undefined) {
@@ -21,7 +21,7 @@ export function leadScope(leadOwner: string | undefined, viewer: string | undefi
 
 export type OwnerChoice = { value: string; label: string; href: string };
 
-/** A recommended lead below the current one; `href` pins it and keeps the list's params. */
+/** A recommended lead after the current one; `href` shows it in the card and keeps the list's params. */
 export type UpNextRow = PipelineRow & { href: string };
 
 export type NextLeadCardProps = {
@@ -40,43 +40,11 @@ export type NextLeadCardProps = {
   allOpenHref: string;
 };
 
-/** Minutes, hours, then days: the card's relative times read the same at a glance. */
-function ago(ms: number, now: number): string {
-  const mins = Math.max(0, Math.round((now - ms) / 60_000));
-  if (mins < 60) return `${mins}m ago`;
-  const hours = Math.round(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
-  return `${Math.round(hours / 24)}d ago`;
-}
-
 function scopeHint(current: string, options: OwnerChoice[]): string {
   if (current === ME) return "Your queue";
   if (current === ALL_OWNERS) return "All owners";
   const name = options.find((o) => o.value === current)?.label;
   return name ? `${name}'s queue` : "Owner's queue";
-}
-
-function FollowUpBadge({ lead, dayStart, dayEnd, now, timeZone }: Pick<NextLeadCardProps, "timeZone" | "now" | "dayStart" | "dayEnd"> & { lead: PipelineRow }) {
-  const at = lead.nextFollowUpAt;
-  if (at == null) return <Badge variant="outline">No follow-up</Badge>;
-  if (at < dayStart) return <Badge variant="destructive-light">Overdue · {ago(at, now)}</Badge>;
-  if (at < dayEnd) return <Badge variant="warning-light">Due {formatEpoch(at, { mode: "time", timeZone })}</Badge>;
-  return <Badge variant="secondary">{formatEpoch(at, { mode: "datetime", timeZone })}</Badge>;
-}
-
-function UpNextList({ rows, dayStart, dayEnd, now, timeZone, showOwner }: Pick<NextLeadCardProps, "timeZone" | "now" | "dayStart" | "dayEnd"> & { rows: UpNextRow[]; showOwner: boolean }) {
-  return (
-    <div className="mt-3 flex flex-col gap-1 border-t pt-3">
-      {rows.map((row) => (
-        <Link key={row.publicId} href={row.href} prefetch={false} className="hover:bg-muted/40 flex min-w-0 flex-wrap items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors">
-          <span className="min-w-0 truncate font-medium">{displayName(row)}</span>
-          <StatusPill subStatus={row.subStatus} />
-          <FollowUpBadge lead={row} dayStart={dayStart} dayEnd={dayEnd} now={now} timeZone={timeZone} />
-          {showOwner ? <span className="text-muted-foreground text-xs">{row.ownerName ?? "Unassigned"}</span> : null}
-        </Link>
-      ))}
-    </div>
-  );
 }
 
 export function NextLeadCard({ lead, timeZone, now, dayStart, dayEnd, dueCount, upcomingCount, owner, prevHref, nextHref, upNext, upcomingHref, allOpenHref }: NextLeadCardProps) {
@@ -162,7 +130,7 @@ export function NextLeadCard({ lead, timeZone, now, dayStart, dayEnd, dueCount, 
               </div>
             </div>
           </div>
-          {upNext.length > 0 ? <UpNextList rows={upNext} dayStart={dayStart} dayEnd={dayEnd} now={now} timeZone={timeZone} showOwner={owner.current === ALL_OWNERS} /> : null}
+          {upNext.length > 0 ? <UpNextStrip rows={upNext} dayStart={dayStart} dayEnd={dayEnd} now={now} timeZone={timeZone} showOwner={owner.current === ALL_OWNERS} /> : null}
         </>
       ) : (
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -209,9 +177,9 @@ export function NextLeadSkeleton() {
           <Skeleton className="h-8 w-16" />
         </div>
       </div>
-      <div className="mt-3 flex flex-col gap-1 border-t pt-3">
+      <div className="mt-3 flex gap-3 border-t pt-3">
         {[0, 1, 2].map((i) => (
-          <Skeleton key={i} className="h-5 w-56 max-w-full" />
+          <Skeleton key={i} className="h-28 w-64 shrink-0 rounded-lg" />
         ))}
       </div>
     </SectionCard>
