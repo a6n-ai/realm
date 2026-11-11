@@ -2,6 +2,7 @@ import Link from "next/link";
 import { zonedDateIso } from "@foundry/commons";
 import { dayRange } from "@foundry/commons/util/dates";
 import { Badge } from "@/components/reui/badge";
+import { Skeleton } from "@foundry/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@foundry/ui/tabs";
 import { parseFilterState, type FacetDef } from "@/components/ds";
 import { requirePermission } from "@/lib/auth/guards";
@@ -81,6 +82,24 @@ export async function RenewalsQueue({ sp }: { sp: Record<string, string | undefi
         </TabsList>
       </Tabs>
       <RenewalsQueueList rows={result.items} total={result.total} page={page.page} size={page.size} queue={queue} today={today} spec={spec} />
+    </div>
+  );
+}
+
+/** Queue tabs, then table rows: the shape of the Renewals view while it loads. */
+export function RenewalsQueueSkeleton() {
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex gap-2">
+        {Array.from({ length: 5 }, (_, i) => (
+          <Skeleton key={i} className="h-8 w-24" />
+        ))}
+      </div>
+      <div className="flex flex-col gap-2">
+        {Array.from({ length: 6 }, (_, i) => (
+          <Skeleton key={i} className="h-10 w-full" />
+        ))}
+      </div>
     </div>
   );
 }

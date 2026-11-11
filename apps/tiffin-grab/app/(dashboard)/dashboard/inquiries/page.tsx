@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { eq } from "drizzle-orm";
 import { zonedDateIso } from "@foundry/commons";
-import { ArrowLeftIcon, ArrowRightIcon, ClipboardListIcon, ListPlusIcon, PlusIcon, UploadIcon, InboxIcon, UsersIcon, TrendingUpIcon, XCircleIcon } from "lucide-react";
+import { ClipboardListIcon, ListPlusIcon, PlusIcon, UploadIcon, InboxIcon, UsersIcon, TrendingUpIcon, XCircleIcon } from "lucide-react";
 import { StatCards, StatCardsSkeleton } from "@/components/dashboard/stat-cards";
 import Link from "next/link";
 import { db } from "@/db/client";
@@ -30,10 +30,11 @@ import {
 import { AddInquirySheet } from "./new-inquiry-form";
 import { QuickAddDialog } from "./quick-add/quick-add-dialog";
 import { InquiriesList, InquiriesListSkeleton } from "./inquiries-list";
+import { NextLeadCard, NextLeadSkeleton } from "./next-lead-card";
 import { reassignInquiry } from "./actions";
 import { SUB_STATUSES, SUB_STATUS_META } from "@/lib/inquiries/status";
 import { QueueTabs } from "./queue-tabs";
-import { RenewalsQueue } from "./renewals-queue";
+import { RenewalsQueue, RenewalsQueueSkeleton } from "./renewals-queue";
 import { MarkSectionRead } from "@/components/dashboard/mark-section-read";
 import { SectionDateRange } from "@/components/filters/section-date-range";
 import { epochBoundsWhere, withDefaultMonth } from "@/lib/list/default-month";
@@ -96,12 +97,53 @@ export default async function InquiriesPage({ searchParams }: { searchParams: Se
         </Suspense>
       </div>
 
+      <Suspense fallback={<NextLeadSkeleton />}>
+        <NextLead searchParams={searchParams} />
+      </Suspense>
+
       <SectionCard title="Follow-up queue">
-        <Suspense fallback={<InquiriesListSkeleton />}>
+        <Suspense fallback={(await searchParams).view === "renewals" ? <RenewalsQueueSkeleton /> :<InquiriesListSkeleton />}>
           <QueueSection searchParams={searchParams} />
         </Suspense>
       </SectionCard>
     </PageShell>
+  );
+}
+
+/** The signed-in user's next lead on the Leads view. Ignores the list's other filters; Previous/Next walk only their leads. */
+async function NextLead({ searchParams }: { searchParams: SearchParams }) {
+  await requireStaff();
+  const sp = await searchParams;
+  const session = await getSession();
+  const viewer = session?.user.id;
+  const canRenewals = roleCan(session?.user.role ?? "", { order: ["read"] });
+  if (!viewer || (canRenewals && sp.view === "renewals")) return null;
+
+  const { timezone } = await getAppSettings();
+  const { start: dayStart, end: dayEnd } = dayRange(zonedDateIso(requestNow(), timezone), timezone);
+  const mine = facetEq("owner", viewer);
+  const rowOf = (publicId: string) =>
+    inquiriesService.listForPipeline(mine, { page: 0, size: 1 }, undefined, undefined, eq(inquiries.publicId, publicId)).then((r) => r.items[0] ?? null);
+
+  const highlight = typeof sp.highlight === "string" ? sp.highlight : undefined;
+  const pinned = highlight ? await rowOf(highlight) : null;
+  const lead = pinned ?? (await inquiriesService.nextLead(mine, dayStart, dayEnd).then((n) => (n ? rowOf(n.publicId) : null)));
+  const [prev, next] = lead
+    ? await Promise.all([
+        inquiriesService.nextLead(mine, dayStart, dayEnd, { publicId: lead.publicId, dir: "prev" }),
+        inquiriesService.nextLead(mine, dayStart, dayEnd, { publicId: lead.publicId, dir: "next" }),
+      ])
+    : [null, null];
+
+  return (
+    <NextLeadCard
+      lead={lead}
+      timeZone={timezone}
+      dayStart={dayStart}
+      prevHref={prev ? `/dashboard/inquiries?${leadQuery(sp, prev.publicId)}` : undefined}
+      nextHref={next ? `/dashboard/inquiries?${leadQuery(sp, next.publicId)}` : undefined}
+      allOpenHref={`/dashboard/inquiries?owner=${ALL_OWNERS}&queue=open`}
+    />
   );
 }
 
@@ -272,10 +314,9 @@ async function InquiriesData({ searchParams }: { searchParams: SearchParams }) {
   const { condition, page } = parseFilterState(spec, { ...sp, owner: resolveOwnerParam(sp.owner, viewer) });
   const todayIso = zonedDateIso(requestNow(), timezone);
   const { start: dayStart, end: dayEnd } = dayRange(todayIso, timezone);
-  // Next/Previous lead stay on this list: the recommended lead is pinned as the first row and
-  // highlighted, whatever tab or page it would otherwise fall on.
+  // A lead opened from the Next lead card is pinned as the first row and highlighted, whatever tab or page it would fall on.
   const highlight = typeof sp.highlight === "string" ? sp.highlight : undefined;
-  const [result, counts, nextLead, prevLead, pinned] = await Promise.all([
+  const [result, counts, pinned] = await Promise.all([
     inquiriesService.listForPipeline(
       condition,
       page,
@@ -284,37 +325,16 @@ async function InquiriesData({ searchParams }: { searchParams: SearchParams }) {
       bucket ? inquiryBucketWhere(bucket) : undefined,
     ),
     inquiriesService.queueCounts(condition, dayStart, dayEnd),
-    inquiriesService.nextLead(condition, dayStart, dayEnd, highlight ? { publicId: highlight, dir: "next" } : undefined),
-    highlight ? inquiriesService.nextLead(condition, dayStart, dayEnd, { publicId: highlight, dir: "prev" }) : null,
     highlight ? inquiriesService.listForPipeline(undefined, { page: 0, size: 1 }, sort, undefined, eq(inquiries.publicId, highlight)) : null,
   ]);
   const pinnedRow = pinned?.items[0];
   const rows = pinnedRow ? [pinnedRow, ...result.items.filter((r) => r.publicId !== pinnedRow.publicId)] : result.items;
-  const leadHref = (publicId: string) => `/dashboard/inquiries?${leadQuery(sp, publicId)}`;
   const staff = canReassignRecords ? await listAssignableStaff() : [];
 
   return (
     <div className="flex flex-col gap-4">
     <div className="flex flex-wrap items-center justify-between gap-2">
       <QueueTabs counts={counts} />
-      <div className="flex items-center gap-2">
-        {prevLead && (
-          <Button variant="outline" size="sm" asChild>
-            <Link href={leadHref(prevLead.publicId)} prefetch={false}>
-              <ArrowLeftIcon className="size-4" />
-              Previous lead
-            </Link>
-          </Button>
-        )}
-        {nextLead && (
-          <Button variant="outline" size="sm" asChild>
-            <Link href={leadHref(nextLead.publicId)} prefetch={false}>
-              Next lead
-              <ArrowRightIcon className="size-4" />
-            </Link>
-          </Button>
-        )}
-      </div>
     </div>
     <InquiriesList
       emptyMessage={EMPTY_COPY[queue]}
