@@ -102,8 +102,10 @@ function trackWhere(track: readonly TrackFilter[] | null) {
 const searchWhere = (q: string) =>
   and(...q.split(" ").filter(Boolean).map((w) => or(ilike(orders.fullName, `%${w}%`), ilike(orders.deploymentId, `%${w}%`), ilike(users.phone, `%${w}%`))));
 
+/** To renew: ending within 7 days or lapsed within 14, and nothing booked after (computed status none). */
+const renewWindowWhere = (today: string) => and(sql`${computedStatusSql} = 'none'`, or(endingWhere(today, 7), endedWhere(today, 14)));
 /**
- * Due / overdue / upcoming are their own lists: the top date range and the Ending / Ended windows do not narrow them.
+ * Due / overdue / upcoming and To renew are their own lists: the top date range and the Ending / Ended windows do not narrow them.
  * "none" (no follow-up) is a plain filter on the range and windows, like any other.
  */
 function renewalsWhere(visible: "all" | string[], f: RenewalsFilter, today: string, range: RenewalRange, day: DayBounds) {
@@ -114,12 +116,14 @@ function renewalsWhere(visible: "all" | string[], f: RenewalsFilter, today: stri
     runningOrDone,
     dayView
       ? followUpWhere(dayView, day.dayStart, day.dayEnd)
-      : and(
-          rangeWhere(range),
-          f.ending != null || f.ended != null
-            ? or(f.ending != null ? endingWhere(today, f.ending) : undefined, f.ended != null ? endedWhere(today, f.ended) : undefined)
-            : undefined,
-        ),
+      : f.renewWindow
+        ? renewWindowWhere(today)
+        : and(
+            rangeWhere(range),
+            f.ending != null || f.ended != null
+              ? or(f.ending != null ? endingWhere(today, f.ending) : undefined, f.ended != null ? endedWhere(today, f.ended) : undefined)
+              : undefined,
+          ),
     f.followUp === "none" ? followUpWhere("none", day.dayStart, day.dayEnd) : undefined,
     statusWhere(f, today),
     trackWhere(f.track),
@@ -264,10 +268,10 @@ export async function countRenewals(visible: "all" | string[], type: PlanType | 
   return r;
 }
 
-export type TrackQueueCounts = { due: number; overdue: number; upcoming: number; open: number; closed: number };
+export type TrackQueueCounts = { renew: number; due: number; overdue: number; upcoming: number; open: number; closed: number };
 /** The Inquiries Renewals queues: the follow-up lists ignore the top range (as listRenewals does), Open and Closed use it. */
 export async function countTrackQueues(visible: "all" | string[], filter: RenewalsFilter, today: string, range: RenewalRange, day: DayBounds): Promise<TrackQueueCounts> {
-  if (visible !== "all" && visible.length === 0) return { due: 0, overdue: 0, upcoming: 0, open: 0, closed: 0 };
+  if (visible !== "all" && visible.length === 0) return { renew: 0, due: 0, overdue: 0, upcoming: 0, open: 0, closed: 0 };
   const base = { ...filter, type: null, ending: null, ended: null, status: null, renewed: null };
   const countWhere = (f: RenewalsFilter) =>
     db
@@ -277,14 +281,15 @@ export async function countTrackQueues(visible: "all" | string[], filter: Renewa
       .leftJoin(renewalRecords, eq(renewalRecords.orderId, orders.id))
       .where(renewalsWhere(visible, f, today, range, day))
       .then(([r]) => r.count);
-  const [due, overdue, upcoming, open, closed] = await Promise.all([
+  const [renew, due, overdue, upcoming, open, closed] = await Promise.all([
+    countWhere({ ...base, ...renewalQueueFilter("renew") }),
     countWhere({ ...base, ...renewalQueueFilter("due") }),
     countWhere({ ...base, ...renewalQueueFilter("overdue") }),
     countWhere({ ...base, ...renewalQueueFilter("upcoming") }),
     countWhere({ ...base, ...renewalQueueFilter("open") }),
     countWhere({ ...base, ...renewalQueueFilter("closed") }),
   ]);
-  return { due, overdue, upcoming, open, closed };
+  return { renew, due, overdue, upcoming, open, closed };
 }
 
 // ── Renewed customers ────────────────────────────────────────────────────────

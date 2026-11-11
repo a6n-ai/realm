@@ -12,6 +12,7 @@ const { nextWeekday } = await import("@foundry/commons");
 const { createOrder } = await import("../create-order");
 const { countRenewals, countTrackQueues, getCustomerRenewal, listRenewals, listRenewedCustomers, reminderDelivery } = await import("../renewals.service");
 const { addTrackNote, setTrackStatus } = await import("../renewal-tracking.service");
+const { renewalQueueFilter } = await import("@/lib/renewals/filters");
 const { messageSuppression } = await import("@/db/schema");
 const { addDaysIso: addDays, dayRange } = await import("@foundry/commons/util/dates");
 
@@ -178,7 +179,23 @@ describe("renewals service (integration)", () => {
     await setTrackStatus(upcoming.publicId, { status: "follow_up", nextFollowUpAt: dayEnd + 1000 });
     await setTrackStatus(closed.publicId, { status: "not_renewed", lostReason: "price", nextFollowUpAt: dayStart + 1000 });
     const counts = await countTrackQueues("all", { ...f0, type: null }, "2099-05-10", open, { dayStart, dayEnd });
-    expect(counts).toEqual({ due: 1, overdue: 1, upcoming: 1, open: 4, closed: 1 });
+    expect(counts).toEqual({ renew: 0, due: 1, overdue: 1, upcoming: 1, open: 4, closed: 1 });
+  });
+  it("renew queue: ends within 7 days or lapsed within 14, nothing booked after, not closed by staff", async () => {
+    const renew = (today: string) => listRenewals("all", { ...f0, ...renewalQueueFilter("renew") }, today, page, open, noDay).then(ids);
+    const ending = await plan();
+    expect(await renew(addDays(ending.last, -3))).toContain(ending.publicId);
+    const lapsed = await plan("completed");
+    expect(await renew(addDays(lapsed.last, 10))).toContain(lapsed.publicId);
+    const far = await plan();
+    expect(await renew(addDays(far.last, -30))).not.toContain(far.publicId);
+    const earlier = await plan();
+    const later = await plan();
+    await db.update(orders).set({ userId: later.userId, startDate: addDays(later.last, -60) }).where(eq(orders.id, earlier.id));
+    expect(await renew(addDays(earlier.last, -3))).not.toContain(earlier.publicId);
+    const staff = await plan();
+    await setTrackStatus(staff.publicId, { status: "renewed" });
+    expect(await renew(addDays(staff.last, -3))).not.toContain(staff.publicId);
   });
   it("rows carry the fact chips and money, and the cards match the list", async () => {
     const before = await plan("completed");

@@ -17,6 +17,7 @@ import { getAppSettings } from "@/lib/services/app-settings.service";
 import { countTrackQueues, listRenewals } from "@/lib/services/renewals.service";
 import { RenewalsQueueList } from "./renewals-queue-list";
 const TABS: { value: RenewalQueue; label: string }[] = [
+  { value: "renew", label: "To renew" },
   { value: "due", label: "Due today" },
   { value: "overdue", label: "Overdue" },
   { value: "upcoming", label: "Upcoming" },
@@ -41,7 +42,7 @@ export async function RenewalsQueue({ sp }: { sp: Record<string, string | undefi
   const today = zonedDateIso(requestNow(), timezone);
   const { start: dayStart, end: dayEnd } = dayRange(today, timezone);
   const day = { dayStart, dayEnd };
-  const queue = RENEWAL_QUEUES.find((q) => q === sp.queue) ?? "due";
+  const queue = RENEWAL_QUEUES.find((q) => q === sp.queue) ?? "renew";
   const parsed = parseRenewalsFilter(await withListDates(sp));
   const f: RenewalsFilter = {
     ...parsed,

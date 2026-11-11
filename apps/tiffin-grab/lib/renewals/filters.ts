@@ -30,13 +30,14 @@ export type FollowUpKind = (typeof FOLLOW_UP_KINDS)[number];
 /** Open = not closed, a plan nobody has touched included. */
 export const OPEN_TRACKS: readonly TrackFilter[] = ["new", "unresponsive", "expected", "follow_up", "pending_payment"];
 export const CLOSED_TRACKS: readonly TrackFilter[] = ["renewed", "not_renewed"];
-/** The Inquiries Renewals queues: the three follow-up lists, or the Open and Closed staff statuses. */
-export const RENEWAL_QUEUES = ["due", "overdue", "upcoming", "open", "closed"] as const;
+/** The Inquiries Renewals queues: To renew (the default), the three follow-up lists, or the Open and Closed staff statuses. */
+export const RENEWAL_QUEUES = ["renew", "due", "overdue", "upcoming", "open", "closed"] as const;
 export type RenewalQueue = (typeof RENEWAL_QUEUES)[number];
-export function renewalQueueFilter(queue: RenewalQueue): Pick<RenewalsFilter, "followUp" | "track"> {
-  if (queue === "open") return { followUp: null, track: OPEN_TRACKS };
-  if (queue === "closed") return { followUp: null, track: CLOSED_TRACKS };
-  return { followUp: queue, track: null };
+export function renewalQueueFilter(queue: RenewalQueue): Pick<RenewalsFilter, "followUp" | "track" | "renewWindow"> {
+  if (queue === "renew") return { followUp: null, track: OPEN_TRACKS, renewWindow: true };
+  if (queue === "open") return { followUp: null, track: OPEN_TRACKS, renewWindow: false };
+  if (queue === "closed") return { followUp: null, track: CLOSED_TRACKS, renewWindow: false };
+  return { followUp: queue, track: null, renewWindow: false };
 }
 
 /**
@@ -68,6 +69,8 @@ export type RenewalsFilter = {
   renewed: number | null;
   /** Order owner's user publicId, UNASSIGNED_OWNER, or ME; plan tab only. */
   owner?: string | null;
+  /** The To renew queue: ignores the top range and matches its own window. Set by renewalQueueFilter only. */
+  renewWindow?: boolean;
   from: number | null;
   to: number | null;
   q: string;

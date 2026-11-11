@@ -26,6 +26,7 @@ const COLUMNS: readonly Column<QueueColumn>[] = [
   { key: "actions", label: "Actions", align: "right", width: "w-24" },
 ];
 const EMPTY_COPY: Record<RenewalQueue, string> = {
+  renew: "No plans ending in the next 7 days or lapsed in the last 14 days.",
   due: "Nobody to chase today.",
   overdue: "Nothing overdue.",
   upcoming: "No follow-ups scheduled.",
