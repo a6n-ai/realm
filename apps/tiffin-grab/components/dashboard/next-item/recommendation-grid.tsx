@@ -1,14 +1,12 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { SectionCard } from "@/components/ds";
-import { Avatar, AvatarFallback } from "@foundry/ui/avatar";
 import { Card } from "@foundry/ui/card";
-import { initials } from "@foundry/ui/initials";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { OwnerPicker, type OwnerOption } from "./owner-picker";
 import { NextItemError } from "./next-item-error";
 import { scopeHint } from "./next-item-card";
-import { NextItemOpenButton } from "./open-button";
+import { RecommendationCard } from "./recommendation-card";
 
 /** One row of recommendations; the services fetch this many and the grid shows no more. */
 export const RECOMMENDATION_LIMIT = 3;
@@ -59,27 +57,7 @@ export function RecommendationGrid({ title, owner, toAct, viewAllHref, items, em
       ) : (
         <div className="grid gap-3 md:grid-cols-3">
           {items.slice(0, RECOMMENDATION_LIMIT).map((item) => (
-            <Card key={item.key} size="sm" className="flex h-full flex-col gap-3">
-              <div className="flex min-w-0 items-center gap-2">
-                <Avatar>
-                  <AvatarFallback>{initials(item.name)}</AvatarFallback>
-                </Avatar>
-                <Link href={item.href} prefetch={false} className="min-w-0 truncate font-medium hover:underline">
-                  {item.name}
-                </Link>
-              </div>
-              {item.reason || item.status ? (
-                <div className="flex flex-wrap items-center gap-2">
-                  {item.reason}
-                  {item.status}
-                </div>
-              ) : null}
-              {item.contact}
-              <div className="mt-auto flex items-center gap-1">
-                {item.actions}
-                <NextItemOpenButton href={item.href} label="Open" />
-              </div>
-            </Card>
+            <RecommendationCard key={item.key} item={item} />
           ))}
         </div>
       )}

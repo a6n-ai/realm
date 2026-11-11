@@ -1,6 +1,5 @@
 "use client";
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowUpRightIcon, CheckCheckIcon, MailIcon, MessageSquarePlusIcon, XCircleIcon } from "lucide-react";
 import { toast } from "sonner";
@@ -9,6 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Textarea } from "@foundry/ui/textarea";
 import { RowActionTooltipButton } from "@/components/ds";
 import { NextItemOpenButton } from "@/components/dashboard/next-item/open-button";
+import { useCardRefresh } from "@/components/dashboard/next-item/recommendation-card";
 import type { NextOrderRow } from "@/lib/services/next-order.service";
 import { addOrderNoteAction, emailPaymentLinkAction } from "./actions";
 import { cancel, verifyPaymentAction } from "./[id]/actions";
@@ -17,7 +17,7 @@ import { CancelOrderDialog } from "./cancel-order-dialog";
 type Target = Pick<NextOrderRow, "publicId" | "reason" | "paymentPublicId" | "status">;
 
 function useResult() {
-  const router = useRouter();
+  const { refresh } = useCardRefresh();
   const [pending, start] = useTransition();
   const run = (fn: () => Promise<{ error: string } | { ok: true }>, done: string, onOk?: () => void) =>
     start(async () => {
@@ -25,7 +25,7 @@ function useResult() {
       if ("ok" in res) {
         toast.success(done);
         onOk?.();
-        router.refresh();
+        refresh();
       } else {
         toast.error(res.error);
       }

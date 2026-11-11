@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { Loader2Icon } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@foundry/ui/button";
@@ -11,6 +10,7 @@ import {
 import { Textarea } from "@foundry/ui/textarea";
 import { useTimezone } from "@foundry/design-system/timezone-provider";
 import { FollowUpPicker, type FollowUpValue } from "@/components/dashboard/pipeline/follow-up-picker";
+import { useCardRefresh } from "@/components/dashboard/next-item/recommendation-card";
 import { unwrapAction } from "@/lib/actions/unwrap";
 import { addTrackNoteAction, logTrackActivityAction } from "../actions";
 
@@ -36,7 +36,7 @@ export function TrackNoteDialog({
   closed?: boolean;
 }) {
   const tz = useTimezone();
-  const router = useRouter();
+  const { refresh } = useCardRefresh();
   const [pending, start] = useTransition();
   const [note, setNote] = useState("");
   const [followUp, setFollowUp] = useState<FollowUpValue | null>(null);
@@ -56,7 +56,7 @@ export function TrackNoteDialog({
           }));
         }
         handleOpenChange(false);
-        router.refresh();
+        refresh();
       } catch (e) {
         toast.error(e instanceof Error ? e.message : "Could not save");
       }

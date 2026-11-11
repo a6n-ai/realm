@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { useCardRefresh } from "@/components/dashboard/next-item/recommendation-card";
 import { Button } from "@foundry/ui/button";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
@@ -120,7 +120,7 @@ function ChangeStatusDialog({
 
 // Shared by the pill menu and the board: picking a status opens a dialog, Not renewed asks for its reason first.
 function useTrackPick({ orderPublicId, customerPublicId, status }: TrackStatusProps) {
-  const router = useRouter();
+  const { refresh } = useCardRefresh();
   const [pending, start] = useTransition();
   const [reasonOpen, setReasonOpen] = useState(false);
   const [target, setTarget] = useState<{ to: TrackStatus | null } | null>(null);
@@ -132,7 +132,7 @@ function useTrackPick({ orderPublicId, customerPublicId, status }: TrackStatusPr
         setReasonOpen(false);
         setTarget(null);
         toast(`Status: ${trackLabel(to)}`);
-        router.refresh();
+        refresh();
       } catch (e) {
         toast.error(e instanceof Error ? e.message : "Could not update status");
       }

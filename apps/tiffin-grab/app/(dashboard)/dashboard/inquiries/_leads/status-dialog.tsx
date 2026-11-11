@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition, type ReactNode } from "react";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@foundry/ui/button";
 import {
@@ -27,6 +26,7 @@ import type { LostReason } from "@/lib/services/inquiries.service";
 import { addNote, logActivity, updateStatus } from "../actions";
 import { unwrapAction } from "@/lib/actions/unwrap";
 import { useTimezone } from "@foundry/design-system/timezone-provider";
+import { useCardRefresh } from "@/components/dashboard/next-item/recommendation-card";
 
 const LOST_REASONS: { value: LostReason; label: string }[] = [
   { value: "price", label: "Price" },
@@ -146,7 +146,7 @@ function useStatusPick(inquiryId: string, subStatus: SubStatus | null) {
   const [lostOpen, setLostOpen] = useState(false);
   // A tile click picks the target; this small dialog only adds an optional note + follow-up, never the status again.
   const [target, setTarget] = useState<{ to: SubStatus | null } | null>(null);
-  const router = useRouter();
+  const { refresh } = useCardRefresh();
   const [pending, start] = useTransition();
 
   function save(to: SubStatus | null, extra?: { lostReason?: LostReason; note?: string; nextFollowUpAt?: number }) {
@@ -155,7 +155,7 @@ function useStatusPick(inquiryId: string, subStatus: SubStatus | null) {
         const { previous } = await unwrapAction(updateStatus(inquiryId, { subStatus: to, ...extra }));
         setLostOpen(false);
         setTarget(null);
-        router.refresh();
+        refresh();
         if (previous === to) { toast("Saved"); return; }
         const canUndo = previous !== null && !isClosed(previous) && !isClosed(to);
         toast(`Status: ${statusLabel(to)}`, {
@@ -163,7 +163,7 @@ function useStatusPick(inquiryId: string, subStatus: SubStatus | null) {
             ? {
                 label: "Undo",
                 onClick: () => start(async () => {
-                  try { await unwrapAction(updateStatus(inquiryId, { subStatus: previous })); router.refresh(); }
+                  try { await unwrapAction(updateStatus(inquiryId, { subStatus: previous })); refresh(); }
                   catch (e) { toast.error(e instanceof Error ? e.message : "Could not undo"); }
                 }),
               }
@@ -387,7 +387,7 @@ export function NoteDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const router = useRouter();
+  const { refresh } = useCardRefresh();
   const [pending, start] = useTransition();
   const [note, setNote] = useState("");
   const [followUp, setFollowUp] = useState<FollowUpValue | null>(null);
@@ -401,7 +401,7 @@ export function NoteDialog({
         onOpenChange(false);
         setNote("");
         setFollowUp(null);
-        router.refresh();
+        refresh();
       } catch (e) {
         toast.error(e instanceof Error ? e.message : "Could not save");
       }
