@@ -10,14 +10,15 @@ import { assertOrderVisible } from "@/lib/services/orders.service";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import { addTrackNote, logTrackActivity, setTrackStatus } from "@/lib/services/renewal-tracking.service";
 import type { LostReason } from "@/lib/services/inquiries.service";
-import { TRACK_STATUSES, type TrackStatus } from "@/lib/renewals/status";
+import { LOST_REASON_OPTIONS, TRACK_STATUSES, type TrackStatus } from "@/lib/renewals/status";
 import { runAction, type ActionResult } from "@/lib/actions/action-result";
 import { createLogger } from "@foundry/commons/logger";
 
 const logger = createLogger("renewals:actions");
 
 const MAX_NOTE = 2000;
-const LOST_REASONS = ["price", "out_of_zone", "no_response", "chose_competitor", "not_ready", "other", "asked_to_stop"] as const;
+// z.enum needs a tuple type; the cast is the only thing it needs from the options list.
+const LOST_REASONS = LOST_REASON_OPTIONS.map((o) => o.value) as [LostReason, ...LostReason[]];
 
 const orderIdSchema = z.string().min(1);
 const followUpSchema = z.number().finite();

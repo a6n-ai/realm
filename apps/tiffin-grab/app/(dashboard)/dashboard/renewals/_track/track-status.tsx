@@ -21,7 +21,7 @@ import { FollowUpPicker, type FollowUpValue } from "@/components/dashboard/pipel
 import { ReasonDialog } from "@/components/dashboard/pipeline/reason-dialog";
 import { StatusTileButton, TonePill } from "@/components/dashboard/pipeline/status-tile";
 import { unwrapAction } from "@/lib/actions/unwrap";
-import { isClosedTrack, TRACK_STATUSES, trackLabel, type TrackStatus } from "@/lib/renewals/status";
+import { isClosedTrack, LOST_REASON_OPTIONS, TRACK_STATUSES, trackLabel, type TrackStatus } from "@/lib/renewals/status";
 import type { LostReason } from "@/lib/services/inquiries.service";
 import { setTrackStatusAction } from "../actions";
 
@@ -37,16 +37,6 @@ export const TRACK_LOOK: Record<TrackStatus | "new", Look> = {
   not_renewed: { icon: XCircleIcon, pill: "bg-red-500/12 text-red-700 dark:bg-red-400/15 dark:text-red-300", text: "text-red-600 dark:text-red-400", tile: "bg-red-500/12 dark:bg-red-400/15" },
   renewed: { icon: BadgeCheckIcon, pill: "bg-emerald-500/14 text-emerald-700 dark:bg-emerald-400/15 dark:text-emerald-300", text: "text-emerald-600 dark:text-emerald-400", tile: "bg-emerald-500/14 dark:bg-emerald-400/15" },
 };
-
-const NOT_RENEWED_REASONS: { value: LostReason; label: string }[] = [
-  { value: "price", label: "Price" },
-  { value: "out_of_zone", label: "Out of zone" },
-  { value: "no_response", label: "No response" },
-  { value: "chose_competitor", label: "Chose competitor" },
-  { value: "not_ready", label: "Not ready" },
-  { value: "other", label: "Other" },
-  { value: "asked_to_stop", label: "Asked to stop" },
-];
 
 const TRACK_OPTIONS: (TrackStatus | null)[] = [...TRACK_STATUSES, null];
 
@@ -163,7 +153,7 @@ function useTrackPick({ orderPublicId, customerPublicId, status }: TrackStatusPr
           pending={pending}
           title="Not renewed reason"
           confirmLabel="Mark not renewed"
-          reasons={NOT_RENEWED_REASONS}
+          reasons={LOST_REASON_OPTIONS}
           onSave={(lostReason, note) => save("not_renewed", { lostReason, note })}
         />
       ) : null}

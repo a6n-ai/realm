@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CalendarClockIcon, MessageCircleIcon, PhoneIcon, StickyNoteIcon } from "lucide-react";
+import { CalendarClockIcon, MailIcon, MessageCircleIcon, PhoneIcon, StickyNoteIcon } from "lucide-react";
 import { Button } from "@foundry/ui/button";
 import { TrackStatusBoard } from "../../_track/track-status";
 import { TrackNoteDialog, type TrackNoteKind } from "../../_track/track-note-dialog";
@@ -25,6 +25,9 @@ export function PlanTrack({ plan, customerPublicId }: { plan: RenewalPlan; custo
         </Button>
         <Button type="button" variant="outline" size="sm" onClick={() => setKind("whatsapp")}>
           <MessageCircleIcon /> Log WhatsApp
+        </Button>
+        <Button type="button" variant="outline" size="sm" onClick={() => setKind("email")}>
+          <MailIcon /> Log email
         </Button>
         {!closed && (
           <Button type="button" variant="outline" size="sm" onClick={() => setKind("follow_up")}>
