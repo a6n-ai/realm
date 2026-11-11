@@ -1,8 +1,9 @@
-import { MailIcon, MessageCircleIcon, PhoneIcon } from "lucide-react";
+import { MailIcon, MessageCircleIcon, PhoneIcon, type LucideIcon } from "lucide-react";
 import { formatPhone } from "@foundry/commons";
 import { Badge } from "@/components/reui/badge";
 import { Button } from "@foundry/ui/button";
 import { ButtonGroup } from "@foundry/ui/button-group";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@foundry/ui/tooltip";
 
 const digits = (p: string) => p.replace(/\D/g, "");
 
@@ -17,12 +18,43 @@ export type ContactChipsProps = {
   phone: string | null;
   whatsappPhone?: string | null;
   email?: string | null;
+  /** Icon-only call and WhatsApp buttons with tooltips, for dense cards. */
+  compact?: boolean;
 };
 
+function IconChip({ label, tip, href, icon: Icon, external }: { label: string; tip: string; href: string; icon: LucideIcon; external?: boolean }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button variant="outline" size="icon-sm" asChild>
+          <a href={href} aria-label={label} {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}>
+            <Icon className="size-4" />
+          </a>
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent side="top">{tip}</TooltipContent>
+    </Tooltip>
+  );
+}
+
 /** Call, WhatsApp and email as outline links; they never take the primary style. */
-export function ContactChips({ name, phone, whatsappPhone, email }: ContactChipsProps) {
+export function ContactChips({ name, phone, whatsappPhone, email, compact }: ContactChipsProps) {
   const wa = whatsappHref({ phone, whatsappPhone });
   const waNumber = whatsappPhone || phone;
+  if (compact) {
+    return (
+      <div className="flex flex-wrap items-center gap-1">
+        {phone ? (
+          <IconChip label={`Call ${name}, ${formatPhone(phone)}`} tip={`Call ${formatPhone(phone)}`} href={`tel:${phone}`} icon={PhoneIcon} />
+        ) : (
+          <Badge variant="outline">No phone</Badge>
+        )}
+        {wa ? (
+          <IconChip label={`WhatsApp ${name}, ${formatPhone(waNumber ?? "")}`} tip="WhatsApp" href={wa} icon={MessageCircleIcon} external />
+        ) : null}
+      </div>
+    );
+  }
   const emailChip = email ? (
     <Button variant="outline" size="sm" asChild>
       <a href={`mailto:${email}`}>
