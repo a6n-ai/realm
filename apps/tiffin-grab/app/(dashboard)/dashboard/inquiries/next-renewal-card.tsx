@@ -1,17 +1,20 @@
 import Link from "next/link";
-import { ArrowUpRightIcon, CheckCircle2Icon, ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
-import { SectionCard } from "@/components/ds";
 import { Badge } from "@/components/reui/badge";
 import { Button } from "@foundry/ui/button";
-import { Skeleton } from "@foundry/ui/skeleton";
 import { humanDate } from "@/lib/deliveries-view";
 import { isClosedTrack } from "@/lib/renewals/status";
 import type { NextRenewalRow } from "@/lib/services/next-renewal.service";
-import { TrackStatusMenu } from "../renewals/_track/track-status";
 import { ContactChips } from "@/components/dashboard/next-item/contact-chips";
-import { OwnerPicker } from "@/components/dashboard/next-item/owner-picker";
-import { scopeHint, type OwnerChoice } from "@/components/dashboard/next-item/next-item-card";
+import { NextItemCard, NextItemEmpty, NextItemSkeleton, type NextItemView, type OwnerChoice } from "@/components/dashboard/next-item/next-item-card";
+import { NextItemOpenButton } from "@/components/dashboard/next-item/open-button";
+import { ReasonBadge } from "@/components/dashboard/next-item/reason-badge";
+import { UpNextStrip, type UpNextTile } from "@/components/dashboard/next-item/up-next-strip";
+import { EstimateButton } from "../renewals/estimate-button";
+import { TrackStatusMenu } from "../renewals/_track/track-status";
 import { RowTrackActions } from "./renewals-queue-list";
+
+/** A queued plan after the current one; `href` opens it in the card (`renewal=`). */
+export type UpNextRenewal = NextRenewalRow & { href: string };
 
 export type NextRenewalCardProps = {
   row: NextRenewalRow | null;
@@ -20,7 +23,7 @@ export type NextRenewalCardProps = {
   owner: { current: string; options: OwnerChoice[] };
   prevHref?: string;
   nextHref?: string;
-  upNext: NextRenewalRow[];
+  upNext: UpNextRenewal[];
   renewQueueHref: string;
 };
 
@@ -30,162 +33,84 @@ const initials = (name: string) =>
 /** Where a plan's name and Open button lead: the customer's renewal page, or the order for a customer without an account. */
 const openHref = (row: NextRenewalRow) => (row.customerPublicId ? `/dashboard/inquiries/renewals/${row.customerPublicId}` : `/dashboard/orders/${row.orderPublicId}`);
 
-export function ReasonBadge({ row, today }: { row: NextRenewalRow; today: string }) {
-  if (row.reason === "overdue") return <Badge variant="destructive-light">Follow-up overdue</Badge>;
-  if (row.reason === "due") return <Badge variant="warning-light">Due today</Badge>;
+function reasonBadge(row: NextRenewalRow, today: string) {
+  if (row.reason === "overdue") return <ReasonBadge variant="destructive-light">Follow-up overdue</ReasonBadge>;
+  if (row.reason === "due") return <ReasonBadge variant="warning-light">Due today</ReasonBadge>;
   return row.lastTiffin && row.lastTiffin >= today ? (
-    <Badge variant="secondary">Ends {humanDate(row.lastTiffin)}</Badge>
+    <ReasonBadge variant="secondary">Ends {humanDate(row.lastTiffin)}</ReasonBadge>
   ) : (
-    <Badge variant="destructive-light">Lapsed {humanDate(row.lastTiffin)}</Badge>
-  );
-}
-
-/** The status menu and note/follow-up actions; a customer without an account has neither, only Open. */
-function PlanActions({ row }: { row: NextRenewalRow }) {
-  if (!row.customerPublicId) return null;
-  return (
-    <>
-      <TrackStatusMenu orderPublicId={row.orderPublicId} customerPublicId={row.customerPublicId} status={row.track} source={row.trackSource} />
-      <RowTrackActions orderPublicId={row.orderPublicId} customerPublicId={row.customerPublicId} closed={isClosedTrack(row.track)} />
-    </>
-  );
-}
-
-function UpNextRenewals({ rows, today }: { rows: NextRenewalRow[]; today: string }) {
-  return (
-    <section aria-label="Up next renewals" className="mt-3 border-t pt-3">
-      <div tabIndex={0} className="focus-visible:ring-ring flex snap-x gap-3 overflow-x-auto pb-2 focus-visible:outline-none focus-visible:ring-2">
-        {rows.map((row) => (
-          <div key={row.orderPublicId} className="flex w-64 shrink-0 snap-start flex-col gap-2 rounded-lg border p-3">
-            <div className="flex min-w-0 flex-col gap-0.5">
-              <Link href={openHref(row)} className="truncate text-sm font-medium hover:underline">
-                {row.customerName}
-              </Link>
-              <span className="text-muted-foreground truncate text-xs">{row.mealSize}</span>
-            </div>
-            <div className="flex min-w-0 flex-wrap items-center gap-2">
-              <ReasonBadge row={row} today={today} />
-            </div>
-            <div className="flex min-w-0 flex-wrap items-center gap-1">
-              <PlanActions row={row} />
-            </div>
-          </div>
-        ))}
-      </div>
-    </section>
+    <ReasonBadge variant="destructive-light">Lapsed {humanDate(row.lastTiffin)}</ReasonBadge>
   );
 }
 
 export function NextRenewalCard({ row, today, queueCount, owner, prevHref, nextHref, upNext, renewQueueHref }: NextRenewalCardProps) {
-  const picker = (
-    <div className="flex items-center gap-2">
-      <span className="text-muted-foreground text-xs">{scopeHint(owner.current, owner.options)}</span>
-      <OwnerPicker label={owner.options.find((o) => o.value === owner.current)?.label ?? "Me"} options={owner.options} />
-    </div>
-  );
+  const item: NextItemView | null = row
+    ? {
+        identity: (
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="bg-muted flex size-10 shrink-0 items-center justify-center rounded-lg text-sm font-medium">{initials(row.customerName)}</div>
+            <Link href={openHref(row)} className="min-w-0 truncate font-medium hover:underline">
+              {row.customerName}
+            </Link>
+            {row.trial ? <Badge variant="secondary">Trial</Badge> : null}
+            {row.customerPublicId ? <TrackStatusMenu orderPublicId={row.orderPublicId} customerPublicId={row.customerPublicId} status={row.track} source={row.trackSource} /> : null}
+            {reasonBadge(row, today)}
+            <div className="ml-auto flex items-center gap-1">
+              {row.customerPublicId ? (
+                <RowTrackActions orderPublicId={row.orderPublicId} customerPublicId={row.customerPublicId} closed={isClosedTrack(row.track)} />
+              ) : null}
+              <NextItemOpenButton href={openHref(row)} label={row.customerPublicId ? "Open customer" : "Open order"} />
+            </div>
+          </div>
+        ),
+        meta: <ContactChips name={row.customerName} phone={row.phone} />,
+        facts: [
+          ["Meal size", row.mealSize],
+          ["Last tiffin", row.lastTiffin ? humanDate(row.lastTiffin) : null],
+        ],
+        note: row.lastActivity?.note ? (
+          <blockquote className="text-muted-foreground border-l-2 pl-3 text-sm">
+            <p className="line-clamp-2">{row.lastActivity.note}</p>
+          </blockquote>
+        ) : (
+          <p className="text-muted-foreground text-xs">No notes yet</p>
+        ),
+        primary: <EstimateButton orderPublicId={row.orderPublicId} primary />,
+        upNext:
+          upNext.length > 0 ? (
+            <UpNextStrip
+              label="renewals"
+              tiles={upNext.map(
+                (r): UpNextTile => ({
+                  key: r.orderPublicId,
+                  href: r.href,
+                  title: r.customerName,
+                  badge: reasonBadge(r, today),
+                  hint: r.mealSize,
+                }),
+              )}
+              more={Math.max(0, queueCount - 1 - upNext.length)}
+              viewAllHref={renewQueueHref}
+            />
+          ) : undefined,
+      }
+    : null;
   return (
-    <SectionCard title="Next renewal" action={picker}>
-      {row ? (
-        <>
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:gap-4">
-            <div className="flex min-w-0 flex-1 items-center gap-3">
-              <div className="bg-muted flex size-10 shrink-0 items-center justify-center rounded-lg text-sm font-medium">{initials(row.customerName)}</div>
-              <div className="flex min-w-0 flex-col gap-0.5">
-                <div className="flex min-w-0 flex-wrap items-center gap-2">
-                  <Link href={openHref(row)} className="truncate font-medium hover:underline">
-                    {row.customerName}
-                  </Link>
-                  {row.trial ? <Badge variant="secondary">Trial</Badge> : null}
-                </div>
-                <p className="text-muted-foreground truncate text-xs">{[row.mealSize, `last tiffin ${humanDate(row.lastTiffin)}`].join(" · ")}</p>
-                <ContactChips name={row.customerName} phone={row.phone} />
-              </div>
-            </div>
-            <div className="flex min-w-0 flex-col gap-1.5 md:w-64">
-              <div>
-                <ReasonBadge row={row} today={today} />
-              </div>
-              {row.lastActivity?.note ? <p className="bg-muted/40 text-muted-foreground line-clamp-2 rounded-md px-3 py-2 text-xs">{row.lastActivity.note}</p> : null}
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <PlanActions row={row} />
-              <Button variant="secondary" size="sm" asChild>
-                <Link href={openHref(row)}>
-                  <ArrowUpRightIcon className="size-4" />
-                  {row.customerPublicId ? "Open customer" : "Open order"}
-                </Link>
-              </Button>
-              <div className="flex items-center gap-1">
-                {prevHref ? (
-                  <Button variant="ghost" size="icon-sm" aria-label="Previous renewal" asChild>
-                    <Link href={prevHref} prefetch={false}>
-                      <ChevronLeftIcon className="size-4" />
-                    </Link>
-                  </Button>
-                ) : (
-                  <Button variant="ghost" size="icon-sm" aria-label="Previous renewal" disabled>
-                    <ChevronLeftIcon className="size-4" />
-                  </Button>
-                )}
-                <span className="text-muted-foreground px-1 text-xs tabular-nums">{queueCount} to act on</span>
-                {nextHref ? (
-                  <Button variant="ghost" size="icon-sm" aria-label="Next renewal" asChild>
-                    <Link href={nextHref} prefetch={false}>
-                      <ChevronRightIcon className="size-4" />
-                    </Link>
-                  </Button>
-                ) : (
-                  <Button variant="ghost" size="icon-sm" aria-label="Next renewal" disabled>
-                    <ChevronRightIcon className="size-4" />
-                  </Button>
-                )}
-              </div>
-            </div>
-          </div>
-          {upNext.length > 0 ? <UpNextRenewals rows={upNext} today={today} /> : null}
-        </>
-      ) : (
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div className="flex items-center gap-3">
-            <div className="bg-muted flex size-10 shrink-0 items-center justify-center rounded-lg">
-              <CheckCircle2Icon className="text-muted-foreground size-5" />
-            </div>
-            <p className="text-sm font-medium">No renewals need attention.</p>
-          </div>
+    <NextItemCard
+      title="Next renewal"
+      noun="renewal"
+      owner={owner}
+      dueText={`${queueCount} to act on`}
+      prevHref={prevHref}
+      nextHref={nextHref}
+      item={item}
+      empty={
+        <NextItemEmpty title="No renewals need attention.">
           <Button variant="outline" size="sm" asChild>
             <Link href={renewQueueHref} prefetch={false}>To renew</Link>
           </Button>
-        </div>
-      )}
-    </SectionCard>
-  );
-}
-
-export function NextRenewalSkeleton() {
-  return (
-    <SectionCard title="Next renewal" action={<Skeleton className="h-8 w-40" />}>
-      <div className="flex flex-col gap-3 md:flex-row md:items-center md:gap-4">
-        <div className="flex flex-1 items-center gap-3">
-          <Skeleton className="size-10 shrink-0 rounded-lg" />
-          <div className="flex flex-col gap-2">
-            <Skeleton className="h-4 w-40" />
-            <Skeleton className="h-3 w-56" />
-          </div>
-        </div>
-        <div className="flex flex-col gap-2 md:w-64">
-          <Skeleton className="h-5 w-32" />
-          <Skeleton className="h-8 w-full" />
-        </div>
-        <div className="flex gap-2">
-          <Skeleton className="h-8 w-20" />
-          <Skeleton className="h-8 w-16" />
-        </div>
-      </div>
-      <div className="mt-3 flex gap-3 border-t pt-3">
-        {[0, 1, 2].map((i) => (
-          <Skeleton key={i} className="h-28 w-64 shrink-0 rounded-lg" />
-        ))}
-      </div>
-    </SectionCard>
+        </NextItemEmpty>
+      }
+    />
   );
 }

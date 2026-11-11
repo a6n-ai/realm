@@ -30,8 +30,9 @@ import {
 import { AddInquirySheet } from "./new-inquiry-form";
 import { QuickAddDialog } from "./quick-add/quick-add-dialog";
 import { InquiriesList, InquiriesListSkeleton } from "./inquiries-list";
-import { NextLeadCard, NextLeadSkeleton, leadScope } from "./next-lead-card";
-import { NextRenewalCard, NextRenewalSkeleton } from "./next-renewal-card";
+import { NextLeadCard, leadScope } from "./next-lead-card";
+import { NextItemSkeleton } from "@/components/dashboard/next-item/next-item-card";
+import { NextRenewalCard } from "./next-renewal-card";
 import { nextRenewal, queuedRenewal, renewalQueueCount, upNextRenewals } from "@/lib/services/next-renewal.service";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 
@@ -102,7 +103,7 @@ export default async function InquiriesPage({ searchParams }: { searchParams: Se
         </Suspense>
       </div>
 
-      <Suspense fallback={(await searchParams).view === "renewals" ? <NextRenewalSkeleton /> : <NextLeadSkeleton />}>
+      <Suspense fallback={(await searchParams).view === "renewals" ? <NextItemSkeleton title="Next renewal" /> : <NextItemSkeleton title="Next lead" />}>
         <NextLead searchParams={searchParams} />
         <NextRenewal searchParams={searchParams} />
       </Suspense>
@@ -204,7 +205,7 @@ async function NextRenewal({ searchParams }: { searchParams: SearchParams }) {
       owner={{ current: renewalOwner, options: ownerOptions.map((o) => ({ ...o, href: renewalOwnerHref(sp, o.value) })) }}
       prevHref={prev ? `/dashboard/inquiries?${renewalQuery(sp, prev.orderPublicId)}` : undefined}
       nextHref={next ? `/dashboard/inquiries?${renewalQuery(sp, next.orderPublicId)}` : undefined}
-      upNext={upNext}
+      upNext={upNext.map((r) => ({ ...r, href: `/dashboard/inquiries?${renewalQuery(sp, r.orderPublicId)}` }))}
       renewQueueHref="/dashboard/inquiries?view=renewals&queue=renew"
     />
   );

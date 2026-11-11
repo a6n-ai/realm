@@ -6,7 +6,7 @@ import { displayName } from "@/lib/inquiries/display";
 import { ALL_OWNERS, ME, resolveOwnerParam } from "@/lib/list/presets";
 import type { PipelineRow } from "@/lib/services/inquiries.service";
 import { ContactChips } from "@/components/dashboard/next-item/contact-chips";
-import { NextItemCard, NextItemEmpty, NextItemSkeleton, type NextItemView, type OwnerChoice } from "@/components/dashboard/next-item/next-item-card";
+import { NextItemCard, NextItemEmpty, type NextItemView, type OwnerChoice } from "@/components/dashboard/next-item/next-item-card";
 import { NextItemOpenButton } from "@/components/dashboard/next-item/open-button";
 import { UpNextStrip, type UpNextTile } from "@/components/dashboard/next-item/up-next-strip";
 import { StatusMenu } from "./_leads/status-dialog";
@@ -126,8 +126,4 @@ export function NextLeadCard({ lead, timeZone, currency, now, dayStart, dayEnd, 
       }
     />
   );
-}
-
-export function NextLeadSkeleton() {
-  return <NextItemSkeleton title="Next lead" />;
 }

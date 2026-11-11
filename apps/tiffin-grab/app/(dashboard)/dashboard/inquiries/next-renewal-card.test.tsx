@@ -65,7 +65,7 @@ describe("NextRenewalCard", () => {
     expect(screen.getByRole("link", { name: "Asha Rao" })).toHaveAttribute("href", "/dashboard/inquiries/renewals/cus_1");
     expect(screen.getByRole("link", { name: /Call Asha Rao/ })).toHaveAttribute("href", "tel:+16475550001");
     expect(screen.getByRole("link", { name: /WhatsApp/ })).toHaveAttribute("href", "https://wa.me/16475550001");
-    expect(screen.getByRole("link", { name: "Open customer" })).toHaveAttribute("href", "/dashboard/inquiries/renewals/cus_1");
+    expect(screen.getByRole("button", { name: "Open customer" })).toBeInTheDocument();
   });
 
   it("offers Add note but hides Set follow-up for a closed plan", () => {
@@ -83,17 +83,17 @@ describe("NextRenewalCard", () => {
     render(<NextRenewalCard {...base} row={row({ customerPublicId: null, phone: null })} upNext={[]} />);
     expect(screen.queryByRole("button", { name: "Add note" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Set follow-up" })).toBeNull();
-    expect(screen.getByRole("link", { name: "Open order" })).toHaveAttribute("href", "/dashboard/orders/ord_1");
+    expect(screen.getByRole("button", { name: "Open order" })).toBeInTheDocument();
   });
 
-  it("up next shows at most six plans, each linking to its renewal page", () => {
-    const upNext = Array.from({ length: 8 }, (_, i) => row({ orderPublicId: `ord_${i + 2}`, customerPublicId: `cus_${i + 2}`, customerName: `Customer ${i + 2}` }));
+  it("up next shows at most six plans, each linking to its renewal param", () => {
+    const upNext = Array.from({ length: 8 }, (_, i) => ({ ...row({ orderPublicId: `ord_${i + 2}`, customerPublicId: `cus_${i + 2}`, customerName: `Customer ${i + 2}` }), href: `/dashboard/inquiries?renewal=ord_${i + 2}` }));
     render(<NextRenewalCard {...base} row={row()} upNext={upNext.slice(0, 6)} />);
     const strip = within(screen.getByRole("region", { name: "Up next renewals" }));
     const names = strip.getAllByRole("link", { name: /^Customer / });
     expect(names).toHaveLength(6);
-    expect(names[0]).toHaveAttribute("href", "/dashboard/inquiries/renewals/cus_2");
-    expect(strip.getByRole("link", { name: "Customer 7" })).toHaveAttribute("href", "/dashboard/inquiries/renewals/cus_7");
+    expect(names[0]).toHaveAttribute("href", "/dashboard/inquiries?renewal=ord_2");
+    expect(strip.getByRole("link", { name: /^Customer 7/ })).toHaveAttribute("href", "/dashboard/inquiries?renewal=ord_7");
   });
 
   it("with nothing to act on, says so and links to the To renew queue", () => {
