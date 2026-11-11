@@ -765,6 +765,8 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
           publicId: inquiries.publicId,
           fullName: inquiries.fullName,
           phone: inquiries.phone,
+          whatsappPhone: inquiries.whatsappPhone,
+          email: inquiries.email,
           source: leadSources.label,
           stage: inquiries.stage,
           subStatus: inquiries.subStatus,

@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { CheckCircle2Icon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
+import { ArrowUpRightIcon, CheckCircle2Icon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 import { formatMoney } from "@foundry/commons";
 import { SectionCard } from "@/components/ds";
 import { Badge } from "@/components/reui/badge";
@@ -9,6 +9,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Skeleton } from "@foundry/ui/skeleton";
 import { ALL_OWNERS, ME } from "@/lib/list/presets";
 import type { NextOrderReason, NextOrderRow } from "@/lib/services/next-order.service";
+import { ContactChips } from "../inquiries/_leads/contact-chips";
 import { NextOrderActions } from "./next-order-actions";
 
 const DAY_MS = 86_400_000;
@@ -103,12 +104,19 @@ export function NextOrderCard({ row, currency, now, queueCount, owner, prevHref,
                 <Link href={`/dashboard/orders/${row.publicId}`} className="truncate font-medium hover:underline">
                   {row.customerName}
                 </Link>
-                <p className="text-muted-foreground truncate text-xs">{[row.code, row.phone ?? "No phone", `${row.planName} · ${row.mealSizeName}`].join(" · ")}</p>
+                <p className="text-muted-foreground truncate text-xs">{[row.code, `${row.planName} · ${row.mealSizeName}`].join(" · ")}</p>
+                <ContactChips name={row.customerName} phone={row.phone} />
               </div>
             </div>
             <div className="flex min-w-0 flex-wrap items-center gap-2 md:w-64">{reasonBadge(row.reason, row.signalAt, now, row.amount, currency)}</div>
             <div className="flex flex-wrap items-center gap-2">
               <NextOrderActions row={row} />
+              <Button variant="secondary" size="sm" asChild>
+                <Link href={`/dashboard/orders/${row.publicId}`}>
+                  <ArrowUpRightIcon className="size-4" />
+                  Open order
+                </Link>
+              </Button>
               <div className="flex items-center gap-1">
                 {prevHref ? (
                   <Button variant="ghost" size="icon-sm" aria-label="Previous order" asChild>

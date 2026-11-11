@@ -1,6 +1,5 @@
 import Link from "next/link";
-import { CheckCircle2Icon, ChevronLeftIcon, ChevronRightIcon, MessageCircleIcon, PhoneIcon } from "lucide-react";
-import { formatPhone } from "@foundry/commons";
+import { ArrowUpRightIcon, CheckCircle2Icon, ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 import { eq } from "@foundry/commons/model/condition";
 import { SectionCard } from "@/components/ds";
 import { Button } from "@foundry/ui/button";
@@ -8,6 +7,7 @@ import { Skeleton } from "@foundry/ui/skeleton";
 import { displayName } from "@/lib/inquiries/display";
 import { ALL_OWNERS, ME, resolveOwnerParam } from "@/lib/list/presets";
 import type { PipelineRow } from "@/lib/services/inquiries.service";
+import { ContactChips } from "./_leads/contact-chips";
 import { StatusPill } from "./_leads/status-dialog";
 import { ago, FollowUpBadge } from "./follow-up-badge";
 import { NextLeadNoteButton, NextLeadOwnerPicker } from "./next-lead-actions";
@@ -71,9 +71,8 @@ export function NextLeadCard({ lead, timeZone, now, dayStart, dayEnd, dueCount, 
                   </Link>
                   <StatusPill subStatus={lead.subStatus} />
                 </div>
-                <p className="text-muted-foreground truncate text-xs">
-                  {[lead.phone ? formatPhone(lead.phone) : "No phone", lead.source, `created ${ago(lead.createdAt, now)}`].join(" · ")}
-                </p>
+                <p className="text-muted-foreground truncate text-xs">{[lead.source, `created ${ago(lead.createdAt, now)}`].join(" · ")}</p>
+                <ContactChips name={displayName(lead)} phone={lead.phone} whatsappPhone={lead.whatsappPhone} email={lead.email} />
               </div>
             </div>
             <div className="flex min-w-0 flex-col gap-1.5 md:w-64">
@@ -83,25 +82,12 @@ export function NextLeadCard({ lead, timeZone, now, dayStart, dayEnd, dueCount, 
               {lead.lastNote ? <p className="bg-muted/40 text-muted-foreground line-clamp-2 rounded-md px-3 py-2 text-xs">{lead.lastNote}</p> : null}
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              {lead.phone ? (
-                <Button variant="default" size="sm" asChild>
-                  <a href={`tel:${lead.phone}`}>
-                    <PhoneIcon className="size-4" />
-                    Call
-                  </a>
-                </Button>
-              ) : null}
-              {lead.phone ? (
-                <Button variant="outline" size="sm" asChild>
-                  <a href={`https://wa.me/${lead.phone.replace(/\D/g, "")}`}>
-                    <MessageCircleIcon className="size-4" />
-                    WhatsApp
-                  </a>
-                </Button>
-              ) : null}
               <NextLeadNoteButton inquiryId={lead.publicId} timeZone={timeZone} />
-              <Button variant="ghost" size="sm" asChild>
-                <Link href={`/dashboard/inquiries/${lead.publicId}`}>Open</Link>
+              <Button variant="secondary" size="sm" asChild>
+                <Link href={`/dashboard/inquiries/${lead.publicId}`}>
+                  <ArrowUpRightIcon className="size-4" />
+                  Open lead
+                </Link>
               </Button>
               <div className="flex items-center gap-1">
                 {prevHref ? (

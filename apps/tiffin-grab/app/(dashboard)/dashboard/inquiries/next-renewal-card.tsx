@@ -1,6 +1,5 @@
 import Link from "next/link";
-import { ArrowUpRightIcon, CheckCircle2Icon, ChevronLeftIcon, ChevronRightIcon, MessageCircleIcon, PhoneIcon } from "lucide-react";
-import { formatPhone } from "@foundry/commons";
+import { ArrowUpRightIcon, CheckCircle2Icon, ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 import { SectionCard } from "@/components/ds";
 import { Badge } from "@/components/reui/badge";
 import { Button } from "@foundry/ui/button";
@@ -9,6 +8,7 @@ import { humanDate } from "@/lib/deliveries-view";
 import { isClosedTrack } from "@/lib/renewals/status";
 import type { NextRenewalRow } from "@/lib/services/next-renewal.service";
 import { TrackStatusMenu } from "../renewals/_track/track-status";
+import { ContactChips } from "./_leads/contact-chips";
 import { NextLeadOwnerPicker } from "./next-lead-actions";
 import { scopeHint, type OwnerChoice } from "./next-lead-card";
 import { RowTrackActions } from "./renewals-queue-list";
@@ -66,16 +66,8 @@ function UpNextRenewals({ rows, today }: { rows: NextRenewalRow[]; today: string
             <div className="flex min-w-0 flex-wrap items-center gap-2">
               <ReasonBadge row={row} today={today} />
             </div>
-            <div className="flex min-w-0 flex-wrap items-center justify-between gap-1">
-              <div className="flex flex-wrap items-center gap-1">
-                <PlanActions row={row} />
-              </div>
-              <Button variant="ghost" size="sm" asChild>
-                <Link href={openHref(row)} aria-label={`Open ${row.customerName}`}>
-                  <ArrowUpRightIcon className="size-4" />
-                  Open
-                </Link>
-              </Button>
+            <div className="flex min-w-0 flex-wrap items-center gap-1">
+              <PlanActions row={row} />
             </div>
           </div>
         ))}
@@ -105,9 +97,8 @@ export function NextRenewalCard({ row, today, queueCount, owner, prevHref, nextH
                   </Link>
                   {row.trial ? <Badge variant="secondary">Trial</Badge> : null}
                 </div>
-                <p className="text-muted-foreground truncate text-xs">
-                  {[row.phone ? formatPhone(row.phone) : "No phone", row.mealSize, `last tiffin ${humanDate(row.lastTiffin)}`].join(" · ")}
-                </p>
+                <p className="text-muted-foreground truncate text-xs">{[row.mealSize, `last tiffin ${humanDate(row.lastTiffin)}`].join(" · ")}</p>
+                <ContactChips name={row.customerName} phone={row.phone} />
               </div>
             </div>
             <div className="flex min-w-0 flex-col gap-1.5 md:w-64">
@@ -117,25 +108,12 @@ export function NextRenewalCard({ row, today, queueCount, owner, prevHref, nextH
               {row.lastActivity?.note ? <p className="bg-muted/40 text-muted-foreground line-clamp-2 rounded-md px-3 py-2 text-xs">{row.lastActivity.note}</p> : null}
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              {row.phone ? (
-                <Button variant="default" size="sm" asChild>
-                  <a href={`tel:${row.phone}`}>
-                    <PhoneIcon className="size-4" />
-                    Call
-                  </a>
-                </Button>
-              ) : null}
-              {row.phone ? (
-                <Button variant="outline" size="sm" asChild>
-                  <a href={`https://wa.me/${row.phone.replace(/\D/g, "")}`}>
-                    <MessageCircleIcon className="size-4" />
-                    WhatsApp
-                  </a>
-                </Button>
-              ) : null}
               <PlanActions row={row} />
-              <Button variant="ghost" size="sm" asChild>
-                <Link href={openHref(row)}>Open</Link>
+              <Button variant="secondary" size="sm" asChild>
+                <Link href={openHref(row)}>
+                  <ArrowUpRightIcon className="size-4" />
+                  {row.customerPublicId ? "Open customer" : "Open order"}
+                </Link>
               </Button>
               <div className="flex items-center gap-1">
                 {prevHref ? (

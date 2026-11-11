@@ -1,8 +1,7 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowUpRightIcon, CalendarClockIcon, MessageSquarePlusIcon } from "lucide-react";
-import { Button } from "@foundry/ui/button";
+import { CalendarClockIcon, MessageSquarePlusIcon } from "lucide-react";
 import { RowActionTooltipButton } from "@/components/ds";
 import { displayName } from "@/lib/inquiries/display";
 import { isClosed, type SubStatus } from "@/lib/inquiries/status";
@@ -28,19 +27,11 @@ function UpNextCard({ row, dayStart, dayEnd, now, timeZone, showOwner }: Omit<St
         <StatusMenu inquiryId={row.publicId} subStatus={subStatus} />
         <FollowUpBadge lead={row} dayStart={dayStart} dayEnd={dayEnd} now={now} timeZone={timeZone} />
       </div>
-      <div className="flex items-center justify-between gap-1">
-        <div className="flex items-center gap-0.5">
-          <RowActionTooltipButton icon={MessageSquarePlusIcon} tone="text-violet-600 dark:text-violet-400" label={`Add note for ${name}`} hint="Add note" onClick={() => setDialog("note")} />
-          {isClosed(subStatus) ? null : (
-            <RowActionTooltipButton icon={CalendarClockIcon} tone="text-teal-600 dark:text-teal-400" label={`Set follow-up for ${name}`} hint="Set follow-up" onClick={() => setDialog("follow_up")} />
-          )}
-        </div>
-        <Button variant="ghost" size="sm" asChild>
-          <Link href={`/dashboard/inquiries/${row.publicId}`} aria-label={`Open ${name}`}>
-            <ArrowUpRightIcon className="size-4" />
-            Open
-          </Link>
-        </Button>
+      <div className="flex items-center gap-0.5">
+        <RowActionTooltipButton icon={MessageSquarePlusIcon} tone="text-violet-600 dark:text-violet-400" label={`Add note for ${name}`} hint="Add note" onClick={() => setDialog("note")} />
+        {isClosed(subStatus) ? null : (
+          <RowActionTooltipButton icon={CalendarClockIcon} tone="text-teal-600 dark:text-teal-400" label={`Set follow-up for ${name}`} hint="Set follow-up" onClick={() => setDialog("follow_up")} />
+        )}
       </div>
       {dialog ? (
         <NoteDialog key={dialog} inquiryId={row.publicId} timeZone={timeZone} kind={dialog} open onOpenChange={(open) => !open && setDialog(null)} />

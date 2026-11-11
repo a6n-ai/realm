@@ -65,12 +65,12 @@ const base: Omit<NextLeadCardProps, "lead"> = {
 afterEach(cleanup);
 
 describe("NextLeadCard", () => {
-  it("shows the lead with Call, WhatsApp and Open links", () => {
+  it("shows the lead with Call, WhatsApp and Open lead links", () => {
     render(<NextLeadCard {...base} lead={lead()} />);
     expect(screen.getByRole("link", { name: "Asha Rao" })).toHaveAttribute("href", "/dashboard/inquiries/inq_1");
     expect(screen.getByRole("link", { name: /Call/ })).toHaveAttribute("href", "tel:4165550123");
     expect(screen.getByRole("link", { name: /WhatsApp/ })).toHaveAttribute("href", "https://wa.me/4165550123");
-    expect(screen.getByRole("link", { name: "Open" })).toHaveAttribute("href", "/dashboard/inquiries/inq_1");
+    expect(screen.getByRole("link", { name: "Open lead" })).toHaveAttribute("href", "/dashboard/inquiries/inq_1");
     expect(screen.getByText("Asked about veg thali")).toBeInTheDocument();
     expect(screen.getByText(/Instagram · created 3d ago/)).toBeInTheDocument();
   });
@@ -146,15 +146,16 @@ describe("NextLeadCard", () => {
     expect(screen.getAllByRole("button", { name: /^Add note for/ })).toHaveLength(6);
   });
 
-  it("hides Set follow-up on a closed up-next lead and opens the detail page from Open", () => {
+  it("hides Set follow-up on a closed up-next lead and has no Open button on up-next rows", () => {
     const up = [
       { ...lead({ publicId: "inq_8", fullName: "Hari", subStatus: "took_plan" }), href: "/dashboard/inquiries?lead=inq_8" },
       { ...lead({ publicId: "inq_9", fullName: "Ivy", subStatus: null }), href: "/dashboard/inquiries?lead=inq_9" },
     ] as unknown as NextLeadCardProps["upNext"];
     render(<NextLeadCard {...base} lead={lead()} upNext={up} />);
     expect(screen.getAllByRole("button", { name: /^Set follow-up for/ })).toHaveLength(1);
-    expect(screen.getByRole("link", { name: "Open Hari" })).toHaveAttribute("href", "/dashboard/inquiries/inq_8");
-    expect(screen.getByRole("link", { name: "Open Ivy" })).toHaveAttribute("href", "/dashboard/inquiries/inq_9");
+    expect(screen.getByRole("link", { name: "Hari" })).toHaveAttribute("href", "/dashboard/inquiries/inq_8");
+    expect(screen.queryByRole("link", { name: "Open Hari" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Open Ivy" })).toBeNull();
   });
 
   it("omits the owner name on up-next rows unless the card is all owners", () => {

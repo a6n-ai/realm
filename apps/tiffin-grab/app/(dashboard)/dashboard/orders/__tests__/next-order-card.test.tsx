@@ -51,7 +51,7 @@ describe("Next order card", () => {
     expect(screen.getByText("Missed deliveries")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Verify payment|Send payment link/ })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Add note/ })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Open/ })).toHaveAttribute("href", "/dashboard/orders/ord_1");
+    expect(screen.getByRole("link", { name: "Open order" })).toHaveAttribute("href", "/dashboard/orders/ord_1");
     unmount();
     render(<NextOrderCard {...base({ row: order({ reason: "flagged" }) })} />);
     expect(screen.getByText("Flagged")).toBeInTheDocument();
