@@ -125,27 +125,3 @@ describe("inquiriesService.logActivity + markLost", () => {
     await expect(inquiriesService.clearFollowUp(inq.publicId)).rejects.toThrow(ValidationError);
   });
 });
-
-describe("inquiriesService.queuePosition", () => {
-  beforeEach(async () => {
-    await reset();
-    await ensureSystemUser();
-  });
-  afterAll(reset);
-
-  it("ranks overdue leads longest-overdue first, 1-based", async () => {
-    const dayStart = Date.now();
-    const dayEnd = dayStart + 86_400_000;
-    const day = 86_400_000;
-    const make = (phone: string) => inquiriesService.create({ fullName: "Lead", phone, sourceKey: "manual", email: `${phone}@test.invalid` });
-    const a = await make("+16475553101");
-    const b = await make("+16475553102");
-    const c = await make("+16475553103");
-    await inquiriesService.update(a.publicId, { nextFollowUpAt: dayStart - day });
-    await inquiriesService.update(b.publicId, { nextFollowUpAt: dayStart - 3 * day });
-    await inquiriesService.update(c.publicId, { nextFollowUpAt: dayStart - 2 * day });
-    expect(await inquiriesService.queuePosition(undefined, dayStart, dayEnd, b.publicId)).toBe(1);
-    expect(await inquiriesService.queuePosition(undefined, dayStart, dayEnd, c.publicId)).toBe(2);
-    expect(await inquiriesService.queuePosition(undefined, dayStart, dayEnd, a.publicId)).toBe(3);
-  });
-});

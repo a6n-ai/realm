@@ -30,8 +30,9 @@ import {
 import { AddInquirySheet } from "./new-inquiry-form";
 import { QuickAddDialog } from "./quick-add/quick-add-dialog";
 import { InquiriesList, InquiriesListSkeleton } from "./inquiries-list";
-import { NextLeadCard, leadScope } from "./next-lead-card";
+import { NextLeadsGrid, leadScope } from "./next-leads-grid";
 import { NextItemSkeleton } from "@/components/dashboard/next-item/next-item-card";
+import { RECOMMENDATION_LIMIT, RecommendationGridSkeleton } from "@/components/dashboard/next-item/recommendation-grid";
 import { NextRenewalCard } from "./next-renewal-card";
 import { nextRenewal, queuedRenewal, renewalQueueCount, upNextRenewals } from "@/lib/services/next-renewal.service";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
@@ -103,7 +104,7 @@ export default async function InquiriesPage({ searchParams }: { searchParams: Se
         </Suspense>
       </div>
 
-      <Suspense fallback={(await searchParams).view === "renewals" ? <NextItemSkeleton title="Next renewal" /> : <NextItemSkeleton title="Next lead" />}>
+      <Suspense fallback={(await searchParams).view === "renewals" ? <NextItemSkeleton title="Next renewal" /> : <RecommendationGridSkeleton title="Next leads" />}>
         <NextLead searchParams={searchParams} />
         <NextRenewal searchParams={searchParams} />
       </Suspense>
@@ -117,7 +118,7 @@ export default async function InquiriesPage({ searchParams }: { searchParams: Se
   );
 }
 
-/** The next lead on the Leads view, for the card's owner (default: the signed-in user). Ignores the list's other filters; Previous/Next walk that owner's leads. */
+/** The Leads view's recommended leads for the card's owner (default: the signed-in user). Ignores the list's other filters. */
 async function NextLead({ searchParams }: { searchParams: SearchParams }) {
   await requireStaff();
   const sp = await searchParams;
@@ -126,54 +127,56 @@ async function NextLead({ searchParams }: { searchParams: SearchParams }) {
   const canRenewals = roleCan(session?.user.role ?? "", { order: ["read"] });
   if (!viewer || (canRenewals && sp.view === "renewals")) return null;
 
-  const { timezone, currency } = await getAppSettings();
+  const { timezone } = await getAppSettings();
   const now = requestNow();
   const { start: dayStart, end: dayEnd } = dayRange(zonedDateIso(now, timezone), timezone);
   const leadOwner = typeof sp.leadOwner === "string" ? sp.leadOwner : ME;
   const scope = leadScope(leadOwner, viewer);
-  const [owners, counts, catalog] = await Promise.all([loadOwnerOptions(), inquiriesService.queueCounts(scope, dayStart, dayEnd), loadCatalogSnapshot()]);
-  const rowOf = (publicId: string) =>
-    inquiriesService.listForPipeline(scope, { page: 0, size: 1 }, undefined, undefined, eq(inquiries.publicId, publicId)).then((r) => r.items[0] ?? null);
-
-  const chosenId = typeof sp.lead === "string" ? sp.lead : undefined;
-  const chosen = chosenId ? await rowOf(chosenId) : null;
-  const lead = chosen ?? (await inquiriesService.nextLead(scope, dayStart, dayEnd).then((n) => (n ? rowOf(n.publicId) : null)));
-  const [prev, next, upNextIds, leadInQueue] = lead
-    ? await Promise.all([
-        inquiriesService.nextLead(scope, dayStart, dayEnd, { publicId: lead.publicId, dir: "prev" }),
-        inquiriesService.nextLead(scope, dayStart, dayEnd, { publicId: lead.publicId, dir: "next" }),
-        inquiriesService.upNext(scope, dayStart, dayEnd, lead.publicId, UP_NEXT_COUNT),
-        inquiriesService.inQueue(scope, dayStart, dayEnd, lead.publicId),
-      ])
-    : [null, null, [], false];
-  const position = lead && leadInQueue ? await inquiriesService.queuePosition(scope, dayStart, dayEnd, lead.publicId) : null;
-  const upNextRows = upNextIds.length
-    ? await inquiriesService.listForPipeline(scope, { page: 0, size: upNextIds.length }, undefined, undefined, inArray(inquiries.publicId, upNextIds)).then((r) => r.items)
-    : [];
-  const upNext = upNextIds.flatMap((id) => upNextRows.filter((r) => r.publicId === id).map((r) => ({ ...r, href: `/dashboard/inquiries?${leadQuery(sp, r.publicId)}` })));
-  const ownerOptions = [{ value: ME, label: "Me" }, { value: ALL_OWNERS, label: "All owners" }, ...owners];
-
-  return (
-    <NextLeadCard
-      lead={lead}
-      timeZone={timezone}
-      currency={currency}
-      now={now}
-      dayStart={dayStart}
-      dayEnd={dayEnd}
-      dueCount={counts.due + counts.overdue}
-      leadInQueue={leadInQueue}
-      position={position}
-      upcomingCount={counts.upcoming}
-      owner={{ current: leadOwner, options: ownerOptions.map((o) => ({ ...o, href: leadOwnerHref(sp, o.value) })) }}
-      prevHref={prev ? `/dashboard/inquiries?${leadQuery(sp, prev.publicId)}` : undefined}
-      nextHref={next ? `/dashboard/inquiries?${leadQuery(sp, next.publicId)}` : undefined}
-      upNext={upNext}
-      upcomingHref={`/dashboard/inquiries?queue=upcoming&owner=${encodeURIComponent(leadOwner)}`}
-      allOpenHref={`/dashboard/inquiries?queue=open&owner=${encodeURIComponent(leadOwner)}`}
-      plans={catalog.plans.map((p) => ({ key: p.key, name: p.name }))}
-    />
-  );
+  const owner = (options: { value: string; label: string }[]) => ({
+    current: leadOwner,
+    options: options.map((o) => ({ ...o, href: leadOwnerHref(sp, o.value) })),
+  });
+  const viewAllHref = `/dashboard/inquiries?queue=open&owner=${encodeURIComponent(leadOwner)}`;
+  const upcomingHref = `/dashboard/inquiries?queue=upcoming&owner=${encodeURIComponent(leadOwner)}`;
+  try {
+    const [owners, { publicIds, total }] = await Promise.all([
+      loadOwnerOptions(),
+      inquiriesService.recommendedLeads(scope, dayStart, dayEnd, RECOMMENDATION_LIMIT),
+    ]);
+    const rows = publicIds.length
+      ? await inquiriesService.listForPipeline(scope, { page: 0, size: publicIds.length }, undefined, undefined, inArray(inquiries.publicId, publicIds)).then((r) => r.items)
+      : [];
+    const leads = publicIds.flatMap((id) => rows.filter((r) => r.publicId === id));
+    return (
+      <NextLeadsGrid
+        leads={leads}
+        toAct={total}
+        owner={owner([{ value: ME, label: "Me" }, { value: ALL_OWNERS, label: "All owners" }, ...owners])}
+        viewAllHref={viewAllHref}
+        upcomingHref={upcomingHref}
+        timeZone={timezone}
+        now={now}
+        dayStart={dayStart}
+        dayEnd={dayEnd}
+      />
+    );
+  } catch (error) {
+    console.error("Next leads failed to load", error);
+    return (
+      <NextLeadsGrid
+        leads={[]}
+        toAct={0}
+        owner={owner([{ value: ME, label: "Me" }, { value: ALL_OWNERS, label: "All owners" }])}
+        viewAllHref={viewAllHref}
+        upcomingHref={upcomingHref}
+        timeZone={timezone}
+        now={now}
+        dayStart={dayStart}
+        dayEnd={dayEnd}
+        error="Something went wrong loading your leads. Try again."
+      />
+    );
+  }
 }
 
 /** The Renewals view's next plan to act on, for the card's owner (default: the signed-in user). Previous/Next walk that owner's queue. */
@@ -329,20 +332,11 @@ async function InquiryStats({ searchParams }: { searchParams: SearchParams }) {
   );
 }
 
-/** Keeps the viewer's tab, filters and sort, and shows `publicId` in the Next lead card. The list ignores `lead`. */
-function leadQuery(sp: Awaited<SearchParams>, publicId: string): string {
-  const next = new URLSearchParams();
-  for (const [k, v] of Object.entries(sp)) {
-    if (typeof v === "string" && k !== "lead" && k !== "page") next.set(k, v);
-  }
-  next.set("lead", publicId);
-  return next.toString();
-}
-/** Switching the card's owner keeps the list's tab and filters, and drops the chosen lead. */
+/** Switching the card's owner keeps the list's tab and filters. */
 function leadOwnerHref(sp: Awaited<SearchParams>, owner: string): string {
   const next = new URLSearchParams();
   for (const [k, v] of Object.entries(sp)) {
-    if (typeof v === "string" && k !== "lead" && k !== "page" && k !== "leadOwner") next.set(k, v);
+    if (typeof v === "string" && k !== "page" && k !== "leadOwner") next.set(k, v);
   }
   next.set("leadOwner", owner);
   return `/dashboard/inquiries?${next.toString()}`;

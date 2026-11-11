@@ -134,9 +134,8 @@ describe("quick-add leads", () => {
       const overdue = await mk("+16475554504", dayStart - 1000);
       const order = [overdue, today, quick, open].map((r) => r.publicId);
 
-      expect(await inquiriesService.upNext(undefined, dayStart, dayEnd, quick.publicId, 3)).toEqual([open.publicId, order[0], order[1]]);
-      expect(await inquiriesService.upNext(undefined, dayStart, dayEnd, quick.publicId, 6)).toEqual([open.publicId, order[0], order[1]]);
-      expect(await inquiriesService.upNext(undefined, dayStart, dayEnd, open.publicId, 2)).toEqual([order[0], order[1]]);
+      expect(await inquiriesService.recommendedLeads(undefined, dayStart, dayEnd, 2)).toEqual({ publicIds: [order[0], order[1]], total: 4 });
+      expect(await inquiriesService.recommendedLeads(undefined, dayStart, dayEnd, 6)).toEqual({ publicIds: order, total: 4 });
     });
 
     it("nextLead returns null when nothing is due", async () => {

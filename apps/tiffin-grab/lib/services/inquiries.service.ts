@@ -145,7 +145,7 @@ function recommendedQueue(condition: Condition | undefined, dayStart: number, da
   );
 }
 
-/** The recommended-lead order, shared by nextLead (cycle) and upNext (list) so they cannot diverge. */
+/** The recommended-lead order, shared by nextLead (cycle) and recommendedLeads (list) so they cannot diverge. */
 function recommendedOrder(tb: typeof inquiries | typeof recommendCur, dayStart: number, dayEnd: number): SQL[] {
   const rank = sql`case
       when not (${tb.stage} not in ('converted', 'lost')) then 4
@@ -893,40 +893,15 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
     return (await pick(asc_ ? sql`${mine} > ${theirs}` : sql`${mine} < ${theirs}`)) ?? pick(undefined);
   }
 
-  /**
-   * The `limit` leads after `afterPublicId` in nextLead's order, wrapping to the top of the queue at
-   * the end the same way Previous/Next do. Never includes `afterPublicId` or repeats a lead.
-   */
-  async upNext(condition: Condition | undefined, dayStart: number, dayEnd: number, afterPublicId: string, limit: number): Promise<string[]> {
-    const { mine, theirs } = recommendedPosition(afterPublicId, dayStart, dayEnd);
-    const queue = recommendedQueue(condition, dayStart, dayEnd);
-    const order = recommendedOrder(inquiries, dayStart, dayEnd).map((p) => sql`${p} asc`);
-    const pick = (cursor: SQL, n: number) =>
-      db.select({ publicId: inquiries.publicId }).from(inquiries).where(and(queue, cursor)).orderBy(...order).limit(n);
-    const after = await pick(sql`${mine} > ${theirs}`, limit);
-    if (after.length >= limit) return after.map((r) => r.publicId);
-    const before = await pick(sql`${mine} < ${theirs}`, limit - after.length);
-    return [...after, ...before].map((r) => r.publicId);
-  }
-
-  /** Whether a lead is in the due queue that `upNext` and `nextLead` walk; the card's "N more" counts from it. */
-  async inQueue(condition: Condition | undefined, dayStart: number, dayEnd: number, publicId: string): Promise<boolean> {
-    const [row] = await db
-      .select({ publicId: inquiries.publicId })
+  /** The top `limit` leads of the due queue in nextLead's order, and the queue's total, in one query. */
+  async recommendedLeads(condition: Condition | undefined, dayStart: number, dayEnd: number, limit: number): Promise<{ publicIds: string[]; total: number }> {
+    const rows = await db
+      .select({ publicId: inquiries.publicId, total: sql<number>`cast(count(*) over() as int)` })
       .from(inquiries)
-      .where(and(recommendedQueue(condition, dayStart, dayEnd), eq(inquiries.publicId, publicId)))
-      .limit(1);
-    return row != null;
-  }
-
-  /** 1-based rank of `publicId` in the due queue, in nextLead's order. Meaningful when inQueue is true. */
-  async queuePosition(condition: Condition | undefined, dayStart: number, dayEnd: number, publicId: string): Promise<number> {
-    const { mine, theirs } = recommendedPosition(publicId, dayStart, dayEnd);
-    const [row] = await db
-      .select({ n: count() })
-      .from(inquiries)
-      .where(and(recommendedQueue(condition, dayStart, dayEnd), sql`${mine} < ${theirs}`));
-    return (row?.n ?? 0) + 1;
+      .where(recommendedQueue(condition, dayStart, dayEnd))
+      .orderBy(...recommendedOrder(inquiries, dayStart, dayEnd).map((p) => sql`${p} asc`))
+      .limit(limit);
+    return { publicIds: rows.map((r) => r.publicId), total: rows[0]?.total ?? 0 };
   }
 
   /** `condition` is a list filter (owner, source, …) resolved like the list's, so cards match the rows. */
