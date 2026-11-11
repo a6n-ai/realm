@@ -39,6 +39,12 @@ export const laterPaidOrderBookedAtSql = laterBookedAt(sql`next_order.trial_leng
 /** `laterOrderBookedAtSql`, or `laterPaidOrderBookedAtSql` when `paidPlansOnly` (trial-conversion rule). */
 export const laterBookedAtFor = (paidPlansOnly: boolean) => laterBookedAt(paidPlansOnly ? sql`next_order.trial_length is null` : undefined);
 
+// Max, not min: a staff status holds until a plan is booked after it, not until the first later plan.
+const latestLaterBookedAt = (extra?: SQL) => sql<number | null>`(select max(next_order.created_at) from ${orders} as next_order where ${laterOrderWhere}${extra ? sql` and ${extra}` : sql``})`;
+
+/** `laterBookedAtFor`, but the newest booking counted by it. */
+export const laterBookedAtLatestFor = (paidPlansOnly: boolean) => latestLaterBookedAt(paidPlansOnly ? sql`next_order.trial_length is null` : undefined);
+
 export type RenewalStatus = "renewed" | "unpaid" | "waitlisted" | "none";
 
 /**

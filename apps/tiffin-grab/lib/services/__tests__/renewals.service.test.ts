@@ -157,6 +157,14 @@ describe("renewals service (integration)", () => {
     expect(ids(await listRenewals("all", { ...f0, followUp: "none" }, today, page, open, dueDay))).toEqual([]);
   });
 
+  it("follow-up none keeps the top date range", async () => {
+    const p = await plan("completed");
+    const none = { ...f0, followUp: "none" as const };
+    const on = (day: string) => listRenewals("all", none, p.last, page, { ...open, fromIso: day, toIso: day }, noDay).then(ids);
+    expect(await on(addDays(p.last, 30))).toEqual([]);
+    expect(await on(p.last)).toEqual([p.publicId]);
+  });
+
   it("rows carry the fact chips and money, and the cards match the list", async () => {
     const before = await plan("completed");
     const p = await plan();
@@ -234,12 +242,30 @@ describe("renewals service (integration)", () => {
     await addTrackNote(first.publicId, "Asked for Friday");
 
     const r = await getCustomerRenewal("all", first.customerPublicId);
-    expect(r?.plans.map((p) => p.activities.length)).toEqual([1, 0]);
+    expect(r?.plans.map((p) => p.activities.length)).toEqual([2, 0]);
     expect(r?.plans[0].activities[0]).toMatchObject({ type: "note", note: "Asked for Friday" });
     expect(r?.plans.map((p) => p.track)).toEqual([
-      { status: "renewed", source: "auto", lostReason: null, nextFollowUpAt: null },
-      { status: null, source: null, lostReason: null, nextFollowUpAt: null },
+      { status: "renewed", source: "auto", lostReason: null, nextFollowUpAt: null, laterBookedAt: expect.any(Number) },
+      { status: null, source: null, lostReason: null, nextFollowUpAt: null, laterBookedAt: null },
     ]);
+  });
+
+  it("customer renewal: an auto-renewed plan logs when the next plan was booked", async () => {
+    const first = await plan("completed");
+    const second = await plan();
+    await db.update(orders).set({ userId: first.userId, startDate: addDays(first.last, 3) }).where(eq(orders.id, second.id));
+    const [booked] = await db.select({ createdAt: orders.createdAt }).from(orders).where(eq(orders.id, second.id));
+    await addTrackNote(first.publicId, "Asked for Friday");
+
+    const acts = (await getCustomerRenewal("all", first.customerPublicId))!.plans[0].activities;
+    expect(acts.map((a) => [a.type, a.toStatus])).toEqual([["note", null], ["status_change", "renewed"]]);
+    expect(acts[1]).toMatchObject({
+      publicId: `auto-${first.publicId}`,
+      fromStatus: null,
+      note: "New plan booked",
+      createdAt: Number(booked.createdAt),
+      actor: { label: "System", kind: "system" },
+    });
   });
 
   it("reminder delivery: failed, queued, sent, delivered, bounced and spam from the outbox row and the address block", () => {

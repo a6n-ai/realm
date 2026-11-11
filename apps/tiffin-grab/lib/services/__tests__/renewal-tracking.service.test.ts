@@ -143,6 +143,19 @@ describe("renewal tracking (integration)", () => {
     expect(await rowOf(p.publicId)).toMatchObject({ status: "pending_payment", source: "auto" });
   });
 
+  it("staff status yields to a plan booked after it, even when an older later plan already existed", async () => {
+    const p = await plan();
+    const pending = await laterPlan(p, { status: "pending" });
+    await db.update(orders).set({ createdAt: Date.now() - 60_000 }).where(eq(orders.id, pending.id));
+    await setTrackStatus(p.publicId, { status: "follow_up" });
+    expect(await rowOf(p.publicId)).toMatchObject({ status: "follow_up", source: "staff" });
+
+    const [r] = await db.select({ at: renewals.statusSetAt }).from(renewals).where(eq(renewals.orderId, p.id));
+    const next = await laterPlan(p, { status: "active" });
+    await db.update(orders).set({ createdAt: Number(r.at) + 1000 }).where(eq(orders.id, next.id));
+    expect(await rowOf(p.publicId)).toMatchObject({ status: "renewed", source: "auto" });
+  });
+
   it("followUpWhere due/overdue/upcoming/none, closed rows excluded", async () => {
     const dayStart = Date.parse("2099-05-10T00:00:00Z");
     const dayEnd = dayStart + 86_400_000;

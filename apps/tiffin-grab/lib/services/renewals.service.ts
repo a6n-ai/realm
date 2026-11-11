@@ -102,20 +102,25 @@ function trackWhere(track: TrackFilter[] | null) {
 const searchWhere = (q: string) =>
   and(...q.split(" ").filter(Boolean).map((w) => or(ilike(orders.fullName, `%${w}%`), ilike(orders.deploymentId, `%${w}%`), ilike(users.phone, `%${w}%`))));
 
-/** A follow-up view is its own list: the top date range and the Ending / Ended windows do not narrow it. */
+/**
+ * Due / overdue / upcoming are their own lists: the top date range and the Ending / Ended windows do not narrow them.
+ * "none" (no follow-up) is a plain filter on the range and windows, like any other.
+ */
 function renewalsWhere(visible: "all" | string[], f: RenewalsFilter, today: string, range: RenewalRange, day: DayBounds) {
+  const dayView = f.followUp && f.followUp !== "none" ? f.followUp : null;
   return and(
     typeWhere(f.type),
     visibleOrgWhere(visible),
     runningOrDone,
-    f.followUp
-      ? followUpWhere(f.followUp, day.dayStart, day.dayEnd)
+    dayView
+      ? followUpWhere(dayView, day.dayStart, day.dayEnd)
       : and(
           rangeWhere(range),
           f.ending != null || f.ended != null
             ? or(f.ending != null ? endingWhere(today, f.ending) : undefined, f.ended != null ? endedWhere(today, f.ended) : undefined)
             : undefined,
         ),
+    f.followUp === "none" ? followUpWhere("none", day.dayStart, day.dayEnd) : undefined,
     statusWhere(f, today),
     trackWhere(f.track),
     f.owner ? ownerWhere(f.owner) : undefined,
@@ -387,7 +392,24 @@ export type RenewalPlan = {
   activities: TrackActivity[];
 };
 
-const NO_TRACK: TrackRow = { status: null, source: null, lostReason: null, nextFollowUpAt: null };
+const NO_TRACK: TrackRow = { status: null, source: null, lostReason: null, nextFollowUpAt: null, laterBookedAt: null };
+
+/** An auto status has no row to read, so its timeline entry is made here: the booking that set it. */
+function withBookingEntry(orderPublicId: string, track: TrackRow, acts: TrackActivity[]): TrackActivity[] {
+  if (track.source !== "auto" || track.laterBookedAt == null) return acts;
+  const entry: TrackActivity = {
+    publicId: `auto-${orderPublicId}`,
+    type: "status_change",
+    note: "New plan booked",
+    outcome: null,
+    fromStatus: null,
+    toStatus: track.status,
+    nextFollowUpAt: null,
+    createdAt: track.laterBookedAt,
+    actor: { label: "System", kind: "system" },
+  };
+  return [...acts, entry].sort((a, b) => b.createdAt - a.createdAt);
+}
 
 /**
  * What AWS SES told us about one reminder. SES reports delivery, bounces and spam complaints; it never
@@ -475,13 +497,14 @@ export async function getCustomerRenewal(visible: "all" | string[], customerPubl
   const [tracks, activities] = await Promise.all([getTrackRows(orderPublicIds), listTrackActivities(orderPublicIds)]);
   const plans = rows.map(({ id, trialLength, ...r }, i) => {
     const after = rows[i + 1];
+    const track = tracks.get(r.orderPublicId) ?? NO_TRACK;
     return {
       ...r,
       trial: trialLength != null,
       gapDays: after && r.lastTiffin ? daysBetween(r.lastTiffin, after.startDate) : null,
       unpaidPaymentPublicId: unpaid.get(id.toString()) ?? null,
-      track: tracks.get(r.orderPublicId) ?? NO_TRACK,
-      activities: activities.get(r.orderPublicId) ?? [],
+      track,
+      activities: withBookingEntry(r.orderPublicId, track, activities.get(r.orderPublicId) ?? []),
     };
   });
 

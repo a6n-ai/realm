@@ -1,7 +1,7 @@
 import { db } from "@/db/client";
 import { renewalActivities, renewals, orders, users } from "@/db/schema";
 import { isUniqueViolation } from "@/lib/db/errors";
-import { laterBookedAtFor, renewalStatusSql, type RenewalStatus } from "@/lib/orders/queries";
+import { laterBookedAtFor, laterBookedAtLatestFor, renewalStatusSql, type RenewalStatus } from "@/lib/orders/queries";
 import { effectiveTrackStatus, isClosedTrack, type TrackStatus } from "@/lib/renewals/status";
 import { NotFoundError, ValidationError } from "@foundry/commons";
 import { BaseRepository, UpdatableRepository } from "@foundry/database";
@@ -13,11 +13,13 @@ export const computedStatusSql = sql<RenewalStatus>`(case when ${orders.trialLen
 
 export const laterBookedAtSql = sql<number | null>`(case when ${orders.trialLength} is not null then ${laterBookedAtFor(true)} else ${laterBookedAtFor(false)} end)`;
 
+const laterBookedAtLatestSql = sql<number | null>`(case when ${orders.trialLength} is not null then ${laterBookedAtLatestFor(true)} else ${laterBookedAtLatestFor(false)} end)`;
+
 const autoSql = sql`(case when ${computedStatusSql} = 'renewed' then 'renewed' when ${computedStatusSql} in ('unpaid', 'waitlisted') then 'pending_payment' else null end)`;
 
 // Same rule as effectiveTrackStatus in lib/renewals/status.ts; keep the two in step.
 export const effectiveTrackStatusSql = sql<TrackStatus | null>`(case
-  when ${autoSql} is not null and (${renewals.statusSetAt} is null or (${laterBookedAtSql} is not null and ${laterBookedAtSql} > ${renewals.statusSetAt})) then ${autoSql}
+  when ${autoSql} is not null and (${renewals.statusSetAt} is null or (${laterBookedAtLatestSql} is not null and ${laterBookedAtLatestSql} > ${renewals.statusSetAt})) then ${autoSql}
   else cast(${renewals.status} as text) end)`;
 
 // Needs `renewals` left-joined on renewals.order_id = orders.id. Closed rows never show a follow-up.
@@ -38,6 +40,8 @@ export type TrackRow = {
   source: "staff" | "auto" | null;
   lostReason: LostReason | null;
   nextFollowUpAt: number | null;
+  /** When the newest later plan was booked (epoch ms), or null: an auto status's timeline entry. */
+  laterBookedAt: number | null;
 };
 
 export type RenewalActivityType = (typeof renewalActivities.type.enumValues)[number];
@@ -218,7 +222,7 @@ export async function getTrackRows(orderPublicIds: string[]): Promise<Map<string
       orderPublicId: orders.publicId,
       status: effectiveTrackStatusSql,
       computed: computedStatusSql,
-      laterBookedAt: laterBookedAtSql,
+      laterBookedAt: laterBookedAtLatestSql,
       staff: renewals.status,
       staffSetAt: renewals.statusSetAt,
       lostReason: renewals.lostReason,
@@ -234,6 +238,7 @@ export async function getTrackRows(orderPublicIds: string[]): Promise<Map<string
       source,
       lostReason: r.status === "not_renewed" ? r.lostReason : null,
       nextFollowUpAt: isClosedTrack(r.status) ? null : r.nextFollowUpAt,
+      laterBookedAt: r.laterBookedAt == null ? null : Number(r.laterBookedAt),
     });
   }
   return out;
