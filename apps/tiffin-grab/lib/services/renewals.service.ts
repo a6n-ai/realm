@@ -108,7 +108,7 @@ const renewWindowWhere = (today: string) => and(sql`${computedStatusSql} = 'none
  * Due / overdue / upcoming and To renew are their own lists: the top date range and the Ending / Ended windows do not narrow them.
  * "none" (no follow-up) is a plain filter on the range and windows, like any other.
  */
-function renewalsWhere(visible: "all" | string[], f: RenewalsFilter, today: string, range: RenewalRange, day: DayBounds) {
+export function renewalsWhere(visible: "all" | string[], f: RenewalsFilter, today: string, range: RenewalRange, day: DayBounds) {
   const dayView = f.followUp && f.followUp !== "none" ? f.followUp : null;
   return and(
     typeWhere(f.type),
@@ -138,7 +138,7 @@ function ownerWhere(owner: string) {
     : inArray(orders.currentOwner, db.select({ id: users.id }).from(users).where(eq(users.publicId, owner)));
 }
 
-const renewalSelect = {
+export const renewalSelect = {
   id: orders.id,
   userId: orders.userId,
   orderPublicId: orders.publicId,
@@ -156,7 +156,7 @@ const renewalSelect = {
   openTickets: sql<number>`(select cast(count(*) as int) from ${tickets} as t where t.raised_by = ${orders.userId} and t.status not in ('resolved', 'closed'))`,
 };
 
-async function hydrateRenewalRows(
+export async function hydrateRenewalRows(
   rows: {
     id: bigint;
     userId: bigint | null;
