@@ -10,7 +10,7 @@ import type { DateBy, PlanType, RenewalsFilter, TrackFilter } from "@/lib/renewa
 import { UNASSIGNED_OWNER } from "@/lib/list/presets";
 import { lastTiffinSql, renewalStatusSql, visibleOrgWhere, type RenewalStatus } from "@/lib/orders/queries";
 import { addDaysIso, DAY_MS, daysBetween } from "@foundry/commons/util/dates";
-import { computedStatusSql, effectiveTrackStatusSql, followUpWhere, getTrackRows, laterBookedAtSql, latestTrackActivities, type TrackActivity } from "./renewal-tracking.service";
+import { computedStatusSql, effectiveTrackStatusSql, followUpWhere, getTrackRows, laterBookedAtSql, latestTrackActivities, listTrackActivities, type TrackActivity, type TrackRow } from "./renewal-tracking.service";
 import type { TrackStatus } from "@/lib/renewals/status";
 import type { LostReason } from "./inquiries.service";
 
@@ -382,7 +382,12 @@ export type RenewalPlan = {
   gapDays: number | null;
   /** An unpaid plan's newest unpaid or rejected payment: what "Send payment reminder" reminds. */
   unpaidPaymentPublicId: string | null;
+  track: TrackRow;
+  /** This plan's own tracking log, newest first. */
+  activities: TrackActivity[];
 };
+
+const NO_TRACK: TrackRow = { status: null, source: null, lostReason: null, nextFollowUpAt: null };
 
 /**
  * What AWS SES told us about one reminder. SES reports delivery, bounces and spam complaints; it never
@@ -466,6 +471,8 @@ export async function getCustomerRenewal(visible: "all" | string[], customerPubl
     for (const p of pays) if (!unpaid.has(p.orderId.toString())) unpaid.set(p.orderId.toString(), p.publicId);
   }
 
+  const orderPublicIds = rows.map((r) => r.orderPublicId);
+  const [tracks, activities] = await Promise.all([getTrackRows(orderPublicIds), listTrackActivities(orderPublicIds)]);
   const plans = rows.map(({ id, trialLength, ...r }, i) => {
     const after = rows[i + 1];
     return {
@@ -473,6 +480,8 @@ export async function getCustomerRenewal(visible: "all" | string[], customerPubl
       trial: trialLength != null,
       gapDays: after && r.lastTiffin ? daysBetween(r.lastTiffin, after.startDate) : null,
       unpaidPaymentPublicId: unpaid.get(id.toString()) ?? null,
+      track: tracks.get(r.orderPublicId) ?? NO_TRACK,
+      activities: activities.get(r.orderPublicId) ?? [],
     };
   });
 

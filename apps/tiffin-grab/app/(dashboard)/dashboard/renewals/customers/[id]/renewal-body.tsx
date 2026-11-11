@@ -10,6 +10,7 @@ import { formatEpoch } from "@/lib/format/datetime";
 import { EstimateButton } from "../../estimate-button";
 import { ContactButtons, GiveCoinsButton, SendReminderButton } from "./renewal-actions";
 import { PlanHistory, RenewalReminders } from "./renewal-history";
+import { PlanTrack } from "./plan-track";
 import { appOrigin } from "@/lib/runtime/env";
 
 const currentPlan = (data: CustomerRenewal) => [...data.plans].reverse().find((p) => inOrderStatuses(RUNNING, p.status));
@@ -39,6 +40,7 @@ export function RenewalSections({ data, today, timezone }: { data: CustomerRenew
   const gaps = plans.map((p) => p.gapDays).filter((g): g is number => g != null);
   const avgGap = gaps.length ? Math.round(gaps.reduce((a, b) => a + b, 0) / gaps.length) : null;
   const current = currentPlan(data);
+  const focus = current ?? plans[plans.length - 1];
   return (
     <>
       <StatCards
@@ -61,8 +63,11 @@ export function RenewalSections({ data, today, timezone }: { data: CustomerRenew
           { label: "Wallet", value: `${data.walletCoins} coins`, icon: CoinsIcon, hint: `${fmt(Number(data.totalSpent))} spent in total` },
         ]}
       />
+      <SectionCard title="Follow-up" subtitle={`${focus.mealSize} · ${focus.code}. The plan that is running, or the last one.`}>
+        <PlanTrack plan={focus} customerPublicId={customer.publicId} />
+      </SectionCard>
       <SectionCard title="Plan history" subtitle="Oldest first. Each plan shows what came after it.">
-        <PlanHistory plans={plans} today={today} />
+        <PlanHistory plans={plans} today={today} customerPublicId={customer.publicId} focusOrderPublicId={focus.orderPublicId} />
       </SectionCard>
       <SectionCard title="Renewal reminders" subtitle="Emails sent 5 days and 1 day before a plan's last tiffin. Status comes from AWS; hover it for details.">
         <div className="flex flex-col gap-4">

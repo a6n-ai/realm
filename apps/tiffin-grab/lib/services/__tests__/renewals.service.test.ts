@@ -227,6 +227,21 @@ describe("renewals service (integration)", () => {
     expect(await getCustomerRenewal("all", "usr_missing")).toBeNull();
   });
 
+  it("customer renewal: each plan carries its track and its own activities", async () => {
+    const first = await plan("completed");
+    const second = await plan();
+    await db.update(orders).set({ userId: first.userId, startDate: addDays(first.last, 3) }).where(eq(orders.id, second.id));
+    await addTrackNote(first.publicId, "Asked for Friday");
+
+    const r = await getCustomerRenewal("all", first.customerPublicId);
+    expect(r?.plans.map((p) => p.activities.length)).toEqual([1, 0]);
+    expect(r?.plans[0].activities[0]).toMatchObject({ type: "note", note: "Asked for Friday" });
+    expect(r?.plans.map((p) => p.track)).toEqual([
+      { status: "renewed", source: "auto", lostReason: null, nextFollowUpAt: null },
+      { status: null, source: null, lostReason: null, nextFollowUpAt: null },
+    ]);
+  });
+
   it("reminder delivery: failed, queued, sent, delivered, bounced and spam from the outbox row and the address block", () => {
     const at = 1_000;
     expect(reminderDelivery("failed", null, at, null)).toBe("failed");

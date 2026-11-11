@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { BellIcon, CheckIcon, FlaskConicalIcon, PackageIcon } from "lucide-react";
+import { BellIcon, CheckIcon, ChevronDownIcon, FlaskConicalIcon, PackageIcon } from "lucide-react";
 import { formatMoney as fmt } from "@foundry/commons";
+import { Button } from "@foundry/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@foundry/ui/collapsible";
 import { TableCell } from "@foundry/ui/table";
 import { cn } from "@foundry/ui/cn";
 import { Badge } from "@/components/reui/badge";
@@ -13,7 +15,9 @@ import { humanDate } from "@/lib/deliveries-view";
 import { formatEpoch } from "@/lib/format/datetime";
 import type { ReminderDelivery, RenewalPlan, RenewalReminder } from "@/lib/services/renewals.service";
 import { rowStatus, statusLabel, type RenewalRowStatus } from "@/lib/renewals/filters";
+import { TrackStatusPill } from "../../_track/track-status";
 import { UnpaidPlanActions } from "./renewal-actions";
+import { PlanTrack } from "./plan-track";
 
 const NEXT_VARIANT = { renewed: "success-light", unpaid: "warning-light", waitlisted: "info-light", not_renewed: "secondary", lapsed: "destructive-light" } as const;
 const TRIAL_LABEL: Partial<Record<RenewalRowStatus, string>> = { renewed: "Converted", not_renewed: "Not converted" };
@@ -24,8 +28,8 @@ function gapLabel(days: number) {
   return `${days} days until the next plan`;
 }
 
-/** Each plan on a vertical timeline (ReUI c-timeline pattern, as in the order activity log): dates, size, total, what followed. */
-export function PlanHistory({ plans, today }: { plans: RenewalPlan[]; today: string }) {
+/** Each plan on a vertical timeline (ReUI c-timeline pattern, as in the order activity log): dates, size, total, what followed. The focus plan is tracked in the Follow-up section, so its row has no tracking. */
+export function PlanHistory({ plans, today, customerPublicId, focusOrderPublicId }: { plans: RenewalPlan[]; today: string; customerPublicId: string; focusOrderPublicId: string }) {
   return (
     <Timeline defaultValue={plans.filter((p) => p.lastTiffin != null && p.lastTiffin < today).length}>
       {plans.map((p, i) => {
@@ -55,11 +59,25 @@ export function PlanHistory({ plans, today }: { plans: RenewalPlan[]; today: str
                 <span className="text-muted-foreground tabular-nums">{fmt(Number(p.total))}</span>
                 <Badge variant={NEXT_VARIANT[rowStatus(p.next, p.lastTiffin, today)]}>{(p.trial && TRIAL_LABEL[rowStatus(p.next, p.lastTiffin, today)]) || statusLabel(rowStatus(p.next, p.lastTiffin, today))}</Badge>
                 {p.gapDays != null && <span className="text-muted-foreground text-xs">{gapLabel(p.gapDays)}</span>}
+                {p.orderPublicId !== focusOrderPublicId && <TrackStatusPill status={p.track.status} source={p.track.source} />}
               </div>
               {(p.status === "pending" || p.status === "waitlisted") && (
                 <div className="mt-2">
                   <UnpaidPlanActions orderPublicId={p.orderPublicId} paymentPublicId={p.unpaidPaymentPublicId} />
                 </div>
+              )}
+              {p.orderPublicId !== focusOrderPublicId && (
+                <Collapsible className="mt-2">
+                  <CollapsibleTrigger asChild>
+                    <Button type="button" variant="ghost" size="sm" className="group">
+                      Tracking
+                      <ChevronDownIcon className="transition-transform duration-200 group-data-[state=open]:rotate-180 motion-reduce:transition-none" />
+                    </Button>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="pt-3">
+                    <PlanTrack plan={p} customerPublicId={customerPublicId} />
+                  </CollapsibleContent>
+                </Collapsible>
               )}
             </TimelineContent>
           </TimelineItem>
