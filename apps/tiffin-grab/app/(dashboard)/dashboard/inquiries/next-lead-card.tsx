@@ -40,7 +40,7 @@ export type NextLeadCardProps = {
   allOpenHref: string;
 };
 
-function scopeHint(current: string, options: OwnerChoice[]): string {
+export function scopeHint(current: string, options: OwnerChoice[]): string {
   if (current === ME) return "Your queue";
   if (current === ALL_OWNERS) return "All owners";
   const name = options.find((o) => o.value === current)?.label;

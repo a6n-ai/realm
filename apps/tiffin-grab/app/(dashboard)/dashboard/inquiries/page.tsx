@@ -31,6 +31,9 @@ import { AddInquirySheet } from "./new-inquiry-form";
 import { QuickAddDialog } from "./quick-add/quick-add-dialog";
 import { InquiriesList, InquiriesListSkeleton } from "./inquiries-list";
 import { NextLeadCard, NextLeadSkeleton, leadScope } from "./next-lead-card";
+import { NextRenewalCard, NextRenewalSkeleton } from "./next-renewal-card";
+import { nextRenewal, queuedRenewal, renewalQueueCount, upNextRenewals } from "@/lib/services/next-renewal.service";
+import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 
 const UP_NEXT_COUNT = 6;
 import { reassignInquiry } from "./actions";
@@ -99,8 +102,9 @@ export default async function InquiriesPage({ searchParams }: { searchParams: Se
         </Suspense>
       </div>
 
-      <Suspense fallback={<NextLeadSkeleton />}>
+      <Suspense fallback={(await searchParams).view === "renewals" ? <NextRenewalSkeleton /> : <NextLeadSkeleton />}>
         <NextLead searchParams={searchParams} />
+        <NextRenewal searchParams={searchParams} />
       </Suspense>
 
       <SectionCard title="Follow-up queue">
@@ -161,6 +165,44 @@ async function NextLead({ searchParams }: { searchParams: SearchParams }) {
       upNext={upNext}
       upcomingHref={`/dashboard/inquiries?queue=upcoming&owner=${encodeURIComponent(leadOwner)}`}
       allOpenHref={`/dashboard/inquiries?queue=open&owner=${encodeURIComponent(leadOwner)}`}
+    />
+  );
+}
+
+/** The Renewals view's next plan to act on, for the card's owner (default: the signed-in user). Previous/Next walk that owner's queue. */
+async function NextRenewal({ searchParams }: { searchParams: SearchParams }) {
+  const sp = await searchParams;
+  const session = await getSession();
+  const viewer = session?.user.id;
+  const canRenewals = roleCan(session?.user.role ?? "", { order: ["read"] });
+  if (!viewer || !canRenewals || sp.view !== "renewals") return null;
+
+  const [visible, { timezone }, owners] = await Promise.all([resolveSessionVisibleOrgIds(session), getAppSettings(), loadOwnerOptions()]);
+  const today = zonedDateIso(requestNow(), timezone);
+  const { start: dayStart, end: dayEnd } = dayRange(today, timezone);
+  const day = { dayStart, dayEnd };
+  const renewalOwner = typeof sp.renewalOwner === "string" ? sp.renewalOwner : ME;
+  const scope = { visible, owner: resolveOwnerParam(renewalOwner, viewer) ?? null };
+  const chosenId = typeof sp.renewal === "string" ? sp.renewal : undefined;
+  const row = (chosenId ? await queuedRenewal(scope, today, day, chosenId) : null) ?? (await nextRenewal(scope, today, day));
+  const [queueCount, prev, next, upNext] = await Promise.all([
+    renewalQueueCount(scope, today, day),
+    row ? nextRenewal(scope, today, day, { publicId: row.orderPublicId, dir: "prev" }) : null,
+    row ? nextRenewal(scope, today, day, { publicId: row.orderPublicId, dir: "next" }) : null,
+    row ? upNextRenewals(scope, today, day, row.orderPublicId, UP_NEXT_COUNT) : [],
+  ]);
+  const ownerOptions = [{ value: ME, label: "Me" }, { value: ALL_OWNERS, label: "All owners" }, ...owners];
+
+  return (
+    <NextRenewalCard
+      row={row}
+      today={today}
+      queueCount={queueCount}
+      owner={{ current: renewalOwner, options: ownerOptions.map((o) => ({ ...o, href: renewalOwnerHref(sp, o.value) })) }}
+      prevHref={prev ? `/dashboard/inquiries?${renewalQuery(sp, prev.orderPublicId)}` : undefined}
+      nextHref={next ? `/dashboard/inquiries?${renewalQuery(sp, next.orderPublicId)}` : undefined}
+      upNext={upNext}
+      renewQueueHref="/dashboard/inquiries?view=renewals&queue=renew"
     />
   );
 }
@@ -296,6 +338,24 @@ function leadOwnerHref(sp: Awaited<SearchParams>, owner: string): string {
     if (typeof v === "string" && k !== "lead" && k !== "page" && k !== "leadOwner") next.set(k, v);
   }
   next.set("leadOwner", owner);
+  return `/dashboard/inquiries?${next.toString()}`;
+}
+/** Previous/Next on the renewal card: keeps the list's state (the list ignores `renewal`) and the card's owner. */
+function renewalQuery(sp: Awaited<SearchParams>, publicId: string): string {
+  const next = new URLSearchParams();
+  for (const [k, v] of Object.entries(sp)) {
+    if (typeof v === "string" && k !== "renewal") next.set(k, v);
+  }
+  next.set("renewal", publicId);
+  return next.toString();
+}
+/** Switching the renewal card's owner keeps the list's state, and drops the chosen plan. */
+function renewalOwnerHref(sp: Awaited<SearchParams>, owner: string): string {
+  const next = new URLSearchParams();
+  for (const [k, v] of Object.entries(sp)) {
+    if (typeof v === "string" && k !== "renewal" && k !== "renewalOwner") next.set(k, v);
+  }
+  next.set("renewalOwner", owner);
   return `/dashboard/inquiries?${next.toString()}`;
 }
 

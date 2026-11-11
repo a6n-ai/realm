@@ -44,7 +44,7 @@ const ACTIVITY_LABEL: Record<string, string> = {
   status_change: "Status changed",
 };
 /** Add note and set follow-up for one plan; the dialog mounts only once opened. */
-function RowTrackActions({ orderPublicId, customerPublicId, closed }: { orderPublicId: string; customerPublicId: string; closed: boolean }) {
+export function RowTrackActions({ orderPublicId, customerPublicId, closed }: { orderPublicId: string; customerPublicId: string; closed: boolean }) {
   const [kind, setKind] = useState<TrackNoteKind | null>(null);
   return (
     <>
