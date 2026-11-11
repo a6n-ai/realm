@@ -1,5 +1,5 @@
-// The Inquiries Renewals view's "Next renewal" card: which open plan staff should act on next, in one ranking.
-import { and, eq, sql, type SQL } from "drizzle-orm";
+// The Inquiries Renewals view's recommendations: which open plans staff should act on next, in one ranking.
+import { eq, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db/client";
 import { mealSizes, orders, plans, users, renewals as renewalRecords } from "@/db/schema";
 import { lastTiffinSql } from "@/lib/orders/queries";
@@ -44,84 +44,29 @@ function ranked(scope: RenewalQueueScope, today: string, day: DayBounds) {
   const eligible = sql`(${base}) and not coalesce(${followUpWhere("upcoming", day.dayStart, day.dayEnd)}, false) and ${rank} < ${sql.raw(String(NO_REASON))}`;
   return { rank, signal, eligible, order: [rank, signal, orders.id] as const };
 }
-type Ranked = ReturnType<typeof ranked>;
-type Position = { rank: number; signal: number; id: bigint };
 
-async function position(r: Ranked, publicId: string): Promise<Position | null> {
-  const [row] = await db
-    .select({ rank: sql<number>`${r.rank}`, signal: sql<number>`${r.signal}`, id: orders.id })
-    .from(orders)
-    .leftJoin(renewalRecords, eq(renewalRecords.orderId, orders.id))
-    .where(eq(orders.publicId, publicId));
-  return row ?? null;
-}
-
-/** Rows strictly after (`>`) or before (`<`) a position in the ranking. */
-const beyond = (r: Ranked, at: Position, op: ">" | "<") =>
-  sql`(${r.rank}, ${r.signal}, ${orders.id}) ${sql.raw(op)} (${at.rank}::int, ${at.signal}::double precision, ${String(at.id)}::bigint)`;
-
-async function pick(r: Ranked, cursor: SQL | undefined, dir: "asc" | "desc", limit: number): Promise<NextRenewalRow[]> {
-  const rows = await db
-    .select({ ...renewalSelect, status: computedStatusSql, rank: sql<number>`${r.rank}` })
+/** The `limit` plans to act on first, and how many plans there are in all (a window count, so one query). */
+export async function recommendedRenewals(
+  scope: RenewalQueueScope,
+  today: string,
+  day: DayBounds,
+  limit: number,
+): Promise<{ rows: NextRenewalRow[]; total: number }> {
+  if (isEmptyScope(scope)) return { rows: [], total: 0 };
+  const r = ranked(scope, today, day);
+  const picked = await db
+    .select({ ...renewalSelect, status: computedStatusSql, rank: sql<number>`${r.rank}`, total: sql<number>`cast(count(*) over() as int)` })
     .from(orders)
     .innerJoin(plans, eq(orders.planId, plans.id))
     .innerJoin(mealSizes, eq(orders.mealSizeId, mealSizes.id))
     .leftJoin(users, eq(orders.userId, users.id))
     .leftJoin(renewalRecords, eq(renewalRecords.orderId, orders.id))
-    .where(and(r.eligible, cursor))
-    .orderBy(...r.order.map((p) => sql`${p} ${sql.raw(dir)}`))
+    .where(r.eligible)
+    .orderBy(...r.order.map((p) => sql`${p} asc`))
     .limit(limit);
-  const hydrated = await hydrateRenewalRows(rows.map(({ rank: _rank, ...row }) => row));
-  return hydrated.map((row, i) => ({ ...row, reason: REASON_BY_RANK[rows[i].rank] }));
-}
-
-/** The plan the card recommends, or the one after/before `cursor` in that order (wrapping round). */
-export async function nextRenewal(
-  scope: RenewalQueueScope,
-  today: string,
-  day: DayBounds,
-  cursor?: { publicId: string; dir: "next" | "prev" },
-): Promise<NextRenewalRow | null> {
-  if (isEmptyScope(scope)) return null;
-  const r = ranked(scope, today, day);
-  const at = cursor ? await position(r, cursor.publicId) : null;
-  if (!cursor || !at) return (await pick(r, undefined, "asc", 1))[0] ?? null;
-  const asc = cursor.dir !== "prev";
-  const others = sql`${orders.publicId} <> ${cursor.publicId}`;
-  const [after] = await pick(r, and(others, beyond(r, at, asc ? ">" : "<")), asc ? "asc" : "desc", 1);
-  if (after) return after;
-  const [wrapped] = await pick(r, others, asc ? "asc" : "desc", 1);
-  return wrapped ?? null;
-}
-
-/** One plan from the queue by its publicId, or null when it has no reason (or is out of scope). */
-export async function queuedRenewal(scope: RenewalQueueScope, today: string, day: DayBounds, publicId: string): Promise<NextRenewalRow | null> {
-  if (isEmptyScope(scope)) return null;
-  const r = ranked(scope, today, day);
-  const [row] = await pick(r, eq(orders.publicId, publicId), "asc", 1);
-  return row ?? null;
-}
-
-/** The `limit` plans after `afterPublicId` in nextRenewal's order, wrapping to the top at the end. Never repeats it. */
-export async function upNextRenewals(scope: RenewalQueueScope, today: string, day: DayBounds, afterPublicId: string, limit: number): Promise<NextRenewalRow[]> {
-  if (isEmptyScope(scope)) return [];
-  const r = ranked(scope, today, day);
-  const at = await position(r, afterPublicId);
-  if (!at) return [];
-  const after = await pick(r, beyond(r, at, ">"), "asc", limit);
-  if (after.length >= limit) return after;
-  const before = await pick(r, beyond(r, at, "<"), "asc", limit - after.length);
-  return [...after, ...before];
-}
-
-/** How many plans in the scope have any reason to act. */
-export async function renewalQueueCount(scope: RenewalQueueScope, today: string, day: DayBounds): Promise<number> {
-  if (isEmptyScope(scope)) return 0;
-  const { eligible } = ranked(scope, today, day);
-  const [row] = await db
-    .select({ count: sql<number>`cast(count(*) as int)` })
-    .from(orders)
-    .leftJoin(renewalRecords, eq(renewalRecords.orderId, orders.id))
-    .where(eligible);
-  return row?.count ?? 0;
+  const hydrated = await hydrateRenewalRows(picked.map(({ rank: _rank, total: _total, ...row }) => row));
+  return {
+    rows: hydrated.map((row, i) => ({ ...row, reason: REASON_BY_RANK[picked[i].rank] })),
+    total: picked[0]?.total ?? 0,
+  };
 }

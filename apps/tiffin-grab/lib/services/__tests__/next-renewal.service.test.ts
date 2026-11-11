@@ -9,7 +9,7 @@ const { deliveries, ledgerEntries, orderActivities, orders, payments, renewalAct
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { createOrder } = await import("../create-order");
 const { setTrackStatus } = await import("../renewal-tracking.service");
-const { nextRenewal, upNextRenewals, renewalQueueCount } = await import("../next-renewal.service");
+const { recommendedRenewals } = await import("../next-renewal.service");
 const DAY = 86_400_000;
 const TZ = "UTC";
 const iso = (offsetDays: number) => new Date(Date.now() + offsetDays * DAY).toISOString().slice(0, 10);
@@ -74,46 +74,32 @@ describe("next renewal queue (integration)", () => {
   });
   afterAll(cleanup);
 
-  // Walks the whole queue from the top, Next at a time, and stops when it wraps back to the first row.
-  async function walk() {
-    const first = await nextRenewal(scope, today, day);
-    if (!first) return [];
-    const out = [first];
-    for (let i = 0; i < 500; i++) {
-      const n = await nextRenewal(scope, today, day, { publicId: out[out.length - 1].orderPublicId, dir: "next" });
-      if (!n || n.orderPublicId === first.orderPublicId) break;
-      out.push(n);
-    }
-    return out;
-  }
+  // A limit above any test queue, so the whole ranking comes back.
+  const everything = () => recommendedRenewals(scope, today, day, 500);
   const ours = () => [p.overdue, p.due, p.renew, p.lapsed];
 
-  it("walks overdue, due, then to renew with plans ending soon before lapsed ones", async () => {
-    const mine = (await walk()).map((r) => r.orderPublicId).filter((id) => ours().includes(id));
+  it("ranks overdue, due, then renew with plans ending soon before lapsed ones", async () => {
+    const mine = (await everything()).rows.map((r) => r.orderPublicId).filter((id) => ours().includes(id));
     expect(mine).toEqual(ours());
   });
 
   it("gives each row its reason", async () => {
-    const all = await walk();
-    const reasonOf = (id: string) => all.find((r) => r.orderPublicId === id)?.reason;
+    const { rows } = await everything();
+    const reasonOf = (id: string) => rows.find((r) => r.orderPublicId === id)?.reason;
     expect([reasonOf(p.overdue), reasonOf(p.due), reasonOf(p.renew), reasonOf(p.lapsed)]).toEqual(["overdue", "due", "renew", "renew"]);
   });
 
   it("never returns a renewed plan or one whose follow-up is upcoming", async () => {
-    const ids = (await walk()).map((r) => r.orderPublicId);
+    const ids = (await everything()).rows.map((r) => r.orderPublicId);
     expect(ids).not.toContain(p.closed);
     expect(ids).not.toContain(p.upcoming);
   });
 
-  it("upNext returns the next rows in walk order, wrapping at the end", async () => {
-    const all = (await walk()).map((r) => r.orderPublicId);
-    const upNextOf = async (id: string) => (await upNextRenewals(scope, today, day, id, 3)).map((r) => r.orderPublicId);
-    const at = all.indexOf(p.renew);
-    expect(await upNextOf(p.renew)).toEqual([1, 2, 3].map((k) => all[(at + k) % all.length]));
-    expect(await upNextOf(all[all.length - 1])).toEqual(all.slice(0, 3));
+  it("returns the top rows of that ranking, with the total of every plan that has a reason", async () => {
+    const all = await everything();
+    const top = await recommendedRenewals(scope, today, day, 2);
+    expect(top.rows.map((r) => r.orderPublicId)).toEqual(all.rows.slice(0, 2).map((r) => r.orderPublicId));
+    expect(top.total).toBe(all.total);
+    expect(all.total).toBeGreaterThanOrEqual(4);
   }, 60_000);
-
-  it("counts every plan that has a reason", async () => {
-    expect(await renewalQueueCount(scope, today, day)).toBeGreaterThanOrEqual(4);
-  });
 });

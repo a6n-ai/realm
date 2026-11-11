@@ -31,13 +31,10 @@ import { AddInquirySheet } from "./new-inquiry-form";
 import { QuickAddDialog } from "./quick-add/quick-add-dialog";
 import { InquiriesList, InquiriesListSkeleton } from "./inquiries-list";
 import { NextLeadsGrid, leadScope } from "./next-leads-grid";
-import { NextItemSkeleton } from "@/components/dashboard/next-item/next-item-card";
 import { RECOMMENDATION_LIMIT, RecommendationGridSkeleton } from "@/components/dashboard/next-item/recommendation-grid";
-import { NextRenewalCard } from "./next-renewal-card";
-import { nextRenewal, queuedRenewal, renewalQueueCount, upNextRenewals } from "@/lib/services/next-renewal.service";
+import { NextRenewalsGrid } from "./next-renewals-grid";
+import { recommendedRenewals } from "@/lib/services/next-renewal.service";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
-
-const UP_NEXT_COUNT = 6;
 import { reassignInquiry } from "./actions";
 import { SUB_STATUSES, SUB_STATUS_META } from "@/lib/inquiries/status";
 import { QueueTabs } from "./queue-tabs";
@@ -104,9 +101,9 @@ export default async function InquiriesPage({ searchParams }: { searchParams: Se
         </Suspense>
       </div>
 
-      <Suspense fallback={(await searchParams).view === "renewals" ? <NextItemSkeleton title="Next renewal" /> : <RecommendationGridSkeleton title="Next leads" />}>
+      <Suspense fallback={(await searchParams).view === "renewals" ? <RecommendationGridSkeleton title="Next renewals" /> : <RecommendationGridSkeleton title="Next leads" />}>
         <NextLead searchParams={searchParams} />
-        <NextRenewal searchParams={searchParams} />
+        <NextRenewals searchParams={searchParams} />
       </Suspense>
 
       <SectionCard title="Follow-up queue">
@@ -179,8 +176,8 @@ async function NextLead({ searchParams }: { searchParams: SearchParams }) {
   }
 }
 
-/** The Renewals view's next plan to act on, for the card's owner (default: the signed-in user). Previous/Next walk that owner's queue. */
-async function NextRenewal({ searchParams }: { searchParams: SearchParams }) {
+/** The Renewals view's recommended plans for the card's owner (default: the signed-in user). Ignores the list's other filters. */
+async function NextRenewals({ searchParams }: { searchParams: SearchParams }) {
   const sp = await searchParams;
   const session = await getSession();
   const viewer = session?.user.id;
@@ -190,31 +187,30 @@ async function NextRenewal({ searchParams }: { searchParams: SearchParams }) {
   const [visible, { timezone }, owners] = await Promise.all([resolveSessionVisibleOrgIds(session), getAppSettings(), loadOwnerOptions()]);
   const today = zonedDateIso(requestNow(), timezone);
   const { start: dayStart, end: dayEnd } = dayRange(today, timezone);
-  const day = { dayStart, dayEnd };
   const renewalOwner = typeof sp.renewalOwner === "string" ? sp.renewalOwner : ME;
   const scope = { visible, owner: resolveOwnerParam(renewalOwner, viewer) ?? null };
-  const chosenId = typeof sp.renewal === "string" ? sp.renewal : undefined;
-  const row = (chosenId ? await queuedRenewal(scope, today, day, chosenId) : null) ?? (await nextRenewal(scope, today, day));
-  const [queueCount, prev, next, upNext] = await Promise.all([
-    renewalQueueCount(scope, today, day),
-    row ? nextRenewal(scope, today, day, { publicId: row.orderPublicId, dir: "prev" }) : null,
-    row ? nextRenewal(scope, today, day, { publicId: row.orderPublicId, dir: "next" }) : null,
-    row ? upNextRenewals(scope, today, day, row.orderPublicId, UP_NEXT_COUNT) : [],
-  ]);
-  const ownerOptions = [{ value: ME, label: "Me" }, { value: ALL_OWNERS, label: "All owners" }, ...owners];
-
-  return (
-    <NextRenewalCard
-      row={row}
-      today={today}
-      queueCount={queueCount}
-      owner={{ current: renewalOwner, options: ownerOptions.map((o) => ({ ...o, href: renewalOwnerHref(sp, o.value) })) }}
-      prevHref={prev ? `/dashboard/inquiries?${renewalQuery(sp, prev.orderPublicId)}` : undefined}
-      nextHref={next ? `/dashboard/inquiries?${renewalQuery(sp, next.orderPublicId)}` : undefined}
-      upNext={upNext.map((r) => ({ ...r, href: `/dashboard/inquiries?${renewalQuery(sp, r.orderPublicId)}` }))}
-      renewQueueHref="/dashboard/inquiries?view=renewals&queue=renew"
-    />
-  );
+  const viewAllHref = "/dashboard/inquiries?view=renewals&queue=renew";
+  const owner = (options: { value: string; label: string }[]) => ({
+    current: renewalOwner,
+    options: options.map((o) => ({ ...o, href: renewalOwnerHref(sp, o.value) })),
+  });
+  const base = [{ value: ME, label: "Me" }, { value: ALL_OWNERS, label: "All owners" }];
+  try {
+    const { rows, total } = await recommendedRenewals(scope, today, { dayStart, dayEnd }, RECOMMENDATION_LIMIT);
+    return <NextRenewalsGrid rows={rows} toAct={total} owner={owner([...base, ...owners])} today={today} viewAllHref={viewAllHref} />;
+  } catch (error) {
+    console.error("Next renewals failed to load", error);
+    return (
+      <NextRenewalsGrid
+        rows={[]}
+        toAct={0}
+        owner={owner(base)}
+        today={today}
+        viewAllHref={viewAllHref}
+        error="Something went wrong loading your renewals. Try again."
+      />
+    );
+  }
 }
 
 /** Leads (the default) or Renewals, the plans that need a follow-up. The switch shows only to viewers who can read orders. */
@@ -341,20 +337,11 @@ function leadOwnerHref(sp: Awaited<SearchParams>, owner: string): string {
   next.set("leadOwner", owner);
   return `/dashboard/inquiries?${next.toString()}`;
 }
-/** Previous/Next on the renewal card: keeps the list's state (the list ignores `renewal`) and the card's owner. */
-function renewalQuery(sp: Awaited<SearchParams>, publicId: string): string {
-  const next = new URLSearchParams();
-  for (const [k, v] of Object.entries(sp)) {
-    if (typeof v === "string" && k !== "renewal") next.set(k, v);
-  }
-  next.set("renewal", publicId);
-  return next.toString();
-}
-/** Switching the renewal card's owner keeps the list's state, and drops the chosen plan. */
+/** Switching the renewals grid's owner keeps the list's state. */
 function renewalOwnerHref(sp: Awaited<SearchParams>, owner: string): string {
   const next = new URLSearchParams();
   for (const [k, v] of Object.entries(sp)) {
-    if (typeof v === "string" && k !== "renewal" && k !== "renewalOwner") next.set(k, v);
+    if (typeof v === "string" && k !== "renewalOwner") next.set(k, v);
   }
   next.set("renewalOwner", owner);
   return `/dashboard/inquiries?${next.toString()}`;
