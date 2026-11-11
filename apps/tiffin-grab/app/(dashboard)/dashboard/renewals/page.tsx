@@ -183,7 +183,7 @@ async function RenewalsData({ f, page, size, spec }: { f: RenewalsFilter; page: 
   const { visible, today, timezone, viewer, day } = await scope();
   const owner = resolveOwnerParam(f.owner ?? undefined, viewer) ?? null;
   const result = await listRenewals(visible, { ...f, owner }, today, { page, size }, resolveRange(f, timezone), day);
-  return <RenewalsList rows={result.items} total={result.total} page={page} size={size} type={f.type} today={today} spec={spec} />;
+  return <RenewalsList rows={result.items} total={result.total} page={page} size={size} type={f.type} followUp={f.followUp != null} today={today} spec={spec} />;
 }
 
 async function RenewedCustomersData({ f, page, size, spec }: { f: RenewalsFilter; page: number; size: number; spec: FacetDef[] }) {

@@ -182,6 +182,34 @@ export async function listTrackActivities(orderPublicIds: string[]): Promise<Map
   return out;
 }
 
+const LATEST_CHUNK = 1000;
+
+/** Newest activity per order, skipping bare status changes. Chunked to keep the IN list small on big exports. */
+export async function latestTrackActivities(orderPublicIds: string[]): Promise<Map<string, { type: RenewalActivityType; note: string | null; at: number }>> {
+  const out = new Map<string, { type: RenewalActivityType; note: string | null; at: number }>();
+  for (let i = 0; i < orderPublicIds.length; i += LATEST_CHUNK) {
+    const rows = await db
+      .selectDistinctOn([orders.publicId], {
+        orderPublicId: orders.publicId,
+        type: renewalActivities.type,
+        note: renewalActivities.note,
+        at: renewalActivities.createdAt,
+      })
+      .from(renewalActivities)
+      .innerJoin(renewals, eq(renewals.id, renewalActivities.renewalId))
+      .innerJoin(orders, eq(orders.id, renewals.orderId))
+      .where(
+        and(
+          inArray(orders.publicId, orderPublicIds.slice(i, i + LATEST_CHUNK)),
+          sql`not (${renewalActivities.type} = 'status_change' and (${renewalActivities.note} is null or ${renewalActivities.note} = ''))`,
+        ),
+      )
+      .orderBy(orders.publicId, desc(renewalActivities.createdAt), desc(renewalActivities.id));
+    for (const { orderPublicId, ...a } of rows) out.set(orderPublicId, a);
+  }
+  return out;
+}
+
 export async function getTrackRows(orderPublicIds: string[]): Promise<Map<string, TrackRow>> {
   const out = new Map<string, TrackRow>();
   if (!orderPublicIds.length) return out;

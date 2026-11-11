@@ -89,7 +89,7 @@ function RowTrackActions({ orderPublicId, customerPublicId, closed }: { orderPub
   );
 }
 
-export function RenewalsList({ rows, total, page, size, type, today, spec }: { rows: RenewalRow[]; total: number; page: number; size: number; type: PlanType | null; today: string; spec: FacetDef[] }) {
+export function RenewalsList({ rows, total, page, size, type, followUp, today, spec }: { rows: RenewalRow[]; total: number; page: number; size: number; type: PlanType | null; followUp: boolean; today: string; spec: FacetDef[] }) {
   const tz = useTimezone();
   return (
     <div className="flex flex-col gap-4">
@@ -111,7 +111,13 @@ export function RenewalsList({ rows, total, page, size, type, today, spec }: { r
           />
         }
         emptyIcon={RefreshCwIcon}
-        emptyMessage={type === "trial" ? "No trials in this date range. Pick a wider range or another date type." : "No plans in this date range. Pick a wider range or another date type."}
+        emptyMessage={
+          followUp
+            ? "No follow-ups here. Pick another follow-up filter."
+            : type === "trial"
+              ? "No trials in this date range. Pick a wider range or another date type."
+              : "No plans in this date range. Pick a wider range or another date type."
+        }
         emptySearchMessage="No plans match your search."
         renderRow={(r) => {
           const renewal = rowStatus(r.status, r.lastTiffin, today);

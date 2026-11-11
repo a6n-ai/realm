@@ -10,7 +10,7 @@ import type { DateBy, PlanType, RenewalsFilter, TrackFilter } from "@/lib/renewa
 import { UNASSIGNED_OWNER } from "@/lib/list/presets";
 import { lastTiffinSql, renewalStatusSql, visibleOrgWhere, type RenewalStatus } from "@/lib/orders/queries";
 import { addDaysIso, DAY_MS, daysBetween } from "@foundry/commons/util/dates";
-import { computedStatusSql, effectiveTrackStatusSql, followUpWhere, getTrackRows, laterBookedAtSql, listTrackActivities, type TrackActivity } from "./renewal-tracking.service";
+import { computedStatusSql, effectiveTrackStatusSql, followUpWhere, getTrackRows, laterBookedAtSql, latestTrackActivities, type TrackActivity } from "./renewal-tracking.service";
 import type { TrackStatus } from "@/lib/renewals/status";
 import type { LostReason } from "./inquiries.service";
 
@@ -168,16 +168,14 @@ async function hydrateRenewalRows(
   }[],
 ): Promise<RenewalRow[]> {
   const orderIds = rows.map((r) => r.orderPublicId);
-  const [money, tracks, activities] = await Promise.all([
+  const [money, tracks, latest] = await Promise.all([
     renewalMoney(rows.map((r) => ({ id: r.id, userId: r.userId }))),
     getTrackRows(orderIds),
-    listTrackActivities(orderIds),
+    latestTrackActivities(orderIds),
   ]);
   return rows.map(({ id, userId, ...r }) => {
     const uid = userId?.toString();
     const track = tracks.get(r.orderPublicId);
-    // The list is newest first; a bare "status changed" entry says nothing a reader needs.
-    const last = (activities.get(r.orderPublicId) ?? []).find((a) => !(a.type === "status_change" && !a.note));
     return {
       ...r,
       walletCoins: uid ? (money.walletByUser.get(uid) ?? 0) : 0,
@@ -187,7 +185,7 @@ async function hydrateRenewalRows(
       trackSource: track?.source ?? null,
       lostReason: track?.lostReason ?? null,
       nextFollowUpAt: track?.nextFollowUpAt ?? null,
-      lastActivity: last ? { type: last.type, note: last.note, at: last.createdAt } : null,
+      lastActivity: latest.get(r.orderPublicId) ?? null,
     };
   });
 }

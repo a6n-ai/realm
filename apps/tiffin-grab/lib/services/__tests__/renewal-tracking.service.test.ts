@@ -9,7 +9,7 @@ const { orders, payments, orderActivities, ledgerEntries, users, walletLedger, d
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { nextWeekday } = await import("@foundry/commons");
 const { createOrder } = await import("../create-order");
-const { addTrackNote, followUpWhere, getTrackRows, listTrackActivities, logTrackActivity, setTrackStatus } = await import("../renewal-tracking.service");
+const { addTrackNote, followUpWhere, getTrackRows, latestTrackActivities, listTrackActivities, logTrackActivity, setTrackStatus } = await import("../renewal-tracking.service");
 const { addDaysIso: addDays } = await import("@foundry/commons/util/dates");
 
 async function reset() {
@@ -179,5 +179,17 @@ describe("renewal tracking (integration)", () => {
     expect((await rowOf(p.publicId))?.nextFollowUpAt).toBe(Date.parse("2099-03-02T15:00:00Z"));
     const acts = (await listTrackActivities([p.publicId])).get(p.publicId) ?? [];
     expect(acts.map((a) => [a.type, a.outcome])).toEqual([["call", "no answer"]]);
+  });
+
+  it("latestTrackActivities keeps only the newest qualifying activity per order", async () => {
+    const p = await plan();
+    const other = await plan();
+    await addTrackNote(p.publicId, "first", undefined);
+    await logTrackActivity(p.publicId, { type: "call", outcome: "no answer" });
+    await addTrackNote(p.publicId, "newest", undefined);
+    await setTrackStatus(p.publicId, { status: "follow_up" });
+    const latest = await latestTrackActivities([p.publicId, other.publicId]);
+    expect(latest.get(p.publicId)).toEqual({ type: "note", note: "newest", at: expect.any(Number) });
+    expect(latest.has(other.publicId)).toBe(false);
   });
 });
