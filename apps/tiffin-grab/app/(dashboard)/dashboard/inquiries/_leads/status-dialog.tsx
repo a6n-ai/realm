@@ -16,8 +16,9 @@ import {
   PhoneMissedIcon, RepeatIcon, SparklesIcon, ThumbsUpIcon, UtensilsIcon, XCircleIcon, type LucideIcon,
 } from "lucide-react";
 import { cn } from "@foundry/ui/cn";
-import { Badge } from "@/components/reui/badge";
-import { DateInput } from "@/components/dashboard/date-fields";
+import { FollowUpPicker, type FollowUpValue } from "@/components/dashboard/pipeline/follow-up-picker";
+import { ReasonDialog } from "@/components/dashboard/pipeline/reason-dialog";
+import { StatusTileButton, TonePill } from "@/components/dashboard/pipeline/status-tile";
 import {
   SUB_STATUSES, SUB_STATUS_META, groupFor, isClosed, statusLabel,
   type StatusGroup, type SubStatus,
@@ -25,7 +26,6 @@ import {
 import type { LostReason } from "@/lib/services/inquiries.service";
 import { addNote, logActivity, updateStatus } from "../actions";
 import { unwrapAction } from "@/lib/actions/unwrap";
-import { followUpAtDate, followUpPick } from "./follow-up-picks";
 import { useTimezone } from "@foundry/design-system/timezone-provider";
 
 const LOST_REASONS: { value: LostReason; label: string }[] = [
@@ -58,14 +58,8 @@ const LOOK: Record<SubStatus | "new", Look> = {
 export const look = (sub: SubStatus | null) => LOOK[sub ?? "new"];
 
 export function StatusPill({ subStatus }: { subStatus: SubStatus | null }) {
-  const { icon: Icon, pill } = look(subStatus);
-  return (
-    // max-w-full + truncate: a long label (e.g. "Will take in future") ellipsizes inside its column instead of widening it.
-    <Badge variant="outline" size="lg" className={cn("max-w-full border-transparent", pill)} title={statusLabel(subStatus)}>
-      <Icon className="size-3.5" aria-hidden />
-      <span className="truncate">{statusLabel(subStatus)}</span>
-    </Badge>
-  );
+  const { icon, pill } = look(subStatus);
+  return <TonePill icon={icon} pill={pill} label={statusLabel(subStatus)} />;
 }
 
 function TileRow({ label, children }: { label: string; children: ReactNode }) {
@@ -277,25 +271,18 @@ export function StatusBoard({ inquiryId, subStatus }: { inquiryId: string; subSt
           <span className="text-muted-foreground text-xs font-medium">{g.label}</span>
           <div className="flex gap-1">
             {g.items.map(({ sub, label, onClick }) => {
-              const { icon: Icon, text, tile } = look(sub);
-              const current = sub === subStatus;
+              const { icon, text, tile } = look(sub);
               return (
-                <button
+                <StatusTileButton
                   key={sub ?? "new"}
-                  type="button"
+                  icon={icon}
+                  text={text}
+                  tile={tile}
+                  label={label ?? statusLabel(sub)}
+                  current={sub === subStatus}
                   disabled={pending}
-                  aria-pressed={current}
                   onClick={onClick}
-                  className={cn(
-                    "flex w-20 flex-col items-center gap-1.5 rounded-lg border p-1.5 text-center outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-60",
-                    current ? "border-primary bg-accent" : "border-transparent hover:bg-muted",
-                  )}
-                >
-                  <span className={cn("grid size-10 place-items-center rounded-lg", tile)}>
-                    <Icon className={cn("size-5", text)} aria-hidden />
-                  </span>
-                  <span className="text-xs leading-tight">{label ?? statusLabel(sub)}</span>
-                </button>
+                />
               );
             })}
           </div>
@@ -332,7 +319,7 @@ function ChangeStatusDialog({
 }) {
   const tz = useTimezone();
   const [note, setNote] = useState("");
-  const [followUp, setFollowUp] = useState<{ key: PickKey; at: number; iso?: string } | null>(null);
+  const [followUp, setFollowUp] = useState<FollowUpValue | null>(null);
   const closing = isClosed(to);
   const submit = () => onSave(note.trim() || undefined, closing ? undefined : followUp?.at);
   return (
@@ -375,67 +362,16 @@ function LostDialog({
   pending: boolean;
   onSave: (reason: LostReason, note?: string) => void;
 }) {
-  const [reason, setReason] = useState<LostReason | "">("");
-  const [note, setNote] = useState("");
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex flex-col gap-4 sm:max-w-sm" onClick={(e) => e.stopPropagation()}>
-        <DialogHeader>
-          <DialogTitle>Lost reason</DialogTitle>
-        </DialogHeader>
-        <div className="flex flex-wrap gap-2">
-          {LOST_REASONS.map((r) => (
-            <Button key={r.value} type="button" size="sm" variant={reason === r.value ? "default" : "outline"} onClick={() => setReason(r.value)}>
-              {r.label}
-            </Button>
-          ))}
-        </div>
-        <Textarea placeholder="Note (optional)" value={note} onChange={(e) => setNote(e.target.value)} />
-        <DialogFooter>
-          <Button variant="destructive" disabled={pending || reason === ""} onClick={() => reason && onSave(reason, note.trim() || undefined)}>Mark lost</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-type PickKey = "tomorrow" | "3d" | "1w" | "date";
-const PICKS: { key: Exclude<PickKey, "date">; label: string }[] = [
-  { key: "tomorrow", label: "Tomorrow" },
-  { key: "3d", label: "3 days" },
-  { key: "1w", label: "1 week" },
-];
-
-export function FollowUpPicker({
-  timeZone, value, onChange,
-}: {
-  timeZone: string;
-  value: { key: PickKey; at: number; iso?: string } | null;
-  onChange: (v: { key: PickKey; at: number; iso?: string } | null) => void;
-}) {
-  return (
-    <div className="flex flex-col gap-2">
-      <span className="text-sm font-medium">Next follow-up</span>
-      <div className="flex flex-wrap items-center gap-2">
-        {PICKS.map((p) => (
-          <Button
-            key={p.key}
-            type="button"
-            size="sm"
-            variant={value?.key === p.key ? "default" : "outline"}
-            onClick={() => onChange(value?.key === p.key ? null : { key: p.key, at: followUpPick(p.key, Date.now(), timeZone) })}
-          >
-            {p.label}
-          </Button>
-        ))}
-        <DateInput
-          value={value?.key === "date" ? (value.iso ?? "") : ""}
-          onChange={(iso) => onChange({ key: "date", iso, at: followUpAtDate(iso, timeZone) })}
-          placeholder="Pick date"
-          aria-label="Pick follow-up date"
-        />
-      </div>
-    </div>
+    <ReasonDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      pending={pending}
+      title="Lost reason"
+      confirmLabel="Mark lost"
+      reasons={LOST_REASONS}
+      onSave={onSave}
+    />
   );
 }
 
@@ -454,7 +390,7 @@ export function NoteDialog({
   const router = useRouter();
   const [pending, start] = useTransition();
   const [note, setNote] = useState("");
-  const [followUp, setFollowUp] = useState<{ key: PickKey; at: number; iso?: string } | null>(null);
+  const [followUp, setFollowUp] = useState<FollowUpValue | null>(null);
   function save() {
     start(async () => {
       try {

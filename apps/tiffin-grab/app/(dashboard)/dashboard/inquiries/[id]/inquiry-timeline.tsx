@@ -1,19 +1,13 @@
 "use client";
 
-import { useState } from "react";
 import {
   ArrowRightIcon, CalendarClockIcon, CreditCardIcon, FileTextIcon, MailIcon, MapPinIcon, MessageCircleIcon, PackageIcon,
-  PhoneIcon, RepeatIcon, ScrollTextIcon, ShoppingBagIcon, SparklesIcon, StickyNoteIcon, type LucideIcon,
+  PhoneIcon, RepeatIcon, ShoppingBagIcon, SparklesIcon, StickyNoteIcon, type LucideIcon,
 } from "lucide-react";
-import { Badge } from "@/components/reui/badge";
-import { Button } from "@foundry/ui/button";
-import { cn } from "@foundry/ui/cn";
-import { Timeline, TimelineContent, TimelineDate, TimelineHeader, TimelineIndicator, TimelineItem, TimelineSeparator, TimelineTitle } from "@/components/reui/timeline";
-import { useTimezone } from "@foundry/design-system/timezone-provider";
-import { formatEpoch } from "@/lib/format/datetime";
 import { formatMoney } from "@foundry/commons";
 import { stageLabel } from "@/components/ds";
 import { statusLabel, type SubStatus } from "@/lib/inquiries/status";
+import { ActivityTimeline, type ActivityFilter } from "@/components/dashboard/pipeline/activity-timeline";
 import { look } from "../_leads/status-dialog";
 
 export type TimelineActivity = {
@@ -93,11 +87,11 @@ export function describe(a: TimelineActivity, currency: string): string {
   }
 }
 
-const FILTERS = [
+const FILTERS: ActivityFilter[] = [
   { key: "all", label: "All", types: null },
   { key: "note", label: "Notes", types: ["note"] },
   { key: "status", label: "Status", types: ["stage_change", "converted"] },
-] as const;
+];
 
 export function InquiryTimeline({
   activities, currency, onAddNote,
@@ -106,76 +100,26 @@ export function InquiryTimeline({
   currency: string;
   onAddNote: () => void;
 }) {
-  const tz = useTimezone();
-  const [filter, setFilter] = useState<(typeof FILTERS)[number]["key"]>("all");
-  const types = FILTERS.find((f) => f.key === filter)!.types;
-  const rows = (types ? activities.filter((a) => (types as readonly string[]).includes(a.type)) : activities)
-    .slice()
-    .sort((a, b) => b.createdAt - a.createdAt);
-
-  if (activities.length === 0) {
-    return (
-      <div className="text-muted-foreground grid place-items-center gap-3 py-10 text-sm">
-        <span className="bg-muted grid size-12 place-items-center rounded-xl"><ScrollTextIcon className="size-6" /></span>
-        No activity yet
-        <Button size="sm" variant="outline" onClick={onAddNote}>Add note</Button>
-      </div>
-    );
-  }
-
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center gap-2">
-        {FILTERS.map((f) => (
-          <Button key={f.key} type="button" size="sm" variant={filter === f.key ? "default" : "outline"} onClick={() => setFilter(f.key)}>
-            {f.label}
-          </Button>
-        ))}
-      </div>
-
-      {rows.length === 0 ? (
-        <p className="text-muted-foreground py-6 text-center text-sm">Nothing matches this filter.</p>
-      ) : (
-        <Timeline defaultValue={0}>
-          {rows.map((a, i) => {
-            const { icon: Icon, tone } = nodeFor(a);
-            const body = a.type === "reinquiry" ? (a.note?.includes("\n") ? a.note.slice(a.note.indexOf("\n") + 1) : null) : a.note;
-            return (
-              <TimelineItem key={a.publicId} step={i + 1} className="group-data-[orientation=vertical]/timeline:ms-10">
-                <TimelineHeader>
-                  <TimelineSeparator className="bg-input! group-data-[orientation=vertical]/timeline:-left-7 group-data-[orientation=vertical]/timeline:h-[calc(100%-1.75rem-0.25rem)] group-data-[orientation=vertical]/timeline:translate-y-7.5" />
-                  <div className="flex flex-wrap items-baseline justify-between gap-x-3">
-                    <TimelineTitle className="text-sm">{describe(a, currency)}</TimelineTitle>
-                    <TimelineDate className="mb-0 tabular-nums">{formatEpoch(a.createdAt, { mode: "datetime", timeZone: tz })}</TimelineDate>
-                  </div>
-                  <TimelineIndicator className="bg-card flex size-7 items-center justify-center border group-data-[orientation=vertical]/timeline:-left-7">
-                    <Icon className={cn("size-3.5", tone)} />
-                  </TimelineIndicator>
-                </TimelineHeader>
-                <TimelineContent>
-                  <div className="flex flex-col gap-1">
-                    <p className="flex flex-wrap items-center gap-2 text-xs">
-                      <span className={a.actor.kind === "system" ? "text-muted-foreground" : "text-foreground"}>{a.actor.label}</span>
-                      {a.actor.kind === "system" ? null : (
-                        <Badge variant={a.actor.kind === "staff" ? "secondary" : "outline"}>{a.actor.kind === "staff" ? "Staff" : "Customer"}</Badge>
-                      )}
-                    </p>
-                    {body ? <p className="text-muted-foreground text-sm break-words whitespace-pre-wrap">{body}</p> : null}
-                    {a.outcome || a.nextFollowUpAt != null ? (
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        {a.outcome ? <Badge variant="outline">{a.outcome}</Badge> : null}
-                        {a.nextFollowUpAt != null ? (
-                          <Badge variant="info-light">Follow-up {formatEpoch(a.nextFollowUpAt, { mode: "date", timeZone: tz })}</Badge>
-                        ) : null}
-                      </div>
-                    ) : null}
-                  </div>
-                </TimelineContent>
-              </TimelineItem>
-            );
-          })}
-        </Timeline>
-      )}
-    </div>
+    <ActivityTimeline
+      items={activities.map((a) => {
+        const { icon, tone } = nodeFor(a);
+        const body = a.type === "reinquiry" ? (a.note?.includes("\n") ? a.note.slice(a.note.indexOf("\n") + 1) : null) : a.note;
+        return {
+          id: a.publicId,
+          type: a.type,
+          icon,
+          tone,
+          title: describe(a, currency),
+          note: body,
+          outcome: a.outcome,
+          nextFollowUpAt: a.nextFollowUpAt,
+          createdAt: a.createdAt,
+          actor: a.actor,
+        };
+      })}
+      filters={FILTERS}
+      onAddNote={onAddNote}
+    />
   );
 }
