@@ -3,6 +3,7 @@ import { cache } from "react";
 import { displayName } from "@/lib/inquiries/display";
 import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import { formatMoney, tzOffsetMinutes, zonedDateIso } from "@foundry/commons";
+import { dayRange } from "@foundry/commons/util/dates";
 import { db } from "@/db/client";
 import { orders, organization, payments } from "@/db/schema";
 import { inStatuses, PENDING } from "@/lib/payments/status";
@@ -96,12 +97,14 @@ export async function listReviewPayments(visible: Visible, limit: number) {
 }
 
 /** Plans ending in 2 days or less with no later plan: the renewals still winnable. */
-const ENDING_FILTER: RenewalsFilter = { tab: "renewals", dateBy: "last", ending: 2, ended: null, status: "not_renewed", renewed: null, from: null, to: null, q: "" };
+const ENDING_FILTER: RenewalsFilter = { tab: "renewals", type: "regular", track: null, followUp: null, dateBy: "last", ending: 2, ended: null, status: "not_renewed", renewed: null, from: null, to: null, q: "" };
 const NO_RANGE = { by: "last", fromIso: null, toIso: null, fromMs: null, toMs: null } as const;
 const OPEN_TICKETS = { categories: [], subcategories: [], statuses: ["open", "in_progress"], priorities: [], plans: [], mealSizes: [], zones: [] };
 
-const renewalsPage = (visible: Visible, today: string, size: number) =>
-  listRenewals(visible, ENDING_FILTER, today, { page: 0, size }, NO_RANGE);
+const renewalsPage = (visible: Visible, today: string, tz: string, size: number) => {
+  const day = dayRange(today, tz);
+  return listRenewals(visible, ENDING_FILTER, today, { page: 0, size }, NO_RANGE, { dayStart: day.start, dayEnd: day.end });
+};
 const lookoutPage = (visible: Visible, size: number) =>
   listOrdersPage(undefined, { page: 0, size }, { column: "flagged", dir: "desc" }, visible, { lookOutOnly: true });
 const ticketPage = (visible: Visible, size: number, overdue: boolean) =>
@@ -142,7 +145,7 @@ const SOURCES: Record<TodayKind, Source> = {
     });
   },
   async renewal(visible, _now, today, tz) {
-    const page = await renewalsPage(visible, today, TODAY_LIMIT);
+    const page = await renewalsPage(visible, today, tz, TODAY_LIMIT);
     return page.items.map((r) => ({
       kind: "renewal", key: `renewal:${r.orderPublicId}`, who: r.customerName,
       what: `${r.planName} ends ${monthDay(r.lastTiffin)}`,
@@ -216,12 +219,13 @@ export const getTodayCounts = cache(async (visible: Visible, today: string): Pro
   if (empty(visible)) {
     return { byKind: { payment: 0, missed: 0, ticket: 0, renewal: 0, lookout: 0, inquiry: 0 }, toVerify: 0, openTickets: 0, overdueTickets: 0, endingPlans: 0, missed: 0 };
   }
+  const { timezone } = await getAppSettings();
   const [payment, toVerify, missed, tickets, renewal, lookout, inquiry] = await Promise.all([
     settle(countReviewPayments(visible)),
     settle(countPaymentReviewOrders(visible)),
     settle(countMissedDeliveries(visible)),
     settle(ticketPage(visible, 1, false)),
-    settle(renewalsPage(visible, today, 1)),
+    settle(renewalsPage(visible, today, timezone, 1)),
     settle(lookoutPage(visible, 1)),
     settle(inquiriesService.countNew(visible)),
   ]);
