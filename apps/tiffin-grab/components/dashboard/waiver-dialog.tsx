@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@foundry/ui/switch";
 import { ResponsiveDialog } from "@/components/ds";
 import { RESOURCES } from "@/lib/catalog/resource-config";
+import { unwrapAction } from "@/lib/actions/unwrap";
 import { saveItem } from "@/app/(dashboard)/dashboard/catalog/actions";
 import type { DiscountDto } from "@/app/(dashboard)/dashboard/catalog/discounts/build-rows";
 import type { WaiverKind } from "@/lib/catalog/types";
@@ -69,7 +70,7 @@ function Body({ onOpenChange, waiver, strategies }: WaiverDialogProps) {
     setErrors({});
     setBusy(true);
     try {
-      await saveItem("discounts", waiver?.publicId ?? null, values);
+      await unwrapAction(saveItem("discounts", waiver?.publicId ?? null, values));
       onOpenChange(false);
       router.refresh();
     } catch (err) {

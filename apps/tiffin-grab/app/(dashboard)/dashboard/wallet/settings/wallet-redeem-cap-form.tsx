@@ -7,6 +7,7 @@ import { SectionCard } from "@/components/ds";
 import { Button } from "@foundry/ui/button";
 import { NumberField } from "../../discounts/controls";
 import { setWalletRedeemCapAction } from "./actions";
+import { unwrapAction } from "@/lib/actions/unwrap";
 
 export function WalletRedeemCapForm({ current }: { current: number | null }) {
   const router = useRouter();
@@ -22,7 +23,7 @@ export function WalletRedeemCapForm({ current }: { current: number | null }) {
     }
     start(async () => {
       try {
-        await setWalletRedeemCapAction({ maxCoinRedeemPctOfBalance: n });
+        await unwrapAction(setWalletRedeemCapAction({ maxCoinRedeemPctOfBalance: n }));
         toast.success(
           n === null
             ? "Wallet balance redemption limit cleared"

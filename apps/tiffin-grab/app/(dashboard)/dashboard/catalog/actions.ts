@@ -1,8 +1,9 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-import { requireAdmin } from "@/lib/auth/guards";
-import { invalidateCatalogSnapshot } from "@/lib/catalog/load";
+import type { ActionResult } from "@/lib/actions/action-result";
+import { staffAction } from "@/lib/actions/staff-action";
+import { isUniqueViolation } from "@/lib/db/errors";
+import { ConflictError } from "@/lib/errors";
 import {
   addonService,
   deliveryFrequencyService,
@@ -31,27 +32,29 @@ export type ResourceKey = keyof typeof SERVICES;
 
 // Every resource here feeds loadCatalogSnapshot, so any edit busts the snapshot
 // cache and regenerates the public marketing pages that read it.
-async function bustCatalog(resource: ResourceKey) {
-  revalidatePath(`/dashboard/catalog/${resource}`);
-  await invalidateCatalogSnapshot();
+const opts = (resource: ResourceKey) => ({ guard: "admin", revalidate: [`/dashboard/catalog/${resource}`], catalog: true }) as const;
+
+export async function saveItem(resource: ResourceKey, id: string | null, patch: Record<string, unknown>): Promise<ActionResult> {
+  return staffAction(opts(resource), async () => {
+    const svc = SERVICES[resource];
+    try {
+      if (id) await svc.update(id, patch);
+      else await svc.create(patch);
+    } catch (e) {
+      if (isUniqueViolation(e)) throw new ConflictError("An item with this name already exists");
+      throw e;
+    }
+  });
 }
 
-export async function saveItem(resource: ResourceKey, id: string | null, patch: Record<string, unknown>) {
-  await requireAdmin();
-  const svc = SERVICES[resource];
-  if (id) await svc.update(id, patch);
-  else await svc.create(patch);
-  await bustCatalog(resource);
+export async function retireItem(resource: ResourceKey, id: string): Promise<ActionResult> {
+  return staffAction(opts(resource), async () => {
+    await SERVICES[resource].delete(id);
+  });
 }
 
-export async function retireItem(resource: ResourceKey, id: string) {
-  await requireAdmin();
-  await SERVICES[resource].delete(id);
-  await bustCatalog(resource);
-}
-
-export async function reactivateItem(resource: ResourceKey, id: string) {
-  await requireAdmin();
-  await SERVICES[resource].update(id, { active: true });
-  await bustCatalog(resource);
+export async function reactivateItem(resource: ResourceKey, id: string): Promise<ActionResult> {
+  return staffAction(opts(resource), async () => {
+    await SERVICES[resource].update(id, { active: true });
+  });
 }

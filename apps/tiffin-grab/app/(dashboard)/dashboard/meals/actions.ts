@@ -1,5 +1,6 @@
 "use server";
 
+import { runAction, type ActionResult } from "@/lib/actions/action-result";
 import { revalidateOrder } from "@/lib/revalidate";
 import { isStaffRole } from "@/lib/auth/roles";
 import { revalidatePath } from "next/cache";
@@ -19,7 +20,17 @@ export async function pickDish(input: {
   personIndex: number;
   pickIndex?: number;
   dishId: string;
-}) {
+}): Promise<ActionResult> {
+  // Owner-or-staff, not a staffAction guard level: narrowing it to staff would lock out an order's own customer.
+  const res = await runAction(() => pick(input));
+  if ("ok" in res) {
+    revalidatePath("/dashboard/meals");
+    revalidateOrder(input.orderId);
+  }
+  return res;
+}
+
+async function pick(input: Parameters<typeof pickDish>[0]) {
   const session = await getSession();
   if (!session?.user?.id) throw new AuthError();
 
@@ -53,6 +64,4 @@ export async function pickDish(input: {
     dishPublicId: input.dishId,
     actorId,
   });
-  revalidatePath("/dashboard/meals");
-  revalidateOrder(input.orderId);
 }

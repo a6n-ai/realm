@@ -1,8 +1,8 @@
 "use server";
 
 import { buildResubscribeUrl } from "@relay/engine";
-import { requireAdmin } from "@/lib/auth/guards";
-import { runAction, type ActionResult } from "@/lib/actions/action-result";
+import type { ActionResult } from "@/lib/actions/action-result";
+import { staffAction } from "@/lib/actions/staff-action";
 import { ValidationError } from "@foundry/commons";
 import { createLogger } from "@foundry/commons/logger";
 import { getSession } from "@/lib/auth/session";
@@ -12,8 +12,7 @@ const log = createLogger("resubscribe");
 
 /** Signed link an admin sends to someone who unsubscribed and wants mail again. */
 export async function resubscribeLink(address: string): Promise<ActionResult<{ url: string }>> {
-  return runAction(async () => {
-    await requireAdmin();
+  return staffAction({ guard: "admin" }, async () => {
     const secret = process.env.UNSUBSCRIBE_SECRET;
     const base = campaignBaseUrl();
     if (!secret || !base) throw new ValidationError("UNSUBSCRIBE_SECRET and SITE_URL must be set");

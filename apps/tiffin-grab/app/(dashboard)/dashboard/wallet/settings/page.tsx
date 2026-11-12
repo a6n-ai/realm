@@ -7,9 +7,7 @@ import {
   getMaxCoinRedeemPctOfBalance,
   getMaxWalletBalance,
 } from "@/lib/services/app-settings.service";
-import { CoinRateForm, WalletCapForm } from "@foundry/crm";
-import { saveCoinRate } from "../actions";
-import { setWalletCapAction } from "./actions";
+import { CoinRateSettings, WalletCapSettings } from "./foundry-forms";
 import { CoinRateFormSkeleton } from "./coin-rate-form-skeleton";
 import { EarnPctForm } from "./earn-pct-form";
 import { CoinCapForm } from "./coin-cap-form";
@@ -35,13 +33,9 @@ async function WalletSettingsData() {
 
   return (
     <div className="grid gap-6">
-      <CoinRateForm
-        currency={currency}
-        current={latestRate != null ? { valuePerCoin: latestRate } : null}
-        onSave={saveCoinRate}
-      />
+      <CoinRateSettings currency={currency} current={latestRate != null ? { valuePerCoin: latestRate } : null} />
       <EarnPctForm current={earnPct} />
-      <WalletCapForm current={maxWalletBalance} onSave={setWalletCapAction} />
+      <WalletCapSettings current={maxWalletBalance} />
       <CoinCapForm current={maxCoinPct} />
       <WalletRedeemCapForm current={maxRedeemPct} />
     </div>

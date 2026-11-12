@@ -19,12 +19,12 @@ export function PlaceIdForm({ placeId, disabled }: { placeId: string; disabled: 
   const save = () =>
     start(async () => {
       const res = await saveGoogleReviewsPlaceId(value.trim());
-      if (res.error) {
+      if ("error" in res) {
         setError(res.error);
         return;
       }
       setError(null);
-      toast.success(`Connected: ${res.rating?.toFixed(1)} stars from ${res.total} reviews`);
+      toast.success(`Connected: ${res.rating.toFixed(1)} stars from ${res.total} reviews`);
       router.refresh();
     });
 

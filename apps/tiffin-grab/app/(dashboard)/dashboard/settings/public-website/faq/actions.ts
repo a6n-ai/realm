@@ -1,8 +1,8 @@
 "use server";
-
-import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { requirePermission } from "@/lib/auth/guards";
+import type { ActionResult } from "@/lib/actions/action-result";
+import { ValidationError } from "@foundry/commons";
+import { staffAction, type StaffActionOpts } from "@/lib/actions/staff-action";
 import { getSession } from "@/lib/auth/session";
 import { retireFaq, saveFaq } from "@/lib/services/faqs.service";
 
@@ -15,17 +15,13 @@ const faqSchema = z.object({
 
 export type FaqFormValues = z.input<typeof faqSchema>;
 
-function revalidate() {
-  revalidatePath("/dashboard/settings/public-website/faq");
-}
+const OPTS: StaffActionOpts = { guard: { settings: ["write"] }, revalidate: ["/dashboard/settings/public-website/faq"] };
 
-export async function saveFaqAction(values: FaqFormValues): Promise<{ error?: string; publicId?: string }> {
-  await requirePermission({ settings: ["write"] });
-  const parsed = faqSchema.safeParse(values);
-  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
-  const v = parsed.data;
-
-  try {
+export async function saveFaqAction(values: FaqFormValues): Promise<ActionResult<{ publicId: string }>> {
+  return staffAction(OPTS, async () => {
+    const parsed = faqSchema.safeParse(values);
+    if (!parsed.success) throw new ValidationError(parsed.error.issues[0]?.message ?? "Invalid input");
+    const v = parsed.data;
     // A create stamps the acting org (session.session.activeOrganizationId):
     // set → this org's own override row, unset → the shared brand default.
     // An edit keeps whatever scope the row already has.
@@ -35,20 +31,12 @@ export async function saveFaqAction(values: FaqFormValues): Promise<{ error?: st
       values2 = { ...values2, organizationId: session?.session.activeOrganizationId ?? null };
     }
     const faq = await saveFaq(v.publicId, values2);
-    revalidate();
     return { publicId: faq.publicId };
-  } catch (err) {
-    return { error: err instanceof Error ? err.message : "Save failed" };
-  }
+  });
 }
 
-export async function retireFaqAction(publicId: string): Promise<{ error?: string }> {
-  await requirePermission({ settings: ["write"] });
-  try {
+export async function retireFaqAction(publicId: string): Promise<ActionResult> {
+  return staffAction(OPTS, async () => {
     await retireFaq(publicId);
-  } catch (err) {
-    return { error: err instanceof Error ? err.message : "Retire failed" };
-  }
-  revalidate();
-  return {};
+  });
 }

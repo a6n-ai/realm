@@ -6,7 +6,7 @@ import { notificationTables, usersRef } from "./tables";
 import { buildAppHandlers } from "./handlers";
 import { campaignConfig } from "./campaign-config";
 import { dueScheduledCampaignIds } from "./campaign-schedule";
-import { resolveSegment } from "@/lib/campaigns/segment";
+import { campaignDeps } from "@/lib/notifications/deps";
 
 const log = createLogger("campaign-schedule-send");
 
@@ -32,7 +32,7 @@ export async function materializeDue(): Promise<number> {
   for (const publicId of due) {
     // Re-checked at send time: a scheduled campaign stays editable, and may have been unscheduled a moment ago.
     const r = await sendScheduledCampaign(
-      { db, tables: notificationTables, users: usersRef, resolveSegment },
+      campaignDeps,
       publicId,
       { footerConfigured: !!(await campaignConfig()) },
     );

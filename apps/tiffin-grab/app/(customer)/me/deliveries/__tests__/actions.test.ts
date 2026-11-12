@@ -88,7 +88,7 @@ describe("(customer)/me/deliveries actions (integration)", () => {
     // redacted to a message-less "Minified React error #441" in production
     // builds (see lib/actions/action-result.ts) — expected rejections must
     // come back as { error } so the customer actually sees why.
-    await expect(rescheduleMyDelivery(bDelivery.publicId, "2030-01-07")).resolves.toEqual({ error: expect.any(String) });
+    await expect(rescheduleMyDelivery(bDelivery.publicId, "2030-01-07")).resolves.toMatchObject({ error: expect.any(String) });
     const [row] = await db.select().from(deliveries).where(eq(deliveries.id, bDelivery.id));
     expect(row.status).toBe("scheduled"); // untouched — guard ran before the mutation
   });
@@ -101,7 +101,7 @@ describe("(customer)/me/deliveries actions (integration)", () => {
     const bDelivery = await firstDeliveryOf(bOrder);
 
     actAs(userA.publicId);
-    await expect(setMyDeliveryAddress(bDelivery.publicId, { newAddress: ADDR })).resolves.toEqual({ error: expect.any(String) });
+    await expect(setMyDeliveryAddress(bDelivery.publicId, { newAddress: ADDR })).resolves.toMatchObject({ error: expect.any(String) });
     const [row] = await db.select().from(deliveries).where(eq(deliveries.id, bDelivery.id));
     expect(row.fullName).not.toBe(ADDR.fullName);
   });
@@ -114,7 +114,7 @@ describe("(customer)/me/deliveries actions (integration)", () => {
     const bDelivery = await firstDeliveryOf(bOrder);
 
     actAs(userA.publicId);
-    await expect(clearMyDeliveryAddress(bDelivery.publicId)).resolves.toEqual({ error: expect.any(String) });
+    await expect(clearMyDeliveryAddress(bDelivery.publicId)).resolves.toMatchObject({ error: expect.any(String) });
   });
 
   // A real day on B's plan with a far-off cutoff: the ownership check is the only thing that can refuse it.
@@ -134,7 +134,7 @@ describe("(customer)/me/deliveries actions (integration)", () => {
     const day = await realDay(bOrder);
 
     actAs((await ownerOf(aOrder)).publicId);
-    await expect(pauseMyDays(bOrder.publicId, [day.deliveryDate])).resolves.toEqual({ error: expect.any(String) });
+    await expect(pauseMyDays(bOrder.publicId, [day.deliveryDate])).resolves.toMatchObject({ error: expect.any(String) });
     expect(await statusOf(day.id)).toBe("scheduled");
     expect(await db.select().from(subscriptionPauses).where(eq(subscriptionPauses.orderId, bOrder.id))).toHaveLength(0);
 
@@ -150,9 +150,9 @@ describe("(customer)/me/deliveries actions (integration)", () => {
     await pauseDays(bOrder.publicId, [day.deliveryDate], null);
 
     actAs((await ownerOf(aOrder)).publicId);
-    await expect(releaseMyDays(bOrder.publicId, [day.deliveryDate])).resolves.toEqual({ error: expect.any(String) });
-    await expect(releaseMyDays(bOrder.publicId, "all")).resolves.toEqual({ error: expect.any(String) });
-    await expect(loadMyPauseDays(bOrder.publicId)).resolves.toEqual({ error: expect.any(String) });
+    await expect(releaseMyDays(bOrder.publicId, [day.deliveryDate])).resolves.toMatchObject({ error: expect.any(String) });
+    await expect(releaseMyDays(bOrder.publicId, "all")).resolves.toMatchObject({ error: expect.any(String) });
+    await expect(loadMyPauseDays(bOrder.publicId)).resolves.toMatchObject({ error: expect.any(String) });
     expect(await statusOf(day.id)).toBe("paused");
 
     actAs((await ownerOf(bOrder)).publicId);
@@ -183,7 +183,7 @@ describe("(customer)/me/deliveries actions (integration)", () => {
     await db.update(deliveries).set({ cutoffAt: Date.now() - 1000 }).where(eq(deliveries.id, aPastDelivery.id));
 
     actAs(userA.publicId);
-    await expect(rescheduleMyDelivery(aPastDelivery.publicId, "2030-01-07")).resolves.toEqual({ error: expect.any(String) });
+    await expect(rescheduleMyDelivery(aPastDelivery.publicId, "2030-01-07")).resolves.toMatchObject({ error: expect.any(String) });
   });
 
   it("owner moves one delivery to a saved address; nothing is charged", async () => {
@@ -226,7 +226,7 @@ describe("(customer)/me/deliveries actions (integration)", () => {
 
     actAs(userA.publicId);
     await expect(setMyDeliveryAddress(d.publicId, { newAddress: { addressLine: "5 Queen St", city: "Toronto", postalCode: "M5V 2T6" } }))
-      .resolves.toEqual({ error: expect.stringMatching(/cutoff/i) });
+      .resolves.toMatchObject({ error: expect.stringMatching(/cutoff/i) });
     const [row] = await db.select().from(deliveries).where(eq(deliveries.id, d.id));
     expect(row.addressLine).toBeNull();
   });

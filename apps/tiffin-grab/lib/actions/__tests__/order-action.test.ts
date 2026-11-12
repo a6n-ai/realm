@@ -32,7 +32,7 @@ describe("orderAction", () => {
     m.assertOrderVisible.mockRejectedValue(new NotFoundError("Order not found"));
     const fn = vi.fn();
     const res = await orderAction({ order: "ord_other", orderPage: "ord_other" }, fn);
-    expect(res).toEqual({ error: "Order not found" });
+    expect(res).toMatchObject({ error: "Order not found" });
     expect(m.assertOrderVisible).toHaveBeenCalledWith("ord_other", ["org_mine"]);
     expect(fn).not.toHaveBeenCalled();
     expect(m.revalidateOrder).not.toHaveBeenCalled();

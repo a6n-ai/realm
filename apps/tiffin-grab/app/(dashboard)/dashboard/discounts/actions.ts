@@ -1,11 +1,11 @@
 "use server";
 
 import { STAFF_ROLES } from "@/lib/auth/roles";
-import { revalidatePath } from "next/cache";
 import { and, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { ValidationError } from "@foundry/commons";
-import { requireAdmin } from "@/lib/auth/guards";
+import { parseInput, staffAction } from "@/lib/actions/staff-action";
+import type { ActionResult } from "@/lib/actions/action-result";
 import { db } from "@/db/client";
 import { coupons, customerGroups, users } from "@/db/schema";
 import { couponKind, type CouponConfig, type DiscountPolicy } from "@/db/schema/coupons";
@@ -16,7 +16,7 @@ import { couponsService } from "@/lib/services/coupons.service";
 import { getDiscountPolicy, setDiscountPolicy } from "@/lib/services/app-settings.service";
 import { revalidatePublicSite } from "@/lib/landing/revalidate-site";
 
-const PATH = "/dashboard/discounts";
+const OPTS = { guard: "admin", revalidate: [["/dashboard/discounts", "layout"]] } as const;
 
 // Numeric columns are dollar strings; null clears the column.
 const money = (n: number | null | undefined): string | null => (n == null ? null : n.toFixed(2));
@@ -45,113 +45,113 @@ const couponSchema = z.object({
   customerGroupPublicId: z.string().trim().min(1).nullish(),
 });
 
-export async function saveCoupon(publicId: string | null, patch: unknown) {
-  await requireAdmin();
-  const data = couponSchema.parse(patch);
+export async function saveCoupon(publicId: string | null, patch: unknown): Promise<ActionResult> {
+  return staffAction(OPTS, async () => {
+    const data = parseInput(couponSchema, patch);
 
-  // rep_daily coupons are minted by the scheduler with snapshotted ceilings —
-  // they are never hand-created or hand-edited from this admin surface.
-  if (data.kind === "rep_daily" || data.kind === "rep_code") {
-    throw new ValidationError("Rep coupons are issued through the rep allowance and cannot be created here");
-  }
+    // rep_daily coupons are minted by the scheduler with snapshotted ceilings —
+    // they are never hand-created or hand-edited from this admin surface.
+    if (data.kind === "rep_daily" || data.kind === "rep_code") {
+      throw new ValidationError("Rep coupons are issued through the rep allowance and cannot be created here");
+    }
 
-  if (data.kind === "free_delivery") {
-    throw new ValidationError("Free delivery coupons are not supported yet: they would take off $0. Use a fixed or percentage coupon");
-  }
+    if (data.kind === "free_delivery") {
+      throw new ValidationError("Free delivery coupons are not supported yet: they would take off $0. Use a fixed or percentage coupon");
+    }
 
-  // Creation-time gating: a kind disabled in the policy may not be created or edited
-  // from this surface (honor-time enforcement at checkout is a later WF).
-  const policy = await getDiscountPolicy();
-  if (!policy.enabledKinds.includes(data.kind)) {
-    throw new ValidationError(`The ${data.kind} coupon kind is currently disabled`);
-  }
+    // Creation-time gating: a kind disabled in the policy may not be created or edited
+    // from this surface (honor-time enforcement at checkout is a later WF).
+    const policy = await getDiscountPolicy();
+    if (!policy.enabledKinds.includes(data.kind)) {
+      throw new ValidationError(`The ${data.kind} coupon kind is currently disabled`);
+    }
 
-  if (data.startsAt != null && data.expiresAt != null && data.expiresAt <= data.startsAt) {
-    throw new ValidationError("Expiry must be after the start date");
-  }
-  if (data.kind === "percentage" && data.valuePct == null) {
-    throw new ValidationError("Percentage coupons need a percentage value");
-  }
-  if (data.kind === "fixed" && data.valueAmount == null) {
-    throw new ValidationError("Fixed coupons need an amount");
-  }
-  if (data.kind === "first_order") {
-    const mode = data.mode ?? "fixed";
-    if (mode === "percentage" && data.valuePct == null) throw new ValidationError("Set the percentage value");
-    if (mode === "fixed" && data.valueAmount == null) throw new ValidationError("Set the amount value");
-  }
+    if (data.startsAt != null && data.expiresAt != null && data.expiresAt <= data.startsAt) {
+      throw new ValidationError("Expiry must be after the start date");
+    }
+    if (data.kind === "percentage" && data.valuePct == null) {
+      throw new ValidationError("Percentage coupons need a percentage value");
+    }
+    if (data.kind === "fixed" && data.valueAmount == null) {
+      throw new ValidationError("Fixed coupons need an amount");
+    }
+    if (data.kind === "first_order") {
+      const mode = data.mode ?? "fixed";
+      if (mode === "percentage" && data.valuePct == null) throw new ValidationError("Set the percentage value");
+      if (mode === "fixed" && data.valueAmount == null) throw new ValidationError("Set the amount value");
+    }
 
-  if (data.customerGroupPublicId && data.autoApply) throw new ValidationError("A group-only coupon can't be auto-apply");
+    if (data.customerGroupPublicId && data.autoApply) throw new ValidationError("A group-only coupon can't be auto-apply");
 
-  const config: CouponConfig =
-    data.kind === "first_order" ? { kind: "first_order", mode: data.mode ?? "fixed" } : { kind: data.kind };
+    const config: CouponConfig =
+      data.kind === "first_order" ? { kind: "first_order", mode: data.mode ?? "fixed" } : { kind: data.kind };
 
-  // Persist only the value column that the resolved kind/mode actually reads; clear
-  // the other so a kind switch on edit cannot leave a stale, misleading value behind.
-  const usesPct = data.kind === "percentage" || (data.kind === "first_order" && (data.mode ?? "fixed") === "percentage");
-  const usesAmount = data.kind === "fixed" || (data.kind === "first_order" && (data.mode ?? "fixed") === "fixed");
+    // Persist only the value column that the resolved kind/mode actually reads; clear
+    // the other so a kind switch on edit cannot leave a stale, misleading value behind.
+    const usesPct = data.kind === "percentage" || (data.kind === "first_order" && (data.mode ?? "fixed") === "percentage");
+    const usesAmount = data.kind === "fixed" || (data.kind === "first_order" && (data.mode ?? "fixed") === "fixed");
 
-  const values = {
-    code: data.code,
-    kind: data.kind,
-    name: data.name,
-    description: data.description ?? null,
-    valuePct: usesPct ? money(data.valuePct) : null,
-    valueAmount: usesAmount ? money(data.valueAmount) : null,
-    minSubtotal: money(data.minSubtotal),
-    maxRedemptions: data.maxRedemptions ?? null,
-    maxPerUser: data.maxPerUser ?? null,
-    stackable: data.stackable,
-    autoApply: data.autoApply,
-    visible: data.visible,
-    planTypes: data.planTypes,
-    allowedPaymentMethods: data.allowedPaymentMethods,
-    startsAt: data.startsAt ?? null,
-    expiresAt: data.expiresAt ?? null,
-    active: data.active,
-    config,
-  };
+    const values = {
+      code: data.code,
+      kind: data.kind,
+      name: data.name,
+      description: data.description ?? null,
+      valuePct: usesPct ? money(data.valuePct) : null,
+      valueAmount: usesAmount ? money(data.valueAmount) : null,
+      minSubtotal: money(data.minSubtotal),
+      maxRedemptions: data.maxRedemptions ?? null,
+      maxPerUser: data.maxPerUser ?? null,
+      stackable: data.stackable,
+      autoApply: data.autoApply,
+      visible: data.visible,
+      planTypes: data.planTypes,
+      allowedPaymentMethods: data.allowedPaymentMethods,
+      startsAt: data.startsAt ?? null,
+      expiresAt: data.expiresAt ?? null,
+      active: data.active,
+      config,
+    };
 
-  // Resolve the group before any write and save it with the coupon in ONE write: an unknown id or a
-  // second-step failure must never leave a coupon saved as open to Everyone. Omitted = unchanged; null = Everyone.
-  let groupId: bigint | null | undefined;
-  if (data.customerGroupPublicId) {
-    const [g] = await db.select({ id: customerGroups.id }).from(customerGroups).where(eq(customerGroups.publicId, data.customerGroupPublicId));
-    if (!g) throw new ValidationError("Group not found");
-    groupId = g.id;
-  } else if (data.customerGroupPublicId === null) {
-    groupId = null;
-  }
-  const before = publicId
-    ? (await db.select({ customerGroupId: coupons.customerGroupId }).from(coupons).where(eq(coupons.publicId, publicId)))[0]
-    : undefined;
-  const writeValues = groupId === undefined ? values : { ...values, customerGroupId: groupId };
+    // Resolve the group before any write and save it with the coupon in ONE write: an unknown id or a
+    // second-step failure must never leave a coupon saved as open to Everyone. Omitted = unchanged; null = Everyone.
+    let groupId: bigint | null | undefined;
+    if (data.customerGroupPublicId) {
+      const [g] = await db.select({ id: customerGroups.id }).from(customerGroups).where(eq(customerGroups.publicId, data.customerGroupPublicId));
+      if (!g) throw new ValidationError("Group not found");
+      groupId = g.id;
+    } else if (data.customerGroupPublicId === null) {
+      groupId = null;
+    }
+    const before = publicId
+      ? (await db.select({ customerGroupId: coupons.customerGroupId }).from(coupons).where(eq(coupons.publicId, publicId)))[0]
+      : undefined;
+    const writeValues = groupId === undefined ? values : { ...values, customerGroupId: groupId };
 
-  const saved = publicId ? await couponsService.update(publicId, writeValues) : await couponsService.create(writeValues);
-  if (groupId != null && groupId !== (before?.customerGroupId ?? null)) {
-    await recordCouponGroupAction(groupId, data.code, await currentUserId());
-  }
-  revalidatePath(PATH, "layout");
-  revalidatePublicSite();
+    const saved = publicId ? await couponsService.update(publicId, writeValues) : await couponsService.create(writeValues);
+    if (groupId != null && groupId !== (before?.customerGroupId ?? null)) {
+      await recordCouponGroupAction(groupId, data.code, await currentUserId());
+    }
+    revalidatePublicSite();
+  });
 }
 
-export async function setCouponActive(publicId: string, active: boolean) {
-  await requireAdmin();
-  // Defense-in-depth: this server action is independently invokable, so reject
-  // toggling rep_daily coupons here too (consistent with saveCoupon's guard).
-  const [row] = await db
-    .select({ kind: coupons.kind })
-    .from(coupons)
-    .where(eq(coupons.publicId, publicId))
-    .limit(1);
-  if (!row) throw new ValidationError("Unknown coupon");
-  // An issued staff code can be revoked (never revived: a fresh one comes from the allowance).
-  if (row.kind === "rep_daily" || (row.kind === "rep_code" && active)) {
-    throw new ValidationError("Rep coupons are managed through the rep allowance and cannot be toggled here");
-  }
-  await couponsService.update(publicId, { active });
-  revalidatePath(PATH, "layout");
-  revalidatePublicSite();
+export async function setCouponActive(publicId: string, active: boolean): Promise<ActionResult> {
+  return staffAction(OPTS, async () => {
+    // Defense-in-depth: this server action is independently invokable, so reject
+    // toggling rep_daily coupons here too (consistent with saveCoupon's guard).
+    const [row] = await db
+      .select({ kind: coupons.kind })
+      .from(coupons)
+      .where(eq(coupons.publicId, publicId))
+      .limit(1);
+    if (!row) throw new ValidationError("Unknown coupon");
+    // An issued staff code can be revoked (never revived: a fresh one comes from the allowance).
+    if (row.kind === "rep_daily" || (row.kind === "rep_code" && active)) {
+      throw new ValidationError("Rep coupons are managed through the rep allowance and cannot be toggled here");
+    }
+    await couponsService.update(publicId, { active });
+    revalidatePublicSite();
+  });
 }
 
 const policySchema = z.object({
@@ -174,21 +174,21 @@ const policySchema = z.object({
   }),
 });
 
-export async function saveDiscountPolicy(policy: unknown) {
-  await requireAdmin();
-  const data = policySchema.parse(policy) as DiscountPolicy;
-  // The ceilings / enabled-kinds sections send a full policy snapshot that may carry a
-  // stale perRep map. perRep is owned exclusively by setRepCeiling, so keep the server's
-  // current perRep and only take enabledKinds + the global repDaily fields from the client,
-  // preventing a stale snapshot from clobbering concurrent per-rep overrides.
-  const current = await getDiscountPolicy();
-  const merged: DiscountPolicy = {
-    enabledKinds: data.enabledKinds,
-    repDaily: { ...data.repDaily, perRep: current.repDaily.perRep },
-  };
-  await setDiscountPolicy(merged);
-  revalidatePath(PATH, "layout");
-  revalidatePublicSite();
+export async function saveDiscountPolicy(policy: unknown): Promise<ActionResult> {
+  return staffAction(OPTS, async () => {
+    const data = parseInput(policySchema, policy) as DiscountPolicy;
+    // The ceilings / enabled-kinds sections send a full policy snapshot that may carry a
+    // stale perRep map. perRep is owned exclusively by setRepCeiling, so keep the server's
+    // current perRep and only take enabledKinds + the global repDaily fields from the client,
+    // preventing a stale snapshot from clobbering concurrent per-rep overrides.
+    const current = await getDiscountPolicy();
+    const merged: DiscountPolicy = {
+      enabledKinds: data.enabledKinds,
+      repDaily: { ...data.repDaily, perRep: current.repDaily.perRep },
+    };
+    await setDiscountPolicy(merged);
+    revalidatePublicSite();
+  });
 }
 
 const repCeilingSchema = z.object({
@@ -201,36 +201,36 @@ const repCeilingSchema = z.object({
 export async function setRepCeiling(
   repPublicId: string,
   input: { capPct?: number; capAmount?: number; dailyUses?: number; active: boolean },
-) {
-  await requireAdmin();
-  const parsed = repCeilingSchema.parse(input);
+): Promise<ActionResult> {
+  return staffAction(OPTS, async () => {
+    const parsed = parseInput(repCeilingSchema, input);
 
-  // Resolve the rep public_id to its bigint here so no internal id crosses the
-  // client boundary, and reject anything that is not an actual sales rep.
-  const [rep] = await db
-    .select({ id: users.id })
-    .from(users)
-    .where(and(eq(users.publicId, repPublicId), inArray(users.role, STAFF_ROLES), eq(users.isSystem, false)))
-    .limit(1);
-  if (!rep) throw new ValidationError("Unknown staff member");
+    // Resolve the rep public_id to its bigint here so no internal id crosses the
+    // client boundary, and reject anything that is not an actual sales rep.
+    const [rep] = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(and(eq(users.publicId, repPublicId), inArray(users.role, STAFF_ROLES), eq(users.isSystem, false)))
+      .limit(1);
+    if (!rep) throw new ValidationError("Unknown staff member");
 
-  // Build the next policy from a shallow clone — never mutate the cached object the
-  // getter returns, or a concurrent read could observe the unpersisted change.
-  const current = await getDiscountPolicy();
-  const perRep = { ...current.repDaily.perRep };
-  if (parsed.capPct == null && parsed.capAmount == null && parsed.dailyUses == null && parsed.active) {
-    // Fully default (no overrides, allowed) — drop the key so "absent = use default"
-    // holds rather than accumulating a redundant override entry.
-    delete perRep[repPublicId];
-  } else {
-    perRep[repPublicId] = {
-      ...(parsed.capPct != null ? { capPct: parsed.capPct } : {}),
-      ...(parsed.capAmount != null ? { capAmount: parsed.capAmount } : {}),
-      ...(parsed.dailyUses != null ? { dailyUses: parsed.dailyUses } : {}),
-      active: parsed.active,
-    };
-  }
-  const next: DiscountPolicy = { ...current, repDaily: { ...current.repDaily, perRep } };
-  await setDiscountPolicy(next);
-  revalidatePath(PATH, "layout");
+    // Build the next policy from a shallow clone — never mutate the cached object the
+    // getter returns, or a concurrent read could observe the unpersisted change.
+    const current = await getDiscountPolicy();
+    const perRep = { ...current.repDaily.perRep };
+    if (parsed.capPct == null && parsed.capAmount == null && parsed.dailyUses == null && parsed.active) {
+      // Fully default (no overrides, allowed) — drop the key so "absent = use default"
+      // holds rather than accumulating a redundant override entry.
+      delete perRep[repPublicId];
+    } else {
+      perRep[repPublicId] = {
+        ...(parsed.capPct != null ? { capPct: parsed.capPct } : {}),
+        ...(parsed.capAmount != null ? { capAmount: parsed.capAmount } : {}),
+        ...(parsed.dailyUses != null ? { dailyUses: parsed.dailyUses } : {}),
+        active: parsed.active,
+      };
+    }
+    const next: DiscountPolicy = { ...current, repDaily: { ...current.repDaily, perRep } };
+    await setDiscountPolicy(next);
+  });
 }

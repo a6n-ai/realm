@@ -1,5 +1,6 @@
 "use client";
 
+import { unwrapAction } from "@/lib/actions/unwrap";
 import * as React from "react";
 import { toast } from "sonner";
 import { AlertCircleIcon } from "lucide-react";
@@ -117,7 +118,7 @@ export function FindStep({
     setError(null);
     startSearch(async () => {
       try {
-        const { rows, total } = await getPayoutCandidates(parsed.input);
+        const { rows, total } = await unwrapAction(getPayoutCandidates(parsed.input));
         if (total > maxRows) {
           setError(`Too many matches (${total}). Narrow the filters.`);
           return;

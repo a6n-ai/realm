@@ -3,7 +3,7 @@ import "@testing-library/jest-dom/vitest";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 
-const saveItem = vi.fn().mockResolvedValue(undefined);
+const saveItem = vi.fn().mockResolvedValue({ ok: true });
 vi.mock("@/app/(dashboard)/dashboard/catalog/actions", () => ({ saveItem: (...a: unknown[]) => saveItem(...a) }));
 vi.mock("@/components/app-currency", () => ({ useAppCurrency: () => "CAD" }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));

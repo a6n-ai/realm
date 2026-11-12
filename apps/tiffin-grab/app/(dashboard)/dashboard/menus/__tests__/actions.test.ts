@@ -3,6 +3,7 @@ import { ValidationError } from "@foundry/commons";
 
 vi.mock("@/lib/auth/guards", () => ({ requireAdmin: vi.fn() }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
+vi.mock("@/lib/catalog/load", () => ({ invalidateCatalogSnapshot: vi.fn() }));
 
 const release = vi.fn();
 const markReady = vi.fn();
@@ -30,13 +31,13 @@ describe("menu actions", () => {
   it("releaseWeek returns { error } when the week is already released", async () => {
     release.mockRejectedValueOnce(new ValidationError("This menu is already released"));
     const res = await releaseWeek("mw_test");
-    expect(res).toEqual({ error: "This menu is already released" });
+    expect(res).toMatchObject({ error: "This menu is already released" });
   });
 
   it("markReady returns { error } when the week is not a draft", async () => {
     markReady.mockRejectedValueOnce(new ValidationError("Only a draft can be marked ready"));
     const res = await markReadyAction("mw_test");
-    expect(res).toEqual({ error: "Only a draft can be marked ready" });
+    expect(res).toMatchObject({ error: "Only a draft can be marked ready" });
   });
 
   it("returns session expired error when requireAdmin throws AuthError", async () => {
@@ -44,14 +45,14 @@ describe("menu actions", () => {
     const { AuthError } = await import("@foundry/commons");
     vi.mocked(requireAdmin).mockRejectedValueOnce(new AuthError());
     const res = await releaseWeek("mw_test");
-    expect(res).toEqual({ error: "Session expired. Please log in again." });
+    expect(res).toMatchObject({ error: "Session expired. Please log in again." });
   });
 
   it("returns safe friendly error when unexpected failure occurs", async () => {
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
     release.mockRejectedValueOnce(new Error("Unexpected DB connection lost"));
     const res = await releaseWeek("mw_test");
-    expect(res).toEqual({ error: "Unable to complete request. Please try again." });
+    expect(res).toMatchObject({ error: "Unable to complete request. Please try again." });
     spy.mockRestore();
   });
 });

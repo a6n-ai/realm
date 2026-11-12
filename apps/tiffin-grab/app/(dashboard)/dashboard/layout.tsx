@@ -33,8 +33,8 @@ import { geistSansAdmin } from "./admin-font";
 import { requestNow } from "@/lib/dates/request-now";
 
 // Every page under here is auth-gated (getSession() reads headers()), so none can
-// ever actually be static — this just stops Next from wastefully rendering all
-// ~126 of them once at build time only to discard the result.
+// ever actually be static — this just stops Next from wastefully rendering every
+// one once at build time only to discard the result.
 export const dynamic = "force-dynamic";
 
 // This layout blocks first byte of every /dashboard page, so each read is timed

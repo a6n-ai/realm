@@ -11,18 +11,12 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
 import { DataTable, useListNav, type Column } from "@/components/ds";
 import type { InviteBucket } from "../org-stats";
+import { unwrapAction } from "@/lib/actions/unwrap";
 import { cancelInvitation, resendInvite } from "../members/actions";
 import { StatusBadge } from "../status-badge";
+import { isInviteExpired, type InviteRow } from "./invite-status";
 
-export type InviteRow = {
-  id: string;
-  userId: string; // users.publicId, needed for resendInvite's signature
-  email: string;
-  role: string;
-  status: "pending" | "accepted" | "rejected" | "canceled";
-  expiresAt: string; // ISO
-  organizationId: string;
-};
+export type { InviteRow };
 
 const COLUMNS: readonly Column<"email" | "role" | "status" | "expiresAt" | "actions">[] = [
   { key: "email", label: "Email" },
@@ -97,26 +91,25 @@ export function InvitesListSkeleton() {
 // Shared by the table row and the mobile card: what the row shows and the one action it offers.
 function useInvite(row: InviteRow, canAct: boolean) {
   const [pending, start] = useTransition();
-  // Date.now(): "expired" is a pending invite past its expiry right now; the DB only stores "pending".
-  const expired = row.status === "pending" && new Date(row.expiresAt).getTime() < Date.now();
+  const expired = isInviteExpired(row.status, row.expiresAt, Date.now());
   const status = expired ? "expired" : row.status;
 
   const resend = () =>
     start(async () => {
       try {
-        await resendInvite(row.userId, row.organizationId);
+        await unwrapAction(resendInvite(row.userId, row.organizationId));
         toast.success("Invite resent");
-      } catch {
-        toast.error("Could not resend the invite.");
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Could not resend the invite.");
       }
     });
   const cancel = () =>
     start(async () => {
       try {
-        await cancelInvitation(row.id);
+        await unwrapAction(cancelInvitation(row.id));
         toast.success("Invitation canceled");
-      } catch {
-        toast.error("Could not cancel — it may have already been accepted or canceled.");
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Could not cancel the invitation.");
       }
     });
 

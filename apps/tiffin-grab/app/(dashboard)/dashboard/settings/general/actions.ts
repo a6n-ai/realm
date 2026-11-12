@@ -1,13 +1,12 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { ValidationError } from "@foundry/commons";
-import { invalidateCatalogSnapshot } from "@/lib/catalog/load";
-import { requireAdmin } from "@/lib/auth/guards";
 import { setAppSettings } from "@/lib/services/app-settings.service";
-import { runAction, type ActionResult } from "@/lib/actions/action-result";
+import type { ActionResult } from "@/lib/actions/action-result";
+import { staffAction } from "@/lib/actions/staff-action";
 import { CURRENCIES, PHONE_COUNTRIES } from "./options";
 
+// timezone, country and currency show on the public pages and feed the catalog snapshot
 export async function saveAppSettings(input: {
   timezone: string;
   cutoffHour: number;
@@ -17,9 +16,7 @@ export async function saveAppSettings(input: {
   defaultMaxPauseDaysTotal: number | null;
   defaultMaxPauseStretchDays: number | null;
 }): Promise<ActionResult> {
-  // Returned, not thrown: production replaces a thrown action error with React #441.
-  return runAction(async () => {
-    await requireAdmin();
+  return staffAction({ guard: "admin", revalidate: ["/dashboard/settings/general"], catalog: true }, async () => {
     if (!input.timezone) throw new ValidationError("Timezone is required");
     if (!Number.isInteger(input.cutoffHour) || input.cutoffHour < 0 || input.cutoffHour > 23) {
       throw new ValidationError("Cutoff hour must be an integer 0–23");
@@ -38,8 +35,5 @@ export async function saveAppSettings(input: {
       if (v !== null && (!Number.isInteger(v) || v < 0)) throw new ValidationError(`${label} must be a non-negative integer or blank`);
     }
     await setAppSettings(input as Parameters<typeof setAppSettings>[0]);
-    revalidatePath("/dashboard/settings/general");
-    // timezone, country and currency show on the public pages and feed the catalog snapshot
-    await invalidateCatalogSnapshot();
   });
 }

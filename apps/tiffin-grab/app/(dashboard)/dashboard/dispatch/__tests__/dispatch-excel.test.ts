@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { DispatchRow } from "@/lib/services/optimoroute/drivers";
-import { dispatchSheetAoA, sortDispatchForExport } from "../dispatch-excel";
+import { dispatchSheetAoA, sortDispatchRows } from "../dispatch-excel";
 
 function row(over: Partial<DispatchRow> & Pick<DispatchRow, "orderNo" | "customerName">): DispatchRow {
   return {
@@ -17,9 +17,9 @@ function row(over: Partial<DispatchRow> & Pick<DispatchRow, "orderNo" | "custome
   };
 }
 
-describe("sortDispatchForExport", () => {
+describe("sortDispatchRows", () => {
   it("puts unassigned last, then driver name, then stop number", () => {
-    const sorted = sortDispatchForExport([
+    const sorted = sortDispatchRows([
       row({ orderNo: "u", customerName: "Unassigned", routeStopNumber: 1 }),
       row({ orderNo: "b2", customerName: "Ben", routeDriverName: "Alex", routeDriverSerial: "005", routeStopNumber: 2 }),
       row({ orderNo: "b1", customerName: "Ada", routeDriverName: "Alex", routeDriverSerial: "005", routeStopNumber: 1 }),

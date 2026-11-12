@@ -12,6 +12,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@foundry/ui/sheet";
+import { unwrapAction } from "@/lib/actions/unwrap";
 import { pickDish } from "./actions";
 import type { GridCell } from "@/lib/menu/meals-grid";
 
@@ -257,7 +258,7 @@ function DishRow({
     setError(null);
     start(async () => {
       try {
-        await pickDish({
+        await unwrapAction(pickDish({
           orderId,
           menuWeekId,
           dayOfWeek: cell.day,
@@ -265,7 +266,7 @@ function DishRow({
           personIndex: cell.personIndex,
           pickIndex: cell.pickIndex,
           dishId,
-        });
+        }));
       } catch (e) {
         setError(e instanceof Error ? e.message : "Failed to save selection");
       }

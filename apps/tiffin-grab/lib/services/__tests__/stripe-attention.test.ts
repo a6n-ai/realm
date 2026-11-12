@@ -4,8 +4,8 @@ vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
 const { db } = await import("@/db/client");
 const { orderActivities, stripeEvents } = await import("@/db/schema");
-const { listPayments } = await import("@/app/(dashboard)/dashboard/payments/payment-queries");
-const { STRIPE_FACETS } = await import("@/app/(dashboard)/dashboard/payments/payment-facets");
+const { listPayments } = await import("@/lib/services/payments-list.service");
+const { STRIPE_FACETS } = await import("@/lib/payments/facets");
 const { makeStripePayment, reset, cleanup } = await import("./stripe-fixture");
 // The fixture's reset() enables e-Transfer in the shared test DB; restore an empty
 // payment config after the whole file so later suites (which order in simulated mode) still work.
@@ -37,6 +37,6 @@ describe("reprocessEventAction", () => {
     const { reprocessEventAction } = await import("@/app/(dashboard)/dashboard/payments/stripe/actions");
     await db.insert(stripeEvents).values({ eventId: "evt_done", type: "charge.refunded", payload: {}, receivedAt: Date.now(), processedAt: Date.now(), error: "amount_mismatch" });
     const res = await reprocessEventAction("evt_done");
-    expect(res).toEqual({ error: expect.stringMatching(/already processed/) });
+    expect(res).toMatchObject({ error: expect.stringMatching(/already processed/) });
   });
 });

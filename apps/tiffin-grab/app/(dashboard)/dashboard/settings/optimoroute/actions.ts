@@ -1,10 +1,10 @@
 "use server";
-import { revalidatePath } from "next/cache";
-import { requireAdmin } from "@/lib/auth/guards";
+import { staffAction } from "@/lib/actions/staff-action";
+import type { ActionResult } from "@/lib/actions/action-result";
 import { updateOptimoRouteConfig } from "@/lib/services/optimoroute/config";
 
-export async function saveSendLoad(sendLoad: boolean) {
-  await requireAdmin();
-  await updateOptimoRouteConfig({ sendLoad });
-  revalidatePath("/dashboard/settings/optimoroute");
+export async function saveSendLoad(sendLoad: boolean): Promise<ActionResult> {
+  return staffAction({ guard: "admin", revalidate: ["/dashboard/settings/optimoroute"] }, async () => {
+    await updateOptimoRouteConfig({ sendLoad });
+  });
 }

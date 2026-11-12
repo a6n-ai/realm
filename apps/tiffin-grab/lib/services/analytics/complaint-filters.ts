@@ -3,6 +3,7 @@ import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import { deliveryZones, mealSizes, orders, plans, tickets } from "@/db/schema";
 import { isTicketCategory, TICKET_CATEGORIES, type TicketCategoryValue } from "@/lib/support/ticket-taxonomy";
 import { orgWhere, type AnalyticsScope } from "./metrics/scope";
+import { STATUS_OPTIONS as TICKET_STATUS_OPTIONS } from "@/lib/support/ticket-status";
 
 /**
  * Complaint analytics and the ticket queue read the SAME query parameters, so
@@ -123,12 +124,8 @@ export const IS_NEW = and(eq(tickets.status, "open"), NO_STAFF_REPLY)!;
 /** Status values the UI offers, with New derived on top of the stored ones. */
 export const STATUS_OPTIONS = [
   { value: "new", label: "New" },
-  { value: "open", label: "Open" },
-  { value: "in_progress", label: "In progress" },
-  { value: "waiting_on_customer", label: "Waiting for customer" },
-  { value: "resolved", label: "Resolved" },
-  { value: "closed", label: "Closed" },
-] as const;
+  ...TICKET_STATUS_OPTIONS,
+];
 
 function statusCondition(statuses: string[]): SQL | undefined {
   if (statuses.length === 0) return undefined;

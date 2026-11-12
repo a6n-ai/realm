@@ -13,6 +13,7 @@ import { Tabs, TabsList, TabsTrigger } from "@foundry/ui/tabs";
 import { Alert, AlertDescription } from "@/components/reui/alert";
 import type { OwnerEntity, Strategy } from "@/lib/services/assignment";
 import { poolSummary, sharePct } from "@/lib/services/owner-summary";
+import { unwrapAction } from "@/lib/actions/unwrap";
 import { saveEntityStrategy, saveMembership, saveStrategy } from "./actions";
 
 const CHOICES: { value: Strategy; title: string; line: string; icon: LucideIcon }[] = [
@@ -148,14 +149,14 @@ export function OwnerAssignmentForm({
         // Sequential: strategy writes read-modify-write the shared assignment config.
         if (entity === "inquiry") {
           if (before.strategy !== after.strategy || JSON.stringify(sorted(before.perSource)) !== JSON.stringify(sorted(after.perSource))) {
-            await saveStrategy(after.strategy, after.perSource);
+            await unwrapAction(saveStrategy(after.strategy, after.perSource));
           }
         } else if (before.strategy !== after.strategy) {
-          await saveEntityStrategy(entity, after.strategy);
+          await unwrapAction(saveEntityStrategy(entity, after.strategy));
         }
         for (const [key, pool] of Object.entries(after.pools)) {
           if (poolFingerprint(pool) === poolFingerprint(before.pools[key])) continue;
-          await saveMembership(entity, key === DEFAULT_POOL ? null : key, Object.entries(pool).map(([userId, weight]) => ({ userId, weight })));
+          await unwrapAction(saveMembership(entity, key === DEFAULT_POOL ? null : key, Object.entries(pool).map(([userId, weight]) => ({ userId, weight }))));
         }
         setSaved((s) => ({ ...s, [entity]: after }));
         setFlash(true);

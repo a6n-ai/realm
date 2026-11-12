@@ -46,6 +46,6 @@ describe("reassignDriverAction", () => {
 
     const result = await reassignDriverAction("dlv_3", "2026-01-01", "005");
 
-    expect(result).toEqual({ error: "No planned delivery" });
+    expect(result).toMatchObject({ error: "No planned delivery" });
   });
 });

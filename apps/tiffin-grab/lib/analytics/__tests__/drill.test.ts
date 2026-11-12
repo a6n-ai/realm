@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { customersHref, inquiriesHref, ordersDrillHref, ordersHref, paymentsHref, zonedRangeMs } from "../drill";
+import { inquiriesHref, ordersDrillHref, paymentsHref, zonedRangeMs } from "../drill";
 import type { AnalyticsScope } from "@/lib/services/analytics/metrics/scope";
 import { presentPaymentStatuses } from "../revenue";
 import { isoDateInZone } from "@foundry/commons/util/dates";
@@ -24,7 +24,7 @@ describe("zonedRangeMs", () => {
 });
 
 const scope = (over: Partial<AnalyticsScope> = {}): AnalyticsScope => ({
-  orgIds: "all", fromMs: 10, toMs: 20, tz: TZ, plans: [], mealSizes: [], zones: [], extra: {}, ...over,
+  orgIds: "all", visible: "all", fromMs: 10, toMs: 20, tz: TZ, plans: [], mealSizes: [], zones: [], extra: {}, ...over,
 });
 
 describe("drill-through links", () => {
@@ -38,9 +38,9 @@ describe("drill-through links", () => {
     const sub = scope({ orgIds: ["a"] });
     expect(paymentsHref(sub)).toContain("org=a");
     expect(inquiriesHref(sub, { stage: "lost" })).toBe("/dashboard/inquiries?from=10&to=20&org=a&stage=lost");
-    expect(customersHref(sub, ["a"])).toBe("/dashboard/customers?from=10&to=20");
-    expect(customersHref(scope({ orgIds: ["a", "b"] }), ["a", "b", "c"])).toContain("org=a%2Cb");
-    expect(customersHref(scope())).toBe("/dashboard/customers?from=10&to=20");
+    expect(inquiriesHref({ ...sub, visible: ["a"] })).toBe("/dashboard/inquiries?from=10&to=20");
+    expect(inquiriesHref(scope({ orgIds: ["a", "b"], visible: ["a", "b", "c"] }))).toContain("org=a%2Cb");
+    expect(inquiriesHref(scope())).toBe("/dashboard/inquiries?from=10&to=20");
   });
 
   it("never serializes an empty franchise list as an empty value", () => {
@@ -48,11 +48,10 @@ describe("drill-through links", () => {
   });
 
   it("builds an orders link from the same facets the listing reads, with at most one status", () => {
-    expect(ordersHref(scope({ plans: ["veg"] }), { status: ["active"] })).toBe(
+    expect(ordersDrillHref(scope({ plans: ["veg"] }), { status: ["active"] })).toBe(
       "/dashboard/orders?from=10&to=20&status=active&plan=veg&view=all",
     );
-    expect(ordersDrillHref).toBe(ordersHref);
-    expect(() => ordersHref(scope(), { status: ["active", "paused"] })).toThrow();
+    expect(() => ordersDrillHref(scope(), { status: ["active", "paused"] })).toThrow();
   });
 
   it("builds inquiry links from the facet names that list reads", () => {

@@ -2,6 +2,7 @@ import { and, desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import { invitation, member, users } from "@/db/schema";
 import type { RoleValue } from "@foundry/commons";
+import { isInviteExpired } from "../invites/invite-status";
 
 export type MemberRow = {
   id: string; // users.publicId
@@ -50,7 +51,7 @@ export async function getMembersForOrgs(orgIds: string[]): Promise<MemberRow[]> 
   return rows.map((r) => {
     let invitationStatus: MemberRow["invitationStatus"] = "none";
     if (r.invitationStatus === "pending") {
-      invitationStatus = r.invitationExpiresAt && r.invitationExpiresAt.getTime() < now ? "expired" : "pending";
+      invitationStatus = isInviteExpired(r.invitationStatus, r.invitationExpiresAt, now) ? "expired" : "pending";
     } else if (r.invitationStatus === "accepted") {
       invitationStatus = "accepted";
     }

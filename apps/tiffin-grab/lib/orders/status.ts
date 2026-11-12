@@ -8,6 +8,10 @@ export const RUNNING = ["active", "paused"] as const;
 export const ONGOING = ["pending", "active", "paused"] as const;
 /** Anything that still holds a customer's plan slot, including a waitlisted one. */
 export const LIVE = ["pending", "active", "waitlisted", "paused"] as const;
+/** Starting soon or just started: the Orders "Starting soon" KPI and pill. */
+export const STARTING_SOON = ["pending", "active", "waitlisted"] as const;
+/** Every status except cancelled: the Orders "New orders" KPI and the Booked pill. */
+export const BOOKED = ["pending", "active", "waitlisted", "paused", "completed"] as const;
 /** Running, or finished with deliveries possibly still owed or renewable. */
 export const RUNNING_OR_DONE = ["active", "paused", "completed"] as const;
 

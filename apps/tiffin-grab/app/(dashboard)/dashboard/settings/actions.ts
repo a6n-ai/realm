@@ -1,25 +1,16 @@
 "use server";
-import { revalidatePath } from "next/cache";
-import { requireAdmin } from "@/lib/auth/guards";
+
+import { staffAction } from "@/lib/actions/staff-action";
+import type { ActionResult } from "@/lib/actions/action-result";
 import { setMealTypes } from "@/lib/services/app-settings.service";
-import { invalidateCatalogSnapshot } from "@/lib/catalog/load";
 import { menuService } from "@/lib/services/menu.service";
 import type { MealTypesSettings } from "@/lib/menu/meal-types";
 
-
-// Slot edits + theme both feed the cached catalog snapshot AND the published-week
-// cache (slots + theme). Evict both so subscribe/ordering and the public poster
-// see the change on the next request.
-async function bust() {
-  await invalidateCatalogSnapshot();
-  await menuService.evictPublishedCache();
-  revalidatePath("/dashboard/settings");
+// Slot edits + theme feed the catalog snapshot (catalog: true) AND the published-week cache;
+// evict both so subscribe/ordering and the public poster see the change on the next request.
+export async function saveMealTypes(cfg: MealTypesSettings): Promise<ActionResult> {
+  return staffAction({ guard: "admin", revalidate: ["/dashboard/settings"], catalog: true }, async () => {
+    await setMealTypes(cfg);
+    await menuService.evictPublishedCache();
+  });
 }
-
-export async function saveMealTypes(cfg: MealTypesSettings) {
-  await requireAdmin();
-  await setMealTypes(cfg);
-  await bust();
-}
-
-

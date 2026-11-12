@@ -1,10 +1,10 @@
 "use server";
 
 import { MEAL_RULE_ACTIONS, MEAL_RULE_FIELDS, MEAL_RULE_MATCH_MODES, MEAL_RULE_OPERATORS } from "@/db/schema/enums";
-import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { AppError } from "@foundry/commons";
-import { requireAdmin } from "@/lib/auth/guards";
+import { ValidationError } from "@foundry/commons";
+import type { ActionResult } from "@/lib/actions/action-result";
+import { parseInput, staffAction } from "@/lib/actions/staff-action";
 import { mealRulesService } from "@/lib/services/meal-rules.service";
 
 const PATH = "/dashboard/catalog/meal-rules";
@@ -39,39 +39,17 @@ const ruleSchema = z.object({
   conditions: z.array(conditionSchema),
 });
 
-export type RuleSaveResult = { ok: true } | { error: string };
-
-/**
- * RETURNS its error rather than throwing.
- *
- * This Next build redacts anything thrown across the Server Action boundary to a
- * message-less "Minified React error #441", so a thrown ValidationError reaches
- * the admin as gibberish instead of "Give the rule a name." (Same rule as
- * lib/actions/action-result.ts, which documents it.)
- */
-export async function saveMealRule(input: unknown): Promise<RuleSaveResult> {
-  await requireAdmin();
-  try {
-    const { publicId, ...rule } = ruleSchema.parse(input);
+export async function saveMealRule(input: unknown): Promise<ActionResult> {
+  return staffAction({ guard: "admin", revalidate: [[PATH, "layout"]] }, async () => {
+    const parsed = ruleSchema.safeParse(input);
+    if (!parsed.success) throw new ValidationError("Something in this rule isn't filled in correctly.");
+    const { publicId, ...rule } = parsed.data;
     await mealRulesService.saveRule(rule, publicId);
-    revalidatePath(PATH, "layout");
-    return { ok: true };
-  } catch (e) {
-    if (e instanceof AppError) return { error: e.message };
-    if (e instanceof z.ZodError) return { error: "Something in this rule isn't filled in correctly." };
-    throw e;
-  }
+  });
 }
 
-export async function deleteMealRuleSafe(input: unknown): Promise<RuleSaveResult> {
-  await requireAdmin();
-  try {
-    const data = idSchema.parse(input);
-    await mealRulesService.deleteRule(data.id);
-    revalidatePath(PATH, "layout");
-    return { ok: true };
-  } catch (e) {
-    if (e instanceof AppError) return { error: e.message };
-    throw e;
-  }
+export async function deleteMealRuleSafe(input: unknown): Promise<ActionResult> {
+  return staffAction({ guard: "admin", revalidate: [[PATH, "layout"]] }, async () => {
+    await mealRulesService.deleteRule(parseInput(idSchema, input).id);
+  });
 }

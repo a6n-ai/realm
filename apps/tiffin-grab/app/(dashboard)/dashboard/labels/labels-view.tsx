@@ -16,7 +16,7 @@ import { sortRows } from "@foundry/design-system/list-sort";
 import { formatCountTotal, formatPortionLabel, labelLineTexts } from "@/lib/menu/packing-requirement";
 import type { DeliveryLabel, KitchenCount } from "@/lib/services/daily-labels.service";
 import { useTableParams } from "./use-table-params";
-import { groupKitchenCounts } from "./kitchen-groups";
+import { groupKitchenCounts } from "@/lib/menu/kitchen-groups";
 
 export function KitchenCounts({
   counts,

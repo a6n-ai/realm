@@ -161,7 +161,7 @@ describe("(customer)/me/meals saveMyMealSelections (integration)", () => {
       ],
     });
 
-    expect(result).toEqual({ error: "Subscription not found" });
+    expect(result).toMatchObject({ error: "Subscription not found" });
     const rows = await db.select().from(mealSelections).where(eq(mealSelections.orderId, bOrder.id));
     expect(rows.length).toBe(0);
   });

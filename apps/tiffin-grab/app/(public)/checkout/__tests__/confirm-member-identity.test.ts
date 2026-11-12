@@ -124,21 +124,21 @@ describe("confirmSubscription: a signed-in member keeps their account identity",
   });
 
   it("rejects a member request with no delivery address", async () => {
-    expect(await confirmSubscription({ ...submitted, contact: { ...submitted.contact, addressLine: " " } })).toEqual({ error: expect.stringMatching(/delivery address/i) });
+    expect(await confirmSubscription({ ...submitted, contact: { ...submitted.contact, addressLine: " " } })).toMatchObject({ error: expect.stringMatching(/delivery address/i) });
     expect(createOrder).not.toHaveBeenCalled();
   });
 
   it("refuses a signed-out checkout — every order needs an owner", async () => {
     signedIn = false;
     userId = null;
-    expect(await confirmSubscription(submitted)).toEqual({ error: expect.stringMatching(/sign in/i) });
+    expect(await confirmSubscription(submitted)).toMatchObject({ error: expect.stringMatching(/sign in/i) });
     expect(createOrder).not.toHaveBeenCalled();
   });
 
   it("refuses a renewal from a signed-out request", async () => {
     signedIn = false;
     userId = null;
-    expect(await confirmSubscription({ ...submitted, renewal: true })).toEqual({ error: expect.stringMatching(/sign in/i) });
+    expect(await confirmSubscription({ ...submitted, renewal: true })).toMatchObject({ error: expect.stringMatching(/sign in/i) });
     expect(createOrder).not.toHaveBeenCalled();
   });
 });

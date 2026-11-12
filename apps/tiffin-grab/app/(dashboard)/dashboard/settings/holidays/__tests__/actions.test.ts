@@ -8,6 +8,7 @@ const reapplyHoliday = vi.fn(async (..._: unknown[]) => ({ ...run, closed: 1 }))
 const renameHoliday = vi.fn(async (..._: unknown[]) => undefined);
 const removeHoliday = vi.fn(async (..._: unknown[]) => ({ restored: 2, left: 0, failed: [] as string[], removed: true, stillOwed: 0 }));
 const placeHolidayDay = vi.fn(async (..._: unknown[]) => ["2030-01-21", "2030-01-23"]);
+vi.mock("@/lib/catalog/load", () => ({ invalidateCatalogSnapshot: async () => undefined }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/lib/auth/guards", () => ({ requirePermission }));
 vi.mock("@/lib/auth/session", () => ({ getSession: async () => ({ user: { id: "u1" } }) }));
@@ -36,7 +37,7 @@ describe("holiday actions", () => {
 
   it("returns the service's refusal for an organization the caller cannot see", async () => {
     createHoliday.mockRejectedValueOnce(new NotFoundError("Organization not found"));
-    expect(await createHolidayAction({ ...input, organizationId: "org_other" })).toEqual({ error: "Organization not found" });
+    expect(await createHolidayAction({ ...input, organizationId: "org_other" })).toMatchObject({ error: "Organization not found" });
   });
 
   it("says what needs placing, what left the route and what failed", async () => {
@@ -74,10 +75,10 @@ describe("holiday actions", () => {
     renameHoliday.mockRejectedValueOnce(new NotFoundError("Holiday not found"));
     removeHoliday.mockRejectedValueOnce(new NotFoundError("Holiday not found"));
     placeHolidayDay.mockRejectedValueOnce(new NotFoundError("Delivery not found"));
-    expect(await reapplyHolidayAction("x")).toEqual({ error: "Holiday not found" });
-    expect(await renameHolidayAction("x", "n")).toEqual({ error: "Holiday not found" });
-    expect(await removeHolidayAction("x")).toEqual({ error: "Holiday not found" });
-    expect(await placeHolidayDayAction("x", "2030-01-21")).toEqual({ error: "Delivery not found" });
+    expect(await reapplyHolidayAction("x")).toMatchObject({ error: "Holiday not found" });
+    expect(await renameHolidayAction("x", "n")).toMatchObject({ error: "Holiday not found" });
+    expect(await removeHolidayAction("x")).toMatchObject({ error: "Holiday not found" });
+    expect(await placeHolidayDayAction("x", "2030-01-21")).toMatchObject({ error: "Delivery not found" });
   });
 
   it("remove says so when an order could not be undone and the holiday was kept", async () => {

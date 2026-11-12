@@ -31,6 +31,7 @@ import {
 } from "@/lib/catalog/resource-config";
 import { DiscountDialog, type DiscountDialogOptions } from "@/components/dashboard/discount-dialog";
 import { discountValueLabel, type DiscountDto, type DiscountKind } from "../discounts/build-rows";
+import { ActionError, unwrapAction } from "@/lib/actions/unwrap";
 import { reactivateItem, retireItem, saveItem, type ResourceKey } from "../actions";
 import { DateInput } from "@/components/dashboard/date-fields";
 
@@ -603,12 +604,12 @@ function EditorDialog({
 
   async function onSubmit(values: Record<string, unknown>) {
     try {
-      await saveItem(resource as ResourceKey, isNew ? null : editing.id, values);
+      await unwrapAction(saveItem(resource as ResourceKey, isNew ? null : editing.id, values));
       onClose();
       router.refresh();
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Save failed";
-      form.setError("root", { message: /key|unique|duplicate/i.test(msg) ? `A ${def.singular} with this name already exists` : msg });
+      form.setError("root", { message: e instanceof ActionError && e.status === 409 ? `A ${def.singular} with this name already exists` : msg });
     }
   }
 
@@ -772,7 +773,7 @@ export function ResourceEditor({
   const retired = rows.filter((r) => r.active === false).length;
   const activeCount = rows.length - retired;
 
-  const act = (id: string, fn: () => Promise<void>) => {
+  const act = (id: string, fn: () => Promise<unknown>) => {
     setError(null);
     setBusyId(id);
     fn()
@@ -853,11 +854,11 @@ export function ResourceEditor({
                     <PencilIcon className="size-4" />
                   </IconAction>
                   {isRetired ? (
-                    <IconAction label={`Restore ${def.singular}`} onClick={() => act(row.publicId, () => reactivateItem(resource as ResourceKey, row.publicId))} disabled={busy}>
+                    <IconAction label={`Restore ${def.singular}`} onClick={() => act(row.publicId, () => unwrapAction(reactivateItem(resource as ResourceKey, row.publicId)))} disabled={busy}>
                       <RotateCcwIcon className="size-4" />
                     </IconAction>
                   ) : (
-                    <IconAction label={`Retire ${def.singular}`} className="text-muted-foreground hover:text-foreground" onClick={() => act(row.publicId, () => retireItem(resource as ResourceKey, row.publicId))} disabled={busy}>
+                    <IconAction label={`Retire ${def.singular}`} className="text-muted-foreground hover:text-foreground" onClick={() => act(row.publicId, () => unwrapAction(retireItem(resource as ResourceKey, row.publicId)))} disabled={busy}>
                       <ArchiveIcon className="size-4" />
                     </IconAction>
                   )}

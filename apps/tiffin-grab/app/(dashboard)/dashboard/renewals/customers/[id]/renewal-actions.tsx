@@ -81,6 +81,7 @@ export function GiveCoinsButton({ customerPublicId }: { customerPublicId: string
             onClick={() =>
               run(async () => {
                 const r = await broadcastCustomerPayout({ userPublicIds: [customerPublicId], coins: n, memo: memo.trim() || undefined });
+                if ("error" in r) return r;
                 setOpen(false);
                 setCoins("");
                 return { ok: true, message: r.capped > 0 ? `Gave ${r.coinsPerCustomer} coins (capped)` : `Gave ${r.coinsPerCustomer} coins` } as ActionResult;

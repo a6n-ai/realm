@@ -13,7 +13,6 @@ export const ROUTES: RouteSpec[] = [
   { path: "/me/support", label: "support-list" },
   { path: "/dashboard/tickets", label: "tickets-list" },
   { path: "/dashboard/wallet/ledger", label: "wallet-ledger" },
-  { path: "/dashboard/wallet/payouts", label: "wallet-payouts" },
   { path: "/dashboard/payments/requests", label: "payments-requests" },
   { path: "/dashboard/payments/all", label: "payments-all" },
   { path: "/dashboard/payments/ledger", label: "payments-ledger" },
@@ -32,7 +31,6 @@ export const ROUTES: RouteSpec[] = [
   { path: "/dashboard/settings/meal-types", label: "settings-meal-types" },
   { path: "/dashboard/discounts/rep-allowance", label: "rep-allowance" },
   { path: "/dashboard/discounts/staff-codes", label: "staff-codes" },
-  { path: "/dashboard/wallet/coin-rate", label: "coin-rate" },
   { path: "/me/support/new", label: "support-new" },
   // dashboard — account section
   { path: "/dashboard/account", label: "account" },

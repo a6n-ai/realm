@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { clientStats, inviteStats, memberStats, overviewStats } from "../org-stats";
 import type { MemberRow } from "../members/members-query";
-import type { InviteRow } from "../invites/invites-list";
+import type { InviteRow } from "../invites/invite-status";
 
 const values = (items: { label: string; value: string | number }[]) =>
   Object.fromEntries(items.map((i) => [i.label, i.value]));

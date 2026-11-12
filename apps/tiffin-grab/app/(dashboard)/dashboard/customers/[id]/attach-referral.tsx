@@ -1,5 +1,6 @@
 "use client";
 
+import { unwrapAction } from "@/lib/actions/unwrap";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Button } from "@foundry/ui/button";
@@ -18,8 +19,12 @@ export function AttachReferral({ customerPublicId }: { customerPublicId: string 
     e.preventDefault();
     setError(null);
     start(async () => {
-      const res = await attachReferralCodeAction(customerPublicId, code);
-      if (res.error) return setError(res.error);
+      let res;
+      try {
+        res = await unwrapAction(attachReferralCodeAction(customerPublicId, code));
+      } catch (err) {
+        return setError(err instanceof Error ? err.message : "Could not add the referral code.");
+      }
       const paid = (res.friend ?? 0) + (res.referrer ?? 0) > 0;
       toast.success(paid ? `Referral added: customer +${res.friend} coins, referrer +${res.referrer} coins` : "Referral added. Coins pay out when their first order is paid.");
       if (res.skipped && res.skipped !== "off") toast.info(`Some coins skipped: ${res.skipped.replace("_", " ")}`);

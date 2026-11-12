@@ -91,7 +91,7 @@ describe("payCheckout", () => {
 
   it("refuses to charge when the total the customer saw differs", async () => {
     const r = await pay({ expected: 1 });
-    expect(r).toEqual({ error: "Your total changed. Check it and pay again." });
+    expect(r).toMatchObject({ error: "Your total changed. Check it and pay again." });
     expect(payByCard).not.toHaveBeenCalled();
   });
 
@@ -209,7 +209,7 @@ describe("payCheckout", () => {
   it("is refused while another card flow holds the customer lock", async () => {
     await acquireLease(`pay-lock:${session!.user.id}`, "someone-else", 60_000);
     const r = await pay();
-    expect(r).toEqual({ error: "A payment is already in progress." });
+    expect(r).toMatchObject({ error: "A payment is already in progress." });
     expect(await allOrders()).toHaveLength(0);
     expect(payByCard).not.toHaveBeenCalled();
   });
@@ -223,7 +223,7 @@ describe("payCheckout", () => {
       expect(await tryChargeLock(tx, first.paymentPublicId)).toBe(true);
       r = await pay({ couponCode: "NOPE" });
     });
-    expect(r).toEqual({ error: "A payment is already in progress." });
+    expect(r).toMatchObject({ error: "A payment is already in progress." });
     const os = await allOrders();
     expect(os).toHaveLength(1);
     expect(os[0]!.status).toBe("pending");

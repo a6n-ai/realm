@@ -20,6 +20,7 @@ import { MarkSectionRead } from "@/components/dashboard/mark-section-read";
 import { SectionDateRange } from "@/components/filters/section-date-range";
 import { withDefaultMonth, withListDates } from "@/lib/list/default-month";
 import { ticketsListHref } from "@/lib/list/tickets-drill";
+import { DONE_STATUSES, OPEN_STATUSES } from "@/lib/support/ticket-status";
 
 const SORT_COLUMNS = [
   "subject",
@@ -105,18 +106,18 @@ async function TicketStats({ searchParams }: { searchParams: TicketSearchParams 
   const countOf = (...statuses: string[]) =>
     statusCounts.filter((r) => statuses.includes(r.status)).reduce((sum, r) => sum + r.n, 0);
 
-  const open = countOf("open", "in_progress", "waiting_on_customer");
-  const resolved = countOf("resolved", "closed");
+  const open = countOf(...OPEN_STATUSES);
+  const resolved = countOf(...DONE_STATUSES);
   const href = (status?: string) => ticketsListHref(sp, status ? { status } : {});
 
   return (
     <StatCards
       items={[
-        { icon: TicketIcon, label: "Created", value: countOf("open", "in_progress", "waiting_on_customer", "resolved", "closed"), hint: "in selected dates", href: href() },
-        { icon: InboxIcon, label: "Open", value: open, hint: "open · in-progress · waiting", href: href("open,in_progress,waiting_on_customer") },
+        { icon: TicketIcon, label: "Created", value: countOf(...OPEN_STATUSES, ...DONE_STATUSES), hint: "in selected dates", href: href() },
+        { icon: InboxIcon, label: "Open", value: open, hint: "open · in-progress · waiting", href: href(OPEN_STATUSES.join(",")) },
         { icon: HourglassIcon, label: "Waiting on customer", value: countOf("waiting_on_customer"), hint: "staff replied, customer hasn't", href: href("waiting_on_customer") },
         { icon: AlertCircleIcon, label: "Overdue", value: overdue, hint: "waiting on staff > 24h", tone: overdue > 0 ? "bad" : undefined, href: href("overdue") },
-        { icon: CheckCircleIcon, label: "Resolved", value: resolved, hint: "resolved · closed", href: href("resolved,closed") },
+        { icon: CheckCircleIcon, label: "Resolved", value: resolved, hint: "resolved · closed", href: href(DONE_STATUSES.join(",")) },
       ]}
     />
   );

@@ -1,5 +1,6 @@
 "use client";
 
+import { unwrapAction } from "@/lib/actions/unwrap";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { UsersIcon } from "lucide-react";
@@ -30,14 +31,11 @@ export function EmailGroupDialog({ presetGroup = null, groupMissing = false }: {
     setBusy(true);
     setError(null);
     try {
-      const res = await emailGroupAction(group.publicId);
-      if (res.ok) {
-        router.push(`/dashboard/notifications/campaigns/${res.data.campaignPublicId}?step=content`);
-        return;
-      }
-      setError(res.error);
-    } catch {
-      setError("The request did not finish.");
+      const { campaignPublicId } = await unwrapAction(emailGroupAction(group.publicId));
+      router.push(`/dashboard/notifications/campaigns/${campaignPublicId}?step=content`);
+      return;
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "The request did not finish.");
     }
     setBusy(false);
   }

@@ -24,17 +24,18 @@ export function AdminContactForm({ userId, email, phone }: { userId: string; ema
     start(async () => {
       try {
         const res = await adminUpdateContact(userId, { email: value.email, phone: value.phone }, { removePhone });
-        if (res.error) {
-          const href = res.holderHref;
-          return void toast.error(res.error, href ? { action: { label: "Open account", onClick: () => router.push(href) } } : undefined);
+        if ("error" in res) return void toast.error(res.error);
+        if (res.taken) {
+          const href = res.taken.holderHref;
+          return void toast.error(res.taken.message, { action: { label: "Open account", onClick: () => router.push(href) } });
         }
         if (removePhone) {
           setValue((v) => ({ ...v, phone: "" }));
           return void toast.success("Phone removed.");
         }
         toast.success(value.email !== email ? "Contact updated. The new email needs verifying at next sign-in." : "Contact updated.");
-      } catch {
-        toast.error("Could not update — check the email/phone are valid and free.");
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Could not update — check the email/phone are valid and free.");
       } finally {
         setConfirmRemove(false);
       }

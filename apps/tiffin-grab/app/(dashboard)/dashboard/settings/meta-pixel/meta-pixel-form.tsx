@@ -29,7 +29,7 @@ export function MetaPixelForm({
   const save = () =>
     start(async () => {
       const res = await saveMetaPixelSettings(values);
-      if (res.error) {
+      if ("error" in res) {
         setError(res.error);
         return;
       }
@@ -42,7 +42,7 @@ export function MetaPixelForm({
   const removeToken = () =>
     start(async () => {
       const res = await removeMetaPixelToken();
-      if (res.error) {
+      if ("error" in res) {
         toast.error(res.error);
         return;
       }

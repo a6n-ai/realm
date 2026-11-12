@@ -17,9 +17,7 @@ export const ADMIN_SIDEBAR_ROUTES: AdminRoute[] = [
   { id: "inquiries", path: "/dashboard/inquiries", heading: "Inquiries" },
   { id: "orders", path: "/dashboard/orders", heading: "Orders" },
   { id: "dispatch", path: "/dashboard/dispatch", heading: "Dispatch" },
-  { id: "dispatch-completions", path: "/dashboard/dispatch/completions", heading: /Dispatch/i },
   { id: "dispatch-drivers", path: "/dashboard/dispatch/drivers", heading: /Dispatch/i },
-  { id: "dispatch-stale", path: "/dashboard/dispatch/stale", heading: /Dispatch/i },
   { id: "renewals", path: "/dashboard/renewals", heading: "Renewals" },
   { id: "holidays", path: "/dashboard/settings/holidays", heading: "Holidays" },
   { id: "customers", path: "/dashboard/customers", heading: "Customers" },
@@ -87,8 +85,6 @@ export const ADMIN_NESTED_ROUTES: AdminRoute[] = [
   // layout.tsx PageHeader (a single h1 for the whole section) — the tab-specific
   // content is proven by expectHealthyPage's fatal-copy check, not by a per-tab h1.
   { id: "wallet-ledger", path: "/dashboard/wallet/ledger", heading: /Wallet/i },
-  { id: "wallet-payouts", path: "/dashboard/wallet/payouts", heading: /Wallet/i },
-  { id: "wallet-coin-rate", path: "/dashboard/wallet/coin-rate", heading: /Wallet/i },
   { id: "payments-requests", path: "/dashboard/payments/requests", heading: /Payments/i },
   { id: "payments-all", path: "/dashboard/payments/all", heading: /Payments/i },
   { id: "payments-ledger", path: "/dashboard/payments/ledger", heading: /Payments/i },

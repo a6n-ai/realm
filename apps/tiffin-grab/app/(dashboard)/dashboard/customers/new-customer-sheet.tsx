@@ -1,5 +1,6 @@
 "use client";
 
+import { unwrapAction } from "@/lib/actions/unwrap";
 import type { Country as CountryCode } from "react-phone-number-input";
 import { useState } from "react";
 import { Loader2Icon } from "lucide-react";
@@ -21,7 +22,6 @@ import type { CustomerHit } from "../_leads/match-actions";
 import { NoSources } from "../_leads/no-sources";
 import type { OrderFormInput } from "../inquiries/[id]/order-schema";
 import { OrderForm } from "../inquiries/[id]/order/order-form";
-import { unwrapAction } from "@/lib/actions/unwrap";
 import { createOrderFlow } from "../orders/actions";
 import { createCustomerFlow } from "./actions";
 
@@ -139,7 +139,7 @@ export function NewCustomerSheet({
     setError(null);
     setSaving(true);
     try {
-      await createCustomerFlow({ source, contact, pickedInquiryId: pickedId ?? undefined });
+      await unwrapAction(createCustomerFlow({ source, contact, pickedInquiryId: pickedId ?? undefined }));
       toast.success("Customer created");
       onOpenChange(false);
     } catch (e) {
@@ -153,11 +153,9 @@ export function NewCustomerSheet({
     setError(null);
     setSaving(true);
     try {
-      const { inquiryId: resolvedId } = await createCustomerFlow({
-        source,
-        contact,
-        pickedInquiryId: pickedId ?? undefined,
-      });
+      const { inquiryId: resolvedId } = await unwrapAction(
+        createCustomerFlow({ source, contact, pickedInquiryId: pickedId ?? undefined }),
+      );
       setInquiryId(resolvedId);
       setStep(2);
     } catch (e) {

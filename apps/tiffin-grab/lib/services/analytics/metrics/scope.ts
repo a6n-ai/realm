@@ -10,6 +10,8 @@ import { isoDateInZone } from "@foundry/commons/util/dates";
 
 export type AnalyticsScope = {
   orgIds: "all" | string[];
+  /** Every franchise the viewer may see; drill links omit `org` when the scope already covers all of them. */
+  visible: "all" | string[];
   fromMs: number;
   toMs: number;
   tz: string;
@@ -54,6 +56,7 @@ export function buildAnalyticsScope(
   }
   return {
     orgIds: intersectOrgs(visible, list(sp.org)),
+    visible,
     fromMs: epoch(sp.from) ?? month.from,
     toMs: epoch(sp.to) ?? month.to,
     tz,

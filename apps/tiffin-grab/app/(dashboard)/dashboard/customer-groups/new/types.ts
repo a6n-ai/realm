@@ -1,3 +1,3 @@
-import type { getPayoutCandidates } from "../actions";
+import type { PayoutCandidate } from "@/lib/services/customer-payouts.service";
 
-export type Candidate = Awaited<ReturnType<typeof getPayoutCandidates>>["rows"][number] & { added?: boolean };
+export type Candidate = PayoutCandidate & { added?: boolean };

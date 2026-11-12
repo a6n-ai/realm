@@ -15,6 +15,7 @@ import {
   ticketOrgWhere,
 } from "./complaint-filters";
 import { localDay, type AnalyticsScope, intCount } from "./metrics/scope";
+import { STATUS_LABEL } from "@/lib/support/ticket-status";
 
 /**
  * Tickets joined to the order they were raised about (and that order's plan and
@@ -180,11 +181,11 @@ export async function getStatusMix(scope: AnalyticsScope) {
     { value: "new", status: "New", n: isNew },
     // Open excludes the New slice so the six numbers sum to the total rather
     // than counting an unanswered ticket twice.
-    { value: "open", status: "Open", n: Math.max(0, (row?.open ?? 0) - isNew) },
-    { value: "in_progress", status: "In progress", n: row?.inProgress ?? 0 },
-    { value: "waiting_on_customer", status: "Waiting for customer", n: row?.waiting ?? 0 },
-    { value: "resolved", status: "Resolved", n: row?.resolved ?? 0 },
-    { value: "closed", status: "Closed", n: row?.closed ?? 0 },
+    { value: "open", status: STATUS_LABEL.open, n: Math.max(0, (row?.open ?? 0) - isNew) },
+    { value: "in_progress", status: STATUS_LABEL.in_progress, n: row?.inProgress ?? 0 },
+    { value: "waiting_on_customer", status: STATUS_LABEL.waiting_on_customer, n: row?.waiting ?? 0 },
+    { value: "resolved", status: STATUS_LABEL.resolved, n: row?.resolved ?? 0 },
+    { value: "closed", status: STATUS_LABEL.closed, n: row?.closed ?? 0 },
   ];
 }
 

@@ -5,7 +5,7 @@ import { CalendarCheck, LinkIcon, SendHorizonal } from "lucide-react";
 import { toast } from "sonner";
 import { RowActions } from "@/components/ds";
 import { RowActionTooltipButton } from "@/components/ds/row-action-tooltip-button";
-import { promptReloadIfStale } from "@foundry/ui/stale-deploy";
+import { unwrapAction } from "@/lib/actions/unwrap";
 import { useTimezone } from "@foundry/design-system/timezone-provider";
 import { formatEpoch } from "@/lib/format/datetime";
 import type { SendState } from "@/lib/services/customers.service";
@@ -19,12 +19,12 @@ export function useCustomerInvite(email: string | null) {
     if (!email || pending) return;
     start(async () => {
       try {
-        await resendCustomerInvite(email);
+        await unwrapAction(resendCustomerInvite(email));
         toast.success("Invite sent", {
           description: `They'll get a welcome email at ${email} with a sign-in link. If it doesn't arrive, ask them to check spam.`,
         });
       } catch (e) {
-        if (!promptReloadIfStale(e)) toast.error(e instanceof Error ? e.message : "Could not send the invite.");
+        toast.error(e instanceof Error ? e.message : "Could not send the invite.");
       }
     });
   }
@@ -34,9 +34,9 @@ export function useCustomerInvite(email: string | null) {
     start(async () => {
       let url: string;
       try {
-        url = await copyCustomerInviteLink(email);
+        ({ url } = await unwrapAction(copyCustomerInviteLink(email)));
       } catch (e) {
-        if (!promptReloadIfStale(e)) toast.error(e instanceof Error ? e.message : "Could not create the invite link.");
+        toast.error(e instanceof Error ? e.message : "Could not create the invite link.");
         return;
       }
       try {
@@ -78,14 +78,13 @@ function MenuReminderButton({ publicId, state }: { publicId: string; state: Send
       disabled={pending}
       onClick={() => {
         start(async () => {
-          const r = await sendCustomerMenuReminder(publicId).catch((e: unknown) => {
-            if (!promptReloadIfStale(e)) toast.error("Could not send the reminder.");
-            return null;
-          });
-          if (!r) return;
-          if ("error" in r) toast.error(r.error);
-          else if (r.queued === 0) toast.warning("Not sent", { description: "This address is unsubscribed or bouncing." });
-          else toast.success("Menu reminder sent", { description: "They'll get a link to pick this week's meals." });
+          try {
+            const { queued } = await unwrapAction(sendCustomerMenuReminder(publicId));
+            if (queued === 0) toast.warning("Not sent", { description: "This address is unsubscribed or bouncing." });
+            else toast.success("Menu reminder sent", { description: "They'll get a link to pick this week's meals." });
+          } catch (e) {
+            toast.error(e instanceof Error ? e.message : "Could not send the reminder.");
+          }
         });
       }}
     />

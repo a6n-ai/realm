@@ -1,7 +1,7 @@
 import { and, count, desc, eq, gt, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import { invitation, users } from "@/db/schema";
-import type { InviteRow } from "./invites-list";
+import type { InviteRow } from "./invite-status";
 
 // Direct SQL, not auth.api.listInvitations: that endpoint requires the viewer
 // to be a direct member of each org, which brand/super_admin viewers aren't.
@@ -44,6 +44,7 @@ export async function countPendingInvites(orgIds: string[]): Promise<number> {
       and(
         inArray(invitation.organizationId, orgIds),
         eq(invitation.status, "pending"),
+        // Not expired: the SQL twin of isInviteExpired.
         gt(invitation.expiresAt, new Date()),
       ),
     );

@@ -11,7 +11,7 @@ const { saveTiffinsPerWeek } = await import("./actions");
 
 describe("saveTiffinsPerWeek", () => {
   it.each([[0, 3], [1, 8], [4, 3], [1.5, 3]])("rejects %s..%s", async (a, b) => {
-    await expect(saveTiffinsPerWeek({ minTiffinsPerWeek: a, maxTiffinsPerWeek: b })).rejects.toThrow();
+    await expect(saveTiffinsPerWeek({ minTiffinsPerWeek: a, maxTiffinsPerWeek: b })).resolves.toHaveProperty("error");
     expect(setAppSettings).not.toHaveBeenCalled();
   });
   it("saves valid range", async () => {

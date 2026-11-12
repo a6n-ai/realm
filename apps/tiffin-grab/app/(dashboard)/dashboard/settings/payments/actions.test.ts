@@ -6,6 +6,7 @@ vi.mock("@/lib/services/app-settings.service", () => ({
   getPaymentConfig: vi.fn(),
   setPaymentConfig: vi.fn(),
 }));
+vi.mock("@/lib/catalog/load", () => ({ invalidateCatalogSnapshot: async () => undefined }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
 import { savePaymentConfig } from "./actions";
@@ -17,7 +18,7 @@ describe("savePaymentConfig", () => {
     const res = await savePaymentConfig({
       methods: [{ id: "etransfer", kind: "manual", enabled: true, label: "e-Transfer", taxes: [] }],
     });
-    expect(res).toEqual({ error: expect.stringContaining("payee handle") });
+    expect(res).toMatchObject({ error: expect.stringContaining("payee handle") });
   });
 
   it("allows enabling cash without a payee handle", async () => {

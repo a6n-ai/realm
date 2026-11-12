@@ -1,6 +1,6 @@
 import { DAY_MS } from "@foundry/commons/util/dates";
 import { pageOffset } from "@foundry/design-system/filters/parse-filter-state";
-import { eq, ilike, inArray, or, sql, and, type AnyColumn, type SQL } from "drizzle-orm";
+import { eq, ilike, inArray, or, sql, and, type SQL } from "drizzle-orm";
 import { pageOrder } from "@foundry/database";
 import { parseFilterState } from "@/components/ds";
 import { db } from "@/db/client";
@@ -18,7 +18,7 @@ import {
   STRIPE_FACETS,
   type PaymentRow,
   type PaymentSortKey,
-} from "./payment-facets";
+} from "@/lib/payments/facets";
 
 const SORT_COL = {
   time: payments.createdAt,
@@ -32,10 +32,6 @@ const SORT_COL = {
 type Sp = { q?: string; sort?: string; dir?: string; status?: string; method?: string; attention?: string; owner?: string; from?: string; to?: string; basis?: string };
 
 /** The date picker writes epoch-ms `from`/`to` params; either end may be open. */
-export function dateRangeWhere(col: AnyColumn, sp: { from?: string; to?: string }): SQL | undefined {
-  return epochBoundsWhere(col, sp);
-}
-
 // Prefixes written to order_activities (type payment_failed) by payment-stripe.ts when a card payment needs staff.
 const FLAGGED_NOTES = [
   `${NOTE_AMOUNT_MISMATCH} %`,
@@ -150,7 +146,7 @@ export async function countStripeAttention(sp: { from?: string; to?: string }): 
   const [{ count }] = await db
     .select({ count: sql<number>`cast(count(*) as int)` })
     .from(payments)
-    .where(and(eq(payments.method, "stripe"), dateRangeWhere(payments.createdAt, dated), attentionWhere(["stuck", "failed", "flagged", "disputed", "event_error"])));
+    .where(and(eq(payments.method, "stripe"), epochBoundsWhere(payments.createdAt, dated), attentionWhere(["stuck", "failed", "flagged", "disputed", "event_error"])));
   return count;
 }
 
@@ -165,7 +161,7 @@ export async function getLedgerKpis(sp: { from?: string; to?: string }) {
       count: sql<number>`cast(count(*) as int)`,
     })
     .from(ledgerEntries)
-    .where(dateRangeWhere(ledgerEntries.createdAt, dated))
+    .where(epochBoundsWhere(ledgerEntries.createdAt, dated))
     .groupBy(ledgerEntries.type, ledgerEntries.direction);
   const total = (type: string) => {
     const hit = rows.filter((r) => r.type === type);
@@ -194,14 +190,14 @@ export async function getLogKpis(sp: { from?: string; to?: string }) {
         failed: actType("payment_failed"),
       })
       .from(orderActivities)
-      .where(dateRangeWhere(orderActivities.createdAt, dated)),
+      .where(epochBoundsWhere(orderActivities.createdAt, dated)),
     db
       .select({
         events: sql<number>`cast(count(*) as int)`,
         errors: sql<number>`cast(count(*) filter (where ${stripeEvents.error} is not null) as int)`,
       })
       .from(stripeEvents)
-      .where(dateRangeWhere(stripeEvents.receivedAt, dated)),
+      .where(epochBoundsWhere(stripeEvents.receivedAt, dated)),
   ]);
   return { ...a, events: a.claimed + a.verified + a.rejected + e.events, webhooks: e.events, webhookErrors: e.errors };
 }
@@ -234,7 +230,7 @@ export async function listPayments(
     // basis=money is the analytics drill: dated by when the money moved, like the revenue tiles.
     dated.basis === "money"
       ? epochBoundsWhereSql(sql`coalesce(${payments.capturedAt}, ${payments.createdAt})`, dated)
-      : dateRangeWhere(payments.createdAt, dated),
+      : epochBoundsWhere(payments.createdAt, dated),
     attentionWhere(attention),
     ownerWhere(dated.owner),
     q

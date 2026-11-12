@@ -3,7 +3,7 @@
 import { ValidationError } from "@foundry/commons";
 import { createShortLink } from "@foundry/shortlinks";
 import { db } from "@/db/client";
-import { requirePermission, requireStaff } from "@/lib/auth/guards";
+import { requireStaff } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { quoteQuery } from "@/lib/wizard/selections";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
@@ -13,7 +13,8 @@ import { assertOrderVisible } from "@/lib/services/orders.service";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import { findRenewableOrder, readOrderPrefill } from "@/lib/services/order-prefill.service";
 import { userIdByPublicId } from "@/lib/services/session-service";
-import { runAction, type ActionResult } from "@/lib/actions/action-result";
+import type { ActionResult } from "@/lib/actions/action-result";
+import { staffAction } from "@/lib/actions/staff-action";
 import { orderFormCatalog } from "../orders/order-form-catalog";
 import type { CustomerHit } from "../_leads/match-actions";
 import type { OrderFormInput } from "../inquiries/[id]/order-schema";
@@ -35,17 +36,14 @@ export async function estimateFormData() {
 
 // The short /q/ link for an estimate. Only the quote params are kept, so the stored target is
 // always the subscribe stepper; created_by is the signed-in staff member, never client input.
-export async function createQuoteLink(query: string): Promise<{ code: string } | { error: string }> {
-  await requireStaff();
-  const qs = quoteQuery(new URLSearchParams(query));
-  if (!qs) return { error: "Nothing to link to yet" };
-  const publicId = (await getSession())?.user?.id;
-  const staffId = publicId ? await userIdByPublicId(publicId) : null;
-  try {
+export async function createQuoteLink(query: string): Promise<ActionResult<{ code: string }>> {
+  return staffAction({ guard: "staff" }, async () => {
+    const qs = quoteQuery(new URLSearchParams(query));
+    if (!qs) throw new ValidationError("Nothing to link to yet");
+    const publicId = (await getSession())?.user?.id;
+    const staffId = publicId ? await userIdByPublicId(publicId) : null;
     return { code: await createShortLink(db, { target: `/subscribe${qs}`, createdBy: staffId }) };
-  } catch {
-    return { error: "Couldn't create a short link" };
-  }
+  });
 }
 
 /**
@@ -54,8 +52,7 @@ export async function createQuoteLink(query: string): Promise<{ code: string } |
  * a regular plan, so staff pick the size the customer moves to.
  */
 export async function estimatePrefill(orderPublicId: string): Promise<ActionResult<OrderPrefill>> {
-  return runAction(async () => {
-    await requirePermission({ order: ["read"] });
+  return staffAction({ guard: { order: ["read"] } }, async () => {
     await assertOrderVisible(orderPublicId, await resolveSessionVisibleOrgIds(await getSession()));
     return prefillFromOrder(orderPublicId);
   });
@@ -67,8 +64,7 @@ export async function estimatePrefill(orderPublicId: string): Promise<ActionResu
  * form's renewal rule starts it the day after the running plan ends.
  */
 export async function renewPrefill(customerPublicId: string): Promise<ActionResult<OrderPrefill & { deploymentId: string }>> {
-  return runAction(async () => {
-    await requirePermission({ order: ["read"] });
+  return staffAction({ guard: { order: ["read"] } }, async () => {
     const visible = await resolveSessionVisibleOrgIds(await getSession());
     if (visible !== "all" && visible.length === 0) throw new ValidationError("This customer has no earlier plan you can see");
     const last = await findRenewableOrder(customerPublicId, visible);

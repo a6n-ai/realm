@@ -102,7 +102,7 @@ function FaqEditDialog({
         answer,
         active,
       });
-      if (res.error) {
+      if ("error" in res) {
         toast.error(res.error);
         return;
       }
@@ -116,7 +116,7 @@ function FaqEditDialog({
     if (!faq || isNew) return;
     startRetire(async () => {
       const res = await retireFaqAction(faq.publicId);
-      if (res.error) {
+      if ("error" in res) {
         toast.error(res.error);
         return;
       }

@@ -25,6 +25,7 @@ import { DATE_BASIS_LABEL, type AnalyticsScope } from "@/lib/services/analytics/
 import type { AnalyticsSearchParams } from "@/lib/services/analytics/shared-filters";
 import { analyticsHref } from "@/lib/services/analytics/shared-filter-params";
 import { getMoneyFormatter } from "@/lib/services/app-settings.service";
+import { OPEN_STATUSES } from "@/lib/support/ticket-status";
 
 
 type SearchParams = Promise<AnalyticsSearchParams>;
@@ -218,7 +219,7 @@ async function StatsData({ sp, scope }: { sp: AnalyticsSearchParams; scope: Anal
           value: complaints.open,
           href: complaintHref("/dashboard/tickets", {
             ...complaintFilters,
-            statuses: ["open", "in_progress", "waiting_on_customer"],
+            statuses: [...OPEN_STATUSES],
           }),
           hint: `Not yet resolved · ${DATE_BASIS_LABEL.tickets}`,
           tone: complaints.open > 0 ? "warn" : undefined,

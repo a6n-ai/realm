@@ -4,14 +4,6 @@ import { cn } from "@foundry/ui/cn";
 // picker; categoryLabel() also covers retired values still on historical rows.
 export { categoryLabel } from "@/lib/support/ticket-taxonomy";
 
-const STATUS_LABEL: Record<string, string> = {
-  open: "Open",
-  in_progress: "In progress",
-  waiting_on_customer: "Waiting on customer",
-  resolved: "Resolved",
-  closed: "Closed",
-};
-
 type Variant = "neutral" | "ok" | "warn" | "bad";
 
 const VARIANT_CLASS: Record<Variant, string> = {
@@ -33,6 +25,7 @@ const STATUS_VARIANT: Record<string, Variant> = {
 // and complaint analytics never disagree on what a priority is called.
 export { priorityLabel } from "@/lib/support/ticket-priority";
 import { priorityLabel } from "@/lib/support/ticket-priority";
+import { statusLabel } from "@/lib/support/ticket-status";
 
 const PRIORITY_VARIANT: Record<string, Variant> = {
   low: "neutral",
@@ -56,7 +49,7 @@ function Pill({ variant, children }: { variant: Variant; children: React.ReactNo
 
 export function TicketStatusBadge({ status }: { status: string }) {
   return (
-    <Pill variant={STATUS_VARIANT[status] ?? "neutral"}>{STATUS_LABEL[status] ?? status}</Pill>
+    <Pill variant={STATUS_VARIANT[status] ?? "neutral"}>{statusLabel(status)}</Pill>
   );
 }
 

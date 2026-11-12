@@ -282,15 +282,15 @@ describe("analytics reconciliation (integration)", () => {
       { scope: buildAnalyticsScope({ org: `${orgA},${orgB}` }, "all", TZ, MARCH_NOW), extra: {}, visible: "all" as const },
     ];
     for (const c of cases) {
-      const href = ordersDrillHref(c.scope, c.extra, c.visible);
+      const href = ordersDrillHref({ ...c.scope, visible: c.visible }, c.extra);
       const sp = Object.fromEntries(new URL(href, "http://x").searchParams);
       const { condition, page } = parseFilterState(spec, sp);
       const listed = await listOrdersPage(condition, page, undefined, c.visible);
       expect(listed.total).toBe(await countOrders(c.scope, c.extra));
       expect(listed.total).toBeGreaterThan(0);
     }
-    expect(ordersDrillHref(scopeA(MARCH_NOW), {}, [orgA])).not.toContain("org=");
-    expect(ordersDrillHref(scopeA(MARCH_NOW), {}, [orgA, orgB])).toContain(`org=${orgA}`);
+    expect(ordersDrillHref({ ...scopeA(MARCH_NOW), visible: [orgA] }, {})).not.toContain("org=");
+    expect(ordersDrillHref({ ...scopeA(MARCH_NOW), visible: [orgA, orgB] }, {})).toContain(`org=${orgA}`);
     expect(() => ordersDrillHref(scopeA(MARCH_NOW), { status: ["active", "paused"] })).toThrow();
   });
 

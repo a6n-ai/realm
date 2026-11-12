@@ -13,7 +13,7 @@ const { adjustCustomerCoinsAction } = await import("../wallet-actions");
 describe("adjustCustomerCoinsAction", () => {
   it("adjusts the customer's wallet as the signed-in staff member", async () => {
     adjust.mockResolvedValue({ balance: 15 });
-    expect(await adjustCustomerCoinsAction("usr_1", { coins: 5, memo: "Sorry" })).toEqual({});
+    expect(await adjustCustomerCoinsAction("usr_1", { coins: 5, memo: "Sorry" })).toEqual({ ok: true });
     expect(adjust).toHaveBeenCalledWith({ userId: 42n, coins: 5, memo: "Sorry", actorId: 7n });
   });
 

@@ -23,35 +23,35 @@ describe("runAction", () => {
     const res = await runAction(async () => {
       throw new ValidationError("Name is required");
     });
-    expect(res).toEqual({ error: "Name is required" });
+    expect(res).toMatchObject({ error: "Name is required" });
   });
 
   it("handles generic AppError returning { error }", async () => {
     const res = await runAction(async () => {
       throw new AppError("Resource conflict", 409);
     });
-    expect(res).toEqual({ error: "Resource conflict" });
+    expect(res).toMatchObject({ error: "Resource conflict" });
   });
 
   it("handles AuthError returning friendly session expired error", async () => {
     const res = await runAction(async () => {
       throw new AuthError();
     });
-    expect(res).toEqual({ error: "Session expired. Please log in again." });
+    expect(res).toMatchObject({ error: "Session expired. Please log in again." });
   });
 
   it("handles ForbiddenError returning friendly forbidden error", async () => {
     const res = await runAction(async () => {
       throw new ForbiddenError();
     });
-    expect(res).toEqual({ error: "You do not have permission to perform this action." });
+    expect(res).toMatchObject({ error: "You do not have permission to perform this action." });
   });
 
   it("handles MealRuleViolationError returning error and violatedRuleId", async () => {
     const res = await runAction(async () => {
       throw new MealRuleViolationError("Max portions exceeded", "rule_max_tu");
     });
-    expect(res).toEqual({ error: "Max portions exceeded", violatedRuleId: "rule_max_tu" });
+    expect(res).toMatchObject({ error: "Max portions exceeded", violatedRuleId: "rule_max_tu" });
   });
 
   it("catches unexpected exceptions, logs to console, and returns friendly error instead of re-throwing", async () => {
@@ -59,7 +59,7 @@ describe("runAction", () => {
     const res = await runAction(async () => {
       throw new Error("Neon Postgres query timed out");
     });
-    expect(res).toEqual({ error: "Unable to complete request. Please try again." });
+    expect(res).toMatchObject({ error: "Unable to complete request. Please try again." });
     expect(spy).toHaveBeenCalledWith(
       "[runAction unexpected error]",
       expect.any(Error),

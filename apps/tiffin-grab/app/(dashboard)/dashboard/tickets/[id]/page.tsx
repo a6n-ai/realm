@@ -28,6 +28,7 @@ import { CustomerPresenceDot } from "@/components/support/customer-presence-dot"
 import { cn } from "@foundry/ui/cn";
 import { ChatMessageListSkeleton } from "@foundry/design-system";
 import { ChatPane } from "./chat-pane";
+import { DONE_STATUSES } from "@/lib/support/ticket-status";
 
 const AUTHOR_LABEL: Record<string, string> = {
   customer: "Customer",
@@ -249,7 +250,7 @@ async function CustomerData({ params }: { params: Promise<{ id: string }> }) {
   );
 }
 
-const DONE = new Set(["resolved", "closed"]);
+const DONE = new Set<string>(DONE_STATUSES);
 
 async function CustomerChatsData({ params }: { params: Promise<{ id: string }> }) {
   await ensureStaff();

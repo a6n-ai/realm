@@ -14,6 +14,7 @@ import {
   PROVINCE_LABEL,
   type Province,
 } from "@/lib/tax/canada";
+import { unwrapAction } from "@/lib/actions/unwrap";
 import { setProvinceTaxesAction } from "./actions";
 
 type TaxLine = { name: string; ratePct: number };
@@ -150,7 +151,7 @@ function EditProvinceDialog({
     const payload = sameLines(parsed, DEFAULT_PROVINCE_TAXES[p]) ? rest : { ...rest, [p]: parsed };
     start(async () => {
       try {
-        await setProvinceTaxesAction(payload);
+        await unwrapAction(setProvinceTaxesAction(payload));
         toast.success(`${label} tax saved`);
         onClose();
         router.refresh();

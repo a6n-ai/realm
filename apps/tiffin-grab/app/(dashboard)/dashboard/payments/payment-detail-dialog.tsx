@@ -10,7 +10,7 @@ import { useTimezone } from "@foundry/design-system/timezone-provider";
 import { PaymentStatusPill } from "./payment-status-pill";
 import { ReferenceEditor } from "../orders/[id]/reference-editor";
 import { MethodName } from "@/components/payments/stripe-mark";
-import { methodLabel, type PaymentRow } from "./payment-facets";
+import { methodLabel, type PaymentRow } from "@/lib/payments/facets";
 
 /** One payment row (reference editable in place); `footer` carries the caller's actions (e.g. approve/reject). */
 export function PaymentDetailDialog({

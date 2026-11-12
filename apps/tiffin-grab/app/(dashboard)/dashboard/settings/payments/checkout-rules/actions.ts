@@ -1,12 +1,10 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { requireAdmin } from "@/lib/auth/guards";
+import { parseInput, staffAction } from "@/lib/actions/staff-action";
+import type { ActionResult } from "@/lib/actions/action-result";
 import { setProvinceTaxes } from "@/lib/services/app-settings.service";
 import { PROVINCES } from "@/lib/tax/canada";
-
-const PATH = "/dashboard/settings/payments/checkout-rules";
 
 const taxLineSchema = z.object({
   name: z.string().trim().min(1).max(20),
@@ -16,9 +14,8 @@ const taxLineSchema = z.object({
 // under a key checkout would never read (or would misread).
 const provinceTaxesSchema = z.record(z.enum(PROVINCES), z.array(taxLineSchema).max(4));
 
-export async function setProvinceTaxesAction(input: unknown): Promise<void> {
-  await requireAdmin();
-  const taxes = provinceTaxesSchema.parse(input);
-  await setProvinceTaxes(taxes);
-  revalidatePath(PATH);
+export async function setProvinceTaxesAction(input: unknown): Promise<ActionResult> {
+  return staffAction({ guard: "admin", revalidate: ["/dashboard/settings/payments/checkout-rules"] }, async () => {
+    await setProvinceTaxes(parseInput(provinceTaxesSchema, input));
+  });
 }

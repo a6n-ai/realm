@@ -1,6 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq, ne } from "drizzle-orm";
-import { ValidationError } from "@foundry/commons";
 
 // The settings actions go through requireAdmin() and revalidatePath(); stub both
 // so the action path runs outside a request scope. The point under test is the
@@ -48,13 +47,13 @@ describe("discounts settings actions", () => {
   it("rejects manual creation of a rep_daily coupon", async () => {
     await expect(
       saveCoupon(null, { ...basePatch, kind: "rep_daily" }),
-    ).rejects.toBeInstanceOf(ValidationError);
+    ).resolves.toHaveProperty("error");
     const rows = await db.select().from(coupons);
     expect(rows).toHaveLength(0);
   });
 
   it("rejects creating a free_delivery coupon", async () => {
-    await expect(saveCoupon(null, { ...basePatch, kind: "free_delivery" })).rejects.toBeInstanceOf(ValidationError);
+    await expect(saveCoupon(null, { ...basePatch, kind: "free_delivery" })).resolves.toHaveProperty("error");
     expect(await db.select().from(coupons)).toHaveLength(0);
   });
 
@@ -102,13 +101,13 @@ describe("coupon form customer group", () => {
       await saveCoupon(c.publicId, patch);
       expect(await actions()).toHaveLength(1);
 
-      await expect(saveCoupon(c.publicId, { ...patch, autoApply: true })).rejects.toBeInstanceOf(ValidationError);
+      await expect(saveCoupon(c.publicId, { ...patch, autoApply: true })).resolves.toHaveProperty("error");
 
-      await expect(saveCoupon(c.publicId, { ...patch, name: "Renamed", customerGroupPublicId: "no-such-group" })).rejects.toBeInstanceOf(ValidationError);
+      await expect(saveCoupon(c.publicId, { ...patch, name: "Renamed", customerGroupPublicId: "no-such-group" })).resolves.toHaveProperty("error");
       const [kept] = await db.select().from(coupons).where(eq(coupons.id, c.id));
       expect(kept.customerGroupId).toBe(g.id);
       expect(kept.name).toBe(c.name);
-      await expect(saveCoupon(null, { ...patch, code: "GRPNEW", customerGroupPublicId: "no-such-group" })).rejects.toBeInstanceOf(ValidationError);
+      await expect(saveCoupon(null, { ...patch, code: "GRPNEW", customerGroupPublicId: "no-such-group" })).resolves.toHaveProperty("error");
       expect(await db.select().from(coupons).where(eq(coupons.code, "GRPNEW"))).toHaveLength(0);
 
       await saveCoupon(c.publicId, { ...patch, customerGroupPublicId: null });
@@ -127,12 +126,12 @@ describe("coupon form customer group", () => {
     try {
       await expect(
         saveCoupon(null, { ...basePatch, code: "GRPREP", kind: "rep_code" as const, customerGroupPublicId: g.publicId }),
-      ).rejects.toBeInstanceOf(ValidationError);
+      ).resolves.toHaveProperty("error");
       expect(await db.select().from(coupons).where(eq(coupons.code, "GRPREP"))).toHaveLength(0);
 
       await expect(
         saveCoupon(null, { ...basePatch, code: "GRPBAD", kind: "percentage" as const, valuePct: 5, customerGroupPublicId: "no-such-group" }),
-      ).rejects.toBeInstanceOf(ValidationError);
+      ).resolves.toHaveProperty("error");
       expect(await db.select().from(coupons).where(eq(coupons.code, "GRPBAD"))).toHaveLength(0);
 
       const patch = { ...basePatch, code: "GRPKEEP", kind: "percentage" as const, valuePct: 10, customerGroupPublicId: g.publicId };

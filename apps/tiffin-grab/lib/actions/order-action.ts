@@ -1,9 +1,9 @@
-import { requireAdmin, requireStaff } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import { revalidateOrder } from "@/lib/revalidate";
 import { assertDeliveryVisible, assertOrderVisible, assertPaymentVisible } from "@/lib/services/orders.service";
 import { runAction, type ActionResult } from "./action-result";
+import { guard } from "./staff-action";
 
 type Ids = { order?: string; delivery?: string; payment?: string };
 /** At least one id: an action that names no order, delivery or payment cannot be checked, so it cannot compile. */
@@ -11,7 +11,7 @@ export type OrderTarget = { [K in keyof Ids]-?: Required<Pick<Ids, K>> & Ids }[k
 
 /** Staff (or admin) session, then every named order, delivery or payment must sit in the caller's organizations. */
 export async function assertOrderAccess(target: OrderTarget, role: "staff" | "admin" = "staff"): Promise<void> {
-  await (role === "admin" ? requireAdmin() : requireStaff());
+  await guard(role);
   const visible = await resolveSessionVisibleOrgIds(await getSession());
   if (target.order) await assertOrderVisible(target.order, visible);
   if (target.delivery) await assertDeliveryVisible(target.delivery, visible);

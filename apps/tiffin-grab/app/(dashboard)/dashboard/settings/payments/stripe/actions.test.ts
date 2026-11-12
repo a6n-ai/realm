@@ -78,7 +78,7 @@ describe("stripe settings actions", () => {
 
   it("refuses enabling when not connected, toggles when connected", async () => {
     allow();
-    expect(await a.setStripeEnabledAction(true)).toEqual({ error: "Connect Stripe first" });
+    expect(await a.setStripeEnabledAction(true)).toMatchObject({ error: "Connect Stripe first" });
     expect(enabled()).toBe(false);
     rt.current = { stripe: {}, cfg: {} };
     allow();
@@ -97,14 +97,14 @@ describe("stripe settings actions", () => {
     allow();
     expect(await a.disconnectStripeAction()).toEqual({ ok: true });
     allow();
-    expect(await a.setStripeEnabledAction(true)).toEqual({ error: "Connect Stripe first" });
+    expect(await a.setStripeEnabledAction(true)).toMatchObject({ error: "Connect Stripe first" });
     expect(enabled()).toBe(false);
   });
 
   it("rejects a malformed tax code before calling Stripe", async () => {
     rt.current = { stripe: {}, cfg: {} };
     allow();
-    expect(await a.checkTaxReadinessAction("x; drop")).toEqual({ error: "Pick a valid tax code" });
+    expect(await a.checkTaxReadinessAction("x; drop")).toMatchObject({ error: "Pick a valid tax code" });
     expect(taxReadinessMock).not.toHaveBeenCalled();
   });
 
@@ -132,7 +132,7 @@ describe("stripe settings actions", () => {
   it("test event refuses live mode", async () => {
     rt.current = { stripe: {}, cfg: { livemode: true } };
     allow();
-    expect(await a.sendTestEventAction()).toEqual({ error: "Test events are only available in test mode" });
+    expect(await a.sendTestEventAction()).toMatchObject({ error: "Test events are only available in test mode" });
   });
 
   it("save refuses tax.enabled when readiness fails", async () => {

@@ -8,7 +8,7 @@ import { StatCards, type StatCardItem } from "@/components/dashboard/stat-cards"
 import { orders } from "@/db/schema";
 import { formatDateOnly, formatEpoch } from "@/lib/format/datetime";
 import { getAppSettings } from "@/lib/services/app-settings.service";
-import { listPayments } from "../../../payments/payment-queries";
+import { listPayments } from "@/lib/services/payments-list.service";
 import { PaymentsTable, PaymentsTableSkeleton } from "../../../payments/payments-table";
 import { loadCustomer, loadViewer } from "../data";
 

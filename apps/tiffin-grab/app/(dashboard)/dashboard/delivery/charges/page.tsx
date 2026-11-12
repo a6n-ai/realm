@@ -3,8 +3,7 @@ import { PageHeader, PageShell } from "@/components/ds";
 import { requireAdmin } from "@/lib/auth/guards";
 import { deliveryService } from "@/lib/services/delivery.service";
 import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
-import { DeliveryChargesManager } from "@foundry/delivery/ui";
-import { deliveryChargesActions } from "./admin-actions";
+import { DeliveryChargesBoundary } from "./delivery-clients";
 
 export const dynamic = "force-dynamic";
 
@@ -24,11 +23,10 @@ export default async function DeliveryChargesPage() {
         title="Delivery charges"
         subtitle="Base delivery fee, place types (tags), connected sets, and the delivery strategies customers can add, each with its own charge."
       />
-      <DeliveryChargesManager
+      <DeliveryChargesBoundary
         initialBaseCharge={baseCharge}
         initialDeliveryStrategies={deliveryStrategies}
         initialStrategyGroups={strategyGroups}
-        actions={deliveryChargesActions}
       />
     </PageShell>
   );

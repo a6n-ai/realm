@@ -1,5 +1,6 @@
 "use client";
 
+import { unwrapAction } from "@/lib/actions/unwrap";
 import { useState } from "react";
 import { Button } from "@foundry/ui/button";
 import { Input } from "@foundry/ui/input";
@@ -48,17 +49,12 @@ export function GiveCoinsDialog({
     setSubmitting(true);
     setFailure(null);
     try {
-      const res = await giveGroupCoinsAction({ groupPublicId, coins: n, memo: memo || undefined });
-      if (res.ok) {
-        setOutcome(res.data);
-        setCoins("0");
-        setMemo("");
-        onDone?.();
-      } else {
-        setFailure(res.error);
-      }
-    } catch {
-      setFailure("The request did not finish.");
+      setOutcome(await unwrapAction(giveGroupCoinsAction({ groupPublicId, coins: n, memo: memo || undefined })));
+      setCoins("0");
+      setMemo("");
+      onDone?.();
+    } catch (e) {
+      setFailure(e instanceof Error ? e.message : "The request did not finish.");
     } finally {
       setSubmitting(false);
     }

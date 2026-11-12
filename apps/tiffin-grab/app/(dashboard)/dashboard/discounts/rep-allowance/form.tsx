@@ -1,5 +1,6 @@
 "use client";
 
+import { unwrapAction } from "@/lib/actions/unwrap";
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -124,7 +125,7 @@ function GlobalCeilingsSection({ policy }: { policy: DiscountPolicy }) {
     }
     start(async () => {
       try {
-        await saveDiscountPolicy({
+        await unwrapAction(saveDiscountPolicy({
           ...policy,
           repDaily: {
             ...policy.repDaily,
@@ -134,7 +135,7 @@ function GlobalCeilingsSection({ policy }: { policy: DiscountPolicy }) {
             defaultDailyUses: usesN,
             codeValidityHours: hoursN,
           },
-        });
+        }));
         toast.success("Rep ceilings saved");
         router.refresh();
       } catch (e) {
@@ -240,12 +241,12 @@ function RepCells({
     }
     start(async () => {
       try {
-        await setRepCeiling(rep.publicId, {
+        await unwrapAction(setRepCeiling(rep.publicId, {
           capPct: numOrNull(capPct) ?? undefined,
           capAmount: numOrNull(capAmount) ?? undefined,
           dailyUses: usesN ?? undefined,
           active,
-        });
+        }));
         toast.success(`Saved ${rep.label}`);
         router.refresh();
       } catch (e) {

@@ -1,6 +1,7 @@
 import { readBody } from "@foundry/commons/util/http";
 import { handler, problem } from "@foundry/routes";
-import { currentUserId, getFeed, markRead } from "@/lib/notifications/feed";
+import { getFeed, markRead } from "@/lib/notifications/feed";
+import { currentUserId } from "@/lib/services/session-service";
 
 /** GET: recent feed + unread count for the logged-in user. */
 export const GET = handler(async (): Promise<Response> => {

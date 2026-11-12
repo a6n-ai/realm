@@ -12,6 +12,7 @@ import { useAppCurrency } from "@/components/app-currency";
 import { formatDiscount } from "@/lib/format/currency";
 import { ResponsiveDialog } from "@/components/ds";
 import { RESOURCES } from "@/lib/catalog/resource-config";
+import { unwrapAction } from "@/lib/actions/unwrap";
 import { saveItem } from "@/app/(dashboard)/dashboard/catalog/actions";
 import { ALL_TARGETS_LABEL, type DiscountDto, type DiscountKind } from "@/app/(dashboard)/dashboard/catalog/discounts/build-rows";
 import { DateInput } from "@/components/dashboard/date-fields";
@@ -92,7 +93,7 @@ function Body({ onOpenChange, discount, prefill, options, onSaved }: DiscountDia
     setErrors({});
     setBusy(true);
     try {
-      await saveItem("discounts", discount?.publicId ?? null, values);
+      await unwrapAction(saveItem("discounts", discount?.publicId ?? null, values));
       onOpenChange(false);
       onSaved?.();
       router.refresh();

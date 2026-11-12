@@ -75,8 +75,8 @@ export function EstimateDialog({ open, onOpenChange, fromOrder }: { open: boolea
     let text = estimate.copyText;
     // Swap the long link for a short /q/ one; if that fails the long link still works.
     if (estimate.link) {
-      const r = await createQuoteLink(new URL(estimate.link).search).catch(() => ({ error: "" }));
-      if ("code" in r) text = text.replace(estimate.link, `${window.location.origin}/q/${r.code}`);
+      const r = await createQuoteLink(new URL(estimate.link).search).catch(() => null);
+      if (r && "code" in r) text = text.replace(estimate.link, `${window.location.origin}/q/${r.code}`);
     }
     try {
       await navigator.clipboard.writeText(text);

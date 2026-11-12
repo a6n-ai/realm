@@ -18,11 +18,12 @@ import { LabelsExportButton } from "./labels-export-button";
 import { LabelsPrintButton } from "./labels-print-button";
 import { DeliveryStatusList } from "./delivery-status-list";
 import { LabelsTable } from "./labels-table";
-import { groupKitchenCounts } from "./kitchen-groups";
+import { groupKitchenCounts } from "@/lib/menu/kitchen-groups";
 import { KitchenCounts, LabelList } from "./labels-view";
 import { isGoingOut } from "@/lib/deliveries/label-status";
 import { LabelsTabs } from "./labels-tabs";
 import { requestNow } from "@/lib/dates/request-now";
+import { unreleasedWeekMessage } from "@/lib/menu/unreleased-week";
 
 type SearchParams = Promise<{ date?: string }>;
 
@@ -65,11 +66,7 @@ async function LabelsData({ searchParams }: { searchParams: SearchParams }) {
   const containers = groupKitchenCounts(sheet.counts).reduce((n, g) => n + g.containers, 0);
   const noMenu = sheet.menuWeekPublicId == null ? (
     <SectionCard title="No menu released">
-      <p className="text-muted-foreground text-sm">
-        No menu week is released for the week of {sheet.weekStart}, so the dishes for this day
-        cannot be resolved. Release that week first — labels must show the same meal the
-        customer sees on their calendar.
-      </p>
+      <p className="text-muted-foreground text-sm">{unreleasedWeekMessage(sheet.weekStart)}</p>
     </SectionCard>
   ) : null;
 

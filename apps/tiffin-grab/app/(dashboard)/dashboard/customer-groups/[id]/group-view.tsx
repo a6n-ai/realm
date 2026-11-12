@@ -1,5 +1,6 @@
 "use client";
 
+import { unwrapAction } from "@/lib/actions/unwrap";
 import { ACTION_LABEL } from "@/lib/customer-groups/action-labels";
 import { useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
@@ -143,8 +144,8 @@ export function GroupView({
     try {
       const err = await fn();
       if (err) setError(err);
-    } catch {
-      setError("The request did not finish.");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "The request did not finish.");
     } finally {
       setBusy(null);
     }
@@ -152,16 +153,14 @@ export function GroupView({
 
   const remove = (m: GroupMember) =>
     guarded(`rm-${m.publicId}`, async () => {
-      const res = await removeGroupMemberAction(group.publicId, m.publicId);
-      if (!res.ok) return res.error;
+      await unwrapAction(removeGroupMemberAction(group.publicId, m.publicId));
       refresh();
       return null;
     });
 
   const add = (publicId: string) =>
     guarded("add", async () => {
-      const res = await addGroupMemberAction(group.publicId, publicId);
-      if (!res.ok) return res.error;
+      await unwrapAction(addGroupMemberAction(group.publicId, publicId));
       refresh();
       return null;
     });

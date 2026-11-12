@@ -10,6 +10,7 @@ import { paymentStatusIn } from "@/lib/payments/status-sql";
 import { freeTiffinsWhere, lastTiffinSql, laterOrderSql, paymentReviewWhere, visibleOrgWhere, type FreeTiffinRange } from "@/lib/orders/queries";
 import { addDaysIso, DAY_MS } from "@foundry/commons/util/dates";
 import { requestNow } from "@/lib/dates/request-now";
+import { BOOKED, STARTING_SOON } from "@/lib/orders/status";
 
 export type OrdersOverview = {
   newOrders: { count: number; prevCount: number; returning: number };
@@ -47,7 +48,7 @@ export async function getOrdersOverview(range: { from: number; to: number }, vis
         returning: sql<number>`count(*) filter (where ${between(orders.createdAt, range)} and ${returning})`,
       })
       .from(orders)
-      .where(and(sql`${orders.status} <> 'cancelled'`, between(orders.createdAt, { from: prev.from, to: range.to }), inOrgs)),
+      .where(and(inArray(orders.status, [...BOOKED]), between(orders.createdAt, { from: prev.from, to: range.to }), inOrgs)),
     // Plans whose first tiffin is due within the next week: the ones staff still have to get ready.
     db
       .select({
@@ -57,7 +58,7 @@ export async function getOrdersOverview(range: { from: number; to: number }, vis
       })
       .from(orders)
       .where(and(
-        inArray(orders.status, ["pending", "active", "waitlisted"]),
+        inArray(orders.status, [...STARTING_SOON]),
         sql`${orders.startDate} between ${today} and ${addDaysIso(today, 6)}`,
         inOrgs,
       )),
@@ -107,7 +108,7 @@ export async function getOrdersOverview(range: { from: number; to: number }, vis
   };
 }
 
-// Same threshold as the Payments page overdue queue (payments/payment-queries.ts OVERDUE_DAYS).
+// Same threshold as the Payments page overdue queue (lib/services/payments-list.service.ts OVERDUE_DAYS).
 export const OVERDUE_DAYS = 3;
 
 const hidden = (visible: "all" | string[]) => visible !== "all" && visible.length === 0;

@@ -23,16 +23,9 @@ import { ChatComposer } from "@/components/support/chat-composer";
 import { ReassignControl } from "@/components/reassign/reassign-control";
 import { assignOwner, replyTicket, setCategory, setPriority, setStatus } from "../actions";
 import type { TicketPriority, TicketStatus } from "@/lib/services/tickets.service";
+import { STATUS_OPTIONS } from "@/lib/support/ticket-status";
 
-const STATUSES: { value: TicketStatus; label: string }[] = [
-  { value: "open", label: "Open" },
-  { value: "in_progress", label: "In progress" },
-  { value: "waiting_on_customer", label: "Waiting on customer" },
-  { value: "resolved", label: "Resolved" },
-  { value: "closed", label: "Closed" },
-];
-
-const PRIORITIES: { value: TicketPriority; label: string }[] = PRIORITY_OPTIONS;
+const STATUSES: { value: TicketStatus; label: string }[] = STATUS_OPTIONS;
 
 const PICK_SUB = "__pick_sub__";
 
@@ -178,7 +171,7 @@ export function TicketControls({
         >
           <SelectTrigger className={F_PRIORITY.width}><SelectValue /></SelectTrigger>
           <SelectContent>
-            {PRIORITIES.map((p) => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
+            {PRIORITY_OPTIONS.map((p) => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
           </SelectContent>
         </Select>
       </div>

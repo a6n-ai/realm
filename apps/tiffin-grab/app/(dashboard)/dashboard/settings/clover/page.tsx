@@ -7,14 +7,10 @@ import {
   setCloverConnection,
   toPublicCloverConnection,
 } from "@foundry/clover";
-import { CloverSettingsPanel, CloverSettingsPanelSkeleton } from "@foundry/clover/ui";
+import { CloverSettingsPanelSkeleton } from "@foundry/clover/ui";
 import { PageHeader } from "@/components/ds";
 import { integrationsConfigStore } from "@/lib/services/app-settings.service";
-import {
-  connectCloverApiTokenAction,
-  disconnectCloverAction,
-  startCloverConnectAction,
-} from "../integrations/clover-actions";
+import { CloverPanel } from "./clover-panel";
 
 export default async function CloverSettingsPage() {
   return (
@@ -65,14 +61,11 @@ async function CloverSettingsLoader() {
   }
 
   return (
-    <CloverSettingsPanel
+    <CloverPanel
       clover={clover}
       merchantName={merchantName}
       credentialsConfigured={Boolean(credentials)}
       integrationsHref="/dashboard/settings/integrations"
-      onConnect={startCloverConnectAction}
-      onDisconnect={disconnectCloverAction}
-      onConnectApiToken={connectCloverApiTokenAction}
     />
   );
 }

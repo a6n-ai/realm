@@ -139,7 +139,7 @@ export function MenuBuilder({
       });
       if ("error" in result) {
         setError(sanitizeClientError(result.error));
-        if (/another tab|reload/i.test(result.error)) setStaleConflict(true);
+        if (result.status === 409) setStaleConflict(true);
         return;
       }
       // Adopt the persisted rows so new items pick up their server ids without a page
@@ -159,9 +159,7 @@ export function MenuBuilder({
       }
       return result;
     } catch (e) {
-      const message = sanitizeClientError(e, "Could not save");
-      setError(message);
-      if (/another tab|reload/i.test(message)) setStaleConflict(true);
+      setError(sanitizeClientError(e, "Could not save"));
     } finally {
       setSaving(false);
     }

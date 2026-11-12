@@ -1,15 +1,12 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-import { requireAdmin } from "@/lib/auth/guards";
+import type { ActionResult } from "@/lib/actions/action-result";
+import { staffAction } from "@/lib/actions/staff-action";
 import { setTrialSettings } from "@/lib/services/trial-settings.service";
 import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
-import { runAction } from "@/lib/actions/action-result";
 
-export async function saveTrialSettings(input: { frequencyKey: string | null; maxDays: number | null }) {
-  return runAction(async () => {
-    await requireAdmin();
+export async function saveTrialSettings(input: { frequencyKey: string | null; maxDays: number | null }): Promise<ActionResult> {
+  return staffAction({ guard: "admin", revalidate: ["/dashboard/catalog/meal-sizes"] }, async () => {
     await setTrialSettings(input, await resolveRequestOrg());
-    revalidatePath("/dashboard/catalog/meal-sizes");
   });
 }

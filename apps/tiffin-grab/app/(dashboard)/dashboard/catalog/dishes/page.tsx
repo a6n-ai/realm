@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { UtensilsCrossedIcon } from "lucide-react";
 import { PageHeader, PageShell, SectionCard } from "@/components/ds";
-import { CatalogData, type SearchParams } from "../[resource]/page";
+import { CatalogData, type SearchParams } from "../catalog-data";
 import { ResourceEditorSkeleton } from "../[resource]/resource-editor";
 import { CatalogTabs } from "./catalog-tabs";
 

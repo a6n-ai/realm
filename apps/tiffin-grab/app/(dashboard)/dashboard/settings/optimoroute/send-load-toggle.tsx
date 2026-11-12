@@ -1,6 +1,7 @@
 "use client";
 import { useState, useTransition } from "react";
 import { Switch } from "@foundry/ui/switch";
+import { unwrapAction } from "@/lib/actions/unwrap";
 import { saveSendLoad } from "./actions";
 
 export function SendLoadToggle({ initial }: { initial: boolean }) {
@@ -23,7 +24,7 @@ export function SendLoadToggle({ initial }: { initial: boolean }) {
           setOn(next);
           start(async () => {
             try {
-              await saveSendLoad(next);
+              await unwrapAction(saveSendLoad(next));
             } catch {
               setOn(!next);
             }

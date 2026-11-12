@@ -25,7 +25,7 @@ import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@foundry/design-system/timezone-provider";
 import { rejectPaymentAction, sendPaymentReminderAction, verifyPaymentAction } from "../../orders/[id]/actions";
 import { sendTone } from "../../customers/customer-invite-cell";
-import { PAYMENT_STATUS_OPTIONS, type PaymentRow, type PaymentSortKey } from "../payment-facets";
+import { PAYMENT_STATUS_OPTIONS, type PaymentRow, type PaymentSortKey } from "@/lib/payments/facets";
 import { PaymentStatusPill } from "../payment-status-pill";
 import { CustomerLink } from "../customer-link";
 import { PaymentDetailDialog } from "../payment-detail-dialog";

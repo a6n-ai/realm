@@ -9,8 +9,6 @@ import { AnalyticsStatCards, StatCardsSkeleton } from "@/components/dashboard/st
 import { BreakdownBarChart, CalendarHeatmap, PartsDonut, TrendLineChart } from "@/components/analytics/charts";
 import { grainUnitForRange } from "@/lib/analytics/revenue";
 import { ORDER_TONE } from "@/components/analytics/status-tones";
-import { getSession } from "@/lib/auth/session";
-import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import { scopeOrAlert } from "@/components/analytics/franchise-unavailable";
 import { ordersDrillHref } from "@/lib/analytics/drill";
 import { DATE_BASIS_LABEL, type AnalyticsScope } from "@/lib/services/analytics/metrics/scope";
@@ -75,7 +73,7 @@ export default async function CustomersAnalyticsPage({ searchParams }: { searchP
 }
 
 async function StatsData({ scope }: { scope: AnalyticsScope }) {
-  const [s, visible] = await Promise.all([getCustomerStats(scope), resolveSessionVisibleOrgIds(await getSession())]);
+  const s = await getCustomerStats(scope);
   return (
     <AnalyticsStatCards
       items={[
@@ -105,7 +103,7 @@ async function StatsData({ scope }: { scope: AnalyticsScope }) {
           label: "Cancelled orders",
           value: s.cancelledOrders,
           hint: DATE_BASIS_LABEL.orders,
-          href: ordersDrillHref(scope, { status: ["cancelled"] }, visible),
+          href: ordersDrillHref(scope, { status: ["cancelled"] }),
           badge: "Cancelled",
           badgeTone: "neutral",
         },

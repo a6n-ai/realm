@@ -42,7 +42,7 @@ describe("staff address actions", () => {
     const [c] = await db.insert(users).values({ email: EMAIL, role: "user" }).returning();
     guard.admin = false;
     await expect(staffCreateAddress(c!.publicId, { addressLine: "9 Bay St", city: "Toronto", postalCode: "M5J 2T3" }))
-      .resolves.toEqual({ error: "You do not have permission to perform this action." });
+      .resolves.toMatchObject({ error: "You do not have permission to perform this action." });
     expect(await db.select().from(customerAddresses).where(eq(customerAddresses.userId, c!.id))).toHaveLength(0);
   });
 
@@ -51,6 +51,6 @@ describe("staff address actions", () => {
     const [b] = await db.insert(users).values({ email: "staffaddr_b@test.invalid", role: "user" }).returning();
     const home = (await staffCreateAddress(a!.publicId, { addressLine: "1 A St", city: "Toronto", postalCode: "M5J 2T3" })) as { publicId: string };
     await staffCreateAddress(a!.publicId, { label: "Work", addressLine: "2 A St", city: "Toronto", postalCode: "M5J 2T3" });
-    await expect(staffArchiveAddress(b!.publicId, home.publicId)).resolves.toEqual({ error: "Address not found" });
+    await expect(staffArchiveAddress(b!.publicId, home.publicId)).resolves.toMatchObject({ error: "Address not found" });
   });
 });

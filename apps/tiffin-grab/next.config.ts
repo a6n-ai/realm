@@ -87,6 +87,25 @@ const nextConfig: NextConfig = {
       // Holidays moved under Settings (admin-only).
       { source: "/dashboard/holidays", destination: "/dashboard/settings/holidays", permanent: true },
       { source: "/dashboard/holidays/:id", destination: "/dashboard/settings/holidays/:id", permanent: true },
+      // Section roots open their first tab.
+      { source: "/dashboard/wallet", destination: "/dashboard/wallet/ledger", permanent: false },
+      { source: "/dashboard/discounts", destination: "/dashboard/discounts/logs", permanent: false },
+      { source: "/dashboard/account", destination: "/dashboard/account/profile", permanent: false },
+      // Older admin URLs that moved.
+      { source: "/dashboard/wallet/coin-rate", destination: "/dashboard/wallet/settings", permanent: true },
+      { source: "/dashboard/wallet/payouts", destination: "/dashboard/wallet/give", permanent: true },
+      { source: "/dashboard/wallet/groups", destination: "/dashboard/customer-groups", permanent: true },
+      { source: "/dashboard/wallet/groups/:id", destination: "/dashboard/customer-groups/:id", permanent: true },
+      { source: "/dashboard/users", destination: "/dashboard/organization/members", permanent: true },
+      { source: "/dashboard/users/:id", destination: "/dashboard/organization/members/:id", permanent: true },
+      { source: "/dashboard/analytics/renewals", destination: "/dashboard/renewals", permanent: true },
+      { source: "/dashboard/notifications/events", destination: "/dashboard/settings/email-tracking", permanent: true },
+      { source: "/dashboard/dispatch/stale", destination: "/dashboard/dispatch?view=cleanup", permanent: true },
+      { source: "/dashboard/dispatch/completions", destination: "/dashboard/dispatch?view=done", permanent: true },
+      // Customer support moved out of the CRM shell to /me.
+      { source: "/dashboard/support", destination: "/me/support", permanent: true },
+      { source: "/dashboard/support/new", destination: "/me/support/new", permanent: true },
+      { source: "/dashboard/support/:id", destination: "/me/support/:id", permanent: true },
     ];
   },
   // Cloudflare compresses at the edge (Brotli, checked on tiffingrab.ca) and caches static CSS/JS, so

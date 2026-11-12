@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { PaymentRow } from "./payment-facets";
+import type { PaymentRow } from "@/lib/payments/facets";
 
 /** Payment tables link the payer to their customer Payments tab; the order lives in the detail dialog. */
 export function CustomerLink({ row }: { row: Pick<PaymentRow, "customerPublicId" | "email"> }) {

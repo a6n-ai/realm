@@ -25,6 +25,8 @@ import {
   DialogTitle,
 } from "@foundry/ui/dialog";
 import { cn } from "@foundry/ui/cn";
+import type { ActionResult } from "@/lib/actions/action-result";
+import { unwrapAction } from "@/lib/actions/unwrap";
 import { saveSource, saveSubsource, setSourceActive, setSubsourceActive } from "./actions";
 
 type Sub = { publicId: string; key: string; label: string; active: boolean };
@@ -56,10 +58,10 @@ export function LeadSourcesManager({ sources }: { sources: Source[] }) {
   const [pending, start] = useTransition();
   const [dialog, setDialog] = useState<DialogState | null>(null);
 
-  function run(fn: () => Promise<void>, ok: string) {
+  function run(fn: () => Promise<ActionResult>, ok: string) {
     start(async () => {
       try {
-        await fn();
+        await unwrapAction(fn());
         toast.success(ok);
         setDialog(null);
         router.refresh();

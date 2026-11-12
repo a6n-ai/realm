@@ -30,24 +30,7 @@ import type {
   KnownDriver,
 } from "@/lib/services/optimoroute/drivers";
 import type { DeliveryActivity } from "@/lib/services/optimoroute/push";
-
-const UNASSIGNED = "__unassigned__";
-
-// Same unassigned-last, driver-alphabetical, stop-ascending order the old
-// per-driver grouping produced — just a flat sort instead of a grouping step.
-function sortRows(rows: DispatchRow[]): DispatchRow[] {
-  return [...rows].sort((a, b) => {
-    const aKey = a.routeDriverSerial ?? a.routeDriverName ?? UNASSIGNED;
-    const bKey = b.routeDriverSerial ?? b.routeDriverName ?? UNASSIGNED;
-    if (aKey === UNASSIGNED && bKey !== UNASSIGNED) return 1;
-    if (bKey === UNASSIGNED && aKey !== UNASSIGNED) return -1;
-    const nameCompare = (a.routeDriverName ?? aKey).localeCompare(
-      b.routeDriverName ?? bKey,
-    );
-    if (nameCompare !== 0) return nameCompare;
-    return (a.routeStopNumber ?? Infinity) - (b.routeStopNumber ?? Infinity);
-  });
-}
+import { sortDispatchRows } from "./dispatch-excel";
 
 const COLUMNS: readonly Column<"customer" | "driver" | "stop" | "actions">[] = [
   { key: "customer", label: "Customer" },
@@ -90,7 +73,7 @@ export function DispatchView({
   const [historyFor, setHistoryFor] = useState<DispatchRow | null>(null);
   const [history, setHistory] = useState<DeliveryActivity[] | null>(null);
 
-  const sorted = useMemo(() => sortRows(rows), [rows]);
+  const sorted = useMemo(() => sortDispatchRows(rows), [rows]);
 
   function openHistory(row: DispatchRow) {
     setHistoryFor(row);

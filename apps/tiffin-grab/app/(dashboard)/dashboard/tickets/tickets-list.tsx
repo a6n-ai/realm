@@ -15,16 +15,13 @@ import { useTimezone } from "@foundry/design-system/timezone-provider";
 import type { SortState } from "@foundry/design-system/list-sort";
 import type { QueueRow, QueueSortColumn } from "@/lib/services/tickets.service";
 import { TicketStatusBadge, PriorityBadge, categoryLabel } from "./ticket-badges";
+import { STATUS_OPTIONS } from "@/lib/support/ticket-status";
 
 const STATUS_PILLS = [
   { key: "all", label: "All" },
-  { key: "open", label: "Open" },
-  { key: "in_progress", label: "In progress" },
-  { key: "waiting_on_customer", label: "Waiting" },
-  { key: "resolved", label: "Resolved" },
-  { key: "closed", label: "Closed" },
+  ...STATUS_OPTIONS.map(({ value, label }) => ({ key: value, label })),
   { key: "overdue", label: "Overdue" },
-] as const;
+];
 
 // Single source of truth for the table's columns. DataTable renders the header
 // and DataTable.Skeleton renders the loading twin from this same array, so the

@@ -12,7 +12,7 @@ import { getAppSettings } from "@/lib/services/app-settings.service";
 import { customerWalletStats } from "@/lib/services/wallet-balances.service";
 import { walletEntryLabel } from "@/lib/wallet/source-labels";
 import { eventLabel } from "@relay/engine/ui/template-status";
-import { walletLedgerRows, type WalletSortColumn } from "../../../wallet/ledger/page";
+import { walletLedgerRows, type WalletSortColumn } from "@/lib/services/wallet-ledger.service";
 import { loadCustomer } from "../data";
 import { requireAdmin } from "@/lib/auth/guards";
 import { CustomerWalletTable, CustomerWalletTableSkeleton, type CustomerWalletColumn } from "./customer-wallet-table";

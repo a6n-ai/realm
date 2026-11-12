@@ -1,5 +1,6 @@
 "use client";
 
+import { unwrapAction } from "@/lib/actions/unwrap";
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -52,7 +53,7 @@ export function KindsForm({
   const save = () => {
     start(async () => {
       try {
-        await saveDiscountPolicy({ ...policy, enabledKinds: kinds });
+        await unwrapAction(saveDiscountPolicy({ ...policy, enabledKinds: kinds }));
         toast.success("Enabled kinds saved");
         router.refresh();
       } catch (e) {

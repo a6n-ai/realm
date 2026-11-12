@@ -10,7 +10,10 @@ import { InvitesList } from "../invites-list";
 // Dates render in the app-settings zone, so the list needs the provider the dashboard layout mounts.
 const render = (ui: ReactElement) => rtlRender(<TimezoneProvider tz="America/Toronto">{ui}</TimezoneProvider>);
 
-vi.mock("../../members/actions", () => ({ cancelInvitation: vi.fn(), resendInvite: vi.fn() }));
+vi.mock("../../members/actions", () => ({
+  cancelInvitation: vi.fn(async () => ({ ok: true })),
+  resendInvite: vi.fn(async () => ({ ok: true, email: "e@x.com" })),
+}));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 // DataTable reads "q" URL state via next/navigation hooks; stub them for jsdom.
 vi.mock("next/navigation", () => ({
@@ -79,9 +82,9 @@ describe("InvitesList", () => {
 });
 
 describe("InvitesList cancel failure", () => {
-  it("toasts an error instead of throwing when cancelInvitation rejects (already-accepted race)", async () => {
+  it("toasts the real reason when cancelInvitation is refused (already-accepted race)", async () => {
     const { cancelInvitation } = await import("../../members/actions");
-    vi.mocked(cancelInvitation).mockRejectedValueOnce(new Error("already accepted"));
+    vi.mocked(cancelInvitation).mockResolvedValueOnce({ error: "already accepted" });
 
     const { container } = render(
       <InvitesList
@@ -93,7 +96,7 @@ describe("InvitesList cancel failure", () => {
     );
     const scope = desktopScope(container);
     await userEvent.click(scope.getByRole("button", { name: /cancel/i }));
-    expect(toast.error).toHaveBeenCalledWith(expect.stringMatching(/could not cancel/i));
+    expect(toast.error).toHaveBeenCalledWith("already accepted");
   });
 });
 

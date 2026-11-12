@@ -144,8 +144,8 @@ describe("inquiriesService.setStatus", () => {
     expect(res).toEqual({ ok: true, updated: 1, skipped: 1 });
     expect((await row(a.id)).subStatus).toBe("responded");
     expect((await row(b.id)).subStatus).toBe("undeliverable");
-    expect(await bulkSetStatus([a.publicId], "lost")).toEqual({ error: expect.stringContaining("bulk") });
-    expect(await bulkSetStatus([a.publicId], "took_plan")).toEqual({ error: expect.stringContaining("bulk") });
+    expect(await bulkSetStatus([a.publicId], "lost")).toMatchObject({ error: expect.stringContaining("bulk") });
+    expect(await bulkSetStatus([a.publicId], "took_plan")).toMatchObject({ error: expect.stringContaining("bulk") });
   });
 
   it("stores follow-up date on row and activity, and the note", async () => {

@@ -1,9 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { ValidationError } from "@foundry/commons";
-import { requirePermission } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { sendRenewalReminderNow } from "@/lib/notifications/renewal-reminder";
 import { assertOrderVisible } from "@/lib/services/orders.service";
@@ -11,7 +8,8 @@ import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import { addTrackNote, logTrackActivity, setTrackStatus } from "@/lib/services/renewal-tracking.service";
 import type { LostReason } from "@/lib/services/inquiries.service";
 import { LOST_REASON_OPTIONS, TRACK_STATUSES, type TrackStatus } from "@/lib/renewals/status";
-import { runAction, type ActionResult } from "@/lib/actions/action-result";
+import type { ActionResult } from "@/lib/actions/action-result";
+import { parseInput, staffAction, type Guard } from "@/lib/actions/staff-action";
 import { createLogger } from "@foundry/commons/logger";
 
 const logger = createLogger("renewals:actions");
@@ -39,30 +37,33 @@ const logActivityInputSchema = z
   })
   .strict();
 
-function parseInput<S extends z.ZodType>(schema: S, value: unknown): z.output<S> {
-  const parsed = schema.safeParse(value);
-  if (!parsed.success) throw new ValidationError("Invalid input");
-  return parsed.data;
-}
+const ORDER_WRITE: Guard = { order: ["write"] };
 
-async function guardOrder(orderPublicId: string) {
-  await requirePermission({ order: ["write"] });
+async function assertVisible(orderPublicId: string) {
   await assertOrderVisible(orderPublicId, await resolveSessionVisibleOrgIds(await getSession()));
 }
 
-function revalidateRenewals(customerPublicId: unknown) {
-  revalidatePath("/dashboard/renewals");
-  const customer = z.string().min(1).safeParse(customerPublicId);
-  if (!customer.success) return;
-  revalidatePath(`/dashboard/renewals/customers/${customer.data}`);
-  revalidatePath(`/dashboard/inquiries/renewals/${customer.data}`);
-  revalidatePath(`/dashboard/customers/${customer.data}/renewals`);
+function renewalPaths(customerPublicId: string | null) {
+  return [
+    "/dashboard/renewals",
+    ...(customerPublicId
+      ? [
+          `/dashboard/renewals/customers/${customerPublicId}`,
+          `/dashboard/inquiries/renewals/${customerPublicId}`,
+          `/dashboard/customers/${customerPublicId}/renewals`,
+        ]
+      : []),
+  ];
+}
+
+function renewalOpts(customerPublicId: string | null) {
+  return { guard: ORDER_WRITE, revalidate: renewalPaths(customerPublicId) };
 }
 
 /** Send the renewal reminder email now for one of this customer's running plans. */
 export async function sendRenewalReminderAction(orderPublicId: string, customerPublicId: string): Promise<ActionResult> {
-  const res = await runAction(async () => {
-    await guardOrder(orderPublicId);
+  return staffAction(renewalOpts(customerPublicId), async () => {
+    await assertVisible(orderPublicId);
     const id = parseInput(orderIdSchema, orderPublicId);
     if ((await sendRenewalReminderNow(id)) !== "sent") return "Already sent today";
     try {
@@ -72,8 +73,6 @@ export async function sendRenewalReminderAction(orderPublicId: string, customerP
     }
     return "Reminder sent";
   });
-  revalidateRenewals(customerPublicId);
-  return res;
 }
 
 export async function setTrackStatusAction(
@@ -81,12 +80,10 @@ export async function setTrackStatusAction(
   customerPublicId: string | null,
   input: { status: TrackStatus | null; lostReason?: LostReason; note?: string; nextFollowUpAt?: number | null },
 ): Promise<ActionResult> {
-  const res = await runAction(async () => {
-    await guardOrder(orderPublicId);
+  return staffAction(renewalOpts(customerPublicId), async () => {
+    await assertVisible(orderPublicId);
     await setTrackStatus(parseInput(orderIdSchema, orderPublicId), parseInput(trackStatusInputSchema, input));
   });
-  revalidateRenewals(customerPublicId);
-  return res;
 }
 
 export async function addTrackNoteAction(
@@ -95,16 +92,14 @@ export async function addTrackNoteAction(
   note: string,
   nextFollowUpAt?: number,
 ): Promise<ActionResult> {
-  const res = await runAction(async () => {
-    await guardOrder(orderPublicId);
+  return staffAction(renewalOpts(customerPublicId), async () => {
+    await assertVisible(orderPublicId);
     await addTrackNote(
       parseInput(orderIdSchema, orderPublicId),
       parseInput(noteSchema, note),
       parseInput(followUpSchema.optional(), nextFollowUpAt),
     );
   });
-  revalidateRenewals(customerPublicId);
-  return res;
 }
 
 export async function logTrackActivityAction(
@@ -112,10 +107,8 @@ export async function logTrackActivityAction(
   customerPublicId: string | null,
   input: { type: "call" | "whatsapp" | "email" | "callback"; note?: string; nextFollowUpAt?: number },
 ): Promise<ActionResult> {
-  const res = await runAction(async () => {
-    await guardOrder(orderPublicId);
+  return staffAction(renewalOpts(customerPublicId), async () => {
+    await assertVisible(orderPublicId);
     await logTrackActivity(parseInput(orderIdSchema, orderPublicId), parseInput(logActivityInputSchema, input));
   });
-  revalidateRenewals(customerPublicId);
-  return res;
 }

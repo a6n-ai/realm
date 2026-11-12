@@ -77,7 +77,7 @@ function ProviderCard({
       try {
         if (provider.requiresPlugin === provider.id) {
           const res = await setPluginInstalledAction(provider.id, true);
-          if (res.error) {
+          if ("error" in res) {
             toast.error(res.error);
             return;
           }

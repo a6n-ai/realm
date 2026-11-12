@@ -9,6 +9,7 @@ import { Card } from "@foundry/ui/card";
 import { Separator } from "@foundry/ui/separator";
 import { Switch } from "@foundry/ui/switch";
 import { Field, FieldContent, FieldDescription, FieldGroup, FieldLabel, FieldTitle } from "@/components/ui/field";
+import type { ActionResult } from "@/lib/actions/action-result";
 import { Alert, AlertAction, AlertDescription } from "@/components/reui/alert";
 
 export interface EmailTypeRow {
@@ -103,7 +104,7 @@ export function TrackedEmailsForm({
   onSave,
 }: {
   types: EmailTypeRow[];
-  onSave: (events: string[]) => Promise<{ error?: string }>;
+  onSave: (events: string[]) => Promise<ActionResult>;
 }) {
   const router = useRouter();
   const [saved, setSaved] = useState(() => types.filter((t) => t.tracked).map((t) => t.event));
@@ -116,8 +117,9 @@ export function TrackedEmailsForm({
   const save = () =>
     start(async () => {
       const res = await onSave(draft);
-      setError(res.error);
-      if (!res.error) {
+      const message = "error" in res ? res.error : undefined;
+      setError(message);
+      if (!message) {
         setSaved(draft);
         toast.success("Tracked emails saved");
         router.refresh();

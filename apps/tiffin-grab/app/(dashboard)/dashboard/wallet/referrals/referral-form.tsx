@@ -3,6 +3,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { unwrapAction } from "@/lib/actions/unwrap";
 import { SectionCard } from "@/components/ds";
 import { Button } from "@foundry/ui/button";
 import { Label } from "@foundry/ui/label";
@@ -52,7 +53,7 @@ export function ReferralForm({ current }: { current: ReferralSettings }) {
     if (maxPerReferrer === 0 || (cap.trim() !== "" && maxPerReferrer == null)) return toast.error("Max referrals must be 1 or more, or blank for no limit");
     start(async () => {
       try {
-        await setReferralSettingsAction({ mode, referrerValue, friendValue, maxPerReferrer });
+        await unwrapAction(setReferralSettingsAction({ mode, referrerValue, friendValue, maxPerReferrer }));
         toast.success(referrerValue === 0 && friendValue === 0 ? "Referrals are off" : "Saved referral rewards");
         router.refresh();
       } catch (e) {

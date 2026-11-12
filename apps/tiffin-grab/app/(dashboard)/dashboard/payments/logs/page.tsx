@@ -7,9 +7,9 @@ import { orderActivities, orders, payments, stripeEvents, users } from "@/db/sch
 import { parseSort } from "@foundry/design-system/list-sort";
 import { parseFilterState, SectionCard } from "@/components/ds";
 import { withListDates } from "@/lib/list/default-month";
-import { dateRangeWhere } from "../payment-queries";
+import { epochBoundsWhere } from "@/lib/list/default-month";
 import { PaymentsTop } from "../payment-kpis";
-import { LOG_EVENT_OPTIONS, LOG_SORT_KEYS, STRIPE_EVENT_FILTER } from "../payment-facets";
+import { LOG_EVENT_OPTIONS, LOG_SORT_KEYS, STRIPE_EVENT_FILTER } from "@/lib/payments/facets";
 import { LogsTable, LogsTableSkeleton } from "./logs-table";
 
 type SearchParams = Promise<Record<string, string | undefined>>;
@@ -65,11 +65,11 @@ async function LogsData({ searchParams }: { searchParams: SearchParams }) {
 
   const actWhere = and(
     inArray(orderActivities.type, activityTypes.length ? (activityTypes as never[]) : ["payment_claimed", "payment_verified", "payment_rejected"]),
-    dateRangeWhere(orderActivities.createdAt, sp),
+    epochBoundsWhere(orderActivities.createdAt, sp),
     q ? or(ilike(orders.publicId, `%${q}%`), ilike(orderActivities.note, `%${q}%`), ilike(actor.email, `%${q}%`)) : undefined,
   );
   const evWhere = and(
-    dateRangeWhere(stripeEvents.receivedAt, sp),
+    epochBoundsWhere(stripeEvents.receivedAt, sp),
     q ? or(ilike(orders.publicId, `%${q}%`), ilike(stripeEvents.type, `%${q}%`), ilike(stripeEvents.error, `%${q}%`), ilike(stripeEvents.eventId, `%${q}%`)) : undefined,
   );
   const actCol = { time: orderActivities.createdAt, event: orderActivities.type, order: orders.publicId, by: actor.email }[sort.column];

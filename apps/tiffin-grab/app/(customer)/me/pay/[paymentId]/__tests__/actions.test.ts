@@ -60,7 +60,7 @@ describe("pay page actions", () => {
   it("refuses a card submit while a checkout holds the customer lock, and frees the lock after", async () => {
     session.current = { user: { id: "usr_1" } };
     locks.set("pay-lock:usr_1", "checkout");
-    expect(await submitCardPayment("pay_1", { confirmationTokenId: "ct" }, false)).toEqual({ error: "A payment is already in progress." });
+    expect(await submitCardPayment("pay_1", { confirmationTokenId: "ct" }, false)).toMatchObject({ error: "A payment is already in progress." });
     expect(payByCard).not.toHaveBeenCalled();
     locks.clear();
     payByCard.mockResolvedValue({ kind: "succeeded" });

@@ -18,7 +18,7 @@ import { ListSearchFilters } from "@/components/filters/reui-facet-filters";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@foundry/design-system/timezone-provider";
 import type { SortState } from "@foundry/design-system/list-sort";
-import { PAYMENT_STATUS_OPTIONS, STRIPE_FACETS, type PaymentRow, type PaymentSortKey } from "../payment-facets";
+import { PAYMENT_STATUS_OPTIONS, STRIPE_FACETS, type PaymentRow, type PaymentSortKey } from "@/lib/payments/facets";
 import { PaymentStatusPill } from "../payment-status-pill";
 import { CustomerLink } from "../customer-link";
 import { PaymentDetailDialog } from "../payment-detail-dialog";

@@ -6,14 +6,12 @@ import { UsersIcon, UserPlusIcon } from "lucide-react";
 import { listContactListMembers } from "@relay/engine";
 import { ContactListAddMember } from "@relay/engine/ui/contact-list-add-member";
 import { ContactListDeleteButton } from "@relay/engine/ui/contact-list-delete-button";
-import { ContactListMemberRow } from "@relay/engine/ui/contact-list-member-row";
 import { formatConsentDate } from "@relay/engine/ui/date";
 import { db } from "@/db/client";
 import { contactList } from "@/db/schema";
-import { notificationTables, usersRef } from "@/lib/notifications/tables";
-import { resolveSegment } from "@/lib/campaigns/segment";
 import { getAppSettings } from "@/lib/services/app-settings.service";
-import { convertContactToCustomer } from "../actions";
+import { ConvertibleMemberRow } from "../convertible-member-row";
+import { campaignDeps } from "@/lib/notifications/deps";
 
 export const dynamic = "force-dynamic";
 
@@ -36,7 +34,7 @@ export default async function ContactListPage({ params }: { params: Promise<{ id
   if (!list) notFound();
 
   const members = await listContactListMembers(
-    { db, tables: notificationTables, users: usersRef, resolveSegment },
+    campaignDeps,
     id,
   );
   if (!members) notFound();
@@ -74,11 +72,10 @@ export default async function ContactListPage({ params }: { params: Promise<{ id
         ) : (
           <ul className="divide-y overflow-hidden rounded-lg border">
             {members.map((m) => (
-              <ContactListMemberRow
+              <ConvertibleMemberRow
                 key={m.publicId}
                 listPublicId={id}
                 member={m}
-                onConvert={convertContactToCustomer}
               />
             ))}
           </ul>

@@ -6,6 +6,7 @@ import { Button } from "@foundry/ui/button";
 import { Label } from "@foundry/ui/label";
 import { Input } from "@foundry/ui/input";
 import { Skeleton } from "@foundry/ui/skeleton";
+import { unwrapAction } from "@/lib/actions/unwrap";
 import { saveTiffinsPerWeek } from "./actions";
 
 const HINT = "Fewest and most eating days (tiffins) a customer can pick per week. Independent of delivery frequency.";
@@ -21,7 +22,7 @@ export function TiffinsPerWeekForm({ min, max }: { min: number; max: number }) {
     start(async () => {
       setError(null);
       try {
-        await saveTiffinsPerWeek({ minTiffinsPerWeek: Number(lo), maxTiffinsPerWeek: Number(hi) });
+        await unwrapAction(saveTiffinsPerWeek({ minTiffinsPerWeek: Number(lo), maxTiffinsPerWeek: Number(hi) }));
         router.refresh();
       } catch (e) {
         setError(e instanceof Error ? e.message : "Failed to save");

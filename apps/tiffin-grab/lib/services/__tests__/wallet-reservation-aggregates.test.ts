@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { users, walletLedger } from "@/db/schema";
-import { walletLedgerRows, walletLedgerStats } from "@/app/(dashboard)/dashboard/wallet/ledger/page";
+import { walletLedgerRows, walletLedgerStats } from "@/lib/services/wallet-ledger.service";
 import { walletService } from "../wallet.service";
 
 vi.mock("../app-settings.service", async (importOriginal) => ({

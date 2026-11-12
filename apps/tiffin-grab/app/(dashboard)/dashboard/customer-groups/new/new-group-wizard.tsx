@@ -1,5 +1,6 @@
 "use client";
 
+import { unwrapAction } from "@/lib/actions/unwrap";
 import * as React from "react";
 import { CheckIcon } from "lucide-react";
 import { Stepper, StepperIndicator, StepperItem, StepperNav, StepperSeparator, StepperTitle, StepperTrigger } from "@/components/reui/stepper";
@@ -34,7 +35,7 @@ export function NewGroupWizard({
     setSaving(true);
     setError(null);
     try {
-      const { publicId } = await createGroupAction({ name, filters: payload, userPublicIds: [...selected] });
+      const { publicId } = await unwrapAction(createGroupAction({ name, filters: payload, userPublicIds: [...selected] }));
       onSaved({ publicId, count: selected.size });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not save the group");

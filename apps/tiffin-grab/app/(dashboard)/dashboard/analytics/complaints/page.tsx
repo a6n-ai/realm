@@ -36,6 +36,7 @@ import {
 } from "@/lib/services/analytics/complaints.service";
 import { isoDateInZone } from "@foundry/commons/util/dates";
 import { requestNow } from "@/lib/dates/request-now";
+import { OPEN_STATUSES } from "@/lib/support/ticket-status";
 
 const TICKETS = "/dashboard/tickets";
 
@@ -189,7 +190,7 @@ async function NeedsAttentionSection({ scope }: { scope: AnalyticsScope }) {
       tone: "destructive-light" as const,
       href: ticketsHref(filters, {
         priorities: ["high", "urgent"],
-        statuses: ["open", "in_progress", "waiting_on_customer"],
+        statuses: [...OPEN_STATUSES],
       }),
     },
     {

@@ -5,7 +5,7 @@ vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
 const { db } = await import("@/db/client");
 const { payments } = await import("@/db/schema");
-const { listPayments } = await import("@/app/(dashboard)/dashboard/payments/payment-queries");
+const { listPayments } = await import("@/lib/services/payments-list.service");
 const { makeStripePayment, reset, cleanup } = await import("./stripe-fixture");
 afterAll(cleanup);
 

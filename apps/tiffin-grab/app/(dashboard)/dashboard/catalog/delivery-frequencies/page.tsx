@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { TruckIcon } from "lucide-react";
 import { PageHeader, PageShell, SectionCard } from "@/components/ds";
-import { CatalogData, type SearchParams } from "../[resource]/page";
+import { CatalogData, type SearchParams } from "../catalog-data";
 import { ResourceEditorSkeleton } from "../[resource]/resource-editor";
 import { GroupedResourceTabs } from "../grouped-resource-tabs";
 import { requireAdmin } from "@/lib/auth/guards";
@@ -18,8 +18,7 @@ async function DeliveryChargesData() {
   await requireAdmin();
   const { deliveryService } = await import("@/lib/services/delivery.service");
   const { resolveRequestOrg } = await import("@/lib/tenant/resolve-request-org");
-  const { DeliveryChargesManager } = await import("@foundry/delivery/ui");
-  const { deliveryChargesActions } = await import("../../delivery/charges/admin-actions");
+  const { DeliveryChargesBoundary } = await import("../../delivery/charges/delivery-clients");
   const orgId = await resolveRequestOrg();
   const [baseCharge, deliveryStrategies, strategyGroups] = await Promise.all([
     deliveryService.getBaseDeliveryCharge(orgId),
@@ -27,11 +26,10 @@ async function DeliveryChargesData() {
     deliveryService.listDeliveryStrategyGroups({ includeInactive: true, orgId }),
   ]);
   return (
-    <DeliveryChargesManager
+    <DeliveryChargesBoundary
       initialBaseCharge={baseCharge}
       initialDeliveryStrategies={deliveryStrategies}
       initialStrategyGroups={strategyGroups}
-      actions={deliveryChargesActions}
     />
   );
 }
@@ -40,8 +38,8 @@ async function DeliveryZonesData() {
   await requireAdmin();
   const { deliveryService } = await import("@/lib/services/delivery.service");
   const { resolveRequestOrg } = await import("@/lib/tenant/resolve-request-org");
-  const { DeliveryAdminProvider, DeliveryZonesManager } = await import("@foundry/delivery/ui");
-  const { deliveryAdminActions } = await import("../../delivery/charges/admin-actions");
+  const { DeliveryZonesManager } = await import("@foundry/delivery/ui");
+  const { DeliveryAdminBoundary } = await import("../../delivery/charges/delivery-clients");
   const orgId = await resolveRequestOrg();
   const [zones, types, origin] = await Promise.all([
     deliveryService.listZones({ includeInactive: true, orgId }),
@@ -49,7 +47,7 @@ async function DeliveryZonesData() {
     deliveryService.getStoreOrigin(orgId),
   ]);
   return (
-    <DeliveryAdminProvider actions={deliveryAdminActions}>
+    <DeliveryAdminBoundary>
       <DeliveryZonesManager
         mapStyleUrl={process.env.NEXT_PUBLIC_MAP_STYLE_URL ?? null}
         origin={origin}
@@ -64,7 +62,7 @@ async function DeliveryZonesData() {
         }))}
         types={types.map((t) => ({ publicId: t.publicId!, key: t.key, label: t.label, active: t.active }))}
       />
-    </DeliveryAdminProvider>
+    </DeliveryAdminBoundary>
   );
 }
 
@@ -72,11 +70,11 @@ async function DeliveryTypesData() {
   await requireAdmin();
   const { deliveryService } = await import("@/lib/services/delivery.service");
   const { resolveRequestOrg } = await import("@/lib/tenant/resolve-request-org");
-  const { DeliveryAdminProvider, DeliveryTypesManager } = await import("@foundry/delivery/ui");
-  const { deliveryAdminActions } = await import("../../delivery/charges/admin-actions");
+  const { DeliveryTypesManager } = await import("@foundry/delivery/ui");
+  const { DeliveryAdminBoundary } = await import("../../delivery/charges/delivery-clients");
   const types = await deliveryService.listTypes({ includeInactive: true, orgId: await resolveRequestOrg() });
   return (
-    <DeliveryAdminProvider actions={deliveryAdminActions}>
+    <DeliveryAdminBoundary>
       {/* Discounts live in the central Discounts page, not on the type. */}
       <DeliveryTypesManager
         showDiscount={false}
@@ -93,7 +91,7 @@ async function DeliveryTypesData() {
           active: t.active,
         }))}
       />
-    </DeliveryAdminProvider>
+    </DeliveryAdminBoundary>
   );
 }
 

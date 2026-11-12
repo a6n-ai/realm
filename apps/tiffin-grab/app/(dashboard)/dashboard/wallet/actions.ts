@@ -1,30 +1,13 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { inArray } from "drizzle-orm";
 import { z } from "zod";
-import { requireAdmin } from "@/lib/auth/guards";
 import { db } from "@/db/client";
 import { users } from "@/db/schema";
-import { saveCoinRate as saveCoinRateValue } from "@/lib/services/wallet-balances.service";
+import { parseInput, staffAction } from "@/lib/actions/staff-action";
+import type { ActionResult } from "@/lib/actions/action-result";
 import { currentUserId } from "@/lib/services/session-service";
 import { awardCustomerBroadcast } from "@/lib/services/customer-payouts.service";
-
-const PATH = "/dashboard/wallet";
-
-const coinRateSchema = z.object({
-  currency: z.string().trim().min(1).max(10),
-  valuePerCoin: z.number().positive(),
-});
-
-export async function saveCoinRate(input: unknown) {
-  await requireAdmin();
-  const data = coinRateSchema.parse(input);
-  await saveCoinRateValue(data.currency, data.valuePerCoin);
-  revalidatePath(PATH, "layout");
-}
-
-// ---------- Customer Payouts: one-off bulk broadcast ----------
 
 const broadcastSchema = z.object({
   userPublicIds: z.array(z.string().trim().min(1)).min(1),
@@ -34,11 +17,10 @@ const broadcastSchema = z.object({
 
 export type CustomerBroadcastResult = { awarded: number; coinsPerCustomer: number; capped: number };
 
-export async function broadcastCustomerPayout(input: unknown): Promise<CustomerBroadcastResult> {
-  await requireAdmin();
-  const data = broadcastSchema.parse(input);
-  const rows = await db.select({ id: users.id }).from(users).where(inArray(users.publicId, data.userPublicIds));
-  const result = await awardCustomerBroadcast(rows.map((r) => r.id), data.coins, data.memo, await currentUserId());
-  revalidatePath(PATH, "layout");
-  return result;
+export async function broadcastCustomerPayout(input: unknown): Promise<ActionResult<CustomerBroadcastResult>> {
+  return staffAction({ guard: "admin", revalidate: [["/dashboard/wallet", "layout"]] }, async () => {
+    const data = parseInput(broadcastSchema, input);
+    const rows = await db.select({ id: users.id }).from(users).where(inArray(users.publicId, data.userPublicIds));
+    return awardCustomerBroadcast(rows.map((r) => r.id), data.coins, data.memo, await currentUserId());
+  });
 }

@@ -27,6 +27,7 @@ import {
   subcategoryLabel,
   type TicketCategoryValue,
 } from "@/lib/support/ticket-taxonomy";
+import { STAFF_TURN_STATUSES, STATUS_LABEL } from "@/lib/support/ticket-status";
 
 const log = createLogger("tickets.service");
 
@@ -62,7 +63,7 @@ export type CreateTicketInput = {
 export const OVERDUE_MS = DAY_MS;
 
 export function computeOverdue(status: string, lastMessageAt: number | null, now: number): boolean {
-  if (status !== "open" && status !== "in_progress") return false;
+  if (!(STAFF_TURN_STATUSES as readonly string[]).includes(status)) return false;
   if (lastMessageAt == null) return false;
   return lastMessageAt < now - OVERDUE_MS;
 }
@@ -93,9 +94,6 @@ const ticketVars = (code: string, subject: string) => ({ ticket: { subject, code
 
 type Actor = { id: bigint; role: RoleValue; isStaff: boolean };
 
-const STATUS_TEXT: Record<TicketStatus, string> = {
-  open: "Open", in_progress: "In progress", waiting_on_customer: "Waiting on customer", resolved: "Resolved", closed: "Closed",
-};
 
 function formatCategoryPair(category: string, subcategory: string | null): string {
   const cat = categoryLabel(category);
@@ -256,7 +254,7 @@ class TicketsService extends SessionUpdatableService<typeof tickets> {
     const isClosed = (s: TicketStatus) => s === "resolved" || s === "closed";
     const closing = isClosed(toStatus);
     await this.update(publicId, { status: toStatus, closedAt: closing ? Date.now() : null });
-    const statusMsg = await this.message(ticket, actor.id, "system", `Status: ${STATUS_TEXT[previous]} → ${STATUS_TEXT[toStatus]}`);
+    const statusMsg = await this.message(ticket, actor.id, "system", `Status: ${STATUS_LABEL[previous]} → ${STATUS_LABEL[toStatus]}`);
     if (toStatus === "resolved") {
       await db.transaction((tx) => enqueueNotification(tx, {
         event: "ticket_resolved",
@@ -453,7 +451,7 @@ class TicketsService extends SessionUpdatableService<typeof tickets> {
 
     const now = Date.now();
     const isOverdue = and(
-      inArray(tickets.status, ["open", "in_progress"]),
+      inArray(tickets.status, [...STAFF_TURN_STATUSES]),
       lt(agg.lastMessageAt, now - OVERDUE_MS),
     );
     const q = opts.q?.trim();

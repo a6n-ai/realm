@@ -3,11 +3,12 @@
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { EMAIL_EVENT_TYPES, type EmailEventRouting, type EmailEventType, type EmailStream } from "@relay/email/events/types";
+import type { ActionResult } from "@/lib/actions/action-result";
 import { LoadErrorAlert, SaveBar, SwitchList } from "./email-tracking-section";
 import { EVENT_NAME, FORCED_NOTE, STREAM_NAME, routingChanges } from "./event-names";
 
 const FORCED: readonly EmailEventType[] = ["bounce", "complaint"];
-type Save = (id: string, r: { webhook: EmailEventType[]; counts?: EmailEventType[] }) => Promise<{ error?: string }>;
+type Save = (id: string, r: { webhook: EmailEventType[]; counts?: EmailEventType[] }) => Promise<ActionResult>;
 
 export interface StreamState {
   stream: EmailStream;
@@ -45,8 +46,9 @@ function StreamList({ state, onSave }: { state: StreamState; onSave: Save }) {
   const save = () =>
     start(async () => {
       const res = await onSave(stream.id, draft.counts ? { webhook: draft.webhook, counts: draft.counts } : { webhook: draft.webhook });
-      setError(res.error);
-      if (!res.error) {
+      const message = "error" in res ? res.error : undefined;
+      setError(message);
+      if (!message) {
         setSaved(draft);
         toast.success(`${name} saved`);
       }

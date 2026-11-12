@@ -1,6 +1,5 @@
 "use client";
 
-
 import { useState, useTransition } from "react";
 import { PrinterIcon } from "lucide-react";
 import { toast } from "sonner";
@@ -13,7 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@foundry/ui/dialog";
-import { formatMenuWeekRange } from "@/lib/format/datetime";
+import { unreleasedWeekMessage } from "@/lib/menu/unreleased-week";
 
 export function labelsPrintBlockReason({
   menuReleased,
@@ -25,7 +24,7 @@ export function labelsPrintBlockReason({
   weekStart: string;
 }): string | null {
   if (!menuReleased) {
-    return `No menu is released for the week of ${formatMenuWeekRange(weekStart)}. Release that week first — labels must show the same meal the customer sees.`;
+    return unreleasedWeekMessage(weekStart);
   }
   if (labelCount === 0) {
     return "No tiffin deliveries scheduled for this date.";
@@ -33,11 +32,6 @@ export function labelsPrintBlockReason({
   return null;
 }
 
-/**
- * Print used to be a <Link> to the PDF route. Button-as-child does not disable an
- * <a>, so staff still navigated into a text/plain 409 ("No menu week released…")
- * painted as a black page. Fetch the PDF here and pop the message instead.
- */
 export function LabelsPrintButton({
   dateIso,
   weekStart,

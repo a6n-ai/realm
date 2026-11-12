@@ -137,7 +137,7 @@ describe("(customer)/me/meals pickMyDish (integration)", () => {
         pickIndex: 1,
         dishId: dish.publicId,
       }),
-    ).resolves.toEqual({ error: "Subscription not found" });
+    ).resolves.toMatchObject({ error: "Subscription not found" });
 
     const rows = await db.select().from(mealSelections).where(eq(mealSelections.orderId, bOrder.id));
     expect(rows.length).toBe(0);

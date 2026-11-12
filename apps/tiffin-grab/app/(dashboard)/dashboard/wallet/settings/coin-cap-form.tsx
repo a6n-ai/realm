@@ -7,6 +7,7 @@ import { SectionCard } from "@/components/ds";
 import { Button } from "@foundry/ui/button";
 import { NumberField } from "../../discounts/controls";
 import { setCoinCapAction } from "./actions";
+import { unwrapAction } from "@/lib/actions/unwrap";
 
 export function CoinCapForm({ current }: { current: number | null }) {
   const router = useRouter();
@@ -22,7 +23,7 @@ export function CoinCapForm({ current }: { current: number | null }) {
     }
     start(async () => {
       try {
-        await setCoinCapAction({ maxCoinPct: n });
+        await unwrapAction(setCoinCapAction({ maxCoinPct: n }));
         toast.success(
           n === null
             ? "Coin limit cleared — coins can cover a whole order"

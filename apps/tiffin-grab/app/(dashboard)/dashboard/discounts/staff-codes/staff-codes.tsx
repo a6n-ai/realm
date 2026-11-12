@@ -1,5 +1,6 @@
 "use client";
 
+import { unwrapAction } from "@/lib/actions/unwrap";
 import { pageOffset } from "@foundry/design-system/filters/parse-filter-state";
 import * as React from "react";
 import Link from "next/link";
@@ -82,7 +83,7 @@ function RevokeButton({ publicId, code }: { publicId: string; code: string }) {
       onClick={async () => {
         setBusy(true);
         try {
-          await setCouponActive(publicId, false);
+          await unwrapAction(setCouponActive(publicId, false));
           toast.success(`${code} revoked`);
           router.refresh();
         } catch (e) {

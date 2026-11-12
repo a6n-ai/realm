@@ -1,11 +1,10 @@
 "use server";
 
 import { appTodayIso } from "@/lib/dates/today";
-import { revalidatePath } from "next/cache";
 import { ValidationError } from "@foundry/commons";
-import { runAction, type ActionResult } from "@/lib/actions/action-result";
+import type { ActionResult } from "@/lib/actions/action-result";
+import { staffAction } from "@/lib/actions/staff-action";
 import { db } from "@/db/client";
-import { requireStaff } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { getDiscountPolicy } from "@/lib/services/app-settings.service";
 import { couponsService } from "@/lib/services/coupons.service";
@@ -17,7 +16,6 @@ export type RepCodeAllowance = { capAmount: number; capPct: number; left: number
 // The signed-in staff member's own allowance and today's count. Always the session's
 // account: a code is issued on the account of whoever is signed in, never a client-sent id.
 async function ownAllowance() {
-  await requireStaff();
   const publicId = (await getSession())?.user?.id;
   const staffId = publicId ? await userIdByPublicId(publicId) : null;
   const allowance = publicId ? repAllowanceFor(await getDiscountPolicy(), publicId) : null;
@@ -35,7 +33,7 @@ const view = (a: { capAmount: number; capPct: number; dailyUses: number; codeVal
 });
 
 export async function repCodeAllowance(): Promise<ActionResult<{ allowance: RepCodeAllowance }>> {
-  return runAction(async () => {
+  return staffAction({ guard: "staff" }, async () => {
     const { staffId, allowance, istDate } = await ownAllowance();
     return { allowance: view(allowance, await couponsService.repUsesToday(db, staffId, istDate)) };
   });
@@ -45,7 +43,7 @@ export async function issueRepCode(
   amount: number,
   note?: string,
 ): Promise<ActionResult<{ code: string; expiresAt: number; allowance: RepCodeAllowance }>> {
-  return runAction(async () => {
+  return staffAction({ guard: "staff", revalidate: [["/dashboard/discounts", "layout"]] }, async () => {
     const { staffId, allowance, istDate } = await ownAllowance();
     if (!Number.isFinite(amount)) throw new ValidationError("Enter a discount amount");
     const expiresAt = Date.now() + allowance.codeValidityHours * 3_600_000;
@@ -59,7 +57,6 @@ export async function issueRepCode(
       expiresAt,
       note: note?.slice(0, 200),
     });
-    revalidatePath("/dashboard/discounts", "layout");
     return { code, expiresAt, allowance: view(allowance, usedToday) };
   });
 }

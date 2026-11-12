@@ -1,5 +1,6 @@
 import { appTodayIso } from "@/lib/dates/today";
 import { cutoffMsFor, ValidationError } from "@foundry/commons";
+import { ConflictError } from "@/lib/errors";
 import { sharedCache } from "@/lib/cache";
 import { BaseRepository, UpdatableRepository } from "@foundry/database";
 import { and, asc, desc, eq, gte, inArray, sql } from "drizzle-orm";
@@ -247,7 +248,7 @@ export const menuService = {
     const stored = await db.select({ publicId: menuItems.publicId }).from(menuItems).where(eq(menuItems.menuWeekId, week.id));
     const storedIds = new Set(stored.map((s) => s.publicId));
     for (const item of input.items) {
-      if (item.id && !storedIds.has(item.id)) throw new ValidationError("A menu item no longer exists — reload the week before saving");
+      if (item.id && !storedIds.has(item.id)) throw new ConflictError("A menu item no longer exists — reload the week before saving");
     }
     const keptIds = new Set(input.items.flatMap((i) => (i.id ? [i.id] : [])));
     const removedIds = stored.map((s) => s.publicId).filter((id) => !keptIds.has(id));
@@ -274,7 +275,7 @@ export const menuService = {
       const locked = await tx.update(menuWeeks).set({ updatedAt: now })
         .where(and(eq(menuWeeks.id, week.id), eq(menuWeeks.updatedAt, input.expectedUpdatedAt)))
         .returning({ id: menuWeeks.id });
-      if (locked.length === 0) throw new ValidationError("This menu changed in another tab — reload before saving");
+      if (locked.length === 0) throw new ConflictError("This menu changed in another tab — reload before saving");
 
       if (impact?.brokenIds.length) await tx.delete(mealSelections).where(inArray(mealSelections.id, impact.brokenIds));
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { unwrapAction } from "@/lib/actions/unwrap";
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -17,19 +18,15 @@ function useGroupShortcuts(publicId: string, name: string) {
     if (exporting) return;
     setExporting(true);
     try {
-      const res = await exportGroupCsvAction(publicId);
-      if (!res.ok) {
-        toast.error(res.error);
-        return;
-      }
-      const url = URL.createObjectURL(new Blob([res.data], { type: "text/csv;charset=utf-8" }));
+      const { csv } = await unwrapAction(exportGroupCsvAction(publicId));
+      const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
       const a = document.createElement("a");
       a.href = url;
       a.download = `${name.replace(/[\\/:*?"<>|]+/g, "_")}.csv`;
       a.click();
       setTimeout(() => URL.revokeObjectURL(url), 0);
-    } catch {
-      toast.error("The request did not finish.");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "The request did not finish.");
     } finally {
       setExporting(false);
     }

@@ -1,13 +1,13 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { requireAdmin } from "@/lib/auth/guards";
+import type { ActionResult } from "@/lib/actions/action-result";
+import { parseInput, staffAction } from "@/lib/actions/staff-action";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
-import { invalidateCatalogSnapshot } from "@/lib/catalog/load";
 import { currentUserId } from "@/lib/services/session-service";
 
-const PATH = "/dashboard/catalog/swaps";
+// The wizard reads swap pairs off the cached snapshot, hence catalog: true.
+const SWAPS = { guard: "admin", revalidate: [["/dashboard/catalog/swaps", "layout"]], catalog: true } as const;
 
 // TU to hundredths, the precision meal_size_items and receive_tu store.
 const tu = z.number().finite().max(1000).transform((n) => Math.round(n * 100) / 100).pipe(z.number().positive());
@@ -31,20 +31,17 @@ const addSchema = z.object({
   mealSizeId: z.string().trim().min(1).nullable().optional(),
 });
 
-export async function addSwapPair(input: unknown): Promise<void> {
-  await requireAdmin();
-  const data = addSchema.parse(input);
-  await dishCategoriesService.addSwapPair(data.fromCategory, data.toCategory, data.planId, {
-    exchangeOverrides: data.exchangeOverrides,
-    naturalFallback: data.naturalFallback,
-    receivesMissing: data.receivesMissing,
-    mealSizePublicId: data.mealSizeId,
-    actorId: await currentUserId(),
+export async function addSwapPair(input: unknown): Promise<ActionResult> {
+  return staffAction(SWAPS, async () => {
+    const data = parseInput(addSchema, input);
+    await dishCategoriesService.addSwapPair(data.fromCategory, data.toCategory, data.planId, {
+      exchangeOverrides: data.exchangeOverrides,
+      naturalFallback: data.naturalFallback,
+      receivesMissing: data.receivesMissing,
+      mealSizePublicId: data.mealSizeId,
+      actorId: await currentUserId(),
+    });
   });
-  // The wizard reads this off the cached snapshot — without invalidating, a
-  // new pair can take up to the cache's TTL to reach it.
-  await invalidateCatalogSnapshot();
-  revalidatePath(PATH, "layout");
 }
 
 const editSchema = z.object({
@@ -58,26 +55,23 @@ const editSchema = z.object({
   mealSizeId: z.string().trim().min(1).nullable().optional(),
 });
 
-export async function editSwapPair(input: unknown): Promise<void> {
-  await requireAdmin();
-  const data = editSchema.parse(input);
-  await dishCategoriesService.editSwapPair(data.id, data.fromCategory, data.toCategory, data.planId, {
-    exchangeOverrides: data.exchangeOverrides,
-    naturalFallback: data.naturalFallback,
-    receivesMissing: data.receivesMissing,
-    mealSizePublicId: data.mealSizeId,
-    actorId: await currentUserId(),
+export async function editSwapPair(input: unknown): Promise<ActionResult> {
+  return staffAction(SWAPS, async () => {
+    const data = parseInput(editSchema, input);
+    await dishCategoriesService.editSwapPair(data.id, data.fromCategory, data.toCategory, data.planId, {
+      exchangeOverrides: data.exchangeOverrides,
+      naturalFallback: data.naturalFallback,
+      receivesMissing: data.receivesMissing,
+      mealSizePublicId: data.mealSizeId,
+      actorId: await currentUserId(),
+    });
   });
-  await invalidateCatalogSnapshot();
-  revalidatePath(PATH, "layout");
 }
 
 const removeSchema = z.object({ id: z.string().trim().min(1) });
 
-export async function removeSwapPair(input: unknown): Promise<void> {
-  await requireAdmin();
-  const data = removeSchema.parse(input);
-  await dishCategoriesService.removeSwapPair(data.id);
-  await invalidateCatalogSnapshot();
-  revalidatePath(PATH, "layout");
+export async function removeSwapPair(input: unknown): Promise<ActionResult> {
+  return staffAction(SWAPS, async () => {
+    await dishCategoriesService.removeSwapPair(parseInput(removeSchema, input).id);
+  });
 }

@@ -21,7 +21,6 @@ import {
   WalletCardsIcon,
   type LucideIcon,
   PackageIcon,
-  PaletteIcon,
   RefreshCwIcon,
   SettingsIcon,
   TagIcon,
@@ -133,7 +132,6 @@ export const SECTIONS: NavSection[] = [
     items: [
       { title: "Organization", href: "/dashboard/organization", icon: Building2Icon, roles: ADMIN_ROLES },
       { title: "Settings", href: "/dashboard/settings", icon: SettingsIcon, roles: ADMIN_ROLES },
-      { title: "Design system", href: "/dashboard/design", icon: PaletteIcon, roles: ADMIN_ROLES },
     ],
   },
   {

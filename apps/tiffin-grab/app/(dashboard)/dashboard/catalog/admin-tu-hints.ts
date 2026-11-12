@@ -21,15 +21,3 @@ export function naturalSwapConversion(
     naturalLine: `${formatTuHuman(fromTu, 1)} → ${formatTuHuman(toTu, 1)}`,
   };
 }
-
-/** Human label for meal_rules.condition — keep enum values out of the admin UI. */
-export function mealRuleConditionLabel(condition: "exclusive_to_plan"): string {
-  switch (condition) {
-    case "exclusive_to_plan":
-      return "Plan-exclusive dishes only";
-    default: {
-      const _exhaustive: never = condition;
-      return _exhaustive;
-    }
-  }
-}

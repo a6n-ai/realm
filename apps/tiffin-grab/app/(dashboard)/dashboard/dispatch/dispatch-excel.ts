@@ -13,8 +13,8 @@ const HEADERS = [
   "Delivery ID",
 ] as const;
 
-/** Same unassigned-last, driver, then stop order the Dispatch table uses. */
-export function sortDispatchForExport(rows: DispatchRow[]): DispatchRow[] {
+/** Unassigned last, then driver name, then stop number: the Dispatch table and its export share it. */
+export function sortDispatchRows(rows: DispatchRow[]): DispatchRow[] {
   const UNASSIGNED = "__unassigned__";
   return [...rows].sort((a, b) => {
     const aKey = a.routeDriverSerial ?? a.routeDriverName ?? UNASSIGNED;
@@ -28,7 +28,7 @@ export function sortDispatchForExport(rows: DispatchRow[]): DispatchRow[] {
 }
 
 export function dispatchSheetAoA(dateIso: string, rows: DispatchRow[]): (string | number)[][] {
-  const sorted = sortDispatchForExport(rows);
+  const sorted = sortDispatchRows(rows);
   const title = ["DISPATCH", `Delivery date: ${dateIso}`];
   const blank: string[] = [];
   const body = sorted.map((r) => [

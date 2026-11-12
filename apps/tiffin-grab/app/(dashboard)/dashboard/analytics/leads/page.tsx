@@ -1,6 +1,4 @@
-import { getSession } from "@/lib/auth/session";
 import { scopeOrAlert } from "@/components/analytics/franchise-unavailable";
-import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import { Skeleton } from "@foundry/ui/skeleton";
 import Link from "next/link";
 import { Suspense } from "react";
@@ -73,16 +71,16 @@ export default async function LeadsAnalyticsPage({ searchParams }: { searchParam
 }
 
 async function StatsData({ scope }: { scope: AnalyticsScope }) {
-  const [s, visible] = await Promise.all([getLeadStats(scope), resolveSessionVisibleOrgIds(await getSession())]);
+  const s = await getLeadStats(scope);
   return (
     <AnalyticsStatCards
       items={[
-        { label: "Total leads", value: s.total, hint: `Inquiries received · ${DATE_BASIS_LABEL.leads}`, href: inquiriesHref(scope, {}, visible), badge: "In range", badgeTone: "neutral" },
+        { label: "Total leads", value: s.total, hint: `Inquiries received · ${DATE_BASIS_LABEL.leads}`, href: inquiriesHref(scope, {}), badge: "In range", badgeTone: "neutral" },
         {
           label: "Converted",
           value: s.converted,
           hint: `Inquiries that became an order · ${DATE_BASIS_LABEL.leads}`,
-          href: inquiriesHref(scope, { stage: "converted" }, visible),
+          href: inquiriesHref(scope, { stage: "converted" }),
           badge: "Won",
           badgeTone: "ok",
         },
@@ -90,7 +88,7 @@ async function StatsData({ scope }: { scope: AnalyticsScope }) {
           label: "Lost",
           value: s.lost,
           hint: `Inquiries marked lost · ${DATE_BASIS_LABEL.leads}`,
-          href: inquiriesHref(scope, { stage: "lost" }, visible),
+          href: inquiriesHref(scope, { stage: "lost" }),
           tone: s.lost > 0 ? "warn" : undefined,
           badge: "Lost",
           badgeTone: s.lost > 0 ? "warn" : "neutral",
@@ -99,7 +97,7 @@ async function StatsData({ scope }: { scope: AnalyticsScope }) {
           label: "Conversion rate",
           value: `${s.conversionRatePct}%`,
           hint: s.total === 0 ? "No leads yet" : `Converted leads divided by all leads · ${DATE_BASIS_LABEL.leads}`,
-          href: inquiriesHref(scope, { stage: "converted" }, visible),
+          href: inquiriesHref(scope, { stage: "converted" }),
           badge: "Rate",
           badgeTone: "brand",
           footer:

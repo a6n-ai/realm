@@ -15,22 +15,6 @@ export async function updateMyContact(input: { phone: string }) {
   revalidatePath("/dashboard/account");
 }
 
-export async function updateMyAddress(input: {
-  addressLine?: string;
-  addressUnit?: string;
-  city?: string;
-  postalCode?: string;
-  province?: string;
-  deliveryStrategyId?: string | null;
-  addressTagId?: string | null;
-}) {
-  const session = await getSession();
-  if (!session?.user?.id) throw new AuthError();
-  await usersService.updateAddress(session.user.id, input);
-  revalidatePath("/dashboard/account");
-  revalidatePath("/me/account");
-}
-
 export async function updateMyPreferences(input: {
   dietaryNotes?: string;
   allergens?: string[];

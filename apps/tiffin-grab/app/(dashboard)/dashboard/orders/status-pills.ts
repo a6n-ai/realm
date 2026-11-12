@@ -1,4 +1,4 @@
-import { ONGOING, RUNNING } from "@/lib/orders/status";
+import { BOOKED, ONGOING, RUNNING, STARTING_SOON } from "@/lib/orders/status";
 import { inList, type Condition } from "@foundry/commons/model/condition";
 
 // Single source of truth for the Status facet — also the pill/badge label map.
@@ -14,10 +14,8 @@ import { inList, type Condition } from "@foundry/commons/model/condition";
 export const ONGOING_STATUSES = ONGOING;
 /** Active + paused — matches the Orders "Running plans" KPI. */
 export const RUNNING_STATUSES = RUNNING;
-/** Pending + active + waitlisted — matches the "Starting soon" KPI. */
-export const SOON_STATUSES = ["pending", "active", "waitlisted"] as const;
-/** Every status except cancelled — matches the "New orders" KPI. */
-export const BOOKED_STATUSES = ["pending", "active", "waitlisted", "paused", "completed"] as const;
+export const SOON_STATUSES = STARTING_SOON;
+export const BOOKED_STATUSES = BOOKED;
 
 const PSEUDO: Record<string, readonly string[]> = {
   ongoing: ONGOING_STATUSES,

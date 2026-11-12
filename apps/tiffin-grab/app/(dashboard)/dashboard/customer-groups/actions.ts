@@ -1,10 +1,12 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { unexpired } from "@foundry/wallet";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/auth/guards";
+import type { ActionResult } from "@/lib/actions/action-result";
+import { parseInput, staffAction } from "@/lib/actions/staff-action";
+import { ValidationError } from "@foundry/commons";
 import { db } from "@/db/client";
 import { users, walletLedger } from "@/db/schema";
 import { searchCustomers } from "@/lib/services/customers.service";
@@ -40,8 +42,11 @@ export async function searchAccounts(query: string) {
   return rows.map((r) => ({ ...r, walletCoins: byId.get(r.publicId) ?? 0 }));
 }
 
-export async function searchGroupsAction(query: string) {
-  return run(() => searchCustomerGroups(z.string().max(120).parse(query)));
+const GROUPS = { guard: "admin", revalidate: ["/dashboard/customer-groups"] } as const;
+const ADMIN = { guard: "admin" } as const;
+
+export async function searchGroupsAction(query: string): Promise<ActionResult<{ groups: { publicId: string; name: string; memberCount: number }[] }>> {
+  return staffAction(ADMIN, async () => ({ groups: await searchCustomerGroups(parseInput(z.string().max(120), query)) }));
 }
 
 const payoutFiltersSchema = z.object({
@@ -58,10 +63,11 @@ const payoutFiltersSchema = z.object({
   lapsedTo: z.string().trim().min(1).nullish(),
 });
 
-export async function getPayoutCandidates(input: unknown): Promise<{ rows: PayoutCandidate[]; total: number }> {
-  await requireAdmin();
-  const filters = payoutFiltersSchema.parse(input) satisfies PayoutCandidateFilters;
-  return listPayoutCandidates(filters);
+export async function getPayoutCandidates(input: unknown): Promise<ActionResult<{ rows: PayoutCandidate[]; total: number }>> {
+  return staffAction(ADMIN, async () => {
+    const filters = parseInput(payoutFiltersSchema, input) satisfies PayoutCandidateFilters;
+    return listPayoutCandidates(filters);
+  });
 }
 
 const createGroupSchema = z.object({
@@ -70,45 +76,30 @@ const createGroupSchema = z.object({
   userPublicIds: z.array(z.string().trim().min(1)).min(1, "Pick at least one customer"),
 });
 
-export async function createGroupAction(input: unknown): Promise<{ publicId: string }> {
-  await requireAdmin();
-  const data = createGroupSchema.parse(input);
-  const rows = await db.select({ id: users.id }).from(users).where(inArray(users.publicId, data.userPublicIds));
-  const group = await createCustomerGroup(
-    { name: data.name, filters: data.filters, userIds: rows.map((r) => r.id) },
-    await currentUserId(),
-  );
-  revalidatePath("/dashboard/customer-groups");
-  return group;
-}
-
-// Server-action errors are masked in production, so expected failures travel as values.
-export type ActionResult<T> = { ok: true; data: T } | { ok: false; error: string };
-
-async function run<T>(fn: () => Promise<T>): Promise<ActionResult<T>> {
-  await requireAdmin();
-  try {
-    return { ok: true, data: await fn() };
-  } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : "Something went wrong" };
-  }
+export async function createGroupAction(input: unknown): Promise<ActionResult<{ publicId: string }>> {
+  return staffAction(GROUPS, async () => {
+    const data = parseInput(createGroupSchema, input);
+    const rows = await db.select({ id: users.id }).from(users).where(inArray(users.publicId, data.userPublicIds));
+    return createCustomerGroup(
+      { name: data.name, filters: data.filters, userIds: rows.map((r) => r.id) },
+      await currentUserId(),
+    );
+  });
 }
 
 const idSchema = z.string().trim().min(1);
 
-export async function addGroupMemberAction(groupPublicId: string, userPublicId: string) {
-  return run(async () => {
-    const userId = await userIdByPublicId(idSchema.parse(userPublicId));
-    if (!userId) throw new Error("Customer not found");
-    await addGroupMembers(idSchema.parse(groupPublicId), [userId]);
-    revalidatePath("/dashboard/customer-groups");
+export async function addGroupMemberAction(groupPublicId: string, userPublicId: string): Promise<ActionResult> {
+  return staffAction(GROUPS, async () => {
+    const userId = await userIdByPublicId(parseInput(idSchema, userPublicId));
+    if (!userId) throw new ValidationError("Customer not found");
+    await addGroupMembers(parseInput(idSchema, groupPublicId), [userId]);
   });
 }
 
-export async function removeGroupMemberAction(groupPublicId: string, userPublicId: string) {
-  return run(async () => {
-    await removeGroupMember(idSchema.parse(groupPublicId), idSchema.parse(userPublicId));
-    revalidatePath("/dashboard/customer-groups");
+export async function removeGroupMemberAction(groupPublicId: string, userPublicId: string): Promise<ActionResult> {
+  return staffAction(GROUPS, async () => {
+    await removeGroupMember(parseInput(idSchema, groupPublicId), parseInput(idSchema, userPublicId));
   });
 }
 
@@ -118,35 +109,27 @@ const giveCoinsSchema = z.object({
   memo: z.string().trim().max(200).optional(),
 });
 
-export async function giveGroupCoinsAction(input: unknown) {
-  return run(async () => {
-    const d = giveCoinsSchema.parse(input);
-    const res = await giveGroupCoins(d.groupPublicId, { coins: d.coins, memo: d.memo }, await currentUserId());
-    revalidatePath("/dashboard/customer-groups");
-    return res;
+export async function giveGroupCoinsAction(input: unknown): Promise<ActionResult<{ actionPublicId: string; awarded: number; capped: number }>> {
+  return staffAction(GROUPS, async () => {
+    const d = parseInput(giveCoinsSchema, input);
+    return giveGroupCoins(d.groupPublicId, { coins: d.coins, memo: d.memo }, await currentUserId());
   });
 }
 
-export async function getCoinsActionMembersAction(actionPublicId: string) {
-  return run(() => getCoinsActionMembers(idSchema.parse(actionPublicId)));
+export async function getCoinsActionMembersAction(
+  actionPublicId: string,
+): Promise<ActionResult<{ rows: Awaited<ReturnType<typeof getCoinsActionMembers>> }>> {
+  return staffAction(ADMIN, async () => ({ rows: await getCoinsActionMembers(parseInput(idSchema, actionPublicId)) }));
 }
 
-export async function emailGroupAction(groupPublicId: string) {
-  return run(async () => {
-    const res = await emailGroup(idSchema.parse(groupPublicId), await currentUserId());
-    revalidatePath("/dashboard/customer-groups");
-    return res;
-  });
+export async function emailGroupAction(groupPublicId: string): Promise<ActionResult<{ campaignPublicId: string }>> {
+  return staffAction(GROUPS, async () => emailGroup(parseInput(idSchema, groupPublicId), await currentUserId()));
 }
 
-export async function emailAwardedMembersAction(actionPublicId: string) {
-  return run(async () => {
-    const res = await emailAwardedMembers(idSchema.parse(actionPublicId), await currentUserId());
-    revalidatePath("/dashboard/customer-groups");
-    return res;
-  });
+export async function emailAwardedMembersAction(actionPublicId: string): Promise<ActionResult<{ campaignPublicId: string }>> {
+  return staffAction(GROUPS, async () => emailAwardedMembers(parseInput(idSchema, actionPublicId), await currentUserId()));
 }
 
-export async function exportGroupCsvAction(groupPublicId: string) {
-  return run(() => groupMembersCsv(idSchema.parse(groupPublicId)));
+export async function exportGroupCsvAction(groupPublicId: string): Promise<ActionResult<{ csv: string }>> {
+  return staffAction(ADMIN, async () => ({ csv: await groupMembersCsv(parseInput(idSchema, groupPublicId)) }));
 }

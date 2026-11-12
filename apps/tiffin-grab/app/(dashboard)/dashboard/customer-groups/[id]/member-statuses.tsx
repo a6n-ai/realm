@@ -1,5 +1,6 @@
 "use client";
 
+import { unwrapAction } from "@/lib/actions/unwrap";
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -31,11 +32,9 @@ export function MemberStatuses({ actionPublicId }: { actionPublicId: string }) {
     setRows(null);
     setError(null);
     try {
-      const res = await getCoinsActionMembersAction(actionPublicId);
-      if (res.ok) setRows(res.data);
-      else setError(res.error);
-    } catch {
-      setError("Could not load the member results.");
+      setRows((await unwrapAction(getCoinsActionMembersAction(actionPublicId))).rows);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not load the member results.");
     }
   }, [actionPublicId]);
 
@@ -47,11 +46,10 @@ export function MemberStatuses({ actionPublicId }: { actionPublicId: string }) {
     setEmailing(true);
     setEmailError(null);
     try {
-      const res = await emailAwardedMembersAction(actionPublicId);
-      if (res.ok) router.push(`/dashboard/notifications/campaigns/${res.data.campaignPublicId}?step=content`);
-      else setEmailError(res.error);
-    } catch {
-      setEmailError("Could not create the campaign.");
+      const { campaignPublicId } = await unwrapAction(emailAwardedMembersAction(actionPublicId));
+      router.push(`/dashboard/notifications/campaigns/${campaignPublicId}?step=content`);
+    } catch (e) {
+      setEmailError(e instanceof Error ? e.message : "Could not create the campaign.");
     } finally {
       setEmailing(false);
     }

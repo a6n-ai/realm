@@ -10,6 +10,7 @@ import { Skeleton } from "@foundry/ui/skeleton";
 import { cn } from "@foundry/ui/cn";
 import type { MealTypesSettings, PlanType } from "@/lib/menu/meal-types";
 import { PLAN_TYPES } from "@/lib/menu/meal-types";
+import { unwrapAction } from "@/lib/actions/unwrap";
 import { saveMealTypes } from "./actions";
 
 const PLAN_FIELDS = {
@@ -38,7 +39,7 @@ export function MealTypesForm({
     startTypes(async () => {
       setTypesError(null);
       try {
-        await saveMealTypes(cfg);
+        await unwrapAction(saveMealTypes(cfg));
         refresh();
       } catch (e) {
         setTypesError(e instanceof Error ? e.message : "Save failed");

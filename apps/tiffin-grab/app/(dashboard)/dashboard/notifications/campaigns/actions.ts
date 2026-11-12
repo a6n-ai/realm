@@ -3,9 +3,7 @@
 import { redirect } from "next/navigation";
 import { createCampaign } from "@relay/engine";
 import { requireAdmin } from "@/lib/auth/guards";
-import { db } from "@/db/client";
-import { notificationTables, usersRef } from "@/lib/notifications/tables";
-import { resolveSegment } from "@/lib/campaigns/segment";
+import { campaignDeps } from "@/lib/notifications/deps";
 
 /** Draft-first: the campaign exists from the first click, so autosave has somewhere to write. */
 export async function createDraftCampaign(formData: FormData): Promise<void> {
@@ -13,7 +11,7 @@ export async function createDraftCampaign(formData: FormData): Promise<void> {
   const channel = formData.get("channel");
   const picked = channel === "sms" || channel === "whatsapp" ? channel : "email";
   const { publicId } = await createCampaign(
-    { db, tables: notificationTables, users: usersRef, resolveSegment },
+    campaignDeps,
     { name: "Untitled campaign", channels: [picked], audience: {} },
   );
   redirect(`/dashboard/notifications/campaigns/${publicId}?step=content`);

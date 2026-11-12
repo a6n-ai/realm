@@ -20,15 +20,12 @@ import {
   users,
   walletLedger,
 } from "@/db/schema";
-import { resolveSegment } from "@/lib/campaigns/segment";
 import { formatEpoch } from "@/lib/format/datetime";
-import { notificationTables, usersRef } from "@/lib/notifications/tables";
 import { DEFAULT_GRANT_REASON, walletCreditedEmailDraft } from "@/lib/notifications/wallet-credited-copy";
 import { listPayoutCandidates } from "./customer-payouts.service";
 import { walletService } from "./wallet.service";
 import { balanceSql } from "./wallet-balances.service";
-
-const deps = { db, tables: notificationTables, users: usersRef, resolveSegment };
+import { campaignDeps } from "@/lib/notifications/deps";
 const BATCH = 500;
 const log = createLogger("customer-groups");
 
@@ -599,7 +596,7 @@ async function fillList(listId: string, people: { name: string | null; email: st
   // addContactListMembers dedupes on the list's unique email index, so re-runs are safe.
   for (const slice of chunks(people)) {
     const res = await addContactListMembers(
-      deps,
+      campaignDeps,
       listId,
       slice.map((u) => ({ name: u.name?.trim() || u.email!.trim(), email: u.email!.trim() })),
     );
@@ -614,7 +611,7 @@ const emailable = <T extends { notifyEmail: boolean; email: string | null }>(xs:
 async function buildSendList(name: string, note: string, people: { name: string | null; email: string | null; notifyEmail: boolean }[]) {
   const ok = emailable(people);
   if (ok.length === 0) throw new ValidationError("No members with email to send to");
-  const { publicId } = await createContactList(deps, {
+  const { publicId } = await createContactList(campaignDeps, {
     name,
     consentSource: "purchase",
     consentAt: Date.now(),
@@ -653,7 +650,7 @@ export async function syncGroupContactList(groupPublicId: string): Promise<{ con
     : [];
   if (!list) {
     // First sync, or the list was deleted out from under the group.
-    const created = await createContactList(deps, {
+    const created = await createContactList(campaignDeps, {
       name: listName,
       consentSource: "purchase",
       consentAt: Date.now(),
@@ -831,7 +828,7 @@ export async function emailGroup(groupPublicId: string, actorId: bigint | null):
     .innerJoin(contactList, eq(contactList.id, contactListMember.listId))
     .where(eq(contactList.publicId, listId));
   if (n === 0) throw new ValidationError("No members with email to send to");
-  const { publicId } = await createCampaign(deps, {
+  const { publicId } = await createCampaign(campaignDeps, {
     name: `${group.name} email`,
     channels: ["email"],
     audience: { listIds: [listId] },
@@ -857,14 +854,14 @@ export async function emailAwardedMembers(
     `Customer group ${group.publicId} action ${actionPublicId}`,
     people,
   );
-  const { publicId } = await createCampaign(deps, {
+  const { publicId } = await createCampaign(campaignDeps, {
     name: `${group.name} coins email`,
     channels: ["email"],
     audience: { listIds: [listId] },
   });
   const params = action.params as { coins: number; memo?: string | null };
   const draft = await walletCreditedEmailDraft(params.coins, params.memo?.trim() || DEFAULT_GRANT_REASON);
-  const content = await setCampaignContent(deps, publicId, { channel: "email", locale: "en", ...draft });
+  const content = await setCampaignContent(campaignDeps, publicId, { channel: "email", locale: "en", ...draft });
   if ("error" in content) throw new Error(content.error);
   await recordEmailAction(group.id, { fromAction: actionPublicId, listPublicId: listId }, publicId, actorId);
   return { campaignPublicId: publicId };

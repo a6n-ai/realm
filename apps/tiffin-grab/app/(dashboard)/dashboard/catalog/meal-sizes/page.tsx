@@ -6,7 +6,7 @@ import { getTrialSettings } from "@/lib/services/trial-settings.service";
 import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { orderDeliveryDays, type DayOfWeek } from "@/lib/menu/delivery-days";
-import { CatalogData, type SearchParams } from "../[resource]/page";
+import { CatalogData, type SearchParams } from "../catalog-data";
 import { ResourceEditorSkeleton } from "../[resource]/resource-editor";
 import { GroupedResourceTabs } from "../grouped-resource-tabs";
 import { TrialSettingsForm, TrialSettingsSkeleton } from "./trial-settings-form";

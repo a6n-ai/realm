@@ -10,6 +10,7 @@ import { ResponsiveDialog } from "@/components/ds";
 import { Alert, AlertDescription } from "@/components/reui/alert";
 import { AccountSearch, type AccountResult } from "../../customer-groups/new/account-search";
 import { broadcastCustomerPayout, type CustomerBroadcastResult } from "../actions";
+import { unwrapAction } from "@/lib/actions/unwrap";
 
 type Customer = Pick<AccountResult, "publicId" | "fullName" | "phone" | "email">;
 
@@ -51,7 +52,7 @@ export function GiveOneCustomerDialog({ customer, open: openProp, onOpenChange }
     setSubmitting(true);
     setFailure(null);
     try {
-      setOutcome(await broadcastCustomerPayout({ userPublicIds: [account.publicId], coins: n, memo: memo || undefined }));
+      setOutcome(await unwrapAction(broadcastCustomerPayout({ userPublicIds: [account.publicId], coins: n, memo: memo || undefined })));
       setCoins("0");
       setMemo("");
       router.refresh();

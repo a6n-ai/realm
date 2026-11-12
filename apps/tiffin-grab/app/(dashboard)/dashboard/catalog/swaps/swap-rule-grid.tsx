@@ -11,6 +11,7 @@ import { TableCell } from "@foundry/ui/table";
 import { Switch } from "@foundry/ui/switch";
 import { Badge } from "@/components/reui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
+import { unwrapAction } from "@/lib/actions/unwrap";
 import { addSwapPair, editSwapPair, removeSwapPair } from "./actions";
 import { naturalSwapConversion, type AdminTuCategory } from "../admin-tu-hints";
 import { formatTuHuman } from "@/lib/menu/format-tu";
@@ -179,7 +180,7 @@ function RemoveButton({ pair }: { pair: SwapPairRow }) {
   const remove = () => {
     start(async () => {
       try {
-        await removeSwapPair({ id: pair.id });
+        await unwrapAction(removeSwapPair({ id: pair.id }));
         toast.success("Swap rule removed");
         router.refresh();
       } catch (e) {
@@ -284,10 +285,10 @@ function SwapPairDialog({
     start(async () => {
       try {
         if (mode === "add") {
-          await addSwapPair({ fromCategory, toCategory, planId: resolvedPlanId, exchangeOverrides, naturalFallback, receivesMissing: rm, mealSizeId: resolvedMealSizeId });
+          await unwrapAction(addSwapPair({ fromCategory, toCategory, planId: resolvedPlanId, exchangeOverrides, naturalFallback, receivesMissing: rm, mealSizeId: resolvedMealSizeId }));
           toast.success("Swap rule added");
         } else if (pair) {
-          await editSwapPair({ id: pair.id, fromCategory, toCategory, planId: resolvedPlanId, exchangeOverrides, naturalFallback, receivesMissing: rm, mealSizeId: resolvedMealSizeId });
+          await unwrapAction(editSwapPair({ id: pair.id, fromCategory, toCategory, planId: resolvedPlanId, exchangeOverrides, naturalFallback, receivesMissing: rm, mealSizeId: resolvedMealSizeId }));
           toast.success("Swap rule updated");
         }
         router.refresh();

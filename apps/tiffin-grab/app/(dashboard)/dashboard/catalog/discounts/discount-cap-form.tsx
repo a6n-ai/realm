@@ -6,6 +6,7 @@ import { Button } from "@foundry/ui/button";
 import { Label } from "@foundry/ui/label";
 import { Input } from "@foundry/ui/input";
 import { Skeleton } from "@foundry/ui/skeleton";
+import { unwrapAction } from "@/lib/actions/unwrap";
 import { saveDiscountCap } from "./actions";
 
 const HINT = "Total of all catalog discounts a customer can receive is capped at this % of the tiffin subtotal.";
@@ -20,7 +21,7 @@ export function DiscountCapForm({ value }: { value: number }) {
     start(async () => {
       setError(null);
       try {
-        await saveDiscountCap({ maxDiscountPct: Number(pct) });
+        await unwrapAction(saveDiscountCap({ maxDiscountPct: Number(pct) }));
         router.refresh();
       } catch (e) {
         setError(e instanceof Error ? e.message : "Failed to save");

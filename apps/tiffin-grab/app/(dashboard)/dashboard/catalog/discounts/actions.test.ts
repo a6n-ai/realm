@@ -11,7 +11,7 @@ const { saveDiscountCap } = await import("./actions");
 describe("saveDiscountCap", () => {
   beforeEach(() => setAppSettings.mockClear());
   it.each([-1, 101, 12.5, Number.NaN])("rejects %s", async (v) => {
-    await expect(saveDiscountCap({ maxDiscountPct: v })).rejects.toThrow();
+    await expect(saveDiscountCap({ maxDiscountPct: v })).resolves.toHaveProperty("error");
     expect(setAppSettings).not.toHaveBeenCalled();
   });
   it.each([0, 25, 100])("saves %s", async (v) => {

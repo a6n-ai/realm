@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import type { StatCardItem } from "@/components/dashboard/stat-cards";
 import type { MemberRow } from "./members/members-query";
-import type { InviteRow } from "./invites/invites-list";
+import { isInviteExpired, type InviteRow } from "./invites/invite-status";
 
 type Client = { memberCount: number; isBrand: boolean };
 
@@ -56,7 +56,7 @@ export type InviteBucket = "pending" | "accepted" | "expired" | "canceled";
 
 /** The five invite cards. Expired is a pending invite past its expiry; canceled includes declined. */
 export function inviteBucket(r: InviteRow, now: number): InviteBucket {
-  if (r.status === "pending" && new Date(r.expiresAt).getTime() < now) return "expired";
+  if (isInviteExpired(r.status, r.expiresAt, now)) return "expired";
   if (r.status === "accepted") return "accepted";
   if (r.status === "canceled" || r.status === "rejected") return "canceled";
   if (r.status === "pending") return "pending";

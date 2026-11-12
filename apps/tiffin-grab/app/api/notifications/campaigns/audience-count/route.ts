@@ -2,11 +2,7 @@ import { readBody } from "@foundry/commons/util/http";
 import { handler, json } from "@foundry/routes";
 import { getAudienceCount } from "@relay/engine";
 import { requireAdmin } from "@/lib/auth/guards";
-import { db } from "@/db/client";
-import { notificationTables, usersRef } from "@/lib/notifications/tables";
-import { resolveSegment } from "@/lib/campaigns/segment";
-
-const deps = { db, tables: notificationTables, users: usersRef, resolveSegment };
+import { campaignDeps } from "@/lib/notifications/deps";
 
 /**
  * Live count for the audience builder. Calls the SAME shared audience logic
@@ -15,5 +11,5 @@ const deps = { db, tables: notificationTables, users: usersRef, resolveSegment }
 export const POST = handler(async (req: Request): Promise<Response> => {
   await requireAdmin();
   const audience = await readBody<Parameters<typeof getAudienceCount>[1]>(req, {});
-  return json(await getAudienceCount(deps, audience));
+  return json(await getAudienceCount(campaignDeps, audience));
 });

@@ -20,6 +20,8 @@ export type ActionResult<T extends Record<string, unknown> = Record<string, neve
        * existing caller keeps reading `error` alone.
        */
       violatedRuleId?: string;
+      /** The AppError's HTTP-style status, so a caller can branch on a conflict (409) without matching text. */
+      status?: number;
     };
 
 function isRedirectError(e: unknown): boolean {
@@ -70,7 +72,7 @@ export async function runAction<T extends Record<string, unknown>>(
       return { error: e.message === "Forbidden" ? "You do not have permission to perform this action." : e.message };
     }
     if (e instanceof AppError) {
-      return { error: e.message };
+      return { error: e.message, status: e.status };
     }
     // Unexpected error (e.g. database error, file storage timeout, etc.).
     // Log the full error on the server for debugging, and return a clean error message

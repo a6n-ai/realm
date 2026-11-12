@@ -7,6 +7,7 @@ import { SectionCard } from "@/components/ds";
 import { Button } from "@foundry/ui/button";
 import { NumberField } from "../../discounts/controls";
 import { setCoinEarnPctAction } from "./actions";
+import { unwrapAction } from "@/lib/actions/unwrap";
 
 export function EarnPctForm({ current }: { current: number }) {
   const router = useRouter();
@@ -21,7 +22,7 @@ export function EarnPctForm({ current }: { current: number }) {
     }
     start(async () => {
       try {
-        await setCoinEarnPctAction({ pct: n });
+        await unwrapAction(setCoinEarnPctAction({ pct: n }));
         toast.success(n === 0 ? "Coin earning is off" : `Saved — paid orders earn ${n}% back as coins`);
         router.refresh();
       } catch (e) {

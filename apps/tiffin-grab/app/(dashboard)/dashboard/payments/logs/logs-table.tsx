@@ -14,7 +14,7 @@ import type { SortState } from "@foundry/design-system/list-sort";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@foundry/design-system/timezone-provider";
 import { PaymentStatusPill } from "../payment-status-pill";
-import { LOG_EVENT_OPTIONS, type LogSortKey } from "../payment-facets";
+import { LOG_EVENT_OPTIONS, type LogSortKey } from "@/lib/payments/facets";
 import { checkStatusAction, reprocessEventAction } from "../stripe/actions";
 import type { LogRow as Row } from "./page";
 

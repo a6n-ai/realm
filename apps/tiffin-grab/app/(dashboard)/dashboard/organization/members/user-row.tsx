@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { TableCell } from "@foundry/ui/table";
 import { RowActions } from "@foundry/design-system";
 import { RowActionTooltipButton, UserAvatar } from "@/components/ds";
+import { unwrapAction } from "@/lib/actions/unwrap";
 import { sendStaffAccessEmail, setUserRole, setUserStatus, type UserStatusValue } from "./actions";
 import type { UserListRow } from "./users-list";
 
@@ -24,9 +25,9 @@ export function StatusSelect({ id, status }: { id: string; status: UserStatusVal
       onValueChange={(v) =>
         start(async () => {
           try {
-            await setUserStatus(id, v as UserStatusValue);
-          } catch {
-            toast.error("Could not change status.");
+            await unwrapAction(setUserStatus(id, v as UserStatusValue));
+          } catch (e) {
+            toast.error(e instanceof Error ? e.message : "Could not change status.");
           }
         })
       }
@@ -49,7 +50,15 @@ export function RoleSelect({ id, role }: { id: string; role: RoleValue }) {
   return (
     <Select
       defaultValue={role}
-      onValueChange={(v) => start(() => setUserRole(id, v as RoleValue))}
+      onValueChange={(v) =>
+        start(async () => {
+          try {
+            await unwrapAction(setUserRole(id, v as RoleValue));
+          } catch (e) {
+            toast.error(e instanceof Error ? e.message : "Could not change role.");
+          }
+        })
+      }
       disabled={pending}
     >
       <SelectTrigger size="sm" className="w-32 capitalize"><SelectValue /></SelectTrigger>
@@ -83,7 +92,7 @@ export function ResetPasswordButton({
   const onClick = () =>
     start(async () => {
       try {
-        const { email, kind } = await sendStaffAccessEmail(id);
+        const { email, kind } = await unwrapAction(sendStaffAccessEmail(id));
         toast.success(kind === "reset" ? "Reset code sent" : "Invite resent", {
           description:
             kind === "reset"
@@ -91,8 +100,8 @@ export function ResetPasswordButton({
               : `They'll get an invite at ${email} to sign in and choose their password.`,
           duration: 8000,
         });
-      } catch {
-        toast.error(passwordSet ? "Could not send the reset code." : "Could not resend the invite.");
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : passwordSet ? "Could not send the reset code." : "Could not resend the invite.");
       }
     });
 

@@ -21,7 +21,7 @@ export function GaForm({ measurementId, hasSecret }: { measurementId: string; ha
   const save = () =>
     start(async () => {
       const res = await saveGaSettings(values);
-      if (res.error) {
+      if ("error" in res) {
         setError(res.error);
         return;
       }
@@ -34,7 +34,7 @@ export function GaForm({ measurementId, hasSecret }: { measurementId: string; ha
   const removeSecret = () =>
     start(async () => {
       const res = await removeGaSecret();
-      if (res.error) {
+      if ("error" in res) {
         toast.error(res.error);
         return;
       }

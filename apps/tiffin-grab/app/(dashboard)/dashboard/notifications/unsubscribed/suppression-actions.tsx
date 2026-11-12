@@ -17,7 +17,7 @@ export function ClearSuppressionButton({ publicId, address }: { publicId: string
   const clear = () =>
     start(async () => {
       const r = await clearSuppressionAction(publicId);
-      if (r.error) return void toast.error(r.error);
+      if ("error" in r) return void toast.error(r.error);
       toast.success("Block cleared");
       setOpen(false);
       router.refresh();
@@ -53,7 +53,7 @@ export function ManualSuppress() {
   const add = () =>
     start(async () => {
       const r = await suppressManuallyAction(address, channel);
-      if (r.error) return void toast.error(r.error);
+      if ("error" in r) return void toast.error(r.error);
       toast.success("Added — marketing to this address is blocked");
       setAddress("");
       setOpen(false);

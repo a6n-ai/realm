@@ -7,9 +7,9 @@ import { ledgerEntries, orders, users } from "@/db/schema";
 import { parseSort } from "@foundry/design-system/list-sort";
 import { parseFilterState, SectionCard } from "@/components/ds";
 import { withListDates } from "@/lib/list/default-month";
-import { dateRangeWhere } from "../payment-queries";
+import { epochBoundsWhere } from "@/lib/list/default-month";
 import { PaymentsTop } from "../payment-kpis";
-import { LEDGER_SORT_KEYS, LEDGER_TYPE_OPTIONS } from "../payment-facets";
+import { LEDGER_SORT_KEYS, LEDGER_TYPE_OPTIONS } from "@/lib/payments/facets";
 import { MoneyLedgerTable, MoneyLedgerTableSkeleton } from "./money-ledger-table";
 
 type SearchParams = Promise<Record<string, string | undefined>>;
@@ -44,7 +44,7 @@ async function MoneyLedgerData({ searchParams }: { searchParams: SearchParams })
   const { page } = parseFilterState([], sp);
   const where = and(
     types.length ? inArray(ledgerEntries.type, types as never[]) : undefined,
-    dateRangeWhere(ledgerEntries.createdAt, sp),
+    epochBoundsWhere(ledgerEntries.createdAt, sp),
     q
       ? or(
           ilike(ledgerEntries.memo, `%${q}%`),

@@ -1,5 +1,6 @@
 "use client";
 
+import { unwrapAction } from "@/lib/actions/unwrap";
 import { useAppCurrency, useFormatMoney } from "@/components/app-currency";
 import { currencySymbol } from "@/lib/format/currency";
 import * as React from "react";
@@ -237,7 +238,7 @@ export function CouponsManager({
     };
     start(async () => {
       try {
-        await saveCoupon(draft.publicId, patch);
+        await unwrapAction(saveCoupon(draft.publicId, patch));
         toast.success(draft.publicId ? "Coupon updated" : "Coupon created");
         setDraft(null);
         router.refresh();
@@ -250,7 +251,7 @@ export function CouponsManager({
   const toggleActive = (c: CouponRow) => {
     start(async () => {
       try {
-        await setCouponActive(c.publicId, !c.active);
+        await unwrapAction(setCouponActive(c.publicId, !c.active));
         toast.success(c.active ? "Coupon disabled" : "Coupon enabled");
         router.refresh();
       } catch (e) {

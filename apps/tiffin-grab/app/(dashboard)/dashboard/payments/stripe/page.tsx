@@ -7,7 +7,7 @@ import { getSession } from "@/lib/auth/session";
 import { payments } from "@/db/schema";
 import { stripeRuntime } from "@/lib/payments/stripe";
 import { settleStaleOnView } from "@/lib/services/payment-stripe";
-import { listPayments } from "../payment-queries";
+import { listPayments } from "@/lib/services/payments-list.service";
 import { PaymentsTop } from "../payment-kpis";
 import { ReconcileButton } from "./reconcile-dialog";
 import { StripeTable, StripeTableSkeleton } from "./stripe-table";

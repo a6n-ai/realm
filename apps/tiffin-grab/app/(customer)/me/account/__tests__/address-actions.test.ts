@@ -31,12 +31,12 @@ describe("account address actions return refusals, never throw", () => {
   it("a duplicate label comes back as { error }", async () => {
     await createMyAddress({ label: "Home", addressLine: "1 A St", city: "Toronto", postalCode: "M5J 2T3" });
     await expect(createMyAddress({ label: "home", addressLine: "2 A St", city: "Toronto", postalCode: "M5J 2T3" }))
-      .resolves.toEqual({ error: 'You already have an address called "home"' });
+      .resolves.toMatchObject({ error: 'You already have an address called "home"' });
   });
 
   it("archiving the default comes back as { error }", async () => {
     const home = await createMyAddress({ addressLine: "1 A St", city: "Toronto", postalCode: "M5J 2T3" });
     await createMyAddress({ label: "Work", addressLine: "2 A St", city: "Toronto", postalCode: "M5J 2T3" });
-    await expect(archiveMyAddress((home as { publicId: string }).publicId)).resolves.toEqual({ error: "Make another address the default first" });
+    await expect(archiveMyAddress((home as { publicId: string }).publicId)).resolves.toMatchObject({ error: "Make another address the default first" });
   });
 });

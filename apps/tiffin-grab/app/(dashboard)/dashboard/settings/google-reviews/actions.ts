@@ -1,42 +1,42 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { ValidationError } from "@foundry/commons";
 import {
   getGoogleReviewsConfig,
   setGoogleReviewsConfig,
   placesProvider,
 } from "@foundry/google-reviews";
-import { requireAdmin } from "@/lib/auth/guards";
+import type { ActionResult } from "@/lib/actions/action-result";
+import { staffAction } from "@/lib/actions/staff-action";
 import { integrationsConfigStore } from "@/lib/services/app-settings.service";
 import { currentUserId, recordAudit } from "@/lib/services/session-service";
 import { revalidatePublicSite } from "@/lib/landing/revalidate-site";
 
-export async function saveGoogleReviewsPlaceId(
-  placeId: string,
-): Promise<{ error?: string; rating?: number; total?: number }> {
-  await requireAdmin();
+export async function saveGoogleReviewsPlaceId(placeId: string): Promise<ActionResult<{ rating: number; total: number }>> {
+  return staffAction(
+    { guard: "admin", revalidate: ["/dashboard/settings/google-reviews", "/dashboard/settings/integrations"] },
+    async () => {
+      if (!placeId) throw new ValidationError("Enter a Google Place ID");
 
-  if (!placeId) return { error: "Enter a Google Place ID" };
+      const summary = await placesProvider.fetchSummary(placeId);
+      if (!summary) {
+        throw new ValidationError("Google returned nothing for that Place ID. Check the ID and the API key.");
+      }
 
-  const summary = await placesProvider.fetchSummary(placeId);
-  if (!summary) {
-    return { error: "Google returned nothing for that Place ID. Check the ID and the API key." };
-  }
+      const current = await getGoogleReviewsConfig(integrationsConfigStore);
+      await setGoogleReviewsConfig(integrationsConfigStore, { ...current, placeId });
 
-  const current = await getGoogleReviewsConfig(integrationsConfigStore);
-  await setGoogleReviewsConfig(integrationsConfigStore, { ...current, placeId });
+      await recordAudit({
+        entity: "integrations",
+        entityPublicId: "googleReviews",
+        operation: "update",
+        changes: { _action: "google_reviews_place_id", placeId },
+        createdBy: await currentUserId(),
+      });
 
-  await recordAudit({
-    entity: "integrations",
-    entityPublicId: "googleReviews",
-    operation: "update",
-    changes: { _action: "google_reviews_place_id", placeId },
-    createdBy: await currentUserId(),
-  });
+      revalidatePublicSite();
 
-  revalidatePath("/dashboard/settings/google-reviews");
-  revalidatePath("/dashboard/settings/integrations");
-  revalidatePublicSite();
-
-  return { rating: summary.rating, total: summary.total };
+      return { rating: summary.rating, total: summary.total };
+    },
+  );
 }

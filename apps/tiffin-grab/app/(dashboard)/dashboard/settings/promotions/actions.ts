@@ -1,11 +1,10 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { ValidationError } from "@foundry/commons";
 import { sanitizeEmailHtml } from "@relay/engine";
-import { runAction, type ActionResult } from "@/lib/actions/action-result";
-import { requireAdmin } from "@/lib/auth/guards";
+import type { ActionResult } from "@/lib/actions/action-result";
+import { ValidationError } from "@foundry/commons";
+import { staffAction } from "@/lib/actions/staff-action";
 import { PROMO_PLACEMENTS } from "@/db/schema/promotions";
 import { promotionsService } from "@/lib/services/promotions.service";
 import { revalidatePublicSite } from "@/lib/landing/revalidate-site";
@@ -33,9 +32,10 @@ const schema = z.object({
 
 export type PromotionInput = z.input<typeof schema>;
 
+const OPTS = { guard: "admin", revalidate: [["/dashboard/settings/promotions", "layout"]] } as const;
+
 export async function savePromotionAction(publicId: string | null, input: PromotionInput): Promise<ActionResult<{ publicId: string }>> {
-  return runAction(async () => {
-    await requireAdmin();
+  return staffAction(OPTS, async () => {
     const parsed = schema.safeParse(input);
     if (!parsed.success) throw new ValidationError(parsed.error.issues[0]?.message ?? "Invalid promotion");
     const v = parsed.data;
@@ -45,17 +45,14 @@ export async function savePromotionAction(publicId: string | null, input: Promot
     const values = { ...v, couponCode, html, body: v.body?.trim() ? v.body : null };
     const row = publicId ? await promotionsService.update(publicId, values) : await promotionsService.create(values);
     revalidatePublicSite();
-    revalidatePath("/dashboard/settings/promotions", "layout");
     return { publicId: row.publicId, message: "Promotion saved" };
   });
 }
 
 export async function setPromotionActiveAction(publicId: string, active: boolean): Promise<ActionResult> {
-  return runAction(async () => {
-    await requireAdmin();
+  return staffAction(OPTS, async () => {
     await promotionsService.update(publicId, { active });
     revalidatePublicSite();
-    revalidatePath("/dashboard/settings/promotions", "layout");
     return active ? "Promotion switched on" : "Promotion switched off";
   });
 }

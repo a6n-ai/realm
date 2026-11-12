@@ -104,7 +104,7 @@ function PluginCard({ meta, status }: { meta: PluginMeta; status: PluginCatalogS
   const setInstalled = (installed: boolean) =>
     start(async () => {
       const res = await setPluginInstalledAction(meta.id, installed);
-      if (res.error) {
+      if ("error" in res) {
         toast.error(res.error);
         return;
       }

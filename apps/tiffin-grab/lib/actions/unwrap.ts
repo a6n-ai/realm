@@ -6,6 +6,13 @@ import { promptReloadIfStale } from "@foundry/ui/stale-deploy";
  * Shared hooks like @foundry/address's useAddressBook expect a throw, so client callers
  * unwrap: a refusal becomes an Error with the real message; success drops the `ok` flag.
  */
+/** A refused action: the real message, plus the AppError status when the server sent one. */
+export class ActionError extends Error {
+  constructor(message: string, readonly status?: number) {
+    super(message);
+  }
+}
+
 export async function unwrapAction<T extends Record<string, unknown> = Record<string, never>>(
   result: Promise<ActionResult<T>>,
 ): Promise<T> {
@@ -17,7 +24,7 @@ export async function unwrapAction<T extends Record<string, unknown> = Record<st
     if (promptReloadIfStale(e)) throw new Error("A new version of the app is available. Reload the page and try again.");
     throw e;
   }
-  if ("error" in r) throw new Error(String(r.error));
+  if ("error" in r) throw new ActionError(String(r.error), typeof r.status === "number" ? r.status : undefined);
   const { ok: _ok, ...rest } = r;
   return rest as unknown as T;
 }
