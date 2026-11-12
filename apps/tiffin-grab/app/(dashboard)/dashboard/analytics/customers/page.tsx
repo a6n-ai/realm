@@ -51,7 +51,7 @@ export default async function CustomersAnalyticsPage({ searchParams }: { searchP
             <SignupChart scope={scope} daily={unit === "day"} />
           </Suspense>
         </ChartCard>
-        <ChartCard title="Signups calendar" subtitle="New accounts per day" info="Darker is more.">
+        <ChartCard title="Signups calendar" subtitle="New accounts per day" info="Each day is the join time in Toronto — the same clock the customers list shows. Darker is more.">
           <Suspense fallback={<ChartSkeleton height={calendarSkeletonHeight(scope)} />}>
             <SignupCalendar scope={scope} />
           </Suspense>

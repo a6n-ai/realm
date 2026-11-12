@@ -22,7 +22,18 @@ export default function AllPaymentsPage({ searchParams }: { searchParams: Search
 }
 
 async function AllPaymentsData({ searchParams }: { searchParams: SearchParams }) {
+  const sp = await searchParams;
   const ownerOptions = [{ value: UNASSIGNED_OWNER, label: "Unassigned" }, ...(await loadOwnerOptions())];
-  const { rows, total, page, size, sort } = await listPayments(await searchParams);
-  return <PaymentsTable ownerOptions={ownerOptions} rows={rows} total={total} page={page} size={size} sort={sort} />;
+  const { rows, total, page, size, sort } = await listPayments(sp);
+  return (
+    <PaymentsTable
+      ownerOptions={ownerOptions}
+      rows={rows}
+      total={total}
+      page={page}
+      size={size}
+      sort={sort}
+      datedBy={sp.basis === "money" ? "money" : "created"}
+    />
+  );
 }

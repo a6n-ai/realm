@@ -173,9 +173,7 @@ export function TicketsList({
               <PriorityBadge priority={r.priority} />
             </TableCell>
             <TableCell className="text-right tabular-nums">
-              {r.lastMessageAt != null
-                ? formatEpoch(r.lastMessageAt, { mode: "datetime", timeZone: tz })
-                : "—"}
+              {formatEpoch(r.lastMessageAt ?? r.createdAt, { mode: "datetime", timeZone: tz })}
             </TableCell>
             <TableCell>
               <ChevronRightIcon className="size-4 opacity-0 transition-opacity group-hover:opacity-60" />

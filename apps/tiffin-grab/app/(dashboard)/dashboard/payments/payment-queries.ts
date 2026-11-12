@@ -20,6 +20,9 @@ import {
   type PaymentSortKey,
 } from "./payment-facets";
 
+/** Same instant revenue analytics bucket by: capture when present, else created. */
+const moneyDate = sql`coalesce(${payments.capturedAt}, ${payments.createdAt})`;
+
 const SORT_COL = {
   time: payments.createdAt,
   customer: users.email,
@@ -233,7 +236,7 @@ export async function listPayments(
     methods.length ? inArray(payments.method, methods as never[]) : undefined,
     // basis=money is the analytics drill: dated by when the money moved, like the revenue tiles.
     dated.basis === "money"
-      ? epochBoundsWhereSql(sql`coalesce(${payments.capturedAt}, ${payments.createdAt})`, dated)
+      ? epochBoundsWhereSql(moneyDate, dated)
       : dateRangeWhere(payments.createdAt, dated),
     attentionWhere(attention),
     ownerWhere(dated.owner),
@@ -247,7 +250,8 @@ export async function listPayments(
       : undefined,
   );
 
-  const col = SORT_COL[sort.column];
+  // Sort the Time column on the same clock the range filter uses (capture for money drills).
+  const col = sort.column === "time" && dated.basis === "money" ? moneyDate : SORT_COL[sort.column];
   const [[{ total }], rows] = await Promise.all([
     db
       .select({ total: sql<number>`cast(count(*) as int)` })
