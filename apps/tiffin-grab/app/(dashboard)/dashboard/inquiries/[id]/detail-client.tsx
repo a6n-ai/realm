@@ -113,7 +113,14 @@ export function InquiryDetailClient({
   now: number;
   currency: string;
   convertedOrderHref?: string;
-  contact: { fullName: string | null; phone: string | null; whatsappPhone: string | null; email: string | null; leadNumber: number | null };
+  contact: {
+    fullName: string | null;
+    phone: string | null;
+    whatsappPhone: string | null;
+    email: string | null;
+    leadNumber: number | null;
+    metaLeadId?: string | null;
+  };
   /** False once converted: the customer record owns the identity from then on. */
   canEditContact: boolean;
   sourceLabel: string;

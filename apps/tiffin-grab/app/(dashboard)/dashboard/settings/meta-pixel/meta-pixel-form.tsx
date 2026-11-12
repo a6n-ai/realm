@@ -7,19 +7,38 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/reui/alert";
 import { Button } from "@foundry/ui/button";
 import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@foundry/ui/input";
-import { removeMetaPixelToken, saveMetaPixelSettings, sendMetaPixelTestEvent } from "./actions";
+import {
+  removeMetaLeadgenSecrets,
+  removeMetaPixelToken,
+  saveMetaPixelSettings,
+  sendMetaCrmTestEvent,
+  sendMetaPixelTestEvent,
+} from "./actions";
 
 export function MetaPixelForm({
   pixelId,
   hasToken,
   testEventCode,
+  leadgenVerifyTokenSet,
+  hasPageAccessToken,
+  hasAppSecret,
 }: {
   pixelId: string;
   hasToken: boolean;
   testEventCode: string;
+  leadgenVerifyTokenSet: boolean;
+  hasPageAccessToken: boolean;
+  hasAppSecret: boolean;
 }) {
   const router = useRouter();
-  const [values, setValues] = useState({ pixelId, accessToken: "", testEventCode });
+  const [values, setValues] = useState({
+    pixelId,
+    accessToken: "",
+    testEventCode,
+    leadgenVerifyToken: "",
+    pageAccessToken: "",
+    appSecret: "",
+  });
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
 
@@ -34,7 +53,13 @@ export function MetaPixelForm({
         return;
       }
       setError(null);
-      setValues((v) => ({ ...v, accessToken: "" }));
+      setValues((v) => ({
+        ...v,
+        accessToken: "",
+        leadgenVerifyToken: "",
+        pageAccessToken: "",
+        appSecret: "",
+      }));
       toast.success("Meta Pixel saved");
       router.refresh();
     });
@@ -47,6 +72,17 @@ export function MetaPixelForm({
         return;
       }
       toast.success("Token removed. Server events are off.");
+      router.refresh();
+    });
+
+  const clearLeadgen = () =>
+    start(async () => {
+      const res = await removeMetaLeadgenSecrets();
+      if (res.error) {
+        toast.error(res.error);
+        return;
+      }
+      toast.success("Lead Ads ingest settings cleared.");
       router.refresh();
     });
 
@@ -88,6 +124,51 @@ export function MetaPixelForm({
         </FieldDescription>
       </Field>
 
+      <div className="border-t pt-4">
+        <p className="mb-3 text-sm font-medium">Instant Forms → CRM (Qualified Leads)</p>
+        <div className="flex flex-col gap-4">
+          <Field>
+            <FieldLabel htmlFor="leadgen-verify">Leadgen verify token</FieldLabel>
+            <Input
+              id="leadgen-verify"
+              type="password"
+              autoComplete="off"
+              value={values.leadgenVerifyToken}
+              onChange={set("leadgenVerifyToken")}
+              placeholder={leadgenVerifyTokenSet ? "Saved. Paste a new one to replace it." : "Same value as Meta App → Webhooks"}
+            />
+            <FieldDescription>
+              Callback URL: <code className="text-xs">/api/webhooks/meta/leadgen</code>. Subscribe the Page to{" "}
+              <code className="text-xs">leadgen</code>.
+            </FieldDescription>
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="page-token">Page access token</FieldLabel>
+            <Input
+              id="page-token"
+              type="password"
+              autoComplete="off"
+              value={values.pageAccessToken}
+              onChange={set("pageAccessToken")}
+              placeholder={hasPageAccessToken ? "Saved. Paste a new one to replace it." : "Needs leads_retrieval"}
+            />
+            <FieldDescription>Used to fetch Instant Form field data for each lead id.</FieldDescription>
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="app-secret">App secret</FieldLabel>
+            <Input
+              id="app-secret"
+              type="password"
+              autoComplete="off"
+              value={values.appSecret}
+              onChange={set("appSecret")}
+              placeholder={hasAppSecret ? "Saved. Paste a new one to replace it." : "Optional but recommended"}
+            />
+            <FieldDescription>Verifies <code className="text-xs">X-Hub-Signature-256</code> on webhook POSTs.</FieldDescription>
+          </Field>
+        </div>
+      </div>
+
       {error ? <FieldError>{error}</FieldError> : null}
 
       <div className="flex flex-wrap gap-2">
@@ -96,7 +177,12 @@ export function MetaPixelForm({
         </Button>
         {hasToken ? (
           <Button type="button" variant="outline" disabled={pending} onClick={removeToken}>
-            Remove token
+            Remove CAPI token
+          </Button>
+        ) : null}
+        {leadgenVerifyTokenSet || hasPageAccessToken || hasAppSecret ? (
+          <Button type="button" variant="outline" disabled={pending} onClick={clearLeadgen}>
+            Clear Lead Ads settings
           </Button>
         ) : null}
       </div>
@@ -116,7 +202,15 @@ export function SendTestEvent({ ready }: { ready: boolean }) {
         disabled={!ready || pending}
         onClick={() => start(async () => setResult(await sendMetaPixelTestEvent()))}
       >
-        {pending ? "Sending..." : "Send test event"}
+        {pending ? "Sending..." : "Send test PageView"}
+      </Button>
+      <Button
+        type="button"
+        variant="outline"
+        disabled={!ready || pending}
+        onClick={() => start(async () => setResult(await sendMetaCrmTestEvent()))}
+      >
+        {pending ? "Sending..." : "Send test QualifiedLead (CRM)"}
       </Button>
       {result?.error ? (
         <Alert variant="destructive">
@@ -126,7 +220,7 @@ export function SendTestEvent({ ready }: { ready: boolean }) {
       ) : result ? (
         <Alert variant="success">
           <AlertTitle>Meta received {result.eventsReceived} event</AlertTitle>
-          <AlertDescription>Open Events Manager → Test events. A PageView from the server should show within a minute.</AlertDescription>
+          <AlertDescription>Open Events Manager → Test events. The server event should show within a minute.</AlertDescription>
         </Alert>
       ) : null}
     </div>

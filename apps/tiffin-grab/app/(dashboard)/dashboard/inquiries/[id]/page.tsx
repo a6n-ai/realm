@@ -143,7 +143,14 @@ async function InquiryDetail({ params }: { params: Promise<{ id: string }> }) {
         now={now}
         currency={currency}
         convertedOrderHref={convertedOrderHref}
-        contact={{ fullName: inq.fullName, phone: inq.phone, whatsappPhone: inq.whatsappPhone, email: inq.email, leadNumber: inq.leadNumber }}
+        contact={{
+          fullName: inq.fullName,
+          phone: inq.phone,
+          whatsappPhone: inq.whatsappPhone,
+          email: inq.email,
+          leadNumber: inq.leadNumber,
+          metaLeadId: inq.metaLeadId,
+        }}
         canEditContact={inq.stage !== "converted"}
         sourceLabel={source?.label ?? ""}
         owner={{ publicId: owner?.publicId ?? null, name: owner?.name ?? null }}

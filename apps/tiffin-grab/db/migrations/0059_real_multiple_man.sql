@@ -1,0 +1,2 @@
+ALTER TABLE "inquiries" ADD COLUMN "meta_lead_id" text;--> statement-breakpoint
+CREATE UNIQUE INDEX "inquiries_meta_lead_id_unique" ON "inquiries" USING btree ("meta_lead_id") WHERE "inquiries"."meta_lead_id" is not null;

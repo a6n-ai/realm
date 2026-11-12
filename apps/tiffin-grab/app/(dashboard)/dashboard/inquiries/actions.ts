@@ -43,6 +43,7 @@ export async function createInquiry(input: {
   preferredStart?: string;
   quotedPrice?: number;
   notes?: string;
+  metaLeadId?: string;
 }) {
   return runAction(async () => {
     await requireStaff();
@@ -78,6 +79,19 @@ export async function quickAddInquiries(input: { text: string; sourceKey: string
     }
     revalidatePath("/dashboard/inquiries");
     return { added, folded, failed };
+  });
+}
+
+export async function updateInquiryMetaLeadId(
+  inquiryId: string,
+  metaLeadId: string | null,
+): Promise<ActionResult<{ metaLeadId: string | null }>> {
+  return runAction(async () => {
+    await requireStaff();
+    const inq = await inquiriesService.setMetaLeadId(inquiryId, metaLeadId);
+    revalidatePath(`/dashboard/inquiries/${inquiryId}`);
+    revalidatePath("/dashboard/inquiries");
+    return { metaLeadId: inq.metaLeadId };
   });
 }
 

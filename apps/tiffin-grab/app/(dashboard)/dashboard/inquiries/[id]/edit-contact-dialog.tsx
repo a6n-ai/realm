@@ -13,9 +13,16 @@ import { Input } from "@foundry/ui/input";
 import { Label } from "@foundry/ui/label";
 import { unwrapAction } from "@/lib/actions/unwrap";
 import { isQuickAdd } from "@/lib/inquiries/quick-add";
-import { updateInquiryContact } from "../actions";
+import { updateInquiryContact, updateInquiryMetaLeadId } from "../actions";
 
-type Contact = { fullName: string | null; phone: string | null; whatsappPhone: string | null; email: string | null; leadNumber: number | null };
+type Contact = {
+  fullName: string | null;
+  phone: string | null;
+  whatsappPhone: string | null;
+  email: string | null;
+  leadNumber: number | null;
+  metaLeadId?: string | null;
+};
 
 /** Name, phone, WhatsApp and email. Replacing a generated "Lead <n>" name takes the lead out of Quick adds. */
 export function EditContactDialog({ inquiryId, contact, trigger }: { inquiryId: string; contact: Contact; trigger?: ReactNode }) {
@@ -27,6 +34,7 @@ export function EditContactDialog({ inquiryId, contact, trigger }: { inquiryId: 
     phone: contact.phone ? formatPhone(contact.phone) : "",
     whatsappPhone: contact.whatsappPhone ? formatPhone(contact.whatsappPhone) : "",
     email: contact.email ?? "",
+    metaLeadId: contact.metaLeadId ?? "",
   });
   const [open, setOpen] = useState(false);
   const [values, setValues] = useState(initial);
@@ -43,7 +51,9 @@ export function EditContactDialog({ inquiryId, contact, trigger }: { inquiryId: 
     setBusy(true);
     setError(null);
     try {
-      await unwrapAction(updateInquiryContact(inquiryId, values));
+      const { metaLeadId, ...contactFields } = values;
+      await unwrapAction(updateInquiryContact(inquiryId, contactFields));
+      await unwrapAction(updateInquiryMetaLeadId(inquiryId, metaLeadId.trim() || null));
       toast.success("Contact updated");
       router.refresh();
       setOpen(false);
@@ -93,6 +103,10 @@ export function EditContactDialog({ inquiryId, contact, trigger }: { inquiryId: 
           {field("phone", "Phone", { type: "tel", inputMode: "tel" })}
           {field("whatsappPhone", "WhatsApp (if different)", { type: "tel", inputMode: "tel", placeholder: "Same as phone" })}
           {field("email", "Email", { type: "email", inputMode: "email" })}
+          {field("metaLeadId", "Meta lead id", {
+            inputMode: "numeric",
+            placeholder: "15–17 digit Instant Forms lead id",
+          })}
           {error && <p className="text-destructive text-sm" role="alert">{error}</p>}
         </form>
         <DialogFooter>

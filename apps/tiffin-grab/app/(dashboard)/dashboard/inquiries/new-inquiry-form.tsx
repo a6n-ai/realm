@@ -116,6 +116,7 @@ export function AddInquirySheet({
     postalCode: "",
     preferredStart: "",
     notes: "",
+    metaLeadId: "",
   });
 
   const form = useForm<InquiryFormInput, unknown, InquiryFormValues>({
@@ -394,6 +395,23 @@ export function AddInquirySheet({
                           <FormLabel>Email</FormLabel>
                           <FormControl>
                             <Input type="email" placeholder="name@email.com" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="metaLeadId"
+                      render={({ field }) => (
+                        <FormItem className="grid gap-1.5">
+                          <FormLabel>Meta lead id</FormLabel>
+                          <FormControl>
+                            <Input
+                              inputMode="numeric"
+                              placeholder="Instant Forms lead id (optional)"
+                              {...field}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
