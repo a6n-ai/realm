@@ -80,7 +80,8 @@ async function getOrdersDaily(scope: AnalyticsScope): Promise<{ iso: string; n: 
 
 /**
  * One row per calendar day in range, newest first; null when the range is over SCORECARD_MAX_DAYS. Every column reuses its tab's per-day query, so a
- * column's total equals that tab's card for the same URL.
+ * column's total equals that tab's card for the same URL. Complaints differ when last activity falls outside the range: the card still includes the
+ * ticket because it was opened in range, and the column only has a cell on the activity day.
  */
 export async function getDailyScorecard(
   scope: AnalyticsScope,

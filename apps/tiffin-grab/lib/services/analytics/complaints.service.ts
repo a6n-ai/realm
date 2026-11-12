@@ -4,7 +4,7 @@ import { ratePct } from "@/lib/money";
 import { zonedDateIso } from "@foundry/commons";
 import { and, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { deliveries, deliveryZones, mealSizes, orders, plans, tickets, users } from "@/db/schema";
+import { deliveries, deliveryZones, mealSizes, orders, plans, ticketMessages, tickets, users } from "@/db/schema";
 import { categoryLabel, subcategoryLabel, TICKET_CATEGORIES } from "@/lib/support/ticket-taxonomy";
 import {
   COMPLAINT_CATEGORIES,
@@ -110,9 +110,19 @@ export async function getComplaintKpis(scope: AnalyticsScope): Promise<Complaint
   };
 }
 
-/** Complaints per local day (sparse). */
+/**
+ * Complaints per local day (sparse).
+ *
+ * The day is the last activity time the tickets list prints, not `created_at`.
+ * A reply the next evening moves the complaint onto that Toronto day — the same
+ * instant `formatEpoch(..., timeZone)` shows in the queue. Tickets with no
+ * messages fall back to when they were opened.
+ */
 export async function getComplaintDaily(scope: AnalyticsScope): Promise<{ iso: string; n: number }[]> {
-  const day = sql<string>`to_char(${localDay(tickets.createdAt, scope.tz)}, 'YYYY-MM-DD')`;
+  const activityAt = sql`coalesce((
+    select max(${ticketMessages.createdAt}) from ${ticketMessages} where ${ticketMessages.ticketId} = ${tickets.id}
+  ), ${tickets.createdAt})`;
+  const day = sql<string>`to_char(${localDay(activityAt, scope.tz)}, 'YYYY-MM-DD')`;
   const rows = await db
     .select({ day, n: intCount })
     .from(tickets)
