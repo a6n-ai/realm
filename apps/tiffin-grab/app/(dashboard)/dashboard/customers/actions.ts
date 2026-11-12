@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createLogger } from "@foundry/commons/logger";
 import { requireAdmin, requireStaff } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
+import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import { inquiriesService } from "@/lib/services/inquiries.service";
 import { createCustomer, customerInviteUrl, invitePendingCustomers, sendCustomerInvite } from "@/lib/services/customers.service";
 import { sendMenuReminderToCustomer } from "@/lib/notifications/menu-reminder";
@@ -38,6 +39,7 @@ export async function createCustomerFlow(input: {
     contact: { fullName: input.contact.fullName, email: input.contact.email },
     interest: { ...input.interest, subSourceKey: input.source.subSourceKey },
     pickedId: input.pickedInquiryId,
+    visible: await resolveSessionVisibleOrgIds(await getSession()),
   });
   const actorId = (await getSession())?.user?.id ?? null;
   const { publicId } = await createCustomer(input.contact, { actorId });

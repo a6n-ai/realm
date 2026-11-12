@@ -2,7 +2,7 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { ensureSystemUser } from "@/db/test-helpers";
 import { db } from "@/db/client";
 import { inquiries, inquiryActivities } from "@/db/schema";
-import { ValidationError } from "@foundry/commons";
+import { NotFoundError, ValidationError } from "@foundry/commons";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 const { inquiriesService } = await import("../inquiries.service");
@@ -27,7 +27,7 @@ describe("inquiriesService.resolveForSource", () => {
   it("reuses an open inquiry with the same phone + source", async () => {
     const phone = "+16475554000";
     const existing = await inquiriesService.create({ fullName: "R", phone, sourceKey: "facebook", email: testEmail() });
-    const id = await inquiriesService.resolveForSource({ phone, sourceKey: "facebook", contact: base });
+    const id = await inquiriesService.resolveForSource({ phone, sourceKey: "facebook", contact: base, visible: "all" });
     expect(id).toBe(existing.publicId);
     expect(await inquiriesService.findOpenByPhone(phone)).toHaveLength(1); // no duplicate
   });
@@ -35,7 +35,7 @@ describe("inquiriesService.resolveForSource", () => {
   it("folds a different source into the person's open inquiry as a re-inquiry", async () => {
     const phone = "+16475554001";
     const fb = await inquiriesService.create({ fullName: "R", phone, sourceKey: "facebook", email: testEmail() });
-    const id = await inquiriesService.resolveForSource({ phone, sourceKey: "manual", contact: base });
+    const id = await inquiriesService.resolveForSource({ phone, sourceKey: "manual", contact: base, visible: "all" });
     expect(id).toBe(fb.publicId);
     expect(await inquiriesService.findOpenByPhone(phone)).toHaveLength(1);
     const acts = await inquiriesService.listActivities(fb.publicId);
@@ -43,14 +43,14 @@ describe("inquiriesService.resolveForSource", () => {
   });
 
   it("creates a new inquiry when none exists for the phone", async () => {
-    const id = await inquiriesService.resolveForSource({ phone: "+16475554002", sourceKey: "manual", contact: base });
+    const id = await inquiriesService.resolveForSource({ phone: "+16475554002", sourceKey: "manual", contact: base, visible: "all" });
     expect(id).toMatch(/^inq_/);
   });
 
   it("honors pickedId", async () => {
     const phone = "+16475554003";
     const picked = await inquiriesService.create({ fullName: "R", phone, sourceKey: "facebook", email: testEmail() });
-    const id = await inquiriesService.resolveForSource({ phone, sourceKey: "manual", contact: base, pickedId: picked.publicId });
+    const id = await inquiriesService.resolveForSource({ phone, sourceKey: "manual", contact: base, pickedId: picked.publicId, visible: "all" });
     expect(id).toBe(picked.publicId);
   });
 
@@ -59,8 +59,16 @@ describe("inquiriesService.resolveForSource", () => {
     const picked = await inquiriesService.create({ fullName: "R", phone, sourceKey: "facebook", email: testEmail() });
     await inquiriesService.update(picked.publicId, { stage: "converted" });
     await expect(
-      inquiriesService.resolveForSource({ phone, sourceKey: "facebook", contact: base, pickedId: picked.publicId }),
+      inquiriesService.resolveForSource({ phone, sourceKey: "facebook", contact: base, pickedId: picked.publicId, visible: "all" }),
     ).rejects.toThrow(ValidationError);
+  });
+
+  it("treats a picked inquiry outside the caller's orgs as not found", async () => {
+    const phone = "+16475554005";
+    const picked = await inquiriesService.create({ fullName: "R", phone, sourceKey: "facebook", email: testEmail() });
+    await expect(
+      inquiriesService.resolveForSource({ phone, sourceKey: "manual", contact: base, pickedId: picked.publicId, visible: ["org_other"] }),
+    ).rejects.toThrow(NotFoundError);
   });
 });
 

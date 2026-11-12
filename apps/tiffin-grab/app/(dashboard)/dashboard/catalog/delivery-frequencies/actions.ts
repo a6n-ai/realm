@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { ValidationError } from "@foundry/commons";
 import { requireAdmin } from "@/lib/auth/guards";
 import { getAppSettings, setAppSettings } from "@/lib/services/app-settings.service";
+import { invalidateCatalogSnapshot } from "@/lib/catalog/load";
 
 export async function saveTiffinsPerWeek(input: { minTiffinsPerWeek: number; maxTiffinsPerWeek: number }) {
   await requireAdmin();
@@ -15,6 +16,7 @@ export async function saveTiffinsPerWeek(input: { minTiffinsPerWeek: number; max
   // setAppSettings requires timezone/cutoffHour; echo current values so they stay unchanged.
   const { timezone, cutoffHour } = await getAppSettings();
   await setAppSettings({ timezone, cutoffHour, minTiffinsPerWeek: min, maxTiffinsPerWeek: max });
+  await invalidateCatalogSnapshot();
   revalidatePath("/dashboard/catalog/delivery-frequencies");
   revalidatePath("/subscribe");
 }

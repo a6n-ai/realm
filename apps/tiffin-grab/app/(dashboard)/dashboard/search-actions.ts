@@ -1,11 +1,12 @@
 "use server";
 
 import { isStaffRole } from "@/lib/auth/roles";
-import { and, desc, eq, ilike, or, type Column } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, or, sql, type Column, type SQL } from "drizzle-orm";
 import { Role } from "@foundry/commons";
 import { db } from "@/db/client";
 import { inquiries, orders, tickets, users } from "@/db/schema";
 import { getSession } from "@/lib/auth/session";
+import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 
 export type SearchHit = { id: string; label: string; sub?: string; href: string };
 export type SearchResults = {
@@ -21,6 +22,10 @@ const EMPTY: SearchResults = { orders: [], customers: [], inquiries: [], tickets
 // (a pasted full id) or by prefix (a typed leading fragment).
 const idMatch = (col: Column, q: string) => or(eq(col, q), ilike(col, `${q}%`));
 
+// Orders, inquiries and tickets are franchise-scoped like their list pages; customers are not.
+const inOrgs = (col: Column, visible: "all" | string[]): SQL | undefined =>
+  visible === "all" ? undefined : visible.length ? inArray(col, visible) : sql`false`;
+
 // Global command-palette search. Staff-only: customers get nav jumps only (the
 // palette never calls this for them, but we fail closed here regardless).
 // ilike '%q%' is fine — this is an interactive, capped, non-hot path.
@@ -32,12 +37,13 @@ export async function globalSearch(query: string): Promise<SearchResults> {
   const role = session?.user?.role;
   if (!isStaffRole(role)) return EMPTY;
 
+  const visible = await resolveSessionVisibleOrgIds(session);
   const like = `%${q}%`;
   const [ord, cust, inq, tkt] = await Promise.all([
     db
       .select({ publicId: orders.publicId, fullName: orders.fullName, deploymentId: orders.deploymentId, status: orders.status })
       .from(orders)
-      .where(or(idMatch(orders.publicId, q), ilike(orders.fullName, like), ilike(orders.deploymentId, like), ilike(orders.city, like)))
+      .where(and(inOrgs(orders.organizationId, visible), or(idMatch(orders.publicId, q), ilike(orders.fullName, like), ilike(orders.deploymentId, like), ilike(orders.city, like))))
       .orderBy(desc(orders.createdAt))
       .limit(5),
     db
@@ -48,14 +54,14 @@ export async function globalSearch(query: string): Promise<SearchResults> {
     db
       .select({ publicId: inquiries.publicId, fullName: inquiries.fullName, phone: inquiries.phone, stage: inquiries.stage })
       .from(inquiries)
-      .where(or(idMatch(inquiries.publicId, q), ilike(inquiries.fullName, like), ilike(inquiries.phone, like), ilike(inquiries.email, like)))
+      .where(and(inOrgs(inquiries.organizationId, visible), or(idMatch(inquiries.publicId, q), ilike(inquiries.fullName, like), ilike(inquiries.phone, like), ilike(inquiries.email, like))))
       .orderBy(desc(inquiries.createdAt))
       .limit(5),
     db
       .select({ publicId: tickets.publicId, subject: tickets.subject, status: tickets.status, category: tickets.category, raiser: users.name })
       .from(tickets)
       .leftJoin(users, eq(users.id, tickets.raisedBy))
-      .where(or(idMatch(tickets.publicId, q), ilike(tickets.subject, like)))
+      .where(and(inOrgs(tickets.organizationId, visible), or(idMatch(tickets.publicId, q), ilike(tickets.subject, like))))
       .orderBy(desc(tickets.createdAt))
       .limit(5),
   ]);

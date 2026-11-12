@@ -3,7 +3,8 @@ import { pageOffset } from "@foundry/design-system/filters/parse-filter-state";
 import { isStaffRole } from "@/lib/auth/roles";
 import { BaseRepository, UpdatableRepository, pageOrder } from "@foundry/database";
 import { AuthError, ForbiddenError, NotFoundError, ValidationError, type RoleValue } from "@foundry/commons";
-import { and, asc, desc, eq, gt, ilike, inArray, lt, max, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, count, desc, eq, gt, ilike, inArray, lt, max, or, sql, type SQL } from "drizzle-orm";
+import { epochBoundsWhere } from "@/lib/list/default-month";
 import { alias, type PgSelect } from "drizzle-orm/pg-core";
 import type { Page, PageRequest } from "@foundry/commons/util/pagination";
 import { db } from "@/db/client";
@@ -11,9 +12,11 @@ import { enqueueNotification, enqueueStaffNotification } from "@/lib/notificatio
 import { deliveryZones, orders, plans, ticketMessages, tickets, users, type Attachment } from "@/db/schema";
 import { complaintWhere, type ComplaintFilters } from "@/lib/services/analytics/complaint-filters";
 import { getSession } from "@/lib/auth/session";
+import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import { assertReassignAllowed, resolveAssignableOwner } from "@/lib/services/reassign";
 import { publishTicketsInbox } from "@/lib/realtime/publish-inbox";
 import { defaultOwner } from "./default-owner";
+import { getBrandOrgId } from "./organizations.service";
 import { clearTicketLookOut, lookOutForTicket } from "@/lib/orders/look-out";
 import { SessionBaseService, SessionUpdatableService } from "./session-service";
 import type { SortState } from "@foundry/design-system/list-sort";
@@ -64,6 +67,28 @@ export function computeOverdue(status: string, lastMessageAt: number | null, now
   return lastMessageAt < now - OVERDUE_MS;
 }
 
+type Visible = "all" | string[];
+
+// Same rule as assertOrderVisible: a ticket with no organization counts only for "all".
+const visibleWhere = (visible: Visible): SQL | undefined =>
+  visible === "all" ? undefined : visible.length ? inArray(tickets.organizationId, visible) : sql`false`;
+
+// A ticket belongs to its order's franchise; one with no order belongs to the brand org (as inquiries do).
+async function ticketOrgId(orderId: bigint | undefined): Promise<string | null> {
+  if (orderId != null) {
+    const [o] = await db.select({ organizationId: orders.organizationId }).from(orders).where(eq(orders.id, orderId)).limit(1);
+    if (o?.organizationId) return o.organizationId;
+  }
+  return getBrandOrgId();
+}
+
+/** Staff see a ticket only inside their organizations; a hidden one reads as not found. */
+async function assertStaffSees(ticket: { organizationId: string | null }): Promise<void> {
+  const visible = await resolveSessionVisibleOrgIds(await getSession());
+  if (visible === "all") return;
+  if (ticket.organizationId == null || !visible.includes(ticket.organizationId)) throw new NotFoundError("Ticket not found");
+}
+
 const ticketVars = (code: string, subject: string) => ({ ticket: { subject, code } });
 
 type Actor = { id: bigint; role: RoleValue; isStaff: boolean };
@@ -94,8 +119,21 @@ class TicketsService extends SessionUpdatableService<typeof tickets> {
   // role. Every customer-facing read/reply routes through this.
   private async assertAccess(ticket: typeof tickets.$inferSelect): Promise<Actor> {
     const actor = await this.actor();
-    if (!actor.isStaff && ticket.raisedBy !== actor.id) throw new ForbiddenError();
+    if (actor.isStaff) await assertStaffSees(ticket);
+    else if (ticket.raisedBy !== actor.id) throw new ForbiddenError();
     return actor;
+  }
+
+  /** A staff-only operation's actor and ticket, refusing tickets outside the caller's orgs. */
+  private async staffTicket(publicId: string): Promise<{ actor: Actor; ticket: typeof tickets.$inferSelect }> {
+    const actor = await this.assertStaff();
+    const ticket = await this.read(publicId);
+    await assertStaffSees(ticket);
+    return { actor, ticket };
+  }
+
+  async readForStaff(publicId: string): Promise<typeof tickets.$inferSelect> {
+    return (await this.staffTicket(publicId)).ticket;
   }
 
   // Cheap access gate for callers (e.g. realtime authz) that only need to know
@@ -112,14 +150,15 @@ class TicketsService extends SessionUpdatableService<typeof tickets> {
   }
 
   private message(
-    ticketId: bigint,
+    ticket: { id: bigint; organizationId: string | null },
     authorId: bigint,
     authorType: TicketMessageAuthor,
     body: string,
     attachments?: Attachment[],
   ) {
     return ticketMessagesService.create({
-      ticketId,
+      ticketId: ticket.id,
+      organizationId: ticket.organizationId,
       authorId,
       authorType,
       body,
@@ -140,9 +179,10 @@ class TicketsService extends SessionUpdatableService<typeof tickets> {
       category: input.category,
       subcategory: input.subcategory,
       currentOwner: await defaultOwner(actor.id, "ticket"),
+      organizationId: await ticketOrgId(input.orderId),
       ...(input.orderId != null ? { orderId: input.orderId } : {}),
     });
-    await this.message(ticket.id, actor.id, "customer", body, input.attachments);
+    await this.message(ticket, actor.id, "customer", body, input.attachments);
     await db.transaction((tx) => enqueueStaffNotification(tx, {
       organizationId: ticket.organizationId,
       event: "ticket_created",
@@ -191,7 +231,7 @@ class TicketsService extends SessionUpdatableService<typeof tickets> {
     if (actor.isStaff && !(await this.hasStaffOwner(ticket))) await this.setOwner(ticket, actor.id, actor.id);
 
     const authorType: TicketMessageAuthor = actor.isStaff ? "staff" : "customer";
-    const msg = await this.message(ticket.id, actor.id, authorType, trimmed, attachments);
+    const msg = await this.message(ticket, actor.id, authorType, trimmed, attachments);
     const note = { event: "ticket_reply" as const, title: "New reply on your ticket", body: trimmed || "Sent an attachment", data: ticketVars(ticket.publicId, ticket.subject), dedupeKey: `ticket_reply:${msg.publicId}` };
     await db.transaction(async (tx) => {
       if (actor.isStaff) {
@@ -210,14 +250,13 @@ class TicketsService extends SessionUpdatableService<typeof tickets> {
   }
 
   async changeStatus(publicId: string, toStatus: TicketStatus): Promise<{ previous: TicketStatus }> {
-    const actor = await this.assertStaff();
-    const ticket = await this.read(publicId);
+    const { actor, ticket } = await this.staffTicket(publicId);
     const previous = ticket.status as TicketStatus;
     if (previous === toStatus) return { previous };
     const isClosed = (s: TicketStatus) => s === "resolved" || s === "closed";
     const closing = isClosed(toStatus);
     await this.update(publicId, { status: toStatus, closedAt: closing ? Date.now() : null });
-    const statusMsg = await this.message(ticket.id, actor.id, "system", `Status: ${STATUS_TEXT[previous]} → ${STATUS_TEXT[toStatus]}`);
+    const statusMsg = await this.message(ticket, actor.id, "system", `Status: ${STATUS_TEXT[previous]} → ${STATUS_TEXT[toStatus]}`);
     if (toStatus === "resolved") {
       await db.transaction((tx) => enqueueNotification(tx, {
         event: "ticket_resolved",
@@ -250,8 +289,7 @@ class TicketsService extends SessionUpdatableService<typeof tickets> {
   }
 
   async assign(publicId: string, ownerId: string): Promise<void> {
-    const actor = await this.assertStaff();
-    const ticket = await this.read(publicId);
+    const { actor, ticket } = await this.staffTicket(publicId);
     // The flag only gates REASSIGNMENT of an already-owned ticket; first-time
     // assignment of an unowned ticket stays open to any staff member.
     if (ticket.currentOwner) await assertReassignAllowed();
@@ -279,16 +317,15 @@ class TicketsService extends SessionUpdatableService<typeof tickets> {
         ? `Reassigned from ${previousOwnerName} to ${ownerName}`
         : `Reassigned to ${ownerName}`
       : `Assigned to ${ownerName}`;
-    await this.message(ticket.id, actorId, "system", message);
+    await this.message(ticket, actorId, "system", message);
   }
 
   async setPriority(publicId: string, priority: TicketPriority): Promise<void> {
-    const actor = await this.assertStaff();
-    const ticket = await this.read(publicId);
+    const { actor, ticket } = await this.staffTicket(publicId);
     const previous = ticket.priority as TicketPriority;
     if (previous === priority) return;
     await this.update(publicId, { priority });
-    await this.message(ticket.id, actor.id, "system", `Priority: ${previous} → ${priority}`);
+    await this.message(ticket, actor.id, "system", `Priority: ${previous} → ${priority}`);
   }
 
   /**
@@ -301,17 +338,16 @@ class TicketsService extends SessionUpdatableService<typeof tickets> {
     category: TicketCategoryValue,
     subcategory: string,
   ): Promise<void> {
-    const actor = await this.assertStaff();
     if (!isValidPair(category, subcategory)) {
       throw new ValidationError("Pick a valid category and sub-category");
     }
-    const ticket = await this.read(publicId);
+    const { actor, ticket } = await this.staffTicket(publicId);
     if (ticket.category === category && ticket.subcategory === subcategory) return;
 
     const before = formatCategoryPair(ticket.category, ticket.subcategory);
     const after = formatCategoryPair(category, subcategory);
     await this.update(publicId, { category, subcategory });
-    await this.message(ticket.id, actor.id, "system", `Category: ${before} → ${after}`);
+    await this.message(ticket, actor.id, "system", `Category: ${before} → ${after}`);
   }
 
   async listForCustomer(userId: bigint) {
@@ -354,20 +390,31 @@ class TicketsService extends SessionUpdatableService<typeof tickets> {
     return Object.fromEntries(rows.filter((r) => r.at != null).map((r) => [r.id, Number(r.at)]));
   }
 
-  async listQueueOwners(): Promise<{ publicId: string; name: string }[]> {
+  async listQueueOwners(visible: Visible): Promise<{ publicId: string; name: string }[]> {
     const rows = await db
       .selectDistinct({ publicId: users.publicId, name: users.name })
       .from(tickets)
       .innerJoin(users, eq(tickets.currentOwner, users.id))
+      .where(visibleWhere(visible))
       .orderBy(users.name);
     return rows.map((r) => ({ publicId: r.publicId, name: r.name ?? "(no name)" }));
   }
 
+  /** Tickets created in the range, per status, within the caller's orgs. */
+  async statusCounts(range: { from?: string; to?: string }, visible: Visible): Promise<{ status: TicketStatus; n: number }[]> {
+    return db
+      .select({ status: tickets.status, n: count() })
+      .from(tickets)
+      .where(and(epochBoundsWhere(tickets.createdAt, range), visibleWhere(visible)))
+      .groupBy(tickets.status);
+  }
+
   async listForQueue(
     sort: SortState<QueueSortColumn> = { column: "lastMessage", dir: "desc" },
-    filters?: ComplaintFilters,
+    filters: ComplaintFilters | undefined,
+    visible: Visible,
   ) {
-    return (await this.listQueuePage(sort, filters, { page: { page: 0, size: 500 } })).items;
+    return (await this.listQueuePage(sort, filters, { page: { page: 0, size: 500 }, visible })).items;
   }
 
   /**
@@ -378,7 +425,7 @@ class TicketsService extends SessionUpdatableService<typeof tickets> {
   async listQueuePage(
     sort: SortState<QueueSortColumn> = { column: "lastMessage", dir: "desc" },
     filters: ComplaintFilters | undefined,
-    opts: { page: PageRequest; overdue?: boolean; ownerId?: string; q?: string; visible?: "all" | string[] },
+    opts: { page: PageRequest; overdue?: boolean; ownerId?: string; q?: string; visible: Visible },
   ): Promise<Page<QueueRow> & { overdueCount: number }> {
     const customer = alias(users, "customer");
     const owner = alias(users, "owner");
@@ -413,7 +460,7 @@ class TicketsService extends SessionUpdatableService<typeof tickets> {
     const base = and(
       filters ? complaintWhere(filters, { complaintsOnly: false }) : undefined,
       opts.ownerId ? eq(owner.publicId, opts.ownerId) : undefined,
-      opts.visible && opts.visible !== "all" ? inArray(tickets.organizationId, opts.visible) : undefined,
+      visibleWhere(opts.visible),
       q
         ? or(ilike(tickets.subject, `%${q}%`), ilike(customer.name, `%${q}%`), ilike(customer.email, `%${q}%`), ilike(tickets.publicId, `%${q}%`))
         : undefined,

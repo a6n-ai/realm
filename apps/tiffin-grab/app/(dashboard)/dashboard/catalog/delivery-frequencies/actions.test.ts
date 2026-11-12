@@ -4,6 +4,8 @@ vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/lib/auth/guards", () => ({ requireAdmin: vi.fn() }));
 const setAppSettings = vi.fn();
 vi.mock("@/lib/services/app-settings.service", () => ({ setAppSettings, getAppSettings: async () => ({ timezone: "UTC", cutoffHour: 18 }) }));
+const invalidateCatalogSnapshot = vi.fn();
+vi.mock("@/lib/catalog/load", () => ({ invalidateCatalogSnapshot }));
 
 const { saveTiffinsPerWeek } = await import("./actions");
 
@@ -15,5 +17,7 @@ describe("saveTiffinsPerWeek", () => {
   it("saves valid range", async () => {
     await saveTiffinsPerWeek({ minTiffinsPerWeek: 2, maxTiffinsPerWeek: 7 });
     expect(setAppSettings).toHaveBeenCalledWith({ timezone: "UTC", cutoffHour: 18, minTiffinsPerWeek: 2, maxTiffinsPerWeek: 7 });
+    // The public wizard reads these limits from the cached catalog snapshot.
+    expect(invalidateCatalogSnapshot).toHaveBeenCalled();
   });
 });

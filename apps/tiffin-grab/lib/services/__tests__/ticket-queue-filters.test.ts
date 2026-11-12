@@ -62,7 +62,7 @@ describe("ticket queue honours complaint filters", () => {
     await mk({ category: "packaging", subcategory: "leaking" });
 
     const filters = parseComplaintFilters({ category: "delivery", subcategory: "late_delivery" });
-    const rows = await ticketsService.listForQueue(undefined, filters);
+    const rows = await ticketsService.listForQueue(undefined, filters, "all");
     expect(rows).toHaveLength(1);
     expect(rows[0]!.category).toBe("delivery");
   });
@@ -76,6 +76,7 @@ describe("ticket queue honours complaint filters", () => {
     const urgentOpen = await ticketsService.listForQueue(
       undefined,
       parseComplaintFilters({ priority: "urgent", status: "open" }),
+      "all",
     );
     expect(urgentOpen).toHaveLength(1);
   });
@@ -92,7 +93,7 @@ describe("ticket queue honours complaint filters", () => {
     });
     await mk({ status: "open" }); // never answered
 
-    const isNew = await ticketsService.listForQueue(undefined, parseComplaintFilters({ status: "new" }));
+    const isNew = await ticketsService.listForQueue(undefined, parseComplaintFilters({ status: "new" }), "all");
     expect(isNew).toHaveLength(1);
   });
 
@@ -104,6 +105,7 @@ describe("ticket queue honours complaint filters", () => {
     const recent = await ticketsService.listForQueue(
       undefined,
       parseComplaintFilters({ from: String(now - 2 * DAY) }),
+      "all",
     );
     expect(recent).toHaveLength(1);
   });
@@ -113,8 +115,8 @@ describe("ticket queue honours complaint filters", () => {
     await mk({});
     await mk({ category: "feedback", subcategory: "compliment" });
     // The queue is not complaint-only: feedback tickets still need working.
-    expect(await ticketsService.listForQueue()).toHaveLength(2);
-    expect(await ticketsService.listForQueue(undefined, parseComplaintFilters({}))).toHaveLength(2);
+    expect(await ticketsService.listForQueue(undefined, undefined, "all")).toHaveLength(2);
+    expect(await ticketsService.listForQueue(undefined, parseComplaintFilters({}), "all")).toHaveLength(2);
   });
 
   it("lands on the same rows a dashboard link encodes", async () => {
@@ -129,7 +131,7 @@ describe("ticket queue honours complaint filters", () => {
       subcategories: ["food_quality"],
     });
     const sp = Object.fromEntries(new URL(href, "http://x").searchParams) as Record<string, string>;
-    const rows = await ticketsService.listForQueue(undefined, parseComplaintFilters(sp));
+    const rows = await ticketsService.listForQueue(undefined, parseComplaintFilters(sp), "all");
     expect(rows).toHaveLength(1);
   });
 
@@ -139,19 +141,19 @@ describe("ticket queue honours complaint filters", () => {
     await db.update(ticketMessages).set({ createdAt: now - 2 * DAY }).where(eq(ticketMessages.ticketId, stale.id));
     for (let i = 0; i < 4; i++) await mk({ status: "open", subject: `fresh ${i}` });
 
-    const first = await ticketsService.listQueuePage(undefined, undefined, { page: { page: 0, size: 2 } });
-    const rest = await ticketsService.listQueuePage(undefined, undefined, { page: { page: 1, size: 2 } });
-    const last = await ticketsService.listQueuePage(undefined, undefined, { page: { page: 2, size: 2 } });
+    const first = await ticketsService.listQueuePage(undefined, undefined, { page: { page: 0, size: 2 }, visible: "all" });
+    const rest = await ticketsService.listQueuePage(undefined, undefined, { page: { page: 1, size: 2 }, visible: "all" });
+    const last = await ticketsService.listQueuePage(undefined, undefined, { page: { page: 2, size: 2 }, visible: "all" });
     expect(first.total).toBe(5);
     expect(first.overdueCount).toBe(1);
     // Every ticket on exactly one page, even though all five tie on created time.
     const ids = [...first.items, ...rest.items, ...last.items].map((r) => r.publicId);
     expect(new Set(ids).size).toBe(5);
 
-    const overdue = await ticketsService.listQueuePage(undefined, undefined, { page: { page: 0, size: 25 }, overdue: true });
+    const overdue = await ticketsService.listQueuePage(undefined, undefined, { page: { page: 0, size: 25 }, overdue: true, visible: "all" });
     expect(overdue.items.map((r) => r.subject)).toEqual(["stale lunch"]);
 
-    const found = await ticketsService.listQueuePage(undefined, undefined, { page: { page: 0, size: 25 }, q: "STALE" });
+    const found = await ticketsService.listQueuePage(undefined, undefined, { page: { page: 0, size: 25 }, q: "STALE", visible: "all" });
     expect(found.total).toBe(1);
   });
 });

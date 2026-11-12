@@ -2,10 +2,12 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import { notificationOutbox, ownerPool, ticketMessages, tickets, users } from "@/db/schema";
-import { ForbiddenError, ValidationError } from "@foundry/commons";
+import { ForbiddenError, NotFoundError, ValidationError } from "@foundry/commons";
 
 const session: { user: { id: string; role: string } | null } = { user: null };
 vi.mock("@/lib/auth/session", () => ({ getSession: async () => (session.user ? session : null) }));
+let visible: "all" | string[] = "all";
+vi.mock("@/lib/auth/visible-orgs", () => ({ resolveSessionVisibleOrgIds: async () => visible }));
 
 const { ticketsService } = await import("../tickets.service");
 const { resetPoolCache } = await import("../owner-pool.service");
@@ -26,6 +28,7 @@ async function reset() {
   await db.delete(ticketMessages);
   await db.delete(tickets);
   session.user = null;
+  visible = "all";
 }
 
 describe("ticketsService", () => {
@@ -69,6 +72,21 @@ describe("ticketsService", () => {
 
     const [row] = await db.select().from(tickets).where(eq(tickets.id, ticket.id));
     expect(row.status).toBe("resolved");
+  });
+
+  it("hides a ticket from staff outside its organization", async () => {
+    const customer = await seedUser("Cust Other Org", "user");
+    const staff = await seedUser("Staff Other Org", "member");
+
+    actAs(customer, "user");
+    const ticket = await ticketsService.create({ subject: "Scoped", category: "general", subcategory: "something_else", body: "Hi" });
+
+    actAs(staff, "member");
+    visible = ["org_other_franchise"];
+    await expect(ticketsService.readForStaff(ticket.publicId)).rejects.toThrow(NotFoundError);
+    await expect(ticketsService.changeStatus(ticket.publicId, "closed")).rejects.toThrow(NotFoundError);
+    await expect(ticketsService.reply(ticket.publicId, "Hello")).rejects.toThrow(NotFoundError);
+    expect((await ticketsService.listQueuePage(undefined, undefined, { page: { page: 0, size: 25 }, visible })).total).toBe(0);
   });
 
   it("rejects a staff reply on a closed ticket", async () => {

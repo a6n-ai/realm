@@ -1,11 +1,9 @@
 import { Suspense } from "react";
-import { count } from "drizzle-orm";
 import { LifeBuoyIcon, InboxIcon, AlertCircleIcon, CheckCircleIcon, HourglassIcon, TicketIcon } from "lucide-react";
 import { StatCards, StatCardsSkeleton } from "@/components/dashboard/stat-cards";
-import { db } from "@/db/client";
-import { tickets } from "@/db/schema";
 import { AdminOnly, requireStaff } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
+import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import { getSupportHours } from "@/lib/services/app-settings.service";
 import { SupportHoursDialog } from "./support-hours-dialog";
 import { ticketsService } from "@/lib/services/tickets.service";
@@ -20,7 +18,7 @@ import {
 import { TicketsList, TicketsListSkeleton } from "./tickets-list";
 import { MarkSectionRead } from "@/components/dashboard/mark-section-read";
 import { SectionDateRange } from "@/components/filters/section-date-range";
-import { epochBoundsWhere, withDefaultMonth, withListDates } from "@/lib/list/default-month";
+import { withDefaultMonth, withListDates } from "@/lib/list/default-month";
 import { ticketsListHref } from "@/lib/list/tickets-drill";
 
 const SORT_COLUMNS = [
@@ -98,9 +96,10 @@ async function TicketStats({ searchParams }: { searchParams: TicketSearchParams 
   // Cards are the date-range overview. A status on the URL (including the overdue drill) filters the list only.
   const filters = parseComplaintFilters({ from: sp.from, to: sp.to });
 
+  const visible = await resolveSessionVisibleOrgIds(await getSession());
   const [statusCounts, { overdueCount: overdue }] = await Promise.all([
-    db.select({ status: tickets.status, n: count() }).from(tickets).where(epochBoundsWhere(tickets.createdAt, sp)).groupBy(tickets.status),
-    ticketsService.listQueuePage(undefined, filters, { page: { page: 0, size: 1 } }),
+    ticketsService.statusCounts(sp, visible),
+    ticketsService.listQueuePage(undefined, filters, { page: { page: 0, size: 1 }, visible }),
   ]);
 
   const countOf = (...statuses: string[]) =>
@@ -136,10 +135,11 @@ async function TicketsData({ searchParams }: { searchParams: TicketSearchParams 
   const { filters, overdue } = queueParams(sp);
   const { page } = parseFilterState([], sp);
 
+  const visible = await resolveSessionVisibleOrgIds(await getSession());
   const [statusCounts, result, owners] = await Promise.all([
-    db.select({ status: tickets.status, n: count() }).from(tickets).where(epochBoundsWhere(tickets.createdAt, sp)).groupBy(tickets.status),
-    ticketsService.listQueuePage(sort, filters, { page, overdue, ownerId: sp.owner, q: sp.q }),
-    ticketsService.listQueueOwners(),
+    ticketsService.statusCounts(sp, visible),
+    ticketsService.listQueuePage(sort, filters, { page, overdue, ownerId: sp.owner, q: sp.q, visible }),
+    ticketsService.listQueueOwners(visible),
   ]);
 
   return (

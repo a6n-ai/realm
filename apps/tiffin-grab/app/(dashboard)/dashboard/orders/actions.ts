@@ -53,6 +53,7 @@ export async function saveOrderLeadAction(input: {
       contact: { fullName: input.contact.fullName, email },
       interest: { subSourceKey: input.source.subSourceKey },
       pickedId: input.pickedInquiryId,
+      visible: await resolveSessionVisibleOrgIds(await getSession()),
     });
     return { inquiryId };
   });
@@ -82,6 +83,7 @@ export async function createOrderFlow(input: {
       contact: { fullName: input.contact.fullName, email },
       interest: { ...input.interest, subSourceKey: input.source.subSourceKey },
       pickedId: input.pickedInquiryId,
+      visible: await resolveSessionVisibleOrgIds(await getSession()),
     });
     // Custom meals are created by the backend only (2026-10-07); staff orders use catalog sizes.
     const order = input.order;

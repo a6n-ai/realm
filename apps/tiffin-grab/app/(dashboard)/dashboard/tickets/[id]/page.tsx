@@ -39,7 +39,7 @@ const AUTHOR_LABEL: Record<string, string> = {
 // dedupes them per request so one row-click does one requireStaff + one read
 // instead of three of each (the fan-out that intermittently saturated the pool).
 const ensureStaff = cache(() => requireStaff());
-const loadTicket = cache((id: string) => ticketsService.read(id));
+const loadTicket = cache((id: string) => ticketsService.readForStaff(id));
 
 export default function TicketDetailPage({ params }: { params: Promise<{ id: string }> }) {
   return (

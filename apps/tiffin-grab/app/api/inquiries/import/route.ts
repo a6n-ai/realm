@@ -4,6 +4,8 @@ import { phoneSchema, emailSchema, ValidationError } from "@foundry/commons";
 import { db } from "@/db/client";
 import { inquiries, leadSources, leadSubsources } from "@/db/schema";
 import { requireStaff } from "@/lib/auth/guards";
+import { getSession } from "@/lib/auth/session";
+import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { inquiriesService } from "@/lib/services/inquiries.service";
 import { STAGE_MAP, type ImportMapping } from "@/app/(dashboard)/dashboard/inquiries/import/inquiry-import-columns";
@@ -39,6 +41,7 @@ type RowResult =
 
 export const POST = handler(async (request: Request): Promise<Response> => {
   await requireStaff();
+  const visible = await resolveSessionVisibleOrgIds(await getSession());
 
   const form = await request.formData();
   const file = form.get("file");
@@ -160,6 +163,7 @@ export const POST = handler(async (request: Request): Promise<Response> => {
         sourceKey,
         contact: { fullName: rawFullName || undefined, email },
         interest: { subSourceKey, notes },
+        visible,
       });
 
       const isNew = !existingOpen;

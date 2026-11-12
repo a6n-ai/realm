@@ -1003,8 +1003,11 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
       notes?: string;
     };
     pickedId?: string;
+    /** The caller's visible orgs; a picked inquiry outside them reads as not found. */
+    visible: "all" | string[];
   }): Promise<string> {
     if (input.pickedId) {
+      await assertInquiriesVisible([input.pickedId], input.visible);
       const picked = await this.read(input.pickedId);
       if (picked.stage === "converted") throw new ValidationError("That inquiry is already converted");
       return picked.publicId;
