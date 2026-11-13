@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { NotFoundError, type RoleValue } from "@foundry/commons";
 import { getSession } from "@/lib/auth/session";
 import { usersService } from "@/lib/services/users.service";
-import { isSectionAllowed } from "./nav.config";
 
 // Shared loader for the account section pages. getSession is React-cached, so the
 // repeated calls across layout + page collapse to one. A session that outlives
@@ -21,13 +20,4 @@ export async function requireAccountUser() {
   // self delete). Only `active` accounts keep access.
   if ((user as { status?: string }).status !== "active") redirect("/login");
   return { user, role: session.user.role as RoleValue };
-}
-
-// Loads the user and enforces that the role may see this section. A role that
-// lacks the section is sent back to its first section (every role has profile)
-// rather than shown a 404 — the deep link simply degrades gracefully.
-export async function requireSectionAccess(key: string) {
-  const ctx = await requireAccountUser();
-  if (!isSectionAllowed(ctx.role, key)) redirect("/dashboard/account/profile");
-  return ctx;
 }
