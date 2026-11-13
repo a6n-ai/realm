@@ -1,11 +1,9 @@
-import { Skeleton } from "@foundry/ui/skeleton";
 import { Suspense } from "react";
-import { AnalyticsLiveStamp } from "@/components/analytics/analytics-live-stamp";
 import { AnalyticsIntro } from "@/components/analytics/analytics-intro";
-import { calendarSkeletonHeight } from "@/lib/analytics/calendar-height";
+import { calendarDays, calendarSkeletonHeight } from "@/lib/analytics/calendar-height";
 import { ChartCard } from "@/components/analytics/chart-card";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
-import { AnalyticsStatCards, StatCardsSkeleton } from "@/components/dashboard/stat-cards";
+import { AnalyticsStatCards, AnalyticsStatCardsSkeleton } from "@/components/dashboard/stat-cards";
 import { BreakdownBarChart, CalendarHeatmap, PartsDonut, TrendLineChart } from "@/components/analytics/charts";
 import { grainUnitForRange } from "@/lib/analytics/revenue";
 import { ORDER_TONE } from "@/components/analytics/status-tones";
@@ -19,8 +17,6 @@ import {
   getSubscriptionMix,
   getTopCities,
 } from "@/lib/services/analytics/customers.service";
-import { isoDateInZone } from "@foundry/commons/util/dates";
-import { requestNow } from "@/lib/dates/request-now";
 
 type SearchParams = Promise<Record<string, string | undefined>>;
 
@@ -31,15 +27,8 @@ export default async function CustomersAnalyticsPage({ searchParams }: { searchP
   const unit = grainUnitForRange(scope.fromMs, scope.toMs, scope.tz);
   return (
     <div className="flex flex-col gap-6">
-      <AnalyticsIntro
-        description="Who is subscribed, who is paused, and where new accounts are coming from."
-        action={
-          <Suspense fallback={<Skeleton className="h-6 w-28 rounded-full" />}>
-            <AnalyticsLiveStamp />
-          </Suspense>
-        }
-      />
-      <Suspense fallback={<StatCardsSkeleton count={4} cols={4} />}>
+      <AnalyticsIntro description="Who is subscribed, who is paused, and where new accounts are coming from." />
+      <Suspense fallback={<AnalyticsStatCardsSkeleton rows={1} />}>
         <StatsData scope={scope} />
       </Suspense>
 
@@ -121,9 +110,7 @@ async function SignupCalendar({ scope }: { scope: AnalyticsScope }) {
   const rows = await getSignupDaily(scope);
   return (
     <CalendarHeatmap
-      from={isoDateInZone(scope.fromMs, scope.tz)}
-      to={isoDateInZone(scope.toMs, scope.tz)}
-      today={isoDateInZone(requestNow(), scope.tz)}
+      {...calendarDays(scope)}
       label="New accounts"
       days={rows.map((r) => ({ date: r.iso, value: r.n }))}
     />

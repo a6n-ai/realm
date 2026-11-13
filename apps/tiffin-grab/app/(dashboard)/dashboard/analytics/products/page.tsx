@@ -3,10 +3,9 @@ import { TotalLine } from "@/components/analytics/total-line";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@foundry/ui/tabs";
 import { cache, Suspense } from "react";
-import { AnalyticsLiveStamp } from "@/components/analytics/analytics-live-stamp";
 import { AnalyticsIntro } from "@/components/analytics/analytics-intro";
 import { ChartCard } from "@/components/analytics/chart-card";
-import { AnalyticsStatCards, StatCardsSkeleton } from "@/components/dashboard/stat-cards";
+import { AnalyticsStatCards, AnalyticsStatCardsSkeleton } from "@/components/dashboard/stat-cards";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
 import { chartColor, slotTone } from "@/components/analytics/chart-math";
 import { RankCards } from "@/components/analytics/rank-cards";
@@ -48,19 +47,12 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-2">
-        <AnalyticsIntro
-          description="What sells, in which plan and size, and what customers pick."
-          action={
-            <Suspense fallback={<Skeleton className="h-6 w-28 rounded-full" />}>
-              <AnalyticsLiveStamp />
-            </Suspense>
-          }
-        />
+        <AnalyticsIntro description="What sells, in which plan and size, and what customers pick." />
         <Suspense fallback={<Skeleton className="h-5 w-full max-w-xl" />}>
           <ContextLine scope={scope} />
         </Suspense>
       </div>
-      <Suspense fallback={<StatCardsSkeleton count={4} cols={4} />}>
+      <Suspense fallback={<AnalyticsStatCardsSkeleton rows={1} />}>
         <StatsData scope={scope} />
       </Suspense>
 

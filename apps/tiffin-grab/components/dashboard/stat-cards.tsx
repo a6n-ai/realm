@@ -199,6 +199,11 @@ export function AnalyticsStatCards({ items }: { items: AnalyticsStatCardItem[] }
   return <StatCards cols={4} items={items} />;
 }
 
+/** Loading twin of AnalyticsStatCards: one or two rows of four. */
+export function AnalyticsStatCardsSkeleton({ rows }: { rows: 1 | 2 }) {
+  return <StatCardsSkeleton count={rows * 4} cols={4} />;
+}
+
 function DeltaBadge({
   now,
   before,

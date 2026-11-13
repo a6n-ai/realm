@@ -1,12 +1,10 @@
-import { Skeleton } from "@foundry/ui/skeleton";
 import { cache, Suspense } from "react";
-import { AnalyticsLiveStamp } from "@/components/analytics/analytics-live-stamp";
 import { AnalyticsIntro } from "@/components/analytics/analytics-intro";
 import { ChartCard } from "@/components/analytics/chart-card";
 import { ChartBoundary } from "@/components/analytics/chart-boundary";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
 import { grainUnitForRange } from "@/lib/analytics/revenue";
-import { AnalyticsStatCards, StatCardsSkeleton, StatFootnote } from "@/components/dashboard/stat-cards";
+import { AnalyticsStatCards, AnalyticsStatCardsSkeleton, StatFootnote } from "@/components/dashboard/stat-cards";
 import { GaugeChart, PartsDonut, SegmentedBar, TrendLineChart } from "@/components/analytics/charts";
 import { DailyScorecard } from "@/components/analytics/daily-scorecard";
 import { ORDER_TONE } from "@/components/analytics/status-tones";
@@ -27,7 +25,6 @@ import { analyticsHref } from "@/lib/services/analytics/shared-filter-params";
 import { getMoneyFormatter } from "@/lib/services/app-settings.service";
 import { OPEN_STATUSES } from "@/lib/support/ticket-status";
 
-
 type SearchParams = Promise<AnalyticsSearchParams>;
 
 const loadReport = cache((scope: AnalyticsScope) => getRevenueReport(scope));
@@ -43,16 +40,9 @@ export default async function OverviewAnalyticsPage({ searchParams }: { searchPa
   const unit = grainUnitForRange(scope.fromMs, scope.toMs, scope.tz);
   return (
     <div className="flex flex-col gap-6">
-      <AnalyticsIntro
-        description="Sales, profit, customers, and tickets for the selected range."
-        action={
-          <Suspense fallback={<Skeleton className="h-6 w-28 rounded-full" />}>
-            <AnalyticsLiveStamp />
-          </Suspense>
-        }
-      />
+      <AnalyticsIntro description="Sales, profit, customers, and tickets for the selected range." />
 
-      <Suspense fallback={<StatCardsSkeleton count={8} cols={4} />}>
+      <Suspense fallback={<AnalyticsStatCardsSkeleton rows={2} />}>
         <StatsData sp={sp} scope={scope} />
       </Suspense>
 

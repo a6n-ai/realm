@@ -8,7 +8,7 @@ import { calendarSkeletonHeight } from "@/lib/analytics/calendar-height";
 import { ChartCard } from "@/components/analytics/chart-card";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
 import { CalendarHeatmap, GaugeChart, PartsDonut, TrendLineChart } from "@/components/analytics/charts";
-import { AnalyticsStatCards, StatCardsSkeleton, type AnalyticsStatCardItem } from "@/components/dashboard/stat-cards";
+import { AnalyticsStatCards, AnalyticsStatCardsSkeleton, type AnalyticsStatCardItem } from "@/components/dashboard/stat-cards";
 import { ManualRefresh } from "@/components/analytics/manual-refresh";
 import { scopeOrAlert } from "@/components/analytics/franchise-unavailable";
 import { paymentsHref } from "@/lib/analytics/drill";
@@ -52,7 +52,7 @@ export default async function RevenueAnalyticsPage({ searchParams }: { searchPar
         }
       />
 
-      <Suspense fallback={<StatCardsSkeleton count={8} cols={4} />}>
+      <Suspense fallback={<AnalyticsStatCardsSkeleton rows={2} />}>
         <Kpis scope={scope} />
       </Suspense>
 

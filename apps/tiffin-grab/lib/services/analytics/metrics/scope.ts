@@ -150,15 +150,3 @@ export function localDay(col: AnyColumn | SQL, tz: string): SQL {
   return sql`(to_timestamp(${col} / 1000.0) at time zone ${tz})::date`;
 }
 
-export function scopeToSearchParams(scope: AnalyticsScope): URLSearchParams {
-  const p = new URLSearchParams();
-  p.set("from", String(scope.fromMs));
-  p.set("to", String(scope.toMs));
-  // An empty org list must not serialize as "org=", which parses back as "no filter" and widens.
-  if (scope.orgIds !== "all") p.set("org", scope.orgIds.length ? scope.orgIds.join(",") : "none");
-  if (scope.plans.length) p.set("plan", scope.plans.join(","));
-  if (scope.mealSizes.length) p.set("mealSize", scope.mealSizes.join(","));
-  if (scope.zones.length) p.set("zone", scope.zones.join(","));
-  for (const [k, v] of Object.entries(scope.extra)) if (v.length) p.set(k, v.join(","));
-  return p;
-}

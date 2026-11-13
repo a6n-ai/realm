@@ -1,9 +1,8 @@
 import { ratePct } from "@/lib/money";
 import { scopeOrAlert } from "@/components/analytics/franchise-unavailable";
 import { Suspense } from "react";
-import { AnalyticsLiveStamp } from "@/components/analytics/analytics-live-stamp";
 import { AnalyticsIntro } from "@/components/analytics/analytics-intro";
-import { AnalyticsStatCards, StatCardsSkeleton } from "@/components/dashboard/stat-cards";
+import { AnalyticsStatCards, AnalyticsStatCardsSkeleton } from "@/components/dashboard/stat-cards";
 import { inquiriesHref } from "@/lib/analytics/drill";
 import { ChartCard } from "@/components/analytics/chart-card";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
@@ -25,15 +24,8 @@ export default async function EmployeesAnalyticsPage({ searchParams }: { searchP
   const { scope } = resolved;
   return (
     <div className="flex flex-col gap-6">
-      <AnalyticsIntro
-        description="What each rep worked, converted, and closed."
-        action={
-          <Suspense fallback={<Skeleton className="h-6 w-28 rounded-full" />}>
-            <AnalyticsLiveStamp />
-          </Suspense>
-        }
-      />
-      <Suspense fallback={<StatCardsSkeleton count={4} cols={4} />}>
+      <AnalyticsIntro description="What each rep worked, converted, and closed." />
+      <Suspense fallback={<AnalyticsStatCardsSkeleton rows={1} />}>
         <StatsData scope={scope} />
       </Suspense>
 

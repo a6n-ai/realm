@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { vi } from "vitest";
 import { DATE_PRESETS, presetRange } from "@/lib/analytics/date-presets";
 import { PgDialect } from "drizzle-orm/pg-core";
-import { NoFranchiseAccessError, resolveAnalyticsScope, buildAnalyticsScope, intersectOrgs, ordersScope, scopeToSearchParams } from "../scope";
+import { NoFranchiseAccessError, resolveAnalyticsScope, buildAnalyticsScope, intersectOrgs, ordersScope } from "../scope";
 import { isoDateInZone } from "@foundry/commons/util/dates";
 
 const toSql = (q: ReturnType<typeof ordersScope>) => new PgDialect().sqlToQuery(q!).sql;
@@ -43,20 +43,6 @@ describe("default window", () => {
   });
 });
 
-describe("scopeToSearchParams", () => {
-  const sp = { from: "100", to: "200", org: "A,B", plan: "p", mealSize: "m1,m2", zone: "Z", method: "cash" };
-  it("round trips", () => {
-    const s = buildAnalyticsScope(sp, "all", TZ);
-    const back = buildAnalyticsScope(Object.fromEntries(scopeToSearchParams(s)), "all", TZ);
-    expect(back).toEqual(s);
-    expect(s.extra).toEqual({ method: ["cash"] });
-  });
-  it("round trips an empty org set without widening", () => {
-    const s = buildAnalyticsScope({ org: "B" }, ["A"], TZ);
-    const back = buildAnalyticsScope(Object.fromEntries(scopeToSearchParams(s)), ["A"], TZ);
-    expect(back.orgIds).toEqual([]);
-  });
-});
 
 describe("ordersScope", () => {
   it("is a false condition for an empty visible set", () => {

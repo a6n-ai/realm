@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { notificationOutbox } from "@/db/schema";
-import { AnalyticsStatCards, StatCardsSkeleton, type AnalyticsStatCardItem } from "@/components/dashboard/stat-cards";
+import { AnalyticsStatCards, AnalyticsStatCardsSkeleton, type AnalyticsStatCardItem } from "@/components/dashboard/stat-cards";
 import { getChannelCounts, getNotificationBuckets, getStatusCounts } from "@/lib/services/analytics/notifications.service";
 import { epochBoundsWhere, withDefaultMonth } from "@/lib/list/default-month";
 import { notificationLogsHref } from "@/lib/notifications/outcome";
@@ -20,7 +20,7 @@ async function createdWhere(searchParams: SearchParams) {
 export default function NotificationAnalyticsPage({ searchParams }: { searchParams: SearchParams }) {
   return (
     <div className="flex flex-col gap-6">
-      <Suspense fallback={<StatCardsSkeleton count={4} cols={4} />}>
+      <Suspense fallback={<AnalyticsStatCardsSkeleton rows={1} />}>
         <StatsData searchParams={searchParams} />
       </Suspense>
 

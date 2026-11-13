@@ -1,13 +1,11 @@
 import { scopeOrAlert } from "@/components/analytics/franchise-unavailable";
-import { Skeleton } from "@foundry/ui/skeleton";
 import Link from "next/link";
 import { Suspense } from "react";
-import { AnalyticsLiveStamp } from "@/components/analytics/analytics-live-stamp";
 import { AnalyticsIntro } from "@/components/analytics/analytics-intro";
 import { ChartCard } from "@/components/analytics/chart-card";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
 import { BreakdownList } from "@/components/analytics/breakdown-list";
-import { AnalyticsStatCards, StatCardsSkeleton, StatFootnote } from "@/components/dashboard/stat-cards";
+import { AnalyticsStatCards, AnalyticsStatCardsSkeleton, StatFootnote } from "@/components/dashboard/stat-cards";
 import { BreakdownBarChart, FunnelChart, SankeyChart } from "@/components/analytics/charts";
 import type { Tone } from "@/components/analytics/chart-math";
 import { buildSourceFlow } from "@/lib/analytics/source-flow";
@@ -29,15 +27,8 @@ export default async function LeadsAnalyticsPage({ searchParams }: { searchParam
   const { scope } = resolved;
   return (
     <div className="flex flex-col gap-6">
-      <AnalyticsIntro
-        description="Inquiries by stage, why they were lost, and which sources convert."
-        action={
-          <Suspense fallback={<Skeleton className="h-6 w-28 rounded-full" />}>
-            <AnalyticsLiveStamp />
-          </Suspense>
-        }
-      />
-      <Suspense fallback={<StatCardsSkeleton count={4} cols={4} />}>
+      <AnalyticsIntro description="Inquiries by stage, why they were lost, and which sources convert." />
+      <Suspense fallback={<AnalyticsStatCardsSkeleton rows={1} />}>
         <StatsData scope={scope} />
       </Suspense>
 

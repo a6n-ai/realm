@@ -10,7 +10,7 @@ import { ChartSkeleton } from "@/components/analytics/skeletons";
 import { DivergingBarChart, WaterfallChart } from "@/components/analytics/charts";
 import { buildProfitWaterfall } from "@/lib/analytics/waterfall";
 
-import { AnalyticsStatCards, StatCardsSkeleton, StatFootnote, type AnalyticsStatCardItem } from "@/components/dashboard/stat-cards";
+import { AnalyticsStatCards, AnalyticsStatCardsSkeleton, StatFootnote, type AnalyticsStatCardItem } from "@/components/dashboard/stat-cards";
 import { AnalyticsIntro } from "@/components/analytics/analytics-intro";
 import { Badge } from "@/components/reui/badge";
 import { getProfitabilityReport } from "@/lib/services/analytics/profitability.service";
@@ -62,7 +62,7 @@ export default async function ProfitabilityAnalyticsPage({ searchParams }: { sea
         <Assumptions view={view} />
       </Suspense>
 
-      <Suspense fallback={<StatCardsSkeleton count={4} cols={4} />}>
+      <Suspense fallback={<AnalyticsStatCardsSkeleton rows={1} />}>
         <Headline view={view} />
       </Suspense>
 

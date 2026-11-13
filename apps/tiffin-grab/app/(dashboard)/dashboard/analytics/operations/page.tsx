@@ -1,11 +1,9 @@
-import { Skeleton } from "@foundry/ui/skeleton";
 import { cache, Suspense } from "react";
-import { AnalyticsLiveStamp } from "@/components/analytics/analytics-live-stamp";
 import { AnalyticsIntro } from "@/components/analytics/analytics-intro";
 import { calendarSkeletonHeight } from "@/lib/analytics/calendar-height";
 import { ChartCard } from "@/components/analytics/chart-card";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
-import { AnalyticsStatCards, StatCardsSkeleton } from "@/components/dashboard/stat-cards";
+import { AnalyticsStatCards, AnalyticsStatCardsSkeleton } from "@/components/dashboard/stat-cards";
 import { BreakdownBarChart, CalendarHeatmap, GaugeChart, PartsDonut } from "@/components/analytics/charts";
 import { DELIVERY_TONE } from "@/components/analytics/status-tones";
 import {
@@ -28,15 +26,8 @@ export default async function OperationsAnalyticsPage({ searchParams }: { search
   const { scope } = resolved;
   return (
     <div className="flex flex-col gap-6">
-      <AnalyticsIntro
-        description="Deliveries by status, and how many stops each driver is carrying."
-        action={
-          <Suspense fallback={<Skeleton className="h-6 w-28 rounded-full" />}>
-            <AnalyticsLiveStamp />
-          </Suspense>
-        }
-      />
-      <Suspense fallback={<StatCardsSkeleton count={4} cols={4} />}>
+      <AnalyticsIntro description="Deliveries by status, and how many stops each driver is carrying." />
+      <Suspense fallback={<AnalyticsStatCardsSkeleton rows={1} />}>
         <StatsData scope={scope} />
       </Suspense>
 
@@ -115,6 +106,7 @@ async function StatsData({ scope }: { scope: AnalyticsScope }) {
 async function DeliveriesCalendar({ scope }: { scope: AnalyticsScope }) {
   const rows = await getDeliveriesDaily(scope);
   return (
+    // No `today`: deliveries are scheduled ahead, so future days must stay visible.
     <CalendarHeatmap
       from={isoDateInZone(scope.fromMs, scope.tz)}
       to={isoDateInZone(scope.toMs, scope.tz)}

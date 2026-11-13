@@ -14,13 +14,12 @@ describe("analytics stat card rules", () => {
     expect([3, 4, 5, 7, 8, 12].filter(isValidAnalyticsCardCount)).toEqual([4, 8]);
   });
 
-  it.each(PAGES)("%s uses AnalyticsStatCards and a 4 or 8 card skeleton", (file) => {
+  it.each(PAGES)("%s uses AnalyticsStatCards and its rows-typed skeleton", (file) => {
     const src = readFileSync(file, "utf8");
     if (!src.includes("StatCards")) return;
     expect(src).toContain("<AnalyticsStatCards");
     expect(src).not.toMatch(/<StatCards\b/);
-    for (const m of src.matchAll(/StatCardsSkeleton count=\{(\d+)\}/g)) {
-      expect(isValidAnalyticsCardCount(Number(m[1]))).toBe(true);
-    }
+    // The rows-typed twin keeps the loading state at 4 or 8 cards.
+    expect(src).not.toMatch(/<StatCardsSkeleton\b/);
   });
 });

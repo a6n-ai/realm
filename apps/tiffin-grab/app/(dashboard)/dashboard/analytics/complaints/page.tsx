@@ -1,8 +1,6 @@
-import { Skeleton } from "@foundry/ui/skeleton";
 import { Suspense } from "react";
-import { AnalyticsLiveStamp } from "@/components/analytics/analytics-live-stamp";
 import { AnalyticsIntro } from "@/components/analytics/analytics-intro";
-import { calendarSkeletonHeight } from "@/lib/analytics/calendar-height";
+import { calendarDays, calendarSkeletonHeight } from "@/lib/analytics/calendar-height";
 import { ChartCard } from "@/components/analytics/chart-card";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
 import { rankedHeight } from "@/components/analytics/chart-math";
@@ -13,7 +11,7 @@ import { RankCards } from "@/components/analytics/rank-cards";
 import { Badge } from "@/components/reui/badge";
 import { formatEpoch } from "@/lib/format/datetime";
 import type { Tone } from "@/components/analytics/chart-math";
-import { AnalyticsStatCards, StatCardsSkeleton, StatFootnote } from "@/components/dashboard/stat-cards";
+import { AnalyticsStatCards, AnalyticsStatCardsSkeleton, StatFootnote } from "@/components/dashboard/stat-cards";
 import {
   NOT_LINKED,
   complaintHref,
@@ -21,7 +19,7 @@ import {
   type ComplaintFilters,
 } from "@/lib/services/analytics/complaint-filters";
 import { scopeOrAlert } from "@/components/analytics/franchise-unavailable";
-import { DATE_BASIS_LABEL, scopeToSearchParams, type AnalyticsScope } from "@/lib/services/analytics/metrics/scope";
+import { DATE_BASIS_LABEL, type AnalyticsScope } from "@/lib/services/analytics/metrics/scope";
 import {
   getByCategory,
   getByPlan,
@@ -34,8 +32,6 @@ import {
   getRepeatCustomers,
   getStatusMix,
 } from "@/lib/services/analytics/complaints.service";
-import { isoDateInZone } from "@foundry/commons/util/dates";
-import { requestNow } from "@/lib/dates/request-now";
 import { OPEN_STATUSES } from "@/lib/support/ticket-status";
 
 const TICKETS = "/dashboard/tickets";
@@ -54,15 +50,8 @@ export default async function ComplaintsAnalyticsPage({ searchParams }: { search
   const { scope } = resolved;
   return (
     <div className="flex flex-col gap-6">
-      <AnalyticsIntro
-        description="Tickets raised in this range, and which ones still need a reply."
-        action={
-          <Suspense fallback={<Skeleton className="h-6 w-28 rounded-full" />}>
-            <AnalyticsLiveStamp />
-          </Suspense>
-        }
-      />
-      <Suspense fallback={<StatCardsSkeleton count={4} cols={4} />}>
+      <AnalyticsIntro description="Tickets raised in this range, and which ones still need a reply." />
+      <Suspense fallback={<AnalyticsStatCardsSkeleton rows={1} />}>
         <Kpis scope={scope} />
       </Suspense>
 
@@ -250,9 +239,7 @@ async function Trend({ scope }: { scope: AnalyticsScope }) {
   const rows = await getComplaintDaily(scope);
   return (
     <CalendarHeatmap
-      from={isoDateInZone(scope.fromMs, scope.tz)}
-      to={isoDateInZone(scope.toMs, scope.tz)}
-      today={isoDateInZone(requestNow(), scope.tz)}
+      {...calendarDays(scope)}
       label="Complaints"
       days={rows.map((r) => ({ date: r.iso, value: r.n }))}
     />
