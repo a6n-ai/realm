@@ -13,6 +13,8 @@ export interface FieldDef {
   options?: string[];
   optionsSource?: "weekdays" | "categories" | "plans" | "discount-targets";
   optionLabels?: Record<string, string>;
+  // Options depend on another field's value (EditorExtras.scopedOptions); empty until that field is set.
+  scopedBy?: string;
   unit?: string;
   help?: string;
   optional?: boolean;
@@ -224,7 +226,7 @@ export const RESOURCES: Record<string, ResourceDef> = {
     fields: [
       { key: "name", label: "Name", type: "text" },
       { key: "planId", label: "Plan", type: "select", optionsSource: "plans" },
-      { key: "category", label: "Category", type: "select", optionsSource: "categories", optional: true },
+      { key: "category", label: "Category", type: "select", optionsSource: "categories", optional: true, scopedBy: "planId" },
       { key: "description", label: "Description", type: "text", optional: true, tableHidden: true },
     ],
   },

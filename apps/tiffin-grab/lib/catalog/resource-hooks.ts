@@ -22,12 +22,13 @@ export interface CatalogLoadCtx {
   targetRows: DiscountTargetRows | null;
 }
 
-type CompositionCategoryOption = { value: string; label: string; tuUnitType: "weight" | "count"; tuUnitSize: number; tuUnitLabel: string };
+export type CompositionCategoryOption = { value: string; label: string; tuUnitType: "weight" | "count"; tuUnitSize: number; tuUnitLabel: string };
 export type DishName = { id: string; name: string; planName: string; active: boolean };
 
 /** Editor props only one resource needs. */
 export interface EditorExtras {
-  categoriesByPlan?: Record<string, CompositionCategoryOption[]>;
+  /** Options for fields with FieldDef.scopedBy: field key, then the parent field's value. */
+  scopedOptions?: Record<string, Record<string, { value: string; label: string }[]>>;
   compositionCategories?: CompositionCategoryOption[];
   plansByCategory?: Record<string, { value: string; label: string }[]>;
   dishNames?: DishName[];
@@ -65,8 +66,8 @@ function hydratePlanId(rows: CatalogRow[], raw: Record<string, unknown>[], ctx: 
 export const RESOURCE_HOOKS: Record<string, ResourceHooks> = {
   dishes: {
     table: dishes,
-    // Category options are scoped by the dish's own plan, so a category not attached to that plan is
-    // never offered. Sent as a map rather than fetched per change, so switching the plan dropdown is instant.
+    // Category options are scoped by the dish's own plan (category scopedBy planId), so a category not
+    // attached to that plan is never offered. Sent as a map so switching the plan dropdown is instant.
     async extras(ctx) {
       const entries = await Promise.all(
         ctx.planRows.map(async (p) => [
@@ -78,7 +79,7 @@ export const RESOURCE_HOOKS: Record<string, ResourceHooks> = {
       // rows. Inactive included: the server rejects those too.
       const dishNames = await db.select({ id: dishes.publicId, name: dishes.name, planName: plans.name, active: dishes.active })
         .from(dishes).innerJoin(plans, eq(plans.id, dishes.planId));
-      return { categoriesByPlan: Object.fromEntries(entries), dishNames };
+      return { scopedOptions: { category: Object.fromEntries(entries) }, dishNames };
     },
     async hydrate(rows, raw, ctx) {
       hydratePlanId(rows, raw, ctx);

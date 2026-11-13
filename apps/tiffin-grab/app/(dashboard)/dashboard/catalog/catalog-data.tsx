@@ -62,9 +62,8 @@ export async function CatalogData({ resource, searchParams }: { resource: string
   const { table } = hooks;
 
   const needsCategories = def.fields.some((f) => f.optionsSource === "categories");
-  // "plans" is needed either for a dynamicOptions field or for meal-sizes'
-  // categoriesByPlan — fetched once and shared between both, instead of once
-  // per consumer.
+  // "plans" is needed either for a dynamicOptions field or for a resource's editor
+  // extras — fetched once and shared between both, instead of once per consumer.
   const needsPlans = def.fields.some((f) => f.optionsSource === "plans") || hooks.needsPlans;
   // meal-sizes also needs every plan (active or not) to resolve a row's planId
   // FK to a publicId below — fetch the superset once and derive the
@@ -177,7 +176,7 @@ export async function CatalogData({ resource, searchParams }: { resource: string
       rows={rows}
       dynamicOptions={dynamicOptions}
       sort={sort}
-      {...extras}
+      extras={extras}
       spec={spec}
       total={total}
       page={page.page}

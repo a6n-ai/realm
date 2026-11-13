@@ -1,52 +1,65 @@
 "use client";
 import { useAppCurrency, useFormatMoney } from "@/components/app-currency";
-/* eslint-disable */
+
 
 
 import { pageOffset } from "@foundry/design-system/filters/parse-filter-state";
-import {
-  ArchiveIcon, CheckIcon, EyeOffIcon, InboxIcon, Loader2Icon, PencilIcon, PlusIcon, RotateCcwIcon, TicketPercentIcon, Trash2Icon,
-} from "lucide-react";
+
+import { ArchiveIcon, CheckIcon, InboxIcon, Loader2Icon, PencilIcon, PlusIcon, RotateCcwIcon, TicketPercentIcon } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
+
 import { useRouter } from "next/navigation";
+
 import { Fragment, useEffect, useState } from "react";
-import { Controller, useFieldArray, useForm } from "react-hook-form";
+
+import { useForm } from "react-hook-form";
 import { Badge } from "@foundry/ui/badge";
+
 import { Button } from "@foundry/ui/button";
+
 import { DataTable, ListPagination, ResponsiveDialog, type Column, type FacetDef } from "@/components/ds";
+
 import { ListSearchFilters } from "@/components/filters/reui-facet-filters";
-import { MealCard } from "@/components/marketing/meal-card";
+
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@foundry/ui/form";
+
 import { Input } from "@foundry/ui/input";
+
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
+
 import { Switch } from "@foundry/ui/switch";
+
 import { findSimilarDishes } from "@/lib/menu/similar-dishes";
+
 import { TableCell } from "@foundry/ui/table";
+
 import { Tooltip, TooltipContent, TooltipTrigger } from "@foundry/ui/tooltip";
+
 import { cn } from "@foundry/ui/cn";
+
 import type { SortState } from "@foundry/design-system/list-sort";
-import { formatTuHuman, type TuCategory } from "@/lib/menu/format-tu";
-import {
-  RESOURCES, emptyForm, rowToForm, slug, sortableColumns, type FieldDef, type FieldType, type ResourceDef,
-} from "@/lib/catalog/resource-config";
+
+import { RESOURCES, emptyForm, rowToForm, slug, sortableColumns, type FieldDef, type ResourceDef } from "@/lib/catalog/resource-config";
 import { DiscountDialog, type DiscountDialogOptions } from "@/app/(dashboard)/dashboard/catalog/discounts/discount-dialog";
+
 import { discountValueLabel, type DiscountDto, type DiscountKind } from "../discounts/build-rows";
+
 import { ActionError, unwrapAction } from "@/lib/actions/unwrap";
+
 import { reactivateItem, retireItem, saveItem, type ResourceKey } from "../actions";
+
 import { DateInput } from "@/components/dashboard/date-fields";
 
-type DishName = { id: string; name: string; planName: string; active: boolean };
+import { CompositionField } from "./composition-field";
+
+import { WebsitePreview } from "./website-preview";
+
+import type { EditorExtras } from "@/lib/catalog/resource-hooks";
+
 
 type Row = Record<string, unknown> & { publicId: string };
 type Options = Record<string, { value: string; label: string; group?: string }[]>;
 /** Category option for meal-size composition — includes TU facts for read-only natural hints. */
-export type CompositionCategoryOption = {
-  value: string;
-  label: string;
-  tuUnitType?: "weight" | "count";
-  tuUnitSize?: number;
-  tuUnitLabel?: string;
-};
 
 const isNumberType = (f: FieldDef) => f.type === "number";
 const isArrayType = (f: FieldDef) => f.type === "csv" || f.type === "multiselect";
@@ -91,251 +104,34 @@ function formatNumber(f: FieldDef, n: number, money: (n: number) => string): str
 
 /* ─────────────────────────── Dialog form ─────────────────────────── */
 
-// Repeating-row editor for a meal size's composition. Each row is a required
-// category soft-ref, a plan, and a TU portion; the service full-replaces the
-// rows and derives sortOrder from the array order. A row IS one dish pick, so
-// "2 raita" is two rows of the same category, not a qty field — the category
-// select allows repeats on purpose.
-//
-// Category comes FIRST: not every category is attached to every plan (that's
-// category_plans, an admin-editable membership, not a given), so the plan
-// select is scoped to whichever plans this category actually belongs to —
-// picking a plan blind, before the category, could offer a plan the category
-// was never attached to.
-//
-// Each row's plan is independent of the meal size's own planId (that's a
-// filter/default only) — so one meal size's composition can span plans.
-//
-// Swap note: exchanges use the FIRST row's TU / pick as the category's rate.
-// Later rows of the same category stay separate picks for selection, but do not
-// invent a second swap rate — don't imply that in the UI.
-function CompositionField({
-  f, form, compositionCategories, plansByCategory,
-}: {
-  f: FieldDef;
-  form: ReturnType<typeof useForm<Record<string, unknown>>>;
-  compositionCategories: CompositionCategoryOption[];
-  plansByCategory: Record<string, { value: string; label: string }[]>;
-}) {
-  // The dialog form is typed as Record<string, unknown>, so RHF can't infer the
-  // array element shape from the key — cast the field-array path/append payload.
-  const { fields, append, remove } = useFieldArray<Record<string, unknown>>({ control: form.control, name: f.key as never });
-
-  return (
-    <FormItem className="grid gap-2">
-      <div className="flex items-baseline justify-between gap-3">
-        <FormLabel>{f.label}</FormLabel>
-        {fields.length > 0 ? (
-          <span className="text-muted-foreground text-xs tabular-nums">
-            {fields.length} {fields.length === 1 ? "item" : "items"}
-          </span>
-        ) : null}
-      </div>
-      <p className="text-muted-foreground text-xs">
-        Each row is one pick the customer starts with, on its own plan. Swaps use this category&apos;s first TU / pick as the exchange rate for the whole category.
-      </p>
-
-      <div className="grid gap-2">
-        {fields.length === 0 ? (
-          <p className="text-muted-foreground rounded-lg border border-dashed px-3 py-4 text-center text-sm">
-            No items yet. Add the category + plan pairs that make up this meal size.
-          </p>
-        ) : null}
-
-        {fields.map((row, idx) => (
-          <CompositionRow
-            key={row.id}
-            form={form}
-            f={f}
-            idx={idx}
-            compositionCategories={compositionCategories}
-            plansByCategory={plansByCategory}
-            onRemove={() => remove(idx)}
-          />
-        ))}
-
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="justify-self-start transition-transform active:scale-[0.96]"
-          onClick={() => append({ category: "", planId: "", tuAmount: "1", maxTuAmount: "", role: "main" })}
-        >
-          <PlusIcon className="size-4" /> Add item
-        </Button>
-      </div>
-      <FormMessage />
-    </FormItem>
-  );
-}
-
-function CompositionRow({
-  form, f, idx, compositionCategories, plansByCategory, onRemove,
-}: {
-  form: ReturnType<typeof useForm<Record<string, unknown>>>;
-  f: FieldDef;
-  idx: number;
-  compositionCategories: CompositionCategoryOption[];
-  plansByCategory: Record<string, { value: string; label: string }[]>;
-  onRemove: () => void;
-}) {
-  const category = form.watch(`${f.key}.${idx}.category`) as string | undefined;
-  const tuAmount = form.watch(`${f.key}.${idx}.tuAmount`) as string | undefined;
-  const planOptions = category ? (plansByCategory[category] ?? []) : [];
-  const cat = compositionCategories.find((c) => c.value === category);
-  const tu = Number(tuAmount);
-  const naturalHint =
-    cat?.tuUnitType && cat.tuUnitSize != null && cat.tuUnitLabel && Number.isFinite(tu) && tu > 0
-      ? formatTuHuman(
-          { tuUnitType: cat.tuUnitType, tuUnitSize: Number(cat.tuUnitSize), tuUnitLabel: cat.tuUnitLabel } satisfies TuCategory,
-          tu,
-        )
-      : null;
-
-  return (
-    <div className="grid gap-2 rounded-lg border p-2">
-      <div className="grid grid-cols-1 items-end gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)_6rem_4.5rem_7rem_auto]">
-        <Controller
-          control={form.control}
-          name={`${f.key}.${idx}.category`}
-          render={({ field }) => (
-            <label className="grid gap-1">
-              <span className="text-muted-foreground text-xs">Category</span>
-              <Select
-                value={field.value ?? ""}
-                onValueChange={(v) => {
-                  field.onChange(v);
-                  // Plan options are category-scoped — a stale plan from the
-                  // previous category could point at a plan this category isn't
-                  // even attached to.
-                  form.setValue(`${f.key}.${idx}.planId` as never, "" as never);
-                }}
-              >
-                <SelectTrigger><SelectValue placeholder="Pick a category" /></SelectTrigger>
-                <SelectContent>
-                  {compositionCategories.map((o) => (
-                    <SelectItem key={o.value} value={o.value}>
-                      {o.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </label>
-          )}
-        />
-        <Controller
-          control={form.control}
-          name={`${f.key}.${idx}.planId`}
-          render={({ field }) => (
-            <label className="grid gap-1">
-              <span className="text-muted-foreground text-xs">Plan</span>
-              <Select value={field.value ?? ""} onValueChange={field.onChange} disabled={!category}>
-                <SelectTrigger><SelectValue placeholder={category ? "Pick a plan" : "Pick a category first"} /></SelectTrigger>
-                <SelectContent>
-                  {planOptions.map((o) => (
-                    <SelectItem key={o.value} value={o.value}>
-                      {o.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </label>
-          )}
-        />
-        <Controller
-          control={form.control}
-          name={`${f.key}.${idx}.tuAmount`}
-          render={({ field }) => (
-            <label className="grid gap-1">
-              <span className="text-muted-foreground text-xs">TU / pick</span>
-              <Input className="tabular-nums" type="number" step="0.01" min={0} value={field.value ?? ""} onChange={field.onChange} placeholder="1" />
-            </label>
-          )}
-        />
-        <Controller
-          control={form.control}
-          name={`${f.key}.${idx}.maxTuAmount`}
-          render={({ field }) => (
-            <label className="grid gap-1">
-              <span className="text-muted-foreground text-xs">Max TU</span>
-              <Input className="tabular-nums" type="number" step="0.01" min={0} value={field.value ?? ""} onChange={field.onChange} placeholder="—" />
-            </label>
-          )}
-        />
-        <Controller
-          control={form.control}
-          name={`${f.key}.${idx}.role`}
-          render={({ field }) => (
-            <label className="grid gap-1">
-              <span className="text-muted-foreground text-xs">Role</span>
-              <Select value={(field.value as string | undefined) || "main"} onValueChange={field.onChange}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="main">Main</SelectItem>
-                  <SelectItem value="side_1">Side 1</SelectItem>
-                  <SelectItem value="side_2">Side 2</SelectItem>
-                </SelectContent>
-              </Select>
-            </label>
-          )}
-        />
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="text-muted-foreground hover:text-destructive size-10 self-end transition-[color,scale] active:scale-[0.96]"
-          aria-label={`Remove item ${idx + 1}`}
-          onClick={onRemove}
-        >
-          <Trash2Icon className="size-4" />
-        </Button>
-      </div>
-      <div className="text-muted-foreground grid gap-0.5 text-caption-2 leading-snug sm:pr-12">
-        <p><span className="font-medium text-foreground/80">TU / pick</span> — amount of this category included in each pick.</p>
-        <p><span className="font-medium text-foreground/80">Max TU</span> — maximum this category can reach after swaps (leave blank for uncapped).</p>
-        <p><span className="font-medium text-foreground/80">Role</span> — Main is the category&apos;s main pick; a Side takes the day&apos;s side dish set on the menu (e.g. the day&apos;s dal).</p>
-        {naturalHint ? (
-          <p className="text-foreground/70">
-            {tuAmount} TU = <span className="font-medium">{naturalHint}</span>
-            <span className="text-muted-foreground"> (from category settings)</span>
-          </p>
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
 function FieldControl({
-  f, form, options, isNew, categoriesByPlan, compositionCategories, plansByCategory,
+  f, form, options, isNew, extras, parent, dependents,
 }: {
   f: FieldDef;
   form: ReturnType<typeof useForm<Record<string, unknown>>>;
   options: Options;
   isNew: boolean;
-  categoriesByPlan?: Record<string, CompositionCategoryOption[]>;
-  compositionCategories?: CompositionCategoryOption[];
-  plansByCategory?: Record<string, { value: string; label: string }[]>;
+  extras: EditorExtras;
+  /** The field this one's options are scoped by (FieldDef.scopedBy). */
+  parent?: FieldDef;
+  /** Fields scoped by this one; cleared when it changes, since their old pick may not exist under the new value. */
+  dependents: string[];
 }) {
   if (f.type === "composition") {
     return (
       <CompositionField
         f={f}
         form={form}
-        compositionCategories={compositionCategories ?? []}
-        plansByCategory={plansByCategory ?? {}}
+        compositionCategories={extras.compositionCategories ?? []}
+        plansByCategory={extras.plansByCategory ?? {}}
       />
     );
   }
   // Discount targets are per-kind: show only the selected kind's rows (+ "All").
-   
   const kindNow = f.optionsSource === "discount-targets" ? form.watch("kind") : undefined;
-  // A dish's category is scoped to its own plan — the same reason meal-size
-  // composition rows scope by plan: a category not attached to this dish's plan
-  // could never appear on that plan's menu anyway.
-   
-  const dishPlanId = f.key === "category" && categoriesByPlan ? (form.watch("planId") as string | undefined) : undefined;
-  const opts = dishPlanId !== undefined
-    ? (dishPlanId ? (categoriesByPlan?.[dishPlanId] ?? []) : [])
+  const parentValue = parent ? ((form.watch(parent.key) as string | undefined) ?? "") : undefined;
+  const opts = parentValue !== undefined
+    ? (parentValue ? (extras.scopedOptions?.[f.key]?.[parentValue] ?? []) : [])
     : f.optionsSource
       ? (options[f.key] ?? []).filter((o) => !o.group || o.group === kindNow)
       : (f.options ?? []).map((o) => ({ value: o, label: f.optionLabels?.[o] ?? o }));
@@ -360,13 +156,13 @@ function FieldControl({
                 field.onChange(v);
                 // Plan changed: the category field is plan-scoped, so a category
                 // picked under the old plan may not exist under the new one.
-                if (f.key === "planId" && categoriesByPlan) form.setValue("category" as never, "" as never);
+                for (const dep of dependents) form.setValue(dep as never, "" as never);
               }}
-              disabled={dishPlanId === undefined ? false : !dishPlanId}
+              disabled={parentValue === ""}
             >
               <FormControl>
                 <SelectTrigger>
-                  <SelectValue placeholder={dishPlanId === undefined ? `Select ${f.label.toLowerCase()}` : dishPlanId ? `Select ${f.label.toLowerCase()}` : "Pick a plan first"} />
+                  <SelectValue placeholder={parentValue === "" ? `Pick a ${parent!.label.toLowerCase()} first` : `Select ${f.label.toLowerCase()}`} />
                 </SelectTrigger>
               </FormControl>
               <SelectContent>{opts.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
@@ -479,112 +275,17 @@ function FieldControl({
   );
 }
 
-/**
- * Live mirror of how a row renders on the customer site. Reuses the real
- * marketing components (MealCard) and replicates the exact /pricing markup so
- * the preview can't drift from production. Resources with no public surface say
- * so honestly instead of inventing a fake look.
- */
-function num(v: unknown): number {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : 0;
-}
-function optMacro(v: unknown): number | null {
-  return v === "" || v == null ? null : num(v);
-}
-
-const INTERNAL_PREVIEW: Record<string, string> = {
-  addons: "Not shown on the public site yet. Offered as an order add-on.",
-};
-
-const PREVIEWS: Record<string, (values: Record<string, unknown>) => React.ReactNode> = {
-  "meal-sizes": (values) => (
-    <div className="max-w-xs">
-      <MealCard
-        meal={{
-          id: 0n,
-          publicId: "preview",
-          key: String(values.key ?? ""),
-          name: String(values.name || "Meal name"),
-          description: values.description ? String(values.description) : null,
-          planId: 0n,
-          planKey: String(values.planId ?? ""),
-          tier: (values.tier as "budget" | "medium" | "premium") || "budget",
-          // components is derived from the composition rows, not hand-edited.
-          components: ((values.items as { name?: string }[]) ?? []).map((i) => i?.name ?? "").filter(Boolean),
-          items: [],
-          kcalMin: num(values.kcalMin),
-          kcalMax: num(values.kcalMax),
-          proteinG: optMacro(values.proteinG),
-          carbsG: optMacro(values.carbsG),
-          fatG: optMacro(values.fatG),
-          basePrice: num(values.basePrice),
-          // Preview shows list price; meal-size discounts live in the central Discounts table.
-          discountType: "none",
-          discountValue: 0,
-          trial: Boolean(values.trial),
-          custom: false,
-          priceable: true,
-          servesWeekends: true,
-        }}
-      />
-    </div>
-  ),
-  // Mirrors the "Nutrition baselines" card on /pricing.
-  plans: (values) => (
-    <div className="max-w-xs rounded-lg border p-5">
-      <h3 className="font-medium">{String(values.name || "Plan name")}</h3>
-      {values.description ? <p className="text-muted-foreground mt-1 text-sm">{String(values.description)}</p> : null}
-    </div>
-  ),
-  // Mirrors the "Frequencies" list on /pricing.
-  "delivery-frequencies": (values) => (
-    <ul className="text-muted-foreground max-w-xs space-y-1 text-sm">
-      <li className="flex justify-between"><span>{String(values.name || "Frequency")}</span></li>
-    </ul>
-  ),
-  // Mirrors the "Commitment" list on /pricing.
-  "duration-packages": (values) => {
-    const w = num(values.weeks);
-    return (
-      <ul className="text-muted-foreground max-w-xs space-y-1 text-sm">
-        <li className="flex justify-between"><span>{w || "—"} week{w === 1 ? "" : "s"}</span></li>
-      </ul>
-    );
-  },
-};
-
-function WebsitePreview({ resource, values }: { resource: string; values: Record<string, unknown> }) {
-  const body = PREVIEWS[resource]?.(values) ?? (
-    <p className="text-muted-foreground flex items-start gap-2 text-sm">
-      <EyeOffIcon className="mt-0.5 size-4 shrink-0" />
-      {INTERNAL_PREVIEW[resource] ?? "Not shown on the public site."}
-    </p>
-  );
-
-  return (
-    <div className="border-border/70 bg-muted/30 sm:col-span-2 -mx-5 -mb-5 mt-1 border-t px-5 py-4">
-      <p className="text-muted-foreground/80 text-[0.7rem] font-semibold tracking-[0.08em] uppercase">
-        Website preview
-      </p>
-      <div className="mt-3">{body}</div>
-    </div>
-  );
-}
-
 function EditorDialog({
-  resource, def, options, editing, onClose, categoriesByPlan, compositionCategories, plansByCategory, dishNames,
+  resource, def, options, editing, onClose, extras,
 }: {
   resource: string;
   def: ResourceDef;
   options: Options;
   editing: { id: string; row: Row | null };
   onClose: () => void;
-  categoriesByPlan?: Record<string, CompositionCategoryOption[]>;
-  compositionCategories?: CompositionCategoryOption[];
-  plansByCategory?: Record<string, { value: string; label: string }[]>;
-  dishNames?: DishName[];
+  extras: EditorExtras;
 }) {
+  const fieldByKey = new Map(def.fields.map((f) => [f.key, f]));
   const router = useRouter();
   const isNew = editing.id === "__new__";
   const form = useForm<Record<string, unknown>>({
@@ -595,8 +296,8 @@ function EditorDialog({
   // Admins never type a key: on create it is derived from the name (categories call it label).
   const nameVal = form.watch("name");
   const labelVal = form.watch("label");
-  const similarDishes = dishNames
-    ? findSimilarDishes(String(nameVal ?? ""), dishNames.filter((d) => d.id !== editing.id))
+  const similarDishes = extras.dishNames
+    ? findSimilarDishes(String(nameVal ?? ""), extras.dishNames.filter((d) => d.id !== editing.id))
     : [];
   useEffect(() => {
     if (isNew && def.keyed) form.setValue("key", slug(String(nameVal ?? labelVal ?? "")));
@@ -655,7 +356,15 @@ function EditorDialog({
                     </h3>
                   ) : null}
                   <div key={f.key} className={isSpanningType(f) ? "sm:col-span-2" : undefined}>
-                    <FieldControl f={f} form={form} options={options} isNew={isNew} categoriesByPlan={categoriesByPlan} compositionCategories={compositionCategories} plansByCategory={plansByCategory} />
+                    <FieldControl
+                      f={f}
+                      form={form}
+                      options={options}
+                      isNew={isNew}
+                      extras={extras}
+                      parent={f.scopedBy ? fieldByKey.get(f.scopedBy) : undefined}
+                      dependents={def.fields.filter((g) => g.scopedBy === f.key).map((g) => g.key)}
+                    />
                     {f.key === "name" && similarDishes.length > 0 ? (
                       <div className="mt-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-2 text-xs">
                         <p className="mb-1 font-medium">Already in the catalog. Edit that one instead?</p>
@@ -739,19 +448,14 @@ export interface DiscountCtx {
 }
 
 export function ResourceEditor({
-  discountCtx, resource, rows, dynamicOptions, sort, spec, total, page, size, categoriesByPlan, compositionCategories, plansByCategory, dishNames,
+  discountCtx, resource, rows, dynamicOptions, sort, spec, total, page, size, extras = {},
 }: {
   resource: string;
   rows: Row[];
   dynamicOptions: Options;
   sort: SortState<string>;
-  // Dishes: category options scoped by the dish's own plan.
-  categoriesByPlan?: Record<string, CompositionCategoryOption[]>;
-  // Meal-size composition rows: category comes first, plan options scoped to it.
-  compositionCategories?: CompositionCategoryOption[];
-  plansByCategory?: Record<string, { value: string; label: string }[]>;
-  // Dishes: whole catalog for the duplicate-name hint.
-  dishNames?: DishName[];
+  /** What only some resources need (scoped options, composition, duplicate-name hint); see RESOURCE_HOOKS. */
+  extras?: EditorExtras;
   discountCtx?: DiscountCtx;
   // Same server-side facet framework the orders and inquiries lists use.
   spec: FacetDef[];
@@ -770,8 +474,6 @@ export function ResourceEditor({
   const cols = visibleCols(def);
   const first = cols[0];
   const rest = cols.slice(1);
-  const retired = rows.filter((r) => r.active === false).length;
-  const activeCount = rows.length - retired;
 
   const act = (id: string, fn: () => Promise<unknown>) => {
     setError(null);
@@ -887,10 +589,7 @@ export function ResourceEditor({
           resource={resource}
           def={def}
           options={dynamicOptions}
-          categoriesByPlan={categoriesByPlan}
-          compositionCategories={compositionCategories}
-          plansByCategory={plansByCategory}
-          dishNames={dishNames}
+          extras={extras}
           editing={editing}
           onClose={() => setEditing(null)}
         />
