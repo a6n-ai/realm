@@ -2,6 +2,19 @@ import type { payments } from "@/db/schema";
 
 export type PaymentStatus = (typeof payments.status.enumValues)[number];
 
+/** Staff wording for each stored status, used by tables, filters, exports and revenue. */
+export const PAYMENT_STATUS_LABEL: Record<PaymentStatus, string> = {
+  paid: "Paid",
+  simulated_paid: "Simulated",
+  awaiting_payment: "Awaiting payment",
+  pending_verification: "Needs review",
+  pending: "Pending",
+  rejected: "Rejected",
+  refunded: "Refunded",
+};
+
+export const paymentStatusLabel = (status: string): string => PAYMENT_STATUS_LABEL[status as PaymentStatus] ?? status;
+
 /** `expiresAt` of an add-on link that was cancelled or replaced: it can never be applied. */
 export const VOID_EXPIRY = 0;
 /** Money confirmed (simulated_paid is the no-payment-rail checkout path). */

@@ -3,15 +3,18 @@
  * Only use when the card's predicate is exactly expressible as list facets.
  */
 
-export type PaymentsTabPath = "all" | "requests" | "stripe" | "ledger" | "logs";
+/** The Payments tabs, in display order. */
+export const PAYMENTS_TABS = [
+  { key: "requests", label: "E-transfer", href: "/dashboard/payments/requests" },
+  { key: "stripe", label: "Stripe", href: "/dashboard/payments/stripe" },
+  { key: "all", label: "All payments", href: "/dashboard/payments/all" },
+  { key: "ledger", label: "Ledger", href: "/dashboard/payments/ledger" },
+  { key: "logs", label: "Provider logs", href: "/dashboard/payments/logs" },
+] as const;
 
-const PATH: Record<PaymentsTabPath, string> = {
-  all: "/dashboard/payments/all",
-  requests: "/dashboard/payments/requests",
-  stripe: "/dashboard/payments/stripe",
-  ledger: "/dashboard/payments/ledger",
-  logs: "/dashboard/payments/logs",
-};
+export type PaymentsTabPath = (typeof PAYMENTS_TABS)[number]["key"];
+
+const PATH = Object.fromEntries(PAYMENTS_TABS.map((t) => [t.key, t.href])) as Record<PaymentsTabPath, string>;
 
 export function paymentsListHref(
   tab: PaymentsTabPath,

@@ -1,4 +1,5 @@
 import { paymentMethodLabel } from "@/lib/payments/method-label";
+import { PAYMENT_STATUS_LABEL } from "@/lib/payments/status";
 
 // Client-safe: imported by both the server queries and the "use client" tables. Never import db here.
 export type PaymentRow = {
@@ -36,15 +37,9 @@ export type PaymentRow = {
 export const PAYMENT_SORT_KEYS = ["time", "customer", "order", "method", "status", "amount"] as const;
 export type PaymentSortKey = (typeof PAYMENT_SORT_KEYS)[number];
 
-export const PAYMENT_STATUS_OPTIONS = [
-  { value: "pending_verification", label: "Needs review" },
-  { value: "awaiting_payment", label: "Awaiting payment" },
-  { value: "pending", label: "Pending" },
-  { value: "paid", label: "Paid" },
-  { value: "simulated_paid", label: "Simulated" },
-  { value: "rejected", label: "Rejected" },
-  { value: "refunded", label: "Refunded" },
-] as const;
+export const PAYMENT_STATUS_OPTIONS = (
+  ["pending_verification", "awaiting_payment", "pending", "paid", "simulated_paid", "rejected", "refunded"] as const
+).map((value) => ({ value, label: PAYMENT_STATUS_LABEL[value] }));
 
 export const PAYMENT_METHOD_OPTIONS = (["etransfer", "cash", "manual", "simulated", "stripe"] as const).map((value) => ({ value, label: paymentMethodLabel(value) }));
 

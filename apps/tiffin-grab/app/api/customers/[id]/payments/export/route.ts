@@ -2,7 +2,8 @@ import { eq } from "drizzle-orm";
 import { NotFoundError } from "@foundry/commons";
 import { handler } from "@foundry/routes";
 import { listPayments } from "@/lib/services/payments-list.service";
-import { methodLabel, PAYMENT_STATUS_OPTIONS } from "@/lib/payments/facets";
+import { methodLabel } from "@/lib/payments/facets";
+import { paymentStatusLabel } from "@/lib/payments/status";
 import { db } from "@/db/client";
 import { orders, users } from "@/db/schema";
 import { requireStaff } from "@/lib/auth/guards";
@@ -25,13 +26,12 @@ export const GET = handler(async (request: Request, { params }: { params: Promis
     getAppSettings(),
   ]);
   const when = (ms: number | null) => (ms ? formatEpoch(ms, { mode: "datetime", timeZone: timezone }) : "");
-  const statusLabel = (s: string) => PAYMENT_STATUS_OPTIONS.find((o) => o.value === s)?.label ?? s;
   const records = rows.map((r) => ({
     Created: when(r.createdAt),
     Order: r.orderPublicId,
     Type: r.isAddon ? "Add-on" : "Plan",
     Method: methodLabel(r.method),
-    Status: statusLabel(r.status),
+    Status: paymentStatusLabel(r.status),
     Amount: Number(r.amount),
     Reference: r.reference ?? "",
     Card: r.cardLast4 ? `${r.cardBrand ?? "Card"} •••• ${r.cardLast4}` : "",

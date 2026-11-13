@@ -8,6 +8,7 @@ import { round2 } from "@foundry/commons/util/money";
 
 import { type Grain } from "./profitability";
 import { eachDate, isoDateInZone } from "@foundry/commons/util/dates";
+import { paymentStatusLabel } from "@/lib/payments/status";
 
 
 /** Display order for the payments-by-status breakdown. Unknown statuses sort last. */
@@ -21,15 +22,6 @@ export const PAYMENT_STATUS_ORDER = [
   "refunded",
 ] as const;
 
-export const PAYMENT_STATUS_LABEL: Record<string, string> = {
-  paid: "Paid",
-  simulated_paid: "Simulated",
-  awaiting_payment: "Awaiting payment",
-  pending_verification: "Needs review",
-  pending: "Pending",
-  rejected: "Rejected",
-  refunded: "Refunded",
-};
 
 export type PaymentStatusSlice = {
   status: string;
@@ -50,7 +42,7 @@ export function presentPaymentStatuses(
     .filter((r) => r.count > 0)
     .map((r) => ({
       status: r.status,
-      label: PAYMENT_STATUS_LABEL[r.status] ?? r.status,
+      label: paymentStatusLabel(r.status),
       count: r.count,
       amount: round2(Number(r.amount)),
     }))

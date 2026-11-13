@@ -26,6 +26,7 @@ import { withDefaultMonth } from "@/lib/list/default-month";
 import { paymentsListHref, type PaymentsTabPath } from "@/lib/list/payments-drill";
 import { countStripeAttention, getLedgerKpis, getLogKpis, getPaymentKpis, OVERDUE_DAYS, type PaymentKpis } from "@/lib/services/payments-list.service";
 import { PaymentsTabs } from "./payments-tabs";
+import { PAYMENT_STATUS_LABEL } from "@/lib/payments/status";
 
 type SearchParams = Promise<Record<string, string | undefined>>;
 export type PaymentsTab = "all" | "etransfer" | "stripe" | "ledger" | "logs";
@@ -96,7 +97,7 @@ function toVerifyCard(k: PaymentKpis, now: number, label: string, tab: PaymentsT
 
 const awaitingCard = (k: PaymentKpis, tab: PaymentsTabPath, dates: Dated): StatCardItem => ({
   icon: ClockIcon,
-  label: "Awaiting payment",
+  label: PAYMENT_STATUS_LABEL.awaiting_payment,
   value: k.awaiting.count,
   hint: `${formatMoney(k.awaiting.amount)} owed in selected range`,
   href: paymentsListHref(tab, dates, { status: "awaiting_payment" }),
@@ -110,7 +111,7 @@ async function cardsFor(tab: PaymentsTab, sp: Record<string, string | undefined>
       const k = await getPaymentKpis(sp, now, "etransfer");
       return [
         collectedCard(k, path, dates),
-        toVerifyCard(k, now, "Needs review", path, dates),
+        toVerifyCard(k, now, PAYMENT_STATUS_LABEL.pending_verification, path, dates),
         awaitingCard(k, path, dates),
         overdueCard(k),
         {

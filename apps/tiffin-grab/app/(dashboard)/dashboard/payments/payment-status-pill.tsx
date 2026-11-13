@@ -1,14 +1,6 @@
 import { cn } from "@foundry/ui/cn";
+import { paymentStatusLabel } from "@/lib/payments/status";
 
-const LABEL: Record<string, string> = {
-  simulated_paid: "Paid",
-  paid: "Paid",
-  pending: "Pending",
-  awaiting_payment: "Awaiting payment",
-  pending_verification: "Needs review",
-  rejected: "Rejected",
-  refunded: "Refunded",
-};
 const TONE: Record<string, string> = {
   simulated_paid: "bg-ok/15 text-ok",
   paid: "bg-ok/15 text-ok",
@@ -27,7 +19,7 @@ export function PaymentStatusPill({ status }: { status: string }) {
         TONE[status] ?? "bg-muted text-muted-foreground",
       )}
     >
-      {LABEL[status] ?? status}
+      {paymentStatusLabel(status)}
     </span>
   );
 }
