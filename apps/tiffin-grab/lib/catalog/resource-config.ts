@@ -2,6 +2,7 @@ import { MEAL_ITEM_ROLES, MEAL_TIERS, PLAN_TYPES } from "@/db/schema/enums";
 import { WEEK_DAYS } from "@/lib/menu/delivery-days";
 import { z } from "zod";
 import { CATEGORY_ICONS, CATEGORY_ICON_LABELS } from "@/lib/catalog/category-icons";
+import { DAY_NAME } from "@/lib/dates/weekdays";
 
 export type FieldType = "text" | "number" | "csv" | "select" | "multiselect" | "date" | "boolean" | "color" | "categoryCounts" | "composition";
 
@@ -44,9 +45,7 @@ export interface ResourceDef {
   discountKind?: "delivery" | "duration" | "meal_size";
 }
 
-export const WEEKDAY_LABELS: Record<string, string> = {
-  mon: "Monday", tue: "Tuesday", wed: "Wednesday", thu: "Thursday", fri: "Friday", sat: "Saturday", sun: "Sunday",
-};
+export const WEEKDAY_LABELS: Record<string, string> = DAY_NAME;
 const ENUM_LABELS: Record<string, string> = {
   tiffin: "Tiffin", healthy: "Healthy", budget: "Budget", medium: "Medium", premium: "Premium",
   veg: "Veg", nonveg: "Non-veg", both: "Both",

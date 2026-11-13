@@ -1,6 +1,7 @@
 import { parseIsoDateUtc } from "@foundry/commons";
 import { WEEK_DAYS, type DayOfWeek } from "./delivery-days";
 import { addDaysIso } from "@foundry/commons/util/dates";
+import { DAY_BY_JS_INDEX, DAY_NAME, DAY_SHORT } from "@/lib/dates/weekdays";
 
 
 /** ISO dates of the eating days a trip carries; a carried day maps to the trip's date plus its weekday offset from the trip's own day. */
@@ -68,7 +69,6 @@ export function assertCoverageUnits(d: { coversDates: string[] | null; tiffinUni
   }
 }
 
-const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 /** A swap with NULL for_date belongs to the trip's own date. */
 export function swapAppliesTo(swapForDate: string | null, tripDate: string, eatingDate: string): boolean {
@@ -78,11 +78,10 @@ export function swapAppliesTo(swapForDate: string | null, tripDate: string, eati
 /** "Covers Mon + Tue" for a trip carrying several eating days; null when it only carries its own day. */
 export function formatCoversLabel(dates: string[]): string | null {
   if (dates.length < 2) return null;
-  return `Covers ${dates.map((d) => DAY_LABELS[parseIsoDateUtc(d).getUTCDay()]).join(" + ")}`;
+  return `Covers ${dates.map((d) => DAY_SHORT[DAY_BY_JS_INDEX[parseIsoDateUtc(d).getUTCDay()]!]).join(" + ")}`;
 }
 
-const FULL_DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 export function fullDayName(iso: string): string {
-  return FULL_DAY_NAMES[parseIsoDateUtc(iso).getUTCDay()]!;
+  return DAY_NAME[DAY_BY_JS_INDEX[parseIsoDateUtc(iso).getUTCDay()]!];
 }

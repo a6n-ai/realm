@@ -9,3 +9,10 @@ export function couponStatus(c: Window, now: number): CouponStatus {
   if (c.expiresAt != null && c.expiresAt < now) return "expired";
   return "active";
 }
+
+export const COUPON_STATUS_LABEL: Record<CouponStatus, string> = {
+  active: "Active",
+  inactive: "Inactive",
+  scheduled: "Scheduled",
+  expired: "Expired",
+};

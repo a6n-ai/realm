@@ -9,8 +9,8 @@ import type { KitchenWeekRow } from "@/lib/overview/kitchen-week";
 import type { KitchenCount } from "@/lib/services/daily-labels.service";
 import { delta } from "@/lib/overview/delta";
 import { KitchenCounts } from "../labels/labels-view";
+import { DAY_SHORT, WEEK_DAYS } from "@/lib/dates/weekdays";
 
-const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const dayNum = (iso: string) => iso.slice(8).replace(/^0/, "");
 const containers = (counts: KitchenCount[]) => counts.reduce((s, c) => s + c.count, 0);
 
@@ -43,7 +43,7 @@ export function KitchenWeekView({
           <nav aria-label="Day" className="flex flex-wrap gap-2">
             {dishes.map((d, i) => (
               <Button key={d.date} size="sm" variant={d.date === day ? "secondary" : "ghost"} aria-pressed={d.date === day} onClick={() => setDay(d.date)}>
-                {DAYS[i]} {dayNum(d.date)}
+                {DAY_SHORT[WEEK_DAYS[i]!]} {dayNum(d.date)}
                 <span className="text-muted-foreground tabular-nums">{containers(d.counts).toLocaleString()}</span>
               </Button>
             ))}
@@ -72,7 +72,7 @@ export function KitchenWeekView({
                     {p.days.map((v, i) => (
                       <div key={dates[i]} className="bg-muted/60 flex min-w-16 flex-col rounded-md px-2.5 py-1.5">
                         <dt className="text-muted-foreground text-xs">
-                          {DAYS[i]} {dayNum(dates[i]!)}
+                          {DAY_SHORT[WEEK_DAYS[i]!]} {dayNum(dates[i]!)}
                         </dt>
                         <dd className="text-xl leading-tight font-semibold tabular-nums">{v}</dd>
                       </div>

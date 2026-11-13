@@ -2,6 +2,7 @@ import { WEEK_DAYS, type DayOfWeek } from "./delivery-days";
 import type { FileDetail } from "@foundry/storage/model";
 import type { MealSlot } from "./meal-types";
 import { isoToUtcDate } from "@foundry/commons/util/dates";
+import { DAY_NAME } from "@/lib/dates/weekdays";
 
 export type PosterItem = {
   dayOfWeek: DayOfWeek;
@@ -25,15 +26,6 @@ export type RenderedColumn = { label: string; groups: RenderedGroup[] };
  * from includeSaturday/includeSunday) and every reader keys on the actual weekday. The
  * poster below is free to *display* the weekend as one column; storage is not.
  */
-export const DAY_LABELS: Record<DayOfWeek, string> = {
-  mon: "Monday",
-  tue: "Tuesday",
-  wed: "Wednesday",
-  thu: "Thursday",
-  fri: "Friday",
-  sat: "Saturday",
-  sun: "Sunday",
-};
 
 /** Display grouping for the printed/marketing poster only. Not an editing shape. */
 export const DAY_COLUMNS: { label: string; days: DayOfWeek[] }[] = [

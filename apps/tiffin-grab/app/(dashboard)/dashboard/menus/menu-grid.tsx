@@ -11,7 +11,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { cn } from "@foundry/ui/cn";
 import { Badge } from "@/components/reui/badge";
 import { WEEK_DAYS, type DayOfWeek } from "@/lib/menu/delivery-days";
-import { DAY_LABELS } from "@/lib/menu/poster";
+import { DAY_NAME } from "@/lib/dates/weekdays";
 
 export type GridRow = { key: string; id: string | null; dayOfWeek: DayOfWeek; slot: string; dishId: string; isDefault: boolean };
 export type GridDish = { id: string; name: string; category: string | null; planId: string };
@@ -96,7 +96,7 @@ export function MenuGrid({
       <div className="grid min-w-[38rem]" style={{ gridTemplateColumns: `minmax(7rem, 9rem) repeat(${WEEK_DAYS.length}, minmax(0, 1fr))` }}>
         <div className="text-muted-foreground border-e border-b p-2 text-xs font-medium">Category · Plan</div>
         {WEEK_DAYS.map((day) => (
-          <div key={day} className="border-b p-2 text-xs font-semibold">{DAY_LABELS[day].slice(0, 3)}</div>
+          <div key={day} className="border-b p-2 text-xs font-semibold">{DAY_NAME[day].slice(0, 3)}</div>
         ))}
 
         {slots.map((slot) => {
@@ -118,7 +118,7 @@ export function MenuGrid({
                     key={day}
                     type="button"
                     aria-pressed={isSelected}
-                    aria-label={`${DAY_LABELS[day]}, ${slot.categoryLabel} (${slot.planName}): ${cell.length ? `${cell.length} ${cell.length === 1 ? "dish" : "dishes"}` : "empty"}${warning ? `, ${warning}` : ""}`}
+                    aria-label={`${DAY_NAME[day]}, ${slot.categoryLabel} (${slot.planName}): ${cell.length ? `${cell.length} ${cell.length === 1 ? "dish" : "dishes"}` : "empty"}${warning ? `, ${warning}` : ""}`}
                     onClick={() => onSelect({ day, slotKey: slot.key })}
                     className={cn(
                       "flex min-h-14 flex-col items-start gap-1 border-b p-1.5 text-left text-xs transition-colors hover:bg-muted/50",
@@ -164,7 +164,7 @@ export function MenuGrid({
                   key={day}
                   type="button"
                   aria-pressed={isSelected}
-                  aria-label={`${DAY_LABELS[day]}, ${side.label}: packs ${text}${changed ? ", changed for this day" : ""}`}
+                  aria-label={`${DAY_NAME[day]}, ${side.label}: packs ${text}${changed ? ", changed for this day" : ""}`}
                   onClick={() => onSelect({ day, slotKey: side.key })}
                   className={cn(
                     "flex min-h-14 flex-col items-start gap-1 border-b p-1.5 text-left text-xs transition-colors hover:bg-muted/50",
@@ -210,9 +210,9 @@ export function CellPanel({
   );
 
   return (
-    <section aria-label={`${DAY_LABELS[day]} ${slot.categoryLabel}`} data-testid="cell-panel" className="bg-card flex flex-col gap-4 rounded-xl border p-4">
+    <section aria-label={`${DAY_NAME[day]} ${slot.categoryLabel}`} data-testid="cell-panel" className="bg-card flex flex-col gap-4 rounded-xl border p-4">
       <div className="flex flex-col gap-1">
-        <p className="text-muted-foreground text-xs font-semibold tracking-wider uppercase">{DAY_LABELS[day]}</p>
+        <p className="text-muted-foreground text-xs font-semibold tracking-wider uppercase">{DAY_NAME[day]}</p>
         <h3 className="text-lg font-semibold">{slot.categoryLabel}</h3>
         <div className="flex flex-wrap items-center gap-2 text-sm">
           <span className="text-muted-foreground">{slot.planName}</span>
@@ -261,7 +261,7 @@ export function CellPanel({
         <div className="flex flex-wrap gap-2 border-t pt-3">
           <Popover open={open} onOpenChange={setOpen}>
             <PopoverTrigger asChild>
-              <Button type="button" variant="outline" size="sm" aria-label={`Add a dish to ${slot.categoryLabel} (${slot.planName}) on ${DAY_LABELS[day]}`}>
+              <Button type="button" variant="outline" size="sm" aria-label={`Add a dish to ${slot.categoryLabel} (${slot.planName}) on ${DAY_NAME[day]}`}>
                 <Plus data-icon="inline-start" />Add dish
               </Button>
             </PopoverTrigger>
@@ -287,7 +287,7 @@ export function CellPanel({
           </Popover>
           {rows.length > 0 && (
             <Button type="button" variant="ghost" size="sm" onClick={() => onCopyAcrossDays(day, slot)}>
-              <CopyPlus data-icon="inline-start" />Copy {DAY_LABELS[day]} to every day
+              <CopyPlus data-icon="inline-start" />Copy {DAY_NAME[day]} to every day
             </Button>
           )}
         </div>

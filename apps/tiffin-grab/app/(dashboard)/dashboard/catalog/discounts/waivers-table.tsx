@@ -9,6 +9,7 @@ import { DataTable } from "@/components/ds";
 import { WAIVER_LABELS, WaiverDialog } from "./waiver-dialog";
 import type { WaiverKind } from "@/lib/catalog/types";
 import { discountStatus, type DiscountDto } from "./build-rows";
+import { COUPON_STATUS_LABEL } from "@/lib/coupons/status";
 
 const COLUMNS = [
   { key: "name", label: "Name" },
@@ -17,8 +18,6 @@ const COLUMNS = [
   { key: "status", label: "Status" },
   { key: "manage", label: "", align: "right" as const, width: "w-px" },
 ];
-
-const STATUS_LABEL = { active: "Active", inactive: "Inactive", scheduled: "Scheduled", expired: "Expired" } as const;
 
 export function WaiversTable({ waivers, strategies, now }: { waivers: DiscountDto[]; strategies: { publicId: string; name: string }[]; now: number }) {
   const [dialog, setDialog] = useState<{ waiver?: DiscountDto } | null>(null);
@@ -56,7 +55,7 @@ export function WaiversTable({ waivers, strategies, now }: { waivers: DiscountDt
               </TableCell>
               <TableCell className="text-right tabular-nums">{w.percent}%</TableCell>
               <TableCell>
-                <Badge variant={status === "active" ? "default" : "outline"} className="font-normal">{STATUS_LABEL[status]}</Badge>
+                <Badge variant={status === "active" ? "default" : "outline"} className="font-normal">{COUPON_STATUS_LABEL[status]}</Badge>
               </TableCell>
               <TableCell className="text-right">
                 <Button size="sm" variant="ghost" onClick={() => setDialog({ waiver: w })}>

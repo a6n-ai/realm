@@ -11,7 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@foundry/ui/dropdown-menu";
 import { WeeklyMenuPoster } from "@/components/marketing/weekly-menu-poster";
 import { WEEK_DAYS, type DayOfWeek } from "@/lib/menu/delivery-days";
-import { DAY_LABELS, type PosterItem } from "@/lib/menu/poster";
+import type { PosterItem } from "@/lib/menu/poster";
+import { DAY_NAME } from "@/lib/dates/weekdays";
 import type { MealTypeConfig } from "@/lib/menu/meal-types";
 import { findSimilarDishes } from "@/lib/menu/similar-dishes";
 import { CellPanel, cellWarning, MenuGrid, problemsByCell, rowsOf, type CellRef, type Slot } from "./menu-grid";
@@ -495,7 +496,7 @@ export function MenuBuilder({
                     Publishing resets {amendPreview.resetPicks === 1 ? "it" : "them"} to that day&apos;s default.
                   </p>
                   <p className="text-muted-foreground">
-                    Affected days: {amendPreview.days.map((d) => DAY_LABELS[d as DayOfWeek] ?? d).join(", ")}
+                    Affected days: {amendPreview.days.map((d) => DAY_NAME[d as DayOfWeek] ?? d).join(", ")}
                   </p>
                 </>
               )}

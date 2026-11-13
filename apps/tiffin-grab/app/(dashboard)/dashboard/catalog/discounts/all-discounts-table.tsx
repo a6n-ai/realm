@@ -11,6 +11,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { DataTable } from "@/components/ds";
 import { DiscountDialog, type DiscountDialogOptions } from "./discount-dialog";
 import { COUPONS_HREF, TYPE_LABELS, type AllRow, type DiscountDto, type DiscountKind, type RowType } from "./build-rows";
+import { COUPON_STATUS_LABEL } from "@/lib/coupons/status";
 
 export const ALL_DISCOUNT_COLUMNS = [
   { key: "type", label: "Type" },
@@ -19,8 +20,6 @@ export const ALL_DISCOUNT_COLUMNS = [
   { key: "status", label: "Status" },
   { key: "manage", label: "Where it lives", align: "right" as const, width: "w-px" },
 ];
-
-const STATUS_LABEL = { active: "Active", inactive: "Inactive", scheduled: "Scheduled", expired: "Expired" } as const;
 
 export function AllDiscountsTable({ rows, options, moreCoupons }: { rows: AllRow[]; options: DiscountDialogOptions; moreCoupons: boolean }) {
   const router = useRouter();
@@ -69,7 +68,7 @@ export function AllDiscountsTable({ rows, options, moreCoupons }: { rows: AllRow
             </TableCell>
             <TableCell className="text-right tabular-nums">{r.value}</TableCell>
             <TableCell>
-              <Badge variant={r.status === "active" ? "default" : "outline"} className="font-normal">{STATUS_LABEL[r.status]}</Badge>
+              <Badge variant={r.status === "active" ? "default" : "outline"} className="font-normal">{COUPON_STATUS_LABEL[r.status]}</Badge>
             </TableCell>
             <TableCell className="text-right">
               {r.discount ? (

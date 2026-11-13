@@ -7,7 +7,7 @@ import { Badge } from "@/components/reui/badge";
 import { Button } from "@foundry/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@foundry/ui/dialog";
 import type { DayOfWeek } from "@/lib/menu/delivery-days";
-import { DAY_LABELS } from "@/lib/menu/poster";
+import { DAY_NAME } from "@/lib/dates/weekdays";
 import { sanitizeClientError } from "@foundry/commons/util/client-error";
 import type { DaySide, DaySideValue, SideRole, SideSlot } from "@/lib/services/menu-sides.service";
 import type { ActionResult } from "@/lib/actions/action-result";
@@ -118,9 +118,9 @@ export type Sides = ReturnType<typeof useSides>;
 export function SidePanel({ day, slot, sides, dishesOfDay, editable }: { day: DayOfWeek; slot: SideSlot; sides: Sides; dishesOfDay: DayDish[]; editable: boolean }) {
   const standing = sides.standingOf(slot);
   return (
-    <section aria-label={`${DAY_LABELS[day]} ${sideLabel(slot)}`} data-testid="side-panel" className="bg-card flex flex-col gap-4 rounded-xl border p-4">
+    <section aria-label={`${DAY_NAME[day]} ${sideLabel(slot)}`} data-testid="side-panel" className="bg-card flex flex-col gap-4 rounded-xl border p-4">
       <div className="flex flex-col gap-1">
-        <p className="text-muted-foreground text-xs font-semibold tracking-wider uppercase">{DAY_LABELS[day]}</p>
+        <p className="text-muted-foreground text-xs font-semibold tracking-wider uppercase">{DAY_NAME[day]}</p>
         <h3 className="text-lg font-semibold">{sideLabel(slot)}</h3>
         <p className="text-muted-foreground text-xs">{slot.meals.join(" · ")}</p>
       </div>
@@ -134,7 +134,7 @@ export function SidePanel({ day, slot, sides, dishesOfDay, editable }: { day: Da
       <label className="flex flex-col gap-1.5">
         <span className="text-sm font-medium">This day</span>
         <Select value={sides.valueOf(day, slot)} disabled={!editable} onValueChange={(v) => sides.setDay(day, slot, v)}>
-          <SelectTrigger aria-label={`${DAY_LABELS[day]} source`}><SelectValue /></SelectTrigger>
+          <SelectTrigger aria-label={`${DAY_NAME[day]} source`}><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value={DEFAULT}>Default{standing ? ` (${sides.catLabel(standing)})` : ""}</SelectItem>
             <SelectSeparator />

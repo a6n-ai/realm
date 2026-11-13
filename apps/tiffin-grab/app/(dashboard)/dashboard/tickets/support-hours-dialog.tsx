@@ -12,8 +12,8 @@ import { unwrapAction } from "@/lib/actions/unwrap";
 import { WEEK_ORDER, type DayHours, type SupportHours } from "@/lib/support/support-hours";
 import { saveSupportHours } from "./actions";
 import { TimeInput } from "@/components/dashboard/date-fields";
+import { DAY_BY_JS_INDEX, DAY_NAME } from "@/lib/dates/weekdays";
 
-const DAY_LABELS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const NEW_DAY: DayHours = { open: "09:00", close: "18:00" };
 
 /** Admin: which days support runs, the hours on each, and the usual reply time customers are shown. */
@@ -68,12 +68,12 @@ export function SupportHoursDialog({ value }: { value: SupportHours }) {
             return (
               <div key={i} className="flex min-h-9 items-center gap-3">
                 <Switch id={`support-day-${i}`} checked={d != null} onCheckedChange={(on) => setDay(i, on ? NEW_DAY : null)} />
-                <Label htmlFor={`support-day-${i}`} className="w-24">{DAY_LABELS[i]}</Label>
+                <Label htmlFor={`support-day-${i}`} className="w-24">{DAY_NAME[DAY_BY_JS_INDEX[i]!]}</Label>
                 {d ? (
                   <>
-                    <TimeInput aria-label={`${DAY_LABELS[i]} opens`} value={d.open} onChange={(v) => setDay(i, { ...d, open: v })} className="w-32" />
+                    <TimeInput aria-label={`${DAY_NAME[DAY_BY_JS_INDEX[i]!]} opens`} value={d.open} onChange={(v) => setDay(i, { ...d, open: v })} className="w-32" />
                     <span className="text-muted-foreground text-sm">to</span>
-                    <TimeInput aria-label={`${DAY_LABELS[i]} closes`} value={d.close} onChange={(v) => setDay(i, { ...d, close: v })} className="w-32" />
+                    <TimeInput aria-label={`${DAY_NAME[DAY_BY_JS_INDEX[i]!]} closes`} value={d.close} onChange={(v) => setDay(i, { ...d, close: v })} className="w-32" />
                   </>
                 ) : (
                   <span className="text-muted-foreground text-sm">No support</span>
