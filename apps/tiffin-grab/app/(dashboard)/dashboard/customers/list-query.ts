@@ -2,7 +2,7 @@ import { parseSort } from "@foundry/design-system/list-sort";
 import { parseFilterState, type FacetDef } from "@/components/ds";
 import { withListDates } from "@/lib/list/default-month";
 import { CUSTOMER_SORT_KEYS } from "@/lib/services/customers.service";
-import { ORDER_STATUS_PILLS } from "../orders/status-pills";
+import { ORDER_STATUS_PILLS } from "@/lib/orders/status-pills";
 
 const LATEST_STATUS_OPTIONS = ORDER_STATUS_PILLS.filter((p) => p.value !== "ongoing").map((p) => ({ value: p.value, label: p.label }));
 

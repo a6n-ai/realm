@@ -1,4 +1,4 @@
-import { BOOKED, ONGOING, RUNNING, STARTING_SOON } from "@/lib/orders/status";
+import { BOOKED, ONGOING, RUNNING, STARTING_SOON } from "./status";
 import { inList, type Condition } from "@foundry/commons/model/condition";
 
 // Single source of truth for the Status facet — also the pill/badge label map.

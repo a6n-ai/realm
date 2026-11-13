@@ -39,7 +39,7 @@ import { StatCards, StatCardsSkeleton, type StatCardItem } from "@/components/da
 import { MissedList } from "./missed-list";
 import { countMissedDeliveries, listMissedDeliveries } from "@/lib/services/missed-deliveries.service";
 import { filterMissedRows, MISSED_DAYS, MISSED_WHY } from "@/lib/missed-filter";
-import { orderStatusFilter } from "./status-pills";
+import { orderStatusFilter } from "@/lib/orders/status-pills";
 import { buildOrdersSpec, STARTS_DAYS, STARTS_FIELD } from "./orders-spec";
 import { and, between } from "@foundry/commons/model/condition";
 import { ordersListHref } from "@/lib/list/orders-drill";

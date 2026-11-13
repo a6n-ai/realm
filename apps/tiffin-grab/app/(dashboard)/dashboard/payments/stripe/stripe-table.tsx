@@ -23,7 +23,7 @@ import { PaymentStatusPill } from "../payment-status-pill";
 import { CustomerLink } from "../customer-link";
 import { PaymentDetailDialog } from "../payment-detail-dialog";
 import { sendPaymentReminderAction } from "@/app/(dashboard)/dashboard/payments/actions";
-import { sendTone } from "../../customers/customer-invite-cell";
+import { sendTone } from "@/lib/notifications/send-tone";
 import { checkStatusAction, refundAction } from "./actions";
 
 const SPEC: FacetDef[] = [

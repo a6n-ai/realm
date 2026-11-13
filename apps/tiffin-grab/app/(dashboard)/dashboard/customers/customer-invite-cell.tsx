@@ -10,6 +10,7 @@ import { useTimezone } from "@foundry/design-system/timezone-provider";
 import { formatEpoch } from "@/lib/format/datetime";
 import type { SendState } from "@/lib/services/customers.service";
 import { copyCustomerInviteLink, resendCustomerInvite, sendCustomerMenuReminder } from "./actions";
+import { sendTone } from "@/lib/notifications/send-tone";
 
 /** Email the welcome sign-in link, or copy that same link to share over WhatsApp. */
 export function useCustomerInvite(email: string | null) {
@@ -57,14 +58,6 @@ export function useCustomerInvite(email: string | null) {
  * sent or failed. Informational only — the button always stays clickable, so
  * staff can resend to someone who opened but still hasn't acted.
  */
-export function sendTone(state: SendState | null, fmt: (ms: number) => string): { tone: string; status: string } {
-  if (!state) return { tone: "text-bad", status: "Not sent yet" };
-  if (state.status === "failed") return { tone: "text-bad", status: `Last send failed (${fmt(state.at)})` };
-  if (state.openedAt) return { tone: "text-ok", status: `Opened ${fmt(state.openedAt)}` };
-  if (state.deliveredAt) return { tone: "text-warn", status: `Delivered ${fmt(state.deliveredAt)}, not opened yet` };
-  return { tone: "text-warn", status: `Sent ${fmt(state.at)}, not opened yet` };
-}
-
 function MenuReminderButton({ publicId, state }: { publicId: string; state: SendState | null }) {
   const [pending, start] = useTransition();
   const tz = useTimezone();

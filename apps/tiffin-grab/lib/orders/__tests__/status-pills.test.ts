@@ -7,7 +7,7 @@ import {
   RUNNING_STATUSES,
   SOON_STATUSES,
   orderStatusFilter,
-} from "../status-pills";
+} from "@/lib/orders/status-pills";
 
 describe("orderStatusFilter", () => {
   it("passes other statuses through untouched", () => {

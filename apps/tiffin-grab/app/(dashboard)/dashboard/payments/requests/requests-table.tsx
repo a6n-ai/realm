@@ -24,7 +24,7 @@ import { ListSearchFilters } from "@/components/filters/reui-facet-filters";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@foundry/design-system/timezone-provider";
 import { rejectPaymentAction, sendPaymentReminderAction, verifyPaymentAction } from "@/app/(dashboard)/dashboard/payments/actions";
-import { sendTone } from "../../customers/customer-invite-cell";
+import { sendTone } from "@/lib/notifications/send-tone";
 import { PAYMENT_STATUS_OPTIONS, type PaymentRow, type PaymentSortKey } from "@/lib/payments/facets";
 import { PaymentStatusPill } from "../payment-status-pill";
 import { CustomerLink } from "../customer-link";

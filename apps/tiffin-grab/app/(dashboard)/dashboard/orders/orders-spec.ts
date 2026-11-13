@@ -1,6 +1,6 @@
 import type { FacetDef } from "@/components/ds";
 import type { OrderFacetField } from "@/lib/services/analytics/metrics/orders";
-import { ORDER_STATUS_PILLS } from "./status-pills";
+import { ORDER_STATUS_PILLS } from "@/lib/orders/status-pills";
 import { UNASSIGNED_OWNER } from "@/lib/list/presets";
 
 // Typed against ORDER_FACET_FIELDS so analytics drill links cannot name a filter the listing lacks.
