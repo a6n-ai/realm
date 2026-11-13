@@ -148,6 +148,6 @@ export function PaymentsTable({
   );
 }
 
-export function PaymentsTableSkeleton({ scope = "all" }: { scope?: Scope }) {
-  return <DataTable.Skeleton columns={columnsFor(scope)} hasId />;
+export function PaymentsTableSkeleton({ scope = "all", datedBy = "created" }: { scope?: Scope; datedBy?: "created" | "money" }) {
+  return <DataTable.Skeleton columns={columnsFor(scope, datedBy)} hasId />;
 }
