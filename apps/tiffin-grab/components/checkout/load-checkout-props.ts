@@ -10,7 +10,7 @@ import { dropOffsFor } from "@/lib/services/address-drop-off.service";
 import { couponsService } from "@/lib/services/coupons.service";
 import { cardCheckoutContext } from "@/lib/payments/card-checkout-context";
 import { resolveProvince } from "@/lib/tax/canada";
-import { myRenewalWindow } from "@/lib/services/customer-deliveries.service";
+import { myRenewalWindow } from "@/lib/deliveries/customer-deliveries.service";
 import { pendingFriendGift } from "@/lib/services/referrals.service";
 import { loadReferralOffer } from "@/lib/referrals/offer";
 import type { Checkout } from "./checkout";

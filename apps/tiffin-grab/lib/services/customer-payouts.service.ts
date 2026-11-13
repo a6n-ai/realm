@@ -13,7 +13,7 @@ import { getAppSettings } from "./app-settings.service";
 import { lastTiffinSql, laterOrderSql } from "@/lib/orders/queries";
 import { enqueueNotification } from "@/lib/notifications/enqueue";
 import { DEFAULT_GRANT_REASON, walletCreditedDefaults } from "@/lib/notifications/wallet-credited-copy";
-import { walletService } from "./wallet.service";
+import { walletService } from "../wallet/wallet.service";
 import { walletBalanceSql } from "@/lib/wallet/balance-sql";
 
 export const MAX_REVIEW_ROWS = 2000;

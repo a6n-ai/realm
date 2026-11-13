@@ -13,7 +13,7 @@ vi.mock("@/lib/payments/stripe", () => ({
   stripeRuntime: async () => ({ cfg, stripe: { customerSessions: { create: (...a: unknown[]) => createSession(...a) } } }),
   customerStore: { get: async () => customer },
 }));
-vi.mock("@/lib/services/payment-stripe", () => ({ listSavedCards: async () => cards }));
+vi.mock("@/lib/payments/payment-stripe", () => ({ listSavedCards: async () => cards }));
 vi.mock("@/lib/services/app-settings.service", () => ({ getAppSettings: async () => ({ defaultCountry: "CA" }) }));
 let phone: string | null = null;
 

@@ -10,7 +10,7 @@ import { dailyLabelSheet, listDayDeliveryStatuses } from "@/lib/services/daily-l
 import { getKitchenPackingSheet } from "@/lib/services/kitchen-packing-sheet.service";
 import { HolidayBanner } from "@/components/dashboard/holiday-banner";
 import { getSession } from "@/lib/auth/session";
-import { holidaysOn } from "@/lib/services/holidays.service";
+import { holidaysOn } from "@/lib/deliveries/holidays.service";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import { PageShell, PageHeader, SectionCard } from "@/components/ds";
 import { LabelDatePicker } from "./label-date-picker";

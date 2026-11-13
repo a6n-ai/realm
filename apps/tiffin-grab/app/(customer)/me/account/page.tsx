@@ -9,7 +9,7 @@ import { dropOffCatalog } from "@/lib/catalog/drop-off";
 import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 import { googleSignInEnabled } from "@foundry/auth";
 import { stripeRuntime } from "@/lib/payments/stripe";
-import { listSavedCards } from "@/lib/services/payment-stripe";
+import { listSavedCards } from "@/lib/payments/payment-stripe";
 import { hasGoogleLinked } from "@/lib/auth/google-link";
 
 export default async function MeAccountPage({ searchParams }: { searchParams: Promise<{ section?: string }> }) {

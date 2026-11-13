@@ -9,7 +9,7 @@ import { Label } from "@foundry/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
 import { Switch } from "@foundry/ui/switch";
 import { ResponsiveDialog } from "@/components/ds";
-import type { HolidayPreview } from "@/lib/services/holidays.service";
+import type { HolidayPreview } from "@/lib/deliveries/holidays.service";
 import { createHolidayAction } from "./actions";
 import { DateInput } from "@/components/dashboard/date-fields";
 

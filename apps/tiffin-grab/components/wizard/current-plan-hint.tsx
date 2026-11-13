@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Info } from "lucide-react";
-import type { SubSummary } from "@/lib/services/customer-deliveries.service";
+import type { SubSummary } from "@/lib/deliveries/customer-deliveries.service";
 
 /** Soft hint shown in wizard steps when the customer already has a live plan. */
 export type CurrentPlanSummary = Pick<

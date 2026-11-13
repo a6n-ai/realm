@@ -28,7 +28,7 @@ import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
 import { useTimezone } from "@foundry/design-system/timezone-provider";
 import { Timeline, TimelineContent, TimelineDate, TimelineHeader, TimelineIndicator, TimelineItem, TimelineSeparator, TimelineTitle } from "@/components/reui/timeline";
 import { formatEpoch } from "@/lib/format/datetime";
-import { describeActivity, describeActivityActor } from "@/lib/services/order-activity-describe";
+import { describeActivity, describeActivityActor } from "@/lib/order-activity/order-activity-describe";
 import { cn } from "@foundry/ui/cn";
 import Link from "next/link";
 import type { FacetDef } from "@/components/ds";

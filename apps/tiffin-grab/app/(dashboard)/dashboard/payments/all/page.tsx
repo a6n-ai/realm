@@ -2,7 +2,7 @@ import { SectionCard } from "@/components/ds";
 import { Suspense } from "react";
 import { loadOwnerOptions } from "@/lib/list/facet-options";
 import { UNASSIGNED_OWNER } from "@/lib/list/presets";
-import { listPayments } from "@/lib/services/payments-list.service";
+import { listPayments } from "@/lib/payments/payments-list.service";
 import { PaymentsTop } from "../payment-kpis";
 import { PaymentsTable, PaymentsTableSkeleton } from "../payments-table";
 

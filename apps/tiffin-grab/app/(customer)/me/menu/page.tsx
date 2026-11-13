@@ -7,7 +7,7 @@ import { browsePublishedWeek, type WeekScope } from "@/lib/menu/browse-published
 import { buildCustomerWeek, dietLegend, foldPicks, initialDay, planOf, popularSince, weekEnd } from "@/lib/menu/customer-week";
 import { menuService } from "@/lib/services/menu.service";
 import { getAppSettings } from "@/lib/services/app-settings.service";
-import { myDeliveries } from "@/lib/services/customer-deliveries.service";
+import { myDeliveries } from "@/lib/deliveries/customer-deliveries.service";
 import { EmptyState, PageHeader } from "@/components/customer/kit";
 import { buttonClass } from "@/components/customer/kit/button-class";
 import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";

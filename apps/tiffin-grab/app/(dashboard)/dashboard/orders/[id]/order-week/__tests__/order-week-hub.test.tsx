@@ -2,8 +2,8 @@
 import "@testing-library/jest-dom/vitest";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { Trip } from "@/lib/deliveries-view/index";
-import type { OrderWeek } from "@/lib/services/order-week.service";
+import type { Trip } from "@/lib/deliveries/view";
+import type { OrderWeek } from "@/lib/orders/order-week.service";
 import { OrderWeekHub } from "@/app/(dashboard)/dashboard/orders/[id]/order-week/order-week-hub";
 import { BOX_LABEL, boxStatus } from "@/app/(dashboard)/dashboard/orders/[id]/order-week/order-month-calendar";
 

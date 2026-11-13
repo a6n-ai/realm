@@ -25,7 +25,7 @@ import { effectiveAddress } from "@/lib/deliveries/row-state";
 import { dropOffTexts } from "@/lib/services/address-drop-off.service";
 import { menuService } from "@/lib/services/menu.service";
 import { coveredDates, occurrenceDates } from "@/lib/menu/coverage";
-import { extraTiffinLabelAt, loadExtraDates, loadMovesIn } from "@/lib/services/delivery-extras";
+import { extraTiffinLabelAt, loadExtraDates, loadMovesIn } from "@/lib/deliveries/delivery-extras";
 import { packLines } from "@/lib/menu/packing-requirement";
 import { isCountCategory } from "@/lib/menu/format-tu";
 import { resolveTripDay, swapsForDay, weekLoader } from "@/lib/menu/trip-meals";

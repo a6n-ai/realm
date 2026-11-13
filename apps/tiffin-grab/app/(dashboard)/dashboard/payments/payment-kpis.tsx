@@ -24,7 +24,7 @@ import { SectionDateRange } from "@/components/filters/section-date-range";
 import { requireAdmin } from "@/lib/auth/guards";
 import { withDefaultMonth } from "@/lib/list/default-month";
 import { paymentsListHref, type PaymentsTabPath } from "@/lib/list/payments-drill";
-import { countStripeAttention, getLedgerKpis, getLogKpis, getPaymentKpis, OVERDUE_DAYS, type PaymentKpis } from "@/lib/services/payments-list.service";
+import { countStripeAttention, getLedgerKpis, getLogKpis, getPaymentKpis, OVERDUE_DAYS, type PaymentKpis } from "@/lib/payments/payments-list.service";
 import { PaymentsTabs } from "./payments-tabs";
 import { PAYMENT_STATUS_LABEL } from "@/lib/payments/status";
 

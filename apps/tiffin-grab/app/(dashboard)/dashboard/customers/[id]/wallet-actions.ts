@@ -4,7 +4,7 @@ import { ValidationError } from "@foundry/commons";
 import type { ActionResult } from "@/lib/actions/action-result";
 import { staffAction } from "@/lib/actions/staff-action";
 import { currentUserId, userIdByPublicId } from "@/lib/services/session-service";
-import { walletService } from "@/lib/services/wallet.service";
+import { walletService } from "@/lib/wallet/wallet.service";
 import { staffAttachReferral } from "@/lib/services/referrals.service";
 
 export async function adjustCustomerCoinsAction(

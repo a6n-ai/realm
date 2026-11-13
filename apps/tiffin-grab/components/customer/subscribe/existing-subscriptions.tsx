@@ -8,7 +8,7 @@ import { TicketPercentIcon } from "lucide-react";
 import { OrderStatusBadge } from "@/components/ds";
 import { Badge } from "@foundry/ui/badge";
 import { Reveal } from "@/components/motion";
-import type { SubSummary } from "@/lib/services/customer-deliveries.service";
+import type { SubSummary } from "@/lib/deliveries/customer-deliveries.service";
 import type { AvailableCoupon } from "@/lib/services/coupons.service";
 
 export const CURRENT = new Set(["active", "payment_review", "pending", "waitlisted"]);

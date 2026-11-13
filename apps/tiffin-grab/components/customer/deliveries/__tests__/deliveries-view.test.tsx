@@ -2,11 +2,11 @@
 import "@testing-library/jest-dom/vitest";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { Trip } from "@/lib/deliveries-view";
+import type { Trip } from "@/lib/deliveries/view";
 import { ACTION_SHEETS } from "../actions/registry";
 import { DeliveriesView } from "../deliveries-view";
-import type { PlanView } from "@/lib/deliveries-view/adapter";
-import type { Agenda } from "@/lib/deliveries-view/week";
+import type { PlanView } from "@/lib/deliveries/view/adapter";
+import type { Agenda } from "@/lib/deliveries/view/week";
 
 vi.mock("@/app/(customer)/me/deliveries/pick-grid", () => ({ loadPickGrid: () => new Promise(() => {}) }));
 vi.mock("@/app/(customer)/me/meals/actions", () => ({ pickMyDish: vi.fn() }));

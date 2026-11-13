@@ -6,7 +6,7 @@ import { eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import { menuWeeks, orders } from "@/db/schema";
 import { currentUserId } from "@/lib/services/session-service";
-import { assertCanManageOrder, assertOrderUnlocked } from "@/lib/services/customer-deliveries.service";
+import { assertCanManageOrder, assertOrderUnlocked } from "@/lib/deliveries/customer-deliveries.service";
 import { selectionsService } from "@/lib/menu/selections.service";
 import { runAction, type ActionResult } from "@/lib/actions/action-result";
 

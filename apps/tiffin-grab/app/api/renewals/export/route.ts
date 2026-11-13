@@ -17,7 +17,7 @@ import { resolveOwnerParam } from "@/lib/list/presets";
 import {
   listRenewalsForExport,
   listRenewedCustomersForExport,
-} from "@/lib/services/renewals.service";
+} from "@/lib/renewals/renewals.service";
 
 export const GET = handler(async (request: Request): Promise<Response> => {
   await requirePermission({ order: ["read"] });

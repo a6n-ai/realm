@@ -14,7 +14,7 @@ vi.mock("next/cache", () => ({ revalidatePath: () => {} }));
 vi.mock("@/lib/auth/visible-orgs", () => ({ resolveSessionVisibleOrgIds: async () => visible.orgs }));
 
 const { customerOrderContext } = await import("../actions");
-const { createOrder } = await import("@/lib/services/create-order");
+const { createOrder } = await import("@/lib/orders/create-order");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 
 async function reset() {

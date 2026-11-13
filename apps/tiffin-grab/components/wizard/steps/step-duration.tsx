@@ -9,7 +9,7 @@ import { durationSavings } from "@/lib/pricing/recommend";
 import { formatDateOnly } from "@/lib/format/datetime";
 import { DateField } from "@/components/customer/date-field";
 import { earliestTrialIso } from "@/lib/trial/schedule";
-import { appToday, firstStartOnOrAfter, planStartDays } from "@/lib/services/start-date";
+import { appToday, firstStartOnOrAfter, planStartDays } from "@/lib/orders/start-date";
 import { TrialDayPicker } from "../trial-day-picker";
 import { plannedSchedule, ScheduleCard } from "../schedule-card";
 import { WeeksSlider } from "../weeks-slider";

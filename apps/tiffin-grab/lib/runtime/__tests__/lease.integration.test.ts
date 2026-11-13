@@ -4,7 +4,7 @@ import { like } from "drizzle-orm";
 import { db } from "@/db/client";
 import { runtimeLeases } from "@/db/schema";
 import { acquireLease, readLeaseValue, releaseLease, renewLease, writeLeaseValue } from "../lease";
-import { PAY_IN_PROGRESS, withCustomerPayLock } from "@/lib/services/customer-pay-lock";
+import { PAY_IN_PROGRESS, withCustomerPayLock } from "@/lib/payments/customer-pay-lock";
 
 beforeEach(async () => {
   await db.delete(runtimeLeases).where(like(runtimeLeases.key, "t4:%"));

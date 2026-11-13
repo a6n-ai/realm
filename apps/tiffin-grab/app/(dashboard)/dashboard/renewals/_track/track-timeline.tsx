@@ -3,7 +3,7 @@
 import { ArrowRightIcon, BellRingIcon, CalendarClockIcon, MailIcon, MessageCircleIcon, PhoneIcon, StickyNoteIcon, type LucideIcon } from "lucide-react";
 import { ActivityTimeline, type ActivityFilter } from "@/components/dashboard/pipeline/activity-timeline";
 import { trackLabel } from "@/lib/renewals/status";
-import type { TrackActivity } from "@/lib/services/renewal-tracking.service";
+import type { TrackActivity } from "@/lib/renewals/renewal-tracking.service";
 import { TRACK_LOOK } from "./track-status";
 
 // Categorical colours (raw palette with dark pair), matching the inquiry timeline's note and follow-up nodes.

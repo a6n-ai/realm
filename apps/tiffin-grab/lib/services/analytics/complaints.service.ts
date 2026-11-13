@@ -44,7 +44,7 @@ export type ComplaintKpis = {
  * Delivered tiffins in the filtered window — the denominator that makes
  * complaint volume comparable as the business grows.
  *
- * The predicate mirrors lib/services/tiffin-counts.ts `deliveredTiffinCount`
+ * The predicate mirrors lib/deliveries/tiffin-counts.ts `deliveredTiffinCount`
  * (scheduled AND confirmed delivered), re-expressed in SQL
  * because analytics aggregates over far too many rows to load them into memory.
  * That file stays the canonical definition; complaints-rate.test.ts asserts the

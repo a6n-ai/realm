@@ -16,7 +16,7 @@ vi.mock("@/lib/runtime/lease", () => ({
 vi.mock("@/lib/auth/session", () => ({ getSession: async () => session.current }));
 vi.mock("@/lib/payments/stripe", () => ({ appBaseUrl: () => "https://app.test" }));
 vi.mock("@/lib/payments/card-checkout-context", () => ({ customerSessionSecret: (...a: unknown[]) => sessionSecret(...a) }));
-vi.mock("@/lib/services/payment-stripe", () => ({
+vi.mock("@/lib/payments/payment-stripe", () => ({
   payByCard: (...a: unknown[]) => payByCard(...a),
   settleStripePayment: (...a: unknown[]) => settle(...a),
   abandonCardAttempt: (...a: unknown[]) => abandon(...a),

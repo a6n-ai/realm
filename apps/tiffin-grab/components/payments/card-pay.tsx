@@ -12,7 +12,7 @@ import { Button as BarButton } from "@/components/customer/kit";
 import { Skeleton } from "@foundry/ui/skeleton";
 import type { CardCheckoutContext } from "@/lib/payments/card-checkout-context";
 import { stripeAppearance } from "@/lib/payments/stripe-appearance";
-import type { CardSource, PayByCardResult } from "@/lib/services/payment-stripe";
+import type { CardSource, PayByCardResult } from "@/lib/payments/payment-stripe";
 import { CardDialog, ErrorAlert, SurchargeConfirm } from "./card-dialog";
 import { TrustLine } from "./trust-line";
 import { ReceiptPrinter, type Receipt } from "./receipt-printer";

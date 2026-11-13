@@ -4,7 +4,7 @@ import { organization } from "./organizations";
 
 // One row per closed day per organization. Deliveries on that date are paused and tagged
 // (deliveries.holiday_id) and an ordinary delivery per eating day is added at plan end
-// (lib/services/holiday-apply.ts). A past-dated row may exist for display only.
+// (lib/deliveries/holiday-apply.ts). A past-dated row may exist for display only.
 export const holidays = pgTable("holidays", {
   ...updatableColumns("hol"),
   organizationId: text("organization_id").notNull().references(() => organization.id),

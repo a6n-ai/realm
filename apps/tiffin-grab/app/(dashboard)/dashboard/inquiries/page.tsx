@@ -33,7 +33,7 @@ import { InquiriesList, InquiriesListSkeleton } from "./inquiries-list";
 import { NextLeadsGrid, leadScope } from "./next-leads-grid";
 import { RECOMMENDATION_LIMIT, RecommendationGridSkeleton } from "@/components/dashboard/next-item/recommendation-grid";
 import { NextRenewalsGrid } from "./next-renewals-grid";
-import { recommendedRenewals } from "@/lib/services/next-renewal.service";
+import { recommendedRenewals } from "@/lib/renewals/next-renewal.service";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import { reassignInquiry } from "./actions";
 import { SUB_STATUSES, SUB_STATUS_META } from "@/lib/inquiries/status";

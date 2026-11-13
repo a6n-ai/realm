@@ -11,7 +11,7 @@ import { Alert, AlertAction, AlertDescription } from "@/components/reui/alert";
 import { Button } from "@/components/customer/kit";
 import { Skeleton } from "@foundry/ui/skeleton";
 import type { CardCheckoutContext } from "@/lib/payments/card-checkout-context";
-import type { CardSource } from "@/lib/services/payment-stripe";
+import type { CardSource } from "@/lib/payments/payment-stripe";
 import type { PayOutcome } from "./card-pay";
 import { TrustLine } from "./trust-line";
 

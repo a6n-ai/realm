@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render as rtlRender, screen, within } from "@testing-library/react";
 import { TimezoneProvider } from "@foundry/design-system/timezone-provider";
 import { TooltipProvider } from "@foundry/ui/tooltip";
-import type { RenewalRow } from "@/lib/services/renewals.service";
+import type { RenewalRow } from "@/lib/renewals/renewals.service";
 import { RenewalsQueueList } from "./renewals-queue-list";
 vi.mock("../renewals/actions", () => ({
   setTrackStatusAction: vi.fn(async () => ({ ok: true })),

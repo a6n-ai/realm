@@ -15,7 +15,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/reui/alert";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
 import { StatCardsSkeleton } from "@/components/dashboard/stat-cards";
 import { PageShell, PageHeader, SectionCard, PageSkeleton, DataTableSkeleton } from "@/components/ds";
-import { parseWeekParam } from "@/lib/deliveries-view/week";
+import { parseWeekParam } from "@/lib/deliveries/view/week";
 import { GlanceCard } from "./_overview/glance-card";
 import { ServiceCard } from "./_overview/service-card";
 import { NeedsActionCard } from "./_overview/needs-action-card";

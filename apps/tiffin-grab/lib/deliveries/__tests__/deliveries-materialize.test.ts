@@ -1,0 +1,238 @@
+import { beforeAll, afterAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { eq } from "drizzle-orm";
+import { cutoffMsFor, nextWeekday, ValidationError } from "@foundry/commons";
+
+vi.mock("@/lib/auth", () => ({ auth: async () => null }));
+
+const { db } = await import("@/db/client");
+const { deleteNonSystemUsers } = await import("@/db/test-helpers");
+const { deliveries, deliveryFrequencies, ledgerEntries, orderActivities, orders, payments } = await import("@/db/schema");
+const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
+const { getAppSettings } = await import("../../services/app-settings.service");
+const { materializeDeliveries } = await import("../deliveries.service");
+const { createOrder } = await import("../../orders/create-order");
+const { ordersService } = await import("../../orders/orders.service");
+const { allowWeekendMeals } = await import("../../services/__tests__/trip-fixture");
+
+async function reset() {
+  await db.delete(deliveries);
+  await db.delete(ledgerEntries);
+  await db.delete(orderActivities);
+  await db.delete(payments);
+  await db.delete(orders);
+  await deleteNonSystemUsers();
+  await db.update(deliveryFrequencies).set({ daysPerWeek: 5 }).where(eq(deliveryFrequencies.key, "5_day"));
+}
+
+async function makeOrder(opts: {
+  durationWeeks: number;
+  persons: number;
+  frequencyKey: string;
+  includeSaturday?: boolean;
+  includeSunday?: boolean;
+  eatingDays?: ("mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun")[];
+}) {
+  const snap = await loadCatalogSnapshot();
+  const { publicId } = await createOrder({
+    planKey: snap.plans[0].key,
+    selections: {
+      mealSizeId: snap.mealSizes[0].publicId,
+      frequencyKey: opts.frequencyKey as "5_day" | "mwf",
+      persons: opts.persons,
+      mealSlots: ["lunch"],
+      includeSaturday: opts.includeSaturday ?? false,
+      includeSunday: opts.includeSunday ?? false,
+      eatingDays: opts.eatingDays,
+      durationWeeks: opts.durationWeeks,
+      startDate: nextWeekday(new Date()).toISOString().slice(0, 10),
+    },
+    // M5V is a seeded Toronto zone (zon_toronto: M4/M5/M6) — this order lands "active".
+    contact: { email: `u${Math.random().toString(36).slice(2)}@test.invalid`,  fullName: "A B", phone: "+16475550111", addressLine: "1 St", city: "Toronto", postalCode: "M5V 2T6" },
+  });
+  const [o] = await db.select().from(orders).where(eq(orders.publicId, publicId));
+  return o;
+}
+
+// K1A (Ottawa) matches no seeded zone (only M*/L* prefixes are seeded), so
+// createOrder's zoneRow is null and the order lands genuinely "waitlisted"
+// with zero delivery rows — the precondition activate() is meant to handle.
+async function makeWaitlistedOrder(opts: { durationWeeks: number; persons: number; frequencyKey: string }) {
+  const snap = await loadCatalogSnapshot();
+  const { publicId } = await createOrder({
+    planKey: snap.plans[0].key,
+    selections: {
+      mealSizeId: snap.mealSizes[0].publicId,
+      frequencyKey: opts.frequencyKey as "5_day" | "mwf",
+      persons: opts.persons,
+      mealSlots: ["lunch"],
+      includeSaturday: false,
+      includeSunday: false,
+      durationWeeks: opts.durationWeeks,
+      startDate: nextWeekday(new Date()).toISOString().slice(0, 10),
+    },
+    contact: { email: `u${Math.random().toString(36).slice(2)}@test.invalid`,  fullName: "Wait List", phone: "+16475550112", addressLine: "1 Rideau St", city: "Ottawa", postalCode: "K1A 0A1" },
+  });
+  const [o] = await db.select().from(orders).where(eq(orders.publicId, publicId));
+  return o;
+}
+
+
+beforeAll(allowWeekendMeals);
+describe("materializeDeliveries (integration)", () => {
+  beforeEach(reset);
+  afterAll(reset);
+
+  it("creates exactly N rows where N = durationWeeks * deliveryDays.length", async () => {
+    const o = await makeOrder({ durationWeeks: 2, persons: 1, frequencyKey: "5_day" });
+    // createOrder already materializes for a zone-matched (active) order — clear it
+    // so this test proves materializeDeliveries' own row count, not createOrder's hook.
+    await db.delete(deliveries).where(eq(deliveries.orderId, o.id));
+    const n = await db.transaction((tx) => materializeDeliveries(tx, o));
+    expect(n).toBe(10);
+    const rows = await db.select().from(deliveries).where(eq(deliveries.orderId, o.id));
+    expect(rows.length).toBe(10);
+    expect(rows.every((r) => r.status === "scheduled" && r.makeupForDeliveryId === null)).toBe(true);
+  });
+
+  it("N is drops, not tiffins: persons does not multiply rows", async () => {
+    const o = await makeOrder({ durationWeeks: 2, persons: 3, frequencyKey: "5_day" });
+    await db.delete(deliveries).where(eq(deliveries.orderId, o.id));
+    const n = await db.transaction((tx) => materializeDeliveries(tx, o));
+    expect(n).toBe(10); // drops
+    expect(n * o.persons).toBe(o.tiffinCount); // 30 tiffins
+  });
+
+  it("is idempotent", async () => {
+    const o = await makeOrder({ durationWeeks: 1, persons: 1, frequencyKey: "5_day" });
+    // Order is already materialized by createOrder's hook (zone-matched) — a
+    // second call must be a no-op.
+    const again = await db.transaction((tx) => materializeDeliveries(tx, o));
+    expect(again).toBe(0);
+    const rows = await db.select().from(deliveries).where(eq(deliveries.orderId, o.id));
+    expect(rows.length).toBe(5);
+  });
+
+  it("snapshots cutoff_at as the day-before cutoff in the app timezone", async () => {
+    const { timezone, cutoffHour } = await getAppSettings();
+    const o = await makeOrder({ durationWeeks: 1, persons: 1, frequencyKey: "5_day" });
+    const rows = await db.select().from(deliveries).where(eq(deliveries.orderId, o.id));
+    expect(rows.length).toBeGreaterThan(0);
+    for (const r of rows) expect(r.cutoffAt).toBe(cutoffMsFor(r.deliveryDate, cutoffHour, timezone));
+  });
+
+  it("throws when the frequency's daysPerWeek disagrees with orderDeliveryDays()", async () => {
+    // Create the order while daysPerWeek is still consistent (5), then tamper it
+    // to 4 after the fact — createOrder's own in-tx materialization must not be
+    // the thing under test here, only the direct call below.
+    const o = await makeOrder({ durationWeeks: 1, persons: 1, frequencyKey: "5_day" });
+    await db.delete(deliveries).where(eq(deliveries.orderId, o.id));
+    await db.update(deliveryFrequencies).set({ daysPerWeek: 4 })
+      .where(eq(deliveryFrequencies.key, "5_day"));
+    await expect(db.transaction((tx) => materializeDeliveries(tx, o))).rejects.toBeInstanceOf(ValidationError);
+  });
+
+  it("does not throw for a 5-day frequency with includeSaturday: weekend days are excluded from the daysPerWeek check", async () => {
+    // WEEKEND exclusion: base 5 weekdays + sat = 6 "days"/week for pricing purposes, but
+    // baseDays (weekdays only) is still 5, matching the "5_day" frequency's daysPerWeek.
+    const o = await makeOrder({ durationWeeks: 1, persons: 1, frequencyKey: "5_day", includeSaturday: true });
+    const rows = await db.select().from(deliveries).where(eq(deliveries.orderId, o.id));
+    // No physical Saturday route — the weekend day bundles onto Friday's row instead of
+    // getting its own (see the next test), so this is 5 rows, not 6.
+    expect(rows.length).toBe(5);
+  });
+
+  it("bundles a Saturday add-on into the preceding Friday's row instead of creating a standalone Saturday row", async () => {
+    const o = await makeOrder({ durationWeeks: 1, persons: 1, frequencyKey: "5_day", includeSaturday: true });
+    const rows = await db.select().from(deliveries).where(eq(deliveries.orderId, o.id));
+    expect(rows.length).toBe(5); // mon-fri only, no separate sat row
+    const bundled = rows.filter((r) => r.tiffinUnits > 1);
+    expect(bundled.length).toBe(1);
+    expect(bundled[0].tiffinUnits).toBe(2); // Friday's own unit + Saturday's
+    expect(rows.filter((r) => r.tiffinUnits === 1).length).toBe(4);
+  });
+
+  it("bundles both Saturday and Sunday add-ons into the same Friday row", async () => {
+    const o = await makeOrder({
+      durationWeeks: 1, persons: 1, frequencyKey: "5_day", includeSaturday: true, includeSunday: true,
+    });
+    const rows = await db.select().from(deliveries).where(eq(deliveries.orderId, o.id));
+    expect(rows.length).toBe(5); // still just mon-fri
+    const bundled = rows.filter((r) => r.tiffinUnits > 1);
+    expect(bundled.length).toBe(1);
+    expect(bundled[0].tiffinUnits).toBe(3); // Friday + Saturday + Sunday
+  });
+
+  it("scales the bundled Friday's units by persons, same as any other row", async () => {
+    const o = await makeOrder({ durationWeeks: 1, persons: 2, frequencyKey: "5_day", includeSaturday: true });
+    const rows = await db.select().from(deliveries).where(eq(deliveries.orderId, o.id));
+    expect(rows.length).toBe(5);
+    const bundled = rows.filter((r) => r.tiffinUnits > 2);
+    expect(bundled.length).toBe(1);
+    expect(bundled[0].tiffinUnits).toBe(4); // (Friday + Saturday) * 2 persons
+    expect(rows.filter((r) => r.tiffinUnits === 2).length).toBe(4);
+  });
+});
+
+describe("activate() wiring (integration)", () => {
+  beforeEach(reset);
+  afterAll(reset);
+
+  it("materializes deliveries through the real activate() service call, not just materializeDeliveries directly", async () => {
+    const o = await makeWaitlistedOrder({ durationWeeks: 2, persons: 1, frequencyKey: "5_day" });
+    expect(o.status).toBe("waitlisted");
+    const zero = await db.select().from(deliveries).where(eq(deliveries.orderId, o.id));
+    expect(zero.length).toBe(0);
+
+    await ordersService.activate(o.publicId);
+
+    const { timezone, cutoffHour } = await getAppSettings();
+    const rows = await db.select().from(deliveries).where(eq(deliveries.orderId, o.id));
+    expect(rows.length).toBe(10); // 2 weeks * 5 days
+    expect(rows.every((r) => r.status === "scheduled" && r.makeupForDeliveryId === null)).toBe(true);
+    for (const r of rows) expect(r.cutoffAt).toBe(cutoffMsFor(r.deliveryDate, cutoffHour, timezone));
+
+    // Second activate() must hit the waitlisted-only guard and leave the rows untouched.
+    await expect(ordersService.activate(o.publicId)).rejects.toBeInstanceOf(ValidationError);
+    const rowsAfter = await db.select().from(deliveries).where(eq(deliveries.orderId, o.id));
+    expect(rowsAfter.length).toBe(10);
+  });
+
+  it("is atomic: a materialization failure rolls back the status flip (order stays waitlisted, zero deliveries)", async () => {
+    const o = await makeWaitlistedOrder({ durationWeeks: 1, persons: 1, frequencyKey: "5_day" });
+    // Force materializeDeliveries' daysPerWeek assertion to throw inside activate()'s tx.
+    await db.update(deliveryFrequencies).set({ daysPerWeek: 4 }).where(eq(deliveryFrequencies.key, "5_day"));
+
+    await expect(ordersService.activate(o.publicId)).rejects.toBeInstanceOf(ValidationError);
+
+    const [after] = await db.select().from(orders).where(eq(orders.id, o.id));
+    expect(after.status).toBe("waitlisted");
+    const rows = await db.select().from(deliveries).where(eq(deliveries.orderId, o.id));
+    expect(rows.length).toBe(0);
+  });
+
+  it("eating days ride the nearest earlier delivery day (MWF, 7 eating days)", async () => {
+    const o = await makeOrder({ durationWeeks: 2, persons: 1, frequencyKey: "mwf", eatingDays: ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] });
+    expect(o.tiffinCount).toBe(14);
+    const rows = await db.select().from(deliveries).where(eq(deliveries.orderId, o.id));
+    expect(rows).toHaveLength(6);
+    expect(rows.reduce((n, r) => n + r.tiffinUnits, 0)).toBe(14);
+    expect(rows.map((r) => r.tiffinUnits).sort()).toEqual([2, 2, 2, 2, 3, 3]);
+  });
+
+  it("legacy orders (no eating days) leave covers_dates NULL", async () => {
+    const o = await makeOrder({ durationWeeks: 1, persons: 1, frequencyKey: "5_day" });
+    const rows = await db.select().from(deliveries).where(eq(deliveries.orderId, o.id));
+    expect(rows.length).toBeGreaterThan(0);
+    expect(rows.every((r) => r.coversDates === null)).toBe(true);
+  });
+
+  it("eating-days orders carry coverage with units == covered days x persons", async () => {
+    const o = await makeOrder({ durationWeeks: 1, persons: 2, frequencyKey: "mwf", eatingDays: ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] });
+    const rows = await db.select().from(deliveries).where(eq(deliveries.orderId, o.id));
+    for (const r of rows) {
+      expect(r.coversDates).not.toBeNull();
+      expect(r.tiffinUnits).toBe(r.coversDates!.length * 2);
+      expect(r.coversDates).toContain(r.deliveryDate);
+    }
+  });
+});

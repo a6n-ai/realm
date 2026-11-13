@@ -6,7 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import { applyMyDeliverySwap, loadMySwapOptions, removeMyDeliverySwap } from "@/app/(customer)/me/deliveries/actions";
 import { Button, Chip, Notice, Reason, Segmented, Sheet, Skeleton, panelId } from "@/components/customer/kit";
 import { cn } from "@/components/customer/kit/cn";
-import { actionAvailability, humanDate } from "@/lib/deliveries-view";
+import { actionAvailability, humanDate } from "@/lib/deliveries/view";
 import type { SwapOption } from "@/lib/menu/meal-validation";
 import { swapLabel } from "@/lib/menu/swap-rules";
 import type { ResolvedCategory } from "@/lib/menu/resolve-delivery-meal";

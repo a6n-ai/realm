@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { NotFoundError } from "@foundry/commons";
 import { handler } from "@foundry/routes";
-import { listPayments } from "@/lib/services/payments-list.service";
+import { listPayments } from "@/lib/payments/payments-list.service";
 import { methodLabel } from "@/lib/payments/facets";
 import { paymentStatusLabel } from "@/lib/payments/status";
 import { db } from "@/db/client";

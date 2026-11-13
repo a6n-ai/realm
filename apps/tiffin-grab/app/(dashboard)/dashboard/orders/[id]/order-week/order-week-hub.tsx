@@ -12,9 +12,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@foundry/ui/card";
 import { cn } from "@foundry/ui/cn";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@foundry/ui/dialog";
 import { pauseMyDays, releaseMyDays } from "@/app/(customer)/me/deliveries/actions";
-import { actionAvailability, humanDate, type Trip, type TripAction } from "@/lib/deliveries-view/index";
-import { dayNote, deliveryLine, eatingRowsInWeek, isAddressRow, moveNotes, weekdayShort, type EatingRow } from "@/lib/deliveries-view/eating";
-import type { OrderWeek } from "@/lib/services/order-week.service";
+import { actionAvailability, humanDate, type Trip, type TripAction } from "@/lib/deliveries/view";
+import { dayNote, deliveryLine, eatingRowsInWeek, isAddressRow, moveNotes, weekdayShort, type EatingRow } from "@/lib/deliveries/view/eating";
+import type { OrderWeek } from "@/lib/orders/order-week.service";
 import { dedupeDishes, MealTiles, mealCategories, moveChips, rowMeta, splitMealAddons, tiffins } from "@/components/customer/deliveries/trip-parts";
 import { OrderStatusBadge } from "@/components/ds/index";
 import { boxStatus, OrderMonthCalendar } from "./order-month-calendar";
@@ -29,7 +29,7 @@ import { pausedLine, resumeLine } from "@/components/customer/deliveries/pause-c
 import { PickSheet } from "@/components/customer/deliveries/actions/pick-sheet";
 import { ADMIN_SHEET_UI } from "./admin-sheet-ui";
 import { PauseSheet } from "@/components/customer/deliveries/actions/pause-sheet";
-import { deliveryAddress } from "@/lib/deliveries-view/current-address";
+import { deliveryAddress } from "@/lib/deliveries/view/current-address";
 import { addDaysIso, mondayOfIso } from "@foundry/commons/util/dates";
 
 type Dlg = "reschedule" | "info" | "address" | "pick" | null;

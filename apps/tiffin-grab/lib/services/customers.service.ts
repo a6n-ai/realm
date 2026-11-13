@@ -19,7 +19,7 @@ import { MENU_REMINDER_KEY } from "@/lib/notifications/menu-reminder";
 import type { SortState } from "@foundry/design-system/list-sort";
 import { auth } from "@/lib/auth";
 import { createCustomerInviteUrl, sendCustomerInviteLink } from "@/lib/auth/invite-links";
-import { ledgerService } from "./ledger.service";
+import { ledgerService } from "../payments/ledger.service";
 import { displayName } from "@/lib/inquiries/display";
 import { appOrigin } from "@/lib/runtime/env";
 

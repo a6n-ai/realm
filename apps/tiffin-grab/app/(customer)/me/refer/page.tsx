@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { currentUserId } from "@/lib/services/session-service";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { getReferralSummary } from "@/lib/services/referrals.service";
-import { walletService } from "@/lib/services/wallet.service";
+import { walletService } from "@/lib/wallet/wallet.service";
 import { PageHeader } from "@/components/customer/kit";
 import { ReferView } from "@/components/customer/refer/refer-view";
 import { ReferSkeleton } from "@/components/customer/refer/refer-skeleton";

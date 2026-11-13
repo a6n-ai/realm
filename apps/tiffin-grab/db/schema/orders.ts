@@ -61,7 +61,7 @@ export const orders = pgTable("orders", {
   // persons). Kept apart from tiffin_count so pricing and Bills never see them as paid.
   complimentaryTiffins: integer("complimentary_tiffins").notNull().default(0),
   // Customer switch in the pause drawer: a paused day past its cutoff moves to the first free
-  // plan weekday after the last delivery (lib/services/pause-auto-move.ts). Off: it waits as a hold.
+  // plan weekday after the last delivery (lib/deliveries/pause-auto-move.ts). Off: it waits as a hold.
   autoMovePaused: boolean("auto_move_paused").notNull().default(false),
   perTiffinPrice: numeric("per_tiffin_price", { precision: 10, scale: 2 }).notNull(),
   pricingSnapshot: jsonb("pricing_snapshot").notNull(),

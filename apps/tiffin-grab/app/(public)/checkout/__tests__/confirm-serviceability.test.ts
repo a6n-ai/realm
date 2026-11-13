@@ -16,7 +16,7 @@ let matchZoneResult: { name: string } | null = null;
 
 vi.mock("@/lib/catalog/load", () => ({ loadCatalogSnapshot: async () => ({ zones: [] }) }));
 vi.mock("@/lib/catalog/zone-match", () => ({ findZone: async () => matchZoneResult }));
-vi.mock("@/lib/services/orders.service", () => ({
+vi.mock("@/lib/orders/orders.service", () => ({
   assertOnePerson: () => {},
   createOrder: (...a: unknown[]) => createOrder(...a),
 }));

@@ -3,7 +3,7 @@
 import { getSession } from "@/lib/auth/session";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import { currentUserId } from "@/lib/services/session-service";
-import { moveMissedDelivery, reconcileMissedDeliveries } from "@/lib/services/missed-deliveries.service";
+import { moveMissedDelivery, reconcileMissedDeliveries } from "@/lib/deliveries/missed-deliveries.service";
 import type { ActionResult } from "@/lib/actions/action-result";
 import { staffAction } from "@/lib/actions/staff-action";
 import { orderAction } from "@/lib/actions/order-action";

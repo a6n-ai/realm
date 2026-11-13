@@ -8,7 +8,7 @@ import { BackLink } from "@/components/customer/support/parts";
 import { NewTicketForm, NewTicketFormSkeleton } from "@/components/customer/support/new-ticket-form";
 import { SupportHoursSlot } from "@/components/customer/support/support-hours";
 import { TICKET_CATEGORIES } from "@/lib/support/ticket-taxonomy";
-import { humanDate } from "@/lib/deliveries-view";
+import { humanDate } from "@/lib/deliveries/view";
 
 type SearchParams = Promise<{ orderId?: string; date?: string }>;
 

@@ -7,7 +7,7 @@ import { requirePermission } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
-import { getCustomerRenewal } from "@/lib/services/renewals.service";
+import { getCustomerRenewal } from "@/lib/renewals/renewals.service";
 import { RenewalActions, RenewalSections } from "./renewal-body";
 import { requestNow } from "@/lib/dates/request-now";
 

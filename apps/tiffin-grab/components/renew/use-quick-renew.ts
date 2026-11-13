@@ -5,7 +5,7 @@ import { reprice } from "@/app/(public)/subscribe/actions";
 import { dropOffCatalog, validDropOff } from "@/lib/catalog/drop-off";
 import { offeredAddons, type WizardSelections } from "@/lib/wizard/selections";
 import { formatDateOnly } from "@/lib/format/datetime";
-import { appToday, firstStartOnOrAfter, planStartDays } from "@/lib/services/start-date";
+import { appToday, firstStartOnOrAfter, planStartDays } from "@/lib/orders/start-date";
 import type { PricingResult } from "@/lib/pricing";
 import type { QuickRenewData } from "@/lib/renewals/quick-renew-types";
 import { utcIso } from "@foundry/commons/util/dates";

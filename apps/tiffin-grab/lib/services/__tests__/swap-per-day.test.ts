@@ -7,9 +7,9 @@ vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 const { db } = await import("@/db/client");
 const { deliveries, deliveryCategorySwaps, ledgerEntries, orders, payments, users } = await import("@/db/schema");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
-const { createOrder } = await import("../create-order");
+const { createOrder } = await import("../../orders/create-order");
 const { applyDeliverySwap, removeDeliverySwap } = await import("../category-swaps.service");
-const { myCalendar } = await import("../customer-deliveries.service");
+const { myCalendar } = await import("../../deliveries/customer-deliveries.service");
 
 const createdOrderIds: bigint[] = [];
 const createdUserIds: bigint[] = [];

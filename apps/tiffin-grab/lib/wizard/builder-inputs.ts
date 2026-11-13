@@ -1,8 +1,8 @@
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { toClientCatalog, type ClientCatalogSnapshot } from "@/lib/catalog/types";
-import { checkoutHolidayDates } from "@/lib/services/holidays.service";
+import { checkoutHolidayDates } from "@/lib/deliveries/holidays.service";
 import { popularMealSizesByPlan } from "@/lib/services/popular-meal-sizes.service";
-import { appToday, earliestPlanStart, planStartDays } from "@/lib/services/start-date";
+import { appToday, earliestPlanStart, planStartDays } from "@/lib/orders/start-date";
 import { getTrialSettings } from "@/lib/services/trial-settings.service";
 import type { WizardSelections } from "@/lib/wizard/selections";
 

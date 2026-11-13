@@ -37,7 +37,7 @@ import { updateSavedAddress } from "@/app/(customer)/me/account/address-actions"
 import type { CardCheckoutContext } from "@/lib/payments/card-checkout-context";
 import { TOTAL_CHANGED } from "@/lib/payments/total-changed";
 import { billingAddress, e164 } from "@/lib/payments/billing-address";
-import type { CardSource } from "@/lib/services/payment-stripe";
+import type { CardSource } from "@/lib/payments/payment-stripe";
 import { createWebsiteInquiry } from "@/app/(marketing)/contact/actions";
 import { toast } from "sonner";
 import { emailSchema, phoneSchema } from "@foundry/commons";

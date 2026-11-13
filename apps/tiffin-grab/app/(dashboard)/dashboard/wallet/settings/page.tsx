@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { latestCoinRateValue } from "@/lib/services/wallet-balances.service";
+import { latestCoinRateValue } from "@/lib/wallet/wallet-balances.service";
 import {
   getAppSettings,
   getCoinEarnPct,

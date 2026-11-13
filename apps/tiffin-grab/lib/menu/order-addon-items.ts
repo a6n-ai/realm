@@ -3,7 +3,7 @@ import { db } from "@/db/client";
 import { addons as addonCatalog, dishCategories, orderAddons, plans } from "@/db/schema";
 import { slotRowsAfterSwaps, type MealSizeItemRow, type PortionSwap } from "./pick-size";
 import { formatTuHuman, isCountCategory, type TuCategory } from "./format-tu";
-import type { SubscriptionAddon } from "@/lib/services/customer-deliveries.service";
+import type { SubscriptionAddon } from "@/lib/deliveries/customer-deliveries.service";
 
 /**
  * Catalog add-ons as extra rows in every tiffin. Each qty of an order's add-on is one

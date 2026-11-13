@@ -1,0 +1,75 @@
+import { buildTrips } from "@/lib/deliveries/view";
+import { describe, expect, it } from "vitest";
+import { buildPlanContext, pickDefaultTrip, planLines, renewDays, toCalendarInputs } from "@/lib/deliveries/view/adapter";
+
+const counts = { total: 20, complimentary: 0, delivered: 4, remaining: 16, scheduled: 16, unscheduled: 0, persons: 1, lastDeliveryDate: "2026-10-02", deliveryWeekdays: ["mon", "wed", "fri"] };
+const day = (date: string, o: Record<string, unknown> = {}) => ({
+  date, status: "scheduled" as const, locked: false, isMakeup: false, menuWeekId: null, meal: null, options: [],
+  units: 1, covers: [date], coversLabel: null, combinedInto: null, eatingDays: [{ date, appliedSwaps: [], swapPairs: [] }], ...o,
+});
+const row = (publicId: string, deliveryDate: string, o: Record<string, unknown> = {}) => ({ publicId, id: BigInt(publicId.length), deliveryDate, cutoffAt: 1_000, deliveryStrategyPublicIds: [], optimoCompletionStatus: null, ...o });
+
+describe("toCalendarInputs", () => {
+  it("joins delivery rows by date: id, cutoff, rescheduled (has make-up)", () => {
+    const out = toCalendarInputs({
+      days: [day("2026-09-23"), day("2026-09-25", { status: "skipped" })],
+      rows: [row("a", "2026-09-23"), row("b", "2026-09-25", { id: 7n })],
+      makeupSources: new Set(["7"]),
+      categoryLabels: {},
+    });
+    expect(out[0]).toMatchObject({ deliveryId: "a", cutoffAt: 1_000, rescheduled: false });
+    expect(out[1]).toMatchObject({ deliveryId: "b", rescheduled: true });
+  });
+  it("maps meals by date and labelled swaps per eating day", () => {
+    const meal = [{ label: "Curry", picks: [{ name: "Paneer" }], quantity: 1 }];
+    const out = toCalendarInputs({
+      days: [
+        day("2026-09-25", { covers: ["2026-09-25", "2026-09-26"], eatingDays: [
+          { date: "2026-09-25", appliedSwaps: [], swapPairs: [] },
+          { date: "2026-09-26", appliedSwaps: [{ publicId: "s", fromCategory: "rice", toCategory: "roti", qtyFrom: 1, qtyTo: 4 }], swapPairs: [] },
+        ] }),
+        day("2026-09-26", { meal, combinedInto: "2026-09-25" }),
+      ],
+      rows: [row("a", "2026-09-25"), row("b", "2026-09-26")],
+      makeupSources: new Set(),
+      categoryLabels: { rice: "Rice", roti: "Roti" },
+    });
+    expect(out[0]!.mealsByDate!["2026-09-26"]).toBe(meal);
+    expect(out[0]!.appliedSwaps!["2026-09-26"]).toEqual([{ label: "1 Rice → 4 Roti" }]);
+  });
+});
+
+describe("plan context", () => {
+  it("carries the delivery weekdays and last delivery", () => {
+    const ctx = buildPlanContext({ counts, cutoffHour: 18, timezone: "America/Toronto" });
+    expect(ctx).toMatchObject({ deliveryWeekdays: ["mon", "wed", "fri"], lastDeliveryDate: "2026-10-02" });
+  });
+  it("renew countdown counts days from today to the last tiffin", () => {
+    expect(renewDays("2026-10-02", "2026-09-21")).toBe(11);
+    expect(renewDays(null, "2026-09-21")).toBeNull();
+    expect(renewDays("2026-09-01", "2026-09-21")).toBe(0);
+  });
+});
+
+describe("pickDefaultTrip", () => {
+  const ctx = { cutoffHour: 18, timezone: "UTC", lastDeliveryDate: null, deliveryWeekdays: [] };
+  const trips = buildTrips([day("2026-09-21", { locked: true }), day("2026-09-23"), day("2026-09-25")].map((d) => ({ ...d, cutoffAt: d.date === "2026-09-21" ? 1 : Date.now() + 9e9 })), Date.now(), ctx);
+  it("honours ?trip when it exists", () => expect(pickDefaultTrip(trips, "2026-09-25")).toBe("2026-09-25"));
+  it("falls back to the next upcoming trip", () => expect(pickDefaultTrip(trips, "1999-01-01")).toBe("2026-09-23"));
+  it("empty is null", () => expect(pickDefaultTrip([], undefined)).toBeNull());
+});
+
+describe("planLines", () => {
+  const w = (first: string, last: string) => ({ first, last });
+  it("chains a renewal onto the plan it follows", () => {
+    const lines = planLines([{ publicId: "b" }, { publicId: "a" }], { a: w("2026-10-22", "2026-11-18"), b: w("2026-11-19", "2026-12-16") });
+    expect(lines.map((l) => l.map((s) => s.publicId))).toEqual([["a", "b"]]);
+  });
+  it("gives overlapping plans their own lines, each with its renewal", () => {
+    const lines = planLines(
+      [{ publicId: "lunch" }, { publicId: "dinner" }, { publicId: "lunch2" }, { publicId: "dinner2" }],
+      { lunch: w("2026-10-01", "2026-10-28"), dinner: w("2026-10-10", "2026-11-06"), lunch2: w("2026-10-29", "2026-11-25"), dinner2: w("2026-11-07", "2026-12-04") },
+    );
+    expect(lines.map((l) => l.map((s) => s.publicId))).toEqual([["lunch", "lunch2"], ["dinner", "dinner2"]]);
+  });
+});

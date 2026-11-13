@@ -7,7 +7,7 @@ import { TrackStatusBoard } from "../../_track/track-status";
 import { TrackNoteDialog, type TrackNoteKind } from "../../_track/track-note-dialog";
 import { TrackTimeline } from "../../_track/track-timeline";
 import { isClosedTrack } from "@/lib/renewals/status";
-import type { RenewalPlan } from "@/lib/services/renewals.service";
+import type { RenewalPlan } from "@/lib/renewals/renewals.service";
 
 /** One plan's tracking: status board, quick actions, and its activity log. */
 export function PlanTrack({ plan, customerPublicId, now }: { plan: RenewalPlan; customerPublicId: string; now: number }) {

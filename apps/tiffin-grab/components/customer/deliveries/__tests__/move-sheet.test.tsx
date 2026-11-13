@@ -2,8 +2,8 @@
 import "@testing-library/jest-dom/vitest";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { Trip } from "@/lib/deliveries-view";
-import type { PlanView } from "@/lib/deliveries-view/adapter";
+import type { Trip } from "@/lib/deliveries/view";
+import type { PlanView } from "@/lib/deliveries/view/adapter";
 import { MoveSheet } from "../actions/move-sheet";
 
 const a = vi.hoisted(() => ({ move: vi.fn() }));

@@ -6,13 +6,13 @@ import { db } from "@/db/client";
 import { users } from "@/db/schema";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
-import { expireUnpaidStripeOrders } from "@/lib/services/stripe-expiry";
+import { expireUnpaidStripeOrders } from "@/lib/payments/stripe-expiry";
 import { zonedDateIso } from "@foundry/commons";
 import { DeliveriesSkeleton } from "@/components/customer/deliveries/deliveries-skeleton";
 import { DeliveriesView } from "@/components/customer/deliveries/deliveries-view";
 import { NoPlan } from "@/components/customer/deliveries/no-plan";
-import { buildPlanContext, toCalendarInputs, type PlanView } from "@/lib/deliveries-view/adapter";
-import { buildTrips } from "@/lib/deliveries-view";
+import { buildPlanContext, toCalendarInputs, type PlanView } from "@/lib/deliveries/view/adapter";
+import { buildTrips } from "@/lib/deliveries/view";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { categoryPortionSlotsForMealSize, categoryPortionsForMealSize } from "@/lib/catalog/category-portions";
@@ -35,11 +35,11 @@ import {
   mySubscriptionWindows,
   myTiffinCounts,
   myWaitlistedSubscriptions,
-} from "@/lib/services/customer-deliveries.service";
+} from "@/lib/deliveries/customer-deliveries.service";
 import { stripeMethodAvailable } from "@/lib/payments/stripe";
 import { getClaimPaymentContextForOrder } from "@/lib/payments/verification";
-import { holidayNamesForUser } from "@/lib/services/holidays.service";
-import { defaultWeek, parseWeekParam, splitAgenda, type Agenda } from "@/lib/deliveries-view/week";
+import { holidayNamesForUser } from "@/lib/deliveries/holidays.service";
+import { defaultWeek, parseWeekParam, splitAgenda, type Agenda } from "@/lib/deliveries/view/week";
 import { addDaysIso, mondayOfIso } from "@foundry/commons/util/dates";
 import { requestNow } from "@/lib/dates/request-now";
 

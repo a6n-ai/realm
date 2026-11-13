@@ -8,7 +8,7 @@ import { loadCatalogSnapshot } from "@/lib/catalog/load";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 const { selectionsService } = await import("../selections.service");
-const { skipDelivery } = await import("@/lib/services/deliveries.service");
+const { skipDelivery } = await import("@/lib/deliveries/deliveries.service");
 
 const FUTURE_MONDAY = (() => {
   const d = new Date(Date.now() + 56 * 86400000);

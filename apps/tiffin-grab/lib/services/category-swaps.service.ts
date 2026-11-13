@@ -22,10 +22,10 @@ import { db } from "@/db/client";
 import { deliveryCategorySwaps, orderActivities, orders } from "@/db/schema";
 import { firstBrokenSwap, validateProposedSwap } from "@/lib/menu/meal-validation";
 import { coveredDates, swapAppliesTo } from "@/lib/menu/coverage";
-import { assertMutable, loadByPublicId, loadOrderIdByPublicId } from "./deliveries.service";
+import { assertMutable, loadByPublicId, loadOrderIdByPublicId } from "../deliveries/deliveries.service";
 import { dishCategoriesService } from "./dish-categories.service";
 import { loadCompositionContext } from "./swap-options.service";
-import { lockOrder } from "./order-lock";
+import { lockOrder } from "../orders/order-lock";
 
 export async function applyDeliverySwap(
   deliveryPublicId: string,

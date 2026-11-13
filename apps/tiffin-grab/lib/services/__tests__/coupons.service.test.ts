@@ -8,8 +8,8 @@ const { db } = await import("@/db/client");
 const { deleteNonSystemUsers } = await import("@/db/test-helpers");
 const { coupons, couponRedemptions, ledgerEntries, orders, payments, users } = await import("@/db/schema");
 const { couponsService } = await import("../coupons.service");
-const { ledgerService } = await import("../ledger.service");
-const { createOrder } = await import("../create-order");
+const { ledgerService } = await import("../../payments/ledger.service");
+const { createOrder } = await import("../../orders/create-order");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 
 type Coupon = typeof coupons.$inferSelect;

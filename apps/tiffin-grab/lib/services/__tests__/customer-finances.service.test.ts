@@ -8,8 +8,8 @@ import { loadCatalogSnapshot } from "@/lib/catalog/load";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
-const { createOrder } = await import("../create-order");
-const { ledgerService } = await import("../ledger.service");
+const { createOrder } = await import("../../orders/create-order");
+const { ledgerService } = await import("../../payments/ledger.service");
 const { myBillsPage, myMoneyLedgerPage } = await import("../customer-finances.service");
 const { loadReceipt } = await import("@/lib/billing/receipt");
 const { renderReceiptPdf } = await import("@/lib/billing/receipt-pdf");

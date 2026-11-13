@@ -3,11 +3,11 @@ import { ArrowDownLeft, ArrowUpRight, CalendarCheck, Check, House, Info, MapPin,
 import { Pill, Sheet, StatusDot, type Tone } from "@/components/customer/kit";
 import { STATUS_TONE, type DeliveryStatus } from "@/lib/deliveries/status";
 import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
-import { humanDate, isPastPause, type Trip } from "@/lib/deliveries-view";
-import { dayNote, deliveryLine, isDone, moveNotes, weekdayShort, type EatingRow } from "@/lib/deliveries-view/eating";
+import { humanDate, isPastPause, type Trip } from "@/lib/deliveries/view";
+import { dayNote, deliveryLine, isDone, moveNotes, weekdayShort, type EatingRow } from "@/lib/deliveries/view/eating";
 import { dateTimeFormat } from "@foundry/commons/util/intl-format";
-import type { PlanView } from "@/lib/deliveries-view/adapter";
-import type { SubscriptionAddon } from "@/lib/services/customer-deliveries.service";
+import type { PlanView } from "@/lib/deliveries/view/adapter";
+import type { SubscriptionAddon } from "@/lib/deliveries/customer-deliveries.service";
 import { isoToUtcDate } from "@foundry/commons/util/dates";
 
 const WD = dateTimeFormat("en-CA", { weekday: "short", timeZone: "UTC" });

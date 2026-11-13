@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { CalendarPlusIcon, CircleSlashIcon, SquareArrowOutUpRightIcon } from "lucide-react";
 import { Button } from "@foundry/ui/button";
 import { ResponsiveDialog, RowActionTooltipButton } from "@/components/ds";
-import { humanDate } from "@/lib/deliveries-view";
+import { humanDate } from "@/lib/deliveries/view";
 import { dismissHolidayDayAction, placeHolidayDayAction } from "./actions";
 import { DateInput } from "@/components/dashboard/date-fields";
 

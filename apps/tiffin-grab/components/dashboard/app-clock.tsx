@@ -2,7 +2,7 @@
 
 import { useTimezone } from "@foundry/design-system/timezone-provider";
 import { useNow } from "@/lib/hooks/use-now";
-import { cutoffNote, cutoffTime } from "@/lib/deliveries-view/cutoff";
+import { cutoffNote, cutoffTime } from "@/lib/deliveries/view/cutoff";
 
 // Live clock in the app-settings timezone, so staff in another zone (India) see
 // business time. Renders nothing until mounted: server and browser clocks differ,

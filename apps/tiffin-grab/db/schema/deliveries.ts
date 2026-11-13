@@ -22,7 +22,7 @@ export const deliveries = pgTable("deliveries", {
   // Saturday/Sunday delivery: a weekend add-on ships with the preceding Friday instead, so
   // that Friday's row carries the extra units (see materializeDeliveries). Every write path
   // sets this explicitly; the default exists only to keep the column safely NOT NULL.
-  // lib/services/tiffin-counts.ts sums this per row rather than assuming a flat persons
+  // lib/deliveries/tiffin-counts.ts sums this per row rather than assuming a flat persons
   // multiplier — that's what makes a bundled Friday count (and pool, on a miss) correctly.
   tiffinUnits: integer("tiffin_units").notNull().default(1),
   // ISO dates (YYYY-MM-DD, sorted) of the eating days this trip carries, INCLUDING its own
@@ -72,7 +72,7 @@ export const deliveries = pgTable("deliveries", {
   routeSyncedAt: bigint("route_synced_at", { mode: "number" }),
   // Proof-of-delivery confirmation, WRITTEN ONLY BY THE OPTIMOROUTE COMPLETION PULL.
   // Deliberately additive: today's cutoff-passed-and-still-scheduled assumption (see
-  // lib/services/tiffin-counts.ts) keeps deciding "delivered" for billing. A "success"
+  // lib/deliveries/tiffin-counts.ts) keeps deciding "delivered" for billing. A "success"
   // completion just records real-world confirmation alongside that assumption. A "failed"
   // completion is the one case that acts — see completions.ts, which flips the row to
   // skipped (reusing skipDelivery/reconcilePoolFromMisses) exactly as a manual skip would.
@@ -82,7 +82,7 @@ export const deliveries = pgTable("deliveries", {
   optimoCompletionNote: text("optimo_completion_note"),
   // Set on the row a holiday closed (the row stays on the closed date). It tells "we were
   // closed" from a customer pause or a hold: every pause rule skips it (CUSTOMER_PAUSED in
-  // lib/services/pause-state.ts). Status is `paused` for a declared holiday; a hold tagged
+  // lib/deliveries/pause-state.ts). Status is `paused` for a declared holiday; a hold tagged
   // after the fact keeps `skipped`.
   holidayId: bigint("holiday_id", { mode: "bigint" }).references(() => holidays.id),
   // Set on an ordinary delivery a holiday added at plan end: the closed row it stands in for.

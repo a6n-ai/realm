@@ -16,7 +16,7 @@ import { swapAppliesTo } from "@/lib/menu/coverage";
 import { categoryCountsFromItems } from "@/lib/menu/pick-size";
 import { addonItemsForOrder, countsWithoutAddons } from "@/lib/menu/order-addon-items";
 import type { SwapRow } from "@/lib/menu/swap-rules";
-import { assertMutable, loadByPublicId, loadOrderIdByPublicId } from "./deliveries.service";
+import { assertMutable, loadByPublicId, loadOrderIdByPublicId } from "../deliveries/deliveries.service";
 import { dishCategoriesService } from "./dish-categories.service";
 import { loadMealSizeItems } from "@/lib/menu/meal-size-items";
 

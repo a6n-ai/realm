@@ -15,9 +15,9 @@ const m = vi.hoisted(() => ({
 vi.mock("@/lib/auth/guards", () => ({ requirePermission: m.requirePermission }));
 vi.mock("@/lib/auth/session", () => ({ getSession: async () => ({}) }));
 vi.mock("@/lib/auth/visible-orgs", () => ({ resolveSessionVisibleOrgIds: async () => "all" }));
-vi.mock("@/lib/services/orders.service", () => ({ assertOrderVisible: m.assertOrderVisible }));
+vi.mock("@/lib/orders/orders.service", () => ({ assertOrderVisible: m.assertOrderVisible }));
 vi.mock("@/lib/notifications/renewal-reminder", () => ({ sendRenewalReminderNow: m.sendRenewalReminderNow }));
-vi.mock("@/lib/services/renewal-tracking.service", () => ({
+vi.mock("@/lib/renewals/renewal-tracking.service", () => ({
   setTrackStatus: m.setTrackStatus,
   addTrackNote: m.addTrackNote,
   logTrackActivity: m.logTrackActivity,

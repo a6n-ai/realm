@@ -5,8 +5,8 @@ import { vi } from "vitest";
 // `nextWeekday(new Date())`, which that rule refuses between the cutoff and UTC
 // midnight, so the wall clock is taken out of it here. app-today.test.ts and
 // start-date-cutoff.test.ts unmock this to test the real rule.
-vi.mock("@/lib/services/start-date", async (importOriginal) => {
-  const real = await importOriginal<typeof import("./lib/services/start-date")>();
+vi.mock("@/lib/orders/start-date", async (importOriginal) => {
+  const real = await importOriginal<typeof import("./lib/orders/start-date")>();
   return { ...real, appToday: (timezone?: string, _cutoffHour?: number, now?: number) => real.appToday(timezone, undefined, now) };
 });
 

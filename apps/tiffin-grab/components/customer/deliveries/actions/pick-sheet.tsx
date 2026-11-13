@@ -11,7 +11,7 @@ import {
 import { saveMyMealSelections, type PickItem } from "@/app/(customer)/me/meals/actions";
 import { panelId } from "@/components/customer/kit";
 import { useSheetUi } from "./sheet-ui";
-import { actionAvailability, humanDate } from "@/lib/deliveries-view";
+import { actionAvailability, humanDate } from "@/lib/deliveries/view";
 import type { GridCell } from "@/lib/menu/meals-grid";
 import type { SwapOption } from "@/lib/menu/meal-validation";
 import { foldProvisionalCells, previewOverride, previewPortions, previewSwapOptions, type ProvisionalSwap } from "@/lib/menu/pick-preview";

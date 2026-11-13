@@ -1,7 +1,7 @@
 import { isWeekend, parseIsoDateUtc } from "@foundry/commons";
 import type { CatalogAddon } from "@/lib/catalog/types";
 import type { DayOfWeek } from "@/lib/menu/delivery-days";
-import type { CreateOrderInput } from "@/lib/services/create-order";
+import type { CreateOrderInput } from "@/lib/orders/create-order";
 import type { DropOffValue } from "@/lib/catalog/drop-off";
 import type { OrderFormValues } from "./order-schema";
 import type { RepCouponInfo } from "./actions";

@@ -8,7 +8,7 @@ import { formatMoney } from "@foundry/commons";
 import { Button } from "@foundry/ui/button";
 import { Input } from "@foundry/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@foundry/ui/dialog";
-import type { ReconcileRow, SettleEffect } from "@/lib/services/payment-stripe";
+import type { ReconcileRow, SettleEffect } from "@/lib/payments/payment-stripe";
 import { reconcileAction, settleFromReconcileAction } from "./actions";
 import { utcIso, DAY_MS } from "@foundry/commons/util/dates";
 

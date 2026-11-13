@@ -1,6 +1,6 @@
-import type { Trip } from "@/lib/deliveries-view";
-import type { Agenda } from "@/lib/deliveries-view/week";
-import type { PlanView } from "@/lib/deliveries-view/adapter";
+import type { Trip } from "@/lib/deliveries/view";
+import type { Agenda } from "@/lib/deliveries/view/week";
+import type { PlanView } from "@/lib/deliveries/view/adapter";
 import type { SheetUi } from "./sheet-ui";
 
 /** Contract every action sheet implements. Mounted only while its action is active. */

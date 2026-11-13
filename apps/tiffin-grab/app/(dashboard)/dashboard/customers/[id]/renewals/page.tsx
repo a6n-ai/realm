@@ -3,7 +3,7 @@ import { RefreshCwIcon } from "lucide-react";
 import { zonedDateIso } from "@foundry/commons";
 import { EmptyState } from "@/components/ds";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
-import { getCustomerRenewal } from "@/lib/services/renewals.service";
+import { getCustomerRenewal } from "@/lib/renewals/renewals.service";
 import { RenewalActions, RenewalSections } from "../../../renewals/customers/[id]/renewal-body";
 import { loadViewer } from "../data";
 import { requestNow } from "@/lib/dates/request-now";

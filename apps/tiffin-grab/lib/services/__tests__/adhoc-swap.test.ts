@@ -9,7 +9,7 @@ vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 const { db } = await import("@/db/client");
 const { deliveries, deliveryCategorySwaps, dishCategories, ledgerEntries, mealSizeItems, mealSizes, orders, payments, plans, users } = await import("@/db/schema");
 const { loadCatalogSnapshot, invalidateCatalogSnapshot } = await import("@/lib/catalog/load");
-const { createOrder } = await import("../create-order");
+const { createOrder } = await import("../../orders/create-order");
 const { applyDeliverySwap } = await import("../category-swaps.service");
 const { dishCategoriesService } = await import("../dish-categories.service");
 const { loadCompositionContext } = await import("../swap-options.service");

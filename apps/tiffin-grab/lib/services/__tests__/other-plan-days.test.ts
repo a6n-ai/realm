@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 
 const { db } = await import("@/db/client");
 const { orders } = await import("@/db/schema");
-const { otherPlanDays } = await import("../order-window");
+const { otherPlanDays } = await import("../../orders/order-window");
 const { makeTripOrder, resetTrips } = await import("./trip-fixture");
 
 const DEP = "SUB-OTHERPLAN01";

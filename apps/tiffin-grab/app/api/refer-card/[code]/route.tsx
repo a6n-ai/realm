@@ -4,7 +4,7 @@ import { isReferralCodeShape, normalizeReferralCode } from "@/lib/referrals/cook
 import { friendOfferParts } from "@/lib/referrals/share";
 import { getAppSettings, getReferralSettings } from "@/lib/services/app-settings.service";
 import { findReferrerByCode } from "@/lib/services/referrals.service";
-import { walletService } from "@/lib/services/wallet.service";
+import { walletService } from "@/lib/wallet/wallet.service";
 import { siteOrigin } from "@/lib/runtime/env";
 
 // Public (see PUBLIC_API in proxy.ts): WhatsApp and other link-preview crawlers fetch it with no cookie.

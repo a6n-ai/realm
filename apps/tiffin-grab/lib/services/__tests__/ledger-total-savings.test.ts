@@ -5,7 +5,7 @@ vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 const { db } = await import("@/db/client");
 const { deleteNonSystemUsers } = await import("@/db/test-helpers");
 const { ledgerEntries, users } = await import("@/db/schema");
-const { ledgerService } = await import("../ledger.service");
+const { ledgerService } = await import("../../payments/ledger.service");
 
 async function reset() {
   await db.delete(ledgerEntries);

@@ -5,7 +5,7 @@ import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Button } from "@foundry/ui/button";
 import { ResponsiveDialog } from "@/components/ds";
-import { humanDate } from "@/lib/deliveries-view";
+import { humanDate } from "@/lib/deliveries/view";
 import type { DayOfWeek } from "@/lib/menu/delivery-days";
 import { projectedEndDate, tripsFor } from "@/lib/orders/bounded-deliveries";
 import { CANCEL_ORDER_COPY } from "../cancel-order-dialog";

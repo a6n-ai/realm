@@ -7,7 +7,7 @@ import { loadCatalogSnapshot } from "@/lib/catalog/load";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 const { getKitchenPackingSheet } = await import("../kitchen-packing-sheet.service");
-const { extraTiffinLabel } = await import("../delivery-extras");
+const { extraTiffinLabel } = await import("../../deliveries/delivery-extras");
 const { selectionsService } = await import("@/lib/menu/selections.service");
 
 const MONDAY = (() => {

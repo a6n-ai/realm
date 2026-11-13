@@ -8,7 +8,7 @@ const { deleteNonSystemUsers } = await import("@/db/test-helpers");
 const { orders, payments, orderActivities, ledgerEntries, deliveries, notificationOutbox } = await import("@/db/schema");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { nextWeekday } = await import("@foundry/commons");
-const { createOrder } = await import("@/lib/services/create-order");
+const { createOrder } = await import("@/lib/orders/create-order");
 const { sendRenewalReminders, sendRenewalReminderNow } = await import("../renewal-reminder");
 
 async function reset() {

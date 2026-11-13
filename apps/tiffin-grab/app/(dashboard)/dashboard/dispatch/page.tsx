@@ -9,7 +9,7 @@ import { getOptimoRouteStatus } from "@/lib/services/optimoroute/config";
 import { buildDayLedger } from "@/lib/services/optimoroute/ledger";
 import { HolidayBanner } from "@/components/dashboard/holiday-banner";
 import { getSession } from "@/lib/auth/session";
-import { holidaysOn } from "@/lib/services/holidays.service";
+import { holidaysOn } from "@/lib/deliveries/holidays.service";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import { PageShell, PageHeader, SectionCard } from "@/components/ds";
 import { DayHeader } from "./day-header";

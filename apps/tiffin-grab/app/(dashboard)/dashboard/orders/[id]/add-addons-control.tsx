@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { formatMoney } from "@foundry/commons";
 import { Button } from "@foundry/ui/button";
 import { makeImageThumbnail, ResponsiveDialog } from "@/components/ds";
-import type { AddonQuote } from "@/lib/services/order-addons.service";
+import type { AddonQuote } from "@/lib/orders/order-addons.service";
 import { addOrderAddonsAction, quoteOrderAddonsAction } from "./actions";
 
 export type AddonOption = { key: string; name: string; pricePerTiffin: number; maxQty: number; existingQty: number };

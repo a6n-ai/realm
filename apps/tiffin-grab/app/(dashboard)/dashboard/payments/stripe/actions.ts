@@ -6,8 +6,8 @@ import { db } from "@/db/client";
 import { orders, payments, stripeEvents } from "@/db/schema";
 import { getSession } from "@/lib/auth/session";
 import { currentUserId } from "@/lib/services/session-service";
-import { sendPaymentReminder } from "@/lib/services/payment-reminder";
-import { processStripeEvent } from "@/lib/services/stripe-webhook";
+import { sendPaymentReminder } from "@/lib/payments/payment-reminder";
+import { processStripeEvent } from "@/lib/payments/stripe-webhook";
 import {
   chargeSavedCardForPayment,
   reconcileStripe,
@@ -15,7 +15,7 @@ import {
   settleStripePayment,
   type ReconcileRow,
   type SettleOutcome,
-} from "@/lib/services/payment-stripe";
+} from "@/lib/payments/payment-stripe";
 import type { ActionResult } from "@/lib/actions/action-result";
 import { staffAction, type Guard } from "@/lib/actions/staff-action";
 import { orderAction } from "@/lib/actions/order-action";

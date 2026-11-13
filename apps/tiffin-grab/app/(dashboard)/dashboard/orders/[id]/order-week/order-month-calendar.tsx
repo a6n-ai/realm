@@ -9,7 +9,7 @@ import { EventCalendarNav } from "@foundry/design-system/event-calendar/event-ca
 import type { CalendarEvent } from "@foundry/design-system/event-calendar/event-calendar-types";
 import { LABEL_STATUS } from "@/lib/deliveries/label-status";
 import { STATUS_COLOR, STATUS_LABEL, deliveryTripState, type DeliveryStatus } from "@/lib/deliveries/status";
-import type { Agenda, AgendaDot } from "@/lib/deliveries-view/week";
+import type { Agenda, AgendaDot } from "@/lib/deliveries/view/week";
 import { addDaysIso, isoToLocalDate, localIso } from "@foundry/commons/util/dates";
 
 // The statuses staff set in the delivery status dropdown, which splits two the customer strip merges:

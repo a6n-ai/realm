@@ -11,10 +11,10 @@ vi.mock("@foundry/places", async (orig) => ({ ...(await orig<object>()), resolve
 const { db } = await import("@/db/client");
 const { deleteNonSystemUsers } = await import("@/db/test-helpers");
 const { customerAddresses, deliveries, ledgerEntries, orderActivities, orders, payments, subscriptionPauses, users } = await import("@/db/schema");
-const { pauseDays } = await import("@/lib/services/pause-days.service");
+const { pauseDays } = await import("@/lib/deliveries/pause-days.service");
 const { addressService } = await import("@/lib/services/addresses.service");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
-const { createOrder } = await import("@/lib/services/create-order");
+const { createOrder } = await import("@/lib/orders/create-order");
 const {
   setMyDeliveryAddress,
   clearMyDeliveryAddress,

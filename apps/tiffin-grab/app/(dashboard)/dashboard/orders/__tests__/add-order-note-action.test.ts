@@ -14,7 +14,7 @@ vi.mock("@/lib/auth/guards", () => ({
 }));
 vi.mock("@/lib/auth/session", () => ({ getSession: async () => ({}) }));
 vi.mock("@/lib/auth/visible-orgs", () => ({ resolveSessionVisibleOrgIds: async () => "all" }));
-vi.mock("@/lib/services/orders.service", () => ({ assertOrderVisible: m.assertOrderVisible, ordersService: {} }));
+vi.mock("@/lib/orders/orders.service", () => ({ assertOrderVisible: m.assertOrderVisible, ordersService: {} }));
 vi.mock("@/lib/services/session-service", async (importOriginal) => ({ ...(await importOriginal<object>()), currentUserId: m.currentUserId }));
 vi.mock("@/lib/revalidate", () => ({ revalidateOrder: m.revalidateOrder }));
 vi.mock("@/db/client", () => ({

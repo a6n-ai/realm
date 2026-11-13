@@ -8,7 +8,7 @@ const { db } = await import("@/db/client");
 const { deleteNonSystemUsers } = await import("@/db/test-helpers");
 const { deliveries, ledgerEntries, orderActivities, orders, payments, users } = await import("@/db/schema");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
-const { createOrder } = await import("../create-order");
+const { createOrder } = await import("../../orders/create-order");
 
 const PHONE_A = "+16475550401";
 const PHONE_B = "+16475550402";
@@ -57,7 +57,7 @@ describe("mySubscriptionsSummary (integration)", () => {
   afterAll(reset);
 
   it("returns all of a user's subscriptions across every status, newest first, scoped to that user", async () => {
-    const { mySubscriptionsSummary } = await import("@/lib/services/customer-deliveries.service");
+    const { mySubscriptionsSummary } = await import("@/lib/deliveries/customer-deliveries.service");
 
     const aOrderOne = await makeOrder(PHONE_A, "User A");
     const aOrderTwo = await makeOrder(PHONE_A, "User A", 1);

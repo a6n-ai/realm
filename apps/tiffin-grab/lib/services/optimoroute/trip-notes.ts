@@ -3,7 +3,7 @@ import { parseIsoDateUtc } from "@foundry/commons";
 import { db } from "@/db/client";
 import { deliveryCategorySwaps } from "@/db/schema";
 import { coveredDates } from "@/lib/menu/coverage";
-import { loadExtraDates } from "@/lib/services/delivery-extras";
+import { loadExtraDates } from "@/lib/deliveries/delivery-extras";
 import { resolveTripDay, swapsForDay, weekLoader } from "@/lib/menu/trip-meals";
 import type { DayDeliveryRow } from "@/lib/services/daily-labels.service";
 import { DAY_NAMES } from "@foundry/commons/util/dates";

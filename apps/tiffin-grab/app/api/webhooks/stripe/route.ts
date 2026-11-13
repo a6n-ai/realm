@@ -1,4 +1,4 @@
-import { handleStripeWebhook } from "@/lib/services/stripe-webhook";
+import { handleStripeWebhook } from "@/lib/payments/stripe-webhook";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

@@ -15,7 +15,7 @@ import {
   type CustomerActivityCategory,
 } from "@/lib/customer-activity/log-facets";
 import type { SortState } from "@foundry/design-system/list-sort";
-import { describeActivityActor } from "@/lib/services/order-activity-describe";
+import { describeActivityActor } from "@/lib/order-activity/order-activity-describe";
 
 export type CustomerActivitySortColumn = "time";
 

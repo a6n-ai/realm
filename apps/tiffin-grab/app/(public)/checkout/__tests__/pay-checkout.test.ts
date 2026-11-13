@@ -20,17 +20,17 @@ vi.mock("@/lib/payments/stripe", async (orig) => ({
   }),
 }));
 const payByCard = vi.fn(async (..._a: unknown[]) => ({ kind: "succeeded" as const }));
-vi.mock("@/lib/services/payment-stripe", async (orig) => ({ ...(await orig<object>()), payByCard: (...a: unknown[]) => payByCard(...a) }));
+vi.mock("@/lib/payments/payment-stripe", async (orig) => ({ ...(await orig<object>()), payByCard: (...a: unknown[]) => payByCard(...a) }));
 
 const { db } = await import("@/db/client");
 const { orders, payments, users, orderActivities, coupons, coinRate, walletLedger, runtimeLeases } = await import("@/db/schema");
 const { acquireLease } = await import("@/lib/runtime/lease");
-const { walletService } = await import("@/lib/services/wallet.service");
+const { walletService } = await import("@/lib/wallet/wallet.service");
 const { payCheckout } = await import("../actions");
 const { reprice } = await import("@/app/(public)/subscribe/actions");
 const { setPaymentConfig } = await import("@/lib/services/app-settings.service");
 const { sharedCache } = await import("@/lib/cache");
-const { baseInput, reset, cleanup } = await import("@/lib/services/__tests__/stripe-fixture");
+const { baseInput, reset, cleanup } = await import("@/lib/payments/__tests__/stripe-fixture");
 
 async function signInAs(email: string) {
   const [u] = await db.insert(users).values({ email, role: "user" }).onConflictDoUpdate({ target: users.email, set: { role: "user" } }).returning();
@@ -217,7 +217,7 @@ describe("payCheckout", () => {
   it("changed inputs are refused while an older payment is mid-charge, and no order is placed", async () => {
     const first = await pay();
     if (!("ok" in first)) throw new Error(first.error);
-    const { tryChargeLock } = await import("@/lib/services/payment-stripe");
+    const { tryChargeLock } = await import("@/lib/payments/payment-stripe");
     let r: Awaited<ReturnType<typeof pay>> | undefined;
     await db.transaction(async (tx) => {
       expect(await tryChargeLock(tx, first.paymentPublicId)).toBe(true);

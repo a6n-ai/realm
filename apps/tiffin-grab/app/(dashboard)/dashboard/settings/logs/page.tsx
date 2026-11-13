@@ -5,7 +5,7 @@ import { parseSort } from "@foundry/design-system/list-sort";
 import {
   listOrderActivitiesPage,
   type ActivitySortColumn,
-} from "@/lib/services/order-activities-list.service";
+} from "@/lib/order-activity/order-activities-list.service";
 import { LogsTable, LogsTableSkeleton } from "./logs-table";
 
 type SearchParams = Promise<Record<string, string | undefined>>;

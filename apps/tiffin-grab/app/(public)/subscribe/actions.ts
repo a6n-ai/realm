@@ -21,7 +21,7 @@ import { getAppSettings, getCoinEarnPct, getMaxCoinPctOfSubtotal, getMaxCoinRede
 import { coinsUnderCap, earnCoins } from "@/lib/wallet/earn-coins";
 import { coinCapMessage, coinLimits, quoteCoinCap } from "@/lib/pricing/coin-cap";
 import { priceWithTax } from "@/lib/tax/checkout-taxes";
-import { walletService } from "@/lib/services/wallet.service";
+import { walletService } from "@/lib/wallet/wallet.service";
 import { provisionCustomerByEmail } from "@/lib/services/customers.service";
 import { findReferrerByCode } from "@/lib/services/referrals.service";
 import { REFERRAL_COOKIE, REFERRAL_COOKIE_OPTIONS, normalizeReferralCode } from "@/lib/referrals/cookie";

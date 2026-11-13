@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { filterMissedRows } from "../missed-filter";
-import type { MissedDeliveryRow } from "@/lib/services/missed-deliveries.service";
+import { filterMissedRows } from "../deliveries/missed-filter";
+import type { MissedDeliveryRow } from "@/lib/deliveries/missed-deliveries.service";
 
 const row = (over: Partial<MissedDeliveryRow>): MissedDeliveryRow => ({
   deliveryPublicId: "dlv_1", deliveryDate: "2026-10-19", tiffinUnits: 1, kind: "not_sent", driver: null,

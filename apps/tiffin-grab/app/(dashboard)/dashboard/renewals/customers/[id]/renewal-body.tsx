@@ -3,8 +3,8 @@ import { CalendarClockIcon, CoinsIcon, HourglassIcon, PackageIcon, RefreshCwIcon
 import { formatMoney as fmt } from "@foundry/commons";
 import { SectionCard } from "@/components/ds";
 import { StatCards } from "@/components/dashboard/stat-cards";
-import { humanDate } from "@/lib/deliveries-view";
-import type { CustomerRenewal } from "@/lib/services/renewals.service";
+import { humanDate } from "@/lib/deliveries/view";
+import type { CustomerRenewal } from "@/lib/renewals/renewals.service";
 import { Alert, AlertDescription, AlertTitle } from "@/components/reui/alert";
 import { formatEpoch } from "@/lib/format/datetime";
 import { EstimateButton } from "../../estimate-button";

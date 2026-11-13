@@ -6,7 +6,7 @@ import { OrderPricingBreakdown } from "@/app/(dashboard)/dashboard/_order/order-
 import { formatEpoch } from "@/lib/format/datetime";
 import type { OrderPricingSnapshot } from "@/lib/pricing/types";
 import { planDeliveryDays, planWeek, type DayOfWeek } from "@/lib/menu/delivery-days";
-import type { OrderDetail } from "@/lib/services/orders.service";
+import type { OrderDetail } from "@/lib/orders/orders.service";
 
 function isPricingSnapshot(value: unknown): value is OrderPricingSnapshot {
   if (typeof value !== "object" || value == null) return false;

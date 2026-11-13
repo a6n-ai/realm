@@ -11,7 +11,7 @@ const {
   deliveries, deliveryFrequencies, inquiries, leadSources, mealSizes, orderActivities, orders, organization, payments, plans, ticketMessages, tickets, users,
 } = await import("@/db/schema");
 const { getAppSettings } = await import("../app-settings.service");
-const { countMissedDeliveries } = await import("../missed-deliveries.service");
+const { countMissedDeliveries } = await import("../../deliveries/missed-deliveries.service");
 const { inquiriesService } = await import("../inquiries.service");
 const { countPaymentReviewOrders } = await import("@/lib/orders/queries");
 const { PER_KIND_MIXED, countReviewPayments, coversAllOrgs, getTodayCounts, getTodayQueue } = await import("../today.service");

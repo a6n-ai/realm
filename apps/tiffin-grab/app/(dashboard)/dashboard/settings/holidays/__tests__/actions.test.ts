@@ -14,7 +14,7 @@ vi.mock("@/lib/auth/guards", () => ({ requirePermission }));
 vi.mock("@/lib/auth/session", () => ({ getSession: async () => ({ user: { id: "u1" } }) }));
 vi.mock("@/lib/services/session-service", () => ({ currentUserId: async () => 7n }));
 vi.mock("@/lib/auth/visible-orgs", () => ({ resolveSessionVisibleOrgIds: async () => ["org_a"] }));
-vi.mock("@/lib/services/holidays.service", () => ({ createHoliday, reapplyHoliday, renameHoliday, removeHoliday, placeHolidayDay }));
+vi.mock("@/lib/deliveries/holidays.service", () => ({ createHoliday, reapplyHoliday, renameHoliday, removeHoliday, placeHolidayDay }));
 
 const { createHolidayAction, placeHolidayDayAction, reapplyHolidayAction, removeHolidayAction, renameHolidayAction } = await import("../actions");
 const input = { organizationId: "org_a", date: "2030-01-09", name: "Diwali", notify: true };

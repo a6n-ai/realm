@@ -12,11 +12,11 @@ vi.mock("../capi", () => ({
 const { db } = await import("@/db/client");
 const { deleteNonSystemUsers } = await import("@/db/test-helpers");
 const { deliveries, ledgerEntries, notificationOutbox, orderActivities, orders, payments, users } = await import("@/db/schema");
-const { createOrder } = await import("@/lib/services/create-order");
+const { createOrder } = await import("@/lib/orders/create-order");
 const { claimPayment, verifyPayment } = await import("@/lib/payments/verification");
 const { setPaymentConfig } = await import("@/lib/services/app-settings.service");
 const { sharedCache } = await import("@/lib/cache");
-const { baseInput } = await import("@/lib/services/__tests__/stripe-fixture");
+const { baseInput } = await import("@/lib/payments/__tests__/stripe-fixture");
 const { sendMetaPurchaseOnce } = await import("../purchase");
 
 async function reset() {

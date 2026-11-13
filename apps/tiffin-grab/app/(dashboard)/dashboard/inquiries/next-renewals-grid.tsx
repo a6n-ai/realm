@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { Badge } from "@/components/reui/badge";
 import { Button } from "@foundry/ui/button";
-import { humanDate } from "@/lib/deliveries-view";
+import { humanDate } from "@/lib/deliveries/view";
 import { isClosedTrack } from "@/lib/renewals/status";
-import type { NextRenewalRow } from "@/lib/services/next-renewal.service";
+import type { NextRenewalRow } from "@/lib/renewals/next-renewal.service";
 import { ContactChips } from "@/components/dashboard/next-item/contact-chips";
 import { NextItemEmpty } from "@/components/dashboard/next-item/next-item-card";
 import { ReasonBadge } from "@/components/dashboard/next-item/reason-badge";

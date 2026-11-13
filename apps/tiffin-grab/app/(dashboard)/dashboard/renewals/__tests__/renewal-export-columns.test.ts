@@ -7,7 +7,7 @@ import {
   parseExportColumns,
   planRowToExcelRecord,
 } from "../renewal-export-columns";
-import type { RenewalRow, RenewedCustomerRow } from "@/lib/services/renewals.service";
+import type { RenewalRow, RenewedCustomerRow } from "@/lib/renewals/renewals.service";
 
 const plan: RenewalRow = {
   orderPublicId: "ord_1",

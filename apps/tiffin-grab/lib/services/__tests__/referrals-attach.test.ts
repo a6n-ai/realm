@@ -17,7 +17,7 @@ const { db } = await import("@/db/client");
 const { orders, orderActivities, payments, ledgerEntries, walletLedger, users, referrals, notificationOutbox } =
   await import("@/db/schema");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
-const { createOrder } = await import("../create-order");
+const { createOrder } = await import("../../orders/create-order");
 const { attachOnSignIn, attachReferral, getOrCreateReferralCode, normalizeReferralCode } = await import("../referrals.service");
 
 const PHONES = [...Array.from({ length: 10 }, (_, i) => `+164755500${40 + i}`), "+16475550036", "+16475550037", "+16475550038", "+16475550033", "+16475550034", "+16475550035", "+16475550032", "+16475550030", "+16475550031", "+16475550026", "+16475550027", "+16475550028", "+16475550029", "+16475550022", "+16475550023", "+16475550024", "+16475550020", "+16475550021"];

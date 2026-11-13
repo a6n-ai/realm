@@ -9,7 +9,7 @@ import { resolveAndPersist } from "@foundry/places";
 import { getSession } from "@/lib/auth/session";
 import { currentUserId, userIdByPublicId } from "@/lib/services/session-service";
 import { getContactOnFile } from "@/lib/services/contact-on-file";
-import { assertOnePerson, createOrder, type CreateOrderInput } from "@/lib/services/orders.service";
+import { assertOnePerson, createOrder, type CreateOrderInput } from "@/lib/orders/orders.service";
 import { usersService } from "@/lib/services/users.service";
 import { sendAccountSetupEmail } from "@/lib/services/customers.service";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
@@ -18,7 +18,7 @@ import { parseCanadianPostalCode } from "@/lib/catalog/postal";
 import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 import { createWebsiteInquiry } from "@/app/(marketing)/contact/actions";
 import { runAction, type ActionResult } from "@/lib/actions/action-result";
-import type { CardSource, PayByCardResult } from "@/lib/services/payment-stripe";
+import type { CardSource, PayByCardResult } from "@/lib/payments/payment-stripe";
 import { TOTAL_CHANGED } from "@/lib/payments/total-changed";
 import { captureMetaAttribution } from "@/lib/meta/request-context";
 
@@ -113,7 +113,7 @@ export async function payCheckout(
     const session = await getSession();
     if (!session?.user) throw new ValidationError("Sign in to place your order.");
     const userPublicId = session.user.id;
-    const { withCustomerPayLock, PAY_IN_PROGRESS } = await import("@/lib/services/customer-pay-lock");
+    const { withCustomerPayLock, PAY_IN_PROGRESS } = await import("@/lib/payments/customer-pay-lock");
 
     return withCustomerPayLock(userPublicId, async () => {
       let paymentPublicId: string;
@@ -132,7 +132,7 @@ export async function payCheckout(
       if (toCents(await paymentAmount(paymentPublicId)) !== expectedAmountCents) {
         throw new ValidationError(TOTAL_CHANGED);
       }
-      const [{ payByCard }, { appBaseUrl }] = await Promise.all([import("@/lib/services/payment-stripe"), import("@/lib/payments/stripe")]);
+      const [{ payByCard }, { appBaseUrl }] = await Promise.all([import("@/lib/payments/payment-stripe"), import("@/lib/payments/stripe")]);
       const result = await payByCard({
         paymentPublicId,
         userPublicId,
@@ -156,7 +156,7 @@ async function paymentAmount(paymentPublicId: string): Promise<string> {
  * Otherwise cancels the customer's unpaid card orders, which releases the coins they hold for the new order.
  */
 async function replaceUnpaidCheckouts(userPublicId: string): Promise<boolean> {
-  const { hasChargeInFlight, cancelUnpaidCheckouts } = await import("@/lib/services/stripe-expiry");
+  const { hasChargeInFlight, cancelUnpaidCheckouts } = await import("@/lib/payments/stripe-expiry");
   const userId = await userIdByPublicId(userPublicId);
   if (!userId) return false;
   if (await hasChargeInFlight(userId)) return true;

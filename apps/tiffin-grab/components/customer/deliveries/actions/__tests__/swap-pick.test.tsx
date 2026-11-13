@@ -2,9 +2,9 @@
 import "@testing-library/jest-dom/vitest";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { Trip } from "@/lib/deliveries-view";
+import type { Trip } from "@/lib/deliveries/view";
 import type { SwapOption } from "@/lib/menu/meal-validation";
-import type { PlanView } from "@/lib/deliveries-view/adapter";
+import type { PlanView } from "@/lib/deliveries/view/adapter";
 import { SwapSheet } from "../swap-sheet";
 
 const apply = vi.fn();

@@ -2,8 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 const completeFinishedOrders = vi.fn(async () => ({ checked: 3, completed: 1 }));
-vi.mock("@/lib/services/deliveries.service", async (importOriginal) => ({ ...(await importOriginal<object>()), completeFinishedOrders }));
-vi.mock("@/lib/services/pause-days.service", async (importOriginal) => ({
+vi.mock("@/lib/deliveries/deliveries.service", async (importOriginal) => ({ ...(await importOriginal<object>()), completeFinishedOrders }));
+vi.mock("@/lib/deliveries/pause-days.service", async (importOriginal) => ({
   ...(await importOriginal<object>()),
   lapseAllElapsedPauses: async () => { throw new Error("db down for pauses"); },
 }));

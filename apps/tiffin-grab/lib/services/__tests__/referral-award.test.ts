@@ -29,10 +29,10 @@ const { account, orders, orderActivities, payments, ledgerEntries, walletLedger,
   await import("@/db/schema");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { referralCoins } = await import("@/lib/referrals/reward");
-const svc = await import("../orders.service");
-const { createOrder } = await import("../create-order");
+const svc = await import("../../orders/orders.service");
+const { createOrder } = await import("../../orders/create-order");
 const paymentsSvc = await import("@/lib/payments/verification");
-const { walletService } = await import("../wallet.service");
+const { walletService } = await import("../../wallet/wallet.service");
 const { attachReferral, getOrCreateReferralCode, getReferralSummary, staffAttachReferral } = await import("../referrals.service");
 
 const RATE = 0.1;

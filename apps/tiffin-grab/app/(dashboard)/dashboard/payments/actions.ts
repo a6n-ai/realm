@@ -3,7 +3,7 @@
 import { getSession } from "@/lib/auth/session";
 import { rejectPayment, updatePaymentReference, verifyPayment } from "@/lib/payments/verification";
 import { currentUserId } from "@/lib/services/session-service";
-import { sendPaymentReminder } from "@/lib/services/payment-reminder";
+import { sendPaymentReminder } from "@/lib/payments/payment-reminder";
 import type { ActionResult } from "@/lib/actions/action-result";
 import { orderAction } from "@/lib/actions/order-action";
 import { eq } from "drizzle-orm";

@@ -21,7 +21,7 @@ import { assertServiceable, findZone } from "@/lib/catalog/zone-match";
 import { parseCanadianPostalCode } from "@/lib/catalog/postal";
 import { sendMetaCrmLeadCreated, sendMetaCrmLeadStatus, sendMetaCrmQualifiedLead } from "@/lib/meta/crm-lead";
 import { SessionBaseService, SessionUpdatableService } from "./session-service";
-import { assertOnePerson, createOrder, type CreateOrderInput } from "./create-order";
+import { assertOnePerson, createOrder, type CreateOrderInput } from "../orders/create-order";
 import { getBrandOrgId } from "./organizations.service";
 import { getLeadAssignment, setLeadAssignment } from "./app-settings.service";
 import { pickAssignee, strategyFor } from "./assignment";

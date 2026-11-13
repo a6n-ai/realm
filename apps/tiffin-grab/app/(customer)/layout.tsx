@@ -6,7 +6,7 @@ import { NotFoundError } from "@foundry/commons";
 import { getSession } from "@/lib/auth/session";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { usersService } from "@/lib/services/users.service";
-import { walletService } from "@/lib/services/wallet.service";
+import { walletService } from "@/lib/wallet/wallet.service";
 import { ticketsService } from "@/lib/services/tickets.service";
 import { CustomerShell } from "@/components/customer/shell/customer-shell";
 import { AppCurrencyProvider } from "@/components/app-currency";

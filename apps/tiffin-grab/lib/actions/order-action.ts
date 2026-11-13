@@ -1,7 +1,7 @@
 import { getSession } from "@/lib/auth/session";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import { revalidateOrder } from "@/lib/revalidate";
-import { assertDeliveryVisible, assertOrderVisible, assertPaymentVisible } from "@/lib/services/orders.service";
+import { assertDeliveryVisible, assertOrderVisible, assertPaymentVisible } from "@/lib/orders/orders.service";
 import { runAction, type ActionResult } from "./action-result";
 import { guard as runGuard, revalidateAll, type Guard, type RevalidateTarget } from "./staff-action";
 

@@ -3,7 +3,7 @@ import { db } from "@/db/client";
 import { deliveries, deliveryCategorySwaps, dishCategories, notificationOutbox, orderActivities, orders, payments, users } from "@/db/schema";
 import { invalidateCatalogSnapshot, loadCatalogSnapshot } from "@/lib/catalog/load";
 import type { DayOfWeek } from "@/lib/menu/delivery-days";
-import { materializeDeliveries } from "../deliveries.service";
+import { materializeDeliveries } from "../../deliveries/deliveries.service";
 
 /**
  * Weekend eating needs a weekend-dish category in the meal (Catalog → Dish categories). The test

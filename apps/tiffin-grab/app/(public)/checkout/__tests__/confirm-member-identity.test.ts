@@ -12,7 +12,7 @@ let onFile: Record<string, string> | null = null;
 vi.mock("@/lib/catalog/load", () => ({ loadCatalogSnapshot: async () => ({ zones: [] }) }));
 // Checkout gates on findZone (postal coverage, then radius); the stub stands in for both.
 vi.mock("@/lib/catalog/zone-match", () => ({ findZone: async (...a: unknown[]) => matchZone(...a) }));
-vi.mock("@/lib/services/orders.service", () => ({
+vi.mock("@/lib/orders/orders.service", () => ({
   assertOnePerson: () => {},
   createOrder: (...a: unknown[]) => createOrder(...a),
 }));

@@ -14,7 +14,7 @@ import type { SortState } from "@foundry/design-system/list-sort";
 import type {
   ActivityListRow,
   ActivitySortColumn,
-} from "@/lib/services/order-activities-list.service";
+} from "@/lib/order-activity/order-activities-list.service";
 
 const COLUMNS: readonly Column<ActivitySortColumn | "details">[] = [
   { key: "time", label: "When", sortable: true },

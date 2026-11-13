@@ -13,7 +13,7 @@ import {
   walletBalanceStats,
   type BalanceFilter,
   type BalanceSortColumn,
-} from "@/lib/services/wallet-balances.service";
+} from "@/lib/wallet/wallet-balances.service";
 import { BalancesTable, BalancesTableSkeleton } from "./balances-table";
 import { requestNow } from "@/lib/dates/request-now";
 

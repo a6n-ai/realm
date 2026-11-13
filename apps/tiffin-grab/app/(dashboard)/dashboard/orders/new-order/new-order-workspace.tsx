@@ -19,7 +19,7 @@ import { ToggleGroup, ToggleGroupItem } from "@foundry/ui/toggle-group";
 import { Card, CardAction, CardDescription, CardHeader, CardTitle } from "@foundry/ui/card";
 import { makeImageThumbnail } from "@/components/ds";
 import { unwrapAction } from "@/lib/actions/unwrap";
-import type { CreateOrderInput } from "@/lib/services/create-order";
+import type { CreateOrderInput } from "@/lib/orders/create-order";
 import type { OrderFormInput } from "../../_order/order-schema";
 import { useOrderDraft } from "../../_order/use-order-draft";
 import { type Catalog } from "../../_order/order-draft";

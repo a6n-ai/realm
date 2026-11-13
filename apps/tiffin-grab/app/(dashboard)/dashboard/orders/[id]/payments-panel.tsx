@@ -15,7 +15,7 @@ import { Input } from "@foundry/ui/input";
 import { Label } from "@foundry/ui/label";
 import { Separator } from "@foundry/ui/separator";
 import { ClaimPayment } from "@/components/customer/wallet/claim-payment";
-import type { OrderPaymentDetail } from "@/lib/services/orders.service";
+import type { OrderPaymentDetail } from "@/lib/orders/orders.service";
 import type { ClaimPaymentContext } from "@/lib/payments/verification";
 import type { OrderPricingSnapshot } from "@/lib/pricing/types";
 import { formatEpoch } from "@/lib/format/datetime";

@@ -1,7 +1,7 @@
 import type { Tx } from "@/db/client";
 import type { orders } from "@/db/schema";
-import { materializeDeliveries } from "./deliveries.service";
-import { applyHolidaysToOrder, type HolidayApplied } from "./holiday-apply";
+import { materializeDeliveries } from "../deliveries/deliveries.service";
+import { applyHolidaysToOrder, type HolidayApplied } from "../deliveries/holiday-apply";
 
 /**
  * A schedule write under the order lock: lay the rows out (when `materialize`), then close any

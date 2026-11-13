@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { NotFoundError, zonedDateIso } from "@foundry/commons";
-import { describeActivityActor } from "@/lib/services/order-activity-describe";
+import { describeActivityActor } from "@/lib/order-activity/order-activity-describe";
 import { db } from "@/db/client";
 import { leadSources, orders, users } from "@/db/schema";
 import { canReassign } from "@/lib/services/reassign";

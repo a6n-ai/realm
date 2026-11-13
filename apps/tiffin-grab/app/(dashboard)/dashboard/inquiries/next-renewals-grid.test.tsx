@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render as rtlRender, screen } from "@testing-library/react";
 import { TimezoneProvider } from "@foundry/design-system/timezone-provider";
 import { TooltipProvider } from "@foundry/ui/tooltip";
-import type { NextRenewalRow } from "@/lib/services/next-renewal.service";
+import type { NextRenewalRow } from "@/lib/renewals/next-renewal.service";
 import { NextRenewalsGrid, type NextRenewalsGridProps } from "./next-renewals-grid";
 
 vi.mock("../renewals/estimate-button", () => ({ EstimateButton: () => <button type="button">Estimate</button> }));

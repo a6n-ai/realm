@@ -22,20 +22,20 @@ import { couponsService } from "@/lib/services/coupons.service";
 import { enqueueNotification, enqueueStaffNotification } from "@/lib/notifications/enqueue";
 import { enqueueOrderNotice } from "@/lib/notifications/order-notice";
 import { receiptAttachments } from "@/lib/billing/receipt-link";
-import { shiftMissedDeliveries } from "@/lib/services/deliveries.service";
+import { shiftMissedDeliveries } from "@/lib/deliveries/deliveries.service";
 import { removeStopsBestEffort, type OptimoSyncedRow } from "@/lib/services/optimoroute/stops";
 import { scheduleWrite } from "@/lib/services/schedule-write";
-import { upcomingHolidays } from "@/lib/services/holiday-dates";
+import { upcomingHolidays } from "@/lib/deliveries/holiday-dates";
 import { paidStartDate } from "@/lib/orders/paid-start";
-import { ledgerService } from "@/lib/services/ledger.service";
-import { assertStartable } from "@/lib/services/order-window";
-import { appToday } from "@/lib/services/start-date";
-import { commitCoinRedemption, settleCoinReservation, recollectLapsedCoins, reverseCoinRedemption, reverseCoinAward, awardOrderCoins } from "@/lib/services/wallet.service";
+import { ledgerService } from "@/lib/payments/ledger.service";
+import { assertStartable } from "@/lib/orders/order-window";
+import { appToday } from "@/lib/orders/start-date";
+import { commitCoinRedemption, settleCoinReservation, recollectLapsedCoins, reverseCoinRedemption, reverseCoinAward, awardOrderCoins } from "@/lib/wallet/wallet.service";
 import { awardReferral, reverseReferral } from "@/lib/services/referrals.service";
 import { getAppSettings, getPaymentConfig } from "@/lib/services/app-settings.service";
 import { publishPaymentsInbox, publishUserRefresh } from "@/lib/realtime/publish-inbox";
 import { utcIso } from "@foundry/commons/util/dates";
-import { lockOrder } from "@/lib/services/order-lock";
+import { lockOrder } from "@/lib/orders/order-lock";
 
 const log = createLogger("payments.verification");
 

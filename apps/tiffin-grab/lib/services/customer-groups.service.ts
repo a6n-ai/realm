@@ -23,8 +23,8 @@ import {
 import { formatEpoch } from "@/lib/format/datetime";
 import { DEFAULT_GRANT_REASON, walletCreditedEmailDraft } from "@/lib/notifications/wallet-credited-copy";
 import { listPayoutCandidates } from "./customer-payouts.service";
-import { walletService } from "./wallet.service";
-import { balanceSql } from "./wallet-balances.service";
+import { walletService } from "../wallet/wallet.service";
+import { balanceSql } from "../wallet/wallet-balances.service";
 import { campaignDeps } from "@/lib/notifications/deps";
 const BATCH = 500;
 const log = createLogger("customer-groups");

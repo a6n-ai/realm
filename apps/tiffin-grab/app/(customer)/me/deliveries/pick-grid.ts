@@ -5,7 +5,7 @@ import { and, asc, eq, gte, inArray, lte } from "drizzle-orm";
 import { db } from "@/db/client";
 import { runInBackground } from "@foundry/cloud/background";
 import { deliveries, deliveryCategorySwaps, deliveryFrequencies, orders } from "@/db/schema";
-import { assertCanManageOrder } from "@/lib/services/customer-deliveries.service";
+import { assertCanManageOrder } from "@/lib/deliveries/customer-deliveries.service";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { buildMealsGrid, type GridCell } from "@/lib/menu/meals-grid";

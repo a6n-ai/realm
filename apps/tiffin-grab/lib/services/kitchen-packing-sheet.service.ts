@@ -14,7 +14,7 @@ import {
   users,
 } from "@/db/schema";
 import { coveredDates, occurrenceDates } from "@/lib/menu/coverage";
-import { extraTiffinLabelAt, loadExtraDates, loadMovesIn } from "@/lib/services/delivery-extras";
+import { extraTiffinLabelAt, loadExtraDates, loadMovesIn } from "@/lib/deliveries/delivery-extras";
 import { fulfillmentReadyOrder } from "@/lib/orders/fulfillment";
 import { resolveTripDay, swapsForDay, weekLoader } from "@/lib/menu/trip-meals";
 import { createMealResolveCache } from "@/lib/menu/resolve-delivery-meal";

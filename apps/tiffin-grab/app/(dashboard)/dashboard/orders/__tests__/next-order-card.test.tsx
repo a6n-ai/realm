@@ -3,7 +3,7 @@ import "@testing-library/jest-dom/vitest";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render as rtlRender, screen, waitFor, within } from "@testing-library/react";
 import { TooltipProvider } from "@foundry/ui/tooltip";
-import type { NextOrderReason, NextOrderRow } from "@/lib/services/next-order.service";
+import type { NextOrderReason, NextOrderRow } from "@/lib/orders/next-order.service";
 import { NextOrderCard, type NextOrderCardProps } from "../next-order-card";
 vi.mock("../actions", () => ({ addOrderNoteAction: vi.fn() }));
 vi.mock("../../_order/actions", () => ({ emailPaymentLinkAction: vi.fn() }));

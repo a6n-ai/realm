@@ -1,6 +1,6 @@
 import type { ComponentType } from "react";
 import { AddressSheet } from "./address-sheet";
-import type { TripAction } from "@/lib/deliveries-view";
+import type { TripAction } from "@/lib/deliveries/view";
 import { MoveSheet } from "./move-sheet";
 import { PickSheet } from "./pick-sheet";
 import { SwapSheet } from "./swap-sheet";

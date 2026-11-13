@@ -14,7 +14,7 @@ vi.mock("@/lib/auth/guards", () => ({ requireStaff: m.requireStaff, requireAdmin
 vi.mock("@/lib/auth/session", () => ({ getSession: async () => ({ user: { id: "usr_staff" } }) }));
 vi.mock("@/lib/auth/visible-orgs", () => ({ resolveSessionVisibleOrgIds: m.visible }));
 vi.mock("@/lib/revalidate", () => ({ revalidateOrder: m.revalidateOrder }));
-vi.mock("@/lib/services/orders.service", () => ({
+vi.mock("@/lib/orders/orders.service", () => ({
   assertOrderVisible: m.assertOrderVisible,
   assertDeliveryVisible: m.assertDeliveryVisible,
   assertPaymentVisible: m.assertPaymentVisible,

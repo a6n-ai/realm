@@ -6,7 +6,7 @@ import { zonedDateIso } from "@foundry/commons";
 import { and, eq, gte, lte, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, ledgerEntries, orders, plans } from "@/db/schema";
-import { deliveredTiffinCount } from "./tiffin-counts";
+import { deliveredTiffinCount } from "../deliveries/tiffin-counts";
 
 export type UsageSummary = {
   tiffinsDelivered: number;

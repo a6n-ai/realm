@@ -18,7 +18,7 @@ const {
   getTopIssues,
 } = await import("../complaints.service");
 const { buildAnalyticsScope } = await import("../metrics/scope");
-const { deliveredTiffinCount } = await import("@/lib/services/tiffin-counts");
+const { deliveredTiffinCount } = await import("@/lib/deliveries/tiffin-counts");
 
 const DAY = 24 * 60 * 60 * 1000;
 const now = Date.now();
@@ -204,7 +204,7 @@ describe("complaints per 100 tiffins", () => {
   });
 
   it("counts the same rows the canonical tiffin-counts helper counts", async () => {
-    // The SQL predicate duplicates lib/services/tiffin-counts.ts by necessity
+    // The SQL predicate duplicates lib/deliveries/tiffin-counts.ts by necessity
     // (aggregating in the DB). This is the guard against the two drifting.
     const u = await makeUser("f@x.test");
     const o = await makeOrder(u.id);

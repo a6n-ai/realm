@@ -3,7 +3,7 @@
 import { z } from "zod";
 import { parseInput, staffAction } from "@/lib/actions/staff-action";
 import type { ActionResult } from "@/lib/actions/action-result";
-import { saveCoinRate as saveCoinRateValue } from "@/lib/services/wallet-balances.service";
+import { saveCoinRate as saveCoinRateValue } from "@/lib/wallet/wallet-balances.service";
 import {
   setCoinEarnPct,
   setMaxCoinPctOfSubtotal,

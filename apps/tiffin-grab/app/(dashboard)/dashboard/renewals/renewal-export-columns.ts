@@ -2,7 +2,7 @@
 import { zonedDateIso } from "@foundry/commons";
 import { rowStatus, statusLabel, type RenewalsTab } from "@/lib/renewals/filters";
 import { LOST_REASON_LABELS, trackLabel } from "@/lib/renewals/status";
-import type { RenewalRow, RenewedCustomerRow } from "@/lib/services/renewals.service";
+import type { RenewalRow, RenewedCustomerRow } from "@/lib/renewals/renewals.service";
 
 export const PLAN_EXPORT_COLUMNS = [
   { key: "order", label: "Order" },

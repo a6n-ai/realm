@@ -8,7 +8,7 @@ const { deleteNonSystemUsers } = await import("@/db/test-helpers");
 const { users, orders, payments, orderActivities, ledgerEntries } = await import("@/db/schema");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { nextWeekday } = await import("@foundry/commons");
-const { createOrder } = await import("../create-order");
+const { createOrder } = await import("../../orders/create-order");
 const { getCustomerDashboard } = await import("../customers.service");
 
 async function reset() {

@@ -1,5 +1,5 @@
-import { humanDate } from "@/lib/deliveries-view";
-import { weekdayShort } from "@/lib/deliveries-view/eating";
+import { humanDate } from "@/lib/deliveries/view";
+import { weekdayShort } from "@/lib/deliveries/view/eating";
 
 const list = (names: string[]) => (names.length < 2 ? names.join("") : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`);
 

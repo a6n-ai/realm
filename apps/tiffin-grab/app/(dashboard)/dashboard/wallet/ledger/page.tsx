@@ -14,7 +14,7 @@ import { eventLabel } from "@relay/engine/ui/template-status";
 import { walletEntryLabel } from "@/lib/wallet/source-labels";
 import { formatEpoch } from "@/lib/format/datetime";
 import { getAppSettings } from "@/lib/services/app-settings.service";
-import { walletLedgerRows, walletLedgerStats, type WalletSortColumn } from "@/lib/services/wallet-ledger.service";
+import { walletLedgerRows, walletLedgerStats, type WalletSortColumn } from "@/lib/wallet/wallet-ledger.service";
 
 type SearchParams = Promise<Record<string, string | undefined>>;
 

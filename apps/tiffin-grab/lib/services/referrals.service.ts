@@ -18,7 +18,7 @@ import { referralCoins } from "@/lib/referrals/reward";
 import { coinsUnderCap } from "@/lib/wallet/earn-coins";
 import { earnsOrderCoins } from "@/lib/wallet/earns-coins";
 import { getAppSettings, getMaxWalletBalance, getReferralSettings, type ReferralSettings } from "./app-settings.service";
-import { balanceInTx, reverseCoinAward, walletService, type AwardableOrder } from "./wallet.service";
+import { balanceInTx, reverseCoinAward, walletService, type AwardableOrder } from "../wallet/wallet.service";
 import { normalizeReferralCode, readReferralCookie } from "@/lib/referrals/cookie";
 
 // No 0/O, 1/I/L: codes get read out loud and typed from screenshots.

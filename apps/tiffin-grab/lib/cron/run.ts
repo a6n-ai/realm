@@ -41,8 +41,8 @@ const RUNNERS: Partial<Record<CronJobKey, (opts: RunOptions) => Promise<Summary>
     return summary;
   },
   "complete-plans": async () => {
-    const { completeFinishedOrders } = await import("@/lib/services/deliveries.service");
-    const { lapseAllElapsedPauses } = await import("@/lib/services/pause-days.service");
+    const { completeFinishedOrders } = await import("@/lib/deliveries/deliveries.service");
+    const { lapseAllElapsedPauses } = await import("@/lib/deliveries/pause-days.service");
     // First: a paused day past cutoff is a hold, not live debt or a stranded pause, when plans are judged.
     // The conversion can never stop plans from closing.
     let pauses: Summary = { lapseChecked: 0, lapsed: 0, lapseFailed: 0 };

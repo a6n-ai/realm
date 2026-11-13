@@ -9,7 +9,7 @@ import { Button } from "@foundry/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@foundry/ui/dialog";
 import { Badge } from "@/components/reui/badge";
 import { setDeliveryStatusAction } from "@/app/(dashboard)/dashboard/orders/[id]/actions";
-import { humanDate, type Trip } from "@/lib/deliveries-view/index";
+import { humanDate, type Trip } from "@/lib/deliveries/view";
 
 /** What staff can set; derived from the trip by `statusChoice` in the hub. */
 export type StatusValue = "upcoming" | "delivered" | "on_hold" | "not_delivered" | "paused";

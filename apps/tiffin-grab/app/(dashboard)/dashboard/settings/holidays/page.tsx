@@ -5,7 +5,7 @@ import { PageHeader, SectionCard } from "@/components/ds";
 import { requirePermission } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { getAppSettings } from "@/lib/services/app-settings.service";
-import { listDeclarableOrganizations, listHolidays, listNeedsPlacing } from "@/lib/services/holidays.service";
+import { listDeclarableOrganizations, listHolidays, listNeedsPlacing } from "@/lib/deliveries/holidays.service";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import { HolidayDialog } from "./holiday-dialog";
 import { HolidaysTable, HolidaysTableSkeleton, NeedsPlacingTable } from "./holidays-table";

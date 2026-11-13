@@ -9,7 +9,7 @@ import { ListSearchFilters } from "@/components/filters/reui-facet-filters";
 import { TableCell } from "@foundry/ui/table";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@foundry/design-system/timezone-provider";
-import type { OrderListRow, OrderSortColumn } from "@/lib/services/orders.service";
+import type { OrderListRow, OrderSortColumn } from "@/lib/orders/orders.service";
 import { orderDisplayStatus } from "@/lib/orders/display-status";
 import type { SortState } from "@foundry/design-system/list-sort";
 import { RowTag } from "./row-tags";

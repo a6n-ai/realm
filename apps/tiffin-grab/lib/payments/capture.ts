@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import type { Tx } from "@/db/client";
 import { orderActivities, payments } from "@/db/schema";
-import { ledgerService } from "@/lib/services/ledger.service";
+import { ledgerService } from "@/lib/payments/ledger.service";
 
 type CapturedPayment = { id: bigint; method: string; amount: string; surchargeAmount: string | null };
 type CaptureOrder = { id: bigint; userId: bigint; organizationId: string | null };

@@ -5,7 +5,7 @@ import { payments } from "@/db/schema";
 import { MarkSectionRead } from "@/components/dashboard/mark-section-read";
 import { loadOwnerOptions } from "@/lib/list/facet-options";
 import { UNASSIGNED_OWNER } from "@/lib/list/presets";
-import { listPayments } from "@/lib/services/payments-list.service";
+import { listPayments } from "@/lib/payments/payments-list.service";
 import { PaymentsTop } from "../payment-kpis";
 import { RequestsTable, RequestsTableSkeleton } from "./requests-table";
 

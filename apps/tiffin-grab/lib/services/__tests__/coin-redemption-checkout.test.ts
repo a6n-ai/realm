@@ -20,10 +20,10 @@ const {
   users,
   walletLedger,
 } = await import("@/db/schema");
-const { createOrder } = await import("../create-order");
-const { ordersService } = await import("../orders.service");
+const { createOrder } = await import("../../orders/create-order");
+const { ordersService } = await import("../../orders/orders.service");
 const { refundOrder, verifyPayment } = await import("@/lib/payments/verification");
-const { walletService } = await import("../wallet.service");
+const { walletService } = await import("../../wallet/wallet.service");
 const { setMaxCoinPctOfSubtotal, setMaxCoinRedeemPctOfBalance, setPaymentConfig, setProvinceTaxes } = await import("../app-settings.service");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { sharedCache } = await import("@/lib/cache");

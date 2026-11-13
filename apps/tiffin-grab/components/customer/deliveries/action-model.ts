@@ -1,4 +1,4 @@
-import { actionAvailability, type Availability, type PlanContext, type Trip, type TripAction } from "@/lib/deliveries-view";
+import { actionAvailability, type Availability, type PlanContext, type Trip, type TripAction } from "@/lib/deliveries/view";
 
 export const RESUME_DAY_LABEL = "Resume this day";
 export const RESUME_ALL_LABEL = "Resume all";

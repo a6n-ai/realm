@@ -1,5 +1,5 @@
 "use client";
-import type { Subscription, SubscriptionWindow, TiffinCounts } from "@/lib/services/customer-deliveries.service";
+import type { Subscription, SubscriptionWindow, TiffinCounts } from "@/lib/deliveries/customer-deliveries.service";
 import { ORDER_STATUS_LABEL } from "@/components/ds/order-status-badge";
 import Link from "next/link";
 import { cn } from "@/components/customer/kit/cn";

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { actionModel } from "../action-model";
-import type { Trip } from "@/lib/deliveries-view";
+import type { Trip } from "@/lib/deliveries/view";
 
 const ctx = { cutoffHour: 18, timezone: "UTC", lastDeliveryDate: null, deliveryWeekdays: ["mon"], active: true };
 const trip = (o: Partial<Trip> = {}): Trip => ({ orderId: "o", date: "2026-09-23", deliveryId: "a", units: 1, coversDates: ["2026-09-23"], coversLabel: null, eatingDays: [], status: "upcoming", cutoffAt: Date.now() + 9e9, mergedInto: null, isMakeup: false, rescheduled: false, ...o });

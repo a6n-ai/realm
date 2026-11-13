@@ -11,7 +11,7 @@ import { couponRedemptions, coupons, customerGroupMembers, orders, payments, use
 import type { CouponConfig, CouponKind } from "@/db/schema/coupons";
 import type { PricingLine } from "@/lib/pricing";
 import { getDiscountPolicy } from "./app-settings.service";
-import { ledgerService } from "./ledger.service";
+import { ledgerService } from "../payments/ledger.service";
 import { repAllowanceFor } from "./rep-allowance";
 import { SessionUpdatableService } from "./session-service";
 

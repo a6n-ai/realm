@@ -7,7 +7,7 @@ import { getAppSettings } from "@/lib/services/app-settings.service";
 import { loadOwnerOptions } from "@/lib/list/facet-options";
 import { ALL_OWNERS, ME, resolveOwnerParam } from "@/lib/list/presets";
 import { requestNow } from "@/lib/dates/request-now";
-import { nextOrder, orderQueueCount, queueOrder, upNextOrders, type OrderQueueScope } from "@/lib/services/next-order.service";
+import { nextOrder, orderQueueCount, queueOrder, upNextOrders, type OrderQueueScope } from "@/lib/orders/next-order.service";
 import type { OwnerChoice } from "@/components/dashboard/next-item/next-item-card";
 import { NextOrderCard } from "./next-order-card";
 

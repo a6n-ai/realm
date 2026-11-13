@@ -1,7 +1,7 @@
 // No "use client" and no db: the server page parses with it and builds the facet spec from the options.
 import { zonedDateIso } from "@foundry/commons";
 import type { RenewalStatus } from "@/lib/orders/queries";
-import type { RenewalRange } from "@/lib/services/renewals.service";
+import type { RenewalRange } from "@/lib/renewals/renewals.service";
 import { TRACK_STATUSES, type TrackStatus } from "@/lib/renewals/status";
 
 /** Plans (regular and trial, narrowed by `type`), or every customer who has renewed. */

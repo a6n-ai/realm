@@ -6,7 +6,7 @@ import { users } from "@/db/schema";
 import { billingAddress, e164, type AddressInput, type BillingAddress } from "@/lib/payments/billing-address";
 import { customerStore, stripeRuntime } from "@/lib/payments/stripe";
 import { getAppSettings } from "@/lib/services/app-settings.service";
-import { listSavedCards } from "@/lib/services/payment-stripe";
+import { listSavedCards } from "@/lib/payments/payment-stripe";
 
 export type CardCheckoutContext = {
   publishableKey: string | null;

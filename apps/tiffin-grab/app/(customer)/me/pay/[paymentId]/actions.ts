@@ -5,10 +5,10 @@ import { runAction, type ActionResult } from "@/lib/actions/action-result";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { orders, payments, users } from "@/db/schema";
-import { abandonCardAttempt, chargedReceipt, payByCard, settleStripePayment, type CardReceipt, type CardSource, type PayByCardResult } from "@/lib/services/payment-stripe";
+import { abandonCardAttempt, chargedReceipt, payByCard, settleStripePayment, type CardReceipt, type CardSource, type PayByCardResult } from "@/lib/payments/payment-stripe";
 import { appBaseUrl } from "@/lib/payments/stripe";
 import { customerSessionSecret } from "@/lib/payments/card-checkout-context";
-import { withCustomerPayLock } from "@/lib/services/customer-pay-lock";
+import { withCustomerPayLock } from "@/lib/payments/customer-pay-lock";
 
 export async function submitCardPayment(
   paymentId: string,

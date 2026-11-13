@@ -2,7 +2,7 @@ import Link from "next/link";
 import { formatMoney } from "@foundry/commons";
 import { Avatar, AvatarFallback } from "@foundry/ui/avatar";
 import { Button } from "@foundry/ui/button";
-import type { NextOrderReason, NextOrderRow } from "@/lib/services/next-order.service";
+import type { NextOrderReason, NextOrderRow } from "@/lib/orders/next-order.service";
 import { ContactChips } from "@/components/dashboard/next-item/contact-chips";
 import { initials } from "@foundry/ui/initials";
 import { NextItemCard, NextItemEmpty, type NextItemView, type OwnerChoice } from "@/components/dashboard/next-item/next-item-card";

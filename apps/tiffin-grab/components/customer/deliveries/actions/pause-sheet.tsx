@@ -2,7 +2,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { loadMyPauseDays, pauseMyDays, releaseMyDays, setMyAutoMovePaused, type PauseDayChoice } from "@/app/(customer)/me/deliveries/actions";
 import { PauseCalendar } from "./pause-calendar";
-import { cutoffTime } from "@/lib/deliveries-view";
+import { cutoffTime } from "@/lib/deliveries/view";
 import { RESUME_ALL_LABEL } from "../action-model";
 import { pausedLine, resumeLine } from "../pause-copy";
 import { KIT_UI } from "./sheet-ui";

@@ -1,5 +1,5 @@
 import { SectionCard } from "@/components/ds";
-import { listCustomerOrderActivities } from "@/lib/services/orders.service";
+import { listCustomerOrderActivities } from "@/lib/orders/orders.service";
 import { OrderActivityLog, type OrderActivityLogRow } from "../../../orders/[id]/order-activity-log";
 import { CUSTOMER_ACTIVITY_FACETS } from "../../../orders/[id]/activity-facets";
 import { loadCustomer } from "../data";

@@ -15,7 +15,7 @@ const { db } = await import("@/db/client");
 const { deleteNonSystemUsers } = await import("@/db/test-helpers");
 const { discounts, coupons, couponRedemptions, deliveries, ledgerEntries, orderActivities, orders, payments, users, walletLedger } =
   await import("@/db/schema");
-const { createOrder } = await import("../create-order");
+const { createOrder } = await import("../../orders/create-order");
 const { reprice } = await import("@/app/(public)/subscribe/actions");
 const priced = async (...args: Parameters<typeof reprice>) => {
   const r = await reprice(...args);
