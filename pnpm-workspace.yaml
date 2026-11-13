@@ -53,6 +53,17 @@ overrides:
   "drizzle-orm": "0.45.4"
   "stripe": "23.0.1"
 
+# typescript-eslint 8 supports TypeScript <6.1 and crashes on TS 7's JS API (`ts.Extension`
+# is gone). It takes typescript as a peer, so give the lint configs their own 5.9: the peer
+# resolves there, and the apps still typecheck with TS 7. Drop once typescript-eslint supports 7.
+packageExtensions:
+  eslint-config-next:
+    dependencies:
+      typescript: "5.9.3"
+  "@foundry/eslint-config":
+    dependencies:
+      typescript: "5.9.3"
+
 allowBuilds:
   esbuild: true
   sharp: true
