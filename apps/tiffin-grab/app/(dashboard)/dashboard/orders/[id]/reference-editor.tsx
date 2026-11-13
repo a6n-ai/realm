@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { Button } from "@foundry/ui/button";
 import { Input } from "@foundry/ui/input";
 import { Label } from "@foundry/ui/label";
-import { updatePaymentReferenceAction } from "./actions";
+import { updatePaymentReferenceAction } from "@/app/(dashboard)/dashboard/payments/actions";
 
 /** A payment's transfer reference, editable by staff in place. Shared by the order Payments tab and the Payments page dialog. */
 export function ReferenceEditor({

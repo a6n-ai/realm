@@ -9,7 +9,8 @@ import { Input } from "@foundry/ui/input";
 import { Label } from "@foundry/ui/label";
 import { ResponsiveDialog } from "@/components/ds";
 import type { ActionResult } from "@/lib/actions/action-result";
-import { cancel, sendPaymentReminderAction } from "../../../orders/[id]/actions";
+import { cancel } from "../../../orders/[id]/actions";
+import { sendPaymentReminderAction } from "@/app/(dashboard)/dashboard/payments/actions";
 import { broadcastCustomerPayout } from "../../../wallet/actions";
 import { sendRenewalReminderAction } from "../../actions";
 

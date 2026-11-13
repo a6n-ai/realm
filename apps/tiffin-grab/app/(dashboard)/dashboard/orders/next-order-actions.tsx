@@ -12,7 +12,8 @@ import { useCardRefresh } from "@/components/dashboard/next-item/recommendation-
 import type { NextOrderRow } from "@/lib/services/next-order.service";
 import { addOrderNoteAction } from "./actions";
 import { emailPaymentLinkAction } from "../_order/actions";
-import { cancel, verifyPaymentAction } from "./[id]/actions";
+import { cancel } from "./[id]/actions";
+import { verifyPaymentAction } from "@/app/(dashboard)/dashboard/payments/actions";
 import { CancelOrderDialog } from "./cancel-order-dialog";
 
 type Target = Pick<NextOrderRow, "publicId" | "reason" | "paymentPublicId" | "status">;

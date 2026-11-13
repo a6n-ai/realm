@@ -7,7 +7,8 @@ import type { NextOrderReason, NextOrderRow } from "@/lib/services/next-order.se
 import { NextOrderCard, type NextOrderCardProps } from "../next-order-card";
 vi.mock("../actions", () => ({ addOrderNoteAction: vi.fn() }));
 vi.mock("../../_order/actions", () => ({ emailPaymentLinkAction: vi.fn() }));
-vi.mock("../[id]/actions", () => ({ verifyPaymentAction: vi.fn(), cancel: vi.fn(async () => ({ ok: true })) }));
+vi.mock("../[id]/actions", () => ({ cancel: vi.fn(async () => ({ ok: true })) }));
+vi.mock("../../payments/actions", () => ({ verifyPaymentAction: vi.fn() }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }) }));
 const NOW = Date.UTC(2026, 10, 11, 12);

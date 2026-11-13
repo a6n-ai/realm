@@ -6,7 +6,8 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 const update = vi.fn();
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 vi.mock("sonner", () => ({ toast: Object.assign(vi.fn(), { success: vi.fn(), error: vi.fn() }) }));
-vi.mock("../actions", () => ({
+vi.mock("../actions", () => ({ cancelAddonLinkAction: vi.fn(), regenerateAddonLinkAction: vi.fn() }));
+vi.mock("../../../payments/actions", () => ({
   updatePaymentReferenceAction: (...a: unknown[]) => update(...a),
   rejectPaymentAction: vi.fn(),
   sendPaymentReminderAction: vi.fn(),

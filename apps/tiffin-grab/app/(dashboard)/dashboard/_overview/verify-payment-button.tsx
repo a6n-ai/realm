@@ -8,7 +8,7 @@ import { CircleCheckIcon } from "lucide-react";
 import { Button } from "@foundry/ui/button";
 import { RowActionTooltipButton } from "@/components/ds/row-action-tooltip-button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@foundry/ui/dialog";
-import { verifyPaymentAction } from "../orders/[id]/actions";
+import { verifyPaymentAction } from "@/app/(dashboard)/dashboard/payments/actions";
 import type { TodayPayment } from "@/lib/today/types";
 
 /** `icon`: the table row action (icon + tooltip, like the other tables); otherwise a text button. */

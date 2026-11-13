@@ -3,25 +3,21 @@
 import { revalidateOrder } from "@/lib/revalidate";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { formatMoney, ValidationError } from "@foundry/commons";
-import { publishUserRefresh } from "@/lib/realtime/publish-inbox";
 import { db } from "@/db/client";
-import { deliveries, orders, users } from "@/db/schema";
+import { deliveries, orders } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { getSession } from "@/lib/auth/session";
 import { requirePermission } from "@/lib/auth/guards";
 import { setOrderLookOut } from "@/lib/orders/look-out";
 import { ordersService } from "@/lib/services/orders.service";
-import { rejectPayment, updatePaymentReference, verifyPayment } from "@/lib/payments/verification";
 import { currentUserId } from "@/lib/services/session-service";
 import { addOrderAddons, cancelAddonPayment, quoteOrderAddons, regenerateAddonPayment, type AddonQuote, type AddonSelection } from "@/lib/services/order-addons.service";
 import { uploadPaymentProof } from "@/lib/services/payment-proof";
 import { cancelOrderAndOpenPayments } from "@/lib/services/stripe-expiry";
-import { sendPaymentReminder } from "@/lib/services/payment-reminder";
 import { adminSetDeliveryStatus, grantComplimentaryTiffin, isAdminDeliveryStatus, redeliverTrip } from "@/lib/services/deliveries.service";
 import { pushOneDelivery, removeOneDelivery } from "@/lib/services/optimoroute/push";
-import type { ActionResult } from "@/lib/actions/action-result";
+import { ActionResult } from "@/lib/actions/action-result";
 import { orderAction } from "@/lib/actions/order-action";
-import type { DayOfWeek } from "@/lib/menu/delivery-days";
+import { DayOfWeek } from "@/lib/menu/delivery-days";
 
 // Staff of one organization must not act on another's order: every action goes through
 // assertOrderAccess / orderAction, which check the order (or the order behind the delivery or
@@ -51,28 +47,6 @@ export async function cancel(orderId: string): Promise<ActionResult> {
   return orderAction({ order: orderId, orderPage: orderId }, async () => {
     await cancelOrderAndOpenPayments(orderId, await currentUserId());
   });
-}
-
-async function refreshCustomerOf(orderId: string) {
-  const [row] = await db
-    .select({ userPublicId: users.publicId })
-    .from(orders)
-    .innerJoin(users, eq(users.id, orders.userId))
-    .where(eq(orders.publicId, orderId))
-    .limit(1);
-  if (row) publishUserRefresh(row.userPublicId);
-}
-
-export async function verifyPaymentAction(orderId: string, paymentPublicId: string): Promise<ActionResult> {
-  const res = await orderAction(
-    { payment: paymentPublicId, orderPage: orderId, reach: { payments: true, wallet: true, dashboard: true, orderList: true } },
-    async () => {
-      const session = await getSession();
-      await verifyPayment(paymentPublicId, { actorId: session?.user?.id ?? null });
-    },
-  );
-  if ("ok" in res) await refreshCustomerOf(orderId);
-  return res;
 }
 
 function parseAddonSelections(raw: FormDataEntryValue | null): AddonSelection[] {
@@ -125,31 +99,10 @@ export async function addOrderAddonsAction(orderId: string, form: FormData): Pro
   });
 }
 
-export async function rejectPaymentAction(orderId: string, paymentPublicId: string, note: string): Promise<ActionResult> {
-  const res = await orderAction(
-    { payment: paymentPublicId, orderPage: orderId, reach: { payments: true, wallet: true } },
-    async () => rejectPayment(paymentPublicId, note, await currentUserId()),
-  );
-  if ("ok" in res) await refreshCustomerOf(orderId);
-  return res;
-}
-
-export async function updatePaymentReferenceAction(orderId: string, paymentPublicId: string, reference: string): Promise<ActionResult> {
-  return orderAction({ order: orderId, orderPage: orderId, reach: { payments: true } }, async () =>
-    updatePaymentReference(orderId, paymentPublicId, reference, await currentUserId()),
-  );
-}
-
 /** Any staff member marks, re-notes or unmarks an order on the Look out for tab. */
 export async function setLookOutAction(orderId: string, on: boolean, note: string): Promise<ActionResult> {
   return orderAction({ order: orderId, orderPage: orderId, reach: { orderList: true } }, async () =>
     setOrderLookOut(orderId, on, note, await currentUserId()),
-  );
-}
-
-export async function sendPaymentReminderAction(orderId: string, paymentPublicId: string): Promise<ActionResult> {
-  return orderAction({ order: orderId, orderPage: orderId }, async () =>
-    sendPaymentReminder(orderId, paymentPublicId, await currentUserId()),
   );
 }
 

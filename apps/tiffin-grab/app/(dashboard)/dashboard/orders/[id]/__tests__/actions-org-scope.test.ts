@@ -35,7 +35,7 @@ vi.mock("@/lib/services/stripe-expiry", () => ({ cancelOrderAndOpenPayments: svc
 vi.mock("@/lib/services/payment-proof", () => ({ uploadPaymentProof: vi.fn(async () => null) }));
 vi.mock("@/lib/services/optimoroute/push", () => ({ pushOneDelivery: svc.pushOneDelivery, removeOneDelivery: svc.removeOneDelivery }));
 
-const actions = await import("../actions");
+const actions = { ...(await import("../actions")), ...(await import("../../../payments/actions")) };
 
 const ORDER = "ord_other_org";
 const DELIVERY = "dlv_other_org";

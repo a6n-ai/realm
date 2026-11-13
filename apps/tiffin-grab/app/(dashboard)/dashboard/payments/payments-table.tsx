@@ -21,7 +21,7 @@ import { CustomerLink } from "./customer-link";
 import { MethodName, StripeMark } from "@/components/payments/stripe-mark";
 import { methodLabel, PAYMENT_METHOD_OPTIONS, PAYMENT_STATUS_OPTIONS, type PaymentRow, type PaymentSortKey } from "@/lib/payments/facets";
 import type { SortState } from "@foundry/design-system/list-sort";
-import { sendPaymentReminderAction } from "../orders/[id]/actions";
+import { sendPaymentReminderAction } from "@/app/(dashboard)/dashboard/payments/actions";
 
 /** "all" is the Payments listing (who paid); "customer" is one customer's tab (which order it paid for). */
 type Scope = "all" | "customer";
