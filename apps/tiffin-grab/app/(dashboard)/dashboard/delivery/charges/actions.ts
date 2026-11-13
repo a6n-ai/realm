@@ -121,7 +121,7 @@ export async function saveStoreOriginFromAddressAction(input: { placeId?: string
     const address = input.address.trim();
     if (!address && !input.placeId) throw new ValidationError("Enter an address first.");
     // resolveAndPersist: these coordinates are stored, so AWS only (see @foundry/places).
-    const hit = await resolveAndPersist({ placeId: input.placeId, address }).catch(() => null);
+    const hit = await resolveAndPersist({ placeId: input.placeId, address });
     if (!hit) throw new ValidationError("Couldn't find that address — try adding city and postal code.");
     await deliveryService.saveStoreOrigin(hit.lat, hit.lng, orgId);
     await evictPublicPages();

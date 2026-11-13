@@ -50,10 +50,9 @@ beforeEach(() => {
   }
 });
 
-// An action either throws or returns { error }; both count as refused.
+// The visibility guard's NotFoundError comes back as the action's result, never a throw.
 const refused = async (call: () => Promise<unknown>) => {
-  const res = await call().catch((e: unknown) => ({ error: String(e) }));
-  expect(res).toHaveProperty("error");
+  expect(await call()).toMatchObject({ error: "Order not found" });
 };
 
 describe("order actions outside the caller's organizations", () => {

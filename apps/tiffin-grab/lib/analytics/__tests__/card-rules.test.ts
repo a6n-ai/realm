@@ -15,12 +15,7 @@ describe("analytics stat card rules", () => {
   });
 
   it.each(PAGES)("%s uses AnalyticsStatCards and a 4 or 8 card skeleton", (file) => {
-    let src: string;
-    try {
-      src = readFileSync(file, "utf8");
-    } catch {
-      return; // a tab folder without its own page (redirect-only)
-    }
+    const src = readFileSync(file, "utf8");
     if (!src.includes("StatCards")) return;
     expect(src).toContain("<AnalyticsStatCards");
     expect(src).not.toMatch(/<StatCards\b/);

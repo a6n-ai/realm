@@ -30,6 +30,7 @@ import {
 import { utcIso } from "@foundry/commons/util/dates";
 import { formatMoney } from "@foundry/commons";
 import { useAppCurrency } from "@/components/app-currency";
+import { toast } from "sonner";
 
 export type EnabledSlot = { key: string; label: string };
 
@@ -309,7 +310,9 @@ export function useOrderDraft({
 
   useEffect(() => {
     let cancelled = false;
-    orderFormDeliveryOptions().then((o) => { if (!cancelled) setDeliveryOptions(o); }).catch(() => {});
+    orderFormDeliveryOptions()
+      .then((o) => { if (!cancelled) setDeliveryOptions(o); })
+      .catch(() => { if (!cancelled) toast.error("Couldn't load delivery options. Reload to try again."); });
     return () => { cancelled = true; };
   }, []);
 

@@ -238,7 +238,8 @@ function WorkspaceBody({
         revalidate: false,
       }))
         .then(({ inquiryId }) => { setLeadId(inquiryId); onSaved(); })
-        .catch(() => {})
+        // One toast id: the auto-save retries on the next edit, so repeats replace rather than stack.
+        .catch((e: unknown) => toast.error(e instanceof Error ? e.message : "Couldn't save the lead", { id: "order-lead-autosave" }))
         .finally(() => { leadSaving.current = false; });
     }, 1500);
     return () => clearTimeout(t);
