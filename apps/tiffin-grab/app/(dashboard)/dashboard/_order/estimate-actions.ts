@@ -17,7 +17,7 @@ import type { ActionResult } from "@/lib/actions/action-result";
 import { staffAction } from "@/lib/actions/staff-action";
 import { orderFormCatalog } from "../orders/order-form-catalog";
 import type { CustomerHit } from "../_leads/match-actions";
-import type { OrderFormInput } from "../inquiries/[id]/order-schema";
+import type { OrderFormInput } from "./order-schema";
 
 // Loaded when the estimate opens: the Create coupon dialog sits on every dashboard page.
 export async function estimateFormData() {

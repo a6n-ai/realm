@@ -4,7 +4,7 @@ import { useState } from "react";
 import { CalculatorIcon } from "lucide-react";
 import { Button } from "@foundry/ui/button";
 import { RowActionTooltipButton } from "@/components/ds";
-import { EstimateDialog } from "../discounts/estimate-dialog";
+import { EstimateDialog } from "../_order/estimate-dialog";
 
 /** Opens the staff Estimate on the Plan step, filled from this order; the dialog mounts only once opened. `primary` renders the labelled card action. */
 export function EstimateButton({ orderPublicId, primary = false }: { orderPublicId: string; primary?: boolean }) {

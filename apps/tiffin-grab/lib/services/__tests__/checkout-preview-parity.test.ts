@@ -10,7 +10,7 @@ vi.mock("@/lib/auth/session", () => ({ getSession: async () => null }));
 vi.mock("@/lib/auth/visible-orgs", () => ({ resolveSessionVisibleOrgIds: async () => "all" as const }));
 vi.mock("@/lib/auth/guards", async (orig) => ({ ...(await orig<typeof import("@/lib/auth/guards")>()), requireStaff: async () => undefined }));
 
-const { previewPrice } = await import("@/app/(dashboard)/dashboard/inquiries/[id]/order/actions");
+const { previewPrice } = await import("@/app/(dashboard)/dashboard/_order/actions");
 const { db } = await import("@/db/client");
 const { deleteNonSystemUsers } = await import("@/db/test-helpers");
 const { discounts, coupons, couponRedemptions, deliveries, ledgerEntries, orderActivities, orders, payments, users, walletLedger } =

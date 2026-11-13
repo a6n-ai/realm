@@ -9,7 +9,7 @@ import { Badge } from "@foundry/ui/badge";
 import { TableCell } from "@foundry/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@foundry/ui/dropdown-menu";
 import { DataTable } from "@/components/ds";
-import { DiscountDialog, type DiscountDialogOptions } from "@/components/dashboard/discount-dialog";
+import { DiscountDialog, type DiscountDialogOptions } from "./discount-dialog";
 import { COUPONS_HREF, TYPE_LABELS, type AllRow, type DiscountDto, type DiscountKind, type RowType } from "./build-rows";
 
 export const ALL_DISCOUNT_COLUMNS = [

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { NO_DROP_OFF } from "@/lib/catalog/drop-off";
-import type { OrderFormValues } from "../../order-schema";
+import type { OrderFormValues } from "../order-schema";
 import { buildOrderInput, missingFields, type OrderInputCtx } from "../order-draft";
 
 const values = {

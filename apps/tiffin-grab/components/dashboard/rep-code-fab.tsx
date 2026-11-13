@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { CalculatorIcon, TicketPercentIcon } from "lucide-react";
 import { Button } from "@foundry/ui/button";
-import { EstimateDialog } from "@/app/(dashboard)/dashboard/discounts/estimate-dialog";
+import { EstimateDialog } from "@/app/(dashboard)/dashboard/_order/estimate-dialog";
 import { QuickCodeDialog } from "./quick-code-dialog";
 
 // Floating on every dashboard page for staff with a rep allowance: estimate the customer's order

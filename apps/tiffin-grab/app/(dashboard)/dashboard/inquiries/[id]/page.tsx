@@ -20,7 +20,7 @@ import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { PageShell } from "@/components/ds";
 import type { SubStatus } from "@/lib/inquiries/status";
-import { interestToPrefill } from "../_leads/interest-prefill";
+import { interestToPrefill } from "../../_leads/interest-prefill";
 import { InquiryDetailClient } from "./detail-client";
 import type { TimelineActivity } from "./inquiry-timeline";
 import { dayRange } from "@foundry/commons/util/dates";

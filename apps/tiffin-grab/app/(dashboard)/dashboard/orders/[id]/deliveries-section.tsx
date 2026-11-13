@@ -6,16 +6,16 @@ import { getSession } from "@/lib/auth/session";
 import type { OrderDetail } from "@/lib/services/orders.service";
 import { loadOrderWeek, type OrderWeek } from "@/lib/services/order-week.service";
 import { OrderWeekHub } from "@/components/dashboard/order-week/order-week-hub";
-import type { OptimoRouteRow } from "@/app/(dashboard)/dashboard/orders/[id]/optimoroute-panel";
+import type { OptimoRouteRow } from "./optimoroute-panel";
 import type { Subscription } from "@/lib/services/customer-deliveries.service";
 import { orderDisplayStatus } from "@/lib/orders/display-status";
 import { db } from "@/db/client";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { isOrderFullyPaused } from "@/lib/services/pause-state";
-import { plans } from "@/db/schema";
+import { plans } from "@/db/schema/index";
 import { loadSubscriptionAddons } from "@/lib/menu/order-addon-items";
 import { Skeleton } from "@foundry/ui/skeleton";
-import { SectionCard } from "@/components/ds";
+import { SectionCard } from "@/components/ds/index";
 
 /**
  * What staff can change on ONE subscription: the delivery calendar, where each day offers the

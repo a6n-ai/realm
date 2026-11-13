@@ -10,8 +10,8 @@ import { useState } from "react";
 import { displayName } from "@/lib/inquiries/display";
 import { isQuickAdd } from "@/lib/inquiries/quick-add";
 import { pillClass } from "../new-inquiry-form";
-import type { OrderFormInput } from "./order-schema";
-import { OrderForm } from "./order/order-form";
+import type { OrderFormInput } from "../../_order/order-schema";
+import { OrderForm } from "../../_order/order-form";
 
 type Catalog = {
   plans: { key: string; name: string }[];

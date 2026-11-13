@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@foundry/ui/button";
 import { Input } from "@foundry/ui/input";
 import { Label } from "@foundry/ui/label";
-import type { StaffCoinPreview } from "../inquiries/[id]/order/actions";
+import type { StaffCoinPreview } from "./actions";
 import { useFormatMoney } from "@/components/app-currency";
 
 // The matched customer's wallet. An estimate starts on every coin the order allows; a staff order

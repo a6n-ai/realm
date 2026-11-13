@@ -1,4 +1,4 @@
-import type { OrderFormInput } from "../[id]/order-schema";
+import type { OrderFormInput } from "../_order/order-schema";
 
 type PrefillCatalog = {
   plans: { key: string; name: string }[];

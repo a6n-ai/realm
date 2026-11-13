@@ -10,11 +10,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@foundry/ui/switch";
 import { useAppCurrency } from "@/components/app-currency";
 import { formatDiscount } from "@/lib/format/currency";
-import { ResponsiveDialog } from "@/components/ds";
+import { ResponsiveDialog } from "@/components/ds/index";
 import { RESOURCES } from "@/lib/catalog/resource-config";
 import { unwrapAction } from "@/lib/actions/unwrap";
 import { saveItem } from "@/app/(dashboard)/dashboard/catalog/actions";
-import { ALL_TARGETS_LABEL, type DiscountDto, type DiscountKind } from "@/app/(dashboard)/dashboard/catalog/discounts/build-rows";
+import { ALL_TARGETS_LABEL, type DiscountDto, type DiscountKind } from "./build-rows";
 import { DateInput } from "@/components/dashboard/date-fields";
 
 export interface DiscountDialogOptions {

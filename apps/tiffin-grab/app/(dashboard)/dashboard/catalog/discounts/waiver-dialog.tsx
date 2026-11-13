@@ -8,11 +8,11 @@ import { Input } from "@foundry/ui/input";
 import { Label } from "@foundry/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
 import { Switch } from "@foundry/ui/switch";
-import { ResponsiveDialog } from "@/components/ds";
+import { ResponsiveDialog } from "@/components/ds/index";
 import { RESOURCES } from "@/lib/catalog/resource-config";
 import { unwrapAction } from "@/lib/actions/unwrap";
 import { saveItem } from "@/app/(dashboard)/dashboard/catalog/actions";
-import type { DiscountDto } from "@/app/(dashboard)/dashboard/catalog/discounts/build-rows";
+import type { DiscountDto } from "./build-rows";
 import type { WaiverKind } from "@/lib/catalog/types";
 import { DateInput } from "@/components/dashboard/date-fields";
 

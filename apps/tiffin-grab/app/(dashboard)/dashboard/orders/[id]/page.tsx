@@ -61,7 +61,7 @@ import { LookOutControl } from "./look-out-control";
 import { findUnpaidRenewal } from "@/lib/services/quick-renew.service";
 import { TrialPill } from "../trial-pill";
 import { OrderActivityLog } from "./order-activity-log";
-import { DeliveriesSection, DeliveriesSectionSkeleton, loadSubscription } from "@/components/dashboard/deliveries-section";
+import { DeliveriesSection, DeliveriesSectionSkeleton, loadSubscription } from "./deliveries-section";
 import { TabSkeleton } from "./tab-skeleton";
 import { StatCards, StatCardsSkeleton } from "@/components/dashboard/stat-cards";
 import { stageCards } from "./stage-cards";

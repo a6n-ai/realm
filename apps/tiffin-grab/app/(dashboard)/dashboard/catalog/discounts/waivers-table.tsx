@@ -6,7 +6,7 @@ import { Button } from "@foundry/ui/button";
 import { Badge } from "@foundry/ui/badge";
 import { TableCell } from "@foundry/ui/table";
 import { DataTable } from "@/components/ds";
-import { WAIVER_LABELS, WaiverDialog } from "@/components/dashboard/waiver-dialog";
+import { WAIVER_LABELS, WaiverDialog } from "./waiver-dialog";
 import type { WaiverKind } from "@/lib/catalog/types";
 import { discountStatus, type DiscountDto } from "./build-rows";
 

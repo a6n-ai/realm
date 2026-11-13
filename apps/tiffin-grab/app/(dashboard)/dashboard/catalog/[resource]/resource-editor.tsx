@@ -29,7 +29,7 @@ import { formatTuHuman, type TuCategory } from "@/lib/menu/format-tu";
 import {
   RESOURCES, emptyForm, rowToForm, slug, sortableColumns, type FieldDef, type FieldType, type ResourceDef,
 } from "@/lib/catalog/resource-config";
-import { DiscountDialog, type DiscountDialogOptions } from "@/components/dashboard/discount-dialog";
+import { DiscountDialog, type DiscountDialogOptions } from "@/app/(dashboard)/dashboard/catalog/discounts/discount-dialog";
 import { discountValueLabel, type DiscountDto, type DiscountKind } from "../discounts/build-rows";
 import { ActionError, unwrapAction } from "@/lib/actions/unwrap";
 import { reactivateItem, retireItem, saveItem, type ResourceKey } from "../actions";

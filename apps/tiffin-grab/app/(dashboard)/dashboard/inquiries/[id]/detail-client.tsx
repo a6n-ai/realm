@@ -30,7 +30,7 @@ import { InquiryTimeline, type TimelineActivity } from "./inquiry-timeline";
 import { ConvertSheet } from "./convert-sheet";
 import { NextStepCard } from "./next-step-card";
 import { ReassignControl } from "@/components/reassign/reassign-control";
-import type { OrderFormInput } from "./order-schema";
+import type { OrderFormInput } from "../../_order/order-schema";
 
 type Catalog = {
   plans: { key: string; name: string }[];

@@ -13,9 +13,9 @@ import {
 import {
   DeliverySection, DiscountsSection, Field, PaymentSection, PlanSection, PriceSection, RunningPlansField,
 } from "@/app/(dashboard)/dashboard/orders/new-order/order-sections";
-import { estimatePrefill } from "@/app/(dashboard)/dashboard/discounts/estimate-actions";
+import { estimatePrefill } from "@/app/(dashboard)/dashboard/_order/estimate-actions";
 import { useAppCurrency } from "@/components/app-currency";
-import type { OrderFormInput } from "../order-schema";
+import type { OrderFormInput } from "./order-schema";
 import { useOrderDraft, type EstimateState, type EnabledSlot } from "./use-order-draft";
 import type { Catalog } from "./order-draft";
 import { SummaryRow, sectionSummaries, sectionsNeedingInput, useIsLg } from "./split-layout";

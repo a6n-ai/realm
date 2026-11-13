@@ -20,8 +20,8 @@ import { StepHeader } from "../_leads/step-header";
 import { useExistingCustomer } from "../_leads/use-existing-customer";
 import type { CustomerHit } from "../_leads/match-actions";
 import { NoSources } from "../_leads/no-sources";
-import type { OrderFormInput } from "../inquiries/[id]/order-schema";
-import { OrderForm } from "../inquiries/[id]/order/order-form";
+import type { OrderFormInput } from "../_order/order-schema";
+import { OrderForm } from "../_order/order-form";
 import { createOrderFlow } from "../orders/actions";
 import { createCustomerFlow } from "./actions";
 

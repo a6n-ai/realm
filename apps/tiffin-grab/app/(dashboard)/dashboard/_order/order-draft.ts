@@ -4,7 +4,7 @@ import type { CatalogAddon } from "@/lib/catalog/types";
 import type { DayOfWeek } from "@/lib/menu/delivery-days";
 import type { CreateOrderInput } from "@/lib/services/create-order";
 import type { DropOffValue } from "@/lib/catalog/drop-off";
-import type { OrderFormValues } from "../order-schema";
+import type { OrderFormValues } from "./order-schema";
 import type { RepCouponInfo } from "./actions";
 import { utcIso } from "@foundry/commons/util/dates";
 
