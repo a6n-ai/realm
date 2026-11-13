@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { AnalyticsIntro } from "@/components/analytics/analytics-intro";
-import { calendarDays, calendarSkeletonHeight } from "@/lib/analytics/calendar-height";
+import { calendarSkeletonHeight } from "@/lib/analytics/calendar-height";
+import { calendarDays } from "@/lib/analytics/calendar-days";
 import { ChartCard } from "@/components/analytics/chart-card";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
 import { rankedHeight } from "@/components/analytics/chart-math";
