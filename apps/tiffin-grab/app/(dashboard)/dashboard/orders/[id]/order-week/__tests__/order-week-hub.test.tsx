@@ -2,10 +2,10 @@
 import "@testing-library/jest-dom/vitest";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { Trip } from "@/lib/deliveries-view";
+import type { Trip } from "@/lib/deliveries-view/index";
 import type { OrderWeek } from "@/lib/services/order-week.service";
-import { OrderWeekHub } from "../order-week-hub";
-import { BOX_LABEL, boxStatus } from "../order-month-calendar";
+import { OrderWeekHub } from "@/app/(dashboard)/dashboard/orders/[id]/order-week/order-week-hub";
+import { BOX_LABEL, boxStatus } from "@/app/(dashboard)/dashboard/orders/[id]/order-week/order-month-calendar";
 
 const replace = vi.fn();
 vi.mock("next/navigation", () => ({
@@ -23,8 +23,8 @@ vi.mock("@/app/(customer)/me/deliveries/actions", () => ({
 const sds = vi.hoisted(() => vi.fn(async (..._args: unknown[]) => ({ ok: true, message: "Delivery status updated" })));
 vi.mock("@/app/(dashboard)/dashboard/orders/[id]/actions", () => ({ setDeliveryStatusAction: sds }));
 // The ReUI calendar is exercised in the browser; here a stub with one button per agenda day drives the hub.
-vi.mock("../order-month-calendar", async (orig) => {
-  const real = await orig<typeof import("../order-month-calendar")>();
+vi.mock("@/app/(dashboard)/dashboard/orders/[id]/order-week/order-month-calendar", async (orig) => {
+  const real = await orig<typeof import("@/app/(dashboard)/dashboard/orders/[id]/order-week/order-month-calendar")>();
   return {
     ...real,
     OrderMonthCalendar: ({ agenda, now, selectedDay, onPickDay }: { agenda: Record<string, Parameters<typeof real.boxStatus>[0][]>; now: number; selectedDay: string | null; onPickDay: (iso: string) => void }) => (

@@ -5,7 +5,7 @@ import { eq } from "drizzle-orm";
 import { getSession } from "@/lib/auth/session";
 import type { OrderDetail } from "@/lib/services/orders.service";
 import { loadOrderWeek, type OrderWeek } from "@/lib/services/order-week.service";
-import { OrderWeekHub } from "@/components/dashboard/order-week/order-week-hub";
+import { OrderWeekHub } from "@/app/(dashboard)/dashboard/orders/[id]/order-week/order-week-hub";
 import type { OptimoRouteRow } from "./optimoroute-panel";
 import type { Subscription } from "@/lib/services/customer-deliveries.service";
 import { orderDisplayStatus } from "@/lib/orders/display-status";

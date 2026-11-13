@@ -4,7 +4,7 @@ import { isCutoffPassed } from "@/lib/dates/cutoff";
 import { CalendarCheck, Check, House, Truck } from "lucide-react";
 import { cn } from "@foundry/ui/cn";
 import { Stepper, StepperIndicator, StepperItem, StepperNav, StepperSeparator, StepperTitle } from "@/components/reui/stepper";
-import { humanDate, type Trip } from "@/lib/deliveries-view";
+import { humanDate, type Trip } from "@/lib/deliveries-view/index";
 import { cutoffFmt } from "@/components/customer/deliveries/trip-parts";
 
 // Same stage rule as the customer's Journey: the tiffin is on the way only once its stop is on a route.

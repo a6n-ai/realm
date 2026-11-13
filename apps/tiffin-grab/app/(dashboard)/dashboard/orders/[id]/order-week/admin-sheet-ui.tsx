@@ -9,7 +9,7 @@ import { Label } from "@foundry/ui/label";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { Switch } from "@foundry/ui/switch";
 import { cn } from "@foundry/ui/cn";
-import { ResponsiveDialog, Tabs, TabsList, TabsTrigger } from "@/components/ds";
+import { ResponsiveDialog, Tabs, TabsList, TabsTrigger } from "@/components/ds/index";
 import type { SheetUi } from "@/components/customer/deliveries/actions/sheet-ui";
 import type { RowChoice } from "@/components/customer/deliveries/actions/choice-row";
 import { DeliveryAreaNote, useDeliveryArea } from "@/components/customer/address/delivery-area";
