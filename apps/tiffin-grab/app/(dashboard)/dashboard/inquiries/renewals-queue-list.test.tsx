@@ -22,7 +22,7 @@ const render = (ui: ReactElement) => rtlRender(<TimezoneProvider tz="America/Tor
 const plan = (over: Partial<RenewalRow>): RenewalRow => ({
   orderPublicId: "ord_1", customerPublicId: "cus_1", code: "A1", customerName: "Asha", phone: "+16475550001",
   planName: "Plan", mealSize: "Regular", lastTiffin: "2026-11-20", planTotal: "100", status: "none", trial: false,
-  track: null, trackSource: null, lostReason: null, nextFollowUpAt: null, lastActivity: null,
+  track: null, trackSource: null, lostReason: null, nextFollowUpAt: null, laterBookedAt: null, lastActivity: null,
   priorPlans: 0, holds: 0, openTickets: 0, walletCoins: 0, totalSpent: "0", prevOrderTotal: null, ...over,
 });
 afterEach(cleanup);

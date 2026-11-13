@@ -34,6 +34,8 @@ export type RenewalRow = {
   trackSource: "staff" | "auto" | null;
   lostReason: LostReason | null;
   nextFollowUpAt: number | null;
+  /** When the next plan was booked (renewed date); null when nothing later is booked. */
+  laterBookedAt: number | null;
   /** Latest activity, any type except a status change with no note. */
   lastActivity: { type: TrackActivity["type"]; note: string | null; at: number } | null;
   /** Facts, not predictions: earlier paid plans, held or paused days on this plan, unresolved tickets. */
@@ -194,6 +196,7 @@ export async function hydrateRenewalRows(
       trackSource: track?.source ?? null,
       lostReason: track?.lostReason ?? null,
       nextFollowUpAt: track?.nextFollowUpAt ?? null,
+      laterBookedAt: track?.laterBookedAt ?? null,
       lastActivity: latest.get(r.orderPublicId) ?? null,
     };
   });
