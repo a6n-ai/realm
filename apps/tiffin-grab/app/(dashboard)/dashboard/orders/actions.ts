@@ -17,7 +17,6 @@ import { getSession } from "@/lib/auth/session";
 import { uploadPaymentProof } from "@/lib/services/payment-proof";
 import { stripePayLink } from "@/lib/payments/stripe";
 import { findUnpaidPayment, settleWithStaffProof } from "@/lib/services/payment-settle";
-import { sendPaymentReminder } from "@/lib/services/payment-reminder";
 
 type Source = { sourceKey: string; subSourceKey?: string };
 type Contact = { fullName: string; phone: string; email: string };
@@ -112,14 +111,6 @@ export async function settleNewOrderWithProofAction(orderPublicId: string, form:
       { proof, reference: typeof ref === "string" ? ref.trim() || null : null },
       { internalId, publicId: session?.user?.id ?? null },
     );
-  });
-}
-
-// Optional, staff-clicked: emails the customer a sign-in link to pay this new order.
-// A Stripe order passes its paymentPublicId (the link is that payment's page); others default to the order's unpaid payment.
-export async function emailPaymentLinkAction(orderPublicId: string, paymentPublicId?: string): Promise<ActionResult> {
-  return orderAction({ order: orderPublicId, orderPage: orderPublicId }, async () => {
-    await sendPaymentReminder(orderPublicId, paymentPublicId ?? (await findUnpaidPayment(orderPublicId)), await currentUserId());
   });
 }
 

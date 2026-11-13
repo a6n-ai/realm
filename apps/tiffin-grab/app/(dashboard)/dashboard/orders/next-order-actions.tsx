@@ -10,7 +10,8 @@ import { RowActionTooltipButton } from "@/components/ds";
 import { NextItemOpenButton } from "@/components/dashboard/next-item/open-button";
 import { useCardRefresh } from "@/components/dashboard/next-item/recommendation-card";
 import type { NextOrderRow } from "@/lib/services/next-order.service";
-import { addOrderNoteAction, emailPaymentLinkAction } from "./actions";
+import { addOrderNoteAction } from "./actions";
+import { emailPaymentLinkAction } from "../_order/actions";
 import { cancel, verifyPaymentAction } from "./[id]/actions";
 import { CancelOrderDialog } from "./cancel-order-dialog";
 

@@ -13,7 +13,7 @@ import { RadioGroup, RadioGroupItem } from "@foundry/ui/radio-group";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { discountLine } from "@/components/customer/home/coupons-section";
 import { OrderForm, type EstimateState } from "./order-form";
-import { OrderPricingBreakdown } from "../orders/[id]/order-pricing-breakdown";
+import { OrderPricingBreakdown } from "./order-pricing-breakdown";
 import { CustomerSearch } from "../_leads/customer-search";
 import type { CustomerHit } from "../_leads/match-actions";
 import type { OrderFormInput } from "./order-schema";

@@ -6,7 +6,7 @@ import { ChevronDownIcon } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@foundry/ui/collapsible";
 import { parseIsoDateUtc } from "@foundry/commons";
 import { Badge } from "@/components/reui/badge";
-import type { Draft } from "@/app/(dashboard)/dashboard/orders/new-order/order-sections";
+import type { Draft } from "./order-sections";
 import type { Catalog } from "./order-draft";
 import type { EnabledSlot } from "./use-order-draft";
 

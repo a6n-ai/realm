@@ -9,10 +9,10 @@ import type { CreateOrderInput } from "@/lib/services/create-order";
 import {
   AdminOrderCreatedDialog,
   type AdminOrderCreated,
-} from "@/app/(dashboard)/dashboard/orders/admin-order-created-dialog";
+} from "./admin-order-created-dialog";
 import {
   DeliverySection, DiscountsSection, Field, PaymentSection, PlanSection, PriceSection, RunningPlansField,
-} from "@/app/(dashboard)/dashboard/orders/new-order/order-sections";
+} from "./order-sections";
 import { estimatePrefill } from "@/app/(dashboard)/dashboard/_order/estimate-actions";
 import { useAppCurrency } from "@/components/app-currency";
 import type { OrderFormInput } from "./order-schema";

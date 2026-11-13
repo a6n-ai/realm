@@ -5,7 +5,8 @@ import { cleanup, fireEvent, render as rtlRender, screen, waitFor, within } from
 import { TooltipProvider } from "@foundry/ui/tooltip";
 import type { NextOrderReason, NextOrderRow } from "@/lib/services/next-order.service";
 import { NextOrderCard, type NextOrderCardProps } from "../next-order-card";
-vi.mock("../actions", () => ({ addOrderNoteAction: vi.fn(), emailPaymentLinkAction: vi.fn() }));
+vi.mock("../actions", () => ({ addOrderNoteAction: vi.fn() }));
+vi.mock("../../_order/actions", () => ({ emailPaymentLinkAction: vi.fn() }));
 vi.mock("../[id]/actions", () => ({ verifyPaymentAction: vi.fn(), cancel: vi.fn(async () => ({ ok: true })) }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }) }));

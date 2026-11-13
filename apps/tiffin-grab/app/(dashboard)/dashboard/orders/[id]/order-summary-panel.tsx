@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { formatMoney as fmt } from "@foundry/commons";
 import { SectionCard } from "@/components/ds";
-import { OrderPricingBreakdown } from "./order-pricing-breakdown";
+import { OrderPricingBreakdown } from "@/app/(dashboard)/dashboard/_order/order-pricing-breakdown";
 import { formatEpoch } from "@/lib/format/datetime";
 import type { OrderPricingSnapshot } from "@/lib/pricing/types";
 import { planDeliveryDays, planWeek, type DayOfWeek } from "@/lib/menu/delivery-days";

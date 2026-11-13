@@ -29,12 +29,12 @@ import { InquiryMatch } from "../../_leads/inquiry-match";
 import { NoSources } from "../../_leads/no-sources";
 import { useExistingCustomer } from "../../_leads/use-existing-customer";
 import { getInquiryInterestForPrefill, type CustomerHit } from "../../_leads/match-actions";
-import { AdminOrderCreatedPanel, type AdminOrderCreated } from "../admin-order-created-dialog";
+import { AdminOrderCreatedPanel, type AdminOrderCreated } from "@/app/(dashboard)/dashboard/_order/admin-order-created-dialog";
 import { CreatedOrderDetails, createdOrderFacts, whatsAppOrderMessage } from "./created-order-details";
 import { createOrderFlow, saveOrderLeadAction, settleNewOrderWithProofAction } from "../actions";
 import { PaymentProofField, type PaymentProofValue } from "../payment-proof-field";
 import { FormDrawer } from "../form-drawer";
-import { DeliverySection, DiscountsSection, Field, PaymentSection, PlanSection, PriceSection, RunningPlansField, Section } from "./order-sections";
+import { DeliverySection, DiscountsSection, Field, PaymentSection, PlanSection, PriceSection, RunningPlansField, Section } from "@/app/(dashboard)/dashboard/_order/order-sections";
 import { useFormatMoney } from "@/components/app-currency";
 
 type Src = { key: string; label: string; subs: { key: string; label: string }[] };

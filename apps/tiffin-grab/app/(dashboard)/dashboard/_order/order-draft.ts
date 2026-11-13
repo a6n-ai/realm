@@ -1,4 +1,3 @@
-import { round2 } from "@foundry/commons/util/money";
 import { isWeekend, parseIsoDateUtc } from "@foundry/commons";
 import type { CatalogAddon } from "@/lib/catalog/types";
 import type { DayOfWeek } from "@/lib/menu/delivery-days";

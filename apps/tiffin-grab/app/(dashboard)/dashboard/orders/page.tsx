@@ -15,7 +15,7 @@ import { countLookOutOrders } from "@/lib/orders/look-out";
 import { countFreeTiffinOrders, type FreeTiffinRange, countPaymentReviewOrders } from "@/lib/orders/queries";
 import { redirect } from "next/navigation";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
-import { orderFormCatalog } from "./order-form-catalog";
+import { orderFormCatalog } from "@/app/(dashboard)/dashboard/_order/order-form-catalog";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { parseSort } from "@foundry/design-system/list-sort";
 import { Skeleton } from "@foundry/ui/skeleton";

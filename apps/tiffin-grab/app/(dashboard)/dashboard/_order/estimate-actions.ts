@@ -15,7 +15,7 @@ import { findRenewableOrder, readOrderPrefill } from "@/lib/services/order-prefi
 import { userIdByPublicId } from "@/lib/services/session-service";
 import type { ActionResult } from "@/lib/actions/action-result";
 import { staffAction } from "@/lib/actions/staff-action";
-import { orderFormCatalog } from "../orders/order-form-catalog";
+import { orderFormCatalog } from "./order-form-catalog";
 import type { CustomerHit } from "../_leads/match-actions";
 import type { OrderFormInput } from "./order-schema";
 

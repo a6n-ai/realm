@@ -2,7 +2,7 @@
 
 import type { PricingResult } from "@/lib/pricing";
 import type { CreateOrderInput } from "@/lib/services/create-order";
-import { OrderPricingBreakdown } from "../[id]/order-pricing-breakdown";
+import { OrderPricingBreakdown } from "@/app/(dashboard)/dashboard/_order/order-pricing-breakdown";
 import { formatMoney } from "@foundry/commons";
 
 type Catalog = {

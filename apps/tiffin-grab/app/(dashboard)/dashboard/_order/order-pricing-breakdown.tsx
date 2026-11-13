@@ -1,6 +1,6 @@
 import { formatMoney as fmt } from "@foundry/commons";
 import { Separator } from "@foundry/ui/separator";
-import type { PricingResult } from "@/lib/pricing";
+import type { PricingResult } from "@/lib/pricing/index";
 
 // Plain CRM-styled equivalent of components/wizard/invoice.tsx's <Invoice> — that
 // component is the public checkout wizard's neo-brutalist "Tiffin Brutal" receipt
