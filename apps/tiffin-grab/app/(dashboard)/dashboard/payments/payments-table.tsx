@@ -26,8 +26,8 @@ import { sendPaymentReminderAction } from "@/app/(dashboard)/dashboard/payments/
 /** "all" is the Payments listing (who paid); "customer" is one customer's tab (which order it paid for). */
 type Scope = "all" | "customer";
 
-const columnsFor = (scope: Scope): readonly Column<PaymentSortKey | "actions">[] => [
-  { key: "time", label: "Time", sortable: true },
+const columnsFor = (scope: Scope, datedBy: "created" | "money"): readonly Column<PaymentSortKey | "actions">[] => [
+  { key: "time", label: datedBy === "money" ? "Paid" : "Time", sortable: true },
   scope === "all" ? { key: "customer", label: "Customer", sortable: true } : { key: "order", label: "Order", sortable: true },
   { key: "method", label: "Method", sortable: true },
   { key: "status", label: "Status", sortable: true },
@@ -55,6 +55,8 @@ export function PaymentsTable({
   sort,
   ownerOptions = [],
   scope = "all",
+  /** "money" matches revenue analytics (capture clock in the app timezone). */
+  datedBy = "created",
 }: {
   rows: PaymentRow[];
   total: number;
@@ -63,6 +65,7 @@ export function PaymentsTable({
   sort: SortState<PaymentSortKey>;
   ownerOptions?: Option[];
   scope?: Scope;
+  datedBy?: "created" | "money";
 }) {
   const tz = useTimezone();
   const [viewing, setViewing] = useState<PaymentRow | null>(null);
@@ -89,7 +92,7 @@ export function PaymentsTable({
     <div className="space-y-4">
     <DataTable
       serialOffset={pageOffset(page, size)}
-      columns={columnsFor(scope)}
+      columns={columnsFor(scope, datedBy)}
       rows={rows}
       rowKey={(r) => r.publicId}
       sort={sort as SortState<PaymentSortKey | "actions">}
@@ -108,7 +111,10 @@ export function PaymentsTable({
       renderRow={(r) => (
         <>
           <TableCell className="whitespace-nowrap tabular-nums text-muted-foreground">
-            {formatEpoch(r.createdAt, { mode: "datetime", timeZone: tz })}
+            {formatEpoch(datedBy === "money" ? (r.capturedAt ?? r.createdAt) : r.createdAt, {
+              mode: "datetime",
+              timeZone: tz,
+            })}
           </TableCell>
           {scope === "all" ? (
             <TableCell className="text-muted-foreground"><CustomerLink row={r} /></TableCell>
@@ -142,6 +148,6 @@ export function PaymentsTable({
   );
 }
 
-export function PaymentsTableSkeleton({ scope = "all" }: { scope?: Scope }) {
-  return <DataTable.Skeleton columns={columnsFor(scope)} hasId />;
+export function PaymentsTableSkeleton({ scope = "all", datedBy = "created" }: { scope?: Scope; datedBy?: "created" | "money" }) {
+  return <DataTable.Skeleton columns={columnsFor(scope, datedBy)} hasId />;
 }

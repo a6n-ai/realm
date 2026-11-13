@@ -26,6 +26,10 @@ export type ScopeSearchParams = Record<string, string | undefined>;
 
 const EXTRA_PARAMS = ["method", "category", "subcategory", "status", "priority"];
 
+/**
+ * Day labels for analytics cards. Epoch-ms buckets always use the app timezone
+ * (America/Toronto) via `localDay` / `isoDateInZone` — never the server's UTC day.
+ */
 export const DATE_BASIS_LABEL = {
   money: "by payment date",
   orders: "by order date",

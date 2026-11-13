@@ -50,6 +50,11 @@ export const inquiries = pgTable("inquiries", {
   notes: text("notes"),
   // Set only when fullName was generated ("Lead <n>"); see lib/inquiries/quick-add.ts.
   leadNumber: integer("lead_number"),
+  /**
+   * Meta Instant Forms lead id (15–17 digits). Required for CRM → Qualified Leads
+   * Conversions API matching. Set by leadgen webhook ingest or staff paste.
+   */
+  metaLeadId: text("meta_lead_id"),
   // Client-scoping — see orders.organizationId for the pattern. Nullable during backfill.
   organizationId: text("organization_id").references(() => organization.id),
 }, (t) => [
@@ -57,6 +62,7 @@ export const inquiries = pgTable("inquiries", {
   index("inquiries_email_lower_idx").on(sql`lower(${t.email})`),
   index("inquiries_owner_idx").on(t.currentOwner),
   index("inquiries_whatsapp_lower_idx").on(sql`lower(${t.whatsappPhone})`),
+  uniqueIndex("inquiries_meta_lead_id_unique").on(t.metaLeadId).where(sql`${t.metaLeadId} is not null`),
   uniqueIndex("inquiries_org_lead_number_unique")
     .on(sql`coalesce(${t.organizationId}, '')`, t.leadNumber)
     .where(sql`${t.leadNumber} is not null`),

@@ -12,7 +12,10 @@ const EVENTS = [
   { name: "AddToCart", where: "Plan chosen in the subscribe wizard. Browser and server." },
   { name: "InitiateCheckout", where: "Checkout opens with the priced total. Browser and server." },
   { name: "AddPaymentInfo", where: "Customer picks Stripe or e-Transfer. Browser and server, with the full priced total." },
-  { name: "Lead", where: "Contact form or waitlist sign-up. Browser and server, counted once." },
+  { name: "Lead", where: "Contact form or waitlist sign-up (website). Browser and server, counted once." },
+  { name: "Lead (CRM)", where: "Instant Forms ingest or when a Meta lead id is first attached. Server-only, action_source system_generated." },
+  { name: "CRM stage events", where: "Inquiry status changes when a Meta lead id is present (e.g. Responded, Expected)." },
+  { name: "QualifiedLead", where: "Inquiry convert (took plan/trial) with a Meta lead id. Optimize Instant Forms campaigns to this event." },
   { name: "Contact", where: "WhatsApp chat. Browser and server." },
   { name: "CompleteRegistration", where: "New account from the sign-up page. Server." },
   { name: "order_submitted", where: "Offline (e-Transfer/cash): when proof or a reference is submitted. Browser and server share one id. Not a Purchase." },
@@ -30,6 +33,8 @@ export default async function MetaPixelSettingsPage() {
     <Badge variant="info-light">Browser only</Badge>
   );
 
+  const leadgenReady = s.leadgenVerifyTokenSet && s.pageAccessTokenReadable;
+
   return (
     <div className="grid gap-6">
       <PageHeader icon={MegaphoneIcon} title="Meta Pixel" subtitle="Track visits and conversions for Facebook and Instagram ads." />
@@ -44,7 +49,7 @@ export default async function MetaPixelSettingsPage() {
       ) : s.hasToken && !s.tokenReadable ? (
         <Alert variant="destructive">
           <AlertTitle>Saved token cannot be read</AlertTitle>
-          <AlertDescription>The encryption key changed since it was saved. Paste the token again.</AlertDescription>
+          <AlertDescription>The encryption key changed since it was sealed. Paste the token again.</AlertDescription>
         </Alert>
       ) : null}
 
@@ -59,14 +64,35 @@ export default async function MetaPixelSettingsPage() {
 
       <div className="grid gap-6 lg:grid-cols-2">
         <SectionCard title="Connection" subtitle="Changes reach the site within 5 minutes. No redeploy." action={connection}>
-          <MetaPixelForm pixelId={s.pixelId ?? ""} hasToken={s.hasToken} testEventCode={s.testEventCode ?? ""} />
+          <MetaPixelForm
+            pixelId={s.pixelId ?? ""}
+            hasToken={s.hasToken}
+            testEventCode={s.testEventCode ?? ""}
+            leadgenVerifyTokenSet={s.leadgenVerifyTokenSet}
+            hasPageAccessToken={s.hasPageAccessToken}
+            hasAppSecret={s.hasAppSecret}
+          />
         </SectionCard>
 
-        <SectionCard title="Check the connection" subtitle="Sends one server PageView with your test event code.">
+        <SectionCard title="Check the connection" subtitle="Sends server events with your test event code.">
           {!s.tokenReadable || !s.testEventCode ? (
             <p className="text-muted-foreground text-sm">Save an access token and a test event code to send a test event.</p>
           ) : null}
           <SendTestEvent ready={s.tokenReadable && Boolean(s.testEventCode)} />
+          <div className="mt-4 border-t pt-4">
+            <p className="text-muted-foreground mb-2 text-sm">
+              Lead Ads ingest:{" "}
+              {leadgenReady ? (
+                <Badge variant="success-light">Ready</Badge>
+              ) : (
+                <Badge variant="warning-light">Needs verify token + page token</Badge>
+              )}
+            </p>
+            <p className="text-muted-foreground text-sm text-pretty">
+              After CRM QualifiedLead events appear in Test events, open Ads Manager → Instant Forms campaign → Connect CRM →
+              choose Maximize number of qualified leads and map it to QualifiedLead.
+            </p>
+          </div>
         </SectionCard>
       </div>
 

@@ -61,7 +61,7 @@ export default async function ComplaintsAnalyticsPage({ searchParams }: { search
       </Suspense>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
-        <ChartCard title="Complaints calendar" subtitle="Complaints raised per day" info={`Counted ${DATE_BASIS_LABEL.tickets}. Darker is more.`}>
+        <ChartCard title="Complaints calendar" subtitle="Complaints per day" info="The day is the last activity time on the ticket, in Toronto time — the same clock as the tickets list. Darker is more.">
           <Suspense fallback={<ChartSkeleton height={calendarSkeletonHeight(scope)} />}>
             <Trend scope={scope} />
           </Suspense>

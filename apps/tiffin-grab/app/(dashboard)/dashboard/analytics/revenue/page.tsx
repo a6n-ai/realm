@@ -65,7 +65,7 @@ export default async function RevenueAnalyticsPage({ searchParams }: { searchPar
             <NetByDay scope={scope} daily={unit === "day"} />
           </Suspense>
         </ChartCard>
-        <ChartCard title="Revenue calendar" subtitle="Net revenue per day" info={`Counted ${DATE_BASIS_LABEL.money}. Darker is more.`}>
+        <ChartCard title="Revenue calendar" subtitle="Net revenue per day" info={`Counted ${DATE_BASIS_LABEL.money}, in Toronto time — capture when present, else created; same clock the payments list shows when opened from here. Darker is more.`}>
           <Suspense fallback={<ChartSkeleton height={calendarSkeletonHeight(scope)} />}>
             <RevenueCalendar scope={scope} />
           </Suspense>

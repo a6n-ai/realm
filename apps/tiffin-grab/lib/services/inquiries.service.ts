@@ -8,6 +8,7 @@ import { BaseRepository, UpdatableRepository, conditionToSql, columnResolver, pa
 import { NotFoundError, ValidationError, phoneSchema, emailSchema } from "@foundry/commons";
 import type { Condition, FilterCondition } from "@foundry/commons/model/condition";
 import type { PageRequest } from "@foundry/commons/util/pagination";
+import { normalizeMetaLeadId } from "@foundry/meta-pixel";
 import { and, asc, count, desc, eq, getTableColumns, inArray, isNull, ne, notInArray, or, sql, type SQL } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db, type Tx } from "@/db/client";
@@ -18,6 +19,7 @@ import { getSession } from "@/lib/auth/session";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { assertServiceable, findZone } from "@/lib/catalog/zone-match";
 import { parseCanadianPostalCode } from "@/lib/catalog/postal";
+import { sendMetaCrmLeadCreated, sendMetaCrmLeadStatus, sendMetaCrmQualifiedLead } from "@/lib/meta/crm-lead";
 import { SessionBaseService, SessionUpdatableService } from "./session-service";
 import { assertOnePerson, createOrder, type CreateOrderInput } from "./create-order";
 import { getBrandOrgId } from "./organizations.service";
@@ -383,18 +385,38 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
       email = parseEmail(rawEmail);
     }
 
-    const { sourceKey, subSourceKey, subStatus: rawSub, whatsappPhone: _wa, ...rest } = values as {
+    const { sourceKey, subSourceKey, subStatus: rawSub, whatsappPhone: _wa, metaLeadId: rawMetaLeadId, ...rest } = values as {
       sourceKey: string;
       subSourceKey?: string;
       subStatus?: unknown;
+      metaLeadId?: unknown;
       [k: string]: unknown;
     };
     const subStatus = (rawSub ?? null) as SubStatus | null;
     if (subStatus !== null && !(SUB_STATUSES.includes(subStatus) && SUB_STATUS_META[subStatus].pickable && !isClosed(subStatus))) {
       throw new ValidationError("Pick an open starting status");
     }
+    const metaLeadId =
+      rawMetaLeadId == null || rawMetaLeadId === ""
+        ? null
+        : normalizeMetaLeadId(typeof rawMetaLeadId === "string" || typeof rawMetaLeadId === "number" ? rawMetaLeadId : "");
+    if (rawMetaLeadId != null && rawMetaLeadId !== "" && !metaLeadId) {
+      throw new ValidationError("Meta lead id must be the 15–17 digit Instant Forms lead id");
+    }
     const fold = async (existing: typeof inquiries.$inferSelect) => {
       await this.logReinquiry(existing, { phone, email, sourceKey, subSourceKey, notes: rest.notes });
+      // Attach Instant Forms lead_id when a re-inquiry carries one and the open lead lacks it.
+      if (metaLeadId && !existing.metaLeadId) {
+        const updated = await this.update(existing.publicId, { metaLeadId });
+        sendMetaCrmLeadCreated({
+          publicId: updated.publicId,
+          metaLeadId: updated.metaLeadId,
+          email: updated.email,
+          phone: updated.phone,
+          fullName: updated.fullName,
+        });
+        return { inquiry: updated, folded: true };
+      }
       return { inquiry: existing, folded: true };
     };
 
@@ -424,6 +446,7 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
         phone,
         whatsappPhone,
         email,
+        metaLeadId,
         stage: stageFor(subStatus),
         subStatus,
         nextFollowUpAt: typeof rest.nextFollowUpAt === "number" ? rest.nextFollowUpAt : null,
@@ -449,6 +472,15 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
       toStage: inq.stage,
       toSubStatus: subStatus,
     });
+    if (inq.metaLeadId) {
+      sendMetaCrmLeadCreated({
+        publicId: inq.publicId,
+        metaLeadId: inq.metaLeadId,
+        email: inq.email,
+        phone: inq.phone,
+        fullName: inq.fullName,
+      });
+    }
     await db.transaction((tx) => this.notifyOwner(tx, inq, {
       event: "inquiry_created",
       title: "New inquiry",
@@ -467,6 +499,33 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
    * Edits who the lead is. An absent key is unchanged; null/blank clears it. A blank name keeps a
    * generated one, or gets a new "Lead <n>" when a phone remains — a lead always has a name or phone.
    */
+  /**
+   * Attach or clear a Meta Instant Forms lead id. Fires CRM Lead once when first set.
+   * Clearing is allowed so staff can fix a paste typo before convert.
+   */
+  async setMetaLeadId(publicId: string, raw: string | null): Promise<typeof inquiries.$inferSelect> {
+    const inq = await this.read(publicId);
+    const next =
+      raw == null || !raw.trim()
+        ? null
+        : normalizeMetaLeadId(raw);
+    if (raw != null && raw.trim() && !next) {
+      throw new ValidationError("Meta lead id must be the 15–17 digit Instant Forms lead id");
+    }
+    if ((inq.metaLeadId ?? null) === next) return inq;
+    const updated = await this.update(publicId, { metaLeadId: next });
+    if (next && !inq.metaLeadId) {
+      sendMetaCrmLeadCreated({
+        publicId: updated.publicId,
+        metaLeadId: updated.metaLeadId,
+        email: updated.email,
+        phone: updated.phone,
+        fullName: updated.fullName,
+      });
+    }
+    return updated;
+  }
+
   async updateContact(
     publicId: string,
     input: { fullName?: string | null; phone?: string | null; whatsappPhone?: string | null; email?: string | null },
@@ -612,6 +671,18 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
       note,
       nextFollowUpAt,
     });
+    if (previous !== to) {
+      sendMetaCrmLeadStatus(
+        {
+          publicId: current.publicId,
+          metaLeadId: current.metaLeadId,
+          email: current.email,
+          phone: current.phone,
+          fullName: current.fullName,
+        },
+        to,
+      );
+    }
     if (input.nextFollowUpAt != null) await this.followUp(current, nextFollowUpAt);
     return { previous };
   }
@@ -704,6 +775,14 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
       toStage: "converted",
       fromSubStatus: inq.subStatus,
       toSubStatus: subStatus,
+    });
+    // Instant Forms → Maximize number of qualified leads optimizes to this event.
+    sendMetaCrmQualifiedLead({
+      publicId: inq.publicId,
+      metaLeadId: inq.metaLeadId,
+      email: contactEmail,
+      phone: contactPhone,
+      fullName: orderInput.contact.fullName.trim(),
     });
     await db.transaction(async (tx) => {
       await this.notifyOwner(tx, inq, {

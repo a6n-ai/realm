@@ -25,6 +25,7 @@ const plan: RenewalRow = {
   trackSource: null,
   lostReason: null,
   nextFollowUpAt: null,
+  laterBookedAt: null,
   lastActivity: null,
   priorPlans: 2,
   holds: 1,

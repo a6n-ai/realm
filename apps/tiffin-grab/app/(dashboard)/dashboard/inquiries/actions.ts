@@ -44,6 +44,7 @@ export async function createInquiry(input: {
   preferredStart?: string;
   quotedPrice?: number;
   notes?: string;
+  metaLeadId?: string;
 }) {
   return staffAction(listOpts, async () => {
     // Same person (phone or email) with an open inquiry: logged there as a re-inquiry.
@@ -75,6 +76,17 @@ export async function quickAddInquiries(input: { text: string; sourceKey: string
       }
     }
     return { added, folded, failed };
+  });
+}
+
+export async function updateInquiryMetaLeadId(
+  inquiryId: string,
+  metaLeadId: string | null,
+): Promise<ActionResult<{ metaLeadId: string | null }>> {
+  return staffAction(leadOpts(inquiryId), async () => {
+    await guardInquiries(inquiryId);
+    const inq = await inquiriesService.setMetaLeadId(inquiryId, metaLeadId);
+    return { metaLeadId: inq.metaLeadId };
   });
 }
 

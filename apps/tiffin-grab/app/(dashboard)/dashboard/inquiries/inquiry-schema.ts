@@ -21,6 +21,8 @@ export const inquiryFormSchema = z.object({
   quotedPrice: z.coerce.number().nonnegative().optional(),
   notes: z.string().optional(),
   nextFollowUpAt: z.number().optional(),
+  /** Meta Instant Forms lead id — enables CRM → Qualified Leads matching. */
+  metaLeadId: z.string().trim().optional().or(z.literal("")),
 }).superRefine((v, ctx) => {
   if (!v.fullName && !v.phone) {
     ctx.addIssue({ code: "custom", path: ["fullName"], message: "Enter a name or phone number" });

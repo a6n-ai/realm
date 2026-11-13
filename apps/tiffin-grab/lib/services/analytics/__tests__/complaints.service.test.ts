@@ -356,6 +356,26 @@ describe("complaint scope", () => {
     ]);
   });
 
+  it("counts the complaint on the Toronto day of the time the tickets list shows", async () => {
+    const u = await makeUser("activity@x.test");
+    // Opened the morning of Nov 10 Toronto. Last activity is 9:30pm Toronto on
+    // Nov 11, which is already Nov 12 in UTC. The queue prints Nov 11.
+    await makeTicket(u.id, {
+      createdAt: Date.parse("2026-11-10T15:00:00Z"),
+      lastMessageAt: Date.parse("2026-11-12T02:30:00Z"),
+    });
+    await makeTicket(u.id, {
+      createdAt: Date.parse("2026-11-11T15:00:00Z"),
+      lastMessageAt: Date.parse("2026-11-11T15:00:00Z"),
+    });
+    const rows = await getComplaintDaily({
+      ...NO_FILTERS,
+      fromMs: Date.parse("2026-11-01T05:00:00Z"),
+      toMs: Date.parse("2026-11-13T04:59:00Z"),
+    });
+    expect(rows.map((r) => [r.iso, r.n])).toEqual([["2026-11-11", 2]]);
+  });
+
   it("defaults to the current month in the app timezone", () => {
     const scope = buildAnalyticsScope({}, "all", TZ, Date.parse("2026-04-15T16:00:00Z"));
     expect(scope.fromMs).toBe(Date.parse("2026-04-01T04:00:00Z"));
