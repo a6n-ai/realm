@@ -4,6 +4,7 @@ import { db } from "@/db/client";
 import { earnedCoinsSql, spentCoinsSql, unexpired } from "@foundry/wallet";
 import { pageOrder } from "@foundry/database";
 import { coinRate, users, walletLedger } from "@/db/schema";
+import { signedCoinsSql } from "@/lib/wallet/balance-sql";
 
 type Range = { from: number; to: number };
 
@@ -14,7 +15,7 @@ const inRange = (r: Range) => and(gte(walletLedger.createdAt, r.from), lte(walle
 
 // Same rule as walletService.balance(): lapsed holds are not part of what a customer holds.
 export const balanceSql = (asOf: number = Date.now()) =>
-  sql<number>`cast(coalesce(sum(case when ${walletLedger.createdAt} <= ${asOf} and ${unexpired(walletLedger, asOf)} then (case when ${walletLedger.direction} = 'credit' then ${walletLedger.coins} else -${walletLedger.coins} end) else 0 end), 0) as int)`;
+  sql<number>`cast(coalesce(sum(case when ${walletLedger.createdAt} <= ${asOf} and ${unexpired(walletLedger, asOf)} then ${signedCoinsSql} else 0 end), 0) as int)`;
 
 /** Customers only: staff and soft-deleted accounts never appear on a balance sheet. */
 const customerOnly = and(eq(users.role, "user"), ne(users.status, "deleted"));

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { SUB_STATUSES, assertTransition, groupFor, isClosed, stageFor, statusLabel } from "../status";
+import { SUB_STATUSES, assertTransition, groupFor, isBulkSettable, isClosed, stageFor, statusLabel } from "../status";
 
 describe("stageFor", () => {
   it("maps sub-statuses to stages", () => {
@@ -59,5 +59,13 @@ describe("assertTransition", () => {
     for (const from of [null, ...SUB_STATUSES] as const) {
       expect(() => assertTransition(from, "took_plan")).toThrow();
     }
+  });
+});
+
+describe("isBulkSettable", () => {
+  it("allows open statuses and Undeliverable, never Lost or a conversion", () => {
+    expect(SUB_STATUSES.filter(isBulkSettable)).toEqual([
+      "no_response", "responded", "undeliverable", "future", "persistent", "expected", "pending_payment",
+    ]);
   });
 });

@@ -13,6 +13,7 @@ import { addDaysIso, DAY_MS, daysBetween } from "@foundry/commons/util/dates";
 import { computedStatusSql, effectiveTrackStatusSql, followUpWhere, getTrackRows, laterBookedAtSql, latestTrackActivities, listTrackActivities, type TrackActivity, type TrackRow } from "./renewal-tracking.service";
 import type { TrackStatus } from "@/lib/renewals/status";
 import type { LostReason } from "./inquiries.service";
+import { walletBalanceSql } from "@/lib/wallet/balance-sql";
 
 export type RenewalRow = {
   orderPublicId: string;
@@ -615,7 +616,7 @@ export async function renewalMoney(
     db
       .select({
         userId: walletLedger.userId,
-        balance: sql<number>`cast(coalesce(sum(case when ${walletLedger.direction} = 'credit' then ${walletLedger.coins} else -${walletLedger.coins} end), 0) as int)`,
+        balance: walletBalanceSql(),
       })
       .from(walletLedger)
       .where(and(inArray(walletLedger.userId, userIds), unexpired(walletLedger, now)))

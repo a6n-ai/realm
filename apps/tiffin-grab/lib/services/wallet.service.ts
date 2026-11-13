@@ -18,6 +18,7 @@ import type { OrderPricingSnapshot } from "@/lib/pricing";
 import { coinsUnderCap, earnCoins } from "@/lib/wallet/earn-coins";
 import { earnsOrderCoins } from "@/lib/wallet/earns-coins";
 import { getAppSettings, getCoinEarnPct, getMaxWalletBalance } from "./app-settings.service";
+import { walletBalanceSql } from "@/lib/wallet/balance-sql";
 
 export type BusinessEvent = (typeof walletLedger.eventType.enumValues)[number];
 export type WalletTx = PackageWalletTx<BusinessEvent>;
@@ -153,7 +154,7 @@ export function reverseCoinRedemption(tx: Tx, args: { userId: bigint; orderId: b
 export async function balanceInTx(tx: Tx, userId: bigint): Promise<number> {
   const [row] = await tx
     .select({
-      bal: sql<number>`coalesce(sum(case when ${walletLedger.direction} = 'credit' then ${walletLedger.coins} else -${walletLedger.coins} end), 0)::int`,
+      bal: walletBalanceSql(),
     })
     .from(walletLedger)
     .where(and(eq(walletLedger.userId, userId), unexpired(walletLedger, Date.now())));

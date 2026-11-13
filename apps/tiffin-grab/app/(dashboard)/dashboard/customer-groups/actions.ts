@@ -23,6 +23,7 @@ import {
   searchCustomerGroups,
 } from "@/lib/services/customer-groups.service";
 import { listPayoutCandidates, type PayoutCandidate, type PayoutCandidateFilters } from "@/lib/services/customer-payouts.service";
+import { walletBalanceSql } from "@/lib/wallet/balance-sql";
 
 export async function searchAccounts(query: string) {
   await requireAdmin();
@@ -32,7 +33,7 @@ export async function searchAccounts(query: string) {
   const bals = await db
     .select({
       publicId: users.publicId,
-      walletCoins: sql<number>`cast(coalesce(sum(case when ${walletLedger.direction} = 'credit' then ${walletLedger.coins} else -${walletLedger.coins} end), 0) as int)`.mapWith(Number),
+      walletCoins: walletBalanceSql().mapWith(Number),
     })
     .from(users)
     .leftJoin(walletLedger, and(eq(walletLedger.userId, users.id), unexpired(walletLedger, Date.now())))

@@ -21,7 +21,7 @@ type SubStatusMeta = { label: string; group: StatusGroup; closes: boolean; picka
 
 export const SUB_STATUS_META: Record<SubStatus, SubStatusMeta> = {
   no_response: { label: "No response", group: "lead", closes: false, pickable: true },
-  responded: { label: "Responded", group: "lead", closes: false, pickable: true },
+  responded: { label: "Responded", group: "follow_up", closes: false, pickable: true },
   lost: { label: "Lost", group: "lead", closes: true, pickable: true },
   undeliverable: { label: "Undeliverable", group: "lead", closes: true, pickable: true },
   future: { label: "Will take in future", group: "follow_up", closes: false, pickable: true },
@@ -42,11 +42,18 @@ export function stageFor(sub: SubStatus | null): InquiryStage {
   return "follow_up";
 }
 
-// Responded moves the lead into Follow-up even though its meta lists it under lead.
 export function groupFor(sub: SubStatus | null): StatusGroup {
-  if (sub === null) return "lead";
-  if (sub === "responded") return "follow_up";
-  return SUB_STATUS_META[sub].group;
+  return sub === null ? "lead" : SUB_STATUS_META[sub].group;
+}
+
+/** Staff can pick it and it keeps the inquiry open. */
+export function isOpenPickable(sub: SubStatus): boolean {
+  return SUB_STATUS_META[sub].pickable && !SUB_STATUS_META[sub].closes;
+}
+
+/** What the inquiries list may set on many rows at once: any open pickable status, plus Undeliverable. */
+export function isBulkSettable(sub: SubStatus): boolean {
+  return sub === "undeliverable" || isOpenPickable(sub);
 }
 
 export function isClosed(sub: SubStatus | null): boolean {

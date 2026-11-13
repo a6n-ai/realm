@@ -22,7 +22,7 @@ import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@foundry/design-system/timezone-provider";
 import type { PipelineRow } from "@/lib/services/inquiries.service";
 import { displayName } from "@/lib/inquiries/display";
-import { SUB_STATUSES, SUB_STATUS_META, isClosed, type SubStatus } from "@/lib/inquiries/status";
+import { SUB_STATUSES, SUB_STATUS_META, isBulkSettable, isClosed, type SubStatus } from "@/lib/inquiries/status";
 import { bulkSetStatus, reassignInquiries } from "./actions";
 import { unwrapAction } from "@/lib/actions/unwrap";
 import type { ActionResult } from "@/lib/actions/action-result";
@@ -45,7 +45,7 @@ const COLUMNS: readonly Column<InquirySortColumn | "select" | "lastNote" | "acti
 
 
 // ponytail: only open sub-statuses plus Undeliverable; Lost needs a per-lead reason, took_* is convert-only.
-const BULK_STATUSES = SUB_STATUSES.filter((s) => (SUB_STATUS_META[s].pickable && !SUB_STATUS_META[s].closes) || s === "undeliverable");
+const BULK_STATUSES = SUB_STATUSES.filter(isBulkSettable);
 
 type RowDialog =
   | { id: string; kind: "note"; note: NoteKind };

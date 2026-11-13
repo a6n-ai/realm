@@ -14,6 +14,7 @@ import { lastTiffinSql, laterOrderSql } from "@/lib/orders/queries";
 import { enqueueNotification } from "@/lib/notifications/enqueue";
 import { DEFAULT_GRANT_REASON, walletCreditedDefaults } from "@/lib/notifications/wallet-credited-copy";
 import { walletService } from "./wallet.service";
+import { walletBalanceSql } from "@/lib/wallet/balance-sql";
 
 export const MAX_REVIEW_ROWS = 2000;
 
@@ -85,7 +86,7 @@ export async function listPayoutCandidates(
   const walletAgg = db
     .select({
       userId: walletLedger.userId,
-      coins: sql<number>`cast(coalesce(sum(case when ${walletLedger.direction} = 'credit' then ${walletLedger.coins} else -${walletLedger.coins} end), 0) as int)`.as("wallet_coins"),
+      coins: walletBalanceSql().as("wallet_coins"),
     })
     .from(walletLedger)
     .where(unexpired(walletLedger, Date.now()))

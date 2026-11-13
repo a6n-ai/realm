@@ -10,7 +10,7 @@ import {
 } from "@/lib/services/inquiries.service";
 import { ValidationError } from "@foundry/commons";
 import { z } from "zod";
-import { SUB_STATUS_META, isClosed, type SubStatus } from "@/lib/inquiries/status";
+import { isBulkSettable, type SubStatus } from "@/lib/inquiries/status";
 import type { ActionResult } from "@/lib/actions/action-result";
 import { staffAction } from "@/lib/actions/staff-action";
 import { QUICK_ADD_MAX, parsePastedPhones } from "./quick-add/parse-phones";
@@ -150,7 +150,7 @@ export async function bulkSetStatus(
     const ids = [...new Set(inquiryIds)];
     if (ids.length > 200) throw new ValidationError("Update at most 200 inquiries at a time");
     await guardInquiries(...ids);
-    if (isClosed(subStatus) ? subStatus !== "undeliverable" : !SUB_STATUS_META[subStatus].pickable) {
+    if (!isBulkSettable(subStatus)) {
       throw new ValidationError("That status can't be set in bulk");
     }
     let updated = 0;

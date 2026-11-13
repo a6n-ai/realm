@@ -19,7 +19,7 @@ import { FollowUpPicker, type FollowUpValue } from "@/components/dashboard/pipel
 import { ReasonDialog } from "@/components/dashboard/pipeline/reason-dialog";
 import { StatusTileButton, TonePill } from "@/components/dashboard/pipeline/status-tile";
 import {
-  SUB_STATUSES, SUB_STATUS_META, groupFor, isClosed, statusLabel,
+  SUB_STATUSES, SUB_STATUS_META, groupFor, isClosed, isOpenPickable, statusLabel,
   type StatusGroup, type SubStatus,
 } from "@/lib/inquiries/status";
 import type { LostReason } from "@/lib/services/inquiries.service";
@@ -222,7 +222,7 @@ export function StatusMenu({ inquiryId, subStatus }: { inquiryId: string; subSta
           <>
             {MENU_GROUPS.map(({ group, label }) => (
               <TileRow key={group} label={label}>
-                {SUB_STATUSES.filter((s) => SUB_STATUS_META[s].pickable && !SUB_STATUS_META[s].closes && groupFor(s) === group).map((s) => (
+                {SUB_STATUSES.filter((s) => isOpenPickable(s) && groupFor(s) === group).map((s) => (
                   <StatusTile key={s} sub={s} current={s === subStatus} onSelect={() => pick(s)} />
                 ))}
               </TileRow>
@@ -252,7 +252,7 @@ export function StatusBoard({ inquiryId, subStatus }: { inquiryId: string; subSt
       : [
           ...MENU_GROUPS.map(({ group, label }) => ({
             label,
-            items: SUB_STATUSES.filter((s) => SUB_STATUS_META[s].pickable && !SUB_STATUS_META[s].closes && groupFor(s) === group)
+            items: SUB_STATUSES.filter((s) => isOpenPickable(s) && groupFor(s) === group)
               .map((s) => ({ sub: s, onClick: () => pick(s) })),
           })),
           {
