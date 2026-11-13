@@ -7,7 +7,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { orderActivities, orders } from "@/db/schema";
 import { inquiriesService } from "@/lib/services/inquiries.service";
-import { assertOrderVisible, ordersService } from "@/lib/services/orders.service";
+import { ordersService } from "@/lib/services/orders.service";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import type { CreateOrderInput } from "@/lib/services/create-order";
 import type { ActionResult } from "@/lib/actions/action-result";
@@ -129,8 +129,7 @@ const orderNoteSchema = z.string().trim().min(1, "Write a note first").max(2000,
 
 // Staff note on the order's activity log, from the Next order card. The author comes from the session.
 export async function addOrderNoteAction(orderPublicId: string, note: string): Promise<ActionResult> {
-  return staffAction({ guard: ORDER_WRITE, revalidate: [`/dashboard/orders/${orderPublicId}`] }, async () => {
-    await assertOrderVisible(orderPublicId, await resolveSessionVisibleOrgIds(await getSession()));
+  return orderAction({ guard: ORDER_WRITE, order: orderPublicId, orderPage: orderPublicId }, async () => {
     const text = parseInput(orderNoteSchema, note);
     const [order] = await db
       .select({ id: orders.id, organizationId: orders.organizationId })
@@ -149,7 +148,7 @@ export async function addOrderNoteAction(orderPublicId: string, note: string): P
 }
 
 export async function reassignOrderAction(orderId: string, ownerId: string): Promise<ActionResult> {
-  return staffAction({ guard: "staff", revalidate: ["/dashboard/orders"] }, async () => {
+  return orderAction({ order: orderId, orderPage: orderId, reach: { orderList: true } }, async () => {
     await ordersService.reassign(orderId, ownerId);
   });
 }

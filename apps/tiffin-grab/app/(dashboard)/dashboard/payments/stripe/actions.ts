@@ -18,6 +18,7 @@ import {
 } from "@/lib/services/payment-stripe";
 import type { ActionResult } from "@/lib/actions/action-result";
 import { staffAction, type Guard } from "@/lib/actions/staff-action";
+import { orderAction } from "@/lib/actions/order-action";
 
 const OUTCOME_TEXT: Record<SettleOutcome, string> = {
   paid: "Settled: payment marked paid",
@@ -41,19 +42,19 @@ async function settle(paymentId: string, source: "staff" | "reconcile") {
 }
 
 export async function checkStatusAction(paymentId: string) {
-  return staffAction({ guard: FINANCE_READ, revalidate: REVALIDATE }, async () => {
+  return orderAction({ guard: FINANCE_READ, payment: paymentId, revalidate: REVALIDATE }, async () => {
     return settle(paymentId, "staff");
   });
 }
 
 export async function settleFromReconcileAction(paymentRef: string) {
-  return staffAction({ guard: FINANCE_READ, revalidate: REVALIDATE }, async () => {
+  return orderAction({ guard: FINANCE_READ, payment: paymentRef, revalidate: REVALIDATE }, async () => {
     return settle(paymentRef, "reconcile");
   });
 }
 
 export async function refundAction(paymentId: string, amount: string | null, reason: string): Promise<ActionResult> {
-  return staffAction({ guard: FINANCE_REFUND, revalidate: REVALIDATE }, async () => {
+  return orderAction({ guard: FINANCE_REFUND, payment: paymentId, revalidate: REVALIDATE }, async () => {
     const session = await getSession();
     await refundStripePayment(paymentId, amount?.trim() ? amount.trim() : null, reason, session!.user.id);
     return "Refund requested in Stripe. The ledger updates when Stripe confirms.";
@@ -78,7 +79,7 @@ export async function reconcileAction(from: number, to: number, cursor?: string)
 }
 
 export async function chargeSavedCardAction(paymentId: string): Promise<ActionResult<{ linkSent?: boolean; kind: string }>> {
-  return staffAction({ guard: FINANCE_CHARGE, revalidate: REVALIDATE }, async () => {
+  return orderAction({ guard: FINANCE_CHARGE, payment: paymentId, revalidate: REVALIDATE }, async () => {
     const r = await chargeSavedCardForPayment(paymentId, (await getSession())!.user.id);
     let linkSent = false;
     let message = r.message;

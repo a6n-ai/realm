@@ -49,6 +49,8 @@ export async function setCategory(
 
 export async function replyTicket(ticketId: string, form: FormData): Promise<ActionResult> {
   return staffAction(ticketOpts(ticketId), async () => {
+    // Refuse another franchise's ticket before writing files into its folder.
+    await ticketsService.readForStaff(ticketId);
     const body = String(form.get("body") ?? "");
     const attachments = await uploadAttachments(
       ticketId,

@@ -1,12 +1,12 @@
 "use server";
 
 import { getSession } from "@/lib/auth/session";
-import { assertDeliveryVisible } from "@/lib/services/orders.service";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import { currentUserId } from "@/lib/services/session-service";
 import { moveMissedDelivery, reconcileMissedDeliveries } from "@/lib/services/missed-deliveries.service";
 import type { ActionResult } from "@/lib/actions/action-result";
 import { staffAction } from "@/lib/actions/staff-action";
+import { orderAction } from "@/lib/actions/order-action";
 
 export async function reconcileMissedAction(): Promise<ActionResult> {
   return staffAction(
@@ -22,8 +22,7 @@ export async function reconcileMissedAction(): Promise<ActionResult> {
 
 /** Did not go out: hold the day and move its tiffin to `date` (the order page's Move, same rules). */
 export async function moveMissedAction(deliveryPublicId: string, date: string): Promise<ActionResult> {
-  return staffAction({ guard: "staff", revalidate: [["/dashboard/orders", "layout"], ["/me", "layout"]] }, async () => {
-    await assertDeliveryVisible(deliveryPublicId, await resolveSessionVisibleOrgIds(await getSession()));
+  return orderAction({ delivery: deliveryPublicId, revalidate: [["/dashboard/orders", "layout"], ["/me", "layout"]] }, async () => {
     const { carriedOn } = await moveMissedDelivery(deliveryPublicId, date, await currentUserId());
     return `Moved to ${carriedOn}`;
   });

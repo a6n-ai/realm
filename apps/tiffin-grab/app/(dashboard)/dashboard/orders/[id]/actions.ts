@@ -184,7 +184,7 @@ export async function setDeliveryStatusAction(
   deliveryPublicId: string,
   status: string,
 ): Promise<ActionResult> {
-  const res = await orderAction({ role: "admin", delivery: deliveryPublicId }, async () => {
+  const res = await orderAction({ guard: "admin", delivery: deliveryPublicId }, async () => {
     if (!isAdminDeliveryStatus(status)) throw new ValidationError("Unknown delivery status");
     await adminSetDeliveryStatus(deliveryPublicId, status, await currentUserId());
     return "Delivery status updated";
@@ -215,7 +215,7 @@ export async function grantComplimentaryAction(
   orderId: string,
   input: { date: string; note: string; notify: boolean; forDeliveryPublicId?: string | null },
 ): Promise<ActionResult> {
-  return orderAction({ role: "admin", order: orderId, orderPage: orderId }, async () => {
+  return orderAction({ guard: "admin", order: orderId, orderPage: orderId }, async () => {
     const { reopened } = await grantComplimentaryTiffin(
       orderId,
       {
