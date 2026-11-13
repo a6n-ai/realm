@@ -20,17 +20,15 @@ import { sendPaymentReminder } from "@/lib/services/payment-reminder";
 import { adminSetDeliveryStatus, grantComplimentaryTiffin, isAdminDeliveryStatus, redeliverTrip } from "@/lib/services/deliveries.service";
 import { pushOneDelivery, removeOneDelivery } from "@/lib/services/optimoroute/push";
 import type { ActionResult } from "@/lib/actions/action-result";
-import { assertOrderAccess, orderAction } from "@/lib/actions/order-action";
+import { orderAction } from "@/lib/actions/order-action";
 import type { DayOfWeek } from "@/lib/menu/delivery-days";
 
 // Staff of one organization must not act on another's order: every action goes through
 // assertOrderAccess / orderAction, which check the order (or the order behind the delivery or
 // payment) against the caller's organizations before anything runs.
 
-export async function activate(orderId: string) {
-  await assertOrderAccess({ order: orderId });
-  await ordersService.activate(orderId);
-  revalidateOrder(orderId);
+export async function activate(orderId: string): Promise<ActionResult> {
+  return orderAction({ order: orderId, orderPage: orderId }, () => ordersService.activate(orderId));
 }
 
 export async function startMigrated(orderId: string, startDate: string): Promise<ActionResult> {
@@ -167,18 +165,18 @@ export async function cancelAddonLinkAction(orderId: string, paymentPublicId: st
   );
 }
 
-export async function pushDeliveryToOptimoAction(orderId: string, deliveryPublicId: string, date: string) {
-  await assertOrderAccess({ delivery: deliveryPublicId });
-  await pushOneDelivery(deliveryPublicId, date, await currentUserId());
-  revalidateOrder(orderId);
+export async function pushDeliveryToOptimoAction(orderId: string, deliveryPublicId: string, date: string): Promise<ActionResult> {
+  return orderAction({ delivery: deliveryPublicId, orderPage: orderId }, async () => {
+    await pushOneDelivery(deliveryPublicId, date, await currentUserId());
+  });
 }
 
 /** Manual removal — deletes this one delivery's stop from OptimoRoute regardless of whether
  *  the day-level stale check has caught up to it yet. */
-export async function removeDeliveryFromOptimoAction(orderId: string, deliveryPublicId: string, date: string) {
-  await assertOrderAccess({ delivery: deliveryPublicId });
-  await removeOneDelivery(deliveryPublicId, date, await currentUserId());
-  revalidateOrder(orderId);
+export async function removeDeliveryFromOptimoAction(orderId: string, deliveryPublicId: string, date: string): Promise<ActionResult> {
+  return orderAction({ delivery: deliveryPublicId, orderPage: orderId }, async () => {
+    await removeOneDelivery(deliveryPublicId, date, await currentUserId());
+  });
 }
 
 /** Admin-only correction of one delivery's outcome. Customers and members cannot call this. */

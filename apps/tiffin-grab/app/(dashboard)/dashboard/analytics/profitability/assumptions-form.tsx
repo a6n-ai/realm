@@ -5,8 +5,9 @@ import { useRouter } from "next/navigation";
 import { CalculatorIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@foundry/ui/button";
-import { NumberField } from "@/app/(dashboard)/dashboard/discounts/controls";
+import { NumberField } from "@/components/dashboard/form-controls";
 import type { ProfitabilityAssumptions } from "@/lib/analytics/profitability";
+import { unwrapAction } from "@/lib/actions/unwrap";
 import { saveAssumptionsAction } from "./actions";
 
 const FIELDS: { key: keyof ProfitabilityAssumptions; label: string }[] = [
@@ -57,7 +58,7 @@ export function AssumptionsForm({
     }
     start(async () => {
       try {
-        await saveAssumptionsAction(parsed);
+        await unwrapAction(saveAssumptionsAction(parsed));
         toast.success("Cost assumptions saved");
         router.refresh();
         onSaved?.();

@@ -3,6 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useTransition } from "react";
 import { toast } from "sonner";
+import type { ActionResult } from "@/lib/actions/action-result";
+import { unwrapAction } from "@/lib/actions/unwrap";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@foundry/ui/select";
@@ -16,7 +18,7 @@ export function ReassignControl({
   currentOwnerId: string | null;
   currentOwnerName: string | null;
   staff: { publicId: string; name: string }[];
-  action: (ownerId: string) => Promise<void>;
+  action: (ownerId: string) => Promise<ActionResult>;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -28,7 +30,7 @@ export function ReassignControl({
       onValueChange={(v) =>
         start(async () => {
           try {
-            await action(v);
+            await unwrapAction(action(v));
             router.refresh();
             toast("Owner updated");
           } catch (e) {

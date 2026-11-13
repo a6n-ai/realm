@@ -79,7 +79,8 @@ export function DispatchView({
     setHistoryFor(row);
     setHistory(null);
     startTransition(async () => {
-      setHistory(await getDeliveryActivitiesAction(row.orderNo));
+      const res = await getDeliveryActivitiesAction(row.orderNo);
+      setHistory("error" in res ? [] : res.activities);
     });
   }
 

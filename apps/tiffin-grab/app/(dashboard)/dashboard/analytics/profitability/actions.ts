@@ -1,8 +1,8 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { requireAdmin } from "@/lib/auth/guards";
+import type { ActionResult } from "@/lib/actions/action-result";
+import { parseInput, staffAction } from "@/lib/actions/staff-action";
 import { setProfitabilityAssumptions } from "@/lib/services/app-settings.service";
 
 const PATH = "/dashboard/analytics/profitability";
@@ -18,8 +18,8 @@ const schema = z.object({
   otherMonthly: money,
 });
 
-export async function saveAssumptionsAction(input: unknown): Promise<void> {
-  await requireAdmin();
-  await setProfitabilityAssumptions(schema.parse(input));
-  revalidatePath(PATH);
+export async function saveAssumptionsAction(input: unknown): Promise<ActionResult> {
+  return staffAction({ guard: "admin", revalidate: [PATH] }, async () => {
+    await setProfitabilityAssumptions(parseInput(schema, input));
+  });
 }

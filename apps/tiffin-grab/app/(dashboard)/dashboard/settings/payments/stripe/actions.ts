@@ -1,6 +1,5 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { ValidationError } from "@foundry/commons";
 import { findMethod, paymentConfigSaveError } from "@foundry/payments";
 import {
@@ -11,17 +10,17 @@ import {
   taxReadiness,
   type StripePluginConfig,
 } from "@foundry/payments/stripe";
-import { requirePermission } from "@/lib/auth/guards";
-import { runAction } from "@/lib/actions/action-result";
+import { staffAction, type Guard } from "@/lib/actions/staff-action";
 import { clearStripeCustomers, stripeDeps, stripeRuntime, webhookUrl } from "@/lib/payments/stripe";
 import { ensurePaymentCatalog, getAppSettings, getPaymentConfigFresh, setPaymentConfig } from "@/lib/services/app-settings.service";
 
-const PATH = "/dashboard/settings/payments";
+const READ: Guard = { settings: ["read"] };
+const WRITE: Guard = { settings: ["write"] };
 
-function refresh() {
-  revalidatePath(PATH, "layout");
-  revalidatePath("/dashboard/settings/integrations");
-}
+const WRITE_OPTS = {
+  guard: WRITE,
+  revalidate: [["/dashboard/settings/payments", "layout"], "/dashboard/settings/integrations"],
+} as const;
 
 const REJECTED = "Stripe rejected the stored key — use Replace key to reconnect.";
 
@@ -45,8 +44,7 @@ async function setStripeMethodEnabled(enabled: boolean) {
 }
 
 export async function setStripeEnabledAction(enabled: boolean) {
-  return runAction(async () => {
-    await requirePermission({ settings: ["write"] });
+  return staffAction(WRITE_OPTS, async () => {
     if (enabled && !(await stripeRuntime())) throw new ValidationError("Connect Stripe first");
     await setStripeMethodEnabled(enabled);
     // A concurrent Disconnect between the check and the write must not leave Card enabled.
@@ -54,14 +52,12 @@ export async function setStripeEnabledAction(enabled: boolean) {
       await setStripeMethodEnabled(false);
       throw new ValidationError("Connect Stripe first");
     }
-    refresh();
   });
 }
 
 // Results carry only ok/error: never key material.
 export async function connectStripeAction(fd: FormData) {
-  return runAction(async () => {
-    await requirePermission({ settings: ["write"] });
+  return staffAction(WRITE_OPTS, async () => {
     const prev = await readStripeConfigStrict(stripeDeps);
     const next = await connectStripe(stripeDeps, {
       secretKey: String(fd.get("secretKey") ?? "").trim(),
@@ -72,27 +68,23 @@ export async function connectStripeAction(fd: FormData) {
       await clearStripeCustomers();
     }
     await ensurePaymentCatalog();
-    refresh();
   });
 }
 
 export async function disconnectStripeAction() {
-  return runAction(async () => {
-    await requirePermission({ settings: ["write"] });
+  return staffAction(WRITE_OPTS, async () => {
     // Disable first: if a later step fails Card is already off (fail closed).
     await setStripeMethodEnabled(false);
     await disconnectStripe(stripeDeps);
     // Disconnect wipes accountId, so a later Connect cannot tell the account changed.
     await clearStripeCustomers();
-    refresh();
   });
 }
 
 export async function saveStripeSettingsAction(
   patch: Partial<Pick<StripePluginConfig, "methodLabel" | "tax" | "surcharge">>,
 ) {
-  return runAction(async () => {
-    await requirePermission({ settings: ["write"] });
+  return staffAction(WRITE_OPTS, async () => {
     if (patch.tax?.enabled) {
       const rt = await stripeRuntime();
       if (!rt || !patch.tax.taxCode) throw new ValidationError("Connect Stripe and pick a tax code first");
@@ -102,13 +94,11 @@ export async function saveStripeSettingsAction(
       }
     }
     await updateStripeSettings(stripeDeps, patch);
-    refresh();
   });
 }
 
 export async function checkTaxReadinessAction(taxCode: string) {
-  return runAction(async () => {
-    await requirePermission({ settings: ["read"] });
+  return staffAction({ guard: READ }, async () => {
     if (!/^txcd_\d+$/.test(taxCode)) throw new ValidationError("Pick a valid tax code");
     const rt = await stripeRuntime();
     if (!rt) throw new ValidationError("Connect Stripe first");
@@ -122,8 +112,7 @@ export async function checkTaxReadinessAction(taxCode: string) {
 }
 
 export async function sendTestEventAction() {
-  return runAction(async () => {
-    await requirePermission({ settings: ["write"] });
+  return staffAction(WRITE_OPTS, async () => {
     const rt = await stripeRuntime();
     if (!rt) throw new ValidationError("Connect Stripe first");
     if (rt.cfg.livemode) throw new ValidationError("Test events are only available in test mode");
@@ -140,7 +129,6 @@ export async function sendTestEventAction() {
       if (isStripeKeyRejected(e)) throw new ValidationError(REJECTED);
       throw e;
     }
-    refresh();
     return "Test event sent";
   });
 }

@@ -1,12 +1,12 @@
 "use server";
 
 import { appTodayIso } from "@/lib/dates/today";
-import { revalidatePath } from "next/cache";
 import { and, eq, inArray } from "drizzle-orm";
 import { ValidationError, emailSchema, phoneSchema } from "@foundry/commons";
 import { requireStaff } from "@/lib/auth/guards";
 import { planDaysError, type DayOfWeek } from "@/lib/menu/delivery-days";
-import { runAction, type ActionResult } from "@/lib/actions/action-result";
+import type { ActionResult } from "@/lib/actions/action-result";
+import { staffAction } from "@/lib/actions/staff-action";
 import { getSession } from "@/lib/auth/session";
 import { db } from "@/db/client";
 import { coupons, orders } from "@/db/schema";
@@ -186,7 +186,7 @@ export async function previewPrice(
   requestedAmount?: number,
   coins?: number | "max",
 ): Promise<ActionResult<StaffPricePreview>> {
-  return runAction(() => quotePrice(input, couponCode, requestedAmount, coins));
+  return staffAction({ guard: "staff" }, () => quotePrice(input, couponCode, requestedAmount, coins));
 }
 
 // The customer coupon lane as createOrder will resolve it: what landed on the price, why the
@@ -230,7 +230,6 @@ async function quotePrice(
   requestedAmount?: number,
   coins?: number | "max",
 ): Promise<StaffPricePreview> {
-  await requireStaff();
   const snap = await loadCatalogSnapshot();
   const trialMeal = snap.mealSizes.find((m) => m.publicId === input.selections.mealSizeId);
   const trial = trialMeal?.trial ? await quoteTrial(snap, input.selections) : null;
@@ -328,13 +327,10 @@ export async function convertInquiry(
   inquiryId: string,
   input: CreateOrderInput,
 ): Promise<ActionResult<{ publicId: string; deploymentId: string; paymentPublicId: string; payUrl: string | null }>> {
-  return runAction(async () => {
-    await requireStaff();
+  const revalidate = ["/dashboard/orders", "/dashboard/inquiries", `/dashboard/inquiries/${inquiryId}`];
+  return staffAction({ guard: "staff", revalidate }, async () => {
     await assertInquiriesVisible([inquiryId], await resolveSessionVisibleOrgIds(await getSession()));
     const result = await inquiriesService.convert(inquiryId, input);
-    revalidatePath("/dashboard/orders");
-    revalidatePath("/dashboard/inquiries");
-    revalidatePath(`/dashboard/inquiries/${inquiryId}`);
     return { ...result, payUrl: await stripePayLink(result.paymentPublicId) };
   });
 }

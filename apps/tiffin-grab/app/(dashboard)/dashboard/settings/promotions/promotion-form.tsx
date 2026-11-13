@@ -13,7 +13,7 @@ import { SectionCard } from "@/components/ds";
 import { ImageUploader } from "@/components/files";
 import { DateTimeInput } from "@/components/dashboard/date-fields";
 import { EmailContentEditor, type EmailContentEditorHandle } from "@relay/engine/ui/email-content-editor";
-import { fromLocalInput, toLocalInput } from "../../discounts/controls";
+import { fromLocalInput, toLocalInput } from "@/lib/dates/local-input";
 import { savePromotionAction, type PromotionInput } from "./actions";
 import { PromotionPreview } from "./promotion-preview";
 

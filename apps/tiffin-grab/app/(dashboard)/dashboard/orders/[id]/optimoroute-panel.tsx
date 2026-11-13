@@ -2,6 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { Button } from "@foundry/ui/button";
+import { unwrapAction } from "@/lib/actions/unwrap";
+import type { ActionResult } from "@/lib/actions/action-result";
 import { pushDeliveryToOptimoAction, removeDeliveryFromOptimoAction } from "./actions";
 
 export type OptimoRouteRow = {
@@ -20,11 +22,11 @@ export function RouteControls({ orderId, row }: { orderId: string; row: OptimoRo
   const [pending, startTransition] = useTransition();
   const [failed, setFailed] = useState(false);
 
-  function run(action: (orderId: string, deliveryPublicId: string, date: string) => Promise<void>) {
+  function run(action: (orderId: string, deliveryPublicId: string, date: string) => Promise<ActionResult>) {
     setFailed(false);
     startTransition(async () => {
       try {
-        await action(orderId, row.publicId, row.deliveryDate);
+        await unwrapAction(action(orderId, row.publicId, row.deliveryDate));
       } catch {
         setFailed(true);
       }

@@ -41,11 +41,11 @@ describe("reassignDriverAction", () => {
     expect(result).toEqual({ ok: true });
   });
 
-  it("reports failure when assignDriver itself throws", async () => {
+  it("reports a generic failure when assignDriver itself throws an unexpected error", async () => {
     assignDriverMock.mockRejectedValueOnce(new Error("No planned delivery"));
 
     const result = await reassignDriverAction("dlv_3", "2026-01-01", "005");
 
-    expect(result).toMatchObject({ error: "No planned delivery" });
+    expect(result).toMatchObject({ error: "Unable to complete request. Please try again." });
   });
 });

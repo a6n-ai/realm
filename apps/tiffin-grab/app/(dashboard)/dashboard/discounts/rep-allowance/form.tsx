@@ -15,7 +15,7 @@ import { Switch } from "@foundry/ui/switch";
 import { Loader2Icon, SaveIcon, UsersIcon } from "lucide-react";
 import { cn } from "@foundry/ui/cn";
 import { TableCell } from "@foundry/ui/table";
-import { NumberField, ToggleRow, numOrNull } from "../controls";
+import { NumberField, ToggleRow, numOrNull } from "@/components/dashboard/form-controls";
 import { saveDiscountPolicy, setRepCeiling } from "../actions";
 
 type RepOption = { publicId: string; name: string | null; email: string | null; role: string };

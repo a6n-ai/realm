@@ -232,7 +232,7 @@ export function InquiryDetailClient({
                   currentOwnerId={owner.publicId}
                   currentOwnerName={owner.name}
                   staff={reassign.staff}
-                  action={async (ownerId) => { await unwrapAction(reassign.action(inquiryId, ownerId)); }}
+                  action={(ownerId) => reassign.action(inquiryId, ownerId)}
                 />
               ) : (
                 <span className="text-foreground font-medium">{owner.name ?? "Unassigned"}</span>

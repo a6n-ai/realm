@@ -21,6 +21,7 @@ import { useTyping } from "@foundry/realtime/client";
 import { useMessageComposer } from "@foundry/design-system";
 import { ChatComposer } from "@/components/support/chat-composer";
 import { ReassignControl } from "@/components/reassign/reassign-control";
+import { unwrapAction } from "@/lib/actions/unwrap";
 import { assignOwner, replyTicket, setCategory, setPriority, setStatus } from "../actions";
 import type { TicketPriority, TicketStatus } from "@/lib/services/tickets.service";
 import { STATUS_OPTIONS } from "@/lib/support/ticket-status";
@@ -84,7 +85,7 @@ export function TicketControls({
   function savePair(nextCategory: TicketCategoryValue, nextSubcategory: string) {
     start(async () => {
       try {
-        await setCategory(ticketId, nextCategory, nextSubcategory);
+        await unwrapAction(setCategory(ticketId, nextCategory, nextSubcategory));
         router.refresh();
         toast("Category updated");
       } catch (e) {
@@ -163,9 +164,13 @@ export function TicketControls({
           disabled={pending}
           onValueChange={(v) =>
             start(async () => {
-              await setPriority(ticketId, v as TicketPriority);
-              router.refresh();
-              toast(`Priority → ${v}`);
+              try {
+                await unwrapAction(setPriority(ticketId, v as TicketPriority));
+                router.refresh();
+                toast(`Priority → ${v}`);
+              } catch (e) {
+                toast.error(e instanceof Error ? e.message : "Failed to update priority");
+              }
             })
           }
         >
@@ -207,7 +212,7 @@ export function ReplyBox({
   peerRole?: RealtimeRole;
 }) {
   const typing = useTyping(channel ?? null, peerRole ?? "staff");
-  const c = useMessageComposer({ action: replyTicket.bind(null, ticketId), typing: channel ? typing : undefined });
+  const c = useMessageComposer({ action: async (form) => { await unwrapAction(replyTicket(ticketId, form)); }, typing: channel ? typing : undefined });
   if (closed) {
     return <p className="text-muted-foreground rounded-lg border border-dashed p-3 text-sm">This ticket is closed. Reopen it to continue the conversation.</p>;
   }
@@ -243,9 +248,13 @@ export function StatusPills({ ticketId, status }: { ticketId: string; status: Ti
             disabled={pending || on}
             onClick={() =>
               start(async () => {
-                await setStatus(ticketId, s.value);
-                router.refresh();
-                toast(`Status → ${s.label}`);
+                try {
+                  await unwrapAction(setStatus(ticketId, s.value));
+                  router.refresh();
+                  toast(`Status → ${s.label}`);
+                } catch (e) {
+                  toast.error(e instanceof Error ? e.message : "Failed to update status");
+                }
               })
             }
             className={cn(

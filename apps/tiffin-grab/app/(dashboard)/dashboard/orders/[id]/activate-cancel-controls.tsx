@@ -62,7 +62,12 @@ export function ActivateCancelControls({
   return (
     <div className="flex flex-wrap items-center gap-2">
       {(status === "waitlisted" || (status === "pending" && paidPending)) && (
-        <Button size="sm" disabled={pending} onClick={() => run(() => activate(orderId))}>
+        <Button size="sm" disabled={pending} onClick={() =>
+            run(async () => {
+              const res = await activate(orderId);
+              if ("error" in res) toast.error(res.error);
+            })
+          }>
           Activate
         </Button>
       )}

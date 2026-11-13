@@ -7,7 +7,6 @@ export const ROUTES: RouteSpec[] = [
   { path: "/dashboard/orders", label: "orders-list" },
   { path: "/dashboard/inquiries", label: "inquiries-list" },
   { path: "/dashboard/organization/members", label: "users-list" },
-  { path: "/dashboard/meals", label: "meals" },
   { path: "/dashboard/menus", label: "menus" },
   { path: "/dashboard/catalog", label: "catalog" },
   { path: "/me/support", label: "support-list" },

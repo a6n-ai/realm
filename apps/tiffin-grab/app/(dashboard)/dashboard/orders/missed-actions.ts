@@ -1,41 +1,30 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-import { requireStaff } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { assertDeliveryVisible } from "@/lib/services/orders.service";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import { currentUserId } from "@/lib/services/session-service";
 import { moveMissedDelivery, reconcileMissedDeliveries } from "@/lib/services/missed-deliveries.service";
-import { runAction, type ActionResult } from "@/lib/actions/action-result";
+import type { ActionResult } from "@/lib/actions/action-result";
+import { staffAction } from "@/lib/actions/staff-action";
 
 export async function reconcileMissedAction(): Promise<ActionResult> {
-  const res = await runAction(async () => {
-    await requireStaff();
-    const visible = await resolveSessionVisibleOrgIds(await getSession());
-    const r = await reconcileMissedDeliveries(visible, await currentUserId());
-    if (r.days === 0) return "Nothing to reconcile";
-    return `Checked ${r.days} day${r.days === 1 ? "" : "s"} with OptimoRoute: ${r.delivered} confirmed delivered, ${r.notDelivered} not delivered (on hold), ${r.stillMissed} still missed`;
-  });
-  if ("ok" in res) {
-    revalidatePath("/dashboard/orders");
-    revalidatePath("/dashboard/dispatch");
-    revalidatePath("/me", "layout");
-  }
-  return res;
+  return staffAction(
+    { guard: "staff", revalidate: ["/dashboard/orders", "/dashboard/dispatch", ["/me", "layout"]] },
+    async () => {
+      const visible = await resolveSessionVisibleOrgIds(await getSession());
+      const r = await reconcileMissedDeliveries(visible, await currentUserId());
+      if (r.days === 0) return "Nothing to reconcile";
+      return `Checked ${r.days} day${r.days === 1 ? "" : "s"} with OptimoRoute: ${r.delivered} confirmed delivered, ${r.notDelivered} not delivered (on hold), ${r.stillMissed} still missed`;
+    },
+  );
 }
 
 /** Did not go out: hold the day and move its tiffin to `date` (the order page's Move, same rules). */
 export async function moveMissedAction(deliveryPublicId: string, date: string): Promise<ActionResult> {
-  const res = await runAction(async () => {
-    await requireStaff();
+  return staffAction({ guard: "staff", revalidate: [["/dashboard/orders", "layout"], ["/me", "layout"]] }, async () => {
     await assertDeliveryVisible(deliveryPublicId, await resolveSessionVisibleOrgIds(await getSession()));
     const { carriedOn } = await moveMissedDelivery(deliveryPublicId, date, await currentUserId());
     return `Moved to ${carriedOn}`;
   });
-  if ("ok" in res) {
-    revalidatePath("/dashboard/orders", "layout");
-    revalidatePath("/me", "layout");
-  }
-  return res;
 }

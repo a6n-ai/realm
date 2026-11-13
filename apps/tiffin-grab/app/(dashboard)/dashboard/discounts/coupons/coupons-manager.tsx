@@ -26,20 +26,10 @@ import { TableCell } from "@foundry/ui/table";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@foundry/ui/dialog";
-import {
-  CREATABLE_KINDS,
-  KIND_LABELS,
-  Multiselect,
-  NumberField,
-  PLAN_TYPES,
-  ToggleRow,
-  formatWindow,
-  fromLocalInput,
-  numOrNull,
-  pct,
-  toLocalInput,
-  tzLabel,
-} from "../controls";
+import { Multiselect, NumberField, ToggleRow, numOrNull } from "@/components/dashboard/form-controls";
+import { fromLocalInput, toLocalInput, tzLabel } from "@/lib/dates/local-input";
+import { CREATABLE_KINDS, KIND_LABELS } from "@/lib/coupons/kind-labels";
+import { PLAN_TYPES, formatWindow, pct } from "../controls";
 import { saveCoupon, setCouponActive } from "../actions";
 import { GroupPicker, type PickedGroup } from "../../customer-groups/group-picker";
 import { DateTimeInput } from "@/components/dashboard/date-fields";
