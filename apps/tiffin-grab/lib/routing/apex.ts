@@ -13,7 +13,7 @@ const APEX_PUBLIC_EXACT = new Set([
   // The session cookie spans both hosts (AUTH_COOKIE_DOMAIN), so the apex answers it directly.
   "/api/auth/get-session",
 ]);
-const APEX_PUBLIC_PREFIX = ["/menu/", "/locations/", "/refer/", "/r/", "/_next/", "/api/files/", "/api/analytics", "/api/public/", "/.well-known/agent-skills/", "/lottie/", "/uploads/", "/landing/", "/vendor/", "/brand/"];
+const APEX_PUBLIC_PREFIX = ["/menu/", "/locations/", "/refer/", "/r/", "/_next/", "/api/files/", "/api/analytics", "/api/public/", "/.well-known/agent-skills/", "/uploads/", "/landing/", "/vendor/", "/brand/"];
 // First path segments the app host really serves: its own route folders under app/ (the (auth),
 // (customer), (dashboard) and (public) groups, minus anything the apex answers) plus /api. This is the
 // one list: the proxy (apex redirect, org resolution) and the cross-area link guard both read it, so

@@ -93,7 +93,7 @@ week.
 - No customer testimonials, reviews, press, awards, subscriber counts or benchmarks
   exist. Future work must not invent any.
 - No brand or food photography library is present in the app's public assets; imagery
-  is uploaded content and Lottie animation. Any surface needing food photography needs
+  is uploaded content only. Any surface needing food photography needs
   real assets supplied first.
 - The eleven-GTA-region figure comes from the app's own marketing copy and should be
   reconciled against the live delivery-zone records before it is repeated as a claim.
