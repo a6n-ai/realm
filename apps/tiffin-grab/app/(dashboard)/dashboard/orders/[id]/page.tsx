@@ -514,7 +514,7 @@ async function OrderDetail({
                 payLinks={Object.fromEntries(order.payments.filter((p) => p.method === "stripe").map((p) => [p.publicId, payLink(p.publicId)]))}
                 now={requestNow()}
                 claimContexts={claimContexts}
-                canCheck={roleCan(role, { finance: ["read"] })}
+                canCheck={roleCan(role, { finance: ["charge"] })}
                 canRefund={roleCan(role, { finance: ["refund"] })}
                 canCharge={roleCan(role, { finance: ["charge"] }) && !!customer?.stripeCustomerId}
               />

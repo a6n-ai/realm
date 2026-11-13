@@ -2,7 +2,6 @@ import { revalidatePath } from "next/cache";
 import type { z } from "zod";
 import { ValidationError } from "@foundry/commons";
 import { requireAdmin, requirePermission, requireStaff } from "@/lib/auth/guards";
-import { invalidateCatalogSnapshot } from "@/lib/catalog/load";
 import { runAction, type ActionResult } from "./action-result";
 
 export type Guard = "staff" | "admin" | Parameters<typeof requirePermission>[0];
@@ -59,7 +58,8 @@ export async function staffAction(
   const res = await runAction(async () => {
     await guard(opts.guard);
     const out = await fn();
-    if (opts.catalog) await invalidateCatalogSnapshot();
+    // Loaded only when needed, so actions that never touch the catalog do not pull in its services.
+    if (opts.catalog) await (await import("@/lib/catalog/load")).invalidateCatalogSnapshot();
     return out as Record<string, unknown>;
   });
   if ("ok" in res) revalidateAll(opts.revalidate);

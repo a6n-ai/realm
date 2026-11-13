@@ -210,9 +210,15 @@ export function assembleLedger(input: {
 }
 
 /** Loads both sides for a date and assembles the ledger. Three OptimoRoute calls at most (search pages + completions). */
-export async function buildDayLedger(date: string, today: string): Promise<DayLedger> {
-  const dayRows = await loadDayDeliveries(date, STATUS_DAY_STATUSES);
+/**
+ * `visible` limits the board to the viewer's franchises: their deliveries, and OptimoRoute stops that
+ * name one of them. Stops naming no delivery of ours ("Not ours") show only to a viewer who sees every franchise.
+ */
+export async function buildDayLedger(date: string, today: string, visible: "all" | string[]): Promise<DayLedger> {
+  const sees = (org: string | null) => visible === "all" || (org != null && visible.includes(org));
+  const dayRows = (await loadDayDeliveries(date, STATUS_DAY_STATUSES)).filter((r) => sees(r.order.organizationId));
   const ids = dayRows.map((r) => r.delivery.id);
+  const dayIds = new Set(dayRows.map((r) => r.delivery.publicId));
   const mergedIds = dayRows.map((r) => r.delivery.mergedIntoDeliveryId).filter((v): v is bigint => v != null);
 
   const [movedIds, merged, pushed, paymentHeld, optimoOrders, extrasById, missedIds] = await Promise.all([
@@ -226,7 +232,7 @@ export async function buildDayLedger(date: string, today: string): Promise<DayLe
           .from(orderActivities)
           .where(and(inArray(orderActivities.deliveryId, ids), eq(orderActivities.type, "route_pushed")))
       : Promise.resolve([]),
-    listPaymentHeld(date),
+    listPaymentHeld(date).then((rows) => (visible === "all" ? rows : rows.filter((h) => dayIds.has(h.deliveryPublicId)))),
     searchOrdersForDate(date),
     loadExtraDates(db, ids),
     date < today ? missedPublicIdsOn(date, today) : Promise.resolve(null),
@@ -276,12 +282,16 @@ export async function buildDayLedger(date: string, today: string): Promise<DayLe
   const knownStale = unmatchedNos.length
     ? (
         await db
-          .select({ publicId: deliveries.publicId, fullName: orders.fullName })
+          .select({ publicId: deliveries.publicId, fullName: orders.fullName, org: orders.organizationId })
           .from(deliveries)
           .innerJoin(orders, eq(orders.id, deliveries.orderId))
           .where(inArray(deliveries.publicId, unmatchedNos))
-      ).map((k) => ({ orderNo: k.publicId, customerName: k.fullName }))
+      )
+        .filter((k) => sees(k.org))
+        .map((k) => ({ orderNo: k.publicId, customerName: k.fullName }))
     : [];
 
-  return assembleLedger({ date, ours, paymentHeld, optimo, knownStale });
+  const staleNos = new Set(knownStale.map((k) => k.orderNo));
+  const shownOptimo = visible === "all" ? optimo : optimo.filter((o) => o.orderNo != null && (ourIds.has(o.orderNo) || staleNos.has(o.orderNo)));
+  return assembleLedger({ date, ours, paymentHeld, optimo: shownOptimo, knownStale });
 }

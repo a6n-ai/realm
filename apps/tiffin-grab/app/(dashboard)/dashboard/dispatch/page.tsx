@@ -45,7 +45,8 @@ async function DispatchData({ searchParams }: { searchParams: SearchParams }) {
 
   const today = zonedDateIso(requestNow(), timezone);
   const date = parseIsoDate(dateParam) ?? today;
-  const closed = await holidaysOn(date, await resolveSessionVisibleOrgIds(await getSession()));
+  const visible = await resolveSessionVisibleOrgIds(await getSession());
+  const closed = await holidaysOn(date, visible);
 
   if (!status.hasApiKey) {
     return (
@@ -64,7 +65,7 @@ async function DispatchData({ searchParams }: { searchParams: SearchParams }) {
 
   let ledger;
   try {
-    ledger = await buildDayLedger(date, today);
+    ledger = await buildDayLedger(date, today, visible);
   } catch (e) {
     return (
       <>

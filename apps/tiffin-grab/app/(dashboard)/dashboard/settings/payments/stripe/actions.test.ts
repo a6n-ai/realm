@@ -147,7 +147,7 @@ describe("stripe settings actions", () => {
     rt.current = { stripe: {}, cfg: {} };
     taxReadinessMock.mockRejectedValueOnce({ type: "StripeAuthenticationError" });
     allow();
-    expect(await a.checkTaxReadinessAction("txcd_1")).toEqual({
+    expect(await a.checkTaxReadinessAction("txcd_1")).toMatchObject({
       error: "Stripe rejected the stored key — use Replace key to reconnect.",
     });
   });

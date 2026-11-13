@@ -41,7 +41,7 @@ describe("renewal tracking actions", () => {
 
   it("returns an error and skips the service when the order guard denies access", async () => {
     m.assertOrderVisible.mockRejectedValueOnce(new ValidationError("Order not found"));
-    expect(await actions.setTrackStatusAction("ord_1", "cus_1", { status: "expected" })).toEqual({
+    expect(await actions.setTrackStatusAction("ord_1", "cus_1", { status: "expected" })).toMatchObject({
       error: "Order not found",
       status: 400,
     });

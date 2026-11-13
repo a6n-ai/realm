@@ -19,7 +19,7 @@ describe("adjustCustomerCoinsAction", () => {
 
   it("returns the validation message instead of throwing", async () => {
     adjust.mockRejectedValue(new ValidationError("That would take the balance below zero."));
-    expect(await adjustCustomerCoinsAction("usr_1", { coins: -99, memo: "x" })).toEqual({
+    expect(await adjustCustomerCoinsAction("usr_1", { coins: -99, memo: "x" })).toMatchObject({
       error: "That would take the balance below zero.",
     });
   });

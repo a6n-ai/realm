@@ -3,6 +3,9 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("next/cache", () => ({ revalidatePath: () => undefined }));
 vi.mock("@/lib/auth/guards", () => ({ requireStaff: async () => undefined }));
 vi.mock("@/lib/services/session-service", () => ({ currentUserId: async () => 7n }));
+// A viewer who sees every franchise, so the per-franchise check (a database lookup) is skipped.
+vi.mock("@/lib/auth/visible-orgs", () => ({ resolveSessionVisibleOrgIds: async () => "all" }));
+vi.mock("@/lib/auth/session", () => ({ getSession: async () => ({ user: { id: "usr_staff" } }) }));
 
 const assignDriverMock = vi.fn(async () => undefined);
 const pullRoutesMock = vi.fn(async () => ({ date: "2026-01-01", matched: 0, cleared: 0, unknownOrderNos: [], stops: [] }));

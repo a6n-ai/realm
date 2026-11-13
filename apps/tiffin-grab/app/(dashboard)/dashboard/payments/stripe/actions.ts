@@ -42,13 +42,13 @@ async function settle(paymentId: string, source: "staff" | "reconcile") {
 }
 
 export async function checkStatusAction(paymentId: string) {
-  return orderAction({ guard: FINANCE_READ, payment: paymentId, revalidate: REVALIDATE }, async () => {
+  return orderAction({ guard: FINANCE_CHARGE, payment: paymentId, revalidate: REVALIDATE }, async () => {
     return settle(paymentId, "staff");
   });
 }
 
 export async function settleFromReconcileAction(paymentRef: string) {
-  return orderAction({ guard: FINANCE_READ, payment: paymentRef, revalidate: REVALIDATE }, async () => {
+  return orderAction({ guard: FINANCE_CHARGE, payment: paymentRef, revalidate: REVALIDATE }, async () => {
     return settle(paymentRef, "reconcile");
   });
 }
@@ -62,7 +62,7 @@ export async function refundAction(paymentId: string, amount: string | null, rea
 }
 
 export async function reprocessEventAction(eventId: string): Promise<ActionResult> {
-  return staffAction({ guard: FINANCE_READ, revalidate: ["/dashboard/payments/logs"] }, async () => {
+  return staffAction({ guard: FINANCE_CHARGE, revalidate: ["/dashboard/payments/logs"] }, async () => {
     const [ev] = await db.select({ processedAt: stripeEvents.processedAt }).from(stripeEvents).where(eq(stripeEvents.eventId, eventId)).limit(1);
     if (!ev) throw new ValidationError("Event not found");
     if (ev.processedAt) throw new ValidationError("This event was already processed. Use Check status on the payment instead.");

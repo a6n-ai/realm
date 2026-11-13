@@ -1,7 +1,12 @@
 "use server";
 
 import { parseIsoDate } from "@/lib/dates/iso-date";
-import { ValidationError } from "@foundry/commons";
+import { NotFoundError, ValidationError } from "@foundry/commons";
+import { and, eq, inArray } from "drizzle-orm";
+import { db } from "@/db/client";
+import { deliveries, orders } from "@/db/schema";
+import { getSession } from "@/lib/auth/session";
+import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import { createLogger } from "@foundry/commons/logger";
 import type { ActionResult } from "@/lib/actions/action-result";
 import { staffAction } from "@/lib/actions/staff-action";
@@ -29,6 +34,38 @@ function requireDate(date: string): void {
 }
 
 /**
+ * OptimoRoute orderNos are delivery public ids. Each must be a delivery in the caller's franchises;
+ * a stop naming none of our deliveries can only be touched by a viewer who sees every franchise.
+ */
+async function assertDispatchOrders(orderNos: readonly string[]): Promise<void> {
+  const visible = await resolveSessionVisibleOrgIds(await getSession());
+  if (visible === "all" || orderNos.length === 0) return;
+  const rows = await db
+    .select({ publicId: deliveries.publicId, org: orders.organizationId })
+    .from(deliveries)
+    .innerJoin(orders, eq(orders.id, deliveries.orderId))
+    .where(inArray(deliveries.publicId, [...orderNos]));
+  const orgOf = new Map(rows.map((r) => [r.publicId, r.org]));
+  for (const no of orderNos) {
+    const org = orgOf.get(no);
+    if (org == null || !visible.includes(org)) throw new NotFoundError("Delivery not found");
+  }
+}
+
+/** The caller's own deliveries on `date`, or undefined when they see every franchise. */
+async function ownDeliveriesOn(date: string): Promise<string[] | undefined> {
+  const visible = await resolveSessionVisibleOrgIds(await getSession());
+  if (visible === "all") return undefined;
+  if (visible.length === 0) return [];
+  const rows = await db
+    .select({ publicId: deliveries.publicId })
+    .from(deliveries)
+    .innerJoin(orders, eq(orders.id, deliveries.orderId))
+    .where(and(eq(deliveries.deliveryDate, date), inArray(orders.organizationId, visible)));
+  return rows.map((r) => r.publicId);
+}
+
+/**
  * Best effort: the work already succeeded on OptimoRoute, so a failed pull only leaves stale
  * driver fields until the next pull. It is logged, never reported as a failure.
  */
@@ -49,7 +86,7 @@ export async function pushDayAction(date: string): Promise<ActionResult<PushResu
   // The Overview's route-push tile and the header badge read the same push status.
   return staffAction({ guard: "staff", revalidate: [DISPATCH, ["/dashboard", "layout"]] }, async () => {
     requireDate(date);
-    return pushDay(date, await currentUserId());
+    return pushDay(date, await currentUserId(), await ownDeliveriesOn(date));
   });
 }
 
@@ -61,6 +98,7 @@ export async function pushUnassignedAction(date: string, orderNos: string[]): Pr
   return staffAction({ guard: "staff", revalidate: [DISPATCH] }, async () => {
     requireDate(date);
     if (orderNos.length === 0) throw new ValidationError("No unassigned deliveries to push");
+    await assertDispatchOrders(orderNos);
     const out = await pushDay(date, await currentUserId(), orderNos);
     await pullAfter(date);
     return out;
@@ -76,6 +114,7 @@ export async function removeStopsAction(date: string, orderNos: string[]): Promi
   return staffAction({ guard: "staff", revalidate: [DISPATCH] }, async () => {
     requireDate(date);
     if (orderNos.length === 0) throw new ValidationError("Select at least one stop to remove");
+    await assertDispatchOrders(orderNos);
     return removeStops(date, orderNos, await currentUserId());
   });
 }
@@ -108,6 +147,7 @@ export async function pullCompletionsAction(date: string): Promise<ActionResult<
 export async function reassignDriverAction(orderNo: string, date: string, driverSerial: string): Promise<ActionResult> {
   return staffAction({ guard: "staff", revalidate: [DISPATCH] }, async () => {
     requireDate(date);
+    await assertDispatchOrders([orderNo]);
     await assignDriver(orderNo, date, driverSerial, await currentUserId());
     await pullAfter(date);
   });
@@ -117,6 +157,7 @@ export async function reassignDriverAction(orderNo: string, date: string, driver
 export async function pushDeliveryAction(orderNo: string, date: string): Promise<ActionResult> {
   return staffAction({ guard: "staff", revalidate: [DISPATCH] }, async () => {
     requireDate(date);
+    await assertDispatchOrders([orderNo]);
     await pushOneDelivery(orderNo, date, await currentUserId());
     await pullAfter(date);
   });
@@ -124,13 +165,17 @@ export async function pushDeliveryAction(orderNo: string, date: string): Promise
 
 /** Read-only push/pull activity log for one delivery — the Dispatch row-click history drawer. */
 export async function getDeliveryActivitiesAction(orderNo: string): Promise<ActionResult<{ activities: DeliveryActivity[] }>> {
-  return staffAction({ guard: "staff" }, async () => ({ activities: await getDeliveryActivities(orderNo) }));
+  return staffAction({ guard: "staff" }, async () => {
+    await assertDispatchOrders([orderNo]);
+    return { activities: await getDeliveryActivities(orderNo) };
+  });
 }
 
 /** Manual per-row removal from the Dispatch table — force-removes regardless of the day-level stale check. */
 export async function removeDeliveryAction(orderNo: string, date: string): Promise<ActionResult> {
   return staffAction({ guard: "staff", revalidate: [DISPATCH] }, async () => {
     requireDate(date);
+    await assertDispatchOrders([orderNo]);
     await removeOneDelivery(orderNo, date, await currentUserId());
     await pullAfter(date);
   });
