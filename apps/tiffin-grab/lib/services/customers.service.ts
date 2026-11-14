@@ -627,10 +627,6 @@ export async function getCustomer360(userPublicId: string) {
     .limit(1);
   if (!user || !isCustomerRole(user.role)) throw new NotFoundError("Customer not found");
 
-  const matchConds = [];
-  if (user.email) matchConds.push(eq(sql`lower(${inquiries.email})`, user.email.toLowerCase()));
-  if (user.phone) matchConds.push(eq(sql`lower(${inquiries.phone})`, user.phone.toLowerCase()));
-
   const [orderRows, inqRows] = await Promise.all([
     db
       .select({
@@ -655,21 +651,19 @@ export async function getCustomer360(userPublicId: string) {
       .innerJoin(plans, eq(orders.planId, plans.id))
       .where(eq(orders.userId, user.id))
       .orderBy(desc(orders.createdAt)),
-    matchConds.length
-      ? db
-          .select({
-            publicId: inquiries.publicId,
-            fullName: inquiries.fullName,
-            phone: inquiries.phone,
-            stage: inquiries.stage,
-            source: leadSources.label,
-            createdAt: inquiries.createdAt,
-          })
-          .from(inquiries)
-          .innerJoin(leadSources, eq(inquiries.sourceId, leadSources.id))
-          .where(or(...matchConds))
-          .orderBy(desc(inquiries.createdAt))
-      : Promise.resolve([]),
+    db
+      .select({
+        publicId: inquiries.publicId,
+        fullName: inquiries.fullName,
+        phone: inquiries.phone,
+        stage: inquiries.stage,
+        source: leadSources.label,
+        createdAt: inquiries.createdAt,
+      })
+      .from(inquiries)
+      .innerJoin(leadSources, eq(inquiries.sourceId, leadSources.id))
+      .where(eq(inquiries.customerId, user.id))
+      .orderBy(desc(inquiries.createdAt)),
   ]);
 
   const orderIds = orderRows.map((o) => o.id);
