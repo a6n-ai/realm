@@ -27,9 +27,11 @@ const MOMENT_EVENT = "tg:consent-moment";
 const ASK_DEPTH = 1.5;
 // Matches the lid-drop + slide-out in cookie-consent.css.
 const EXIT_MS = 560;
-// Unanswered and scrolled past this share of a screen, the ask folds back into the dock. It is shown once
-// per visit whatever happens. Silence is "no": analytics stays off, and the next visit asks again.
-const SNOOZE_SCROLL = 0.75;
+// Unanswered, the ask stays at least MIN_SHOW_MS (it usually appears mid-flick, and the same flick used to carry
+// it away), then folds back into the dock after this many more screens of scrolling. It is shown once per visit
+// whatever happens. Silence is "no": analytics stays off, and the next visit asks again.
+const MIN_SHOW_MS = 8000;
+const SNOOZE_SCROLL = 2;
 const SNOOZE_KEY = "tg-consent-asked";
 
 // The question fits the page it is asked on; each one says what the visitor's yes is for.
@@ -208,8 +210,11 @@ export function CookieConsent() {
   leaveRef.current = leave;
   useEffect(() => {
     if (!shown || !slim || reopened) return;
-    const start = scrollY;
+    const shownAt = performance.now();
+    let start = scrollY;
     const onScroll = () => {
+      // Scrolling during the minimum time does not count: the distance is measured from where it ends.
+      if (performance.now() - shownAt < MIN_SHOW_MS) { start = scrollY; return; }
       if (Math.abs(scrollY - start) < innerHeight * SNOOZE_SCROLL) return;
       removeEventListener("scroll", onScroll);
       leaveRef.current();

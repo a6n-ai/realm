@@ -168,9 +168,10 @@
   box-shadow: var(--sh-chrome); }
 .tg-pill__orb { display: grid; place-items: center; width: 54px; height: 54px; flex: none; }
 .tg-pill__orb:active { transform: scale(0.92); }
-.tg-pill__home { color: var(--tg-ink); }
-.tg-pill__home[aria-current="page"] { color: var(--tg-orange); }
-.tg-pill__wa { color: #0B7A3E; }
+/* Home is solid brand orange, like WhatsApp in its own green: the two ends of the dock are buttons, not glass. */
+.tg-pill__home, .tg-pill__home[data-tapped] { --glass-tint: var(--tg-orange); color: #FFFFFF; -webkit-backdrop-filter: none; backdrop-filter: none; }
+.tg-pill__wa, .tg-pill__wa[data-tapped] { --glass-tint: #25D366; color: #FFFFFF; -webkit-backdrop-filter: none; backdrop-filter: none; }
+.tg-pill :is(.tg-pill__home, .tg-pill__wa):is([aria-current], [data-tapped], *) > svg { color: #FFFFFF; }
 .tg-drum { display: flex; align-items: center; gap: 2px; width: 272px; height: 56px; padding: 4px; overflow: hidden; }
 .tg-drum__ring { position: relative; flex: 1; align-self: stretch; overflow: hidden; border-radius: 999px; touch-action: pan-y; user-select: none; -webkit-user-select: none; }
 .tg-drum__nav { display: grid; width: 30px; height: 44px; border: 0; border-radius: 999px; background: none; color: #6E6558; z-index: 3; }
@@ -226,7 +227,7 @@ html[data-nav="pending"] .tg-drum::before { opacity: 1; animation: tg-dock-load 
 }
 html[data-nav="pending"][data-dock] body::before { display: none; }
 @media (prefers-reduced-transparency: reduce) {
-  .tg-pill__orb, .tg-drum { --glass-tint: rgb(255 255 255 / 0.96); }
+  .tg-pill__orb:not(.tg-pill__wa, .tg-pill__home), .tg-drum { --glass-tint: rgb(255 255 255 / 0.96); }
 }
 @media (prefers-reduced-motion: no-preference) {
   .tg-drum__ring[data-dir="1"] .tg-drum__face[data-slide="in"] { animation: tg-slide-in-r 420ms var(--ease-soft) both; }

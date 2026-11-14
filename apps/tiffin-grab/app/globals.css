@@ -256,8 +256,9 @@ html[data-splash]:not([data-splash="out"]) { overflow: hidden; }
 .tg-orbload { --tg-s1: #72A94B; --tg-s2: #F6A934; --tg-s3: #FB801C; --tg-s4: #185936; --tg-orb-ink: #185936;
   display: grid; place-items: center; min-height: min(70dvh, 560px); padding: 24px 16px; }
 :root.dark .tg-orbload { --tg-s1: #9CC654; --tg-s3: #FF9843; --tg-s4: #6FCF97; --tg-orb-ink: #9CC654; }
-/* over a page still waiting on the server: appears only after 250 ms, so quick hops never flash it */
-.tg-orbload--overlay { display: none; position: fixed; inset: 0; z-index: 900; min-height: 0; background: color-mix(in oklch, var(--background) 88%, transparent);
+/* over a page still waiting on the server: appears only after 250 ms, so quick hops never flash it. It sits
+   under the header, tab bar and menu button (z-40): they stay the same from page to page, so they stay sharp. */
+.tg-orbload--overlay { display: none; position: fixed; inset: 0; z-index: 30; min-height: 0; background: color-mix(in oklch, var(--background) 88%, transparent);
   -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); animation: tg-splash-in 220ms var(--ease-soft) 250ms both; }
 html[data-nav="orb"] .tg-orbload--overlay { display: grid; }
 
