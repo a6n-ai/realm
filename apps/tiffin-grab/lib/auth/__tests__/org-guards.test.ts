@@ -5,7 +5,11 @@ vi.mock("react", async (orig) => ({ ...(await orig<typeof import("react")>()), c
 vi.mock("next/headers", () => ({ headers: async () => new Headers() }));
 vi.mock("@/lib/auth/session", () => ({ getSession: vi.fn() }));
 vi.mock("@/lib/auth/index", () => ({
-  auth: { api: { getActiveMemberRole: vi.fn(), listOrgRoles: vi.fn() } },
+  auth: { api: { getActiveMemberRole: vi.fn() } },
+}));
+const roleRows = vi.fn();
+vi.mock("@/db/client", () => ({
+  db: { select: () => ({ from: () => ({ where: () => roleRows() }) }) },
 }));
 vi.mock("@/lib/identity/audit", () => ({ recordAudit: vi.fn() }));
 vi.mock("@/lib/identity/user-ids", () => ({ userIdByPublicId: vi.fn(async () => 7n) }));
@@ -15,7 +19,7 @@ const { auth } = await import("@/lib/auth/index");
 const { recordAudit } = await import("@/lib/identity/audit");
 const { can, requirePermission } = await import("../guards");
 const session = getSession as unknown as ReturnType<typeof vi.fn>;
-const api = auth.api as unknown as Record<"getActiveMemberRole" | "listOrgRoles", ReturnType<typeof vi.fn>>;
+const api = auth.api as unknown as Record<"getActiveMemberRole", ReturnType<typeof vi.fn>>;
 
 const sess = (platformRole: string | null, org: string | null) => ({
   user: { id: "u1", platformRole },
@@ -28,7 +32,8 @@ describe("org guards", () => {
   it("custom kitchen role: can menu:write, denied finance:read", async () => {
     session.mockResolvedValue(sess(null, "o1"));
     api.getActiveMemberRole.mockResolvedValue({ role: "kitchen" });
-    api.listOrgRoles.mockResolvedValue([{ role: "kitchen", permission: { menu: ["write"] } }]);
+    // Better Auth stores permission as JSON text; read directly since listOrgRoles needs ac:read.
+    roleRows.mockResolvedValue([{ role: "kitchen", permission: JSON.stringify({ menu: ["write"] }) }]);
     expect(await can({ menu: ["write"] })).toBe(true);
     await expect(requirePermission({ finance: ["read"] })).rejects.toBeInstanceOf(ForbiddenError);
     expect(recordAudit).not.toHaveBeenCalled();

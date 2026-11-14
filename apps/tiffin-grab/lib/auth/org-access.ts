@@ -2,11 +2,12 @@ import { cache } from "react";
 import { headers } from "next/headers";
 import { AuthError } from "@foundry/commons";
 import { resolveOrgAccess, type OrgAccess, type Permissions } from "@foundry/auth";
+import { and, eq, inArray } from "drizzle-orm";
+import { db } from "@/db/client";
+import { organizationRole } from "@/db/schema";
 import { auth } from "./index";
 import { ac, orgRoles } from "./permissions";
 import { getSession } from "./session";
-
-type OrgRoleRow = { role: string; permission: Permissions };
 
 export const getOrgAccess = cache(async (): Promise<OrgAccess> => {
   const session = await getSession();
@@ -28,14 +29,19 @@ export const getOrgAccess = cache(async (): Promise<OrgAccess> => {
   } catch {
     return { kind: "none" }; // not a member of the active org
   }
-  const needsCustom = memberRole.split(",").some((r) => r.trim() && !Object.hasOwn(orgRoles, r.trim()));
+  const custom = memberRole
+    .split(",")
+    .map((r) => r.trim())
+    .filter((r) => r && !Object.hasOwn(orgRoles, r));
   const customRoles: Record<string, Permissions> = {};
-  if (needsCustom) {
-    // listOrgRoles itself demands ac:read; a role without it resolves to no custom roles (deny).
-    // The foundry plugin wrapper's return type drops the dynamicAccessControl endpoints.
-    const api = auth.api as unknown as { listOrgRoles(c: typeof h): Promise<OrgRoleRow[]> };
-    const list = await api.listOrgRoles(h).catch((): OrgRoleRow[] => []);
-    for (const r of list) customRoles[r.role] = r.permission;
+  if (custom.length) {
+    // Read the table directly: auth.api.listOrgRoles demands ac:read, which most custom roles lack.
+    // Better Auth stores `permission` as JSON text.
+    const rows = await db
+      .select({ role: organizationRole.role, permission: organizationRole.permission })
+      .from(organizationRole)
+      .where(and(eq(organizationRole.organizationId, base.organizationId), inArray(organizationRole.role, custom)));
+    for (const r of rows) customRoles[r.role] = JSON.parse(r.permission) as Permissions;
   }
   return resolveOrgAccess({ ...base, memberRole, customRoles });
 });
