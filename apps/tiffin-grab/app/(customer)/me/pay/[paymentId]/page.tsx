@@ -1,10 +1,7 @@
+import { findOwnedPayment, requireCustomerSession } from "@/lib/account/customer";
 import { toCents } from "@/lib/money";
-import { notFound, redirect } from "next/navigation";
-import { and, eq } from "drizzle-orm";
-import { db } from "@/db/client";
-import { mealSizes, orders, payments, plans, users } from "@/db/schema";
-import { getSession } from "@/lib/auth/session";
-import { cardPayClosed } from "@/lib/orders/display-status";
+import { notFound } from "next/navigation";
+import { cardPayClosed } from "@/lib/payments/card-pay-closed";
 import { cardCheckoutContext } from "@/lib/payments/card-checkout-context";
 import { resolveProvince } from "@/lib/tax/canada";
 import { PayForm } from "./pay-form";
@@ -18,18 +15,9 @@ export default async function PayPage({
   searchParams: Promise<{ return?: string }>;
 }) {
   const { paymentId } = await params;
-  const session = await getSession();
-  if (!session?.user) redirect(`/login?callbackUrl=${encodeURIComponent(`/me/pay/${paymentId}`)}`);
+  const session = await requireCustomerSession(`/me/pay/${paymentId}`);
 
-  const [row] = await db
-    .select({ pay: payments, order: orders, meal: mealSizes.name, plan: plans.name })
-    .from(payments)
-    .innerJoin(orders, eq(orders.id, payments.orderId))
-    .innerJoin(mealSizes, eq(mealSizes.id, orders.mealSizeId))
-    .innerJoin(plans, eq(plans.id, orders.planId))
-    .innerJoin(users, eq(users.id, orders.userId))
-    .where(and(eq(payments.publicId, paymentId), eq(users.publicId, session.user.id)))
-    .limit(1);
+  const row = await findOwnedPayment(paymentId, session.user.id);
   if (!row) notFound();
 
   const ctx = await cardCheckoutContext(session.user.id, resolveProvince({ postalCode: row.order.postalCode }), row.order);

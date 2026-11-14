@@ -15,8 +15,8 @@ vi.mock("@foundry/design-system/timezone-provider", () => ({ useTimezone: () => 
 vi.mock("sonner", () => ({ toast: { error: vi.fn() } }));
 const mockRouter = { push: vi.fn(), replace: vi.fn() };
 vi.mock("next/navigation", () => ({ useRouter: () => mockRouter }));
-vi.mock("@/app/(public)/checkout/actions", () => ({ confirmSubscription: vi.fn() }));
-vi.mock("@/app/(public)/subscribe/actions", () => ({
+vi.mock("@/lib/checkout/actions", () => ({ confirmSubscription: vi.fn() }));
+vi.mock("@/lib/wizard/actions", () => ({
   reprice: vi.fn().mockResolvedValue({ error: "Invalid duration" }),
   validatePostal: vi.fn().mockResolvedValue({ served: true, zone: { publicId: "zn_1", name: "Downtown", slotWindow: "6-8pm" } }),
 }));
@@ -40,7 +40,6 @@ describe("checkout with a cart the server can't price", () => {
 
     expect(await screen.findByText("Invalid duration")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Retry" })).toBeNull();
-    expect(sessionStorage.getItem("tiffin.checkout.price-reload")).toBeNull();
     fireEvent.click(screen.getAllByRole("button", { name: "Back" }).find((b) => b.className.includes("!shrink-0"))!);
     expect(mockRouter.push).toHaveBeenCalledWith("/subscribe", expect.anything());
   });

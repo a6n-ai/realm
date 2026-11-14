@@ -20,7 +20,7 @@ import { Badge } from "@/components/reui/badge";
 import type { SortState } from "@foundry/design-system/list-sort";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@foundry/design-system/timezone-provider";
-import type { PipelineRow } from "@/lib/services/inquiries.service";
+import type { PipelineRow } from "@/lib/inquiries/inquiries.service";
 import { displayName } from "@/lib/inquiries/display";
 import { SUB_STATUSES, SUB_STATUS_META, isBulkSettable, isClosed, type SubStatus } from "@/lib/inquiries/status";
 import { bulkSetStatus, reassignInquiries } from "./actions";
@@ -146,7 +146,6 @@ export function InquiriesList({
   emptyMessage,
   canReassign,
   staff,
-  reassignAction,
   dayStart,
   highlight,
 }: {

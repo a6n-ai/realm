@@ -5,7 +5,7 @@ import type { Condition } from "@foundry/commons/model/condition";
 import type { Page, PageRequest } from "@foundry/commons/util/pagination";
 import { conditionToSql, columnResolver } from "@foundry/database";
 import { db } from "@/db/client";
-import { cardPayClosed } from "@/lib/orders/display-status";
+import { cardPayClosed } from "@/lib/payments/card-pay-closed";
 import { payPageLines } from "@/lib/billing/pay-lines";
 import { couponRedemptions, coupons, deliveries, ledgerEntries, mealSizes, orders, payments, plans } from "@/db/schema";
 
@@ -63,7 +63,7 @@ export type MoneyLedgerTx = {
   } | null;
 };
 
-/** Paginated subscription receipts for the signed-in customer (IDOR-gated). */
+/** IDOR-gated. */
 export async function myBillsPage(userId: bigint, page: PageRequest): Promise<Page<CustomerBill>> {
   const where = eq(orders.userId, userId);
   const [rows, [{ count }]] = await Promise.all([
@@ -162,7 +162,7 @@ export async function myBillsPage(userId: bigint, page: PageRequest): Promise<Pa
   };
 }
 
-/** Paginated money ledger (`ledger_entries`) for the signed-in customer (IDOR-gated). */
+/** IDOR-gated. */
 export async function myMoneyLedgerPage(
   userId: bigint,
   condition: Condition | undefined,

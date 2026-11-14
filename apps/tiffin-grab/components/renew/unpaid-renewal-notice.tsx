@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Button, Notice } from "@/components/customer/kit";
+import { Button, Notice } from "@/components/kit";
 
 /** A second renewal would overlap the unpaid one and the customer could pay both. */
 export function UnpaidRenewalNotice({ payPublicId }: { payPublicId: string | null }) {

@@ -7,7 +7,7 @@ import {
   inquiriesService,
   type ActivityType,
   type LostReason,
-} from "@/lib/services/inquiries.service";
+} from "@/lib/inquiries/inquiries.service";
 import { ValidationError } from "@foundry/commons";
 import { z } from "zod";
 import { isBulkSettable, type SubStatus } from "@/lib/inquiries/status";

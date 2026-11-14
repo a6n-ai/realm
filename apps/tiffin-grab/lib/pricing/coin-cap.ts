@@ -58,7 +58,6 @@ export function quoteCoinCap(args: {
   };
 }
 
-/** Customer-facing explanation for why not every coin can be applied. */
 export function coinCapMessage(q: CoinCapQuote, args: { balance: number; maxPct: number | null; maxRedeemPctOfBalance: number | null }): string | null {
   const unused = args.balance - q.maxCoins;
   if (unused <= 0) return null;

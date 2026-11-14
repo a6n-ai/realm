@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
-vi.mock("@/app/(customer)/me/refer/actions", () => ({ enterReferralCode: vi.fn() }));
+vi.mock("@/lib/referrals/customer-actions", () => ({ enterReferralCode: vi.fn() }));
 
 import { ReferView } from "../refer-view";
 

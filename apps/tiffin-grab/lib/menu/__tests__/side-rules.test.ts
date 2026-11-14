@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { rolesAfterSwaps, rolesByCategory, sideDefault, sideKey, sideOptions, type SideRules } from "../side-rules";
+import { rolesAfterSwaps, rolesByCategory, sideKey, sideOptions, type SideRules } from "../side-rules";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 const { resolveCategoriesForDay } = await import("../resolve-delivery-meal");
@@ -82,7 +82,6 @@ describe("side picks follow the day's side rule", () => {
   it("offers every dal of the day to a side pick, the default one as its default", () => {
     const rule = dalSide.get(sideKey("sabzi", "side_1"));
     expect(sideOptions(rule, menu, all).map((i) => i.name)).toEqual(["Masoor Dal", "Toor Dal"]);
-    expect(sideDefault(rule, [toorDal, masoor], all)?.name).toBe("Masoor Dal");
     expect(sideFor(fiveItemRegular, dalSide)("sabzi", 1)).toEqual([]); // the main pick has none
   });
 });

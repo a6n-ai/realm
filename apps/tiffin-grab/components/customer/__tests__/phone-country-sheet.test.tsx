@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
-import { PhoneCountrySheet } from "../phone-country-sheet";
+import { PhoneCountrySheet } from "../../kit/phone-country-sheet";
 
 afterEach(cleanup);
 

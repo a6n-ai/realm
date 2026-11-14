@@ -1,16 +1,15 @@
 "use client";
-import { WEEK_DAYS } from "@/lib/menu/delivery-days";
+import { WEEK_DAYS } from "@/lib/deliveries/schedule/delivery-days";
 import { ChevronLeft, ChevronRight, Info, Truck } from "lucide-react";
 import { Popover } from "radix-ui";
 import { STATUS_COLOR, STATUS_LABEL, type DeliveryStatus } from "@/lib/deliveries/status";
-import { cn, FOCUS } from "@/components/customer/kit/cn";
-import { TripTimeline } from "@/components/wizard/trip-timeline";
+import { cn, FOCUS } from "@/components/kit/cn";
+import { TripTimeline } from "@/components/kit/trip-timeline";
 import { weekDays, weekTimeline, type Agenda } from "@/lib/deliveries/view/week";
-import { useSwipePages } from "@/components/customer/kit/use-swipe-pages";
+import { useSwipePages } from "@/components/kit/use-swipe-pages";
 import { addDaysIso, isoToUtcDate, mondayOfIso } from "@foundry/commons/util/dates";
+import { DATE_LONG, MONTH_DAY_SHORT } from "@/components/kit/date-formats";
 
-const MON = new Intl.DateTimeFormat("en-CA", { month: "short", day: "numeric", timeZone: "UTC" });
-const LONG = new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: "UTC" });
 const at = (iso: string) => isoToUtcDate(iso);
 /** Bare chevron, 44px hit area, no circle or outline. */
 export const ARROW = cn(FOCUS, "grid size-11 place-items-center text-[var(--muted-foreground)] transition-colors hover:text-foreground disabled:opacity-30 [touch-action:manipulation]");
@@ -34,7 +33,7 @@ interface Props {
 }
 
 /** The deliveries week as the subscribe flow's trip timeline: trucks and bars in delivery-status colours, days tappable. */
-export function WeekTimeline({ firstWeek, lastWeek, week, today, selectedDay, agenda, now, onPickDay, onWeek, isDisabled, onDisabledTap, deliveryDay }: Props) {
+export function WeekTimeline({ firstWeek, lastWeek, week, today, selectedDay, agenda, onPickDay, onWeek, isDisabled, onDisabledTap, deliveryDay }: Props) {
   const { trips, dayStatus } = weekTimeline(agenda, week);
   const isos = weekDays(week);
   const thisWeek = mondayOfIso(today);
@@ -48,7 +47,7 @@ export function WeekTimeline({ firstWeek, lastWeek, week, today, selectedDay, ag
     <section aria-label="Delivery week" className="c-surface overflow-x-clip rounded-[20px] bg-[var(--card,#fff)] p-4 sm:p-5" data-testid="week-timeline">
       <div className="flex items-center justify-between gap-3">
         <p className="text-xs font-semibold uppercase tracking-[0.15em] text-[var(--muted-foreground)]">
-          {MON.format(at(week))} – {MON.format(at(addDaysIso(week, 6)))}{week === thisWeek ? " · This week" : ""}
+          {MONTH_DAY_SHORT.format(at(week))} – {MONTH_DAY_SHORT.format(at(addDaysIso(week, 6)))}{week === thisWeek ? " · This week" : ""}
         </p>
         <span className="flex items-center">
           <Legend />
@@ -74,7 +73,7 @@ export function WeekTimeline({ firstWeek, lastWeek, week, today, selectedDay, ag
             const s = dayStatus[d];
             const trip = byDay.get(d);
             const holiday = s === "holiday" ? agenda[iso]?.find((x) => x.holiday)?.holiday : null;
-            return `${LONG.format(at(iso))}${s ? `, eating, ${STATUS_LABEL[s]}${holiday ? `: ${holiday}` : ""}` : ", nothing planned"}${trip ? `, delivery arrives with ${trip.units} ${trip.units === 1 ? "tiffin" : "tiffins"}` : ""}${deliveryDay?.(iso) ? ", delivery day" : ""}`;
+            return `${DATE_LONG.format(at(iso))}${s ? `, eating, ${STATUS_LABEL[s]}${holiday ? `: ${holiday}` : ""}` : ", nothing planned"}${trip ? `, delivery arrives with ${trip.units} ${trip.units === 1 ? "tiffin" : "tiffins"}` : ""}${deliveryDay?.(iso) ? ", delivery day" : ""}`;
           },
         }}
         legend={null}

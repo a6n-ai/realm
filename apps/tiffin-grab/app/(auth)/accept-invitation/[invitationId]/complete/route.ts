@@ -1,6 +1,6 @@
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { acceptInvitationOrSignOut } from "@/lib/auth/accept-invitation";
 import { appOrigin } from "@/lib/runtime/env";
 
 // Magic-link landing for a staff invite: the link already signed the invitee
@@ -12,14 +12,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ invitat
   const { invitationId } = await params;
   const h = await headers();
   const to = (path: string) => NextResponse.redirect(new URL(path, appOrigin()));
-  try {
-    await auth.api.acceptInvitation({ body: { invitationId }, headers: h });
-  } catch {
-    // Cancelled/expired/someone else's invitation: don't leave them holding a
-    // session for an org they never joined (same as the email-code path).
-    await auth.api.signOut({ headers: h }).catch(() => {});
-    return to(`/accept-invitation/${invitationId}?error=invitation`);
-  }
+  if (!(await acceptInvitationOrSignOut(invitationId, h))) return to(`/accept-invitation/${invitationId}?error=invitation`);
   // No password yet — /set-password finishes setup, then on to /dashboard.
   return to("/set-password");
 }

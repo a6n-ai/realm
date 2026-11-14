@@ -1,4 +1,5 @@
 "use server";
+import { noVisibleOrgs } from "@/lib/tenant/org-scope";
 
 import { ValidationError } from "@foundry/commons";
 import { createShortLink } from "@foundry/shortlinks";
@@ -7,12 +8,12 @@ import { requireStaff } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { quoteQuery } from "@/lib/wizard/selections";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
-import { getAppSettings } from "@/lib/services/app-settings.service";
-import { dishCategoriesService } from "@/lib/services/dish-categories.service";
+import { getAppSettings } from "@/lib/settings";
+import { dishCategoriesService } from "@/lib/menu/dish-categories.service";
 import { assertOrderVisible } from "@/lib/orders/orders.service";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import { findRenewableOrder, readOrderPrefill } from "@/lib/orders/order-prefill.service";
-import { userIdByPublicId } from "@/lib/services/session-service";
+import { userIdByPublicId } from "@/lib/identity/user-ids";
 import type { ActionResult } from "@/lib/actions/action-result";
 import { staffAction } from "@/lib/actions/staff-action";
 import { orderFormCatalog } from "./order-form-catalog";
@@ -66,7 +67,7 @@ export async function estimatePrefill(orderPublicId: string): Promise<ActionResu
 export async function renewPrefill(customerPublicId: string): Promise<ActionResult<OrderPrefill & { deploymentId: string }>> {
   return staffAction({ guard: { order: ["read"] } }, async () => {
     const visible = await resolveSessionVisibleOrgIds(await getSession());
-    if (visible !== "all" && visible.length === 0) throw new ValidationError("This customer has no earlier plan you can see");
+    if (noVisibleOrgs(visible)) throw new ValidationError("This customer has no earlier plan you can see");
     const last = await findRenewableOrder(customerPublicId, visible);
     if (!last) throw new ValidationError("This customer has no earlier plan to renew");
     return { ...(await prefillFromOrder(last.publicId)), deploymentId: last.deploymentId };

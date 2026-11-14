@@ -4,7 +4,7 @@ import type { ActionResult } from "@/lib/actions/action-result";
 import { ValidationError } from "@foundry/commons";
 import { staffAction, type StaffActionOpts } from "@/lib/actions/staff-action";
 import { getSession } from "@/lib/auth/session";
-import { retireFaq, saveFaq } from "@/lib/services/faqs.service";
+import { retireFaq, saveFaq } from "@/lib/landing/faqs.service";
 
 const faqSchema = z.object({
   publicId: z.string().nullable(),

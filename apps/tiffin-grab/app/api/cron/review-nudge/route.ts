@@ -1,9 +1,6 @@
-import { withCronAuth } from "@/lib/cron/auth";
-import { runReviewNudges } from "@/lib/notifications/review-nudge-job";
+import { cronJobRoute } from "@/lib/cron/route";
 
+// Recorded in cron_runs (Settings → Scheduled jobs) via runCronJob.
 export const dynamic = "force-dynamic";
 
-const handle = withCronAuth(() => runReviewNudges());
-
-export const GET = handle;
-export const POST = handle;
+export const { GET, POST } = cronJobRoute("review-nudge");

@@ -3,28 +3,26 @@ import "@testing-library/jest-dom/vitest";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Trip } from "@/lib/deliveries/view";
-import type { GridCell } from "@/lib/menu/meals-grid";
+import type { GridCell } from "@/lib/menu/grid-types";
 import type { PlanView } from "@/lib/deliveries/view/adapter";
 import { PickSheet } from "../pick-sheet";
 
 const load = vi.fn();
-const pick = vi.fn();
 const savePicks = vi.fn();
 // Swap options are computed in the sheet now (pick-preview); tests set them directly.
 const swapOptions = vi.fn((): unknown[] => []);
 const applySwap = vi.fn();
 const removeSwap = vi.fn();
 
-vi.mock("@/app/(customer)/me/deliveries/pick-grid", () => ({ loadPickGrid: (...a: unknown[]) => load(...a) }));
-vi.mock("@/app/(customer)/me/meals/actions", () => ({
-  pickMyDish: (...a: unknown[]) => pick(...a),
+vi.mock("@/lib/menu/pick-grid-actions", () => ({ loadPickGrid: (...a: unknown[]) => load(...a) }));
+vi.mock("@/lib/menu/meal-actions", () => ({
   saveMyMealSelections: (...a: unknown[]) => savePicks(...a),
 }));
 vi.mock("@/lib/menu/pick-preview", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/menu/pick-preview")>()),
   previewSwapOptions: () => swapOptions(),
 }));
-vi.mock("@/app/(customer)/me/deliveries/actions", () => ({
+vi.mock("@/lib/deliveries/customer-actions", () => ({
   applyMyDeliverySwap: (...a: unknown[]) => applySwap(...a),
   removeMyDeliverySwap: (...a: unknown[]) => removeSwap(...a),
 }));
@@ -122,7 +120,6 @@ const show = (t = trip()) => {
 
 beforeEach(() => {
   load.mockReset();
-  pick.mockReset().mockResolvedValue({ ok: true });
   savePicks.mockReset().mockResolvedValue({ ok: true, saved: 1 });
   swapOptions.mockReset().mockReturnValue([]);
   applySwap.mockReset().mockResolvedValue({ ok: true });

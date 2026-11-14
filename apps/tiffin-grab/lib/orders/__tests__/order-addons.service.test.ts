@@ -15,7 +15,7 @@ const { deleteNonSystemUsers } = await import("@/db/test-helpers");
 const { addons, deliveries, ledgerEntries, orderActivities, orderAddons, orders, payments } = await import("@/db/schema");
 const { invalidateCatalogSnapshot, loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { mealSizeAddons } = await import("@/lib/catalog/types");
-const { setPaymentConfig } = await import("../../services/app-settings.service");
+const { setPaymentConfig } = await import("@/lib/payments/payment-config");
 const { sharedCache } = await import("@/lib/cache");
 const { createOrder } = await import("../create-order");
 const { addOrderAddons, quoteOrderAddons } = await import("../order-addons.service");
@@ -61,7 +61,7 @@ async function runningOrder() {
 
 async function anAddon() {
   const addon = mealSizeAddons(await loadCatalogSnapshot())[0];
-  if (!addon) throw new Error("Test DB has no add-on a plan offers; seed one (see lib/services/__tests__/catalog-soft-delete.test.ts)");
+  if (!addon) throw new Error("Test DB has no add-on a plan offers; seed one (see lib/catalog/__tests__/catalog-soft-delete.test.ts)");
   return addon;
 }
 

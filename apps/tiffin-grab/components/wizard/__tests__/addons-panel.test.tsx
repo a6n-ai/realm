@@ -5,6 +5,8 @@ import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
 import { AddonsPanel } from "../addons-panel";
 import { initialSelections, offeredAddons, pickedAddons, type WizardSelections } from "@/lib/wizard/selections";
 
+vi.mock("@/components/app-currency", () => ({ useFormatMoney: () => (n: number) => `$${n.toFixed(2)}` }));
+
 afterEach(cleanup);
 
 const sabzi = { key: "extra-sabzi", name: "Extra Sabzi", category: "sabzi", planKey: "veg", tuAmount: 1, pricePerTiffin: 3.5, maxQty: 2, portion: "8oz" };

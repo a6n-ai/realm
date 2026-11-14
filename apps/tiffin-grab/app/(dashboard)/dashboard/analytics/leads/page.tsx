@@ -1,13 +1,13 @@
-import { scopeOrAlert } from "@/components/analytics/franchise-unavailable";
+import { scopeOrAlert } from "@/components/dashboard/analytics/franchise-unavailable";
 import Link from "next/link";
 import { Suspense } from "react";
-import { AnalyticsIntro } from "@/components/analytics/analytics-intro";
-import { ChartCard } from "@/components/analytics/chart-card";
-import { ChartSkeleton } from "@/components/analytics/skeletons";
-import { BreakdownList } from "@/components/analytics/breakdown-list";
+import { AnalyticsIntro } from "@/components/dashboard/analytics/analytics-intro";
+import { ChartCard } from "@/components/dashboard/analytics/chart-card";
+import { ChartSkeleton } from "@/components/dashboard/analytics/skeletons";
+import { BreakdownList } from "@/components/dashboard/analytics/breakdown-list";
 import { AnalyticsStatCards, AnalyticsStatCardsSkeleton, StatFootnote } from "@/components/dashboard/stat-cards";
-import { FunnelChart, SankeyChart } from "@/components/analytics/charts";
-import type { Tone } from "@/components/analytics/chart-math";
+import { FunnelChart, SankeyChart } from "@/components/dashboard/analytics/charts";
+import type { Tone } from "@/components/dashboard/analytics/chart-math";
 import { buildSourceFlow } from "@/lib/analytics/source-flow";
 import { reachedStages } from "@/lib/analytics/lead-funnel";
 import { inquiriesHref } from "@/lib/analytics/drill";
@@ -17,8 +17,9 @@ import {
   getLostReasonBreakdown,
   getRenewalsByRound,
   getSourcePerformance,
-} from "@/lib/services/analytics/leads.service";
-import { DATE_BASIS_LABEL, type AnalyticsScope } from "@/lib/services/analytics/metrics/scope";
+} from "@/lib/analytics/leads.service";
+import { DATE_BASIS_LABEL } from "@/lib/analytics/metrics/scope";
+import { type AnalyticsScope } from "@/lib/analytics/scope-types";
 
 type SearchParams = Promise<Record<string, string | undefined>>;
 

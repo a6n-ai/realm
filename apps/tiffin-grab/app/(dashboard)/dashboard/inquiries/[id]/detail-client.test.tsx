@@ -17,7 +17,7 @@ vi.mock("./inquiry-timeline", () => ({ InquiryTimeline: () => null }));
 vi.mock("./convert-sheet", () => ({ ConvertSheet: () => null }));
 vi.mock("./next-step-card", () => ({ NextStepCard: () => null }));
 vi.mock("./edit-contact-dialog", () => ({ EditContactDialog: () => null }));
-vi.mock("@/components/reassign/reassign-control", () => ({ ReassignControl: () => null }));
+vi.mock("@/components/dashboard/reassign/reassign-control", () => ({ ReassignControl: () => null }));
 
 const { InquiryDetailClient } = await import("./detail-client");
 

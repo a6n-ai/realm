@@ -1,4 +1,7 @@
+"use client";
+
 import { effectivePrice } from "@/lib/pricing";
+import { useFormatMoney } from "@/components/app-currency";
 import type { ClientMealSizeView } from "@/lib/catalog/types";
 
 // Single "was $X now $Y" renderer, imported everywhere a meal size's price is shown
@@ -18,24 +21,25 @@ export function MealSizePrice({
   /** Price on its own line, right-aligned, with any was-price above and "/tiffin" under it (plan cards). */
   stacked?: boolean;
 }) {
+  const money = useFormatMoney();
   const unit = perTiffin ? <span className="text-muted-foreground text-footnote font-medium">/tiffin</span> : null;
   if (stacked) {
     return (
       <span className="nums flex shrink-0 flex-col items-end leading-none">
-        {meal.discountType !== "none" && <span className="text-muted-foreground mb-1 text-xs line-through">${meal.basePrice.toFixed(2)}</span>}
-        <span className={priceClassName}>${(meal.discountType === "none" ? meal.basePrice : effectivePrice(meal.basePrice, meal)).toFixed(2)}</span>
+        {meal.discountType !== "none" && <span className="text-muted-foreground mb-1 text-xs line-through">{money(meal.basePrice)}</span>}
+        <span className={priceClassName}>{money(meal.discountType === "none" ? meal.basePrice : effectivePrice(meal.basePrice, meal))}</span>
         {unit && <span className="mt-1">{unit}</span>}
       </span>
     );
   }
   if (meal.discountType === "none") {
-    return <span className="nums flex items-baseline gap-1"><span className={priceClassName}>${meal.basePrice.toFixed(2)}</span>{unit}</span>;
+    return <span className="nums flex items-baseline gap-1"><span className={priceClassName}>{money(meal.basePrice)}</span>{unit}</span>;
   }
   const discounted = effectivePrice(meal.basePrice, meal);
   return (
     <span className="nums flex items-baseline gap-1.5">
-      <span className="text-muted-foreground text-xs line-through">${meal.basePrice.toFixed(2)}</span>
-      <span className={priceClassName}>${discounted.toFixed(2)}</span>
+      <span className="text-muted-foreground text-xs line-through">{money(meal.basePrice)}</span>
+      <span className={priceClassName}>{money(discounted)}</span>
       {unit}
     </span>
   );

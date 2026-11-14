@@ -6,11 +6,11 @@ import { NotFoundError, ValidationError, zonedDateIso } from "@foundry/commons";
 import { db } from "@/db/client";
 import { mealSizes, notificationOutbox, orders, users } from "@/db/schema";
 import { formatDateOnly } from "@/lib/format/datetime";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { lastTiffinSql, laterOrderSql } from "@/lib/orders/queries";
 import { enqueueNotification } from "./enqueue";
 import { createLogger } from "@foundry/commons/logger";
-import { logReminderSent, openRenewal, reconcileOrders } from "@/lib/services/inquiry-links.service";
+import { logReminderSent, openRenewal, reconcileOrders } from "@/lib/inquiries/inquiry-links.service";
 import { orderTemplateVars } from "./events";
 import { addDaysIso, daysBetween } from "@foundry/commons/util/dates";
 
@@ -99,7 +99,7 @@ export async function openRenewalsDue(today: string): Promise<number> {
   return opened;
 }
 
-/** Daily: queue each reminder once per plan ending. Safe to rerun; the outbox dedupe key drops repeats. */
+/** Daily: queue each reminder once per plan ending. Safe to rerun: the outbox dedupe key drops repeats. */
 export async function sendRenewalReminders(now = Date.now()) {
   const today = zonedDateIso(now, (await getAppSettings()).timezone);
   const summary: Record<string, number> = {};

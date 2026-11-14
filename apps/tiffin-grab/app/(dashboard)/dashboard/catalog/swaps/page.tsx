@@ -4,7 +4,7 @@ import { requireAdmin } from "@/lib/auth/guards";
 import { db } from "@/db/client";
 import { and, eq } from "drizzle-orm";
 import { mealSizes, plans } from "@/db/schema";
-import { dishCategoriesService } from "@/lib/services/dish-categories.service";
+import { dishCategoriesService } from "@/lib/menu/dish-categories.service";
 import { PageHeader, PageShell } from "@/components/ds";
 import { SwapPairGrid, type SwapPairRow } from "./swap-rule-grid";
 import type { AdminTuCategory } from "../admin-tu-hints";

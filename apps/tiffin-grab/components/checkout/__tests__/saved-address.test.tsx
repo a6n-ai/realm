@@ -18,8 +18,8 @@ vi.mock("sonner", () => ({ toast: { error: vi.fn() } }));
 const mockRouter = { push: vi.fn(), replace: vi.fn() };
 vi.mock("next/navigation", () => ({ useRouter: () => mockRouter }));
 const confirmSubscription = vi.fn().mockResolvedValue({ waitlisted: false, deploymentId: "SUB-1", publicId: "ord_1" });
-vi.mock("@/app/(public)/checkout/actions", () => ({ confirmSubscription: (...a: unknown[]) => confirmSubscription(...a) }));
-vi.mock("@/app/(public)/subscribe/actions", () => ({
+vi.mock("@/lib/checkout/actions", () => ({ confirmSubscription: (...a: unknown[]) => confirmSubscription(...a) }));
+vi.mock("@/lib/wizard/actions", () => ({
   reprice: vi.fn().mockResolvedValue({
     pricing: { lineItems: [], adjustments: [], tiffinCount: 5, perTiffinPrice: 10, subtotal: 50, total: 50 },
     appliedCoupons: [],
@@ -31,7 +31,7 @@ vi.mock("@/app/(public)/subscribe/actions", () => ({
 }));
 
 const updateSavedAddress = vi.fn();
-vi.mock("@/app/(customer)/me/account/address-actions", () => ({ updateSavedAddress: (...a: unknown[]) => updateSavedAddress(...a) }));
+vi.mock("@/lib/account/address-actions", () => ({ updateSavedAddress: (...a: unknown[]) => updateSavedAddress(...a) }));
 
 // Checkout is signed-in only (the page redirects signed-out visitors).
 const MEMBER = { fullName: "Jane Doe", email: "jane@example.com" };

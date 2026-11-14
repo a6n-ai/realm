@@ -1,4 +1,4 @@
-import { Skeleton } from "@/components/customer/kit";
+import { Skeleton } from "@/components/kit";
 
 /**
  * SubscribeChrome's shape: full-bleed 64px bar, logo + Back (sm up) left, step tag centered, Close right.

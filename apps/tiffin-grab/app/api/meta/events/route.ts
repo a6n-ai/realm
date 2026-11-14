@@ -2,7 +2,7 @@ import { isRateLimited } from "@foundry/commons";
 import { sendMetaEvent } from "@/lib/meta/capi";
 import { requestHasAnalyticsConsent } from "@/lib/consent.server";
 import { liveMetaRequestContext } from "@/lib/meta/request-context";
-import { trustedIpHeaders } from "@/lib/runtime/platform";
+import { requestIp } from "@/lib/runtime/platform";
 
 export const dynamic = "force-dynamic";
 
@@ -40,10 +40,7 @@ export async function POST(request: Request) {
     return new Response(null, { status: 403 });
   }
 
-  const ip =
-    trustedIpHeaders()
-      .map((h) => request.headers.get(h)?.trim())
-      .find(Boolean) || "unknown";
+  const ip = requestIp(request.headers) ?? "unknown";
   if (isRateLimited(ip, 60, 60_000, "meta-events-beacon")) {
     return new Response(null, { status: 429 });
   }

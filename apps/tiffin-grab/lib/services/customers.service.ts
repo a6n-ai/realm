@@ -1,11 +1,14 @@
-import { resolveUserId } from "@/lib/services/session-service";
+import { formatAddressLine } from "@/lib/catalog/address-line";
+import type { SendState } from "@/lib/notifications/send-state";
+import { inviteAlreadySent, lastInviteState } from "@/lib/notifications/invite-state";
+import { resolveUserId } from "@/lib/identity/user-ids";
 import { appPhoneCountry, parseCustomerContact, requireEmail } from "@/lib/services/contact";
 import { inOrderStatuses, RUNNING } from "@/lib/orders/status";
 import { pageOffset } from "@foundry/design-system/filters/parse-filter-state";
-import { isCustomerRole } from "@/lib/auth/roles";
+import { isCustomerRole } from "@/lib/roles";
 import { inStatuses, PAID, PENDING, UNPAID } from "@/lib/payments/status";
 import { and, asc, desc, eq, gte, ilike, inArray, isNotNull, like, or, sql } from "drizzle-orm";
-import { NotFoundError, ValidationError, phoneSchema, emailSchema } from "@foundry/commons";
+import { NotFoundError, ValidationError } from "@foundry/commons";
 import type { Condition } from "@foundry/commons/model/condition";
 import type { Page, PageRequest } from "@foundry/commons/util/pagination";
 import { conditionToSql, columnResolver, pageOrder } from "@foundry/database";
@@ -174,8 +177,7 @@ const pendingInvite = and(
   eq(users.emailVerified, false),
   isNotNull(users.email),
   sql`not exists (select 1 from ${messageSuppression} s where s.address = ${users.email} and s.channel = 'email' and s.scope = 'all')`,
-  sql`not exists (select 1 from ${notificationOutbox} o where o.event = 'customer_invitation' and o.channel = 'email'
-    and o.recipient_email = ${users.email} and o.status <> 'failed')`,
+  sql`not ${inviteAlreadySent(users.email)}`,
 );
 
 export async function countPendingInvites(): Promise<number> {
@@ -259,9 +261,6 @@ export type CustomerRow = {
   lastInvite: SendState | null;
   lastReminder: SendState | null;
 };
-
-/** One outbox row's delivery state; opened/delivered come from SES events. */
-export type SendState = { status: string; at: number; deliveredAt: number | null; openedAt: number | null };
 
 const sendStateJson = sql`json_build_object('status', o.status, 'at', o.created_at, 'deliveredAt', o.delivered_at, 'openedAt', o.opened_at)`;
 
@@ -382,9 +381,7 @@ export async function listCustomersPage(
         // Correlated, but only for the page's rows (25ish). The invite row carries
         // only an address (no account id on it), hence the email match.
         // ponytail: unindexed recipient_email scan per row; add an index if the outbox grows large.
-        lastInvite: sql<SendState | null>`(select ${sendStateJson} from ${notificationOutbox} o
-          where o.event = 'customer_invitation' and o.channel = 'email' and o.recipient_email = ${users.email}
-          order by o.created_at desc limit 1)`,
+        lastInvite: sql<SendState | null>`${lastInviteState(users.email, sendStateJson)}`,
         lastReminder: sql<SendState | null>`(select ${sendStateJson} from ${notificationOutbox} o
           join ${campaign} c on c.id = o.campaign_id and c.system_key = ${MENU_REMINDER_KEY}
           where o.channel = 'email' and o.recipient_id = ${users.id}
@@ -439,10 +436,8 @@ const SUBSCRIPTION_RANK: Record<string, number> = {
   active: 0, paused: 1, waitlisted: 2, pending: 3, cancelled: 4,
 };
 
-// The signed-in customer's own dashboard: profile, every order (newest-first), the
-// current/most-relevant subscription, and lifetime spend. Resolves the user
-// public_id to the internal id here so totalSpent can run on the bigint while the
-// returned shape stays public_id-only and fully serializable for the client.
+// Resolves the user public_id to the internal id here so totalSpent can run on the bigint while the
+// returned shape stays public_id-only and serializable for the client.
 export async function getCustomerDashboard(userPublicId: string): Promise<CustomerDashboard> {
   const [user] = await db
     .select({ id: users.id, name: users.name, email: users.email, role: users.role })
@@ -531,7 +526,7 @@ type AddressAudit = { operation: string; changes: unknown; label: string; actor:
 /** One line for an address-book change in the staff timeline. Customers never see this. */
 export function addressEventLabel(e: AddressAudit): string {
   const c = (e.changes ?? {}) as { label?: string; addressLine?: string; addressUnit?: string | null; city?: string; postalCode?: string; isDefault?: boolean };
-  const where = [c.addressUnit ? `${c.addressUnit} – ${c.addressLine}` : c.addressLine, c.city, c.postalCode].filter(Boolean).join(", ");
+  const where = formatAddressLine(c);
   const name = c.label ?? e.label;
   const what =
     e.operation === "create" ? `Address added: "${name}" ${where}`

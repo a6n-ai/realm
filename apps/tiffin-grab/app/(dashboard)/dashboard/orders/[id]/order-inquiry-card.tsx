@@ -6,7 +6,7 @@ import { getSession } from "@/lib/auth/session";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import { formatEpoch } from "@/lib/format/datetime";
 import { trackLabel } from "@/lib/renewals/status";
-import { inquiryOrderCard, type InquiryOrderCard as Card } from "@/lib/services/inquiry-links.service";
+import { inquiryOrderCard, type InquiryOrderCard as Card } from "@/lib/inquiries/inquiry-links.service";
 
 const link = "text-primary text-sm underline-offset-2 hover:underline";
 

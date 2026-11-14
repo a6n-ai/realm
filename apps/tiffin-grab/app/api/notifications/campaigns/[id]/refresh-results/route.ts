@@ -1,13 +1,5 @@
-import { handler, json, problem } from "@foundry/routes";
-import { requireAdmin } from "@/lib/auth/guards";
+import { problem } from "@foundry/routes";
+import { adminIdRoute } from "@/lib/notifications/admin-route";
 import { refreshCampaignResults } from "@/lib/notifications/campaign-results";
 
-export const POST = handler(
-  async (_req: Request, ctx: { params: Promise<{ id: string }> }): Promise<Response> => {
-    await requireAdmin();
-    const { id } = await ctx.params;
-    const result = await refreshCampaignResults(id);
-    if (!result) return problem(404, "Campaign not found");
-    return json(result);
-  },
-);
+export const POST = adminIdRoute(async (_req, id) => (await refreshCampaignResults(id)) ?? problem(404, "Campaign not found"));

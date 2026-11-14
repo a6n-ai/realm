@@ -1,7 +1,7 @@
 import { db } from "../db/client";
 import { sql } from "drizzle-orm";
 import { assertLocalDb } from "../db/is-local-db";
-import { hashPassword } from "../lib/auth/password";
+import { hashPassword } from "@foundry/auth";
 
 /**
  * PROD SAFETY: this script writes credentials for info@foodmonks.ca — which is also the
@@ -21,10 +21,8 @@ const CUSTOMER_PASSWORD = process.env.E2E_CUSTOMER_PASSWORD ?? "Customer123!";
 async function main() {
   assertLocalDb("reseed-e2e-users");
 
-  // Hashed at runtime with the app's own hasher. The admin hash used to be a hardcoded
-  // bcrypt string, which stopped working at the scrypt cutover — packages/auth has no
-  // bcrypt fallback and verifyPassword fail-closes on a foreign format, so every e2e
-  // admin login silently failed. Anything hardcoded here rots the same way.
+  // Hashed at runtime: verifyPassword fail-closes on a foreign hash format and packages/auth
+  // has no bcrypt fallback, so a hardcoded hash rots.
   const [adminHash, customerHash] = await Promise.all([
     hashPassword(ADMIN_PASSWORD),
     hashPassword(CUSTOMER_PASSWORD),

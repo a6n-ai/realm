@@ -1,5 +1,5 @@
 import { AppError, AuthError, ForbiddenError } from "@foundry/commons";
-import { MealRuleViolationError } from "@/lib/menu/meal-rule-error";
+import { MealRuleViolationError } from "@/lib/errors";
 
 /**
  * Shared return shape for customer-facing "use server" mutations that can be
@@ -16,12 +16,13 @@ export type ActionResult<T extends Record<string, unknown> = Record<string, neve
       error: string;
       /**
        * Set when a meal rule refused the change, so the picker can highlight
-       * that rule in the list it already shows. Optional and additive — every
-       * existing caller keeps reading `error` alone.
+       * that rule in the list it already shows.
        */
       violatedRuleId?: string;
       /** The AppError's HTTP-style status, so a caller can branch on a conflict (409) without matching text. */
       status?: number;
+      /** Machine-readable reason a caller can branch on instead of matching `error` text. */
+      errorCode?: string;
     };
 
 function isRedirectError(e: unknown): boolean {
@@ -72,7 +73,8 @@ export async function runAction<T extends Record<string, unknown>>(
       return { error: e.message === "Forbidden" ? "You do not have permission to perform this action." : e.message };
     }
     if (e instanceof AppError) {
-      return { error: e.message, status: e.status };
+      const errorCode = (e as { errorCode?: unknown }).errorCode;
+      return { error: e.message, status: e.status, ...(typeof errorCode === "string" && { errorCode }) };
     }
     // Unexpected error (e.g. database error, file storage timeout, etc.).
     // Log the full error on the server for debugging, and return a clean error message

@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { Button, Card, Notice, Pill } from "@/components/customer/kit";
-import { FONT } from "@/components/customer/kit/cn";
+import { Button, Card, Notice, Pill } from "@/components/kit";
+import { FONT } from "@/components/kit/cn";
 import type { EndedPlan, WaitlistedSubscription } from "@/lib/deliveries/customer-deliveries.service";
 import { formatDateOnly } from "@/lib/format/datetime";
 

@@ -1,4 +1,4 @@
-import { WEEK_DAYS } from "@/lib/menu/delivery-days";
+import { WEEK_DAYS } from "@/lib/deliveries/schedule/delivery-days";
 import { pageOffset } from "@foundry/design-system/filters/parse-filter-state";
 import { notFound } from "next/navigation";
 import { and, asc, eq, getTableColumns, sql, type Column as DrizzleColumn } from "drizzle-orm";
@@ -7,7 +7,7 @@ import { PgColumn } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
 import { deliveryFrequencies, durationPackages, mealSizes, plans } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth/guards";
-import { dishCategoriesService } from "@/lib/services/dish-categories.service";
+import { dishCategoriesService } from "@/lib/menu/dish-categories.service";
 import { columnResolver, conditionToSql, type FilterResolver } from "@foundry/database";
 import { parseFilterState, type FacetDef } from "@foundry/design-system";
 import { parseSort } from "@foundry/design-system/list-sort";

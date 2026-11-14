@@ -5,8 +5,8 @@ import { inStatuses, PAID, SETTLEABLE } from "@/lib/payments/status";
 import Link from "next/link";
 import { Check, Clock, Download, FileText, Mail, RotateCcw, XCircle, type LucideIcon } from "lucide-react";
 import { toast } from "sonner";
-import { Button, EmptyState, IconTile, ListGroup, Pill, type IconTint, type Tone } from "@/components/customer/kit";
-import { buttonClass } from "@/components/customer/kit/button-class";
+import { Button, EmptyState, IconTile, ListGroup, Pill, type IconTint, type Tone } from "@/components/kit";
+import { buttonClass } from "@/components/kit/button-class";
 import {
   Dialog,
   DialogContent,
@@ -18,11 +18,11 @@ import { formatEpoch, formatDateOnly } from "@/lib/format/datetime";
 import { useTimezone } from "@foundry/design-system/timezone-provider";
 import type { CustomerBill } from "@/lib/services/customer-finances.service";
 import type { ClaimPaymentContext } from "@/lib/payments/verification";
-import { emailReceiptAction, loadClaimPaymentContext } from "@/app/(customer)/me/wallet/actions";
+import { emailReceiptAction, loadClaimPaymentContext } from "@/lib/payments/customer-actions";
 import { ClaimPayment } from "./claim-payment";
 import { cardBrandLabel } from "@/lib/billing/payment-labels";
 import { GroupHeader, QuietPagination, groupByMonth } from "./finance-kit";
-import { MonthGroupSkeleton } from "@/components/customer/skeleton-parts";
+import { MonthGroupSkeleton } from "@/components/kit/skeleton-parts";
 import { MethodName } from "@/components/payments/stripe-mark";
 import { formatMoney } from "@foundry/commons";
 

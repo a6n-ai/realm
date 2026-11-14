@@ -2,33 +2,32 @@
 
 import { appTodayIso } from "@/lib/dates/today";
 import { and, eq, inArray } from "drizzle-orm";
-import { ValidationError, emailSchema, phoneSchema } from "@foundry/commons";
+import { emailSchema, phoneSchema } from "@foundry/commons";
 import { requireStaff } from "@/lib/auth/guards";
-import { planDaysError, type DayOfWeek } from "@/lib/menu/delivery-days";
 import type { ActionResult } from "@/lib/actions/action-result";
 import { staffAction } from "@/lib/actions/staff-action";
 import { getSession } from "@/lib/auth/session";
 import { db } from "@/db/client";
 import { coupons, orders } from "@/db/schema";
-import { assertInquiriesVisible, inquiriesService } from "@/lib/services/inquiries.service";
+import { assertInquiriesVisible, inquiriesService } from "@/lib/inquiries/inquiries.service";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import type { CreateOrderInput } from "@/lib/orders/create-order";
-import { couponsService, type AvailableCoupon } from "@/lib/services/coupons.service";
-import { userIdByPublicId } from "@/lib/services/session-service";
+import { couponsService, type AvailableCoupon } from "@/lib/coupons/coupons.service";
+import { userIdByPublicId } from "@/lib/identity/user-ids";
 import { postCatalogSubtotal } from "@/lib/pricing/discounts";
 import { maxDiscountAboveCost } from "@/lib/pricing/cost-floor";
 import { loadMealCostFloor } from "@/lib/pricing/meal-cost";
-import type { AppliedCoupon } from "@/app/(public)/subscribe/actions";
-import { getAppSettings, getDiscountPolicy, getMaxCoinPctOfSubtotal, getMaxCoinRedeemPctOfBalance, getPaymentConfig } from "@/lib/services/app-settings.service";
-import { capRedemption } from "@foundry/wallet";
-import { coinCapMessage, coinLimits, quoteCoinCap } from "@/lib/pricing/coin-cap";
-import { applyDiscountLane } from "@/lib/services/discount-lane";
+import type { AppliedCoupon } from "@/lib/wizard/actions";
+import { getDiscountPolicy } from "@/lib/coupons/discount-policy-settings";
+import { getPaymentConfig } from "@/lib/payments/payment-config";
+import { coinCapMessage } from "@/lib/pricing/coin-cap";
+import { applyDiscountLane } from "@/lib/coupons/discount-lane";
 import { round2 } from "@foundry/commons/util/money";
 import { walletService } from "@/lib/wallet/wallet.service";
-import { repAllowanceZone } from "@/lib/services/rep-allowance";
+import { repAllowanceZone } from "@/lib/coupons/rep-allowance";
 import { findMethod } from "@foundry/payments";
 import { priceWithTax } from "@/lib/tax/checkout-taxes";
-import { getTrialSettings } from "@/lib/services/trial-settings.service";
+import { getTrialSettings } from "@/lib/trial/trial-settings.service";
 import { earliestNewPlanStart, runningPlans, type RunningPlan } from "@/lib/orders/order-window";
 import { matchCustomerAccounts } from "@/lib/services/customers.service";
 import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
@@ -38,14 +37,13 @@ import type { DropOffValue } from "@/lib/catalog/drop-off";
 import type { SavedAddress } from "@foundry/address";
 import { stripePayLink } from "@/lib/payments/stripe";
 import { addressService } from "@/lib/services/addresses.service";
-import { dropOffsFor } from "@/lib/services/address-drop-off.service";
+import { dropOffsFor } from "@/lib/deliveries/address-drop-off.service";
 import { type PricingLine, type PricingResult } from "@/lib/pricing";
-import { buildPricingCatalog } from "@/lib/pricing/build-catalog";
-import { quoteTrial } from "@/lib/trial/quote";
 import { currentUserId } from "@/lib/services/session-service";
 import { findUnpaidPayment } from "@/lib/payments/payment-settle";
 import { sendPaymentReminder } from "@/lib/payments/payment-reminder";
-import { orderAction } from "@/lib/actions/order-action";
+import { coinQuote, loadCoinConfig, priceCart } from "@/lib/orders/quote";
+import { orderAction } from "@/lib/orders/order-action";
 
 
 // Resolve the acting staff member's public_id to its internal bigint — the
@@ -235,29 +233,12 @@ async function quotePrice(
   coins?: number | "max",
 ): Promise<StaffPricePreview> {
   const snap = await loadCatalogSnapshot();
-  const trialMeal = snap.mealSizes.find((m) => m.publicId === input.selections.mealSizeId);
-  const trial = trialMeal?.trial ? await quoteTrial(snap, input.selections) : null;
-  // Same day rules as createOrder: weekend dish, frequency fit, allowed days.
-  if (trialMeal) {
-    const freq = snap.frequencies.find((f) => f.key === (trial ? trial.frequencyKey : input.selections.frequencyKey));
-    const daysErr = planDaysError({
-      eatingDays: (trial ? trial.eatingDays : input.selections.eatingDays ?? []) as DayOfWeek[],
-      includeSaturday: !trial && input.selections.includeSaturday,
-      includeSunday: !trial && input.selections.includeSunday,
-      frequencyWeekdays: freq ? ((freq.weekdays ?? null) as DayOfWeek[] | null) : undefined,
-      servesWeekends: trialMeal.servesWeekends,
-      allowed: trialMeal.allowedDays,
-      trial: trial != null,
-    });
-    if (daysErr) throw new ValidationError(daysErr);
-  }
-  const catalog = trial ? trial.catalog : buildPricingCatalog(snap, input.selections);
+  const { catalog, pricedSelections: selections } = await priceCart(snap, input.selections);
   // Same tax resolution as createOrder (delivery postal code + the method's own taxes), so the
   // total staff see and copy to the customer is the total charged.
   const method = input.paymentMethodId ? findMethod(await getPaymentConfig(), input.paymentMethodId) : undefined;
   const methodTaxes = method?.enabled ? method.taxes : [];
   const address = { line1: input.contact.addressLine, city: input.contact.city, postalCode: input.contact.postalCode };
-  const selections = trial ? trial.pricingSelections : input.selections;
   const quote = async (adjustments: PricingLine[]) =>
     (await priceWithTax({ selections, catalog, adjustments, address, methodTaxes, reference: "admin-preview", cache: true })).pricing;
   const base = await quote([]);
@@ -291,12 +272,10 @@ async function quotePrice(
   if (coins != null && customerId != null) {
     const balance = await walletService.balance(customerId);
     const remaining = postCatalogSubtotal(postCatalog, lines);
-    const [{ currency }, maxPct, maxRedeemPctOfBalance] = await Promise.all([getAppSettings(), getMaxCoinPctOfSubtotal(), getMaxCoinRedeemPctOfBalance()]);
-    const rate = await walletService.activeRate(currency);
-    const cap = quoteCoinCap({ subtotal: postCatalog, remaining, balance, rate, maxPct, maxRedeemPctOfBalance });
+    const cq = coinQuote(await loadCoinConfig(), { balance, postCatalog, remaining });
+    const { cap, maxPct, maxRedeemPctOfBalance } = cq;
     const want = Math.max(0, Math.min(coins === "max" ? cap.maxCoins : Math.floor(coins), cap.maxCoins));
-    const { pctCap } = coinLimits({ subtotal: postCatalog, balance, maxPct, maxRedeemPctOfBalance });
-    const redemption = want > 0 ? capRedemption(want, rate, Math.min(remaining, pctCap)) : { coinsSpent: 0, currencyValue: 0 };
+    const redemption = want > 0 ? cq.redeem(want) : { coinsSpent: 0, currencyValue: 0 };
     if (redemption.currencyValue > 0) lines.push({ label: `Coins (${redemption.coinsSpent})`, amount: redemption.currencyValue });
     coinPreview = {
       balance,

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { ArrowDownLeft, ArrowUpRight, Coins } from "lucide-react";
-import { IconTile, StatGroup, StatTile } from "@/components/customer/kit";
+import { IconTile, StatGroup, StatTile } from "@/components/kit";
 import { AnimatedNumber } from "@/components/motion";
 import { formatMoney } from "@foundry/commons";
 

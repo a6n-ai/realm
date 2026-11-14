@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { SettingsIcon } from "lucide-react";
-import { getAppSettings, getDefaultCountrySetting, getPauseDefaultsSetting } from "@/lib/services/app-settings.service";
+import { getAppSettings, getDefaultCountrySetting, getPauseDefaultsSetting } from "@/lib/settings";
 import { PageHeader, SectionCard } from "@/components/ds";
 import { SettingsForm, SettingsFormSkeleton } from "./settings-form";
 

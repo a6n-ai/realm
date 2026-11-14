@@ -1,8 +1,8 @@
 import { Suspense } from "react";
 import { parseFilterState, SectionCard, type FacetDef } from "@/components/ds";
 import { StatCards, StatCardsSkeleton, type StatCardItem } from "@/components/dashboard/stat-cards";
-import { getReferralSettings } from "@/lib/services/app-settings.service";
-import { listReferrals, referralStats, type ReferralFriendStatus } from "@/lib/services/referrals.service";
+import { getReferralSettings } from "@/lib/referrals/referral-settings";
+import { listReferrals, referralStats, type ReferralFriendStatus } from "@/lib/referrals/referrals.service";
 import { REFERRAL_STATUS } from "@/lib/referrals/status";
 import { ReferralForm, ReferralFormSkeleton } from "./referral-form";
 import { ReferralsTable, ReferralsTableSkeleton } from "./referrals-table";

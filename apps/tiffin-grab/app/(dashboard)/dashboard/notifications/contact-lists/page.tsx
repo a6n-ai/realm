@@ -7,7 +7,7 @@ import { ResponsiveDialog, SectionCard, StatCard, parseFilterState, type FacetDe
 import { Button } from "@foundry/ui/button";
 import { contactList } from "@/db/schema";
 import { withDefaultMonth, withListDates } from "@/lib/list/default-month";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { parseSort, type SortState } from "@foundry/design-system/list-sort";
 import { ContactListFromSegment } from "@relay/engine/ui/contact-list-from-segment";
 import { ContactListManualAdd } from "@relay/engine/ui/contact-list-manual-add";

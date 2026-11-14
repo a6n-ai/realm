@@ -91,7 +91,6 @@ export async function listSystemCampaigns() {
     .where(isNotNull(campaign.systemKey));
 }
 
-/** Every contact list, newest first, for the campaign audience picker. */
 export async function listContactListChoices() {
   return db
     .select({

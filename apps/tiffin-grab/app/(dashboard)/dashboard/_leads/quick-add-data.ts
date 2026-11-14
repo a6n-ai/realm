@@ -6,11 +6,11 @@ import type { Country as CountryCode } from "react-phone-number-input";
 import { db } from "@/db/client";
 import { deliveryZones } from "@/db/schema";
 import { requireStaff } from "@/lib/auth/guards";
-import { getAppSettings } from "@/lib/services/app-settings.service";
-import { listActiveLeadSources } from "@/lib/services/lead-sources.service";
+import { getAppSettings } from "@/lib/settings";
+import { listActiveLeadSources } from "@/lib/inquiries/lead-sources.service";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { listableMealSizes, mealSizeAddons } from "@/lib/catalog/types";
-import { dishCategoriesService } from "@/lib/services/dish-categories.service";
+import { dishCategoriesService } from "@/lib/menu/dish-categories.service";
 import type { ZoneLike } from "@/lib/catalog/postal";
 
 export type QuickAddSource = { key: string; label: string; subs: { key: string; label: string }[] };

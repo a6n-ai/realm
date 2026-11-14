@@ -1,9 +1,7 @@
 import { Suspense } from "react";
-import { and, like, or } from "drizzle-orm";
 import { CoinsIcon, ScaleIcon, ScrollTextIcon, ShoppingBagIcon, WalletIcon } from "lucide-react";
 import { db } from "@/db/client";
-import { unexpired } from "@foundry/wallet";
-import { walletLedger, orders } from "@/db/schema";
+import { walletLedger } from "@/db/schema";
 import { parseSort, type SortState } from "@foundry/design-system/list-sort";
 import { parseFilterState, SectionCard, type FacetDef } from "@/components/ds";
 import { StatCards, StatCardsSkeleton, type StatCardItem } from "@/components/dashboard/stat-cards";
@@ -13,7 +11,7 @@ import { LedgerTable, LedgerTableSkeleton } from "./ledger-table";
 import { eventLabel } from "@relay/engine/ui/template-status";
 import { walletEntryLabel } from "@/lib/wallet/source-labels";
 import { formatEpoch } from "@/lib/format/datetime";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { walletLedgerRows, walletLedgerStats, type WalletSortColumn } from "@/lib/wallet/wallet-ledger.service";
 
 type SearchParams = Promise<Record<string, string | undefined>>;

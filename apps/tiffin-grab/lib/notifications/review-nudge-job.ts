@@ -4,24 +4,25 @@ import { dispatchReviewNudge, getGoogleReviewsConfig } from "@foundry/google-rev
 import { db } from "@/db/client";
 import { deliveries, orders, reviewNudges, users } from "@/db/schema";
 import { appOrigin, authSecret } from "@/lib/runtime/env";
-import { getAppSettings, integrationsConfigStore } from "@/lib/services/app-settings.service";
-import { reviewNudgeStore } from "@/lib/services/review-nudge.service";
+import { getAppSettings } from "@/lib/settings";
+import { integrationsConfigStore } from "@/lib/payments/integrations-config";
+import { reviewNudgeStore } from "@/lib/notifications/review-nudge.service";
 import { renderEmailTemplate } from "@relay/email";
 import { reviewNudgeEmailProvider } from "./review-nudge-provider";
 import { BRAND_NAME } from "@/lib/brand";
 
 /** Customers with at least one past-dated scheduled delivery and no nudge yet. */
-export async function runReviewNudges(): Promise<Response> {
+export async function runReviewNudges(): Promise<{ candidates: number }> {
   const cfg = await getGoogleReviewsConfig(integrationsConfigStore);
   if (!cfg.installed || !cfg.placeId) {
-    return Response.json({ skipped: "plugin not configured" }, { status: 503 });
+    throw new Error("plugin not configured");
   }
 
   // Signs the CASL-required unsubscribe link with the app's one server signing secret.
   const unsubscribeSecret = authSecret("review-nudge");
   const baseUrl = appOrigin();
   if (!unsubscribeSecret || !baseUrl) {
-    return Response.json({ error: "BETTER_AUTH_SECRET/BETTER_AUTH_URL not configured" }, { status: 500 });
+    throw new Error("BETTER_AUTH_SECRET/BETTER_AUTH_URL not configured");
   }
 
   const today = appTodayIso((await getAppSettings()).timezone);
@@ -66,5 +67,5 @@ export async function runReviewNudges(): Promise<Response> {
     });
   }
 
-  return Response.json({ candidates: candidates.length });
+  return { candidates: candidates.length };
 }

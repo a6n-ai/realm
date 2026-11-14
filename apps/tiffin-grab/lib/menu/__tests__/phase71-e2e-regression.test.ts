@@ -1,7 +1,7 @@
 /**
- * Phase 7.1 — End-to-end regression matrix for the shared swap engine.
+ * End-to-end regression matrix for the shared swap engine.
  * Pure composition tests: options path (computeSwapOption) must agree with
- * apply path (validateProposedSwap). No UI / architecture changes.
+ * apply path (validateProposedSwap).
  */
 import { describe, expect, it } from "vitest";
 import {
@@ -17,7 +17,7 @@ import { groupPickCells } from "../pick-groups";
 import type { SwapCategory, SwapRow } from "../swap-rules";
 import type { TuCategory } from "../format-tu";
 import { tuToNatural } from "../format-tu";
-import type { GridCell } from "../meals-grid";
+import type { GridCell } from "../grid-types";
 
 const cat = (key: string, pickTu: number | null, over: Partial<SwapCategory> = {}): SwapCategory => ({
   key,

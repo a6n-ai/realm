@@ -3,7 +3,8 @@ import { createDeliveryService } from "@foundry/delivery/service";
 import { awsPlaceProvider } from "@foundry/places";
 import { db } from "@/db/client";
 import { addressTags, deliveryChargeConfigs, deliveryChargeType, deliveryStrategies, deliveryStrategyConnections, deliveryStrategyGroups, deliveryTypes, deliveryZoneTypes, deliveryZones, orders, users, deliveries, customerAddresses } from "@/db/schema";
-import { currentUserId, recordAudit } from "@/lib/services/session-service";
+import { currentUserId } from "@/lib/services/session-service";
+import { recordAudit } from "@/lib/identity/audit";
 import { awsRegion } from "@/lib/runtime/env";
 
 export type { DeliveryChargeRuleDto, DeliveryChargeRuleInput, DeliveryStrategyGroupInput } from "@foundry/delivery";

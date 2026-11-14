@@ -17,10 +17,10 @@ const mockRouter = { push: vi.fn(), replace: vi.fn() };
 vi.mock("next/navigation", () => ({
   useRouter: () => mockRouter,
 }));
-vi.mock("@/app/(public)/checkout/actions", () => ({
+vi.mock("@/lib/checkout/actions", () => ({
   confirmSubscription: vi.fn(),
 }));
-vi.mock("@/app/(public)/subscribe/actions", () => ({
+vi.mock("@/lib/wizard/actions", () => ({
   reprice: vi.fn().mockResolvedValue({
     pricing: {
       lineItems: [],
@@ -39,7 +39,7 @@ vi.mock("@/app/(public)/subscribe/actions", () => ({
   validatePostal: vi.fn().mockResolvedValue({ served: false }),
 }));
 const createWebsiteInquiry = vi.fn().mockResolvedValue({ ok: true, waitlisted: true });
-vi.mock("@/app/(marketing)/contact/actions", () => ({
+vi.mock("@/lib/landing/contact-actions", () => ({
   createWebsiteInquiry: (...args: unknown[]) => createWebsiteInquiry(...args),
 }));
 

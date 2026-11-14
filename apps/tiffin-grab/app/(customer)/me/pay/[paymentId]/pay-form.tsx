@@ -5,16 +5,16 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { inStatuses, PAID, UNPAID } from "@/lib/payments/status";
 import Link from "next/link";
 import { toCents } from "@/lib/money";
-import { Card, Notice, PageHeader } from "@/components/customer/kit";
-import { cn } from "@/components/customer/kit/cn";
+import { Card, Notice, PageHeader } from "@/components/kit";
+import { cn } from "@/components/kit/cn";
 import { trackMeta } from "@foundry/meta-pixel/client";
 import { gtagEvent } from "@foundry/google-analytics/client";
 import { CardPay, CardPayProvider, ExpressPay, PaidSwitch, type PaidInfo, type ReceiptView } from "@/components/payments/card-pay";
-import { markPaid } from "@/lib/payments/paid-flag";
+import { markPaid } from "@/lib/wizard/paid-flag";
 import { PaidPage } from "@/components/payments/paid-page";
 import { PaymentMethodCards } from "@/components/checkout/payment-method-cards";
 import type { CardCheckoutContext } from "@/lib/payments/card-checkout-context";
-import { submitCardPayment, confirmReturn, abandonCard, newCustomerSession } from "./actions";
+import { submitCardPayment, confirmReturn, abandonCard, newCustomerSession } from "../../../../../lib/payments/pay-actions";
 
 type Line = { label: string; amount: number };
 

@@ -12,7 +12,8 @@ import {
 } from "@foundry/payments/stripe";
 import { staffAction, type Guard } from "@/lib/actions/staff-action";
 import { clearStripeCustomers, stripeDeps, stripeRuntime, webhookUrl } from "@/lib/payments/stripe";
-import { ensurePaymentCatalog, getAppSettings, getPaymentConfigFresh, setPaymentConfig } from "@/lib/services/app-settings.service";
+import { ensurePaymentCatalog, getPaymentConfigFresh, setPaymentConfig } from "@/lib/payments/payment-config";
+import { getAppSettings } from "@/lib/settings";
 
 const READ: Guard = { settings: ["read"] };
 const WRITE: Guard = { settings: ["write"] };

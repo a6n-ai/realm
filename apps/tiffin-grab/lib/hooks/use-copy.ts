@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-/** Clipboard write with a "copied" flag. `resetMs` clears it after a delay; omit to keep it until `reset()`. */
 export function useCopy(resetMs?: number) {
   const [copied, setCopied] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);

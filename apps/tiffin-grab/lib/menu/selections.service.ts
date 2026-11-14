@@ -4,23 +4,25 @@
 // the subscriber sees one meal while the kitchen packs another.
 import { isCutoffPassed } from "@/lib/dates/cutoff";
 import { addonItemsForOrder } from "@/lib/menu/order-addon-items";
+import { allowedDishIdsForMealSize } from "@/lib/menu/dish-eligibility";
+import { sideChoicesForWeek } from "@/lib/menu/resolve-delivery-meal";
 import { ValidationError } from "@foundry/commons";
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
-import { deliveries, deliveryCategorySwaps, dishes, mealSelections, mealSizeItems, mealSizes, menuItems, menuWeeks, orderActivities, orders, plans } from "@/db/schema";
+import { deliveryCategorySwaps, dishes, mealSelections, mealSizeItems, mealSizes, menuItems, menuWeeks, orderActivities, orders, plans } from "@/db/schema";
 import { applySwapsToCounts } from "@/lib/menu/swap-rules";
 import { categoryCountsFromItems } from "@/lib/menu/pick-size";
 import { validateMealRules } from "@/lib/menu/meal-validation";
-import { MealRuleViolationError } from "@/lib/menu/meal-rule-error";
+import { MealRuleViolationError } from "@/lib/errors";
 import type { HydratedPick, MealRule } from "@/lib/menu/meal-rule-types";
 import type { RuleLabels } from "@/lib/menu/meal-rule-text";
-import { dishCategoriesService } from "@/lib/services/dish-categories.service";
-import { mealRulesService } from "@/lib/services/meal-rules.service";
+import { dishCategoriesService } from "@/lib/menu/dish-categories.service";
+import { mealRulesService } from "@/lib/menu/meal-rules.service";
 import { requireCategoryIds } from "@/lib/menu/category-ids";
 import { mealPickNote } from "@/lib/menu/meal-pick-note";
 import { carryingTrips } from "@/lib/menu/trip-lookup";
-import { swapAppliesTo } from "@/lib/menu/coverage";
-import { type DayOfWeek } from "@/lib/menu/delivery-days";
+import { swapAppliesTo } from "@/lib/deliveries/schedule/coverage";
+import { type DayOfWeek } from "@/lib/deliveries/schedule/delivery-days";
 import { rowPlanIds, rowPlansAfterSwaps, type RowPlans } from "@/lib/menu/row-plans";
 import { addDaysIso } from "@foundry/commons/util/dates";
 
@@ -29,12 +31,6 @@ type Week = typeof menuWeeks.$inferSelect;
 
 const DAY_OFFSET: Record<DayOfWeek, number> = { mon: 0, tue: 1, wed: 2, thu: 3, fri: 4, sat: 5, sun: 6 };
 
-/**
- * The dish ids on a plan. Single source of truth for "what may this plan be
- * served", shared by setSelection (input validation), buildMealsGrid (option
- * filtering) and resolveDeliveryMeal (per-category filtering) so the three
- * can never disagree.
- */
 /**
  * Adds the dish facts a rule condition can test: name, and the dish's own plan
  * (the Diet axis — NOT the order's plan, which can differ when a meal size mixes
@@ -88,40 +84,6 @@ async function ruleLabelsFor(
     plan: Object.fromEntries(planRows.map((r) => [r.id.toString(), r.name])),
     dish: Object.fromEntries(dishRows.map((r) => [r.id.toString(), r.name])),
   };
-}
-
-export async function dishIdsForPlan(planId: bigint): Promise<Set<bigint>> {
-  const rows = await db.select({ id: dishes.id }).from(dishes).where(eq(dishes.planId, planId));
-  return new Set(rows.map((r) => r.id));
-}
-
-/**
- * A dish belongs to exactly one plan now, so "exclusive to this plan" is every
- * dish on it — same set as dishIdsForPlan. Kept as a separate export (rather
- * than inlining dishIdsForPlan at each call site) because callers name it for
- * the "exclusive_to_plan" meal-rule concept, not because the sets can differ.
- */
-export const exclusiveDishIdsForPlan = dishIdsForPlan;
-
-/**
- * The dish ids a subscriber on this MEAL SIZE may ever be served — the union of
- * dishIdsForPlan(planId) over every distinct plan the meal size's own
- * composition rows target, not just the order's own plan.
- *
- * This is what makes "add a second Sabzi row, tagged veg" on a non-veg meal
- * size actually reach the subscriber: a meal size can mix categories across
- * plans (e.g. non-veg thali with both a veg-tagged and a non-veg-tagged sabzi
- * slot), so the food-safety filter has to be keyed off the meal size's item
- * rows, not the order's single planId. A meal size whose items are all on one
- * plan (the common case) reduces to exactly dishIdsForPlan(that plan) — same
- * behavior as before this existed.
- */
-export async function allowedDishIdsForMealSize(mealSizeId: bigint): Promise<Set<bigint>> {
-  const rows = await db.selectDistinct({ planId: mealSizeItems.planId }).from(mealSizeItems).where(eq(mealSizeItems.mealSizeId, mealSizeId));
-  const sets = await Promise.all(rows.map((r) => dishIdsForPlan(r.planId)));
-  const out = new Set<bigint>();
-  for (const s of sets) for (const id of s) out.add(id);
-  return out;
 }
 
 /** Per-pick plans of an order (row-plans.ts): custom meal rows and add-on rows; null when neither. */
@@ -191,8 +153,7 @@ export const selectionsService = {
     const daySwaps = swaps.filter((s) => swapAppliesTo(s.forDate, deliveryRow.deliveryDate, deliveryDateIso));
     if (!item) {
       // A side pick (5 Item's 8oz) may also take one of the day's side dishes (dal), counted after
-      // this day's swaps like the picker. Dynamic import: resolve-delivery-meal imports this module.
-      const { sideChoicesForWeek } = await import("@/lib/menu/resolve-delivery-meal");
+      // this day's swaps like the picker.
       const sideChoices = await sideChoicesForWeek(order, menuWeek.id, () => daySwaps);
       if (!sideChoices?.(dayOfWeek, slot, pickIndex).some((i) => i.dishId === dishId)) {
         throw new ValidationError("Dish is not available for that day and slot");

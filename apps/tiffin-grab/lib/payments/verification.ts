@@ -1,135 +1,41 @@
 import { markPaymentCaptured } from "@/lib/payments/capture";
-import { paymentMethodLabel } from "@/lib/payments/method-label";
 import { createLogger } from "@foundry/commons/logger";
-import { resolveUserId } from "@/lib/services/session-service";
+import { resolveUserId } from "@/lib/identity/user-ids";
 import { isWordpressImport } from "@/lib/orders/wordpress-import";
 import { formatMoney, NotFoundError, ValidationError } from "@foundry/commons";
 import { trackConversion } from "@/lib/services/tracking";
 import { canVerify, findMethod } from "@foundry/payments";
 import { commitTax } from "@foundry/payments/stripe";
 import { stripeRuntime } from "@/lib/payments/stripe";
-import { and, desc, eq, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { inStatuses, PAID, SETTLEABLE, UNPAID } from "@/lib/payments/status";
-import { paymentStatusIn } from "@/lib/payments/status-sql";
+import { paymentStatusIn, planPaymentSql } from "@/lib/payments/status-sql";
 import { db, type Tx } from "@/db/client";
-import { coupons, deliveryFrequencies, ledgerEntries, orderActivities, orders, payments, plans, users, type PaymentProof } from "@/db/schema";
+import { coupons, deliveryFrequencies, ledgerEntries, orderActivities, orders, payments, users, type PaymentProof } from "@/db/schema";
 import { sendMetaOrderSubmitted } from "@/lib/meta/order-submitted";
 import { sendMetaPurchaseOnce } from "@/lib/meta/purchase";
 import { runInBackground } from "@foundry/cloud/background";
 import { type OrderPricingSnapshot } from "@/lib/pricing";
 import { round2 } from "@foundry/commons/util/money";
-import { couponsService } from "@/lib/services/coupons.service";
+import { couponsService } from "@/lib/coupons/coupons.service";
 import { enqueueNotification, enqueueStaffNotification } from "@/lib/notifications/enqueue";
 import { enqueueOrderNotice } from "@/lib/notifications/order-notice";
 import { receiptAttachments } from "@/lib/billing/receipt-link";
 import { shiftMissedDeliveries } from "@/lib/deliveries/deliveries.service";
-import { removeStopsBestEffort, type OptimoSyncedRow } from "@/lib/services/optimoroute/stops";
-import { scheduleWrite } from "@/lib/services/schedule-write";
-import { upcomingHolidays } from "@/lib/deliveries/holiday-dates";
-import { paidStartDate } from "@/lib/orders/paid-start";
+import { removeStopsBestEffort, type OptimoSyncedRow } from "@/lib/optimoroute/stops";
 import { ledgerService } from "@/lib/payments/ledger.service";
-import { assertStartable } from "@/lib/orders/order-window";
-import { appToday } from "@/lib/orders/start-date";
 import { commitCoinRedemption, settleCoinReservation, recollectLapsedCoins, reverseCoinRedemption, reverseCoinAward, awardOrderCoins } from "@/lib/wallet/wallet.service";
-import { awardReferral, reverseReferral } from "@/lib/services/referrals.service";
-import { getAppSettings, getPaymentConfig } from "@/lib/services/app-settings.service";
+import { awardReferral, reverseReferral } from "@/lib/referrals/referrals.service";
+import { getAppSettings } from "@/lib/settings";
+import { getPaymentConfig } from "@/lib/payments/payment-config";
 import { publishPaymentsInbox, publishUserRefresh } from "@/lib/realtime/publish-inbox";
-import { utcIso } from "@foundry/commons/util/dates";
+import { lockUser } from "@/lib/identity/lock-user";
 import { lockOrder } from "@/lib/orders/order-lock";
+import { startPaidStripeOrder } from "@/lib/orders/start-paid-order";
+import { paymentTemplateVars, receiptVars } from "./email-vars";
 
 const log = createLogger("payments.verification");
 
-
-/** Receipt extras for payment_approved: card fee, taxes (Stripe Tax lines included), the card used and the total charged. */
-export function receiptVars(
-  pay: Pick<typeof payments.$inferSelect, "method" | "amount" | "cardBrand" | "cardLast4" | "surchargeAmount">,
-  taxLines: { name: string; ratePct: number; amount: number }[],
-) {
-  const isCard = pay.method === "stripe";
-  const fee = isCard ? Number(pay.surchargeAmount) : 0;
-  const total = isCard ? formatMoney(Number(pay.amount) + fee) : "";
-  const brand = pay.cardBrand ? pay.cardBrand.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "Card";
-  const parts = [
-    ...taxLines.map((t) => `${t.name} ${t.ratePct}%: ${formatMoney(t.amount)}`),
-    fee > 0 ? `Card fee ${formatMoney(fee)}` : null,
-    isCard ? `Total charged ${total}` : null,
-  ].filter(Boolean);
-  return {
-    receiptLines: parts.join(" · "),
-    paidWith: isCard && pay.cardLast4 ? `${brand} •••• ${pay.cardLast4}` : paymentMethodLabel(pay.method, "full"),
-    cardFee: fee > 0 ? formatMoney(fee) : "",
-    totalCharged: total,
-  };
-}
-
-/** Shared `{{payment.*}}` template variables for the payment_* customer emails. */
-export function paymentTemplateVars(
-  pay: Pick<typeof payments.$inferSelect, "amount" | "method">,
-  orderCode: string,
-  customerName: string | null | undefined,
-) {
-  return {
-    amount: formatMoney(Number(pay.amount)),
-    orderCode,
-    customerName: customerName || "there",
-    method: paymentMethodLabel(pay.method, "full"),
-  };
-}
-
-async function flagPaidNotStarted(tx: Tx, order: typeof orders.$inferSelect, note: string, actorId: bigint | null) {
-  await tx.insert(orderActivities).values({ orderId: order.id, type: "note", note, createdBy: actorId });
-  await enqueueStaffNotification(tx, {
-    organizationId: order.organizationId,
-    title: "Card payment needs attention",
-    body: `${note} · order ${order.deploymentId}`,
-    href: `/dashboard/orders/${order.publicId}`,
-    dedupeKey: `paid_not_started:${order.publicId}`,
-  });
-}
-
-// A pending Stripe order starts when its payment settles. Pending orders reserve no days, so
-// the overlap guard runs here with the final dates. A start that can't happen leaves the
-// order pending with a note: the money is already in, staff resolve it.
-export async function startPaidStripeOrder(tx: Tx, order: typeof orders.$inferSelect, actorId: bigint | null): Promise<{ started: boolean; reason?: string }> {
-  await lockOrder(tx, order.id);
-  const [current] = await tx.select({ status: orders.status }).from(orders).where(eq(orders.id, order.id)).for("update").limit(1);
-  // Staff cancelled it after settle's outside check: the money is in, nobody else will flag it.
-  if (current?.status === "cancelled" || current?.status === "completed") {
-    await flagPaidNotStarted(tx, order, `Paid on a ${current.status} order — refund needed`, actorId);
-    return { started: false, reason: `order is ${current.status}` };
-  }
-  if (current?.status !== "pending") return { started: false, reason: `order is ${current?.status ?? "missing"}` };
-
-  const { timezone, cutoffHour } = await getAppSettings();
-  const todayBase = appToday(timezone, cutoffHour);
-  const closed = new Set((await upcomingHolidays(tx, order.organizationId, utcIso(todayBase))).keys());
-  const [plan] = await tx.select({ allowedStartDays: plans.allowedStartDays }).from(plans).where(eq(plans.id, order.planId)).limit(1);
-  const startDate = paidStartDate({
-    chosen: order.startDate,
-    allowedStartDays: plan?.allowedStartDays ?? [],
-    trialSendDays: order.trialLength != null ? (order.trialWeekdays ?? []) : null,
-    todayBase,
-    closed,
-  });
-  try {
-    await assertStartable(tx, { userId: order.userId!, organizationId: order.organizationId, startDate, durationWeeks: order.durationWeeks, excludeOrderId: order.id, holiday: false });
-  } catch (e) {
-    if (!(e instanceof ValidationError)) throw e;
-    await flagPaidNotStarted(tx, order, `Paid, but could not start: ${e.message}`, actorId);
-    return { started: false, reason: e.message };
-  }
-  const [row] = await tx.update(orders).set({ status: "active", startDate, updatedBy: actorId }).where(eq(orders.id, order.id)).returning();
-  await tx.insert(orderActivities).values({
-    orderId: order.id,
-    type: "activated",
-    fromStatus: "pending",
-    toStatus: "active",
-    note: startDate === order.startDate ? null : `Start moved to ${startDate}`,
-    createdBy: actorId,
-  });
-  await scheduleWrite(tx, row!, actorId, { materialize: true });
-  return { started: true };
-}
 
 // Staff settles a real-method payment: credits the ledger, redeems any deferred
 // coupons from the pricing snapshot, awards earn-back coins, and marks paid.
@@ -158,7 +64,7 @@ export async function verifyPayment(
     let [order] = await tx.select().from(orders).where(eq(orders.id, pay.orderId)).limit(1);
     if (!order?.userId) throw new NotFoundError("Order not found");
     const orderUserId = order.userId;
-    await tx.execute(sql`SELECT id FROM ${users} WHERE id = ${orderUserId} FOR UPDATE`);
+    await lockUser(tx, orderUserId);
 
     const actorInternalId = await resolveUserId(tx, opts.actorId);
 
@@ -311,7 +217,6 @@ export async function verifyPayment(
     );
   }
 
-  // Refreshes the customer's wallet/bills views.
   if (userPublicId) publishUserRefresh(userPublicId);
 
   if (taxCommit) {
@@ -563,7 +468,6 @@ export async function updatePaymentReference(
   });
 }
 
-// Serializable claim form context for activate / Finances UI.
 export type ClaimPaymentContext = {
   paymentPublicId: string;
   orderPublicId: string;
@@ -617,7 +521,7 @@ export async function getClaimPaymentContextForOrder(orderPublicId: string): Pro
     .where(
       and(
         eq(orders.publicId, orderPublicId),
-        isNull(payments.addonRequest),
+        planPaymentSql,
         paymentStatusIn(SETTLEABLE),
       ),
     )

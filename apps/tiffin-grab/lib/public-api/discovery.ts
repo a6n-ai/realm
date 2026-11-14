@@ -46,7 +46,6 @@ export const aiCatalog = (origin: string) => {
   };
 };
 
-/** The one agent skill: how to answer questions about Tiffin Grab with the API or the MCP server. */
 export const agentSkillMd = (origin: string) => `---
 name: tiffin-grab
 description: Answer questions about Tiffin Grab, a home-style Indian tiffin delivery service in the Greater Toronto Area - delivery by postal code, plans and prices, this week's menu, offers, FAQ and contact - from its live public API.

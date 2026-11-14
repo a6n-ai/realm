@@ -1,6 +1,6 @@
 import { TruckIcon } from "lucide-react";
 import { Badge } from "@foundry/ui/badge";
-import { getOptimoRouteConfig, getOptimoRouteStatus } from "@/lib/services/optimoroute/config";
+import { getOptimoRouteConfig, getOptimoRouteStatus } from "@/lib/optimoroute/config";
 import { PageHeader } from "@/components/ds";
 import { SendLoadToggle } from "./send-load-toggle";
 

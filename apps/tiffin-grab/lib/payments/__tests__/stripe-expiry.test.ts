@@ -31,8 +31,9 @@ const { sendPaymentReminder } = await import("../payment-reminder");
 const { myBillsPage } = await import("../../services/customer-finances.service");
 const { orderActivities } = await import("@/db/schema");
 const { settleStripePayment, payByCard } = await import("../payment-stripe");
-const { expireUnpaidStripeOrders, cancelOpenIntent, cancelOrderAndOpenPayments, replaceOlderUnpaidCheckouts } = await import("../stripe-expiry");
-const { setPaymentConfig } = await import("../../services/app-settings.service");
+const { cancelOpenIntent } = await import("../stripe-expiry");
+const { expireUnpaidStripeOrders, cancelOrderAndOpenPayments, replaceOlderUnpaidCheckouts } = await import("../../orders/unpaid-checkouts");
+const { setPaymentConfig } = await import("@/lib/payments/payment-config");
 const { sharedCache } = await import("@/lib/cache");
 const { baseInput, reset, cleanup } = await import("./stripe-fixture");
 

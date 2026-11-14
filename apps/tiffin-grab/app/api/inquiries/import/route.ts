@@ -1,12 +1,10 @@
-import { eq } from "drizzle-orm";
 import { handler, problem } from "@foundry/routes";
 import { phoneSchema, emailSchema, ValidationError } from "@foundry/commons";
-import { db } from "@/db/client";
-import { leadSources, leadSubsources } from "@/db/schema";
 import { requireStaff } from "@/lib/auth/guards";
-import { getAppSettings } from "@/lib/services/app-settings.service";
-import { inquiriesService } from "@/lib/services/inquiries.service";
-import { STAGE_MAP, type ImportMapping } from "@/app/(dashboard)/dashboard/inquiries/import/inquiry-import-columns";
+import { getAppSettings } from "@/lib/settings";
+import { inquiriesService } from "@/lib/inquiries/inquiries.service";
+import { loadLeadSourceAliases } from "@/lib/inquiries/lead-sources.service";
+import { STAGE_MAP, type ImportMapping } from "@/lib/inquiries/import-columns";
 
 type RawRow = Record<string, unknown>;
 
@@ -67,28 +65,8 @@ export const POST = handler(async (request: Request): Promise<Response> => {
 
   const { defaultCountry } = await getAppSettings();
 
-  // Loaded once: case-insensitive key/label -> canonical key lookups, scoped so a
-  // subsource only resolves within its own parent source.
-  const sourceRows = await db
-    .select({ key: leadSources.key, label: leadSources.label })
-    .from(leadSources);
-  const subRows = await db
-    .select({ key: leadSubsources.key, label: leadSubsources.label, parentKey: leadSources.key })
-    .from(leadSubsources)
-    .innerJoin(leadSources, eq(leadSubsources.sourceId, leadSources.id));
-  const sourceByAlias = new Map<string, string>();
-  for (const s of sourceRows) {
-    sourceByAlias.set(s.key.toLowerCase(), s.key);
-    sourceByAlias.set(s.label.toLowerCase(), s.key);
-  }
+  const { sourceByAlias, subByParentAndAlias } = await loadLeadSourceAliases();
   const defaultSourceKey = sourceByAlias.get(defaultSourceKeyInput.toLowerCase()) ?? "manual";
-  const subByParentAndAlias = new Map<string, Map<string, string>>();
-  for (const s of subRows) {
-    const m = subByParentAndAlias.get(s.parentKey) ?? new Map<string, string>();
-    m.set(s.key.toLowerCase(), s.key);
-    m.set(s.label.toLowerCase(), s.key);
-    subByParentAndAlias.set(s.parentKey, m);
-  }
 
   const results: RowResult[] = [];
 

@@ -1,6 +1,6 @@
 import "server-only";
 import { getGoogleReviewsConfig, loadPlacesApiKeyFromEnv } from "@foundry/google-reviews";
-import { integrationsConfigReadStore } from "@/lib/services/app-settings.service";
+import { integrationsConfigReadStore } from "@/lib/payments/integrations-config";
 
 export type PlacePhoto = { url: string; width: number; height: number; author: string; authorUrl?: string };
 

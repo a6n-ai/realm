@@ -3,7 +3,8 @@
 import { ValidationError } from "@foundry/commons";
 import type { ActionResult } from "@/lib/actions/action-result";
 import { staffAction } from "@/lib/actions/staff-action";
-import { currentUserId, recordAudit } from "@/lib/services/session-service";
+import { currentUserId } from "@/lib/services/session-service";
+import { recordAudit } from "@/lib/identity/audit";
 import { normalizePixelId, postMetaEvent, TEST_CODE_RE } from "@foundry/meta-pixel";
 import { META_PIXEL_SETTINGS_HREF } from "@foundry/meta-pixel/plugin";
 import { getMetaPixelConfig, metaPixel, updateMetaPixelConfig } from "@/lib/services/meta-pixel/config";

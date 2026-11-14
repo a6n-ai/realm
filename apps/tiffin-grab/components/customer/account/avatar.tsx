@@ -1,5 +1,5 @@
 import { initials } from "@foundry/ui/initials";
-import { cn } from "@/components/customer/kit/cn";
+import { cn } from "@/components/kit/cn";
 
 /** Same look as the top-bar avatar: the photo, or initials on a clear-glass round. `className` sets size and type. */
 export function Avatar({ name, image, className }: { name: string | null; image: string | null; className: string }) {

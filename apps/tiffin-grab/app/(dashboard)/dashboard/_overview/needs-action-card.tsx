@@ -1,13 +1,14 @@
+import type { Visible } from "@/lib/tenant/org-scope";
 import Link from "next/link";
 import { inStatuses, PENDING } from "@/lib/payments/status";
 import { CalendarDaysIcon, CheckIcon, CircleAlertIcon, CreditCardIcon, LifeBuoyIcon, RefreshCwIcon, RouteIcon, type LucideIcon } from "lucide-react";
 import { Button } from "@foundry/ui/button";
-import { ChartCard } from "@/components/analytics/chart-card";
+import { ChartCard } from "@/components/dashboard/analytics/chart-card";
 import { Badge } from "@/components/reui/badge";
-import { getOptimoRouteStatus } from "@/lib/services/optimoroute/config";
-import { nextRoutePushStatus } from "@/lib/services/optimoroute/push-status";
-import { getTodayCounts, listReviewPayments } from "@/lib/services/today.service";
-import { menuService } from "@/lib/services/menu.service";
+import { getOptimoRouteStatus } from "@/lib/optimoroute/config";
+import { nextRoutePushStatus } from "@/lib/optimoroute/push-status";
+import { getTodayCounts, listReviewPayments } from "@/lib/today/today.service";
+import { menuService } from "@/lib/menu/menu.service";
 import { PushDayButton } from "./push-day-button";
 import { VerifyPaymentButton } from "./verify-payment-button";
 import { addDaysIso, mondayOfIso } from "@foundry/commons/util/dates";
@@ -25,7 +26,7 @@ const go = (href: string, text: string) => (
   </Button>
 );
 
-export async function NeedsActionCard({ visible, today, seesAll, isAdmin }: { visible: "all" | string[]; today: string; seesAll: boolean; isAdmin: boolean }) {
+export async function NeedsActionCard({ visible, today, seesAll, isAdmin }: { visible: Visible; today: string; seesAll: boolean; isAdmin: boolean }) {
   const [c, [oldest]] = await Promise.all([getTodayCounts(visible, today), listReviewPayments(visible, 1)]);
   // Quick action: verify the oldest payment in place (same rule as the queue's Verify); the rest via the pill filter.
   const canVerifyOldest = oldest != null && oldest.method !== "stripe" && (inStatuses(PENDING, oldest.status));

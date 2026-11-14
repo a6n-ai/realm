@@ -1,23 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { NotFoundError } from "@foundry/commons";
 
 const session = vi.hoisted(() => ({ current: null as null | { user: { id: string; role: string } } }));
-const userId = vi.hoisted(() => ({ current: null as bigint | null }));
 const visibleOrders = vi.hoisted(() => new Set<string>());
 const ownedOrders = vi.hoisted(() => new Set<string>());
 
 vi.mock("@/lib/auth/session", () => ({ getSession: async () => session.current }));
-vi.mock("@/lib/services/session-service", () => ({ currentUserId: async () => userId.current }));
-vi.mock("@/lib/auth/visible-orgs", () => ({ resolveSessionVisibleOrgIds: async () => ["org_a"] }));
-vi.mock("@/lib/orders/orders.service", () => ({
-  assertOrderVisible: async (id: string) => {
-    if (!visibleOrders.has(id)) throw new NotFoundError("Order not found");
-  },
-}));
-vi.mock("@/lib/deliveries/customer-deliveries.service", () => ({
-  assertOwnsOrder: async (_u: bigint, id: string) => {
-    if (!ownedOrders.has(id)) throw new NotFoundError("Subscription not found");
-  },
+vi.mock("@/lib/account/order-access", () => ({
+  loadOrderOwnership: async (id: string) => ({ userId: null, organizationId: id }),
+  staffSeesOrder: async (_s: unknown, o: { organizationId: string }) => visibleOrders.has(o.organizationId),
+  ownsOrder: async (o: { organizationId: string }) => ownedOrders.has(o.organizationId),
 }));
 vi.mock("@/lib/billing/receipt", () => ({ loadReceipt: async () => ({ code: "TG-1" }) }));
 vi.mock("@/lib/billing/receipt-pdf", () => ({ renderReceiptPdf: async () => new Uint8Array([37, 80, 68, 70]) }));
@@ -28,7 +19,6 @@ const get = (id: string) => GET(new Request(`https://app.test/api/receipts/${id}
 describe("GET /api/receipts/[orderId]", () => {
   beforeEach(() => {
     session.current = null;
-    userId.current = null;
     visibleOrders.clear();
     ownedOrders.clear();
   });
@@ -52,7 +42,6 @@ describe("GET /api/receipts/[orderId]", () => {
 
   it("lets a customer download only their own order", async () => {
     session.current = { user: { id: "u2", role: "user" } };
-    userId.current = 7n;
     ownedOrders.add("ord_mine");
     visibleOrders.add("ord_other");
     expect((await get("ord_mine")).status).toBe(200);

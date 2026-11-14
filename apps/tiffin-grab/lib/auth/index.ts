@@ -15,7 +15,7 @@ import { db } from "@/db/client";
 import { account, invitation, member, organization, rateLimit, session, users, verification } from "@/db/schema";
 import { betterAuthPassword } from "./password";
 import { ac, roles } from "./permissions";
-import { isCustomerRole } from "./roles";
+import { isCustomerRole } from "@/lib/roles";
 import {
   notifyNewLoginIfNewDevice,
   notifyPasswordChanged,
@@ -25,10 +25,10 @@ import {
 } from "./security-events";
 import { isWorkers } from "@foundry/commons/runtime/platform";
 import { trustedIpHeaders } from "@/lib/runtime/platform";
-import { recordAudit } from "@/lib/services/session-service";
+import { recordAudit } from "@/lib/identity/audit";
 
 import { AUTH_COOKIE_PREFIX } from "./cookie-prefix";
-import { authBaseUrl, authSecret, cookieDomain, isProduction } from "@/lib/runtime/env";
+import { authBaseUrl, authSecret, cookieDomain, e2eBaseUrl, isProduction } from "@/lib/runtime/env";
 
 const log = createLogger("auth");
 
@@ -37,7 +37,7 @@ const SESSION_MAX_AGE_S = 30 * 24 * 60 * 60;
 export const auth = betterAuth({
   baseURL: authBaseUrl(),
   trustedOrigins: [
-    ...(!isProduction() && process.env.E2E_BASE_URL ? [process.env.E2E_BASE_URL] : []),
+    ...(!isProduction() && e2eBaseUrl() ? [e2eBaseUrl()!] : []),
     // Public pages live on the apex (tiffingrab.ca) while auth stays on app.; the
     // marketing header's useSession call comes from the apex origin.
     ...(cookieDomain() ? [`https://${cookieDomain()}`] : []),
@@ -236,7 +236,6 @@ export const auth = betterAuth({
     ...googleOneTapPlugins(),
     nextCookies(),
   ],
-  // Audit: log session deletion as logout.
   // databaseHooks.session.delete.after fires for all session deletes (sign-out,
   // revoke-on-password-reset, admin revocation). Querying publicId here costs one
   // extra SELECT per logout; acceptable for best-effort audit.
@@ -247,7 +246,7 @@ export const auth = betterAuth({
       update: {
         after: async (u) => {
           try {
-            const { syncGroupsForUser } = await import("@/lib/services/customer-groups.service");
+            const { syncGroupsForUser } = await import("@/lib/customer-groups/customer-groups.service");
             await syncGroupsForUser(BigInt(u.id));
           } catch (e) {
             log.error({ err: e }, "group list sync after user update failed");
@@ -309,7 +308,7 @@ export const auth = betterAuth({
         after: async (sess, ctx) => {
           try {
             // Lazy: referrals.service -> app-settings -> session-service -> this module.
-            const { attachOnSignIn } = await import("@/lib/services/referrals.service");
+            const { attachOnSignIn } = await import("@/lib/referrals/referrals.service");
             await attachOnSignIn(BigInt(sess.userId as string), ctx?.headers ?? ctx?.request?.headers);
           } catch (err) {
             log.error({ err }, "referral attach failed");
@@ -338,7 +337,6 @@ export const auth = betterAuth({
       },
     },
   },
-  // Audit: log login success and login_failed from sign-in endpoints.
   // hooks.after fires after the endpoint runs regardless of outcome.
   // ctx.context.newSession is set only on success; ctx.context.returned is an
   // APIError on failure. Phone number body field is `phoneNumber`, not `phone`.

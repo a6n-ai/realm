@@ -1,5 +1,4 @@
-import { BRAND_NAME } from "../brand";
-import { CONTACT_EMAIL } from "../landing/contact";
+import { BRAND_NAME, CONTACT_EMAIL } from "../brand";
 import { publicAuthUrl } from "./env.public";
 
 // Every server env read the app shares lives here. Functions, not constants: tests and
@@ -32,6 +31,9 @@ export const notifyReplyTo = () => process.env.NOTIFY_REPLY_TO ?? CONTACT_EMAIL;
 // under it so a burst cannot trigger throttling, which damages sender reputation.
 export const notifySendRate = () => Number(process.env.NOTIFY_SEND_RATE ?? 8);
 export const unsubscribeSecret = () => process.env.UNSUBSCRIBE_SECRET;
+export const googleClientId = () => process.env.GOOGLE_CLIENT_ID ?? null;
+export const sesFeedbackTopicArn = () => process.env.SES_FEEDBACK_TOPIC_ARN;
+export const corsOrigins = () => process.env.CORS_ORIGINS;
 export const notifyFrom = () => ({
   email: process.env.NOTIFY_FROM_EMAIL ?? "noreply@tiffingrab.ca",
   name: process.env.NOTIFY_FROM_NAME ?? BRAND_NAME,
@@ -40,6 +42,12 @@ export const sesConfigSet = () => process.env.SES_CONFIGURATION_SET;
 export const sesTransactionalConfigSet = () => process.env.SES_TRANSACTIONAL_CONFIGURATION_SET;
 export const sesTrackedConfigSet = () => process.env.SES_TRACKED_CONFIGURATION_SET;
 export const processEnv = () => process.env;
+
+export const integrationsMasterKey = () => process.env.INTEGRATIONS_ENCRYPTION_KEY;
+export const gaMeasurementId = () => process.env.GA_MEASUREMENT_ID;
+export const e2eBaseUrl = () => process.env.E2E_BASE_URL;
+export const turnstileSiteKey = () => process.env.TURNSTILE_SITE_KEY;
+export const turnstileSecretKey = () => process.env.TURNSTILE_SECRET_KEY;
 
 export const cronSecret = () => process.env.CRON_SECRET;
 /** Cloudflare token (Cache Purge on tiffingrab.ca only). Set: pages stay in the edge cache an hour and are purged on edit. */

@@ -1,7 +1,7 @@
 "use server";
 
 import { ValidationError } from "@foundry/commons";
-import { setAppSettings } from "@/lib/services/app-settings.service";
+import { setAppSettings } from "@/lib/deliveries/set-app-settings";
 import type { ActionResult } from "@/lib/actions/action-result";
 import { staffAction } from "@/lib/actions/staff-action";
 import { CURRENCIES, PHONE_COUNTRIES } from "./options";

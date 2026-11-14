@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildSizeTreemap, treemapTotal, type SizeSale } from "../size-treemap";
+import { buildSizeTreemap, type SizeSale } from "../size-treemap";
 
 const rows: SizeSale[] = [
   { plan: "Non-Veg", size: "Maharaja Thali", custom: false, revenue: 300.1, tiffins: 10 },
@@ -19,11 +19,9 @@ describe("buildSizeTreemap", () => {
       { name: "4 Item Thali", value: 200.2 },
       { name: "Custom sizes", value: 30.3 },
     ]);
-    expect(treemapTotal(g)).toBeCloseTo(530.6, 2);
   });
   it("sizes by tiffins and drops zero boxes", () => {
     const g = buildSizeTreemap(rows, "tiffins", order);
-    expect(treemapTotal(g)).toBe(48);
     expect(g[0]!.children.map((c) => c.name)).toEqual(["4 Item Thali", "Idle", "Custom sizes"]);
   });
 });

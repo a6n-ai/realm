@@ -1,18 +1,7 @@
 import { round2 } from "@foundry/commons/util/money";
 import { computeTax, type TaxLine } from "@foundry/payments";
 import type { DeliveryChargeCalculationResult } from "@foundry/delivery";
-import type { WaiverKind } from "@/lib/catalog/types";
-import type { PricingLine } from "./types";
-
-export interface PricingWaiver {
-  key: string;
-  /** Customer-facing line label; blank falls back to a generic one. */
-  name?: string;
-  kind: WaiverKind;
-  /** Strategy publicId for waiver_strategy, else null. */
-  strategyId: string | null;
-  percent: number;
-}
+import type { PricingLine, PricingWaiver } from "./types";
 
 const pctOf = (w: PricingWaiver) => Math.min(100, Math.max(0, w.percent));
 const withPct = (label: string, pct: number) => (pct < 100 ? `${label} (${pct}%)` : label);

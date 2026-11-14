@@ -285,7 +285,6 @@ describe("Delivery Charges - Test Scenarios from Spec", () => {
     expect(r.deliveryCharge?.totalDeliveryCharge).toBe(8);
   });
 
-  // Edge cases
   it("Edge cases: clamp negatives to 0, handle undefined deliveryStrategy/addressTag", () => {
     const calc = calculateDeliveryCharge({
       baseCharge: -5, // clamped to 0

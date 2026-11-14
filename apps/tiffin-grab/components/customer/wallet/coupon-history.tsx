@@ -2,13 +2,13 @@
 
 import Link from "next/link";
 import { Tag, Ticket, TicketPercent } from "lucide-react";
-import { EmptyState, IconTile, ListGroup, ListRow, StatGroup, StatTile, buttonClass } from "@/components/customer/kit";
+import { EmptyState, IconTile, ListGroup, ListRow, StatGroup, StatTile, buttonClass } from "@/components/kit";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@foundry/design-system/timezone-provider";
 import type { CustomerCouponUse } from "@/lib/services/customer-finances.service";
 import { QuietPagination } from "./finance-kit";
-import { StatGroupSkeleton } from "@/components/customer/skeleton-parts";
-import { H2Skeleton, ListGroupSkeleton } from "@/components/customer/skeleton-parts";
+import { StatGroupSkeleton } from "@/components/kit/skeleton-parts";
+import { H2Skeleton, ListGroupSkeleton } from "@/components/kit/skeleton-parts";
 import { formatMoney } from "@foundry/commons";
 
 const money = (amount: string | number, currency: string) => formatMoney(Number(amount), currency, { narrow: true });

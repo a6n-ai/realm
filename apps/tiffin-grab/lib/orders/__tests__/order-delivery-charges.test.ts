@@ -6,7 +6,7 @@ import { deleteNonSystemUsers } from "@/db/test-helpers";
 import { addressTags, deliveries, deliveryChargeConfigs, deliveryStrategies, deliveryStrategyConnections, deliveryStrategyGroups, ledgerEntries, orders, payments, customerAddresses } from "@/db/schema";
 import { loadCatalogSnapshot, invalidateCatalogSnapshot } from "@/lib/catalog/load";
 import { deliveryService } from "../../services/delivery.service";
-import { reprice } from "@/app/(public)/subscribe/actions";
+import { reprice } from "@/lib/wizard/actions";
 
 const priced = async (...args: Parameters<typeof reprice>) => {
   const r = await reprice(...args);
@@ -38,7 +38,6 @@ describe("Order Delivery Charges (Integration)", () => {
   afterAll(reset);
 
   it("persists deliveryCharge, deliveryTagId, deliveryStrategyIds, addressTagId and immutable pricingSnapshot", async () => {
-    // 1. Configure delivery rules
     await deliveryService.updateBaseDeliveryCharge(2); // Base = $2.00
     const spot = await deliveryService.saveDeliveryStrategyGroup({ name: "Apartment" });
     const home = await deliveryService.saveDeliveryStrategyGroup({ name: "Home" });
@@ -73,8 +72,7 @@ describe("Order Delivery Charges (Integration)", () => {
     const planKey = snap.plans[0].key;
     const mealSizePublicId = snap.mealSizes[0].publicId;
 
-    // 2. Create order with delivery selections
-    const { deploymentId, publicId } = await createOrder({
+    const { publicId } = await createOrder({
       planKey,
       selections: {
         mealSizeId: mealSizePublicId,

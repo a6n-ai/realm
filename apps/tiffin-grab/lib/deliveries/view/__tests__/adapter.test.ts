@@ -1,6 +1,5 @@
-import { buildTrips } from "@/lib/deliveries/view";
 import { describe, expect, it } from "vitest";
-import { buildPlanContext, pickDefaultTrip, planLines, renewDays, toCalendarInputs } from "@/lib/deliveries/view/adapter";
+import { buildPlanContext, planLines, renewDays, toCalendarInputs } from "@/lib/deliveries/view/adapter";
 
 const counts = { total: 20, complimentary: 0, delivered: 4, remaining: 16, scheduled: 16, unscheduled: 0, persons: 1, lastDeliveryDate: "2026-10-02", deliveryWeekdays: ["mon", "wed", "fri"] };
 const day = (date: string, o: Record<string, unknown> = {}) => ({
@@ -49,14 +48,6 @@ describe("plan context", () => {
     expect(renewDays(null, "2026-09-21")).toBeNull();
     expect(renewDays("2026-09-01", "2026-09-21")).toBe(0);
   });
-});
-
-describe("pickDefaultTrip", () => {
-  const ctx = { cutoffHour: 18, timezone: "UTC", lastDeliveryDate: null, deliveryWeekdays: [] };
-  const trips = buildTrips([day("2026-09-21", { locked: true }), day("2026-09-23"), day("2026-09-25")].map((d) => ({ ...d, cutoffAt: d.date === "2026-09-21" ? 1 : Date.now() + 9e9 })), Date.now(), ctx);
-  it("honours ?trip when it exists", () => expect(pickDefaultTrip(trips, "2026-09-25")).toBe("2026-09-25"));
-  it("falls back to the next upcoming trip", () => expect(pickDefaultTrip(trips, "1999-01-01")).toBe("2026-09-23"));
-  it("empty is null", () => expect(pickDefaultTrip([], undefined)).toBeNull());
 });
 
 describe("planLines", () => {

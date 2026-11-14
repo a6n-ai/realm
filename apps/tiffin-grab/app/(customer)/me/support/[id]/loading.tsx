@@ -1,4 +1,4 @@
-import { PageHeader, Skeleton } from "@/components/customer/kit";
+import { PageHeader, Skeleton } from "@/components/kit";
 import { TicketThreadSkeleton } from "@/components/customer/support/ticket-thread";
 
 // Same fixed-height frame as the thread page so the chat window doesn't jump.

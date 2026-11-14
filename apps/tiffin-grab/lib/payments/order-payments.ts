@@ -1,4 +1,5 @@
-import { and, desc, inArray, isNull } from "drizzle-orm";
+import { planPaymentSql } from "./status-sql";
+import { and, desc, inArray } from "drizzle-orm";
 import type { db } from "@/db/client";
 import { payments } from "@/db/schema";
 import { PAID, inStatuses } from "./status";
@@ -10,7 +11,7 @@ export async function orderPaymentStatuses(exec: Pick<typeof db, "select">, orde
   const rows = await exec
     .select({ orderId: payments.orderId, status: payments.status })
     .from(payments)
-    .where(and(inArray(payments.orderId, orderIds), isNull(payments.addonRequest)))
+    .where(and(inArray(payments.orderId, orderIds), planPaymentSql))
     .orderBy(desc(payments.createdAt), desc(payments.id));
   for (const r of rows) {
     const list = map.get(r.orderId) ?? [];

@@ -5,8 +5,8 @@ import { users, walletLedger } from "@/db/schema";
 import { walletLedgerRows, walletLedgerStats } from "@/lib/wallet/wallet-ledger.service";
 import { walletService } from "../wallet.service";
 
-vi.mock("../../services/app-settings.service", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../../services/app-settings.service")>()),
+vi.mock("@/lib/wallet/wallet-settings", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/wallet/wallet-settings")>()),
   getMaxWalletBalance: async () => 100,
 }));
 

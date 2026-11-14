@@ -1,9 +1,9 @@
 "use client";
 
-import { WEEK_DAYS } from "@/lib/menu/delivery-days";
+import { WEEK_DAYS } from "@/lib/deliveries/schedule/delivery-days";
 import Link from "next/link";
 import { PlusIcon } from "lucide-react";
-import { Button, Card, Notice, Pill } from "@/components/customer/kit";
+import { Button, Card, Notice, Pill } from "@/components/kit";
 import { pickedAddons } from "@/lib/wizard/selections";
 import { StepDuration } from "@/components/wizard/steps/step-duration";
 import type { CurrentPlanSummary } from "@/components/wizard/current-plan-hint";

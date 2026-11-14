@@ -2,16 +2,13 @@
 
 import Link from "next/link";
 import type { AuthButtonProps, AuthFieldProps, AuthUi } from "@foundry/auth-ui";
-import { Button as KitBtn, Field } from "@/components/customer/kit";
+import { Button as KitBtn, Field } from "@/components/kit";
 import { BrandMark, BrandWordmark } from "@/components/brand-logo";
 
 // TiffinGrab's skin for the shared @foundry/auth-ui screens: the same iOS-sized
 // controls (50px targets, 14px corners, 17px type) the customer app uses.
 // The kit Field's filled look (no outline until invalid), for the auth forms' own react-hook-form inputs.
 export const IOS_INPUT = "!h-[52px] !rounded-2xl !border-transparent !bg-foreground/7 !px-4 !text-body !shadow-none tracking-[-0.011em] aria-[invalid=true]:!border-[#be123c]";
-// @foundry/ui PhoneInput is a country button + input at h-8; same lift as IOS_INPUT, on a wrapper.
-export const IOS_PHONE = "[&_input]:!h-[52px] [&_input]:!text-body [&_input]:!rounded-e-2xl [&_button]:!h-[52px] [&_button]:!rounded-s-2xl";
-
 // The auth screens (login, set password, verify) wear the customer kit itself: the same capsule buttons and filled
 // fields as the order flow, so signing in looks like the rest of the app instead of a separate shadcn skin.
 function KitButton({ variant = "primary", pending, pendingLabel, disabled, type = "button", className, onClick, children }: AuthButtonProps) {

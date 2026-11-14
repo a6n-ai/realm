@@ -1,10 +1,9 @@
-import { STAFF_ROLES } from "@/lib/auth/roles";
+import { activeStaffWhere } from "@/lib/staff/staff-roster";
 import { Suspense } from "react";
-import { and, eq, inArray } from "drizzle-orm";
 import { parseFilterState, type FacetDef } from "@/components/ds";
 import { db } from "@/db/client";
 import { users } from "@/db/schema";
-import { getDiscountPolicy } from "@/lib/services/app-settings.service";
+import { getDiscountPolicy } from "@/lib/coupons/discount-policy-settings";
 import { RepAllowanceForm, RepAllowanceFormSkeleton } from "./form";
 
 // Same Search + Filter bar as the other lists. The staff list is small and the allowed flag
@@ -34,7 +33,7 @@ async function RepAllowanceData({ searchParams }: { searchParams: SearchParams }
     db
       .select({ publicId: users.publicId, name: users.name, email: users.email, role: users.role })
       .from(users)
-      .where(and(inArray(users.role, STAFF_ROLES), eq(users.isSystem, false)))
+      .where(activeStaffWhere())
       .orderBy(users.name),
     getDiscountPolicy(),
   ]);

@@ -6,7 +6,7 @@ import type { PlanView } from "@/lib/deliveries/view/adapter";
 import { PauseSheet } from "../pause-sheet";
 
 const a = vi.hoisted(() => ({ load: vi.fn(), pause: vi.fn(), release: vi.fn(), auto: vi.fn() }));
-vi.mock("@/app/(customer)/me/deliveries/actions", () => ({ loadMyPauseDays: a.load, pauseMyDays: a.pause, releaseMyDays: a.release, setMyAutoMovePaused: a.auto }));
+vi.mock("@/lib/deliveries/customer-actions", () => ({ loadMyPauseDays: a.load, pauseMyDays: a.pause, releaseMyDays: a.release, setMyAutoMovePaused: a.auto }));
 
 const WED = "2026-09-23";
 const THU = "2026-09-24";

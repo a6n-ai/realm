@@ -2,7 +2,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
-vi.mock("@/lib/services/inquiry-links.service", () => ({
+vi.mock("@/lib/inquiries/inquiry-links.service", () => ({
   openRenewal: async () => { throw new Error("inquiry down"); },
   reconcileOrders: async () => { throw new Error("inquiry down"); },
   logReminderSent: async () => { throw new Error("inquiry down"); },

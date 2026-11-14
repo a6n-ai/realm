@@ -1,6 +1,6 @@
-import { ChartCard } from "@/components/analytics/chart-card";
-import { ProgressBar } from "@/components/analytics/progress-bar";
-import { getDriverLanes } from "@/lib/services/overview.service";
+import { ChartCard } from "@/components/dashboard/analytics/chart-card";
+import { ProgressBar } from "@/components/dashboard/analytics/progress-bar";
+import { getDriverLanes } from "@/lib/overview/overview.service";
 import { FooterLink } from "./footer-link";
 
 export async function LanesCard({ today }: { today: string }) {

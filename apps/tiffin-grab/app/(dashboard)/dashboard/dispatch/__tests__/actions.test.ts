@@ -10,18 +10,18 @@ vi.mock("@/lib/auth/session", () => ({ getSession: async () => ({ user: { id: "u
 const assignDriverMock = vi.fn(async () => undefined);
 const pullRoutesMock = vi.fn(async () => ({ date: "2026-01-01", matched: 0, cleared: 0, unknownOrderNos: [], stops: [] }));
 
-vi.mock("@/lib/services/optimoroute/drivers", () => ({
-  assignDriver: (...args: Parameters<typeof assignDriverMock>) => assignDriverMock(...args),
+vi.mock("@/lib/optimoroute/drivers", () => ({
   listKnownDrivers: async () => [],
 }));
-vi.mock("@/lib/services/optimoroute/pull", () => ({
+vi.mock("@/lib/optimoroute/pull", () => ({
   pullRoutes: (...args: Parameters<typeof pullRoutesMock>) => pullRoutesMock(...args),
 }));
-vi.mock("@/lib/services/optimoroute/push", () => ({
+vi.mock("@/lib/optimoroute/push", () => ({
+  assignDriver: (...args: Parameters<typeof assignDriverMock>) => assignDriverMock(...args),
   pushDay: async () => ({}),
   removeStops: async () => ({}),
 }));
-vi.mock("@/lib/services/optimoroute/completions", () => ({
+vi.mock("@/lib/optimoroute/completions", () => ({
   pullCompletions: async () => ({}),
 }));
 

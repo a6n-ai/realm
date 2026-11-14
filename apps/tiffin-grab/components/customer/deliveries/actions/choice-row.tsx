@@ -1,7 +1,7 @@
 "use client";
 import { ChevronDown, Heart, Info } from "lucide-react";
 import { createContext, useContext, useState, type ReactNode } from "react";
-import { Choice, ChoiceGroup, Pill } from "@/components/customer/kit";
+import { Choice, ChoiceGroup, Pill } from "@/components/kit";
 
 /** Names of the dishes customers pick most on the sheet's day; the sheet provides it once for every row. */
 export const PopularDishes = createContext<ReadonlySet<string>>(new Set());

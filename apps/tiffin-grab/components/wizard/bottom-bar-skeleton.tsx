@@ -1,4 +1,4 @@
-import { Skeleton } from "@/components/customer/kit";
+import { Skeleton } from "@/components/kit";
 
 /** BottomBar's shape: a Back capsule + a primary capsule, the same at every width; fixed glass bar on phones, inline from sm up. */
 export function BottomBarSkeleton() {

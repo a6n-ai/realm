@@ -17,7 +17,7 @@ const { setOrderLookOut, lookOutForTicket, clearTicketLookOut, countLookOutOrder
 const { ordersListWhere, countPaymentReviewOrders, countFreeTiffinOrders, laterOrderSql, laterPaidOrderSql, renewalStatusSql } = await import("@/lib/orders/queries");
 const { refundOrder } = await import("@/lib/payments/verification");
 const { clearLookOutOnEnd } = await import("@/lib/orders/look-out");
-const { ticketsService } = await import("../../services/tickets.service");
+const { ticketsService } = await import("../../support/tickets.service");
 const { eq: cEq } = await import("@foundry/commons/model/condition");
 const { organization, member } = await import("@/db/schema");
 const schema = await import("@/db/schema");
@@ -294,7 +294,6 @@ describe("order CRM queries (integration)", () => {
     expect(pending.total).toBe(0);
     expect(pending.items.length).toBe(0);
 
-    // Search facet: fullName filter (was covered by the now-removed listOrders() test).
     const byName = await listOrdersPage(cEq("fullName", "Jane Customer"), { page: 0, size: 10 }, undefined, "all");
     expect(byName.items.map((r) => r.fullName)).toEqual(["Jane Customer"]);
   });

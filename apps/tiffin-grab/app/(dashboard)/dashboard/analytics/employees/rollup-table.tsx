@@ -6,8 +6,8 @@ import { DataTable, type Column } from "@/components/ds";
 import { TableCell } from "@foundry/ui/table";
 import { inquiriesHref } from "@/lib/analytics/drill";
 import { useFormatMoney } from "@/components/app-currency";
-import type { EmployeeRow } from "@/lib/services/analytics/employees.service";
-import type { AnalyticsScope } from "@/lib/services/analytics/metrics/scope";
+import type { EmployeeRow } from "@/lib/analytics/employees.service";
+import type { AnalyticsScope } from "@/lib/analytics/scope-types";
 
 const COLUMNS: readonly Column<"rep" | "revenue" | "orders" | "renewal" | "actions" | "leads" | "converted" | "rate" | "tickets" | "resolution" | "coupons">[] = [
   { key: "rep", label: "Rep" },

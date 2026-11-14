@@ -1,7 +1,7 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { Card, Skeleton } from "@/components/customer/kit";
+import { Card, Skeleton } from "@/components/kit";
 import { BottomBarSkeleton } from "@/components/wizard/bottom-bar-skeleton";
 import { ChromeSkeleton } from "@/components/wizard/chrome-skeleton";
 import { ProgressSkeleton } from "@/components/wizard/progress-skeleton";

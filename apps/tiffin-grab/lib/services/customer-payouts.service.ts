@@ -2,6 +2,7 @@
 // broadcast. A manual, admin-picks-people-right-now action with no
 // persistence and no re-run guard (running the same filters and hitting Save again is meant to
 // pay again).
+import { netSpendSql } from "@/lib/payments/net-spend-sql";
 import { appTodayIso } from "@/lib/dates/today";
 import { RUNNING_OR_DONE } from "@/lib/orders/status";
 import { orderStatusIn } from "@/lib/orders/status-sql";
@@ -9,7 +10,7 @@ import { unexpired } from "@foundry/wallet";
 import { and, desc, eq, exists, gte, inArray, lte, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { ledgerEntries, orders, users, walletLedger } from "@/db/schema";
-import { getAppSettings } from "./app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { lastTiffinSql, laterOrderSql } from "@/lib/orders/queries";
 import { enqueueNotification } from "@/lib/notifications/enqueue";
 import { DEFAULT_GRANT_REASON, walletCreditedDefaults } from "@/lib/notifications/wallet-credited-copy";
@@ -47,8 +48,6 @@ export type PayoutCandidate = {
   walletCoins: number;
 };
 
-const REVENUE_SQL = sql<string>`coalesce(sum(case when ${ledgerEntries.type} = 'payment' then ${ledgerEntries.amount} else 0 end), 0) - coalesce(sum(case when ${ledgerEntries.type} = 'refund' then ${ledgerEntries.amount} else 0 end), 0)`;
-
 export async function listOrderCities(): Promise<string[]> {
   const rows = await db.selectDistinct({ city: orders.city }).from(orders).orderBy(orders.city);
   return rows.map((r) => r.city);
@@ -75,7 +74,7 @@ export async function listPayoutCandidates(
   const revenueAgg = db
     .select({
       userId: ledgerEntries.userId,
-      revenue: REVENUE_SQL.as("revenue"),
+      revenue: netSpendSql.as("revenue"),
     })
     .from(ledgerEntries)
     .groupBy(ledgerEntries.userId)

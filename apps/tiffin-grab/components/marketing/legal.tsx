@@ -3,14 +3,13 @@ import Link from "next/link";
 import { AlertTriangle, ArrowRight, Info } from "lucide-react";
 import { Section } from "@/components/marketing/section";
 import { LegalToc } from "./legal-toc";
-
-export const LEGAL_EMAIL = "info@tiffingrab.ca";
+import { CONTACT_EMAIL } from "@/lib/brand";
 
 export const LEGAL_DOCS = [
-  { href: "/terms", title: "Terms of Service", summary: "Eligibility, billing, subscriptions, allergens, acceptable use, liability, and governing law." },
-  { href: "/privacy", title: "Privacy Policy", summary: "What we collect, how we use it, PIPEDA rights, security, retention, and cookies." },
-  { href: "/refund-policy", title: "Refund Policy", summary: "Trial, weekly, and monthly plans; quality claims; processing times; non-refundable cases." },
-  { href: "/delivery-policy", title: "Delivery Policy", summary: "Service areas, windows, failed deliveries, packaging, food handling, and weather delays." },
+  { href: "/terms", updated: "November 9, 2026", title: "Terms of Service", summary: "Eligibility, billing, subscriptions, allergens, acceptable use, liability, and governing law." },
+  { href: "/privacy", updated: "October 7, 2026", title: "Privacy Policy", summary: "What we collect, how we use it, PIPEDA rights, security, retention, and cookies." },
+  { href: "/refund-policy", updated: "November 9, 2026", title: "Refund Policy", summary: "Trial, weekly, and monthly plans; quality claims; processing times; non-refundable cases." },
+  { href: "/delivery-policy", updated: "November 9, 2026", title: "Delivery Policy", summary: "Service areas, windows, failed deliveries, packaging, food handling, and weather delays." },
 ] as const;
 
 /** One plain-language key point in "The short version", pointing at the section that governs it. */
@@ -25,7 +24,6 @@ export type KeyPoint = { text: ReactNode; section: number };
 export function LegalPage({
   title,
   intro,
-  updated,
   current,
   sections,
   keyPoints,
@@ -33,7 +31,6 @@ export function LegalPage({
 }: {
   title: string;
   intro: string;
-  updated: string;
   current: string;
   sections: readonly string[];
   keyPoints: KeyPoint[];
@@ -51,7 +48,7 @@ export function LegalPage({
       <header className="mb-10 max-w-[68ch]">
         <h1 className="m-0 mb-3 text-balance text-[clamp(32px,5vw,48px)] font-bold leading-[1.05] tracking-[-0.03em]">{title}</h1>
         <p className="text-muted-foreground m-0 text-body leading-relaxed">{intro}</p>
-        <p className="text-muted-foreground mt-3 mb-0 text-sm">Updated {updated} · TiffinGrab, Ontario, Canada</p>
+        <p className="text-muted-foreground mt-3 mb-0 text-sm">Updated {LEGAL_DOCS.find((d) => d.href === current)?.updated} · TiffinGrab, Ontario, Canada</p>
       </header>
 
       <div className="grid gap-10 lg:grid-cols-[220px_minmax(0,1fr)] lg:gap-16">
@@ -154,5 +151,5 @@ export function SeeSection({ n }: { n: number }) {
 }
 
 export function Mail() {
-  return <a href={`mailto:${LEGAL_EMAIL}`} className="font-medium underline underline-offset-4">{LEGAL_EMAIL}</a>;
+  return <a href={`mailto:${CONTACT_EMAIL}`} className="font-medium underline underline-offset-4">{CONTACT_EMAIL}</a>;
 }

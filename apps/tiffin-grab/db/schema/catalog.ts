@@ -75,7 +75,7 @@ export const mealSizes = pgTable("meal_sizes", {
   costPrice: numeric("cost_price", { precision: 10, scale: 2 }),
   trial: boolean("trial").notNull().default(false),
   // Days this size can be eaten and delivered on (e.g. non-veg only, while Tue/Thu are veg-only). Null or
-  // empty = every day. Enforced by allowedDaysError/frequencyFits (lib/menu/delivery-days.ts).
+  // empty = every day. Enforced by allowedDaysError/frequencyFits (lib/deliveries/schedule/delivery-days.ts).
   allowedDays: text("allowed_days").array(),
   active: boolean("active").notNull().default(true),
   // Hidden per-composition size staff build for a customer (spec 2026-09-28-custom-meal).
@@ -155,7 +155,7 @@ export const deliveryFrequencies = pgTable("delivery_frequencies", {
   name: text("name").notNull(),
   daysPerWeek: integer("days_per_week").notNull(),
   // The frequency's delivery days, DayOfWeek strings ("mon".."sun"). The admin form requires at least one;
-  // lib/menu/delivery-days.ts keeps a fallback for "5_day"/"mwf" only so very old rows still read.
+  // lib/deliveries/schedule/delivery-days.ts keeps a fallback for "5_day"/"mwf" only so very old rows still read.
   weekdays: text("weekdays").array(),
   active: boolean("active").notNull().default(true),
   // Client-scoping — see dishes.organizationId for the pattern.

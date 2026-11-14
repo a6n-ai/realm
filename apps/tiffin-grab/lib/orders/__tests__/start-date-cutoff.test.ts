@@ -4,7 +4,7 @@ import { deleteNonSystemUsers } from "@/db/test-helpers";
 import { deliveries, ledgerEntries, orders, payments } from "@/db/schema";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 
-vi.unmock("@/lib/orders/start-date");
+vi.unmock("@/lib/dates/start-date");
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 const { createOrder } = await import("../create-order");
 

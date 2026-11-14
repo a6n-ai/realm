@@ -2,7 +2,7 @@
 // deliveries are laid out again around the rows that can't move.
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { asc, eq, inArray } from "drizzle-orm";
-import type { DayOfWeek } from "@/lib/menu/delivery-days";
+import type { DayOfWeek } from "@/lib/deliveries/schedule/delivery-days";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 const weekend = vi.hoisted(() => ({ serves: true, allowed: null as string[] | null }));

@@ -1,8 +1,8 @@
 import { dishes, plans } from "@/db/schema";
 import { db } from "@/db/client";
 import { inArray } from "drizzle-orm";
-import { mealRulesService } from "@/lib/services/meal-rules.service";
-import { dishCategoriesService } from "@/lib/services/dish-categories.service";
+import { mealRulesService } from "@/lib/menu/meal-rules.service";
+import { dishCategoriesService } from "@/lib/menu/dish-categories.service";
 import { ruleText, type RuleLabels } from "./meal-rule-text";
 
 /**
@@ -20,7 +20,6 @@ export async function listRuleTextsForOrder(
   const rules = await mealRulesService.listEnabledForOrder({ planId, mealSizeId });
   if (rules.length === 0) return [];
 
-  // Only look up names for rules that still need a sentence generated.
   const needsLabels = rules.some((r) => !r.description?.trim());
   let labels: RuleLabels = { category: {}, plan: {}, dish: {} };
   if (needsLabels) {

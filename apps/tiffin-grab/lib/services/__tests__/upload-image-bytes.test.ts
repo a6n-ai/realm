@@ -8,7 +8,7 @@ vi.mock("@/lib/auth/guards", () => ({ requirePermission: async () => {} }));
 vi.mock("@/lib/files", () => ({ filesService: () => store, securedFilesService: () => store, filesSecuredAccess: () => ({}) }));
 
 const { uploadPaymentProof } = await import("../../payments/payment-proof");
-const { uploadAttachments } = await import("../ticket-attachments");
+const { uploadAttachments } = await import("../../support/ticket-attachments");
 
 const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 const file = (bytes: Uint8Array<ArrayBuffer> | string, name: string, type: string) => new File([bytes], name, { type });

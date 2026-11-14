@@ -1,11 +1,11 @@
-import { isAdmin } from "@/lib/auth/roles";
+import { isAdmin } from "@/lib/roles";
 import { notFound } from "next/navigation";
 import { RefreshCwIcon } from "lucide-react";
 import { zonedDateIso } from "@foundry/commons";
 import { PageShell, PageHeader } from "@/components/ds";
 import { requirePermission } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import { getCustomerRenewal } from "@/lib/renewals/renewals.service";
 import { RenewalActions, RenewalSections } from "./renewal-body";

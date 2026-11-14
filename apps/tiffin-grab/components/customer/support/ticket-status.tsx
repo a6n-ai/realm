@@ -3,10 +3,10 @@
 import { CheckCircle2, Clock, MessageCircleReply, Star, Wrench } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { Button, Card, Textarea } from "@/components/customer/kit";
-import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
-import { rateTicket } from "@/app/(customer)/me/support/actions";
-import type { TicketStatus } from "@/lib/services/tickets.service";
+import { Button, Card, Textarea } from "@/components/kit";
+import { cn, FONT, FOCUS } from "@/components/kit/cn";
+import { rateTicket } from "@/lib/support/customer-actions";
+import type { TicketStatusValue as TicketStatus } from "@/lib/support/ticket-status";
 
 const BANNER: Record<TicketStatus, { icon: typeof Clock; title: string; body: string; tone: string }> = {
   open: { icon: Clock, title: "We got your message", body: "Our team will reply here soon.", tone: "bg-muted" },

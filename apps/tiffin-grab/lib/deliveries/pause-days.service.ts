@@ -2,19 +2,19 @@ import { MOVED_AWAY } from "@/lib/deliveries/row-state";
 import { isCutoffPassed } from "@/lib/dates/cutoff";
 import { cutoffPassedSql, cutoffOpenSql } from "@/lib/dates/cutoff-sql";
 import { appTodayIso } from "@/lib/dates/today";
-import { getAppSettings } from "../services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { RUNNING, inOrderStatuses } from "@/lib/orders/status";
 import { ValidationError } from "@foundry/commons";
 import { createLogger } from "@foundry/commons/logger";
-import { and, asc, desc, eq, getTableColumns, gt, gte, inArray, isNotNull, isNull, lte, not, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, getTableColumns, gte, inArray, isNotNull, isNull, lte, not, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, orderActivities, orders, subscriptionPauses } from "@/db/schema";
-import { removeStopsBestEffort, restoreStopsBestEffort, type OptimoSyncedRow } from "../services/optimoroute/stops";
+import { removeStopsBestEffort, restoreStopsBestEffort, type OptimoSyncedRow } from "../optimoroute/stops";
 import { applyHolidaysToOrder } from "./holiday-apply";
 import { assertDaysPauseAllowed, getPauseLimits, getPauseUsage } from "./pause-limits.service";
 import { autoMovePausedOn, moveLapsedPausesToEnd, movePausedTiffinsToEnd } from "./pause-auto-move";
 import { loadExtraDates } from "./delivery-extras";
-import { dateCounts } from "@/lib/menu/coverage";
+import { dateCounts } from "@/lib/deliveries/schedule/coverage";
 import type { Reader } from "./pause-state";
 import { CUSTOMER_PAUSED, isCustomerPaused, isLapsedPause, lapsePausedRows, lapsedPauseDates, pauseRows, releasePausedRows, retireLegacyPaused } from "./pause-state";
 import { lockOrder, withOrderLock } from "../orders/order-lock";
@@ -94,7 +94,7 @@ export async function pauseDays(orderPublicId: string, dates: string[], actorId:
       hit.days.push(d);
     }
     if (picked.size === 0) throw new ValidationError("Cutoff has passed for those days");
-    // Every eating day of the trip picked: the whole truck stops, as it always has. Some of them: only those tiffins leave.
+    // Every eating day of the trip picked: the whole truck stops. Some of them: only those tiffins leave.
     const whole = [...picked.values()].filter((p) => p.days.length === eats.get(p.row.id)!.size);
     for (const p of picked.values()) {
       if (whole.includes(p)) continue;
@@ -102,7 +102,7 @@ export async function pauseDays(orderPublicId: string, dates: string[], actorId:
         for (let i = 0; i < eats.get(p.row.id)!.get(eat)!; i++) partial.push({ deliveryPublicId: p.row.publicId, eat });
       }
     }
-    // A whole trip spends its own date from the budget (as before); a single eating day spends that day.
+    // A whole trip spends its own date from the budget; a single eating day spends that day.
     const charged = [...whole.map((p) => p.row.deliveryDate), ...new Set(partial.map((t) => t.eat))];
     await assertDaysPauseAllowed(order.id, charged, tx);
 
@@ -248,10 +248,9 @@ export async function releasePausedDaysDetailed(orderPublicId: string, dates: st
  * converts each row once.
  */
 export async function lapseElapsedPauses(orderId: bigint): Promise<number> {
-  let retired = false;
   const n = await db.transaction(async (tx) => {
     await lockOrder(tx, orderId);
-    retired = await retireLegacyPaused(tx, orderId);
+    await retireLegacyPaused(tx, orderId);
     return lapsePausedRows(tx, orderId);
   });
   // The plan's switch sends these new holds straight to the end; its own transactions, after this one commits.
@@ -329,7 +328,7 @@ export async function listPauseDays(orderId: bigint): Promise<PauseDay[]> {
   }).sort((a, b) => a.date.localeCompare(b.date));
 }
 
-// Never puts a paused day back on the route (resume() used to, which undid the hold). A paused day
+// Never puts a paused day back on the route (that would undo the hold). A paused day
 // past its cutoff becomes a hold. Then the old range-pause leftovers: an elapsed open window is
 // closed, and an order those pauses flipped to "paused" goes back to active (that status means
 // nothing now, so it does not wait for paused days to clear).

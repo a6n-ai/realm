@@ -4,8 +4,8 @@ import { laterBookedAtFor, laterBookedAtLatestFor, renewalStatusSql, type Renewa
 import { effectiveTrackStatus, isClosedTrack, type TrackActivityType, type TrackStatus } from "@/lib/renewals/status";
 import { NotFoundError, ValidationError } from "@foundry/commons";
 import { and, desc, eq, gte, inArray, isNull, lt, or, sql, type SQL } from "drizzle-orm";
-import { assertFiniteFollowUp, type LostReason } from "../services/inquiries.service";
-import { ensureInquiryForOrder, logReminderSent, mirrorRenewalActivity } from "../services/inquiry-links.service";
+import { assertFiniteFollowUp, type LostReason } from "../inquiries/lost-reason";
+import { ensureInquiryForOrder, logReminderSent, mirrorRenewalActivity } from "@/lib/inquiries/inquiry-links.service";
 
 export const computedStatusSql = sql<RenewalStatus>`(case when ${orders.trialLength} is not null then ${renewalStatusSql(true)} else ${renewalStatusSql(false)} end)`;
 

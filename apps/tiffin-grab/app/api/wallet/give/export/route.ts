@@ -1,12 +1,12 @@
+import { csvResponse } from "@/lib/files/export-response";
 import { appTodayIso } from "@/lib/dates/today";
 import { handler, problem } from "@foundry/routes";
 import { requireAdmin } from "@/lib/auth/guards";
 import { epochRange, withListDates } from "@/lib/list/default-month";
 import { parseSort } from "@foundry/design-system/list-sort";
-import { getAppSettings } from "@/lib/services/app-settings.service";
-import { giveHistoryCsv, type GiveSortColumn } from "@/lib/services/customer-groups.service";
+import { getAppSettings } from "@/lib/settings";
+import { giveHistoryCsv, type GiveSortColumn } from "@/lib/customer-groups/customer-groups.service";
 
-/** Grant history CSV with the same date/search/facet filters as Wallet → Give coins. */
 export const GET = handler(async (req: Request): Promise<Response> => {
   await requireAdmin();
   const sp = await withListDates(Object.fromEntries(new URL(req.url).searchParams));
@@ -29,11 +29,5 @@ export const GET = handler(async (req: Request): Promise<Response> => {
     timezone,
   );
   if (!result.ok) return problem(500, result.error);
-  const dateIso = appTodayIso(timezone);
-  return new Response(result.csv, {
-    headers: {
-      "content-type": "text/csv; charset=utf-8",
-      "content-disposition": `attachment; filename="grant-history-${dateIso}.csv"`,
-    },
-  });
+  return csvResponse(`grant-history-${appTodayIso(timezone)}.csv`, result.csv);
 });

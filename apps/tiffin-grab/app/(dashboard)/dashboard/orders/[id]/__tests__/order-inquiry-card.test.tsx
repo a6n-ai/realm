@@ -6,7 +6,7 @@ import type { ReactNode } from "react";
 
 vi.mock("next/link", () => ({ default: ({ children, href }: { children: ReactNode; href: string }) => <a href={href}>{children}</a> }));
 const card = vi.hoisted(() => ({ value: null as unknown, fail: false }));
-vi.mock("@/lib/services/inquiry-links.service", () => ({
+vi.mock("@/lib/inquiries/inquiry-links.service", () => ({
   inquiryOrderCard: async () => {
     if (card.fail) throw new Error("db down");
     return card.value;

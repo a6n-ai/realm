@@ -26,7 +26,7 @@ const {
 const { createOrder } = await import("../../orders/create-order");
 const { readOrder } = await import("../../orders/orders.service");
 const { claimPayment, rejectPayment, verifyPayment, getClaimPaymentContext } = await import("@/lib/payments/verification");
-const { setPaymentConfig, getPaymentConfig } = await import("../../services/app-settings.service");
+const { setPaymentConfig, getPaymentConfig } = await import("@/lib/payments/payment-config");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { sharedCache } = await import("@/lib/cache");
 const { ledgerService } = await import("../ledger.service");
@@ -122,9 +122,7 @@ describe("payment methods E2E lifecycle", () => {
   });
 
   it("full path: checkout → claim → reject → re-claim → verify (ledger+coupons once)", async () => {
-    // Re-enable after reset wiped config via beforeEach... wait, reset doesn't clear payment config
-    // except afterAll. beforeEach only clears users/orders. Config from beforeAll stays unless
-    // sharedCache was flushed — reset does evictAll, so re-set.
+    // reset evicts the shared cache, so re-enable the method.
     await setPaymentConfig({
       methods: [
         {

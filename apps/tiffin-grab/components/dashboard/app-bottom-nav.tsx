@@ -1,5 +1,5 @@
 "use client";
-import { isStaffRole } from "@/lib/auth/roles";
+import { isStaffRole } from "@/lib/roles";
 import { useState } from "react";
 import { usePathname } from "next/navigation";
 import { ClipboardListIcon, LayoutDashboardIcon, MenuIcon, PackageIcon } from "lucide-react";

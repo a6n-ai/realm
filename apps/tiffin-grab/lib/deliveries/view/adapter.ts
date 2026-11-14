@@ -1,7 +1,7 @@
 import type { SavedAddress } from "@foundry/address";
 import type { DropOffCatalog, DropOffValue } from "@/lib/catalog/drop-off";
 import { swapLabel, type SwapCategory } from "@/lib/menu/swap-rules";
-import type { CalendarDayInput, PlanContext, Trip } from "@/lib/deliveries/view";
+import type { CalendarDayInput, PlanContext } from "@/lib/deliveries/view";
 import type { CalendarDay, CustomerDelivery, Subscription, TiffinCounts } from "@/lib/deliveries/customer-deliveries.service";
 import { daysBetween } from "@foundry/commons/util/dates";
 
@@ -9,7 +9,6 @@ type PauseLimits = { maxPauses: number | null; maxPauseDaysTotal: number | null;
 type PauseUsage = { count: number; daysUsed: number };
 export type PausePanel = { limits: PauseLimits; usage: PauseUsage };
 
-/** Everything an action sheet needs beyond the trip itself. */
 export type PlanView = {
   orderId: string;
   sub: Subscription;
@@ -88,12 +87,6 @@ export function buildPlanContext(a: { counts: TiffinCounts; cutoffHour: number; 
 export function renewDays(last: string | null, today: string): number | null {
   if (!last) return null;
   return Math.max(daysBetween(today, last), 0);
-}
-
-/** ?trip if it names a real trip, else the next upcoming, else the next failed one to move, else the first. */
-export function pickDefaultTrip(trips: Trip[], requested: string | undefined): string | null {
-  if (requested && trips.some((t) => t.date === requested)) return requested;
-  return (trips.find((t) => t.status === "upcoming") ?? trips.find((t) => t.status === "failed") ?? trips[0])?.date ?? null;
 }
 
 /**

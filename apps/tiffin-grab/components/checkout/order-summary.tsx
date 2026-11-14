@@ -1,17 +1,18 @@
 import { useFormatMoney } from "@/components/app-currency";
-import { WEEK_DAYS } from "@/lib/menu/delivery-days";
+import { WEEK_DAYS } from "@/lib/deliveries/schedule/delivery-days";
 import type { ReactNode } from "react";
 import Link from "next/link";
 import type { PricingResult } from "@/lib/pricing";
 import type { WizardSelections } from "@/lib/wizard/selections";
-import { Divider, Pill } from "@/components/customer/kit";
+import { Divider, Pill } from "@/components/kit";
+import { DATE_SHORT } from "@/components/kit/date-formats";
 
 const DAY_LABEL: Record<string, string> = { mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun" };
 
 export function startLabel(iso: string) {
   const [y, m, d] = iso.split("-").map(Number);
   if (!y || !m || !d) return null;
-  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString("en-CA", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });
+  return DATE_SHORT.format(Date.UTC(y, m - 1, d));
 }
 
 

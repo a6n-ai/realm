@@ -5,7 +5,7 @@ import { dateTimeFormat } from "@foundry/commons/util/intl-format";
 // `cron` mirrors .github/workflows/cron-tiffin-grab.yml (GitHub's schedule can't be read from
 // the app); change both together. Times are UTC, as GitHub runs them.
 
-export type CronJobKey = "pull-completions" | "complete-plans" | "notifications" | "campaign-wake" | "site-refresh" | "optimoroute-sync" | "review-nudge" | "mint-rep-coupons" | "renewal-reminders";
+export type CronJobKey = "pull-completions" | "complete-plans" | "notifications" | "campaign-wake" | "site-refresh" | "optimoroute-sync" | "review-nudge" | "mint-rep-coupons" | "renewal-reminders" | "optimo-events";
 
 export type CronJob = {
   key: CronJobKey;
@@ -72,6 +72,13 @@ export const CRON_JOBS: CronJob[] = [
     runnable: true,
   },
   {
+    key: "optimo-events",
+    name: "OptimoRoute event poll",
+    description: "The OptimoPoller Durable Object polls OptimoRoute's event feed every 30 s inside the delivery window and applies completions.",
+    cron: null,
+    runnable: false,
+  },
+  {
     key: "review-nudge",
     name: "Review request emails",
     description: "Asks customers for a Google review after a delivery.",
@@ -107,7 +114,6 @@ export function nextCronRun(cron: string, now: number): number | null {
   return d.getTime();
 }
 
-/** "Daily 10:00 PM" / "Every hour at :00" in the app timezone, for display. */
 export function describeCron(cron: string | null, timezone: string, now: number): string {
   if (!cron) return "Not scheduled";
   const m = /^(\d{1,2}) (\*|\d{1,2}) \* \* \*$/.exec(cron.trim());

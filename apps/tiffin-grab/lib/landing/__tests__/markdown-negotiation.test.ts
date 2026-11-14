@@ -14,7 +14,7 @@ describe("wantsMarkdown", () => {
     expect(wantsMarkdown(null)).toBe(false);
   });
   it("covers the pages that have a markdown version", () => {
-    expect([...MD_PAGES]).toEqual(["/", "/pricing", "/faq", "/locations"]);
+    expect([...MD_PAGES].sort()).toEqual(["/", "/faq", "/locations", "/pricing"]);
   });
 });
 

@@ -1,21 +1,7 @@
 import type { RenewalStatus } from "@/lib/orders/queries";
-import type { LostReason } from "@/lib/services/inquiries.service";
 
 export const TRACK_STATUSES = ["renewed", "unresponsive", "not_renewed", "expected", "follow_up", "pending_payment"] as const;
 export type TrackStatus = (typeof TRACK_STATUSES)[number];
-
-/** The one list for "not renewed" reasons: the picker, the zod enum and the export labels all read it. */
-export const LOST_REASON_OPTIONS: { value: LostReason; label: string }[] = [
-  { value: "price", label: "Price" },
-  { value: "out_of_zone", label: "Out of zone" },
-  { value: "no_response", label: "No response" },
-  { value: "chose_competitor", label: "Chose competitor" },
-  { value: "not_ready", label: "Not ready" },
-  { value: "other", label: "Other" },
-  { value: "asked_to_stop", label: "Asked to stop" },
-];
-
-export const LOST_REASON_LABELS = Object.fromEntries(LOST_REASON_OPTIONS.map((o) => [o.value, o.label])) as Record<LostReason, string>;
 
 const LABELS: Record<TrackStatus, string> = {
   renewed: "Renewed",
@@ -40,7 +26,7 @@ export function autoTrackStatus(computed: RenewalStatus): TrackStatus | null {
   return null;
 }
 
-// Mirrors the SQL in Task 2: a later booking newer than the staff status overrides it.
+// Mirrors the SQL: a later booking newer than the staff status overrides it.
 export function effectiveTrackStatus(i: {
   staff: TrackStatus | null;
   staffSetAt: number | null;

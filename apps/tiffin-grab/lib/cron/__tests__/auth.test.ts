@@ -28,10 +28,11 @@ describe("withCronAuth", () => {
 });
 
 describe("cron routes", () => {
+  // cronRoutes/cronJobRoute (lib/cron/route.ts) wrap their handler in withCronAuth.
   it("every route under app/api/cron is wrapped in withCronAuth (proxy.ts exempts the prefix)", () => {
     const root = join(process.cwd(), "app/api/cron");
     for (const dir of readdirSync(root, { withFileTypes: true }).filter((d) => d.isDirectory())) {
-      expect(readFileSync(join(root, dir.name, "route.ts"), "utf8"), dir.name).toContain("withCronAuth(");
+      expect(readFileSync(join(root, dir.name, "route.ts"), "utf8"), dir.name).toMatch(/\b(withCronAuth|cronRoutes|cronJobRoute)\(/);
     }
   });
 });

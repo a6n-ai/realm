@@ -1,25 +1,19 @@
 import { readBody } from "@foundry/commons/util/http";
-import { handler, json, problem } from "@foundry/routes";
+import { problem } from "@foundry/routes";
 import { saveEmailTemplateSchema } from "@relay/engine";
-import { requireAdmin } from "@/lib/auth/guards";
+import { adminRoute } from "@/lib/notifications/admin-route";
 import type { AppEvent } from "@/lib/notifications/event-entities";
-import { listTemplates, saveTemplateEmail, upsertTemplate, type UpsertInput } from "@/lib/services/notification-template.service";
+import { listTemplates, saveTemplateEmail, upsertTemplate, type UpsertInput } from "@/lib/notifications/notification-template.service";
 
-export const GET = handler(async (): Promise<Response> => {
-  await requireAdmin();
-  return Response.json(await listTemplates());
-});
+export const GET = adminRoute(listTemplates);
 
-export const POST = handler(async (req: Request): Promise<Response> => {
-  await requireAdmin();
+export const POST = adminRoute(async (req) => {
   const raw = await readBody<{ channel?: string } | null>(req);
   if (raw?.channel !== "email") {
     await upsertTemplate(raw as UpsertInput);
-    return Response.json({ ok: true });
+    return { ok: true };
   }
   const parsed = saveEmailTemplateSchema.safeParse(raw);
   if (!parsed.success) return problem(400, parsed.error.issues[0]?.message ?? "Invalid request");
-  const result = await saveTemplateEmail({ ...parsed.data, event: parsed.data.event as AppEvent });
-  if ("error" in result) return problem(result.status, result.error);
-  return json(result);
+  return saveTemplateEmail({ ...parsed.data, event: parsed.data.event as AppEvent });
 });

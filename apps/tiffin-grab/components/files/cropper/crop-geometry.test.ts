@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { clampBox, exportRect, fitBox, imageToScreen, orientedSize, resizeBox, screenToImage } from "./crop-geometry";
+import { clampBox, exportRect, fitBox, imageToScreen, orientedSize, resizeBox } from "./crop-geometry";
 
 describe("orientedSize", () => {
   it("keeps dims at 0/180, swaps at 90/270", () => {
@@ -32,15 +32,9 @@ describe("clampBox", () => {
   });
 });
 
-describe("screenToImage / imageToScreen", () => {
-  const view = { zoom: 2, panX: 10, panY: 20 };
-  const origin = { x: 5, y: 5 };
-  it("round-trips a point", () => {
-    const img = screenToImage({ x: 105, y: 105 }, view, origin);
-    expect(img).toEqual({ x: (105 - 5 - 10) / 2, y: (105 - 5 - 20) / 2 });
-    const back = imageToScreen(img, view, origin);
-    expect(back.x).toBeCloseTo(105);
-    expect(back.y).toBeCloseTo(105);
+describe("imageToScreen", () => {
+  it("applies zoom, pan and origin", () => {
+    expect(imageToScreen({ x: 45, y: 40 }, { zoom: 2, panX: 10, panY: 20 }, { x: 5, y: 5 })).toEqual({ x: 105, y: 105 });
   });
 });
 

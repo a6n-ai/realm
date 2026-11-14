@@ -21,7 +21,7 @@ vi.mock("@foundry/design-system/timezone-provider", () => ({ useTimezone: () => 
 vi.mock("sonner", () => ({ toast: { error: vi.fn() } }));
 const mockRouter = { push: vi.fn(), replace: vi.fn() };
 vi.mock("next/navigation", () => ({ useRouter: () => mockRouter }));
-vi.mock("@/app/(public)/checkout/actions", () => ({ confirmSubscription: vi.fn() }));
+vi.mock("@/lib/checkout/actions", () => ({ confirmSubscription: vi.fn() }));
 
 const basePricing = {
   lineItems: [],
@@ -59,7 +59,7 @@ const reprice = vi.fn(async (...args: unknown[]) => {
   };
 });
 const validatePostal = vi.fn().mockResolvedValue({ served: true, zone: { publicId: "zn_1", name: "Downtown", slotWindow: "6-8pm" } });
-vi.mock("@/app/(public)/subscribe/actions", () => ({
+vi.mock("@/lib/wizard/actions", () => ({
   reprice: (...args: unknown[]) => reprice(...args),
   validatePostal: (...args: unknown[]) => validatePostal(...args),
 }));

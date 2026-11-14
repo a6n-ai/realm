@@ -69,10 +69,9 @@ export async function attachAllCategoriesToPlans(): Promise<void> {
 }
 
 /**
- * Category row id for a key. menu_items and meal_selections hold a foreign key now, so a
- * fixture that used to write `slot: "sabzi"` writes `categoryId: await categoryIdFor("sabzi")`.
- * Throws rather than returning undefined — a typo'd key used to insert silently and produce
- * a row nothing could ever resolve, which is the drift the foreign key exists to stop.
+ * Category row id for a key (menu_items and meal_selections hold a foreign key).
+ * Throws rather than returning undefined: a typo'd key would insert silently and produce
+ * a row nothing could ever resolve.
  */
 export async function categoryIdFor(key: string): Promise<bigint> {
   const [row] = await db.select({ id: dishCategories.id }).from(dishCategories).where(eq(dishCategories.key, key)).limit(1);

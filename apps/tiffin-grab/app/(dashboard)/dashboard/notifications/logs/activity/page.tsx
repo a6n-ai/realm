@@ -6,7 +6,7 @@ import { withListDates } from "@/lib/list/default-month";
 import {
   listCustomerActivitiesPage,
   type CustomerActivitySortColumn,
-} from "@/lib/services/customer-activities-list.service";
+} from "@/lib/customer-activity/customer-activities-list.service";
 import {
   CustomerLogsTable,
   CustomerLogsTableSkeleton,

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Badge } from "@/components/reui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@foundry/ui/tabs";
-import type { QueueTab } from "@/lib/services/inquiries.service";
+import type { QueueTab } from "@/lib/inquiries/inquiries.service";
 
 const TABS: { value: QueueTab; label: string }[] = [
   { value: "due", label: "Due today" },

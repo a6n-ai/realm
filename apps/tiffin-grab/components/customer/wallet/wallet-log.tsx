@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { ArrowDownLeft, ArrowUpRight, Coins } from "lucide-react";
-import { EmptyState, ListGroup, ListRow, buttonClass } from "@/components/customer/kit";
+import { EmptyState, ListGroup, ListRow, buttonClass } from "@/components/kit";
 import { eventLabel } from "@relay/engine/ui/template-status";
 import { walletEntryLabel } from "@/lib/wallet/source-labels";
 import { formatEpoch } from "@/lib/format/datetime";
@@ -10,7 +10,7 @@ import { useTimezone } from "@foundry/design-system/timezone-provider";
 import type { WalletTx } from "@/lib/wallet/wallet.service";
 import { WALLET_FACETS } from "./wallet-facets";
 import { FilterBar, GroupHeader, QuietPagination, groupByMonth } from "./finance-kit";
-import { FilterBarSkeleton, MonthGroupSkeleton, StatGroupSkeleton } from "@/components/customer/skeleton-parts";
+import { FilterBarSkeleton, MonthGroupSkeleton, StatGroupSkeleton } from "@/components/kit/skeleton-parts";
 
 function WalletLogRow({ tx }: { tx: WalletTx }) {
   const tz = useTimezone();

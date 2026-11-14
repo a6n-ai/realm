@@ -1,7 +1,7 @@
 "use server";
 
 import { requireStaff } from "@/lib/auth/guards";
-import { inquiriesService } from "@/lib/services/inquiries.service";
+import { inquiriesService } from "@/lib/inquiries/inquiries.service";
 import { searchCustomers as searchCustomersQuery, findExistingByContact } from "@/lib/services/customers.service";
 
 export async function findInquiryMatches(phone: string) {

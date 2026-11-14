@@ -3,7 +3,7 @@
 import { z } from "zod";
 import type { ActionResult } from "@/lib/actions/action-result";
 import { parseInput, staffAction } from "@/lib/actions/staff-action";
-import { setProfitabilityAssumptions } from "@/lib/services/app-settings.service";
+import { setProfitabilityAssumptions } from "@/lib/analytics/profitability-settings";
 
 const PATH = "/dashboard/analytics/profitability";
 

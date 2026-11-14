@@ -8,20 +8,15 @@ import { preconnect } from "react-dom";
 import { loadStripe, type Appearance, type Stripe } from "@stripe/stripe-js";
 import { Elements, ExpressCheckoutElement, useElements, useStripe } from "@stripe/react-stripe-js";
 import { useTheme } from "@foundry/themes";
-import { Button as BarButton } from "@/components/customer/kit";
+import { Button as BarButton } from "@/components/kit";
 import { Skeleton } from "@foundry/ui/skeleton";
 import type { CardCheckoutContext } from "@/lib/payments/card-checkout-context";
 import { stripeAppearance } from "@/lib/payments/stripe-appearance";
 import type { CardSource, PayByCardResult } from "@/lib/payments/payment-stripe";
-import { CardDialog, ErrorAlert, SurchargeConfirm } from "./card-dialog";
+import { CardDialog } from "./card-dialog";
+import { ErrorAlert, SurchargeConfirm, type PayOutcome } from "./card-parts";
 import { TrustLine } from "./trust-line";
 import { ReceiptPrinter, type Receipt } from "./receipt-printer";
-
-export type PayOutcome =
-  | { kind: "done" }
-  | { kind: "confirm_surcharge"; surcharge: string; newTotal: string }
-  | { kind: "busy" }
-  | { kind: "error"; message: string };
 
 type Pay = (source: CardSource, acceptSurcharge: boolean) => Promise<PayOutcome>;
 

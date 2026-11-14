@@ -1,6 +1,6 @@
 // Builds the DAILY KITCHEN PACKING SHEET workbook from a KitchenPackingSheet.
 // Item1…ItemN headers are positional — dish names live in the cells with converted OZ/pcs.
-import type { KitchenPackingSheet } from "@/lib/services/kitchen-packing-sheet.service";
+import type { KitchenPackingSheet } from "@/lib/menu/kitchen-packing-sheet.service";
 import { formatPortionUnit } from "@/lib/menu/packing-requirement";
 
 const FIXED_HEADERS = [

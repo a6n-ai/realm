@@ -1,0 +1,109 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const session = vi.hoisted(() => ({ current: null as null | { user: { id: string } } }));
+const owned = vi.hoisted(() => ({ rows: [] as unknown[] }));
+const payByCard = vi.fn();
+const settle = vi.fn();
+const abandon = vi.fn();
+const chargedReceipt = vi.fn();
+const sessionSecret = vi.fn();
+
+const locks = vi.hoisted(() => new Map<string, string>());
+vi.mock("@/lib/runtime/lease", () => ({
+  acquireLease: async (k: string, holder: string) => (locks.has(k) ? false : (locks.set(k, holder), true)),
+  releaseLease: async (k: string, holder: string) => void (locks.get(k) === holder && locks.delete(k)),
+}));
+vi.mock("@/lib/auth/session", () => ({ getSession: async () => session.current }));
+vi.mock("@/lib/payments/stripe", () => ({ appBaseUrl: () => "https://app.test" }));
+vi.mock("@/lib/payments/card-checkout-context", () => ({ customerSessionSecret: (...a: unknown[]) => sessionSecret(...a) }));
+vi.mock("@/lib/payments/payment-stripe", () => ({
+  payByCard: (...a: unknown[]) => payByCard(...a),
+  settleStripePayment: (...a: unknown[]) => settle(...a),
+  abandonCardAttempt: (...a: unknown[]) => abandon(...a),
+  chargedReceipt: (...a: unknown[]) => chargedReceipt(...a),
+}));
+vi.mock("@/db/client", () => {
+  const chain: Record<string, unknown> = {};
+  for (const k of ["select", "from", "innerJoin", "where"]) chain[k] = () => chain;
+  chain.limit = async () => owned.rows;
+  return { db: chain };
+});
+
+const { submitCardPayment, confirmReturn, abandonCard, newCustomerSession } = await import("../pay-actions");
+
+describe("newCustomerSession", () => {
+  beforeEach(() => { session.current = null; sessionSecret.mockReset(); });
+
+  it("is null for a signed-out visitor and never touches Stripe", async () => {
+    expect(await newCustomerSession()).toBeNull();
+    expect(sessionSecret).not.toHaveBeenCalled();
+  });
+
+  it("mints a session for the signed-in user only", async () => {
+    session.current = { user: { id: "usr_1" } };
+    sessionSecret.mockResolvedValue("cuss_fresh");
+    expect(await newCustomerSession()).toBe("cuss_fresh");
+    expect(sessionSecret).toHaveBeenCalledWith("usr_1");
+  });
+});
+
+describe("pay page actions", () => {
+  beforeEach(() => {
+    session.current = null;
+    owned.rows = [];
+    payByCard.mockReset();
+    locks.clear();
+    settle.mockReset();
+    abandon.mockReset();
+  });
+
+  it("refuses a card submit while a checkout holds the customer lock, and frees the lock after", async () => {
+    session.current = { user: { id: "usr_1" } };
+    locks.set("pay-lock:usr_1", "checkout");
+    expect(await submitCardPayment("pay_1", { confirmationTokenId: "ct" }, false)).toMatchObject({ error: "A payment is already in progress." });
+    expect(payByCard).not.toHaveBeenCalled();
+    locks.clear();
+    payByCard.mockResolvedValue({ kind: "succeeded" });
+    expect("ok" in (await submitCardPayment("pay_1", { confirmationTokenId: "ct" }, false))).toBe(true);
+    expect(locks.size).toBe(0);
+  });
+
+  it("forwards a saved card source to payByCard", async () => {
+    session.current = { user: { id: "usr_a" } };
+    payByCard.mockResolvedValue({ kind: "processing" });
+    await submitCardPayment("pay_1", { savedPaymentMethodId: "pm_1" }, false);
+    expect(payByCard.mock.calls[0]![0]).toMatchObject({ source: { savedPaymentMethodId: "pm_1" } });
+  });
+
+  it("refuse a signed-out caller without touching Stripe", async () => {
+    expect("error" in (await submitCardPayment("pay_1", { confirmationTokenId: "ct" }, true))).toBe(true);
+    expect("error" in (await abandonCard("pay_1"))).toBe(true);
+    expect(await confirmReturn("pay_1")).toEqual({ ok: true, paid: false });
+    expect(payByCard).not.toHaveBeenCalled();
+    expect(abandon).not.toHaveBeenCalled();
+    expect(settle).not.toHaveBeenCalled();
+  });
+
+  it("confirmReturn does not settle a payment the user does not own", async () => {
+    session.current = { user: { id: "usr_a" } };
+    expect(await confirmReturn("pay_1")).toEqual({ ok: true, paid: false });
+    expect(settle).not.toHaveBeenCalled();
+  });
+
+  it("confirmReturn settles an owned payment", async () => {
+    session.current = { user: { id: "usr_a" } };
+    owned.rows = [{ id: 1n }];
+    settle.mockResolvedValue("paid");
+    chargedReceipt.mockResolvedValue({ paidWith: "Visa •••• 4242", feeCents: 150, totalCents: 5150 });
+    expect(await confirmReturn("pay_1")).toEqual({ ok: true, paid: true, receipt: { paidWith: "Visa •••• 4242", feeCents: 150, totalCents: 5150 } });
+  });
+
+  it("passes the session user to payByCard and abandon (ownership enforced in the service)", async () => {
+    session.current = { user: { id: "usr_a" } };
+    payByCard.mockResolvedValue({ kind: "processing" });
+    await submitCardPayment("pay_1", { confirmationTokenId: "ct" }, false);
+    expect(payByCard.mock.calls[0]![0]).toMatchObject({ userPublicId: "usr_a", paymentPublicId: "pay_1" });
+    await abandonCard("pay_1");
+    expect(abandon).toHaveBeenCalledWith("pay_1", "usr_a");
+  });
+});

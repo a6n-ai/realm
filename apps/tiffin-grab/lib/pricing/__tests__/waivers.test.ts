@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { calculateDeliveryCharge } from "@foundry/delivery";
-import { deliveryWaiverLines, taxWaiverLine, type PricingWaiver } from "../waivers";
+import { deliveryWaiverLines, taxWaiverLine } from "../waivers";
+import type { PricingWaiver } from "../types";
 
 const calc = calculateDeliveryCharge({
   baseCharge: 5,

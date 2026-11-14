@@ -18,7 +18,7 @@ vi.mock("@/lib/landing/site-boundaries", async (orig) => ({
   loadWindowEdges: async () => [],
   computeSiteNextAt,
 }));
-vi.mock("@/lib/services/app-settings.service", () => ({ getAppSettings: async () => ({ timezone: "America/Toronto" }) }));
+vi.mock("@/lib/settings", () => ({ getAppSettings: async () => ({ timezone: "America/Toronto" }) }));
 
 import { runSiteRefresh } from "../site-refresh";
 

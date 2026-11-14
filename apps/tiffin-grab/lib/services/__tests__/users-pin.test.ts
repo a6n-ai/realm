@@ -2,7 +2,7 @@ import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import { account, auditLog, users } from "@/db/schema";
-import { hashPassword } from "@/lib/auth/password";
+import { hashPassword } from "@foundry/auth";
 import { usersService } from "@/lib/services/users.service";
 
 // PIN backs the staff idle-lock, so the mechanics are exercised on a staff user.

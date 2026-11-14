@@ -4,7 +4,7 @@ import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
 import { earnedCoinsSql, spentCoinsSql, unexpired } from "@foundry/wallet";
 import { walletLedger, users, orders, customerGroupActions, customerGroups } from "@/db/schema";
-import { grantActionId, grantGroupName, grantGroupPublicId, legacyGroup } from "@/lib/services/customer-groups.service";
+import { grantActionId, grantGroupName, grantGroupPublicId, legacyGroup } from "./grant-source";
 import { type SortState } from "@foundry/design-system/list-sort";
 import { pageOrder } from "@foundry/database";
 import { requestNow } from "@/lib/dates/request-now";

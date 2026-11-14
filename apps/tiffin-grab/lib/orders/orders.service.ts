@@ -1,3 +1,5 @@
+import { lockUser } from "@/lib/identity/lock-user";
+import { orgScope, type Visible } from "@/lib/tenant/org-scope";
 import { parseIsoDate } from "@/lib/dates/iso-date";
 import { appTodayIso } from "@/lib/dates/today";
 import { isCutoffPassed } from "@/lib/dates/cutoff";
@@ -14,7 +16,7 @@ import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { orderPaymentStatuses, paidStatusOf } from "@/lib/payments/order-payments";
 import { clearLookOutOnEnd } from "@/lib/orders/look-out";
 import { db } from "@/db/client";
-import { startPaidStripeOrder } from "@/lib/payments/verification";
+import { startPaidStripeOrder } from "@/lib/orders/start-paid-order";
 import { ordersListWhere, type OrdersListOpts } from "@/lib/orders/queries";
 import {
   deliveries,
@@ -38,29 +40,23 @@ import { SessionBaseService, SessionUpdatableService } from "../services/session
 import type { SortState } from "@foundry/design-system/list-sort";
 import { buildBoundedDeliveryRows, tripsFor } from "@/lib/orders/bounded-deliveries";
 import { cancelDeliveries, dropVoidRows } from "../deliveries/deliveries.service";
-import { removeStopsBestEffort } from "../services/optimoroute/stops";
-import { applyHolidaysToOrder } from "../deliveries/holiday-apply";
-import { scheduleWrite } from "../services/schedule-write";
+import { removeStopsBestEffort } from "../optimoroute/stops";
+import { applyHolidaysToOrder, scheduleWrite } from "../deliveries/holiday-apply";
 import { assertStartable } from "./order-window";
-import { appToday, assertFirstDeliveryOpen, validateStartDate } from "./start-date";
+import { appToday, assertFirstDeliveryOpen, validateStartDate } from "@/lib/dates/start-date";
 import { assertTrialStart } from "@/lib/trial/schedule";
 import {
-  walletService,
   reverseCoinRedemption,
   reverseCoinAward,
   awardOrderCoins,
 } from "../wallet/wallet.service";
-import { awardReferral, reverseReferral } from "../services/referrals.service";
-import { assertReassignAllowed, resolveAssignableOwner } from "../services/reassign";
-import { eatingDaysError, orderDeliveryDays, planDaysError, planDeliveryDays, planWeek, type DayOfWeek } from "@/lib/menu/delivery-days";
+import { awardReferral, reverseReferral } from "../referrals/referrals.service";
+import { assertReassignAllowed, resolveAssignableOwner } from "../staff/reassign";
+import { eatingDaysError, orderDeliveryDays, planDaysError, planDeliveryDays, planWeek, type DayOfWeek } from "@/lib/deliveries/schedule/delivery-days";
 import { mealSizeAllowedDays, mealSizeServesWeekends } from "../deliveries/weekend-dish";
-import { getAppSettings } from "../services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { lockOrder, withOrderLock } from "./order-lock";
 import { enqueueOrderNotice } from "@/lib/notifications/order-notice";
-
-// Moved to create-order.ts; kept here for app/(public)/checkout/actions.ts (out of scope this pass) and the integration tests.
-// app/(public)/checkout/actions.ts still imports these from here.
-export { assertOnePerson, createOrder, type CreateOrderInput } from "./create-order";
 
 export type OrderListRow = {
   publicId: string;
@@ -86,32 +82,26 @@ export type OrderListRow = {
 
 export type OrderSortColumn = "name" | "deployment" | "status" | "start" | "total" | "created" | "flagged";
 
-// Server-side unified filters (Condition) + offset pagination + unpaginated
-// total — mirrors inquiriesService.listForPipeline. Status, name, id, and
-// createdAt live on `orders`. Plan and meal-size tier resolve through a
-// subquery (`ordersListResolver`) so the count stays on the base table. The rows query joins
-// plans (inner, non-nullable FK — safe) and users (left, nullable
-// currentOwner — display-only), but the count runs on the base `orders` table
-// alone with the identical `where` so the nullable owner join can't inflate it.
+// The count runs on the base `orders` table alone with the identical `where`, so the nullable owner join can't inflate it.
 /** Staff actions that take an order public id: refuse an order outside the caller's organizations. */
-export async function assertOrderVisible(publicId: string, visible: "all" | string[]): Promise<void> {
+export async function assertOrderVisible(publicId: string, visible: Visible): Promise<void> {
   if (visible !== "all" && visible.length === 0) throw new NotFoundError("Order not found");
   const [row] = await db.select({ id: orders.id }).from(orders)
-    .where(and(eq(orders.publicId, publicId), visible === "all" ? undefined : inArray(orders.organizationId, visible)))
+    .where(and(eq(orders.publicId, publicId), orgScope(orders.organizationId, visible)))
     .limit(1);
   if (!row) throw new NotFoundError("Order not found");
 }
 
 // Actions that take a delivery or payment id resolve the order from that row, never from an
 // order id the client sent alongside it.
-export async function assertDeliveryVisible(deliveryPublicId: string, visible: "all" | string[]): Promise<void> {
+export async function assertDeliveryVisible(deliveryPublicId: string, visible: Visible): Promise<void> {
   const [row] = await db.select({ publicId: orders.publicId }).from(deliveries)
     .innerJoin(orders, eq(orders.id, deliveries.orderId)).where(eq(deliveries.publicId, deliveryPublicId)).limit(1);
   if (!row) throw new NotFoundError("Order not found");
   await assertOrderVisible(row.publicId, visible);
 }
 
-export async function assertPaymentVisible(paymentPublicId: string, visible: "all" | string[]): Promise<void> {
+export async function assertPaymentVisible(paymentPublicId: string, visible: Visible): Promise<void> {
   const [row] = await db.select({ publicId: orders.publicId }).from(payments)
     .innerJoin(orders, eq(orders.id, payments.orderId)).where(eq(payments.publicId, paymentPublicId)).limit(1);
   if (!row) throw new NotFoundError("Order not found");
@@ -122,7 +112,7 @@ export async function listOrdersPage(
   condition: Condition | undefined,
   page: PageRequest,
   sort: SortState<OrderSortColumn> = { column: "created", dir: "desc" },
-  visible: "all" | string[],
+  visible: Visible,
   opts: OrdersListOpts = {},
 ): Promise<Page<OrderListRow>> {
   const where = ordersListWhere(condition, visible, opts);
@@ -244,7 +234,7 @@ export type OrderDetail = typeof orders.$inferSelect & {
 // publicId is unguessable but not a permission — direct-link/URL access must not
 // bypass membership scoping. Out-of-scope orders fail exactly like nonexistent ones
 // (NotFoundError) so a caller can't distinguish "not visible" from "doesn't exist".
-export async function readOrder(publicId: string, visible: "all" | string[]): Promise<OrderDetail> {
+export async function readOrder(publicId: string, visible: Visible): Promise<OrderDetail> {
   const [row] = await db
     .select({
       order: orders,
@@ -262,7 +252,7 @@ export async function readOrder(publicId: string, visible: "all" | string[]): Pr
     .where(
       and(
         eq(orders.publicId, publicId),
-        visible === "all" ? undefined : inArray(orders.organizationId, visible),
+        orgScope(orders.organizationId, visible),
       ),
     )
     .limit(1);
@@ -298,7 +288,7 @@ export async function readOrder(publicId: string, visible: "all" | string[]): Pr
 
   // Lazy import avoids pulling storage/mint into every orders.service caller path
   // that doesn't need proof hrefs (createOrder tests, etc.).
-  const { proofView } = await import("../services/ticket-attachments");
+  const { proofView } = await import("../support/ticket-attachments");
   const enriched: OrderPaymentDetail[] = await Promise.all(
     pays.map(async (p) => {
       const proof = p.proof ?? null;
@@ -347,7 +337,6 @@ export async function listOrderActivities(orderId: bigint) {
   return rows;
 }
 
-/** Every order's activity for one customer (staff customer page), each row tagged with its order. */
 export async function listCustomerOrderActivities(userId: bigint) {
   return db
     .select({
@@ -371,13 +360,7 @@ export async function listCustomerOrderActivities(userId: bigint) {
     .orderBy(desc(orderActivities.createdAt));
 }
 
-// The order lifecycle is built on the shared commons abstractions: OrdersService
-// extends the updatable entity service (inheriting read/update with managed-column
-// stamping), and audit rows go through a BaseService create. A status change is a
-// guarded update + an activity create — both stamped consistently (update →
-// updatedBy/updatedAt, create → createdBy + public_id/created_at). Mirrors
-// inquiries.service: the entity update and the activity create are sequential
-// writes, since commons repositories each hold their own connection.
+// Entity update and activity create are sequential writes: commons repositories each hold their own connection.
 class OrdersService extends SessionUpdatableService<typeof orders> {
   private readonly activities = new SessionBaseService(
     new BaseRepository(db, orderActivities, orderActivities.publicId, orderActivities.id),
@@ -421,14 +404,10 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       throw new ValidationError(`Cannot activate an order that is ${order.status}`);
     }
 
-    // Status flip + delivery materialization + activity log in one tx: if
-    // materialization throws, the whole activation rolls back — the design
-    // forbids an "active" order with zero delivery rows. Bypasses the audited
-    // update()/transition() path for the same reason createOrder does (see its
-    // comment above): those helpers aren't tx-aware, so a raw in-tx write is
-    // the smaller change vs threading a tx through the shared service layer.
+    // Status flip + delivery materialization + activity log in one tx: if materialization throws, the whole
+    // activation rolls back. Bypasses update()/transition(): they aren't tx-aware, and an "active" order with zero delivery rows must never commit.
     await withOrderLock(order.id, async (tx) => {
-      // Waitlisted orders skipped the overlap guard at checkout (they held no days); now they will.
+      // Waitlisted orders skipped the overlap guard at checkout (they held no days); it runs on activation.
       await assertStartable(tx, { userId: order.userId, organizationId: order.organizationId, startDate: order.startDate, durationWeeks: order.durationWeeks, excludeOrderId: order.id, holiday: false });
       const [row] = await tx
         .update(orders)
@@ -451,7 +430,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
     });
   }
 
-  // A plan migrated from WordPress (db/seed-customers.ts) waits as `pending` with its
+  // A plan migrated from WordPress (one-off import, finished) waits as `pending` with its
   // prepaid balance and no deliveries while WordPress still delivers. Staff start it on the
   // day the customer leaves WordPress: the balance is scheduled from that date, bounded to
   // the exact count (materializeDeliveries only fills whole weeks). No payment or coin
@@ -769,7 +748,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
         .where(eq(orders.publicId, publicId)).limit(1);
       if (!idRow) throw new NotFoundError(`Order not found: ${publicId}`);
       // Customer lock first, then the order lock: the order verifyPayment and @foundry/wallet take them.
-      if (idRow.userId) await tx.select({ id: users.id }).from(users).where(eq(users.id, idRow.userId)).for("update");
+      if (idRow.userId) await lockUser(tx, idRow.userId);
       await lockOrder(tx, idRow.id);
 
       const [order] = await tx.select().from(orders).where(eq(orders.id, idRow.id)).limit(1);

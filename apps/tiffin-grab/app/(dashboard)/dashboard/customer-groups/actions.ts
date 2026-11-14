@@ -1,7 +1,7 @@
 "use server";
 
 import { unexpired } from "@foundry/wallet";
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/auth/guards";
 import type { ActionResult } from "@/lib/actions/action-result";
@@ -10,7 +10,8 @@ import { ValidationError } from "@foundry/commons";
 import { db } from "@/db/client";
 import { users, walletLedger } from "@/db/schema";
 import { searchCustomers } from "@/lib/services/customers.service";
-import { currentUserId, userIdByPublicId } from "@/lib/services/session-service";
+import { currentUserId } from "@/lib/services/session-service";
+import { userIdByPublicId } from "@/lib/identity/user-ids";
 import {
   addGroupMembers,
   createCustomerGroup,
@@ -21,7 +22,7 @@ import {
   groupMembersCsv,
   removeGroupMember,
   searchCustomerGroups,
-} from "@/lib/services/customer-groups.service";
+} from "@/lib/customer-groups/customer-groups.service";
 import { listPayoutCandidates, type PayoutCandidate, type PayoutCandidateFilters } from "@/lib/services/customer-payouts.service";
 import { walletBalanceSql } from "@/lib/wallet/balance-sql";
 

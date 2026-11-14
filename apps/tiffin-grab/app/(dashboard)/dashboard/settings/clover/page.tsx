@@ -9,7 +9,7 @@ import {
 } from "@foundry/clover";
 import { CloverSettingsPanelSkeleton } from "@foundry/clover/ui";
 import { PageHeader } from "@/components/ds";
-import { integrationsConfigStore } from "@/lib/services/app-settings.service";
+import { integrationsConfigStore } from "@/lib/payments/integrations-config";
 import { CloverPanel } from "./clover-panel";
 
 export default async function CloverSettingsPage() {

@@ -1,16 +1,16 @@
 import { round2 } from "@foundry/commons/util/money";
-import { TotalLine } from "@/components/analytics/total-line";
+import { TotalLine } from "@/components/dashboard/analytics/total-line";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@foundry/ui/tabs";
 import { cache, Suspense } from "react";
-import { AnalyticsIntro } from "@/components/analytics/analytics-intro";
-import { ChartCard } from "@/components/analytics/chart-card";
+import { AnalyticsIntro } from "@/components/dashboard/analytics/analytics-intro";
+import { ChartCard } from "@/components/dashboard/analytics/chart-card";
 import { AnalyticsStatCards, AnalyticsStatCardsSkeleton } from "@/components/dashboard/stat-cards";
-import { ChartSkeleton } from "@/components/analytics/skeletons";
-import { chartColor, slotTone } from "@/components/analytics/chart-math";
-import { RankCards } from "@/components/analytics/rank-cards";
-import { HeatmapGrid, PartsDonut, TreemapChart } from "@/components/analytics/charts";
-import { scopeOrAlert } from "@/components/analytics/franchise-unavailable";
+import { ChartSkeleton } from "@/components/dashboard/analytics/skeletons";
+import { chartColor, slotTone } from "@/components/dashboard/analytics/chart-math";
+import { RankCards } from "@/components/dashboard/analytics/rank-cards";
+import { HeatmapGrid, PartsDonut, TreemapChart } from "@/components/dashboard/analytics/charts";
+import { scopeOrAlert } from "@/components/dashboard/analytics/franchise-unavailable";
 import {
   getAddonSales,
   getPaidByTier,
@@ -22,11 +22,12 @@ import {
   getTopDishes,
   dietOrder,
   tierOrder,
-} from "@/lib/services/analytics/products.service";
-import { revenueTotals } from "@/lib/services/analytics/metrics/money";
+} from "@/lib/analytics/products.service";
+import { revenueTotals } from "@/lib/analytics/metrics/money";
 import { buildSizeTreemap, type SizeMetric } from "@/lib/analytics/size-treemap";
-import { DATE_BASIS_LABEL, type AnalyticsScope } from "@/lib/services/analytics/metrics/scope";
-import { getMoneyFormatter } from "@/lib/services/app-settings.service";
+import { DATE_BASIS_LABEL } from "@/lib/analytics/metrics/scope";
+import { type AnalyticsScope } from "@/lib/analytics/scope-types";
+import { getMoneyFormatter } from "@/lib/settings";
 
 // Several cards read the same numbers; React's cache shares one query per request (the scope object is the key).
 const productStats = cache(getProductStats);

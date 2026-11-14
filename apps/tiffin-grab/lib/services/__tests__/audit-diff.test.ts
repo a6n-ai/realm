@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { diffChanges } from "../session-service";
+import { diffChanges } from "@/lib/identity/audit";
 import { redactUserChanges } from "../users.service";
 
 describe("diffChanges", () => {

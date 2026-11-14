@@ -1,15 +1,16 @@
 // The Orders page "Next order" card: which open order staff should act on next, in one ranking.
+import type { Visible } from "@/lib/tenant/org-scope";
 import { ONGOING } from "@/lib/orders/status";
 import { orderStatusIn } from "@/lib/orders/status-sql";
 import { ordersListWhere } from "@/lib/orders/queries";
 import { PENDING, type PaymentStatus } from "@/lib/payments/status";
-import { paymentStatusIn } from "@/lib/payments/status-sql";
-import { hasMissedDeliveries, missedWhere } from "@/lib/orders/missed-where";
+import { paymentStatusIn, planPaymentSql } from "@/lib/payments/status-sql";
+import { hasMissedDeliveries, missedWhere } from "@/lib/deliveries/missed-where";
 import { OVERDUE_DAYS } from "@/lib/orders/orders-stats.service";
 import { requestNow } from "@/lib/dates/request-now";
 import type { Condition } from "@foundry/commons/model/condition";
 import { DAY_MS } from "@foundry/commons/util/dates";
-import { and, eq, inArray, isNull, lt, sql, type SQL } from "drizzle-orm";
+import { and, eq, inArray, lt, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, mealSizes, orders, payments, plans, users } from "@/db/schema";
 
@@ -18,7 +19,7 @@ export type NextOrderReason = "verify" | "overdue" | "missed" | "flagged" | "pen
 const REASON_BY_RANK: Record<number, NextOrderReason> = { 0: "verify", 1: "overdue", 2: "missed", 3: "flagged", 4: "pending" };
 const NO_REASON = 5;
 
-export type OrderQueueScope = { visible: "all" | string[]; condition?: Condition };
+export type OrderQueueScope = { visible: Visible; condition?: Condition };
 
 export type NextOrderRow = {
   publicId: string;
@@ -53,7 +54,7 @@ function ranking(today: string) {
     sql`exists (select 1 from ${payments} where ${payments.orderId} = ${orders.id} and ${where})`;
   const payMin = (where: SQL) =>
     sql`(select min(${payments.createdAt}) from ${payments} where ${payments.orderId} = ${orders.id} and ${where})`;
-  const openPayment = (where: SQL): SQL => and(isNull(payments.addonRequest), where)!;
+  const openPayment = (where: SQL): SQL => and(planPaymentSql, where)!;
   const verify = openPayment(eq(payments.status, "pending_verification"));
   const overdue = openPayment(and(eq(payments.status, "awaiting_payment"), lt(payments.createdAt, overdueBefore))!);
   const pending = openPayment(paymentStatusIn(PENDING));
@@ -110,7 +111,7 @@ async function hydrate(picked: Picked[]): Promise<NextOrderRow[]> {
   const open = await db
     .select({ orderId: payments.orderId, publicId: payments.publicId, amount: payments.amount, status: payments.status })
     .from(payments)
-    .where(and(inArray(payments.orderId, picked.map((p) => p.id)), isNull(payments.addonRequest), paymentStatusIn(PENDING)))
+    .where(and(inArray(payments.orderId, picked.map((p) => p.id)), planPaymentSql, paymentStatusIn(PENDING)))
     .orderBy(payments.createdAt, payments.id);
   return picked.map((p) => {
     const reason = REASON_BY_RANK[p.rank];
@@ -151,7 +152,6 @@ export async function nextOrder(
   return wrapped ?? null;
 }
 
-/** One order from the queue by its publicId, or null when it has no reason (or is out of scope). */
 export async function queueOrder(scope: OrderQueueScope, today: string, publicId: string): Promise<NextOrderRow | null> {
   if (isEmptyScope(scope)) return null;
   const [row] = await pick(scope, today, eq(orders.publicId, publicId), "asc", 1);
@@ -170,7 +170,6 @@ export async function upNextOrders(scope: OrderQueueScope, today: string, afterP
   return [...after, ...before];
 }
 
-/** How many orders in the scope have any reason to act. */
 export async function orderQueueCount(scope: OrderQueueScope, today: string): Promise<number> {
   if (isEmptyScope(scope)) return 0;
   const { rank } = ranking(today);

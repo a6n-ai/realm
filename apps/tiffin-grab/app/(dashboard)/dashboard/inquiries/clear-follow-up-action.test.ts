@@ -13,7 +13,7 @@ vi.mock("@/lib/auth/guards", () => ({
     if (!guard.staff) throw new Error("forbidden");
   },
 }));
-vi.mock("@/lib/services/inquiries.service", () => ({ inquiriesService: { clearFollowUp }, assertInquiriesVisible }));
+vi.mock("@/lib/inquiries/inquiries.service", () => ({ inquiriesService: { clearFollowUp }, assertInquiriesVisible }));
 vi.mock("@/lib/auth/session", () => ({ getSession: async () => null }));
 vi.mock("@/lib/auth/visible-orgs", () => ({ resolveSessionVisibleOrgIds: async () => ["org_a"] }));
 

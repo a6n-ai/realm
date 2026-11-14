@@ -5,7 +5,8 @@ vi.mock("@/lib/payments/stripe", () => ({
   stripeRuntime: vi.fn(),
 }));
 vi.mock("@foundry/payments/stripe", async (orig) => ({ ...(await orig<object>()), calculateTax: (...a: unknown[]) => calc(...a) }));
-vi.mock("@/lib/services/app-settings.service", () => ({ getProvinceTaxes: async () => ({}), getAppSettings: async () => ({ currency: "CAD" }) }));
+vi.mock("@/lib/tax/province-taxes", () => ({ getProvinceTaxes: async () => ({}) }));
+vi.mock("@/lib/settings", () => ({ getAppSettings: async () => ({ currency: "CAD" }) }));
 vi.mock("@/lib/cache", () => ({ sharedCache: () => ({ get: async () => undefined, set: async () => {} }) }));
 
 const { stripeRuntime } = await import("@/lib/payments/stripe");

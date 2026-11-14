@@ -10,8 +10,8 @@ import {
 } from "@/db/schema";
 import { attachDishToPlans, categoryIdFor, testPlanId, deleteNonSystemUsers } from "@/db/test-helpers";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
-import { thisWeekStartIso } from "@/lib/menu/delivery-dates";
-import type { GridCell } from "../meals-grid";
+import { thisWeekStartIso } from "@/lib/deliveries/schedule/delivery-dates";
+import type { GridCell } from "../grid-types";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 const { resolveDeliveryMeal } = await import("../resolve-delivery-meal");
@@ -30,8 +30,7 @@ async function reset() {
 }
 
 // A scheduled delivery row for THIS_MONDAY, far from its cutoff — the grid's read path only
-// shows dates with a visible ('scheduled') row, so every grid test needs one materialized here
-// (order alone no longer implies a schedule).
+// shows dates with a visible ('scheduled') row, so every grid test needs one materialized here.
 async function seedMondayDelivery(orderId: bigint, overrides: Partial<typeof deliveries.$inferInsert> = {}) {
   const [row] = await db.insert(deliveries).values({
     orderId, deliveryDate: THIS_MONDAY, status: "scheduled", cutoffAt: Date.now() + 1e9, ...overrides,

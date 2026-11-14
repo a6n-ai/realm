@@ -11,9 +11,12 @@ vi.mock("@/lib/payments/stripe", async (orig) => ({
   }),
 }));
 vi.mock("@foundry/payments/stripe", async (orig) => ({ ...(await orig<object>()), fetchIntentStatus: (...a: unknown[]) => status(...a) }));
-vi.mock("@/lib/services/app-settings.service", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/lib/services/app-settings.service")>()),
+vi.mock("@/lib/wallet/wallet-settings", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/wallet/wallet-settings")>()),
   getCoinEarnPct: async () => 10,
+}));
+vi.mock("@/lib/referrals/referral-settings", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/referrals/referral-settings")>()),
   getReferralSettings: async () => ({ mode: "flat", referrerValue: 20, friendValue: 10, maxPerReferrer: null }),
 }));
 
@@ -24,8 +27,8 @@ const { createOrder } = await import("../../orders/create-order");
 const { ordersService } = await import("../../orders/orders.service");
 const { verifyPayment } = await import("@/lib/payments/verification");
 const { walletService } = await import("../../wallet/wallet.service");
-const { attachReferral, getOrCreateReferralCode } = await import("../../services/referrals.service");
-const { setPaymentConfig } = await import("../../services/app-settings.service");
+const { attachReferral, getOrCreateReferralCode } = await import("../../referrals/referrals.service");
+const { setPaymentConfig } = await import("@/lib/payments/payment-config");
 const { sharedCache } = await import("@/lib/cache");
 const { baseInput, reset, cleanup } = await import("./stripe-fixture");
 

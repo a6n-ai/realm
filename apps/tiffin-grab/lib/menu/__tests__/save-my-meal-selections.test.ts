@@ -12,7 +12,7 @@ const { deliveries, dishes, ledgerEntries, mealSelections, menuItems, menuWeeks,
 const { attachDishToPlans, categoryIdFor, testPlanId, deleteNonSystemUsers } = await import("@/db/test-helpers");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { createOrder } = await import("@/lib/orders/create-order");
-const { saveMyMealSelections } = await import("@/app/(customer)/me/meals/actions");
+const { saveMyMealSelections } = await import("@/lib/menu/meal-actions");
 
 const PHONE_A = "+16475550611";
 const PHONE_B = "+16475550612";

@@ -5,15 +5,16 @@
 // stop never sent to OptimoRoute, or one sent with no completion back. An OptimoRoute `failed`
 // already turns the row into a hold with its tiffin in the pool, so it is not listed here.
 // A row a free tiffin was given for is settled and drops off.
+import { type Visible, noVisibleOrgs } from "@/lib/tenant/org-scope";
 import { appTodayIso } from "@/lib/dates/today";
 import { and, asc, desc, eq, isNull, lt, ne, or, sql } from "drizzle-orm";
 import { ValidationError } from "@foundry/commons";
 import { db } from "@/db/client";
 import { deliveries, orderActivities, orders, plans } from "@/db/schema";
-import { getAppSettings } from "@/lib/services/app-settings.service";
-import { pullCompletions } from "@/lib/services/optimoroute/completions";
+import { getAppSettings } from "@/lib/settings";
+import { pullCompletions } from "@/lib/optimoroute/completions";
 import { rescheduleDelivery } from "@/lib/deliveries/deliveries.service";
-import { missedWhere } from "@/lib/orders/missed-where";
+import { missedWhere } from "@/lib/deliveries/missed-where";
 
 export type MissedKind = "not_sent" | "no_confirmation";
 
@@ -29,22 +30,22 @@ export type MissedDeliveryRow = {
   planName: string;
 };
 
-async function appToday(): Promise<string> {
+async function todayIso(): Promise<string> {
   return appTodayIso((await getAppSettings()).timezone);
 }
 
-export async function countMissedDeliveries(visible: "all" | string[]): Promise<number> {
-  if (visible !== "all" && visible.length === 0) return 0;
+export async function countMissedDeliveries(visible: Visible): Promise<number> {
+  if (noVisibleOrgs(visible)) return 0;
   const [{ count }] = await db
     .select({ count: sql<number>`cast(count(*) as int)` })
     .from(deliveries)
     .innerJoin(orders, eq(orders.id, deliveries.orderId))
-    .where(missedWhere(await appToday(), visible));
+    .where(missedWhere(await todayIso(), visible));
   return count;
 }
 
-export async function listMissedDeliveries(visible: "all" | string[]): Promise<MissedDeliveryRow[]> {
-  if (visible !== "all" && visible.length === 0) return [];
+export async function listMissedDeliveries(visible: Visible): Promise<MissedDeliveryRow[]> {
+  if (noVisibleOrgs(visible)) return [];
   const rows = await db
     .select({
       deliveryPublicId: deliveries.publicId,
@@ -60,7 +61,7 @@ export async function listMissedDeliveries(visible: "all" | string[]): Promise<M
     .from(deliveries)
     .innerJoin(orders, eq(orders.id, deliveries.orderId))
     .innerJoin(plans, eq(plans.id, orders.planId))
-    .where(missedWhere(await appToday(), visible))
+    .where(missedWhere(await todayIso(), visible))
     .orderBy(desc(deliveries.deliveryDate), asc(orders.deploymentId));
   return rows.map(({ routeSyncedAt, ...r }) => ({ ...r, kind: routeSyncedAt == null ? "not_sent" : "no_confirmation" }));
 }
@@ -73,7 +74,7 @@ export type MissedReconcileResult = { days: number; delivered: number; notDelive
  * pool. Matching is by our order number, then phone, so stops typed into OptimoRoute by hand
  * are found too. Days are pulled one at a time; each pull reads the whole day's routes.
  */
-export async function reconcileMissedDeliveries(visible: "all" | string[], actorId: bigint | null): Promise<MissedReconcileResult> {
+export async function reconcileMissedDeliveries(visible: Visible, actorId: bigint | null): Promise<MissedReconcileResult> {
   const missed = await listMissedDeliveries(visible);
   const ids = new Set(missed.map((r) => r.deliveryPublicId));
   const dates = [...new Set(missed.map((r) => r.deliveryDate))].sort();
@@ -97,7 +98,7 @@ export async function reconcileMissedDeliveries(visible: "all" | string[], actor
  * If the move is refused (no such plan day, cutoff passed…) the day goes back to missed as it was.
  */
 export async function moveMissedDelivery(deliveryPublicId: string, date: string, actorId: bigint | null): Promise<{ carriedOn: string }> {
-  const today = await appToday();
+  const today = await todayIso();
   const held = await db.transaction(async (tx) => {
     const [row] = await tx.update(deliveries).set({ status: "skipped" })
       .where(and(

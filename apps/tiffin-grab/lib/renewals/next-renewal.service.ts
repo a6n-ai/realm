@@ -1,16 +1,18 @@
 // The Inquiries Renewals view's recommendations: which open plans staff should act on next, in one ranking.
+import type { Visible } from "@/lib/tenant/org-scope";
 import { eq, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db/client";
 import { mealSizes, orders, plans, users } from "@/db/schema";
 import { lastTiffinSql } from "@/lib/orders/queries";
 import { OPEN_TRACKS, type RenewalsFilter } from "@/lib/renewals/filters";
 import { followUpWhere, computedStatusSql, trackInquiry } from "./renewal-tracking.service";
-import { hydrateRenewalRows, renewalSelect, renewalsWhere, type DayBounds, type RenewalRange, type RenewalRow } from "./renewals.service";
+import { hydrateRenewalRows, renewalSelect, renewalsWhere, type DayBounds, type RenewalRow } from "./renewals.service";
+import type { RenewalRange } from "./filters";
 
 export type RenewalReason = "overdue" | "due" | "renew";
 export type NextRenewalRow = RenewalRow & { reason: RenewalReason };
 /** `owner`: the plan's current owner publicId, UNASSIGNED_OWNER, or null for every owner. */
-export type RenewalQueueScope = { visible: "all" | string[]; owner: string | null };
+export type RenewalQueueScope = { visible: Visible; owner: string | null };
 
 const NO_REASON = 4;
 const REASON_BY_RANK: Record<number, RenewalReason> = { 0: "overdue", 1: "due", 2: "renew", 3: "renew" };

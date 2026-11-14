@@ -1,12 +1,12 @@
+import { requireCustomerSession } from "@/lib/account/customer";
 import { Suspense } from "react";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { AuthError, ForbiddenError, NotFoundError } from "@foundry/commons";
-import { getSession } from "@/lib/auth/session";
 import { SupportHoursNote, loadSupportHoursView } from "@/components/customer/support/support-hours";
-import { getAppSettings } from "@/lib/services/app-settings.service";
-import { ticketsService } from "@/lib/services/tickets.service";
-import { withAttachmentViews } from "@/lib/services/ticket-attachments";
-import { PageHeader } from "@/components/customer/kit";
+import { getAppSettings } from "@/lib/settings";
+import { ticketsService } from "@/lib/support/tickets.service";
+import { withAttachmentViews } from "@/lib/support/ticket-attachments";
+import { PageHeader } from "@/components/kit";
 import { BackLink } from "@/components/customer/support/parts";
 import { TicketThread, TicketThreadSkeleton } from "@/components/customer/support/ticket-thread";
 
@@ -29,8 +29,7 @@ export default function TicketThreadPage({ params }: { params: Promise<{ id: str
 }
 
 async function TicketHeader({ params }: { params: Promise<{ id: string }> }) {
-  const session = await getSession();
-  if (!session?.user) redirect("/login");
+  await requireCustomerSession();
   const { id } = await params;
 
   let ticket;
@@ -47,8 +46,7 @@ async function TicketHeader({ params }: { params: Promise<{ id: string }> }) {
 }
 
 async function TicketThreadData({ params }: { params: Promise<{ id: string }> }) {
-  const session = await getSession();
-  if (!session?.user) redirect("/login");
+  await requireCustomerSession();
   const { id } = await params;
 
   let ticket;

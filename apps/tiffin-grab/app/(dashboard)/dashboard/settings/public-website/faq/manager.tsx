@@ -19,7 +19,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@foundry/ui/dialog";
-import type { Faq } from "@/lib/services/faqs.service";
+import type { Faq } from "@/lib/landing/faqs.service";
 import { retireFaqAction, saveFaqAction } from "./actions";
 
 /** Blank row that puts the dialog into create mode. */

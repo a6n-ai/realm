@@ -1,9 +1,9 @@
-import { and, eq, exists, isNull, not, or, sql } from "drizzle-orm";
+import { and, eq, exists, not, or, sql } from "drizzle-orm";
 import { wordpressImportSql } from "./wordpress-import-sql";
 import { db } from "@/db/client";
 import { orders, payments } from "@/db/schema";
-import { inStatuses, PAID, PENDING } from "@/lib/payments/status";
-import { paymentStatusIn } from "@/lib/payments/status-sql";
+import { PAID, PENDING } from "@/lib/payments/status";
+import { paymentStatusIn, planPaymentSql } from "@/lib/payments/status-sql";
 
 /**
  * Labels, kitchen packing, and OptimoRoute: only active orders whose money is
@@ -31,20 +31,8 @@ export function fulfillmentReadyOrder() {
           .select({ _: sql`1` })
           .from(payments)
           // A pending add-on link holds nothing: its add-ons are not on the plan until it is paid.
-          .where(and(eq(payments.orderId, orders.id), paymentStatusIn(PENDING), isNull(payments.addonRequest))),
+          .where(and(eq(payments.orderId, orders.id), paymentStatusIn(PENDING), planPaymentSql)),
       ),
     ),
   );
-}
-
-/** Same predicate as a boolean over already-loaded payment statuses (tests / badges). */
-export function isFulfillmentReady(
-  orderStatus: string,
-  paymentStatuses: readonly (string | null | undefined)[],
-  prepaidOnWordPress = false,
-): boolean {
-  if (orderStatus !== "active") return false;
-  const statuses = paymentStatuses.filter((s): s is string => s != null);
-  if (statuses.some((s) => inStatuses(PENDING, s))) return false;
-  return prepaidOnWordPress || statuses.some((s) => inStatuses(PAID, s));
 }

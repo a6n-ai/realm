@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { TuCategory } from "../format-tu";
-import type { GridCell } from "../meals-grid";
-import { ADDON_SORT_BASE, addonRowKeys, countAddons, mealBasePortions, splitGroups } from "../pick-addons";
+import type { GridCell } from "../grid-types";
+import { ADDON_SORT_BASE } from "../grid-types";
+import { addonRowKeys, countAddons, mealBasePortions, splitGroups } from "../pick-addons";
 
 const D = "2026-10-08";
 const roti: TuCategory = { tuUnitType: "count", tuUnitSize: 1, tuUnitLabel: "roti", selectable: false };

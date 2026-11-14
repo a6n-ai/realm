@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { BottomBar, buttonClass } from "@/components/customer/kit";
+import { BottomBar, buttonClass } from "@/components/kit";
 
 type Action = { label: string; href: string };
 

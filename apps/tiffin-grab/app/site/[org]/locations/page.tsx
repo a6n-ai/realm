@@ -1,3 +1,4 @@
+import { BRAND_NAME } from "@/lib/brand";
 import { BreadcrumbSchema } from "@/components/landing/breadcrumb-schema";
 import { siteOrgId } from "@/lib/tenant/site-org";
 import type { Metadata } from "next";
@@ -18,7 +19,7 @@ import "@/components/landing/styles/menu.css";
 // Stock photo of dishes on our menu (Pixabay licence), the one the menu page uses.
 import spreadPhoto from "@/public/landing/stock/dish-spread.jpg";
 
-export const metadata: Metadata = pageMeta("Tiffin Delivery Areas: Brampton to Durham | Tiffin Grab", "Tiffin delivery across the GTA: Toronto, Brampton, Mississauga, Markham, Vaughan, Scarborough, Oakville and more. Tap your area on the map for its delivery window.", "/locations");
+export const metadata: Metadata = pageMeta(`Tiffin Delivery Areas: Brampton to Durham | ${BRAND_NAME}`, "Tiffin delivery across the GTA: Toronto, Brampton, Mississauga, Markham, Vaughan, Scarborough, Oakville and more. Tap your area on the map for its delivery window.", "/locations");
 export const revalidate = 3600;
 export const dynamic = "error";
 

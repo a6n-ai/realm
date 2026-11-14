@@ -2,7 +2,7 @@ import { BreadcrumbSchema } from "@/components/landing/breadcrumb-schema";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { PageIntro } from "@/components/landing/public-shell";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { ContactForm } from "./contact-form";
 import { pageMeta } from "@/lib/landing/meta";
 

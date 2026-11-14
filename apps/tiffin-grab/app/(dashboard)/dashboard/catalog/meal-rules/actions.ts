@@ -5,7 +5,7 @@ import { z } from "zod";
 import { ValidationError } from "@foundry/commons";
 import type { ActionResult } from "@/lib/actions/action-result";
 import { parseInput, staffAction } from "@/lib/actions/staff-action";
-import { mealRulesService } from "@/lib/services/meal-rules.service";
+import { mealRulesService } from "@/lib/menu/meal-rules.service";
 
 const PATH = "/dashboard/catalog/meal-rules";
 

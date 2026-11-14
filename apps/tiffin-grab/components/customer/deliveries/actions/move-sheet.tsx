@@ -1,7 +1,7 @@
 "use client";
 import { CalendarCheck, Package, Truck, Utensils, type LucideIcon } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
-import { rescheduleMyDelivery } from "@/app/(customer)/me/deliveries/actions";
+import { rescheduleMyDelivery } from "@/lib/deliveries/customer-actions";
 import { actionAvailability, humanDate } from "@/lib/deliveries/view";
 import { weekdayShort } from "@/lib/deliveries/view/eating";
 import { moveOptions, planEndDate, tripCounts } from "@/lib/deliveries/view/move";

@@ -7,8 +7,8 @@ vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 const deleted: string[] = [];
 let failNext = false;
 
-vi.mock("@/lib/services/optimoroute/client", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/services/optimoroute/client")>();
+vi.mock("@/lib/optimoroute/client", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/optimoroute/client")>();
   return {
     ...actual,
     deleteOrder: async (orderNo: string) => {

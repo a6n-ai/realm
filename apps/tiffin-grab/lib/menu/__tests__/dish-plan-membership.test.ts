@@ -2,7 +2,7 @@ import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import { dishes, plans } from "@/db/schema";
-import { dishIdsForPlan } from "../selections.service";
+import { dishIdsForPlan } from "../dish-eligibility";
 
 // The food-safety boundary. `diet` is gone: a dish reaches a subscriber only if
 // its planId matches that subscriber's plan. If this breaks, a vegetarian gets
@@ -38,7 +38,7 @@ describe("dish → plan membership", () => {
   // The write path the admin form uses: a dish belongs to exactly one plan, and
   // re-setting replaces it rather than adding a second.
   it("setPlans moves a dish to a different single plan", async () => {
-    const { dishesService } = await import("@/lib/services/dishes.service");
+    const { dishesService } = await import("@/lib/menu/dishes.service");
     const [vegPlan] = await db.select({ id: plans.id, publicId: plans.publicId }).from(plans).where(eq(plans.key, "veg")).limit(1);
     const [nonVegPlan] = await db.select({ id: plans.id, publicId: plans.publicId }).from(plans).where(eq(plans.key, "non-veg")).limit(1);
     const [dish] = await db.insert(dishes).values({ name: NAMES[0], category: "sabzi", planId: vegPlan.id }).returning();
@@ -52,7 +52,7 @@ describe("dish → plan membership", () => {
   // resolves it to plans.id. Without this, a dish created through the admin UI
   // would land with no plan and be invisible on every menu.
   it("create/update through the catalog form persists planId", async () => {
-    const { dishesService } = await import("@/lib/services/dishes.service");
+    const { dishesService } = await import("@/lib/menu/dishes.service");
     const [vegPlan] = await db.select({ id: plans.id, publicId: plans.publicId }).from(plans).where(eq(plans.key, "veg")).limit(1);
     const [nonVegPlan] = await db.select({ id: plans.id, publicId: plans.publicId }).from(plans).where(eq(plans.key, "non-veg")).limit(1);
 

@@ -1,5 +1,5 @@
 import type { RoleValue } from "@foundry/commons";
-import { isStaffRole } from "./roles";
+import { isStaffRole } from "@/lib/roles";
 
 // Where a signed-in user of this role belongs: staff → ops dashboard, customers
 // → their account home. Used to skip the login form for an already-authed visitor

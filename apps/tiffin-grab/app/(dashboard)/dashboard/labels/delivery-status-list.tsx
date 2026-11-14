@@ -9,7 +9,7 @@ import { TableCell } from "@foundry/ui/table";
 import { DataTable, TonePill, type Column } from "@/components/ds";
 import { labelStatusTone } from "@/lib/deliveries/label-status-tone";
 import { sortRows } from "@foundry/design-system/list-sort";
-import type { DayDeliveryStatusRow } from "@/lib/services/daily-labels.service";
+import type { DayDeliveryStatusRow } from "@/lib/deliveries/day-deliveries";
 import type { LabelDeliveryStatus } from "@/lib/deliveries/label-status";
 import { isGoingOut } from "@/lib/deliveries/label-status";
 import { useTableParams } from "./use-table-params";

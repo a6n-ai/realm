@@ -20,7 +20,7 @@ export type DeliveryForCounts = {
   optimoCompletionStatus?: string | null;
 };
 
-export function deliveredTiffinCount(rows: DeliveryForCounts[], nowMs: number): number {
+export function deliveredTiffinCount(rows: DeliveryForCounts[]): number {
   let units = 0;
   for (const r of rows) {
     if (r.status !== "scheduled") continue;
@@ -38,10 +38,6 @@ export function scheduledTiffinCount(rows: (DeliveryForCounts & { mergedIntoDeli
     units += r.tiffinUnits;
   }
   return units;
-}
-
-export function remainingTiffinCount(tiffinCount: number, rows: DeliveryForCounts[], nowMs: number): number {
-  return tiffinCount - deliveredTiffinCount(rows, nowMs);
 }
 
 export type DeliveryForOpenCount = {

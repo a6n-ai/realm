@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { CardCheckoutContext } from "@/lib/payments/card-checkout-context";
 
 const panel = vi.hoisted(() => ({ amount: null as number | null }));
-vi.mock("../actions", () => ({ submitCardPayment: vi.fn(), confirmReturn: vi.fn(), abandonCard: vi.fn(), newCustomerSession: vi.fn() }));
+vi.mock("../../../../../../lib/payments/pay-actions", () => ({ submitCardPayment: vi.fn(), confirmReturn: vi.fn(), abandonCard: vi.fn(), newCustomerSession: vi.fn() }));
 vi.mock("@/components/payments/card-pay", () => ({
   CardPayProvider: (p: { amountCents: number; children: React.ReactNode }) => {
     panel.amount = p.amountCents;

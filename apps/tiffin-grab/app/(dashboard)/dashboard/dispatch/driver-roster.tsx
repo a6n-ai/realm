@@ -3,7 +3,7 @@
 import { UsersIcon } from "lucide-react";
 import { TableCell } from "@foundry/ui/table";
 import { DataTable, type Column } from "@/components/ds";
-import type { DispatchRow, KnownDriver } from "@/lib/services/optimoroute/drivers";
+import type { DispatchRow, KnownDriver } from "@/lib/optimoroute/drivers";
 
 const COLUMNS: readonly Column<"driver" | "serial" | "stops">[] = [
   { key: "driver", label: "Driver" },

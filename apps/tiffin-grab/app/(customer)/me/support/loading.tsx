@@ -1,4 +1,4 @@
-import { PageHeader, Skeleton } from "@/components/customer/kit";
+import { PageHeader, Skeleton } from "@/components/kit";
 import { HowSupportWorks } from "@/components/customer/support/how-support-works";
 import { SupportHoursSkeleton } from "@/components/customer/support/support-skeletons";
 import { TicketsListSkeleton } from "@/components/customer/support/tickets-list";

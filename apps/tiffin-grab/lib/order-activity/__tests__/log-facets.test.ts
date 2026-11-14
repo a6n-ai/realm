@@ -4,7 +4,6 @@ import {
   ACTIVITY_TYPE_LABELS,
   ACTIVITY_TYPE_VALUES,
   LOG_ACTIVITY_CATEGORY_TYPES,
-  SETTINGS_ACTIVITY_FACETS,
 } from "@/lib/order-activity/log-facets";
 
 describe("settings log facets", () => {
@@ -23,12 +22,5 @@ describe("settings log facets", () => {
     for (const t of orderActivityType.enumValues) {
       expect(ACTIVITY_TYPE_LABELS[t]).toBeTruthy();
     }
-  });
-
-  it("offers Type and Action filters", () => {
-    const kinds = SETTINGS_ACTIVITY_FACETS.map((f) => ("field" in f ? f.field : f.kind));
-    expect(kinds).toContain("category");
-    expect(kinds).toContain("type");
-    expect(kinds).toContain("actorKind");
   });
 });

@@ -21,7 +21,6 @@ export function receiptPath(orderPublicId: string): string {
   return `/api/receipts/${encodeURIComponent(orderPublicId)}`;
 }
 
-/** Absolute, signed url for the email attachment. */
 export function signedReceiptUrl(orderPublicId: string, now = Date.now()): string {
   const exp = now + TTL_MS;
   const origin = appOrigin();

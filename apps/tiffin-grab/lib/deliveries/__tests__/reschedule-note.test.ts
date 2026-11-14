@@ -2,11 +2,11 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq } from "drizzle-orm";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
-vi.mock("@/lib/services/optimoroute/client", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/services/optimoroute/client")>();
+vi.mock("@/lib/optimoroute/client", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/optimoroute/client")>();
   return { ...actual, deleteOrder: vi.fn(async () => undefined) };
 });
-vi.mock("@/lib/services/optimoroute/push", () => ({ pushOneDelivery: vi.fn(async () => undefined) }));
+vi.mock("@/lib/optimoroute/push", () => ({ pushOneDelivery: vi.fn(async () => undefined) }));
 
 const { db } = await import("@/db/client");
 const { deliveries, deliveryMoves, orderActivities } = await import("@/db/schema");

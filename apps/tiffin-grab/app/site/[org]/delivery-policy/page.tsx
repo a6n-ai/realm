@@ -1,10 +1,11 @@
+import { CONTACT_PHONE, SUPPORT_E164 } from "@/lib/brand";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { Callout, Clause, LegalPage, List, Mail, Sub, type KeyPoint } from "@/components/marketing/legal";
-import { pageMeta } from "@/lib/landing/meta";
+import { legalMeta } from "@/lib/landing/meta";
 
-export const metadata: Metadata = pageMeta("Delivery policy | Tiffin Grab", "TiffinGrab's service areas, delivery schedule and windows, failed deliveries, packaging, and food handling.", "/delivery-policy");
+export const metadata: Metadata = legalMeta("Delivery policy", "TiffinGrab's service areas, delivery schedule and windows, failed deliveries, packaging, and food handling.", "/delivery-policy");
 export const revalidate = 3600;
 export const dynamic = "error";
 
@@ -29,14 +30,12 @@ const KEY_POINTS: KeyPoint[] = [
   { text: "Refrigerate meals within 2 hours and eat them within 24 hours.", section: 7 },
 ];
 
-// The area list comes from the live delivery zones (same source as /locations),
-// so the policy never drifts from where we actually deliver.
-
 export default async function DeliveryPolicyPage() {
+  // Live delivery zones (same source as /locations), so the policy never drifts from where we deliver.
   const { zones } = await loadCatalogSnapshot();
   const areas = zones.filter((z) => z.active).map((z) => z.name).sort((a, b) => a.localeCompare(b));
   return (
-    <LegalPage title="Delivery policy" intro="Where and when we deliver, what to expect from delivery windows, what happens if a delivery is missed, and how to handle your meals once they arrive." updated="November 9, 2026" current="/delivery-policy" sections={SECTIONS} keyPoints={KEY_POINTS}>
+    <LegalPage title="Delivery policy" intro="Where and when we deliver, what to expect from delivery windows, what happens if a delivery is missed, and how to handle your meals once they arrive." current="/delivery-policy" sections={SECTIONS} keyPoints={KEY_POINTS}>
       <Callout>
         <strong>Please note:</strong> TiffinGrab delivers freshly prepared meals. Delivery windows are estimated, not
         guaranteed fixed times. Customer cooperation on access and availability helps us complete deliveries successfully.
@@ -117,7 +116,7 @@ export default async function DeliveryPolicyPage() {
       <Clause n={6} title={SECTIONS[5]}>
         <p className="m-0">
           Report damaged packaging within <strong>two hours of delivery</strong> via WhatsApp{" "}
-          <a href="https://wa.me/16472449813" className="underline underline-offset-4">+1 (647) 244-9813</a> or <Mail /> with a
+          <a href={`https://wa.me/${SUPPORT_E164}`} className="underline underline-offset-4">{CONTACT_PHONE}</a> or <Mail /> with a
           photo. Verified cases receive a <strong>one-day service credit</strong>. Same-day re-delivery depends on route
           capacity and is not guaranteed.
         </p>

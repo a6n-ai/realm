@@ -1,19 +1,20 @@
+import type { Visible } from "@/lib/tenant/org-scope";
 import Link from "next/link";
 import { ActivityIcon, PackageIcon, RefreshCwIcon, UtensilsCrossedIcon, type LucideIcon } from "lucide-react";
 import { Card, CardContent } from "@foundry/ui/card";
-import { Sparkline } from "@/components/analytics/sparkline";
+import { Sparkline } from "@/components/dashboard/analytics/sparkline";
 import { Badge } from "@/components/reui/badge";
-import { zonedRangeMs } from "@/lib/analytics/drill";
+import { zonedRangeMs } from "@/lib/dates/epoch-window";
 import { ordersListHref } from "@/lib/list/orders-drill";
 import { delta, type Delta } from "@/lib/overview/delta";
-import { getOverviewSeries } from "@/lib/services/overview.service";
+import { getOverviewSeries } from "@/lib/overview/overview.service";
 
 type Metric = { label: string; icon: LucideIcon; value: string; delta: Delta; vs: string; spark: number[] | null; href?: string };
 
 const sum = (xs: number[]) => xs.reduce((s, x) => s + x, 0);
 
 /** The four headline tiles, each its own card. No revenue on the Overview; it lives in Analytics. */
-export async function GlanceCard({ visible, today, now, timeZone }: { visible: "all" | string[]; today: string; now: number; timeZone: string }) {
+export async function GlanceCard({ visible, today, now, timeZone }: { visible: Visible; today: string; now: number; timeZone: string }) {
   const s = await getOverviewSeries(visible, today, now);
   const d = s.days;
   const last7 = (f: (x: (typeof d)[number]) => number) => [sum(d.slice(7).map(f)), sum(d.slice(0, 7).map(f))] as const;

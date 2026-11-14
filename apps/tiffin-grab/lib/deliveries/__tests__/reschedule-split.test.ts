@@ -9,7 +9,7 @@ import { ValidationError } from "@foundry/commons";
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
 const { db } = await import("@/db/client");
-const { deliveries, deliveryCategorySwaps, deliveryExtraTiffins, deliveryMoves, orders } = await import("@/db/schema");
+const { deliveries, deliveryCategorySwaps, deliveryExtraTiffins, deliveryMoves } = await import("@/db/schema");
 const { rescheduleDelivery } = await import("../deliveries.service");
 const { allowWeekendMeals, makeTripOrder, resetTrips } = await import("../../services/__tests__/trip-fixture");
 

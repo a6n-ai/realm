@@ -30,7 +30,6 @@ export type MetaClientEventInput = {
   postalCode?: string | null;
 };
 
-/** CAPI companion for Pixel events that originate in the browser. */
 export async function sendMetaClientEvent(input: MetaClientEventInput): Promise<{ ok: true }> {
   if (!ALLOWED.has(input.eventName)) return { ok: true };
   if (!(await requestHasAnalyticsConsent())) return { ok: true };

@@ -1,6 +1,6 @@
 import { isCutoffPassed } from "@/lib/dates/cutoff";
 import type { MealSlot } from "./meal-types";
-import { WEEK_DAYS } from "./delivery-days";
+import { WEEK_DAYS } from "../deliveries/schedule/delivery-days";
 import type { PosterItem } from "./poster";
 import { addDaysIso } from "@foundry/commons/util/dates";
 import { deliveryTripState } from "@/lib/deliveries/status";

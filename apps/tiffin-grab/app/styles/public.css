@@ -16,12 +16,11 @@
 @source "../../components/brand-logo.tsx";
 @source "../../components/browser-chrome.tsx";
 @source "../../components/cross-host-splash.tsx";
-@source "../../components/inline-script.tsx";
 @source "../../components/stale-deploy-reloader.tsx";
 @source "../../../../node_modules/@foundry/ui/src/{avatar,badge,button,form,label,input,textarea,select,phone-input,command,popover,scroll-area,dialog,sonner,tooltip}.tsx";
 @source "../../../../node_modules/@foundry/design-system/src/{location-picker,responsive-dialog}.tsx";
-@source "../../components/customer/kit/button-class.ts";
-@source "../../components/customer/kit/icon-tile.tsx";
-@source "../../components/customer/kit/cn.ts";
-@source "../../components/customer/meals/category-look.ts";
+@source "../../components/kit/button-class.ts";
+@source "../../components/kit/icon-tile.tsx";
+@source "../../components/kit/cn.ts";
+@source "../../components/kit/category-look.ts";
 @source "../../components/wizard/meal-size-price.tsx";

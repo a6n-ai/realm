@@ -1,9 +1,7 @@
 import { BOOKED, ONGOING, RUNNING, STARTING_SOON } from "./status";
 import { inList, type Condition } from "@foundry/commons/model/condition";
 
-// Single source of truth for the Status facet — also the pill/badge label map.
-// "all" is a client-only pseudo-bucket, never a valid `orders.status` value, so
-// it's excluded here and the server facet options map straight off this array.
+// "all" is a client-only pseudo-bucket, never an `orders.status` value, so it is excluded here.
 //
 // Deliberately NOT in orders-list.tsx: that module is "use client", so every one
 // of its exports reaches the RSC graph as a client reference. The server page
@@ -11,17 +9,11 @@ import { inList, type Condition } from "@foundry/commons/model/condition";
 
 // Pseudo-buckets expand to real status sets. They exist because the `pills` facet
 // kind parses to eq() — a comma list in the URL would match nothing.
-export const ONGOING_STATUSES = ONGOING;
-/** Active + paused — matches the Orders "Running plans" KPI. */
-export const RUNNING_STATUSES = RUNNING;
-export const SOON_STATUSES = STARTING_SOON;
-export const BOOKED_STATUSES = BOOKED;
-
 const PSEUDO: Record<string, readonly string[]> = {
-  ongoing: ONGOING_STATUSES,
-  running: RUNNING_STATUSES,
-  soon: SOON_STATUSES,
-  booked: BOOKED_STATUSES,
+  ongoing: ONGOING,
+  running: RUNNING,
+  soon: STARTING_SOON,
+  booked: BOOKED,
 };
 
 /**

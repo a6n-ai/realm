@@ -1,5 +1,7 @@
-import { CONTACT_EMAIL, CONTACT_PHONE, type SiteFacts } from "@/lib/landing/site-facts";
+import { BRAND_NAME, CONTACT_EMAIL, CONTACT_PHONE } from "@/lib/brand";
+import type { SiteFacts } from "@/lib/landing/site-facts";
 import { formatMoney } from "@foundry/commons";
+import { pageOf } from "@/lib/routing/public-pages";
 
 const and = (xs: string[]) => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs.at(-1)}`);
 
@@ -19,9 +21,13 @@ export function dropOffNote(f: SiteFacts) {
 export function llmsTxt(f: SiteFacts, origin: string, opts: { reviews: boolean }): string {
   const m = (n: number) => formatMoney(n, f.currency);
   const u = (p: string) => `${origin}${p}`;
+  const pageLine = (path: string) => {
+    const { label, llms } = pageOf(path);
+    return `- [${llms?.title ?? label}](${u(path)})${llms?.desc ? `: ${llms.desc}` : ""}`;
+  };
   const range = f.plans.flatMap((p) => p.sizes.filter((s) => !s.trial).map((s) => s.rate));
   const lines = [
-    "# Tiffin Grab",
+    `# ${BRAND_NAME}`,
     "",
     `> Home-style Indian tiffin meals delivered across the Greater Toronto Area, Ontario, Canada. Choose a diet (${and(f.plans.map((p) => p.name)) || "veg or non-veg"}), a meal size, the delivery days and how many weeks, then order online.`,
     "",
@@ -42,24 +48,17 @@ export function llmsTxt(f: SiteFacts, origin: string, opts: { reviews: boolean }
   lines.push(
     "## Pages",
     "",
-    `- [Pricing](${u("/pricing")}): plans, every meal size, what is in it and the rate per tiffin`,
+    pageLine("/pricing"),
     `- [Pricing as Markdown](${u("/pricing.md")}): the same price list as plain text`,
-    `- [Menu](${u("/menu")}): this week's dishes day by day and every meal size`,
-    `- [Delivery areas](${u("/locations")}): areas served, delivery windows and a postal code check`,
-    `- [FAQ](${u("/faq")}): delivery, pausing, plans, food, payments and refunds`,
-    `- [About](${u("/about")}): how a tiffin is cooked, packed and delivered, with live kitchen counts`,
+    ...["/menu", "/locations", "/faq", "/about"].map(pageLine),
   );
-  if (opts.reviews) lines.push(`- [Reviews](${u("/reviews")}): Google reviews from customers`);
+  if (opts.reviews) lines.push(pageLine("/reviews"));
   lines.push(
-    `- [Refer a friend](${u("/refer")}): the referral offer`,
-    `- [Contact](${u("/contact")}): ask about a plan, an area or an order`,
+    ...["/refer", "/contact"].map(pageLine),
     "",
     "## Policies",
     "",
-    `- [Terms](${u("/terms")})`,
-    `- [Privacy policy](${u("/privacy")})`,
-    `- [Refund policy](${u("/refund-policy")})`,
-    `- [Delivery policy](${u("/delivery-policy")})`,
+    ...["/terms", "/privacy", "/refund-policy", "/delivery-policy"].map(pageLine),
     "",
     "Ordering, account and checkout pages need sign-in and are not meant for crawling.",
     "",
@@ -71,7 +70,7 @@ export function llmsTxt(f: SiteFacts, origin: string, opts: { reviews: boolean }
 export function pricingMd(f: SiteFacts, origin: string): string {
   const m = (n: number) => formatMoney(n, f.currency);
   const cell = (s: string) => s.replace(/\|/g, "/");
-  const lines = ["# Tiffin Grab pricing", "", `Prices are per tiffin, in ${f.currency}. A plan costs the per-tiffin rate times the number of tiffins in it. Live prices: ${origin}/pricing`, ""];
+  const lines = [`# ${BRAND_NAME} pricing`, "", `Prices are per tiffin, in ${f.currency}. A plan costs the per-tiffin rate times the number of tiffins in it. Live prices: ${origin}/pricing`, ""];
   for (const p of f.plans) {
     lines.push(`## ${p.name}`, "");
     if (p.description) lines.push(p.description, "");

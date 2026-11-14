@@ -16,14 +16,14 @@ import {
   removeStops,
   pushOneDelivery,
   removeOneDelivery,
+  assignDriver,
   getDeliveryActivities,
   type PushResult,
   type RemoveResult,
   type DeliveryActivity,
-} from "@/lib/services/optimoroute/push";
-import { pullRoutes, type PullResult } from "@/lib/services/optimoroute/pull";
-import { pullCompletions, type PullCompletionsResult } from "@/lib/services/optimoroute/completions";
-import { assignDriver } from "@/lib/services/optimoroute/drivers";
+} from "@/lib/optimoroute/push";
+import { pullRoutes, type PullResult } from "@/lib/optimoroute/pull";
+import { pullCompletions, type PullCompletionsResult } from "@/lib/optimoroute/completions";
 
 const log = createLogger("dispatch.actions");
 

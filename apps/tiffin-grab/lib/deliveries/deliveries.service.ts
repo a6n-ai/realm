@@ -1,26 +1,26 @@
-import { CLEAR_ADDRESS_OVERRIDE, HAS_HOLIDAY_EXTRA, POINTED_AT } from "@/lib/deliveries/row-state";
+import { formatAddressLine } from "@/lib/catalog/address-line";
+import { HAS_HOLIDAY_EXTRA, POINTED_AT } from "@/lib/deliveries/row-state";
 import { appTodayIso } from "@/lib/dates/today";
 import { isCutoffPassed } from "@/lib/dates/cutoff";
 import { ValidationError, cutoffMsFor, parseIsoDateUtc, weekdayKey, zonedDateIso } from "@foundry/commons";
-import { createLogger } from "@foundry/commons/logger";
 import { and, asc, eq, gte, inArray, isNotNull, isNull, ne, not, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db, type Tx } from "@/db/client";
-import { deliveries, deliveryCategorySwaps, deliveryExtraTiffins, deliveryFrequencies, deliveryMoves, deliveryZones, orderActivities, orders, payments, users } from "@/db/schema";
+import { deliveries, deliveryCategorySwaps, deliveryExtraTiffins, deliveryFrequencies, deliveryMoves, deliveryZones, orderActivities, orders, users } from "@/db/schema";
 import { mealSizeAllowedDays, mealSizeServesWeekends } from "./weekend-dish";
-import { getAppSettings } from "../services/app-settings.service";
-import { allowedDaysError, orderDeliveryDays, planDaysError, planDeliveryDays, planWeek, type DayOfWeek, type TrialDays } from "@/lib/menu/delivery-days";
-import { subscriptionDeliveryDates } from "@/lib/menu/delivery-dates";
+import { getAppSettings } from "@/lib/settings";
+import { allowedDaysError, orderDeliveryDays, planDaysError, planDeliveryDays, planWeek, type DayOfWeek, type TrialDays } from "@/lib/deliveries/schedule/delivery-days";
+import { subscriptionDeliveryDates } from "@/lib/deliveries/schedule/delivery-dates";
 import { trialDeliveryDates } from "@/lib/trial/schedule";
-import { MAX_TIFFINS_PER_TRIP, countsToCoverage, coveredDates, dateCounts, mergeBlockReason, shiftTiffin, swapAppliesTo, tiffinTotal, tripCoverage } from "@/lib/menu/coverage";
+import { MAX_TIFFINS_PER_TRIP, countsToCoverage, coveredDates, dateCounts, mergeBlockReason, shiftTiffin, swapAppliesTo, tiffinTotal, tripCoverage } from "@/lib/deliveries/schedule/coverage";
 import { loadExtraDates } from "@/lib/deliveries/delivery-extras";
-import { carryTripDateIso } from "@/lib/menu/carry-trip";
+import { carryTripDateIso } from "@/lib/deliveries/schedule/carry-trip";
 import { findZone } from "@/lib/catalog/zone-match";
 import type { AddressInput, AddressScope } from "@foundry/address";
 import { addressService } from "@/lib/services/addresses.service";
-import { resolveDropOff, setAddressDropOff } from "../services/address-drop-off.service";
+import { resolveDropOff, setAddressDropOff } from "./address-drop-off.service";
 import type { DropOffValue } from "@/lib/catalog/drop-off";
-import { refreshStopBestEffort, removeStopsBestEffort, restoreStopsBestEffort, type OptimoSyncedRow } from "@/lib/services/optimoroute/stops";
+import { refreshStopBestEffort, removeStopsBestEffort, restoreStopsBestEffort, type OptimoSyncedRow } from "@/lib/optimoroute/stops";
 import { enqueueNotification } from "@/lib/notifications/enqueue";
 import { orderTemplateVars } from "@/lib/notifications/events";
 import { enqueueOrderNotice } from "@/lib/notifications/order-notice";
@@ -28,6 +28,7 @@ import { LABEL_STATUS } from "@/lib/deliveries/label-status";
 import { nextOpenPlanDay } from "@/lib/deliveries/next-open-day";
 import { assertDayOutsideOtherPlans, otherPlanDays } from "../orders/order-window";
 import { holidayForOrderDate } from "./holiday-dates";
+import { assertPlanEditable } from "./plan-editable";
 import { orderPaymentStatuses } from "@/lib/payments/order-payments";
 import { complimentaryBlocker } from "@/lib/orders/display-status";
 import { clearLookOutOnEnd } from "@/lib/orders/look-out";
@@ -36,7 +37,6 @@ import { isCustomerPaused, isLapsedPause, lapsePausedRows, lapsedPauseDates, rel
 import { addDaysIso, isWeekendDay, utcIso } from "@foundry/commons/util/dates";
 import { lockOrder } from "../orders/order-lock";
 
-const log = createLogger("deliveries.service");
 
 async function assertOrderNotTrial(tx: Tx, orderId: bigint): Promise<void> {
   const [row] = await tx.select({ trialLength: orders.trialLength }).from(orders).where(eq(orders.id, orderId)).limit(1);
@@ -180,11 +180,7 @@ export async function materializeDeliveries(tx: Tx, order: Order): Promise<numbe
   return rows.length;
 }
 
-/**
- * Every delivery row for an order (all statuses, originals and make-ups alike), for the admin
- * panel. Not customer-facing: it does not hide paused/skipped/
- * cancelled rows. Read-only: never reconciles.
- */
+/** Admin panel view: every row, all statuses, originals and make-ups. Does not hide paused/skipped/cancelled rows. */
 export async function listDeliveries(orderId: bigint): Promise<Delivery[]> {
   return db.select().from(deliveries).where(eq(deliveries.orderId, orderId)).orderBy(asc(deliveries.deliveryDate));
 }
@@ -204,8 +200,6 @@ function assertOriginal(row: Delivery): void {
   }
 }
 
-// Exported so category-swaps.service.ts can reuse this pre-lock/load shape rather
-// than duplicating it.
 export async function loadByPublicId(tx: Tx, publicId: string): Promise<Delivery> {
   const [row] = await tx.select().from(deliveries).where(eq(deliveries.publicId, publicId)).limit(1);
   if (!row) throw new ValidationError("Delivery not found");
@@ -220,10 +214,7 @@ export async function loadOrderIdByPublicId(tx: Tx, publicId: string): Promise<b
   return row.orderId;
 }
 
-/**
- * Marks a scheduled delivery as not delivered (a failed or never-confirmed drop). Customers can't
- * hold days any more; each tiffin on the row stays movable once with rescheduleDelivery.
- */
+/** Marks a scheduled delivery as not delivered (a failed or never-confirmed drop). */
 export async function skipDelivery(
   deliveryPublicId: string,
   actorId: bigint | null,
@@ -235,7 +226,6 @@ export async function skipDelivery(
   await db.transaction(async (tx) => {
     orderId = await loadOrderIdByPublicId(tx, deliveryPublicId);
     await lockOrder(tx, orderId);
-    // Re-read post-lock: a concurrent request may have mutated this row while we waited.
     const row = await loadByPublicId(tx, deliveryPublicId);
     assertOriginal(row);
     // The cutoff lock protects a customer from self-service-cancelling too late. It does
@@ -302,10 +292,7 @@ export async function adminSetDeliveryStatus(
       .where(or(eq(deliveries.makeupForDeliveryId, row.id), eq(deliveries.holidayExtraForDeliveryId, row.id))).limit(1);
     if (moved) throw new ValidationError("This delivery's tiffins were moved. Change the day they moved to.");
 
-    const [order] = await tx.select({ status: orders.status }).from(orders).where(eq(orders.id, orderId)).limit(1);
-    if (!order || order.status === "cancelled" || order.status === "completed") {
-      throw new ValidationError("This subscription can no longer be changed");
-    }
+    await assertPlanEditable(tx, orderId, "This subscription can no longer be changed");
 
     // Nothing goes back onto a day the kitchen is closed.
     if (status === "upcoming" && row.status !== "scheduled") {
@@ -506,7 +493,6 @@ async function replaceExtras(tx: Tx, deliveryId: bigint, eatDates: string[]): Pr
   if (eatDates.length) await tx.insert(deliveryExtraTiffins).values(eatDates.map((eatDate) => ({ deliveryId, eatDate })));
 }
 
-/** Drops the swaps that apply to `eatDate`: that day no longer rides this delivery. */
 async function dropDeliverySwapsForDate(tx: Tx, deliveryId: bigint, tripDate: string, eatDate: string): Promise<void> {
   const rows = await tx.select({ id: deliveryCategorySwaps.id, forDate: deliveryCategorySwaps.forDate }).from(deliveryCategorySwaps).where(eq(deliveryCategorySwaps.deliveryId, deliveryId));
   const gone = rows.filter((r) => swapAppliesTo(r.forDate, tripDate, eatDate)).map((r) => r.id);
@@ -521,8 +507,7 @@ const ROUTE_RESET = {
 
 /**
  * A row whose tiffins all left (merged into another trip, or replaced by a make-up) still owns
- * its date under deliveries_order_date_unique but carries nothing, which used to block every
- * later move onto that day. A move landing there revives it as a fresh, empty scheduled trip.
+ * its date under deliveries_order_date_unique. A move landing there revives it as a fresh, empty trip.
  */
 async function reviveIfEmptied(tx: Tx, row: Delivery, cutoffAt: number): Promise<Delivery> {
   if (row.status === "scheduled") return row;
@@ -852,10 +837,7 @@ export async function rescheduleDelivery(
       throw new ValidationError(`This tiffin is on hold. Release it to a new day after midnight, once ${humanDate(row.deliveryDate)}'s deliveries are reconciled.`);
     }
 
-    const [order] = await tx.select().from(orders).where(eq(orders.id, orderId)).limit(1);
-    if (!order || order.status === "cancelled" || order.status === "completed") {
-      throw new ValidationError("This subscription can no longer be rescheduled");
-    }
+    const order = await assertPlanEditable(tx, orderId, "This subscription can no longer be rescheduled");
 
     const [freq] = await tx.select({ key: deliveryFrequencies.key, weekdays: deliveryFrequencies.weekdays }).from(deliveryFrequencies)
       .where(eq(deliveryFrequencies.id, order.frequencyId)).limit(1);
@@ -999,10 +981,7 @@ export async function redeliverTrip(
     const row = await loadByPublicId(tx, deliveryPublicId);
     if (row.status !== "scheduled") throw new ValidationError(`Cannot re-deliver a ${row.status} delivery`);
 
-    const [order] = await tx.select().from(orders).where(eq(orders.id, orderId)).limit(1);
-    if (!order || order.status === "cancelled" || order.status === "completed") {
-      throw new ValidationError("This subscription can no longer be re-delivered");
-    }
+    const order = await assertPlanEditable(tx, orderId, "This subscription can no longer be re-delivered");
     const { timezone, cutoffHour } = await getAppSettings();
     const today = appTodayIso(timezone);
 
@@ -1166,7 +1145,6 @@ export async function setDeliveryAddress(
   const deliveryId = await db.transaction(async (tx) => {
     const orderId = await loadOrderIdByPublicId(tx, deliveryPublicId);
     await lockOrder(tx, orderId);
-    // Re-read post-lock: a concurrent request may have mutated this row while we waited.
     const row = await loadByPublicId(tx, deliveryPublicId);
     // NOTE: no assertOriginal — re-addressing a make-up is the one mutation make-ups permit.
     assertMutable(row);
@@ -1210,7 +1188,7 @@ export async function setDeliveryAddress(
       .returning({ id: deliveries.id });
     if (updated.length === 0) throw new ValidationError(`Cannot re-address a ${row.status} delivery`);
     const to = address
-      ? [address.addressUnit ? `${address.addressUnit} – ${address.addressLine}` : address.addressLine, address.city, address.postalCode].filter(Boolean).join(", ")
+      ? formatAddressLine(address)
       : null;
     await tx.insert(orderActivities).values({
       orderId, deliveryId: row.id, type: "delivery_address_changed", createdBy: actorId,
@@ -1219,24 +1197,5 @@ export async function setDeliveryAddress(
     return row.id;
   });
   await refreshStopBestEffort(deliveryId);
-}
-
-export async function clearDeliveryAddress(deliveryPublicId: string, actorId: bigint | null): Promise<void> {
-  await db.transaction(async (tx) => {
-    const orderId = await loadOrderIdByPublicId(tx, deliveryPublicId);
-    await lockOrder(tx, orderId);
-    const row = await loadByPublicId(tx, deliveryPublicId);
-    assertMutable(row);
-    if (row.status !== "scheduled") throw new ValidationError(`Cannot re-address a ${row.status} delivery`);
-    const updated = await tx.update(deliveries)
-      .set(CLEAR_ADDRESS_OVERRIDE)
-      .where(and(eq(deliveries.id, row.id), eq(deliveries.status, "scheduled")))
-      .returning({ id: deliveries.id });
-    if (updated.length === 0) throw new ValidationError(`Cannot re-address a ${row.status} delivery`);
-    await tx.insert(orderActivities).values({
-      orderId, deliveryId: row.id, type: "delivery_address_changed", createdBy: actorId,
-      note: `${row.deliveryDate} delivery back on the plan address`,
-    });
-  });
 }
 

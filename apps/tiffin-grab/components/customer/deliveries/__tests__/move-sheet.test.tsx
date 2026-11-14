@@ -7,7 +7,7 @@ import type { PlanView } from "@/lib/deliveries/view/adapter";
 import { MoveSheet } from "../actions/move-sheet";
 
 const a = vi.hoisted(() => ({ move: vi.fn() }));
-vi.mock("@/app/(customer)/me/deliveries/actions", () => ({ rescheduleMyDelivery: a.move }));
+vi.mock("@/lib/deliveries/customer-actions", () => ({ rescheduleMyDelivery: a.move }));
 
 const NOW = Date.parse("2026-09-21T12:00:00Z");
 beforeEach(() => {

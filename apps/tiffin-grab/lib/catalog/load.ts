@@ -1,4 +1,4 @@
-import type { DayOfWeek } from "@/lib/menu/delivery-days";
+import type { DayOfWeek } from "@/lib/deliveries/schedule/delivery-days";
 import { and, eq, isNull, gte, or, type SQL } from "drizzle-orm";
 import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
@@ -23,9 +23,9 @@ import {
   mealSizes,
   plans,
 } from "@/db/schema";
-import { dishCategoriesService } from "@/lib/services/dish-categories.service";
+import { dishCategoriesService } from "@/lib/menu/dish-categories.service";
 import { formatTuHuman } from "@/lib/menu/format-tu";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { WAIVER_KINDS, type CatalogSnapshot, type WaiverKind } from "./types";
 import { revalidatePublicSite } from "@/lib/landing/revalidate-site";
 

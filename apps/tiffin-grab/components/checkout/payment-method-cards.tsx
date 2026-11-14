@@ -2,8 +2,8 @@
 
 import { useId, type ReactNode, type SVGProps } from "react";
 import { Banknote, Check, Wallet, type LucideIcon } from "lucide-react";
-import { IconTile, type IconTint } from "@/components/customer/kit";
-import { cn, FONT } from "@/components/customer/kit/cn";
+import { IconTile, type IconTint } from "@/components/kit";
+import { cn, FONT } from "@/components/kit/cn";
 
 export type PayMethodOption = { id: string; label: string };
 

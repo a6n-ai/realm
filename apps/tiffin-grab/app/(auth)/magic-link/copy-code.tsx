@@ -6,7 +6,7 @@ import { OTP_TTL_MINUTES } from "@foundry/commons";
 import { AUTH_LINK, AuthPanel, AuthScreen } from "@foundry/auth-ui";
 import { Button } from "@foundry/ui/button";
 import { AuthLogo } from "@/components/auth/auth-kit";
-import { IOS_BUTTON } from "@/components/customer/ios-button";
+import { IOS_BUTTON } from "@/components/kit/ios-button";
 import { useCopy } from "@/lib/hooks/use-copy";
 
 /**

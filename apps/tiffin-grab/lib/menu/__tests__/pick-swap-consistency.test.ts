@@ -1,5 +1,5 @@
 /**
- * Phase 6.1 / 7 — Pick ↔ Swap quantity consistency for multi-row categories.
+ * Pick ↔ Swap quantity consistency for multi-row categories.
  * Give-side TU uses actual composition rows (front-N); never fromPicks × first pickTu.
  */
 import { describe, expect, it } from "vitest";
@@ -8,7 +8,7 @@ import { portionsByCategory } from "../pick-size";
 import { groupPickCells } from "../pick-groups";
 import type { SwapCategory } from "../swap-rules";
 import type { TuCategory } from "../format-tu";
-import type { GridCell } from "../meals-grid";
+import type { GridCell } from "../grid-types";
 
 const sabziCat: SwapCategory = {
   key: "sabzi",

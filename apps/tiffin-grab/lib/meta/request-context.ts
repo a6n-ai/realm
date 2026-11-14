@@ -37,7 +37,6 @@ export async function captureMetaAttribution(opts?: {
   return out;
 }
 
-/** Live request context for immediate CAPI events (ViewContent, Contact, FindLocation, …). */
 export async function liveMetaRequestContext(opts?: {
   eventSourceUrl?: string | null;
 }): Promise<Pick<MetaAttribution, "clientIpAddress" | "clientUserAgent" | "fbp" | "fbc" | "eventSourceUrl">> {

@@ -1,11 +1,11 @@
-import { isStaffRole } from "@/lib/auth/roles";
+import { isStaffRole } from "@/lib/roles";
 import { and, desc, eq, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { listFilterUsage, member } from "@/db/schema";
 import type { FacetDef } from "@foundry/design-system";
 import { getSession } from "@/lib/auth/session";
 import { canonicalParams, presetFromCanonical, type FilterPreset } from "@/lib/list/presets";
-import { userIdByPublicId } from "./session-service";
+import { userIdByPublicId } from "@/lib/identity/user-ids";
 
 const MAX_CHIPS = 5;
 // Fetch extra rows: some may no longer map onto the list (removed option) and get dropped.
@@ -29,7 +29,7 @@ async function actor(): Promise<Actor | null> {
   return { publicId: s.user.id, userId, organizationId };
 }
 
-/** Counts one use of the facet filters in `query` on `path`. No-op without filters. */
+/** No-op without filters. */
 export async function recordFilterUse(path: string, query: string, fields: readonly string[]): Promise<void> {
   if (!PATH.test(path) || path.length > 120 || fields.length > 30 || !fields.every((f) => FIELD.test(f))) return;
   const a = await actor();

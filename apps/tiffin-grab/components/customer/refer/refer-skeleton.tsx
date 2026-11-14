@@ -1,5 +1,5 @@
-import { Card, Skeleton } from "@/components/customer/kit";
-import { H2Skeleton, ListGroupSkeleton, StatGroupSkeleton, StepListSkeleton } from "@/components/customer/skeleton-parts";
+import { Card, Skeleton } from "@/components/kit";
+import { H2Skeleton, ListGroupSkeleton, StatGroupSkeleton, StepListSkeleton } from "@/components/kit/skeleton-parts";
 
 /** Mirrors ReferView: offer StatGroup, code pass card, how-it-works StepList, coins StatGroup, friends ListGroup. */
 export function ReferSkeleton() {

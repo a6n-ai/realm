@@ -1,3 +1,5 @@
+import { formatMoney } from "@foundry/commons";
+import { BRAND_NAME } from "@/lib/brand";
 import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
@@ -14,20 +16,20 @@ import { foldPicks, popularSince } from "@/lib/menu/customer-week";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { lowestRate } from "@/lib/landing/live-figures";
 import { buildWeekBoard, dateOf } from "@/lib/landing/week-board";
-import { getAppSettings } from "@/lib/services/app-settings.service";
-import { menuService } from "@/lib/services/menu.service";
+import { getAppSettings } from "@/lib/settings";
+import { menuService } from "@/lib/menu/menu.service";
 import { siteOrgId } from "@/lib/tenant/site-org";
 import { pageMeta } from "@/lib/landing/meta";
 import { breadcrumbJsonLd, jsonLdScript, menuJsonLd } from "@/lib/landing/business-jsonld";
 import { publicOrigin } from "@/lib/routing/apex";
 
-export const metadata: Metadata = pageMeta("This Week's Tiffin Menu: Dal, Sabzi, Roti | Tiffin Grab", "See this week's home-style tiffin menu day by day: sabzi, dal, rice, roti, raita and salad, plus the weekend dish. Subscribers pick their sabzi in the app.", "/menu");
+export const metadata: Metadata = pageMeta(`This Week's Tiffin Menu: Dal, Sabzi, Roti | ${BRAND_NAME}`, "See this week's home-style tiffin menu day by day: sabzi, dal, rice, roti, raita and salad, plus the weekend dish. Subscribers pick their sabzi in the app.", "/menu");
 export const revalidate = 300;
 export const dynamic = "error";
 
 export default async function MenuPage({ params }: { params: Promise<{ org: string }> }) {
   const organizationId = await siteOrgId((await params).org);
-  const [pub, { timezone }, catalog] = await Promise.all([menuService.getPublishedWeek(undefined, organizationId), getAppSettings(), loadCatalogSnapshot(organizationId)]);
+  const [pub, { timezone, currency }, catalog] = await Promise.all([menuService.getPublishedWeek(undefined, organizationId), getAppSettings(), loadCatalogSnapshot(organizationId)]);
   const fromRate = lowestRate(catalog);
   const { days, rows, weekend } = pub ? buildWeekBoard(pub, timezone, await menuService.dishPickCounts(popularSince(pub.weekStart)).then(foldPicks)) : { days: [], rows: [], weekend: null };
 
@@ -65,7 +67,7 @@ export default async function MenuPage({ params }: { params: Promise<{ org: stri
             <figure className="mn-card">
               <Image src={thaliPhoto} alt="The 5 Item Thali: rice, rotis, two curries and dal in steel bowls on a wooden board" placeholder="blur" sizes="(max-width: 1023px) 100vw, 480px" />
               <div className="mn-card__band">
-                {fromRate != null ? <p className="lp-from lp-from--lg"><span>From</span><strong>${fromRate.toFixed(2)}</strong><span>a tiffin</span></p> : <p className="lp-from lp-from--lg"><strong>Your tiffin, your way.</strong></p>}
+                {fromRate != null ? <p className="lp-from lp-from--lg"><span>From</span><strong>{formatMoney(fromRate, currency)}</strong><span>a tiffin</span></p> : <p className="lp-from lp-from--lg"><strong>Your tiffin, your way.</strong></p>}
                 <BuildTiffinLink className="lp-cta">Build my tiffin</BuildTiffinLink>
               </div>
             </figure>

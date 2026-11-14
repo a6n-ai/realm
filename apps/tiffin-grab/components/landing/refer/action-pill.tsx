@@ -9,7 +9,7 @@ import { WhatsAppDockLink } from "@/components/landing/whats-app-glyph";
 import { Avatar, AvatarFallback, AvatarImage } from "@foundry/ui/avatar";
 import { usePublicSession } from "@/lib/auth/public-session";
 import { roleLanding } from "@/lib/auth/landing";
-import { isStaffRole } from "@/lib/auth/roles";
+import { isStaffRole } from "@/lib/roles";
 import { Role, type RoleValue } from "@foundry/commons";
 import { pillVisible } from "./pill-visible";
 

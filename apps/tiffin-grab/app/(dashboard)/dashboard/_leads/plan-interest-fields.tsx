@@ -1,6 +1,6 @@
 "use client";
 
-import { WEEK_DAYS } from "@/lib/menu/delivery-days";
+import { WEEK_DAYS } from "@/lib/deliveries/schedule/delivery-days";
 import { cn } from "@foundry/ui/cn";
 import { pillClass } from "./pill";
 import { FormItem, FormLabel, FormMessage } from "@foundry/ui/form";

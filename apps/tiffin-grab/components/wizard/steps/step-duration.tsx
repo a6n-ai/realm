@@ -3,13 +3,12 @@ import { nextWeekday, parseIsoDateUtc, weekdayKey } from "@foundry/commons";
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
 import type { PricingResult } from "@/lib/pricing";
 import type { WizardSelections } from "@/lib/wizard/selections";
-import { Choice, ChoiceGroup, Pill } from "@/components/customer/kit";
 import { CurrentPlanHint, type CurrentPlanSummary } from "../current-plan-hint";
 import { durationSavings } from "@/lib/pricing/recommend";
 import { formatDateOnly } from "@/lib/format/datetime";
-import { DateField } from "@/components/customer/date-field";
+import { DateField } from "@/components/kit/date-field";
 import { earliestTrialIso } from "@/lib/trial/schedule";
-import { appToday, firstStartOnOrAfter, planStartDays } from "@/lib/orders/start-date";
+import { appToday, planStartDays, startWindow } from "@/lib/dates/start-date";
 import { TrialDayPicker } from "../trial-day-picker";
 import { plannedSchedule, ScheduleCard } from "../schedule-card";
 import { WeeksSlider } from "../weeks-slider";
@@ -19,7 +18,6 @@ export function StepDuration({
   catalog,
   selections,
   set,
-  result,
   sameWeekConflict = false,
   currentPlan = null,
   minStartDate = null,
@@ -50,12 +48,10 @@ export function StepDuration({
   const today = appToday(catalog.timezone, catalog.cutoffHour);
   const tomorrow = trial ? earliestTrialIso(today, trial.weekdays) : utcIso(nextWeekday(today));
   const closed = useMemo(() => new Set(holidayDates), [holidayDates]);
-  const minDate = minStartDate && minStartDate > tomorrow ? minStartDate : tomorrow;
+  const { minDate, earliest } = startWindow(tomorrow, minStartDate, allowed, closed);
   const overlapBound = minStartDate != null && minDate === minStartDate;
   // The day the customer reads as "my plan ends": the real last tiffin when known.
   const runsThrough = lastTiffin ?? (minStartDate ? addDaysIso(minStartDate, -1) : null);
-  // First day on/after minDate that the plan actually delivers on.
-  const earliest = firstStartOnOrAfter(minDate, allowed, closed);
   const schedule = plannedSchedule(
     trial
       ? { kind: "trial", startDate: selections.startDate, picks: multiDay ? picks : selections.startDate ? [weekdayKey(parseIsoDateUtc(selections.startDate))] : [] }

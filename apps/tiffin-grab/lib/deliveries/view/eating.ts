@@ -98,14 +98,6 @@ export function movedOutNote(r: EatingRow, history = false): string | null {
 
 export type MoveFact = { kind: "in" | "out"; text: string };
 
-/** Short list-row tags: "Wed's in", "own → Oct 13". Empty when nothing moved on this day. */
-export function moveTags(r: EatingRow): MoveFact[] {
-  const tags: MoveFact[] = [];
-  if (r.movedFrom?.length) tags.push({ kind: "in", text: `${r.movedFrom.map((d) => (d ? `${weekdayShort(d)}'s` : "held day")).join(" + ")} in` });
-  if (r.movedOut) tags.push({ kind: "out", text: `to ${humanDate(r.movedOut).slice(5)}` });
-  return tags;
-}
-
 /** Everything that moved in and out of this day, in that order. Same wording for staff and customer. */
 export function moveFacts(r: EatingRow, history = false): MoveFact[] {
   const inNote = movedInNote(r, history);

@@ -29,7 +29,7 @@ import { BreadcrumbLabel } from "@/components/dashboard/app-breadcrumbs";
 import { InquiryTimeline, type TimelineActivity } from "./inquiry-timeline";
 import { ConvertSheet } from "./convert-sheet";
 import { NextStepCard } from "./next-step-card";
-import { ReassignControl } from "@/components/reassign/reassign-control";
+import { ReassignControl } from "@/components/dashboard/reassign/reassign-control";
 import type { OrderFormInput } from "../../_order/order-schema";
 
 type Catalog = {

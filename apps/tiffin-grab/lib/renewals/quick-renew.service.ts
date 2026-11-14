@@ -1,29 +1,27 @@
 import "server-only";
-import { and, eq, gt, inArray, isNull, ne, sql, type SQL } from "drizzle-orm";
+import { and, desc, eq, gt, inArray, isNull, ne, sql, type SQL } from "drizzle-orm";
 import { enabledMethods } from "@foundry/payments";
 import { db } from "@/db/client";
 import { deliveries, deliveryFrequencies, mealSizes, orders, payments, plans } from "@/db/schema";
-import { loadCatalogSnapshot } from "@/lib/catalog/load";
-import { toClientCatalog } from "@/lib/catalog/types";
-import type { DayOfWeek } from "@/lib/menu/delivery-days";
+import { RUNNING_OR_DONE, UNSTARTED, inOrderStatuses } from "@/lib/orders/status";
+import { loadBuilderInputs } from "@/lib/wizard/builder-inputs";
+import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
+import { initialSelections, type WizardSelections } from "@/lib/wizard/selections";
+import type { DayOfWeek } from "@/lib/deliveries/schedule/delivery-days";
 import { renewSelections } from "@/lib/renewals/renew-selections";
 import type { QuickRenewData } from "@/lib/renewals/quick-renew-types";
 import { stripeMethodAvailable } from "@/lib/payments/stripe";
-import { getPaymentConfig } from "../services/app-settings.service";
+import { getPaymentConfig } from "@/lib/payments/payment-config";
 import { addressService } from "../services/addresses.service";
-import { dropOffsFor } from "../services/address-drop-off.service";
-import { checkoutHolidayDates } from "../deliveries/holidays.service";
+import { dropOffsFor } from "../deliveries/address-drop-off.service";
 import { earliestNewPlanStart, lastRunningTiffinDate } from "../orders/order-window";
-import { appToday, earliestPlanStart, planStartDays } from "../orders/start-date";
-import { utcIso } from "@foundry/commons/util/dates";
+import { earliestPlanStart, planStartDays } from "../dates/start-date";
 
 export type { QuickRenewData };
 
-const RENEWABLE = new Set(["active", "paused", "upcoming", "completed"]);
-
 /** The renewable order that ends last: running plans lose to a queued one that ends later. */
 export function pickRenewSource<T extends { status: string; trialLength: number | null; endDate: string | null }>(rows: T[]): T | null {
-  const eligible = rows.filter((r) => RENEWABLE.has(r.status) && r.trialLength == null);
+  const eligible = rows.filter((r) => inOrderStatuses(RUNNING_OR_DONE, r.status) && r.trialLength == null);
   eligible.sort((a, b) => (b.endDate ?? "").localeCompare(a.endDate ?? ""));
   return eligible[0] ?? null;
 }
@@ -69,18 +67,13 @@ export async function defaultPaymentMethodId(sourceMethodId: string | null): Pro
 
 async function build(userId: bigint, orgId: string | null, src: Source | null): Promise<QuickRenewData | null> {
   if (!src) return null;
-  const [catalog, minStartDate, lastTiffin, savedAddresses] = await Promise.all([
-    loadCatalogSnapshot(orgId),
+  const [{ client, today, holidayDates }, minStartDate, lastTiffin, savedAddresses] = await Promise.all([
+    loadBuilderInputs(orgId),
     earliestNewPlanStart(db, userId),
     lastRunningTiffinDate(db, userId),
     addressService.list({ userId, orgId }),
   ]);
-  const client = toClientCatalog(catalog);
-  const today = appToday(client.timezone, client.cutoffHour);
-  const [holidayDates, addressDropOffs] = await Promise.all([
-    checkoutHolidayDates(utcIso(today)),
-    dropOffsFor(savedAddresses.map((a) => a.publicId)),
-  ]);
+  const addressDropOffs = await dropOffsFor(savedAddresses.map((a) => a.publicId));
   const plan = client.plans.find((p) => p.key === src.planKey);
   if (!plan) return null;
   const freq = client.frequencies.find((f) => f.key === src.frequencyKey);
@@ -108,6 +101,31 @@ async function build(userId: bigint, orgId: string | null, src: Source | null): 
   };
 }
 
+/**
+ * The customer's most recent order as wizard picks for "order again": the same rule as quick renew
+ * (frequency, days and weekends kept; a trial or a plan the catalog no longer sells gives an empty wizard).
+ * Start date stays empty.
+ */
+export async function loadPriorSelections(userId: bigint, client: ClientCatalogSnapshot): Promise<WizardSelections> {
+  const [last] = await db
+    .select({
+      planKey: plans.key,
+      mealSizePublicId: mealSizes.publicId,
+      frequencyKey: deliveryFrequencies.key,
+      eatingDays: orders.eatingDays,
+      durationWeeks: orders.durationWeeks,
+      trialLength: orders.trialLength,
+    })
+    .from(orders)
+    .innerJoin(plans, eq(orders.planId, plans.id))
+    .leftJoin(mealSizes, eq(orders.mealSizeId, mealSizes.id))
+    .innerJoin(deliveryFrequencies, eq(orders.frequencyId, deliveryFrequencies.id))
+    .where(eq(orders.userId, userId))
+    .orderBy(desc(orders.createdAt))
+    .limit(1);
+  return (last && renewSelections(client, { ...last, eatingDays: last.eatingDays as DayOfWeek[] | null }, "")) || initialSelections;
+}
+
 /** Customer path: source = latest-ending renewable, non-trial order. */
 export async function loadQuickRenewForCustomer(userId: bigint, orgId: string | null): Promise<QuickRenewData | null> {
   return build(userId, orgId, pickRenewSource(await sourceQuery().where(eq(orders.userId, userId))));
@@ -123,7 +141,7 @@ async function queryUnpaidRenewal(userId: bigint, extra: (SQL | undefined)[]): P
       payPublicId: sql<string | null>`(select ${payments.publicId} from ${payments} where ${payments.orderId} = ${orders.id} and ${payments.method} = 'stripe' and ${payments.status} = 'awaiting_payment' and ${payments.addonRequest} is null order by ${payments.id} desc limit 1)`,
     })
     .from(orders)
-    .where(and(eq(orders.userId, userId), inArray(orders.status, ["pending", "waitlisted"]), ...extra))
+    .where(and(eq(orders.userId, userId), inArray(orders.status, [...UNSTARTED]), ...extra))
     .limit(1);
   return row ?? null;
 }

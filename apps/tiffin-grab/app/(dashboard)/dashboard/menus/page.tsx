@@ -1,9 +1,8 @@
 import { Suspense } from "react";
-import { zonedDateIso } from "@foundry/commons";
 import { CalendarIcon } from "lucide-react";
 import { requireAdmin } from "@/lib/auth/guards";
-import { menuService } from "@/lib/services/menu.service";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { menuService } from "@/lib/menu/menu.service";
+import { getAppSettings } from "@/lib/settings";
 import { PageHeader, PageShell, SectionCard } from "@/components/ds";
 import { MenuWeekRow, MenuWeekRowsSkeleton } from "./menu-history-card";
 import { NewWeekButton } from "./new-week-card";

@@ -1,15 +1,15 @@
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { toClientCatalog, type ClientCatalogSnapshot } from "@/lib/catalog/types";
 import { checkoutHolidayDates } from "@/lib/deliveries/holidays.service";
-import { popularMealSizesByPlan } from "@/lib/services/popular-meal-sizes.service";
-import { appToday, earliestPlanStart, planStartDays } from "@/lib/orders/start-date";
-import { getTrialSettings } from "@/lib/services/trial-settings.service";
+import { popularMealSizesByPlan } from "@/lib/catalog/popular-meal-sizes.service";
+import { appToday, earliestPlanStart, planStartDays } from "@/lib/dates/start-date";
+import { getTrialSettings } from "@/lib/trial/trial-settings.service";
 import type { WizardSelections } from "@/lib/wizard/selections";
 
-// What the plan builder needs that is the same for every visitor, signed in or not: /subscribe (signed out)
-// and /me/renew (signed in, plus the customer's own extras) both build the wizard from this.
+// What every plan-builder surface needs that is the same for any visitor: /subscribe, /me/renew and
+// quick renew (lib/renewals/quick-renew.service.ts) all build their catalog, today, holidays, popular sizes and trial from this.
 export async function loadBuilderInputs(orgId: string | null) {
-  const [catalog, trialSettings, popular] = await Promise.all([loadCatalogSnapshot(), getTrialSettings(orgId), popularMealSizesByPlan(orgId)]);
+  const [catalog, trialSettings, popular] = await Promise.all([loadCatalogSnapshot(orgId), getTrialSettings(orgId), popularMealSizesByPlan(orgId)]);
   const client = toClientCatalog(catalog);
   const today = appToday(client.timezone, client.cutoffHour);
   const holidayDates = await checkoutHolidayDates(today.toISOString().slice(0, 10));

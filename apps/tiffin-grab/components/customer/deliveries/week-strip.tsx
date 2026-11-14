@@ -1,17 +1,15 @@
 "use client";
-import { WEEK_DAYS } from "@/lib/menu/delivery-days";
+import { WEEK_DAYS } from "@/lib/deliveries/schedule/delivery-days";
 import { useState } from "react";
 import { ChevronLeft, ChevronRight, Truck } from "lucide-react";
 import { STATUS_COLOR, STATUS_LABEL } from "@/lib/deliveries/status";
-import { cn, FOCUS } from "@/components/customer/kit/cn";
+import { cn, FOCUS } from "@/components/kit/cn";
 import { weekDays, weekTimeline, type Agenda } from "@/lib/deliveries/view/week";
 import { ARROW, Legend } from "./week-timeline";
-import { useSwipePages } from "@/components/customer/kit/use-swipe-pages";
+import { useSwipePages } from "@/components/kit/use-swipe-pages";
 import { addDaysIso, isoToUtcDate, mondayOfIso } from "@foundry/commons/util/dates";
+import { DATE_LONG, MONTH_DAY_SHORT, WEEKDAY_SHORT } from "@/components/kit/date-formats";
 
-const MON = new Intl.DateTimeFormat("en-CA", { month: "short", day: "numeric", timeZone: "UTC" });
-const WD = new Intl.DateTimeFormat("en-US", { weekday: "short", timeZone: "UTC" });
-const LONG = new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: "UTC" });
 const at = (iso: string) => isoToUtcDate(iso);
 
 interface Props {
@@ -27,7 +25,7 @@ interface Props {
 }
 
 /** Compact 7-day date picker for the customer page: a dot under each day you eat, coloured by status, and a truck (with the tiffin count when more than one) on each delivery day. */
-export function WeekStrip({ firstWeek, lastWeek, week: propWeek, today, selectedDay, agenda, now, onPickDay, onWeek }: Props) {
+export function WeekStrip({ firstWeek, lastWeek, week: propWeek, today, selectedDay, agenda, onPickDay, onWeek }: Props) {
   // The agenda already covers the whole plan, so the strip draws the next week the moment you swipe and
   // lets the URL (and the day details below) catch up behind it, instead of sitting empty until the server
   // answers. A new week from the parent (a link, Back) takes over again.
@@ -53,7 +51,7 @@ export function WeekStrip({ firstWeek, lastWeek, week: propWeek, today, selected
     <section aria-label="Delivery week" data-testid="week-timeline" className="c-surface overflow-x-clip rounded-[20px] bg-[var(--card,#fff)] px-3 pb-2 pt-3 sm:px-4">
       <div className="flex items-center justify-between gap-3">
         <p className="text-xs font-semibold uppercase tracking-[0.15em] text-[var(--muted-foreground)]">
-          {MON.format(at(week))} – {MON.format(at(addDaysIso(week, 6)))}{week === thisWeek ? " · This week" : ""}
+          {MONTH_DAY_SHORT.format(at(week))} – {MONTH_DAY_SHORT.format(at(addDaysIso(week, 6)))}{week === thisWeek ? " · This week" : ""}
         </p>
         <span className="flex items-center">
           <Legend />
@@ -77,7 +75,7 @@ export function WeekStrip({ firstWeek, lastWeek, week: propWeek, today, selected
               key={iso}
               type="button"
               aria-pressed={selected}
-              aria-label={`${LONG.format(at(iso))}${s ? `, eating, ${STATUS_LABEL[s]}${holiday ? `: ${holiday}` : ""}` : ", nothing planned"}${units ? `, delivery arrives with ${units} ${units === 1 ? "tiffin" : "tiffins"}` : ""}`}
+              aria-label={`${DATE_LONG.format(at(iso))}${s ? `, eating, ${STATUS_LABEL[s]}${holiday ? `: ${holiday}` : ""}` : ", nothing planned"}${units ? `, delivery arrives with ${units} ${units === 1 ? "tiffin" : "tiffins"}` : ""}`}
               onClick={() => onPickDay(iso)}
               className={cn(
                 FOCUS,
@@ -85,7 +83,7 @@ export function WeekStrip({ firstWeek, lastWeek, week: propWeek, today, selected
                 selected ? "bg-[var(--primary-wash,#FBE3D2)] text-foreground" : cn("hover:bg-muted", iso < today && "opacity-45"),
               )}
             >
-              <span className="text-caption-2 font-semibold uppercase tracking-wide text-[var(--muted-foreground)]">{WD.format(at(iso)).slice(0, 3)}</span>
+              <span className="text-caption-2 font-semibold uppercase tracking-wide text-[var(--muted-foreground)]">{WEEKDAY_SHORT.format(at(iso)).slice(0, 3)}</span>
               <span className={cn("grid size-8 place-items-center rounded-full text-subhead font-semibold tabular-nums", iso === today && "ring-[1.5px] ring-primary")}>{at(iso).getUTCDate()}</span>
               <span aria-hidden className="size-1.5 rounded-full" style={{ background: s ? STATUS_COLOR[s] : "transparent" }} />
               {/* Fixed height so weeks with and without a truck line up. */}

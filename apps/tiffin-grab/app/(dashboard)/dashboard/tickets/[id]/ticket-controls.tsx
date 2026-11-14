@@ -20,10 +20,10 @@ import type { RealtimeRole } from "@foundry/realtime";
 import { useTyping } from "@foundry/realtime/client";
 import { useMessageComposer } from "@foundry/design-system";
 import { ChatComposer } from "@/components/support/chat-composer";
-import { ReassignControl } from "@/components/reassign/reassign-control";
+import { ReassignControl } from "@/components/dashboard/reassign/reassign-control";
 import { unwrapAction } from "@/lib/actions/unwrap";
 import { assignOwner, replyTicket, setCategory, setPriority, setStatus } from "../actions";
-import type { TicketPriority, TicketStatus } from "@/lib/services/tickets.service";
+import type { TicketPriority, TicketStatus } from "@/lib/support/tickets.service";
 import { STATUS_OPTIONS } from "@/lib/support/ticket-status";
 
 const STATUSES: { value: TicketStatus; label: string }[] = STATUS_OPTIONS;

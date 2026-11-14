@@ -3,15 +3,15 @@ import { and, asc, eq, like, ne, sql } from "drizzle-orm";
 import { cutoffMsFor } from "@foundry/commons";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
-vi.mock("@/lib/services/optimoroute/client", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/services/optimoroute/client")>();
+vi.mock("@/lib/optimoroute/client", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/optimoroute/client")>();
   return { ...actual, deleteOrder: vi.fn(async () => undefined) };
 });
-vi.mock("@/lib/services/optimoroute/push", () => ({ pushOneDelivery: vi.fn(async () => undefined) }));
+vi.mock("@/lib/optimoroute/push", () => ({ pushOneDelivery: vi.fn(async () => undefined) }));
 
 const { db } = await import("@/db/client");
 const { deliveries, deliveryFrequencies, holidays, orderActivities, orders, organization, subscriptionPauses } = await import("@/db/schema");
-const { getAppSettings } = await import("../../services/app-settings.service");
+const { getAppSettings } = await import("@/lib/settings");
 const { applyHolidaysToOrder, placeHolidayExtras, undoHolidayForOrder } = await import("../holiday-apply");
 const { grantComplimentaryTiffin, redeliverTrip, rescheduleDelivery } = await import("../deliveries.service");
 const { makeTripOrder, resetTrips } = await import("../../services/__tests__/trip-fixture");

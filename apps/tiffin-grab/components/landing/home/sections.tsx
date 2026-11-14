@@ -1,5 +1,5 @@
-import { getMoneyFormatter } from "@/lib/services/app-settings.service";
-import { WEEK_DAYS } from "@/lib/menu/delivery-days";
+import { getMoneyFormatter } from "@/lib/settings";
+import { WEEK_DAYS } from "@/lib/deliveries/schedule/delivery-days";
 import Image, { type StaticImageData } from "next/image";
 import Link from "next/link";
 import { FaqAccordion } from "@/components/landing/faq-accordion";
@@ -16,16 +16,16 @@ import { PlayOnView } from "@/components/landing/home/play-on-view";
 import { SwipeRow } from "@/components/landing/home/swipe-row";
 import { MenuBoard } from "@/components/landing/home/menu-board";
 import { TodayPicks } from "@/components/landing/home/today-picks";
+import { DAY_SHORT } from "@/lib/dates/weekdays";
 
 const WEEK_LETTER: Record<(typeof WEEK_DAYS)[number], string> = { mon: "M", tue: "T", wed: "W", thu: "T", fri: "F", sat: "S", sun: "S" };
-const WEEK_SHORT: Record<(typeof WEEK_DAYS)[number], string> = { mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun" };
 
 /** "Mon to Fri" for a run of days, "Mon, Wed, Fri" otherwise. */
 function dayRange(days: string[]): string {
   const idx = WEEK_DAYS.flatMap((d, i) => (days.includes(d) ? [i] : []));
   if (idx.length === 0) return "";
   const run = idx.length > 2 && idx.every((v, i) => i === 0 || v === idx[i - 1]! + 1);
-  return run ? `${WEEK_SHORT[WEEK_DAYS[idx[0]!]!]} to ${WEEK_SHORT[WEEK_DAYS[idx[idx.length - 1]!]!]}` : idx.map((i) => WEEK_SHORT[WEEK_DAYS[i]!]).join(", ");
+  return run ? `${DAY_SHORT[WEEK_DAYS[idx[0]!]!]} to ${DAY_SHORT[WEEK_DAYS[idx[idx.length - 1]!]!]}` : idx.map((i) => DAY_SHORT[WEEK_DAYS[i]!]).join(", ");
 }
 
 /** The running promotion as a die-cut sticker on the hero: short headline in the middle,
@@ -292,7 +292,7 @@ export async function Bento({ plans, sizes, sizePlanKey, sides, frequencies, len
   );
 }
 
-export function MenuRail({ days, rows, weekend, cutoffTime, range, photo }: { days: BoardDay[]; rows: string[]; weekend: BoardWeekend | null; cutoffTime: string | null; range: string; photo: StaticImageData }) {
+export function MenuRail({ days, rows, weekend, cutoffTime, range }: { days: BoardDay[]; rows: string[]; weekend: BoardWeekend | null; cutoffTime: string | null; range: string; photo: StaticImageData }) {
   return (
     <section id="menu" className="lp-section lp-menu scroll-mt-24" aria-labelledby="lp-menu">
       <div className="lp-wrap">

@@ -1,7 +1,6 @@
 // No "use client" and no db: the server page parses with it and builds the facet spec from the options.
 import { zonedDateIso } from "@foundry/commons";
 import type { RenewalStatus } from "@/lib/orders/queries";
-import type { RenewalRange } from "@/lib/renewals/renewals.service";
 import { TRACK_STATUSES, type TrackStatus } from "@/lib/renewals/status";
 
 /** Plans (regular and trial, narrowed by `type`), or every customer who has renewed. */
@@ -45,6 +44,9 @@ export function renewalQueueFilter(queue: RenewalQueue): Pick<RenewalsFilter, "f
  * in range, or when the customer booked the next plan (renewal date).
  */
 export type DateBy = "last" | "ordered" | "running" | "renewed";
+/** The top date range, resolved by the page: ISO dates in the app timezone for date columns, epoch ms for created_at. */
+export type RenewalRange = { by: DateBy; fromIso: string | null; toIso: string | null; fromMs: number | null; toMs: number | null };
+
 export const DATE_BY: readonly { value: DateBy; label: string }[] = [
   { value: "last", label: "Last tiffin in range" },
   { value: "ordered", label: "Ordered in range" },

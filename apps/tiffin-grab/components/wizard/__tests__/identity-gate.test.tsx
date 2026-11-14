@@ -7,7 +7,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 const checkExistingAccount = vi.fn();
 const createCheckoutAccount = vi.fn();
 const rememberReferralCode = vi.fn(async (..._args: unknown[]) => ({ ok: true }) as { ok: boolean; error?: string });
-vi.mock("@/app/(public)/subscribe/actions", () => ({
+vi.mock("@/lib/wizard/actions", () => ({
   checkExistingAccount: (...args: unknown[]) => checkExistingAccount(...args),
   createCheckoutAccount: (...args: unknown[]) => createCheckoutAccount(...args),
   rememberReferralCode: (...args: unknown[]) => rememberReferralCode(...args),

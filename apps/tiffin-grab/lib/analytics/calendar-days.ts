@@ -1,6 +1,6 @@
 import { isoDateInZone } from "@foundry/commons/util/dates";
 import { requestNow } from "@/lib/dates/request-now";
-import type { AnalyticsScope } from "@/lib/services/analytics/metrics/scope";
+import type { AnalyticsScope } from "@/lib/analytics/scope-types";
 
 // Its own module: calendar-height is also imported by client charts, and the request clock is server-only.
 /** The scope's days and today, in its timezone, as CalendarHeatmap takes them. */

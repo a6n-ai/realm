@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { AppError, AuthError, ForbiddenError, ValidationError } from "@foundry/commons";
-import { MealRuleViolationError } from "@/lib/menu/meal-rule-error";
+import { MealRuleViolationError } from "@/lib/errors";
 import { runAction } from "@/lib/actions/action-result";
 
 describe("runAction", () => {

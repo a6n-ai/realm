@@ -11,8 +11,8 @@ import { campaign, campaignContent, contactList, customerGroups, messageSuppress
 import { notificationTables } from "@/lib/notifications/tables";
 import { campaignConfig } from "@/lib/notifications/campaign-config";
 import { createLogger } from "@foundry/commons/logger";
-import { syncAllGroupContactLists } from "@/lib/services/customer-groups.service";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { syncAllGroupContactLists } from "@/lib/customer-groups/customer-groups.service";
+import { getAppSettings } from "@/lib/settings";
 import { loadNotificationLogs, LOGS_SPEC } from "@/lib/notifications/logs-query";
 import { CampaignAnalytics } from "@relay/engine/ui/campaign-analytics";
 import { CampaignCompleteButton } from "@relay/engine/ui/campaign-complete-button";

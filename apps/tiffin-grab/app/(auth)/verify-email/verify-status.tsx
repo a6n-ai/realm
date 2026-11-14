@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { AuthPanel, AuthScreen } from "@foundry/auth-ui";
 import { Button } from "@foundry/ui/button";
 import { AuthLogo } from "@/components/auth/auth-kit";
-import { IOS_BUTTON } from "@/components/customer/ios-button";
+import { IOS_BUTTON } from "@/components/kit/ios-button";
 
 export function VerifyStatus() {
   const failed = Boolean(useSearchParams().get("error"));

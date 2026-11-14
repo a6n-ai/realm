@@ -1,4 +1,5 @@
 import { BaseRepository } from "@foundry/database";
+import { netSpendSql } from "@/lib/payments/net-spend-sql";
 import { eq, sql } from "drizzle-orm";
 import { db, type Tx } from "@/db/client";
 import { ledgerEntries } from "@/db/schema";
@@ -44,13 +45,11 @@ class LedgerService extends SessionBaseService<typeof ledgerEntries> {
   async totalSpent(userId: bigint): Promise<string> {
     const [row] = await db
       .select({
-        paid: sql<string>`coalesce(sum(case when ${ledgerEntries.type} = 'payment' then ${ledgerEntries.amount} else 0 end), 0)`,
-        refunded: sql<string>`coalesce(sum(case when ${ledgerEntries.type} = 'refund' then ${ledgerEntries.amount} else 0 end), 0)`,
+        spent: netSpendSql,
       })
       .from(ledgerEntries)
       .where(eq(ledgerEntries.userId, userId));
-    const net = Number(row?.paid ?? 0) - Number(row?.refunded ?? 0);
-    return net.toFixed(2);
+    return Number(row?.spent ?? 0).toFixed(2);
   }
 
   // Total savings = SUM(discount debits). Both coupon and wallet redemptions

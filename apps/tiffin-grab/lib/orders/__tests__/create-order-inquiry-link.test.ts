@@ -9,8 +9,8 @@ import { loadCatalogSnapshot } from "@/lib/catalog/load";
 vi.mock("@/lib/auth/session", () => ({ getSession: async () => null }));
 
 const failLink = { on: false };
-vi.mock("@/lib/services/inquiry-links.service", async (orig) => {
-  const actual = await orig<typeof import("@/lib/services/inquiry-links.service")>();
+vi.mock("@/lib/inquiries/inquiry-links.service", async (orig) => {
+  const actual = await orig<typeof import("@/lib/inquiries/inquiry-links.service")>();
   return {
     ...actual,
     recordPurchase: (...a: Parameters<typeof actual.recordPurchase>) => (failLink.on ? Promise.reject(new Error("link down")) : actual.recordPurchase(...a)),

@@ -10,14 +10,15 @@ import {
   type WalletDeps,
   type WalletTx as PackageWalletTx,
 } from "@foundry/wallet";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { ValidationError } from "@foundry/commons";
 import { db, type Tx } from "@/db/client";
 import { coinRate, eventPayout, ledgerEntries, orderActivities, orders, users, walletLedger } from "@/db/schema";
 import type { OrderPricingSnapshot } from "@/lib/pricing";
-import { coinsUnderCap, earnCoins } from "@/lib/wallet/earn-coins";
-import { earnsOrderCoins } from "@/lib/wallet/earns-coins";
-import { getAppSettings, getCoinEarnPct, getMaxWalletBalance } from "../services/app-settings.service";
+import { coinsUnderCap, earnCoins, earnsOrderCoins } from "@/lib/wallet/earn-coins";
+import { getAppSettings } from "@/lib/settings";
+import { getCoinEarnPct, getMaxWalletBalance } from "@/lib/wallet/wallet-settings";
+import { lockUser } from "@/lib/identity/lock-user";
 import { walletBalanceSql } from "@/lib/wallet/balance-sql";
 
 export type BusinessEvent = (typeof walletLedger.eventType.enumValues)[number];
@@ -41,10 +42,7 @@ const recordRedemptionDiscount: WalletDeps<BusinessEvent>["recordRedemptionDisco
     memo,
   }));
 
-// The original class-based wallet.service.ts folded balance/ledgerPage/award/
-// recentTransactions/earnSpendTotals/moneyValue/activeRate/redeem into the
-// shared @foundry/wallet package (createWalletService) — puchkaman reuses the
-// same factory. Only the tiffin-grab-specific piece (the wallet cap) is wired here.
+// Shared @foundry/wallet factory (puchkaman reuses it); only the wallet cap is tiffin-grab-specific.
 export const walletService = createWalletService<BusinessEvent>({
   db,
   tables: { walletLedger, eventPayout, coinRate },
@@ -56,10 +54,6 @@ export const walletService = createWalletService<BusinessEvent>({
   maxBalance: () => getMaxWalletBalance(),
 });
 
-// App-bound wrappers around the package's transaction-aware redemption
-// primitives — callers already inside a tx (createOrder) don't need to know
-// about walletLedger/orders/recordRedemptionDiscount wiring.
-//
 // No cap check on either: these SPEND coins, and spending can only move a
 // balance away from the ceiling.
 export async function lockAndQuoteCoinRedemption(
@@ -110,8 +104,6 @@ export async function settleCoinReservation(
   return settleReservation(tx, { ...args, walletLedger, orders, users });
 }
 
-// App-bound wrapper for the package's award-reversal primitive — refundOrder
-// (orders.service.ts) calls this to claw back order_activated coins.
 export async function reverseCoinAward(
   tx: Tx,
   args: { userId: bigint; eventType: BusinessEvent; source: { type: string; id: string } },
@@ -129,7 +121,7 @@ export async function recollectLapsedCoins(
   tx: Tx,
   args: { userId: bigint; orderId: bigint; orderRef: string; coins: number },
 ): Promise<{ collected: number; notCollected: number }> {
-  await tx.execute(sql`SELECT id FROM ${users} WHERE id = ${args.userId} FOR UPDATE`);
+  await lockUser(tx, args.userId);
   const collected = Math.max(0, Math.min(await balanceInTx(tx, args.userId), args.coins));
   if (collected > 0) {
     await tx.insert(walletLedger).values({
@@ -167,8 +159,7 @@ export type AwardableOrder = Pick<typeof orders.$inferSelect, "id" | "publicId" 
  * Credits a paid order's earn-back coins inside the caller's transaction, so
  * coins commit or roll back with the payment. Never throws for a business
  * reason: a cap or a missing coin value skips the award and leaves a note on
- * the order instead of blocking the payment. Same key as the old award, so
- * cancel/refund clawback (reverseCoinAward) is unchanged.
+ * the order instead of blocking the payment. The key is what cancel/refund clawback (reverseCoinAward) reverses.
  */
 export async function awardOrderCoins(
   tx: Tx,
@@ -193,25 +184,47 @@ export async function awardOrderCoins(
   const coins = earnCoins({ total: Number(order.total), taxTotal: snap.taxTotal ?? 0, pct, valuePerCoin: rate });
   if (coins <= 0) return { coins: 0, skipped: "off" };
 
-  await tx.execute(sql`SELECT id FROM ${users} WHERE id = ${order.userId} FOR UPDATE`);
-  const cap = await getMaxWalletBalance();
-  if (cap !== null && coinsUnderCap({ coins, balance: await balanceInTx(tx, order.userId), cap }) === 0) {
+  const res = await creditCoins(tx, {
+    userId: order.userId,
+    coins,
+    eventType: "order_activated",
+    sourceType: "order",
+    sourceId: order.publicId,
+    orderId: order.id,
+    memo: `Earned ${pct}% on order ${order.deploymentId}`,
+  });
+  if (res === "cap") {
     await note(`No coins earned: wallet cap reached (${coins} coins skipped)`);
     return { coins: 0, skipped: "cap" };
   }
+  return res === "credited" ? { coins } : { coins: 0, skipped: "already" };
+}
+
+/**
+ * The one place coins are credited from a business event: takes the user row lock, skips the
+ * whole credit when it would pass the wallet cap, and inserts idempotently on
+ * (sourceType, sourceId, eventType). Wallet balance is read under the lock.
+ */
+export async function creditCoins(
+  tx: Tx,
+  c: { userId: bigint; coins: number; eventType: BusinessEvent; sourceType: string; sourceId: string; memo: string; orderId?: bigint },
+): Promise<"credited" | "cap" | "already"> {
+  await lockUser(tx, c.userId);
+  const cap = await getMaxWalletBalance();
+  if (cap !== null && coinsUnderCap({ coins: c.coins, balance: await balanceInTx(tx, c.userId), cap }) === 0) return "cap";
   const res = await tx
     .insert(walletLedger)
     .values({
-      userId: order.userId,
+      userId: c.userId,
       direction: "credit",
-      eventType: "order_activated",
-      sourceType: "order",
-      sourceId: order.publicId,
-      orderId: order.id,
-      coins,
-      memo: `Earned ${pct}% on order ${order.deploymentId}`,
+      eventType: c.eventType,
+      sourceType: c.sourceType,
+      sourceId: c.sourceId,
+      orderId: c.orderId,
+      coins: c.coins,
+      memo: c.memo,
     })
     .onConflictDoNothing({ target: [walletLedger.sourceType, walletLedger.sourceId, walletLedger.eventType] })
     .returning({ id: walletLedger.id });
-  return res.length > 0 ? { coins } : { coins: 0, skipped: "already" };
+  return res.length > 0 ? "credited" : "already";
 }

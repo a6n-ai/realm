@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { isContainerCategory, type TuCategory } from "../format-tu";
 import { portionsByCategory, portionForPick, sumTuForPicks } from "../pick-size";
-import { groupPickCells, buildMealSummary, type PickCategoryMeta, type PickCategoryGroup } from "../pick-groups";
+import { groupPickCells, buildMealSummary, type PickCategoryMeta } from "../pick-groups";
 import { applySwapsToCounts, type SwapRow } from "../swap-rules";
-import { swapAppliesTo } from "../coverage";
-import type { GridCell } from "../meals-grid";
+import { swapAppliesTo } from "../../deliveries/schedule/coverage";
+import type { GridCell } from "../grid-types";
 import { labelLineTexts } from "../packing-requirement";
 
 describe("Universal Container Slots (1 slot = 1 physical container item)", () => {
@@ -264,7 +264,7 @@ describe("Universal Container Slots (1 slot = 1 physical container item)", () =>
     ];
     const mealItems = [{ category: "roti", tuAmount: "1.00", sortOrder: 0 }];
     const converter = tuByKey.get("roti");
-    const tuTotal = sumTuForPicks(mealItems, "roti", 4, []);
+    sumTuForPicks(mealItems, "roti", 4, []);
     expect(isContainerCategory(converter)).toBe(false);
 
     const lineBySlot = new Map<string, { name: string; portion: string; quantity: number }>();

@@ -28,8 +28,8 @@ import {
 import type {
   DispatchRow,
   KnownDriver,
-} from "@/lib/services/optimoroute/drivers";
-import type { DeliveryActivity } from "@/lib/services/optimoroute/push";
+} from "@/lib/optimoroute/drivers";
+import type { DeliveryActivity } from "@/lib/optimoroute/push";
 import { sortDispatchRows } from "./dispatch-excel";
 
 const COLUMNS: readonly Column<"customer" | "driver" | "stop" | "actions">[] = [

@@ -17,7 +17,6 @@
  * here instead, in `isValidPair`.
  */
 
-/** Categories offered in the customer picker, in display order. */
 export const TICKET_CATEGORIES = [
   "food_meal",
   "delivery",

@@ -1,11 +1,11 @@
-import { isCustomerRole } from "@/lib/auth/roles";
+import { isCustomerRole } from "@/lib/roles";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, LifeBuoy, Wallet } from "lucide-react";
 import type { ReactNode } from "react";
 import { type RoleValue } from "@foundry/commons";
-import { IconTile, ListGroup, PageHeader, type IconTint } from "@/components/customer/kit";
+import { IconTile, ListGroup, PageHeader, type IconTint } from "@/components/kit";
 import { Avatar } from "./avatar";
-import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
+import { cn, FONT, FOCUS } from "@/components/kit/cn";
 import { SignOutRow } from "./sign-out-row";
 import type { SavedAddress } from "@foundry/address";
 import { AddressBook } from "./address-book";

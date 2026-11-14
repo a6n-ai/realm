@@ -9,7 +9,7 @@ import { Button } from "@foundry/ui/button";
 import { Label } from "@foundry/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
 import { apiFetch } from "@/lib/http/api-fetch";
-import { IMPORT_FIELDS, suggestMapping, type ImportFieldKey, type ImportMapping } from "./inquiry-import-columns";
+import { IMPORT_FIELDS, suggestMapping, type ImportFieldKey, type ImportMapping } from "@/lib/inquiries/import-columns";
 
 type ImportResult = {
   totalRows: number;

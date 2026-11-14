@@ -1,19 +1,20 @@
 "use server";
 
-import { STAFF_ROLES } from "@/lib/auth/roles";
-import { and, eq, inArray } from "drizzle-orm";
+import { activeStaffWhere } from "@/lib/staff/staff-roster";
+import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { ValidationError } from "@foundry/commons";
 import { parseInput, staffAction } from "@/lib/actions/staff-action";
 import type { ActionResult } from "@/lib/actions/action-result";
 import { db } from "@/db/client";
 import { coupons, customerGroups, users } from "@/db/schema";
-import { couponKind, type CouponConfig, type DiscountPolicy } from "@/db/schema/coupons";
+import { couponKind, type CouponConfig } from "@/db/schema/coupons";
+import type { DiscountPolicy } from "@/db/schema/types";
 import { planType } from "@/db/schema/catalog";
 import { currentUserId } from "@/lib/services/session-service";
-import { recordCouponGroupAction } from "@/lib/services/customer-groups.service";
-import { couponsService } from "@/lib/services/coupons.service";
-import { getDiscountPolicy, setDiscountPolicy } from "@/lib/services/app-settings.service";
+import { recordCouponGroupAction } from "@/lib/customer-groups/customer-groups.service";
+import { couponsService } from "@/lib/coupons/coupons.service";
+import { getDiscountPolicy, setDiscountPolicy } from "@/lib/coupons/discount-policy-settings";
 import { revalidatePublicSite } from "@/lib/landing/revalidate-site";
 
 const OPTS = { guard: "admin", revalidate: [["/dashboard/discounts", "layout"]] } as const;
@@ -127,7 +128,7 @@ export async function saveCoupon(publicId: string | null, patch: unknown): Promi
       : undefined;
     const writeValues = groupId === undefined ? values : { ...values, customerGroupId: groupId };
 
-    const saved = publicId ? await couponsService.update(publicId, writeValues) : await couponsService.create(writeValues);
+    await (publicId ? couponsService.update(publicId, writeValues) : couponsService.create(writeValues));
     if (groupId != null && groupId !== (before?.customerGroupId ?? null)) {
       await recordCouponGroupAction(groupId, data.code, await currentUserId());
     }
@@ -210,7 +211,7 @@ export async function setRepCeiling(
     const [rep] = await db
       .select({ id: users.id })
       .from(users)
-      .where(and(eq(users.publicId, repPublicId), inArray(users.role, STAFF_ROLES), eq(users.isSystem, false)))
+      .where(and(eq(users.publicId, repPublicId), activeStaffWhere()))
       .limit(1);
     if (!rep) throw new ValidationError("Unknown staff member");
 

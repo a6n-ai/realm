@@ -3,12 +3,12 @@
 import { z } from "zod";
 import { sendRenewalReminderNow } from "@/lib/notifications/renewal-reminder";
 import { addTrackNote, logTrackActivity, setTrackStatus } from "@/lib/renewals/renewal-tracking.service";
-import type { LostReason } from "@/lib/services/inquiries.service";
-import { LOST_REASON_OPTIONS, TRACK_STATUSES, type TrackStatus } from "@/lib/renewals/status";
+import { TRACK_STATUSES, type TrackStatus } from "@/lib/renewals/status";
+import { LOST_REASON_OPTIONS, type LostReason } from "@/lib/inquiries/lost-reason";
 import type { ActionResult } from "@/lib/actions/action-result";
 import { parseInput, type Guard } from "@/lib/actions/staff-action";
 import { createLogger } from "@foundry/commons/logger";
-import { orderAction } from "@/lib/actions/order-action";
+import { orderAction } from "@/lib/orders/order-action";
 
 const logger = createLogger("renewals:actions");
 

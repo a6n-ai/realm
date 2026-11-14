@@ -27,10 +27,8 @@ describe("drop-off model", () => {
     let v = toggleStrategy(catalog, { tagId: "apt", strategyIds: [] }, "call");
     v = toggleStrategy(catalog, v, "lobby");
     expect(v).toEqual({ tagId: "apt", strategyIds: ["call", "lobby"] });
-    // Door replaces Lobby: same set, different price.
     expect(toggleStrategy(catalog, v, "door").strategyIds).toEqual(["call", "door"]);
     expect(pickInConnection(catalog, v, "spot", null).strategyIds).toEqual(["call"]);
-    // Toggling off.
     expect(toggleStrategy(catalog, v, "call").strategyIds).toEqual(["lobby"]);
   });
 

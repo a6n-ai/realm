@@ -1,15 +1,10 @@
 import type { CacheEntry, CacheTier } from "@foundry/commons";
 import { createLogger } from "@foundry/commons/logger";
+import type { KvLike } from "@/lib/runtime/cf-env";
 
 const logger = createLogger("cache:kv-tier");
 
 /** The slice of a Workers KV namespace this tier uses (structural: no workers-types dependency). */
-export interface KvLike {
-  get(key: string): Promise<string | null>;
-  put(key: string, value: string, opts?: { expirationTtl?: number }): Promise<void>;
-  delete(key: string): Promise<void>;
-  list(opts: { prefix: string; cursor?: string }): Promise<{ keys: { name: string }[]; list_complete: boolean; cursor?: string }>;
-}
 
 // Bigints are tagged on the way in so L2 round-trips exactly what L1 holds.
 const BIGINT_TAG = "$bigint";
@@ -24,8 +19,8 @@ const reviver = (_k: string, v: unknown) => {
 
 // The binding is read per call: Workers bind env per request, so it must never be held across requests.
 async function cacheBinding(): Promise<KvLike> {
-  const { getCloudflareContext } = await import("@opennextjs/cloudflare");
-  return (getCloudflareContext().env as unknown as { CACHE: KvLike }).CACHE;
+  const { cfEnv } = await import("@/lib/runtime/cf-env");
+  return cfEnv().CACHE;
 }
 
 /**

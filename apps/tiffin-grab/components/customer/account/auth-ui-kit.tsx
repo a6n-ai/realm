@@ -3,8 +3,8 @@
 import { isValidElement, type ReactNode } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import type { AuthUi } from "@foundry/auth-ui";
-import { Button, Field, Notice } from "@/components/customer/kit";
-import { cn } from "@/components/customer/kit/cn";
+import { Button, Field, Notice } from "@/components/kit";
+import { cn } from "@/components/kit/cn";
 
 type Reveal = { shown: boolean; onToggle: () => void };
 /** The shared screens pass a "Show/Hide" RevealToggle as `trailing`; spot it by its props so it can be an eye. */

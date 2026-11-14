@@ -4,11 +4,11 @@ import { asc, eq, inArray, isNull, like } from "drizzle-orm";
 import { cutoffMsFor } from "@foundry/commons";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
-vi.mock("@/lib/services/optimoroute/client", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/services/optimoroute/client")>();
+vi.mock("@/lib/optimoroute/client", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/optimoroute/client")>();
   return { ...actual, deleteOrder: vi.fn(async () => undefined) };
 });
-vi.mock("@/lib/services/optimoroute/push", () => ({ pushOneDelivery: vi.fn(async () => undefined) }));
+vi.mock("@/lib/optimoroute/push", () => ({ pushOneDelivery: vi.fn(async () => undefined) }));
 
 // Lets a test make one customer's notice fail (after the real enqueue, so the rollback is what hides it) or run a step mid-removal.
 const hook = vi.hoisted(() => ({ failUsers: new Set<bigint>(), after: null as null | ((event: string, recipientId: bigint) => Promise<void>) }));
@@ -28,13 +28,13 @@ vi.mock("@/lib/notifications/enqueue", async (importOriginal) => {
 const { db } = await import("@/db/client");
 const { deliveries, holidays, orders, organization, users } = await import("@/db/schema");
 const { notificationTables } = await import("@/lib/notifications/tables");
-const { getAppSettings } = await import("../../services/app-settings.service");
+const { getAppSettings } = await import("@/lib/settings");
 const { getBrandOrgId } = await import("../../services/organizations.service");
 const {
   checkoutHolidayDates, createHoliday, dismissHolidayDay, getHolidayDetail, holidayNamesForUser, holidayOutcome, holidaysOn, listDeclarableOrganizations, listHolidays, listNeedsPlacing, placeHolidayDay,
   previewHoliday, reapplyHoliday, removeHoliday, renameHoliday,
 } = await import("../holidays.service");
-const { deleteOrder } = await import("@/lib/services/optimoroute/client");
+const { deleteOrder } = await import("@/lib/optimoroute/client");
 const { makeTripOrder, resetTrips } = await import("../../services/__tests__/trip-fixture");
 
 const DEP = "SUB-HOLSVC0001";

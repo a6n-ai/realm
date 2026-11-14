@@ -1,5 +1,5 @@
 import { Camera, MessageSquarePlus, MessagesSquare } from "lucide-react";
-import { StepList } from "@/components/customer/kit";
+import { StepList } from "@/components/kit";
 
 /** The three steps of a support chat, in the same step list as Refer's "How it works". */
 export function HowSupportWorks() {

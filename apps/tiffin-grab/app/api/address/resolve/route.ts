@@ -1,6 +1,7 @@
 import { readJson } from "@foundry/commons/util/http";
 import { z } from "zod";
-import { clientIp, isRateLimited } from "@foundry/commons";
+import { isRateLimited } from "@foundry/commons";
+import { requestIp } from "@/lib/runtime/platform";
 import { handler, json } from "@foundry/routes";
 import { awsPlaceProvider } from "@foundry/places";
 import { awsRegion } from "@/lib/runtime/env";
@@ -14,13 +15,13 @@ const resolveSchema = z.object({
 const RESOLVE_LIMIT = 20;
 const RESOLVE_WINDOW_MS = 60_000;
 
-// Public (unauthenticated), always 200 — a throttled or empty result both
+// Session-only (/api/address is not in PUBLIC_API, so the proxy 401s signed-out callers), always 200 — a throttled or empty result both
 // degrade to "no coordinates yet", never a toast. Preview-only: nothing this
 // route returns is ever persisted (checkout re-resolves server-side at the
 // actual write point), so it uses the cheap non-persist bucket, not
 // resolveAndPersist's storage-licensed one.
 export const POST = handler(async (request: Request): Promise<Response> => {
-  const ip = clientIp(request) ?? "unknown";
+  const ip = requestIp(request.headers) ?? "unknown";
   if (isRateLimited(ip, RESOLVE_LIMIT, RESOLVE_WINDOW_MS, "address-resolve-ip")) {
     return json({ place: null });
   }

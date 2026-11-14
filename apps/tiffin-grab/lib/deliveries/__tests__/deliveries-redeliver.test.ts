@@ -4,8 +4,8 @@ import { eq } from "drizzle-orm";
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
 let completionStatus: "failed" | "success" | "scheduled" = "failed";
-vi.mock("@/lib/services/optimoroute/client", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/services/optimoroute/client")>();
+vi.mock("@/lib/optimoroute/client", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/optimoroute/client")>();
   return {
     ...actual,
     deleteOrder: vi.fn(async () => undefined),
@@ -19,8 +19,8 @@ let currentOrderNo = "";
 const { db } = await import("@/db/client");
 const { deliveries, deliveryCategorySwaps, orderActivities, orders } = await import("@/db/schema");
 const { redeliverTrip, rescheduleDelivery } = await import("../deliveries.service");
-const { deleteOrder } = await import("@/lib/services/optimoroute/client");
-const { pullCompletions } = await import("../../services/optimoroute/completions");
+const { deleteOrder } = await import("@/lib/optimoroute/client");
+const { pullCompletions } = await import("../../optimoroute/completions");
 const { makeTripOrder, resetTrips } = await import("../../services/__tests__/trip-fixture");
 
 const DEP = "SUB-REDELIVER01";

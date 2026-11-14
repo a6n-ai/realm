@@ -5,7 +5,7 @@ import { ValidationError } from "@foundry/commons";
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
 const { db } = await import("@/db/client");
-const { deliveries, deliveryCategorySwaps, deliveryExtraTiffins, deliveryMoves, orderActivities, orders } = await import("@/db/schema");
+const { deliveries, deliveryCategorySwaps, deliveryExtraTiffins, deliveryMoves, orderActivities } = await import("@/db/schema");
 const { rescheduleDelivery } = await import("../deliveries.service");
 const { myAgendaDots } = await import("../customer-deliveries.service");
 const { makeTripOrder, resetTrips } = await import("../../services/__tests__/trip-fixture");

@@ -1,9 +1,9 @@
-import { getMoneyFormatter } from "@/lib/services/app-settings.service";
-import { MON_FRI } from "@/lib/menu/delivery-days";
+import { getMoneyFormatter } from "@/lib/settings";
+import { MON_FRI } from "@/lib/deliveries/schedule/delivery-days";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { MealParts } from "@/components/landing/meal-parts";
-import { makeCategoryLook } from "@/components/customer/meals/category-look";
+import { makeCategoryLook } from "@/components/kit/category-look";
 import type { MathFrequency, MathLength } from "@/components/landing/price-math";
 
 export type PickSize = { id: string; name: string; rate: number; days: string[]; parts: string[]; kcalMin: number; kcalMax: number };

@@ -139,11 +139,6 @@ describe("selectionsService.setSelection", () => {
     expect(await activities()).toHaveLength(1);
   });
 
-  // Order-level pausedFrom/pausedUntil is dropped in this task (per-delivery pause lands on the
-  // `deliveries` table in a later task) — the former "paused order" describe block tested that
-  // column directly and is removed here; Task 8 reintroduces pause-aware day-membership checks
-  // against `deliveries` below.
-
   it("rejects a pick for a paused delivery", async () => {
     await db.update(deliveries).set({ status: "paused" }).where(eq(deliveries.orderId, order.id));
     await expect(selectionsService.setSelection({ order, menuWeek: week, dayOfWeek: "mon", slot: "sabzi", personIndex: 1, pickIndex: 1, dishPublicId: vegDishPublicId }))
@@ -180,7 +175,7 @@ describe("selectionsService.setSelection", () => {
 describe("selectionsService.setSelection on a custom meal", () => {
   it("holds each sabzi pick to its own row's diet (non-veg row, then veg rows incl. an add-on)", async () => {
     await reset();
-    const { findOrCreateCustomMealSize } = await import("@/lib/services/custom-meal.service");
+    const { findOrCreateCustomMealSize } = await import("@/db/custom-meal-fixtures");
     const snap = await loadCatalogSnapshot();
     const nonVegPlanId = await testPlanId("non-veg");
     const size = await findOrCreateCustomMealSize([

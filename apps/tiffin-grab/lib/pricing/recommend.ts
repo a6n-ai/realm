@@ -1,5 +1,5 @@
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
-import { frequencyFits, planWeek, type DayOfWeek } from "@/lib/menu/delivery-days";
+import { frequencyFits, planWeek, type DayOfWeek } from "@/lib/deliveries/schedule/delivery-days";
 import { rankDeals, type RankedDeal } from "@foundry/discounts";
 import type { PricingSelections } from "./types";
 
@@ -56,11 +56,6 @@ function options(snapshot: ClientCatalogSnapshot, selections: PricingSelections,
   const changes = (a: Alt) => Number(a.payload.frequencyKey !== selections.frequencyKey) + Number(a.payload.durationWeeks !== selections.durationWeeks);
   alternatives.sort((a, b) => changes(a) - changes(b));
   return { current, currentAlt, alternatives };
-}
-
-export function recommendDeals({ snapshot, selections, cap = 1, vary }: { snapshot: ClientCatalogSnapshot; selections: PricingSelections; cap?: number; vary?: "frequency" | "duration" }): RankedDeal<DealPayload>[] {
-  const o = options(snapshot, selections, vary);
-  return o ? rankDeals(dealBasis(o.current.pct), o.alternatives, { limit: cap }) : [];
 }
 
 export type DealComparison =

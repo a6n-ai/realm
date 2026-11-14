@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deleteNonSystemUsers, ensureSystemUser } from "@/db/test-helpers";
 import { inquiries, users } from "@/db/schema";
-import { resetInquiryData } from "@/lib/services/__tests__/helpers/inquiry-fixtures";
+import { resetInquiryData } from "@/lib/inquiries/__tests__/helpers/inquiry-fixtures";
 
 vi.mock("next/cache", () => ({ revalidatePath: () => undefined }));
 vi.mock("@/lib/auth/guards", () => ({ requireStaff: async () => undefined, requireAdmin: async () => undefined }));

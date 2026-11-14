@@ -8,15 +8,14 @@ import {
 import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { inquiries } from "@/db/schema";
-import { inquiriesService } from "@/lib/services/inquiries.service";
+import { inquiriesService } from "@/lib/inquiries/inquiries.service";
 import { metaPixel } from "@/lib/services/meta-pixel/config";
 import { sendMetaCrmLeadCreated } from "./crm-lead";
 
 const log = createLogger("meta-leadgen-ingest");
 
 /**
- * Process a Meta leadgen webhook POST: verify signature, fetch each lead, upsert inquiry
- * with metaLeadId, fire CRM Lead CAPI. Always safe to retry (unique meta_lead_id + event_id).
+ * Meta leadgen webhook POST. Always safe to retry (unique meta_lead_id + event_id).
  */
 export async function ingestMetaLeadgenWebhook(
   rawBody: string,

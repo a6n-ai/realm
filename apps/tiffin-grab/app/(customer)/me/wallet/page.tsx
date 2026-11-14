@@ -1,16 +1,16 @@
+import { requireCustomerIdOrRedirect } from "@/lib/account/customer";
 import { Suspense } from "react";
 import { after } from "next/server";
-import { redirect } from "next/navigation";
-import { currentUserId } from "@/lib/services/session-service";
 import { stripeMethodAvailable } from "@/lib/payments/stripe";
 import { settleStaleOnView } from "@/lib/payments/payment-stripe";
-import { getAppSettings, getCoinEarnPct } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
+import { getCoinEarnPct } from "@/lib/wallet/wallet-settings";
 import { myBillsPage, myCouponsPage, myCouponTotals, myMoneyLedgerPage } from "@/lib/services/customer-finances.service";
-import { couponsService } from "@/lib/services/coupons.service";
+import { couponsService } from "@/lib/coupons/coupons.service";
 import { walletService } from "@/lib/wallet/wallet.service";
 import { parseFilterState } from "@/components/ds";
-import { PageHeader } from "@/components/customer/kit";
-import { TabsSkeleton } from "@/components/customer/skeleton-parts";
+import { PageHeader } from "@/components/kit";
+import { TabsSkeleton } from "@/components/kit/skeleton-parts";
 import { getCustomerUsage } from "@/lib/services/customer-usage.service";
 import { FinanceStats, FinanceStatsSkeleton } from "@/components/customer/wallet/finance-stats";
 import { WalletHero } from "@/components/customer/wallet/wallet-hero";
@@ -28,8 +28,7 @@ import { requestNow } from "@/lib/dates/request-now";
 type SearchParams = Promise<Record<string, string | undefined>>;
 
 export default async function MyWalletPage({ searchParams }: { searchParams: SearchParams }) {
-  const userId = await currentUserId();
-  if (userId == null) redirect("/login");
+  const userId = await requireCustomerIdOrRedirect();
 
   const sp = await searchParams;
   const tab = parseFinancesTab(sp.tab);
@@ -107,10 +106,8 @@ async function BillsPanel({ userId, searchParams }: { userId: bigint; searchPara
   const bills = await myBillsPage(userId, page);
   const cardAvailable = await stripeMethodAvailable();
   // Lazy status check on view (no cron): settle card payments the webhook may have missed.
-  const unsettled = bills.items
-    .flatMap((b) => b.payments)
-    .filter((p) => p.method === "stripe" && p.status === "awaiting_payment" && p.providerRef);
-  if (unsettled.length) after(() => settleStaleOnView(unsettled));
+  const payments = bills.items.flatMap((b) => b.payments);
+  after(() => settleStaleOnView(payments));
   return (
     <BillsList
       items={bills.items}

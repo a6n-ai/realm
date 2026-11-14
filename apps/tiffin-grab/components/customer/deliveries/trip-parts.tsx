@@ -1,19 +1,19 @@
 "use client";
 import { ArrowDownLeft, ArrowUpRight, CalendarCheck, Check, House, Info, MapPin, Pencil, Truck } from "lucide-react";
-import { Pill, Sheet, StatusDot, type Tone } from "@/components/customer/kit";
+import { Pill, Sheet, StatusDot, type Tone } from "@/components/kit";
 import { STATUS_TONE, type DeliveryStatus } from "@/lib/deliveries/status";
-import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
+import { cn, FOCUS } from "@/components/kit/cn";
 import { humanDate, isPastPause, type Trip } from "@/lib/deliveries/view";
 import { dayNote, deliveryLine, isDone, moveNotes, weekdayShort, type EatingRow } from "@/lib/deliveries/view/eating";
 import { dateTimeFormat } from "@foundry/commons/util/intl-format";
+import { WEEKDAY_SHORT } from "@/components/kit/date-formats";
 import type { PlanView } from "@/lib/deliveries/view/adapter";
-import type { SubscriptionAddon } from "@/lib/deliveries/customer-deliveries.service";
+import type { SubscriptionAddon } from "@/lib/menu/order-addon-items";
 import { isoToUtcDate } from "@foundry/commons/util/dates";
 
-const WD = dateTimeFormat("en-CA", { weekday: "short", timeZone: "UTC" });
 const d = (iso: string) => isoToUtcDate(iso);
 export const dayNum = (iso: string) => d(iso).getUTCDate();
-export const weekday = (iso: string) => WD.format(d(iso));
+export const weekday = (iso: string) => WEEKDAY_SHORT.format(d(iso));
 
 export function statusMeta(t: Trip): { label: string; tone: Tone; dot: DeliveryStatus | null } {
   const m = (label: string, dot: DeliveryStatus, tone: Tone = STATUS_TONE[dot]) => ({ label, tone, dot });
@@ -55,42 +55,6 @@ export function PlanTag({ plan }: { plan: PlanTagInfo }) {
 }
 
 export const tiffins = (n: number) => `${n} ${n === 1 ? "tiffin" : "tiffins"}`;
-
-export function rowSubline(t: Trip, tz: string): string {
-  if (t.status === "rescheduled" && t.movedTo) return `Moved to ${humanDate(t.movedTo)}`;
-  if (t.status === "combined-into" && t.mergedInto) return `Combined into ${humanDate(t.mergedInto)}`;
-  if (t.coversLabel) return t.coversLabel;
-  if (t.isMakeup) return "Make-up delivery";
-  return humanDate(t.date);
-}
-
-export function TripRow({ trip, tz, selected, onSelect, plan }: { trip: Trip; tz: string; selected: boolean; onSelect: (trip: Trip) => void; plan?: PlanTagInfo }) {
-  const m = statusMeta(trip);
-  return (
-    <button
-      type="button"
-      data-testid="trip-row"
-      aria-pressed={selected}
-      aria-label={`${humanDate(trip.date)}${plan ? `, ${plan.label}` : ""}, ${m.label}`}
-      onClick={() => onSelect(trip)}
-      className={cn(
-        FONT, FOCUS,
-        "flex min-h-14 w-full items-center gap-3 rounded-xl px-3 py-2 text-left transition-colors [touch-action:manipulation] motion-reduce:transition-none",
-        selected ? "bg-muted" : "hover:bg-muted/60",
-      )}
-    >
-      <span className="min-w-0 flex-1">
-        <span className="block text-subhead font-semibold">{humanDate(trip.date)}</span>
-        <span className="block text-footnote text-[var(--muted-foreground)]">{trip.status === "combined-into" ? rowSubline(trip, tz) : trip.coversLabel ?? tiffins(trip.units)}{trip.complimentaryNote ? " · Complimentary" : ""}</span>
-        {plan && <span className="mt-1 block"><PlanTag plan={plan} /></span>}
-      </span>
-      <span className="flex shrink-0 items-center gap-1.5 text-footnote text-[var(--muted-foreground)]">
-        {m.dot && <StatusDot decorative status={m.dot} />}
-        {m.label}
-      </span>
-    </button>
-  );
-}
 
 /** "Bhindi Masala, Bhindi Masala" -> "Bhindi Masala x2". */
 export function dedupeDishes(summary: string | null): string[] {
@@ -338,7 +302,7 @@ export function MealTiles({ cats }: { cats: MealCategory[] }) {
   );
 }
 
-export function TripInfoSheet({ row, tz, plan, open, onClose }: { row: EatingRow; tz: string; plan?: PlanView; open: boolean; onClose: () => void }) {
+export function TripInfoSheet({ row, plan, open, onClose }: { row: EatingRow; tz: string; plan?: PlanView; open: boolean; onClose: () => void }) {
   const t = row.trip;
   const cats = plan ? mealCategories(row, plan) : [];
   const delivery = row.movedTo ? [deliveryLine(row), movedFact(row)].join(" · ") : [

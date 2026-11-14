@@ -1,4 +1,4 @@
-import type { ReferralFriendStatus } from "@/lib/services/referrals.service";
+import type { ReferralFriendStatus } from "@/lib/referrals/referrals.service";
 
 // Plain module, not "use client": the server page builds its filter facets from this.
 export const REFERRAL_STATUS: Record<ReferralFriendStatus, { label: string; variant: "info-light" | "warning-light" | "success-light" | "destructive-light" }> = {

@@ -1,26 +1,27 @@
 import { Suspense } from "react";
-import { AnalyticsIntro } from "@/components/analytics/analytics-intro";
+import { AnalyticsIntro } from "@/components/dashboard/analytics/analytics-intro";
 import { calendarSkeletonHeight } from "@/lib/analytics/calendar-height";
 import { calendarDays } from "@/lib/analytics/calendar-days";
-import { ChartCard } from "@/components/analytics/chart-card";
-import { ChartSkeleton } from "@/components/analytics/skeletons";
-import { rankedHeight } from "@/components/analytics/chart-math";
+import { ChartCard } from "@/components/dashboard/analytics/chart-card";
+import { ChartSkeleton } from "@/components/dashboard/analytics/skeletons";
+import { rankedHeight } from "@/components/dashboard/analytics/chart-math";
 import Link from "next/link";
-import { BreakdownBarChart, CalendarHeatmap, PartsDonut } from "@/components/analytics/charts";
+import { BreakdownBarChart, CalendarHeatmap, PartsDonut } from "@/components/dashboard/analytics/charts";
 import { Card, CardContent } from "@foundry/ui/card";
-import { RankCards } from "@/components/analytics/rank-cards";
+import { RankCards } from "@/components/dashboard/analytics/rank-cards";
 import { Badge } from "@/components/reui/badge";
 import { formatEpoch } from "@/lib/format/datetime";
-import type { Tone } from "@/components/analytics/chart-math";
+import type { Tone } from "@/components/dashboard/analytics/chart-math";
 import { AnalyticsStatCards, AnalyticsStatCardsSkeleton, StatFootnote } from "@/components/dashboard/stat-cards";
 import {
   NOT_LINKED,
   complaintHref,
   scopeToComplaintFilters,
   type ComplaintFilters,
-} from "@/lib/services/analytics/complaint-filters";
-import { scopeOrAlert } from "@/components/analytics/franchise-unavailable";
-import { DATE_BASIS_LABEL, type AnalyticsScope } from "@/lib/services/analytics/metrics/scope";
+} from "@/lib/support/complaint-filters";
+import { scopeOrAlert } from "@/components/dashboard/analytics/franchise-unavailable";
+import { DATE_BASIS_LABEL } from "@/lib/analytics/metrics/scope";
+import { type AnalyticsScope } from "@/lib/analytics/scope-types";
 import {
   getByCategory,
   getByPlan,
@@ -32,7 +33,7 @@ import {
   getPriorityMix,
   getRepeatCustomers,
   getStatusMix,
-} from "@/lib/services/analytics/complaints.service";
+} from "@/lib/analytics/complaints.service";
 import { OPEN_STATUSES } from "@/lib/support/ticket-status";
 
 const TICKETS = "/dashboard/tickets";

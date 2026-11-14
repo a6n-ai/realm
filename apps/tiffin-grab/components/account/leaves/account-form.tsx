@@ -15,6 +15,7 @@ import { Input } from "@foundry/ui/input";
 import { PhoneInput } from "@foundry/ui/phone-input";
 import { accountFormSchema, type AccountFormValues } from "./schema";
 import { updateMyContact } from "@/lib/account/actions";
+import { unwrapAction } from "@/lib/actions/unwrap";
 
 export function AccountForm({ phone, email, defaultCountry }: { phone: string; email: string; defaultCountry: CountryCode }) {
   const router = useRouter();
@@ -26,7 +27,7 @@ export function AccountForm({ phone, email, defaultCountry }: { phone: string; e
 
   async function onSubmit(values: AccountFormValues) {
     try {
-      await updateMyContact({ phone: values.phone });
+      await unwrapAction(updateMyContact({ phone: values.phone }));
       toast.success("Contact details saved.");
       form.reset(values);
       router.refresh();

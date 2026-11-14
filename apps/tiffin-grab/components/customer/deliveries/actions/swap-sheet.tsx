@@ -1,11 +1,11 @@
 "use client";
 import { isCutoffPassed } from "@/lib/dates/cutoff";
-import { NETWORK_CLIENT_ERROR } from "@foundry/commons/util/client-error";
+import { NETWORK_CLIENT_ERROR, sanitizeClientError } from "@foundry/commons/util/client-error";
 import { ArrowLeftRight, Minus, Plus, X } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import { applyMyDeliverySwap, loadMySwapOptions, removeMyDeliverySwap } from "@/app/(customer)/me/deliveries/actions";
-import { Button, Chip, Notice, Reason, Segmented, Sheet, Skeleton, panelId } from "@/components/customer/kit";
-import { cn } from "@/components/customer/kit/cn";
+import { applyMyDeliverySwap, loadMySwapOptions, removeMyDeliverySwap } from "@/lib/deliveries/customer-actions";
+import { Button, Chip, Notice, Reason, Segmented, Sheet, Skeleton, panelId } from "@/components/kit";
+import { cn } from "@/components/kit/cn";
 import { actionAvailability, humanDate } from "@/lib/deliveries/view";
 import type { SwapOption } from "@/lib/menu/meal-validation";
 import { swapLabel } from "@/lib/menu/swap-rules";
@@ -153,7 +153,7 @@ export function SwapSheet({ trip, plan, open, day: startDay, onDone, onChanged }
     try {
       const r = await call();
       if ("error" in r) {
-        setError(r.error);
+        setError(sanitizeClientError(r.error));
         reloadOptions();
       } else {
         setPair(null);

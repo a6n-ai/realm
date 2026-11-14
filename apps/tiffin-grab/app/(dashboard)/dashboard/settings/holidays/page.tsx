@@ -4,7 +4,7 @@ import { zonedDateIso } from "@foundry/commons";
 import { PageHeader, SectionCard } from "@/components/ds";
 import { requirePermission } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { listDeclarableOrganizations, listHolidays, listNeedsPlacing } from "@/lib/deliveries/holidays.service";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import { HolidayDialog } from "./holiday-dialog";

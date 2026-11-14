@@ -1,14 +1,14 @@
 "use server";
 
-import { setSupportHours } from "@/lib/services/app-settings.service";
+import { setSupportHours } from "@/lib/support/support-hours-settings";
 import type { ActionResult } from "@/lib/actions/action-result";
 import { staffAction } from "@/lib/actions/staff-action";
 import {
   ticketsService,
   type TicketPriority,
   type TicketStatus,
-} from "@/lib/services/tickets.service";
-import { uploadAttachments } from "@/lib/services/ticket-attachments";
+} from "@/lib/support/tickets.service";
+import { uploadAttachments } from "@/lib/support/ticket-attachments";
 import type { TicketCategoryValue } from "@/lib/support/ticket-taxonomy";
 
 const ticketOpts = (ticketId: string, extra: readonly string[] = []) =>

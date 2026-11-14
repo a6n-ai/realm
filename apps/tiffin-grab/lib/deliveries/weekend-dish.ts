@@ -1,7 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { dishCategories, mealSizeItems, mealSizes } from "@/db/schema";
-import type { DayOfWeek } from "@/lib/menu/delivery-days";
+import type { DayOfWeek } from "@/lib/deliveries/schedule/delivery-days";
 
 /** True when the meal size holds a category flagged as a weekend dish; only those can be eaten on Sat/Sun. */
 export async function mealSizeServesWeekends(mealSizeId: bigint, q: Pick<typeof db, "select"> = db): Promise<boolean> {

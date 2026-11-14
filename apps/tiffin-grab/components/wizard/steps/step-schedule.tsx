@@ -5,12 +5,12 @@ import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
 import { mealAllowedDays, scheduleError, selectableFrequencies, servesWeekends, tiffinBounds, type WizardSelections } from "@/lib/wizard/selections";
 import { CurrentPlanHint, type CurrentPlanSummary } from "../current-plan-hint";
 import { savePct } from "@/lib/pricing/discounts";
-import { OptionCard, Pill, PillToggle } from "@/components/customer/kit";
-import { dayAllowed, onlyOnMessage, planWeek, type DayOfWeek, WEEK_DAYS } from "@/lib/menu/delivery-days";
-import { TripTimeline } from "../trip-timeline";
+import { OptionCard, Pill, PillToggle } from "@/components/kit";
+import { dayAllowed, onlyOnMessage, planWeek, type DayOfWeek, WEEK_DAYS } from "@/lib/deliveries/schedule/delivery-days";
+import { TripTimeline } from "../../kit/trip-timeline";
 import { isWeekendDay } from "@foundry/commons/util/dates";
+import { DAY_SHORT } from "@/lib/dates/weekdays";
 
-const LABEL: Record<DayOfWeek, string> = { mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun" };
 const H = "text-muted-foreground text-footnote font-semibold tracking-[0.02em]";
 
 export function StepSchedule({
@@ -89,7 +89,7 @@ export function StepSchedule({
             return (
               // Only a day the meal can't come on is disabled; the pick limit answers on the hint line.
               <PillToggle key={day} on={on} disabled={!on && !open(day)} onClick={() => toggle(day)}>
-                {LABEL[day]}
+                {DAY_SHORT[day]}
               </PillToggle>
             );
           })}
@@ -141,7 +141,7 @@ export function StepSchedule({
                   {save > 0 && <Pill tone="ok" size="sm" aria-label={`Save ${save}%`}>{save === bestSave ? `Best value · Save ${save}%` : `Save ${save}%`}</Pill>}
                 </span>
                 <span className={`text-subhead font-medium ${active ? "text-foreground" : "text-muted-foreground"}`}>
-                  {(f.weekdays as DayOfWeek[]).map((d) => LABEL[d]).join(" · ")}
+                  {(f.weekdays as DayOfWeek[]).map((d) => DAY_SHORT[d]).join(" · ")}
                 </span>
               </OptionCard>
             );

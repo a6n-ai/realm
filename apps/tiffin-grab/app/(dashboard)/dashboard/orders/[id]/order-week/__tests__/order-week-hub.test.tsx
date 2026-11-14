@@ -3,7 +3,7 @@ import "@testing-library/jest-dom/vitest";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Trip } from "@/lib/deliveries/view";
-import type { OrderWeek } from "@/lib/orders/order-week.service";
+import type { OrderWeek } from "@/lib/deliveries/view/order-week.service";
 import { OrderWeekHub } from "@/app/(dashboard)/dashboard/orders/[id]/order-week/order-week-hub";
 import { BOX_LABEL, boxStatus } from "@/app/(dashboard)/dashboard/orders/[id]/order-week/order-month-calendar";
 
@@ -15,10 +15,10 @@ vi.mock("next/navigation", () => ({
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 const rel = vi.hoisted(() => vi.fn());
 const pse = vi.hoisted(() => vi.fn());
-vi.mock("@/app/(customer)/me/deliveries/actions", () => ({
+vi.mock("@/lib/deliveries/customer-actions", () => ({
   applyMyDeliverySwap: vi.fn(), pauseMyDays: pse, loadMyPauseDays: vi.fn(async () => ({ ok: true, days: [] })), releaseMyDays: rel, removeMyDeliverySwap: vi.fn(), rescheduleMyDelivery: vi.fn(),
   scheduleMyPooledTiffin: vi.fn(), unskipMyDelivery: vi.fn(),
-  setMyDeliveryAddress: vi.fn(), clearMyDeliveryAddress: vi.fn(),
+  setMyDeliveryAddress: vi.fn(),
 }));
 const sds = vi.hoisted(() => vi.fn(async (..._args: unknown[]) => ({ ok: true, message: "Delivery status updated" })));
 vi.mock("@/app/(dashboard)/dashboard/orders/[id]/actions", () => ({ setDeliveryStatusAction: sds }));

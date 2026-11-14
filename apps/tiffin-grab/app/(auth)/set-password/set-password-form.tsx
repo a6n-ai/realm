@@ -9,7 +9,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { passwordSchema } from "@foundry/commons";
 import { Button } from "@foundry/ui/button";
-import { IOS_BUTTON } from "@/components/customer/ios-button";
+import { IOS_BUTTON } from "@/components/kit/ios-button";
 import { AuthLogo, IOS_INPUT } from "@/components/auth/auth-kit";
 import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,

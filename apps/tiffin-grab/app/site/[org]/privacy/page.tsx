@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import { Callout, Clause, LegalPage, List, Mail, Sub, type KeyPoint } from "@/components/marketing/legal";
-import { pageMeta } from "@/lib/landing/meta";
+import { legalMeta } from "@/lib/landing/meta";
+import { COMPLAINT_RETENTION_YEARS, PAYMENT_METHODS, PRIVACY_RESPONSE_DAYS, RETENTION_YEARS } from "@/lib/landing/policy-facts";
 
-export const metadata: Metadata = pageMeta("Privacy policy | Tiffin Grab", "How TiffinGrab collects, uses, and protects personal information under PIPEDA and Ontario law.", "/privacy");
+export const metadata: Metadata = legalMeta("Privacy policy", "How TiffinGrab collects, uses, and protects personal information under PIPEDA and Ontario law.", "/privacy");
 export const revalidate = 86400;
 export const dynamic = "error";
 
@@ -21,16 +22,16 @@ const SECTIONS = [
 
 const KEY_POINTS: KeyPoint[] = [
   { text: "We collect only what we need to deliver: your name, contact details, address, and order details.", section: 1 },
-  { text: "You pay by Interac e-Transfer. We keep the transfer reference so staff can confirm it. We do not store banking logins.", section: 1 },
+  { text: `You pay by ${PAYMENT_METHODS}. We keep the Interac transfer reference so staff can confirm it. We do not store banking logins or full card numbers.`, section: 1 },
   { text: "We never sell, rent, or trade your personal information.", section: 3 },
   { text: "We send marketing only if you opt in, and you can unsubscribe at any time.", section: 2 },
-  { text: "We keep records for up to 3 years after your last order (up to 5 years for complaints).", section: 6 },
-  { text: "To see, correct, or delete your data, email us with the subject “Privacy Request”. We aim to reply within 30 days.", section: 7 },
+  { text: `We keep records for up to ${RETENTION_YEARS} years after your last order (up to ${COMPLAINT_RETENTION_YEARS} years for complaints).`, section: 6 },
+  { text: `To see, correct, or delete your data, email us with the subject “Privacy Request”. We aim to reply within ${PRIVACY_RESPONSE_DAYS} days.`, section: 7 },
 ];
 
 export default function PrivacyPage() {
   return (
-    <LegalPage title="Privacy policy" intro="What personal information TiffinGrab collects, why, who sees it, how long we keep it, and how to exercise your rights under PIPEDA." updated="October 7, 2026" current="/privacy" sections={SECTIONS} keyPoints={KEY_POINTS}>
+    <LegalPage title="Privacy policy" intro="What personal information TiffinGrab collects, why, who sees it, how long we keep it, and how to exercise your rights under PIPEDA." current="/privacy" sections={SECTIONS} keyPoints={KEY_POINTS}>
       <Callout>
         <strong>Commitment:</strong> TiffinGrab protects personal information in line with Canada’s{" "}
         <em>Personal Information Protection and Electronic Documents Act</em> (PIPEDA) and applicable Ontario law. This
@@ -50,13 +51,10 @@ export default function PrivacyPage() {
         </Sub>
         <Sub title="1.2 Payments">
           <p className="m-0">
-            You pay by <strong>Interac e-Transfer</strong>. We may keep the amount, the transfer reference, and a
-            screenshot you upload so staff can confirm the payment. <strong>We do not store your banking login or full
-            account number</strong> on our servers.
-          </p>
-          <p className="m-0">
-            Card payments through Stripe are coming later. When they are available, card data will be processed by
-            Stripe. We will not store full card numbers or CVV on our servers.
+            You pay by <strong>{PAYMENT_METHODS}</strong>. For an Interac e-Transfer we may keep the amount, the transfer
+            reference, and a screenshot you upload so staff can confirm the payment. Card payments are processed by Stripe;
+            we do not store full card numbers or CVV on our servers. <strong>We do not store your banking login or full
+            account number.</strong>
           </p>
         </Sub>
         <Sub title="1.3 Technical data">
@@ -95,7 +93,7 @@ export default function PrivacyPage() {
         <List
           items={[
             <><strong>Delivery:</strong> name, address, instructions to complete delivery;</>,
-            <><strong>Payments:</strong> Interac e-Transfer details stay with us so staff can confirm payment;</>,
+            <><strong>Payments:</strong> card payments are processed by Stripe; Interac e-Transfer details stay with us so staff can confirm payment;</>,
             <><strong>Legal:</strong> when required by law or valid legal process; and</>,
             <><strong>Business transfers:</strong> a successor must honour similar protections.</>,
           ]}
@@ -106,16 +104,16 @@ export default function PrivacyPage() {
       <Clause n={5} title={SECTIONS[4]}>
         <p className="m-0">
           We use reasonable technical and organizational measures, including TLS in transit and access controls on a
-          need-to-know basis. When card payments through Stripe are added, card data will be handled by Stripe. No
+          need-to-know basis. Card data is handled by Stripe. No
           online system is perfectly secure; we will notify you of breaches as required by law.
         </p>
       </Clause>
 
       <Clause n={6} title={SECTIONS[5]}>
         <p className="m-0">
-          We keep data while your account is active and up to <strong>three years</strong> after your last transaction
+          We keep data while your account is active and up to <strong>{RETENTION_YEARS} years</strong> after your last transaction
           where needed for accounting, tax, and disputes. Communications tied to complaints may be kept up to{" "}
-          <strong>five years</strong>. After that, data is deleted or anonymized where permitted.
+          <strong>{COMPLAINT_RETENTION_YEARS} years</strong>. After that, data is deleted or anonymized where permitted.
         </p>
       </Clause>
 
@@ -126,7 +124,7 @@ export default function PrivacyPage() {
           <a href="https://www.priv.gc.ca" target="_blank" rel="noopener noreferrer" className="underline underline-offset-4">priv.gc.ca</a>.
         </p>
         <p className="m-0">
-          Email <Mail /> with subject <strong>“Privacy Request”</strong>. We aim to respond within <strong>30 days</strong>.
+          Email <Mail /> with subject <strong>“Privacy Request”</strong>. We aim to respond within <strong>{PRIVACY_RESPONSE_DAYS} days</strong>.
         </p>
       </Clause>
 

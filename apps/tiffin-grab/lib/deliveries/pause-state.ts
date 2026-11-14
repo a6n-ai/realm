@@ -2,12 +2,10 @@ import { MOVED_AWAY } from "@/lib/deliveries/row-state";
 import { isCutoffPassed } from "@/lib/dates/cutoff";
 import { cutoffPassedSql, cutoffOpenSql } from "@/lib/dates/cutoff-sql";
 import { ValidationError } from "@foundry/commons";
-import { createLogger } from "@foundry/commons/logger";
 import { and, eq, inArray, isNotNull, not, sql } from "drizzle-orm";
 import { db, type Tx } from "@/db/client";
 import { deliveries, orderActivities, orders, subscriptionPauses } from "@/db/schema";
 
-const log = createLogger("pause-state");
 
 export type Reader = Pick<typeof db, "select">;
 
@@ -41,8 +39,7 @@ export async function pauseRows(tx: Tx, ids: bigint[], now: number, holidayId: b
 }
 
 /**
- * orders.status = 'paused' means nothing since pausing became day-level (the range pause that set it
- * is unreachable), yet fulfilment needs `active`. Any order found in it goes back to active,
+ * orders.status = 'paused' means nothing now that pausing is day-level, yet fulfilment needs `active`. Any order found in it goes back to active,
  * unconditionally, with one activity. The caller holds the order's advisory lock; the update is
  * status-filtered, so running it again changes nothing and logs nothing.
  */

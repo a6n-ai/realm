@@ -1,6 +1,6 @@
 import { calendarWeeks } from "./calendar";
 import { clampToToday } from "./clamp";
-import type { AnalyticsScope } from "@/lib/services/analytics/metrics/scope";
+import type { AnalyticsScope } from "@/lib/analytics/scope-types";
 import { isoDateInZone } from "@foundry/commons/util/dates";
 
 /** Header, one row per week and the legend; skeletons use it so the card does not resize on load. */

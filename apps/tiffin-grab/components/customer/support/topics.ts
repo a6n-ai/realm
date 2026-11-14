@@ -1,5 +1,5 @@
 import { CalendarDays, CreditCard, MessageCircle, MessageCircleHeart, Package, Truck, UtensilsCrossed, type LucideIcon } from "lucide-react";
-import type { IconTint } from "@/components/customer/kit";
+import type { IconTint } from "@/components/kit";
 import type { TicketCategoryValue } from "@/lib/support/ticket-taxonomy";
 
 /** Support topics with their Settings-style icon colour, shared by the topic grid and the chat rows. */

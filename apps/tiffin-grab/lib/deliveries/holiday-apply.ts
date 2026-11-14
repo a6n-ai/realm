@@ -2,15 +2,16 @@ import { MOVED_AWAY, hasAddressOverride } from "@/lib/deliveries/row-state";
 import { appTodayIso } from "@/lib/dates/today";
 import { isCutoffPassed } from "@/lib/dates/cutoff";
 import { RUNNING, inOrderStatuses } from "@/lib/orders/status";
+import { isPlanClosed } from "./plan-editable";
 import { ValidationError, cutoffMsFor, zonedDateIso } from "@foundry/commons";
 import { and, asc, eq, inArray, isNotNull, isNull, ne, not, or, sql } from "drizzle-orm";
 import { deliveries, deliveryCategorySwaps, deliveryExtraTiffins, deliveryMoves, orderActivities, orders } from "@/db/schema";
 import { openPlanDays } from "@/lib/deliveries/next-open-day";
 import { humanDate } from "@/lib/deliveries/view";
-import { getAppSettings } from "../services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import type { Tx } from "@/db/client";
-import { loadPlanDays } from "./deliveries.service";
-import type { OptimoSyncedRow } from "../services/optimoroute/stops";
+import { loadPlanDays, materializeDeliveries } from "./deliveries.service";
+import type { OptimoSyncedRow } from "../optimoroute/stops";
 import { upcomingHolidays, type HolidayDay } from "./holiday-dates";
 import { otherPlanDays } from "../orders/order-window";
 import { HOLIDAY_DISMISSED, pauseRows } from "./pause-state";
@@ -75,7 +76,7 @@ async function insertExtras(tx: Tx, order: Order, sourceId: bigint, dates: strin
  * and holds the order's advisory lock.
  */
 export async function applyHolidaysToOrder(tx: Tx, order: Order, actorId: bigint | null): Promise<HolidayApplied[]> {
-  if (!order.organizationId || order.status === "cancelled" || order.status === "completed") return [];
+  if (!order.organizationId || isPlanClosed(order)) return [];
   const cut = await getAppSettings();
   const now = Date.now();
   const holidays = await upcomingHolidays(tx, order.organizationId, zonedDateIso(now, cut.timezone));
@@ -231,4 +232,10 @@ export async function placeHolidayExtras(tx: Tx, order: Order, sourceId: bigint,
     note: `Holiday day ${source.deliveryDate} placed on ${dates.join(", ")}`,
   });
   return dates;
+}
+
+/** Caller holds the order lock (withOrderLock / lockOrder). */
+export async function scheduleWrite(tx: Tx, order: Order, actorId: bigint | null, opts: { materialize?: boolean } = {}): Promise<HolidayApplied[]> {
+  if (opts.materialize) await materializeDeliveries(tx, order);
+  return applyHolidaysToOrder(tx, order, actorId);
 }

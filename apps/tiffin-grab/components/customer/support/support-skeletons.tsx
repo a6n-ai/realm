@@ -1,4 +1,4 @@
-import { Card, Skeleton } from "@/components/customer/kit";
+import { Card, Skeleton } from "@/components/kit";
 
 /** Mirrors SupportHoursNote (full): tile + status + pill, day strip, hours chips, reply line. */
 export function SupportHoursSkeleton() {

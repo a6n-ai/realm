@@ -1,6 +1,6 @@
 // Dispatch workbook for one day: the same phone / driver / stop columns as the
 // packing sheet export, plus tiffin count and coverage for the route sheet.
-import type { DispatchRow } from "@/lib/services/optimoroute/drivers";
+import type { DispatchRow } from "@/lib/optimoroute/drivers";
 
 const HEADERS = [
   "Customer",

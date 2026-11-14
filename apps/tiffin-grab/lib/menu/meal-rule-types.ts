@@ -1,7 +1,6 @@
 /**
  * The shape the rule engine evaluates. Kept separate from the drizzle schema so
- * the validator stays a pure function over plain data — it is unit-tested that
- * way today and should remain testable without a database.
+ * the validator stays a pure function over plain data, testable without a database.
  */
 import type { MealRuleAction, MealRuleField, MealRuleOperator } from "@/db/schema/enums";
 

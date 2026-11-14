@@ -1,34 +1,34 @@
+import { BRAND_NAME } from "@/lib/brand";
 import type { Viewport } from "next";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
-import { REFERRAL_COOKIE, isReferralCodeShape, normalizeReferralCode } from "@/lib/referrals/cookie";
+import { REFERRAL_COOKIE, parseReferralCode } from "@/lib/referrals/cookie";
 import { Wizard } from "@/components/wizard/wizard";
-import { currentUserId } from "@/lib/services/session-service";
-import { getSession } from "@/lib/auth/session";
-import { isStaffRole } from "@/lib/auth/roles";
+import { customerFunnelUserId } from "@/lib/account/funnel-entry";
+import { googleClientId } from "@/lib/runtime/env";
 import { googleSignInEnabled } from "@foundry/auth";
-import { couponsService } from "@/lib/services/coupons.service";
-import { SubscribeCouponsPreview } from "@/components/customer/subscribe/existing-subscriptions";
+import { couponsService } from "@/lib/coupons/coupons.service";
+import { SubscribeCouponsPreview } from "@/components/wizard/subscribe-coupons-preview";
 import { initialSelections, newOrderHref, quoteCodes, quoteCoins, selectionsFromQuote, type QuoteParams } from "@/lib/wizard/selections";
 import { loadBuilderInputs, withFirstStart } from "@/lib/wizard/builder-inputs";
-import { summaryOrNull } from "@/components/landing/landing-reviews";
+import { summaryOrNull } from "@/lib/landing/reviews";
 import { deliveryIsFree } from "@/lib/landing/live-figures";
 import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 import type { Metadata } from "next";
 import { pageMeta } from "@/lib/landing/meta";
 import { referCardPath } from "@/lib/referrals/share";
-import { findReferrerByCode } from "@/lib/services/referrals.service";
+import { findReferrerByCode } from "@/lib/referrals/referrals.service";
 import { loadReferralOffer } from "@/lib/referrals/offer";
-import { ReferralGift } from "@/components/customer/subscribe/referral-gift";
+import { ReferralGift } from "@/components/wizard/referral-gift";
 
-const TITLE = "Build your tiffin plan | Tiffin Grab";
+const TITLE = `Build your tiffin plan | ${BRAND_NAME}`;
 const DESCRIPTION = "Pick your diet, meal size, add-ons, delivery days and weeks, and see the total before you pay.";
 
 // A referral link previews (WhatsApp, iMessage, Facebook) as the friend's promo card with their code.
 export async function generateMetadata({ searchParams }: { searchParams: Promise<{ ref?: string }> }): Promise<Metadata> {
   const meta = pageMeta(TITLE, DESCRIPTION, "/subscribe");
-  const ref = normalizeReferralCode((await searchParams).ref ?? "");
-  if (!isReferralCodeShape(ref)) return meta;
+  const ref = parseReferralCode((await searchParams).ref);
+  if (!ref) return meta;
   const image = { url: referCardPath(ref, { size: "og" }), width: 1200, height: 630, alt: `TiffinGrab referral code ${ref}` };
   const referrer = await findReferrerByCode(ref);
   if (!referrer) return meta;
@@ -51,13 +51,10 @@ export const viewport: Viewport = {
 
 export default async function SubscribePage({ searchParams }: { searchParams: Promise<{ error?: string; ref?: string } & QuoteParams> }) {
   const params = await searchParams;
-  const session = await getSession();
-  if (session?.user && isStaffRole(session.user.role)) redirect("/dashboard");
-
   // Signed out: build and price the plan first; the wizard asks for the email only at "Continue to
   // checkout", then opens /checkout signed in (every order still has an owner who can pay and upload proof).
   // Signed in: the same wizard on /me/renew, with the customer's own prefill and current-plan hints.
-  const userId = await currentUserId();
+  const userId = await customerFunnelUserId();
   // A staff estimate link carries the quoted plan; it rides along to the stepper.
   if (userId != null) redirect(newOrderHref(params));
 
@@ -69,10 +66,9 @@ export default async function SubscribePage({ searchParams }: { searchParams: Pr
   const { error } = params;
   // ?ref= first: on a share link's first hit the proxy sets the cookie on this
   // response, so the request itself doesn't carry it yet.
-  const linkRef = normalizeReferralCode(params.ref ?? "");
-  const referralCode = isReferralCodeShape(linkRef) ? linkRef : (jar.get(REFERRAL_COOKIE)?.value ?? "");
+  const referralCode = parseReferralCode(params.ref) ?? (jar.get(REFERRAL_COOKIE)?.value ?? "");
   // A share link's gift, said here so it never looks lost between the friend page and payment.
-  const [referrer, offer] = referralCode ? await Promise.all([findReferrerByCode(referralCode), loadReferralOffer().catch(() => null)]) : [null, null];
+  const [referrer, offer] = referralCode ? await Promise.all([findReferrerByCode(referralCode), loadReferralOffer()]) : [null, null];
   const gift = referrer && offer?.friend ? { from: referrer.firstName, figure: offer.friend.big } : null;
 
   return (
@@ -92,7 +88,7 @@ export default async function SubscribePage({ searchParams }: { searchParams: Pr
         trial={trial}
         trust={trust}
         intro={gift || coupons.length ? <>{gift ? <ReferralGift from={gift.from} figure={gift.figure} /> : null}<SubscribeCouponsPreview coupons={coupons} /></> : undefined}
-        signIn={{ googleClientId: googleSignInEnabled() ? process.env.GOOGLE_CLIENT_ID! : null, oauthError: error ?? null, referralCode }}
+        signIn={{ googleClientId: googleSignInEnabled() ? googleClientId() : null, oauthError: error ?? null, referralCode }}
       />
     </main>
     </>

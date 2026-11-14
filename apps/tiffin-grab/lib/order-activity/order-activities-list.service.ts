@@ -1,5 +1,5 @@
 import { pageOffset } from "@foundry/design-system/filters/parse-filter-state";
-import { STAFF_ROLES } from "@/lib/auth/roles";
+import { STAFF_ROLES } from "@/lib/roles";
 import type { Condition, FilterCondition } from "@foundry/commons/model/condition";
 import type { Page, PageRequest } from "@foundry/commons/util/pagination";
 import { columnResolver, conditionToSql, pageOrder } from "@foundry/database";

@@ -4,8 +4,8 @@ import type { FilterCondition } from "@foundry/commons/model/condition";
 import { zonedDateIso } from "@foundry/commons";
 import { db } from "@/db/client";
 import { addons, deliveryFrequencies, dishCategories, discounts, dishes, durationPackages, mealSizeItems, mealSizes, plans } from "@/db/schema";
-import { getAppSettings } from "@/lib/services/app-settings.service";
-import { dishCategoriesService } from "@/lib/services/dish-categories.service";
+import { getAppSettings } from "@/lib/settings";
+import { dishCategoriesService } from "@/lib/menu/dish-categories.service";
 
 type CategoryRow = Awaited<ReturnType<typeof dishCategoriesService.enabledCategories>>[number];
 export type PlanRow = { id: bigint; publicId: string; name: string; active: boolean };
@@ -25,7 +25,6 @@ export interface CatalogLoadCtx {
 export type CompositionCategoryOption = { value: string; label: string; tuUnitType: "weight" | "count"; tuUnitSize: number; tuUnitLabel: string };
 export type DishName = { id: string; name: string; planName: string; active: boolean };
 
-/** Editor props only one resource needs. */
 export interface EditorExtras {
   /** Options for fields with FieldDef.scopedBy: field key, then the parent field's value. */
   scopedOptions?: Record<string, Record<string, { value: string; label: string }[]>>;
@@ -36,7 +35,6 @@ export interface EditorExtras {
 
 export type CatalogRow = Record<string, unknown> & { publicId: string };
 
-/** What one catalog resource needs on top of the generic list loader. */
 export interface ResourceHooks {
   table: PgTable;
   /** Always-on list filter: rows staff must never see or edit through this resource. */

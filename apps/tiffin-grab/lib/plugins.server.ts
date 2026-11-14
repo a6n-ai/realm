@@ -4,16 +4,11 @@ import { paymentsPlugin } from "@foundry/payments/server";
 import { stripePlugin } from "@foundry/payments/stripe";
 import { googleReviewsPlugin } from "@foundry/google-reviews/server";
 import { stripeDeps } from "@/lib/payments/stripe";
-import { optimoRoutePlugin } from "./services/optimoroute/plugin.server";
+import { optimoRoutePlugin } from "./optimoroute/plugin.server";
 import { metaPixelPlugin } from "./services/meta-pixel/config";
 import { googleAnalyticsPlugin } from "./services/google-analytics/config";
-import {
-  getIntegrationsConfigFresh,
-  setIntegrationsConfig,
-  getPaymentConfig,
-  ensurePaymentCatalog,
-  integrationsConfigStore,
-} from "@/lib/services/app-settings.service";
+import { getIntegrationsConfigFresh, setIntegrationsConfig, integrationsConfigStore } from "@/lib/payments/integrations-config";
+import { getPaymentConfig, ensurePaymentCatalog } from "@/lib/payments/payment-config";
 
 const payments = paymentsPlugin({
   integrations: { get: getIntegrationsConfigFresh, set: setIntegrationsConfig },

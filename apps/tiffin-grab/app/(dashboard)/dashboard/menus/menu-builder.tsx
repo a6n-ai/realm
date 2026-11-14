@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@foundry/ui/dropdown-menu";
 import { WeeklyMenuPoster } from "@/components/marketing/weekly-menu-poster";
-import { WEEK_DAYS, type DayOfWeek } from "@/lib/menu/delivery-days";
+import { WEEK_DAYS, type DayOfWeek } from "@/lib/deliveries/schedule/delivery-days";
 import type { PosterItem } from "@/lib/menu/poster";
 import { DAY_NAME } from "@/lib/dates/weekdays";
 import type { MealTypeConfig } from "@/lib/menu/meal-types";

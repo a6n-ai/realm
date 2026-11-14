@@ -11,16 +11,17 @@ import { deliveries, mealSizes, orderActivities, orderAddons, orders, payments, 
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { countsWithAddons, orderAddonValues } from "@/lib/menu/order-addon-items";
 import { enqueueStaffNotification } from "@/lib/notifications/enqueue";
-import { canTakeAddonPayment } from "@/lib/orders/display-status";
+import { canTakeAddonPayment } from "@/lib/orders/addon-eligibility";
 import { nextCutoffMs } from "@/lib/orders/paid-start";
 import { fromCents, toCents } from "@/lib/money";
 import { resolveAddonSelections, type ResolvedAddon } from "@/lib/pricing/build-catalog";
 import { addAddonsToSnapshot, type MidPlanAddonPricing } from "@/lib/pricing/mid-plan-addons";
 import type { OrderPricingSnapshot } from "@/lib/pricing/types";
 import { publishUserRefresh } from "@/lib/realtime/publish-inbox";
-import { resolveCheckoutTaxes, stripeTaxFor } from "@/lib/tax/checkout-taxes";
-import { getAppSettings, getPaymentConfig } from "../services/app-settings.service";
-import { chargedCents, refundStripePayment, tryChargeLock } from "../payments/payment-stripe";
+import { resolveCheckoutTaxes, stripeTaxFor, taxLinesFromQuote } from "@/lib/tax/checkout-taxes";
+import { getAppSettings } from "@/lib/settings";
+import { getPaymentConfig } from "@/lib/payments/payment-config";
+import { chargedCents, refundStripePayment, tryChargeLock } from "../payments/stripe-charge";
 import { cancelOpenIntent } from "../payments/stripe-expiry";
 import { openTiffinCount } from "../deliveries/tiffin-counts";
 import { lockOrder } from "./order-lock";
@@ -151,7 +152,7 @@ async function priceAddons(
         source: "stripe",
         calculationId: quote.calculationId,
         taxableCents,
-        taxes: quote.lines.map((l) => ({ name: l.label, ratePct: l.ratePct, amount: l.amountCents / 100 })),
+        taxes: taxLinesFromQuote(quote),
       };
     }
   }
@@ -166,7 +167,6 @@ async function priceAddons(
   };
 }
 
-// Writes the add-ons onto the plan: order total/receipt/counts, the add-on rows, and the note.
 async function applyAddons(tx: Tx, order: Order, addons: ResolvedAddon[], openTiffins: number, pricing: MidPlanAddonPricing, actorId: bigint | null) {
   await tx.update(orders).set({
     total: newOrderTotal({ order, pricing }).toFixed(2),

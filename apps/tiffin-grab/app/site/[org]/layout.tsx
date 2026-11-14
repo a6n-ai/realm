@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "@/app/styles/public.css";
 import type { ReactNode } from "react";
 import { AppCurrencyProvider } from "@/components/app-currency";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { PublicShell } from "@/components/landing/public-shell";
 import { publicOrigin } from "@/lib/routing/apex";
 import { siteOrgId } from "@/lib/tenant/site-org";

@@ -16,7 +16,7 @@ import { Input } from "@foundry/ui/input";
 import { Textarea } from "@foundry/ui/textarea";
 import { trackMeta } from "@foundry/meta-pixel/client";
 import { contactFormSchema, type ContactFormValues } from "@/app/(marketing)/contact/schema";
-import { createWebsiteInquiry } from "@/app/(marketing)/contact/actions";
+import { createWebsiteInquiry } from "@/lib/landing/contact-actions";
 
 const PhoneInput = dynamic(
   () => import("@foundry/ui/phone-input").then((m) => m.PhoneInput),

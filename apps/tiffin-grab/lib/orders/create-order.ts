@@ -1,29 +1,24 @@
 import { parseCustomerContact } from "@/lib/services/contact";
-import { isCustomerRole } from "@/lib/auth/roles";
-import { formatMoney, generateCode, ValidationError, emailSchema } from "@foundry/commons";
+import { isCustomerRole } from "@/lib/roles";
+import { formatMoney, generateCode, ValidationError } from "@foundry/commons";
 import { createLogger } from "@foundry/commons/logger";
 import { enabledMethods, findMethod } from "@foundry/payments";
-import { replaceOlderUnpaidCheckouts } from "../payments/stripe-expiry";
-import { recordPurchase } from "@/lib/services/inquiry-links.service";
-import { and, eq, sql } from "drizzle-orm";
+import { replaceOlderUnpaidCheckouts } from "./unpaid-checkouts";
+import { recordPurchase } from "@/lib/inquiries/inquiry-links.service";
+import { eq } from "drizzle-orm";
 import { db, type Tx } from "@/db/client";
-import { startPaidStripeOrder } from "@/lib/payments/verification";
-import { defaultOwner } from "../services/default-owner";
+import { defaultOwner } from "../staff/default-owner";
 import { getBrandOrgId } from "../services/organizations.service";
 import { priceWithTax } from "@/lib/tax/checkout-taxes";
 import {
   coupons,
-  deliveries,
-  member,
-  mealSizes,
   orderActivities,
   orderAddons,
   orders,
   payments,
-  plans,
   users,
 } from "@/db/schema";
-import { resolveUserId } from "../services/session-service";
+import { resolveUserId } from "@/lib/identity/user-ids";
 import { sendMetaPurchaseOnce } from "@/lib/meta/purchase";
 import { runInBackground } from "@foundry/cloud/background";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
@@ -32,42 +27,40 @@ import { countsWithAddons, orderAddonValues } from "@/lib/menu/order-addon-items
 import { findZone } from "@/lib/catalog/zone-match";
 import { parseCanadianPostalCode } from "@/lib/catalog/postal";
 import { addressService } from "../services/addresses.service";
-import { resolveDropOff, setAddressDropOff } from "../services/address-drop-off.service";
+import { resolveDropOff, setAddressDropOff } from "../deliveries/address-drop-off.service";
 import { priceSubscription, type OrderPricingSnapshot, type PricingLine, type PricingSelections } from "@/lib/pricing";
 import { buildPricingCatalog } from "@/lib/pricing/build-catalog";
 import { quoteTrial } from "@/lib/trial/quote";
 import { round2 } from "@foundry/commons/util/money";
 import { postCatalogSubtotal } from "@/lib/pricing/discounts";
-import { couponsService } from "../services/coupons.service";
+import { couponsService } from "../coupons/coupons.service";
 import { enqueueNotification } from "@/lib/notifications/enqueue";
 import { orderTemplateVars } from "@/lib/notifications/events";
-import { applyHolidaysToOrder } from "../deliveries/holiday-apply";
-import { scheduleWrite } from "../services/schedule-write";
+import { scheduleWrite } from "../deliveries/holiday-apply";
 import { ledgerService } from "../payments/ledger.service";
 import { assertStartable } from "./order-window";
 import { matchCustomerAccounts, provisionCustomerByPhone, STAFF_ACCOUNT_MESSAGE } from "../services/customers.service";
-import { appToday, validateStartDate } from "./start-date";
+import { appToday, validateStartDate } from "@/lib/dates/start-date";
 import {
-  walletService,
   lockAndQuoteCoinRedemption,
   balanceInTx,
   commitCoinRedemption,
   reserveCoinRedemption,
   awardOrderCoins,
 } from "../wallet/wallet.service";
-import { awardReferral } from "../services/referrals.service";
-import { eatingDaysError, orderDeliveryDays, planDaysError, type DayOfWeek } from "@/lib/menu/delivery-days";
-import { getAppSettings, getMaxCoinPctOfSubtotal, getMaxCoinRedeemPctOfBalance, getPaymentConfig } from "../services/app-settings.service";
-import { coinLimits, quoteCoinCap } from "@/lib/pricing/coin-cap";
+import { awardReferral } from "../referrals/referrals.service";
+import { eatingDaysError, orderDeliveryDays, planDaysError, type DayOfWeek } from "@/lib/deliveries/schedule/delivery-days";
+import { getAppSettings } from "@/lib/settings";
+import { getPaymentConfig } from "@/lib/payments/payment-config";
+import { coinQuote, loadCoinConfig } from "./quote";
 import { loadMealCostFloor } from "@/lib/pricing/meal-cost";
-import { applyDiscountLane } from "@/lib/services/discount-lane";
+import { applyDiscountLane } from "@/lib/coupons/discount-lane";
 import { isProduction } from "@/lib/runtime/env";
+import { lockUser } from "@/lib/identity/lock-user";
 import { lockOrder } from "./order-lock";
 
 const log = createLogger("orders.service");
 
-// A transaction handle (or the base db) — payments + their ledger credit are
-// written inside the same tx as the order they settle.
 type PaymentStatusValue = (typeof payments.status.enumValues)[number];
 type PaymentMethodValue = (typeof payments.method.enumValues)[number];
 
@@ -148,7 +141,7 @@ export interface CreateOrderInput {
   // Customer-entered public coupon code. Re-resolved server-side here — never
   // trust a client-sent discount amount.
   couponCode?: string | null;
-  // Several typed codes; couponCode is kept for older callers and merged in.
+  // Several typed codes; couponCode is merged in.
   couponCodes?: string[] | null;
   // Staff-applied rep daily coupon: the code the actor owns plus the amount they
   // requested (clamped to the dual ceiling on the server). A requestedAmount that
@@ -212,8 +205,7 @@ export function assertOnePerson(input: Pick<CreateOrderInput, "selections">): vo
 
 // The single authoritative order-creation path: prices server-side, attaches the
 // order to the owner (provisioning a customer by phone when none is given), and
-// writes the order + simulated payment in one tx. Used by the public checkout
-// and the agent (convert) flow alike.
+// writes the order + simulated payment in one tx.
 //
 // The client speaks public_id: input.selections.mealSizeId is a meal size
 // public_id, and opts.actorId/ownerUserId are user public_ids. createOrder
@@ -351,33 +343,12 @@ export async function createOrder(
   const defaultOwnerId = input.currentOwner ?? (await defaultOwner(await resolveUserId(db, actorId), "order"));
 
   const txResult = await db.transaction(async (tx) => {
-    // Resolve the acting user and explicit owner public_ids to internal bigints.
     const createdBy = await resolveUserId(tx, actorId);
     const ownerId = await resolveUserId(tx, ownerUserId);
 
-    // A logged-in customer's order attaches to their own account; anonymous and
-    // agent orders resolve/provision the customer by phone OR email.
-    //
-    // Email is in this lookup, not just phone, because the overlap guard below
-    // is only as good as the identity it runs against. A returning customer who
-    // checks out logged-out and types a second number — a new phone, a typo, a
-    // partner's mobile — used to miss the phone match, fall through to
-    // provisioning, and die on the email-unique check with "That email is
-    // already in use": no overlap message, no way forward. Matching either
-    // channel resolves them to the account they already have, so the guard runs
-    // and they are told which date their current plan runs to.
-    //
-    // Both columns are uniquely indexed (users_email_unique, users_phone_unique)
-    // and both values are normalised above — email lowercased by emailSchema,
-    // phone to E.164 — so this cannot match on formatting variance alone.
-    //
-    // Every path that resolves an existing account (session owner, or a
-    // phone/email match below) is scoped to role="user" — a staff/admin
-    // account must never become an order's owner, whether by a signed-in
-    // staff session or a guest checkout that happens to share their phone/
-    // email. STAFF_ACCOUNT_MESSAGE is what a real person sees when that
-    // happens; provisionCustomerByPhone throws the same message for the
-    // guest-checkout collision case.
+    // Anonymous and agent orders resolve the customer by phone OR email: a returning customer who types a second
+    // number would otherwise miss the phone match and die on the email-unique check. Every account match is scoped
+    // to role="user": a staff/admin account must never own an order (STAFF_ACCOUNT_MESSAGE; provisionCustomerByPhone throws the same).
     if (ownerId) {
       const [ownerRow] = await tx.select({ role: users.role }).from(users).where(eq(users.id, ownerId)).limit(1);
       if (ownerRow && !isCustomerRole(ownerRow.role)) throw new ValidationError(STAFF_ACCOUNT_MESSAGE);
@@ -411,8 +382,6 @@ export async function createOrder(
     }
     if (!userId) throw new ValidationError("Could not resolve a customer for this order");
 
-    // The plan's main address: a picked saved address (ownership-checked), else the typed
-    // contact address saved to the customer's book (first one becomes their default).
     const addressScope = { userId, orgId };
     const savedAddress = input.addressPublicId
       ? await addressService.getRow(addressScope, input.addressPublicId, tx)
@@ -501,25 +470,22 @@ export async function createOrder(
       const priorDiscount = adjustments.reduce((sum, a) => sum + a.amount, 0);
       const remaining = Math.max(0, round2(postCatalog - priorDiscount));
       if (remaining > 0) {
-        const rate = await walletService.activeRate(currency);
         // Admin limit on the share of the PRE-TAX subtotal coins may cover
         // (NULL = unlimited). Bounded by `remaining` too, so coins can never
         // take the order below zero. capRedemption clamps rather than rejects:
         // asking for more coins than the cap allows spends only what the cap buys.
-        const maxPct = await getMaxCoinPctOfSubtotal();
+        const cfg = await loadCoinConfig(currency);
 
         // The share-of-balance limit is drawn from the balance, so read it under the same user row lock
         // lockAndQuoteCoinRedemption takes: unlocked, two concurrent orders could each draw the limit from
         // one balance and together spend past it.
-        await tx.execute(sql`SELECT id FROM ${users} WHERE id = ${userId} FOR UPDATE`);
+        await lockUser(tx, userId);
         const walletBalance = await balanceInTx(tx, userId);
-        const maxRedeemPct = await getMaxCoinRedeemPctOfBalance();
-        const { pctCap, walletPctCap } = coinLimits({ subtotal: postCatalog, balance: walletBalance, maxPct, maxRedeemPctOfBalance: maxRedeemPct });
+        const { rate, maxRedeemPctOfBalance: maxRedeemPct, pctCap, walletPctCap, cap: quote } = coinQuote(cfg, { balance: walletBalance, postCatalog, remaining });
         // Same rule as the checkout quote: refuse only when the share-of-balance limit is what binds. A
         // count over it that the order wouldn't use anyway (it needs fewer coins) still clamps below;
         // checkout sends back the number the customer typed. When it does bind here but the quote
         // passed, the balance moved since the price was shown, and spending fewer would charge more.
-        const quote = quoteCoinCap({ subtotal: postCatalog, remaining, balance: walletBalance, rate, maxPct, maxRedeemPctOfBalance: maxRedeemPct });
         if (input.coins > quote.maxCoins && quote.limitedBy === "wallet_pct") {
           throw new ValidationError(
             `You can use up to ${maxRedeemPct}% of the coins at once, ${quote.maxCoins} on this order. Check the price again.`,

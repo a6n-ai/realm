@@ -9,7 +9,7 @@ const { couponRedemptions, coupons, deliveries, ledgerEntries, notificationOutbo
   await import("@/db/schema");
 const { createOrder } = await import("../../orders/create-order");
 const { verifyPayment, claimPayment } = await import("@/lib/payments/verification");
-const { setPaymentConfig } = await import("../../services/app-settings.service");
+const { setPaymentConfig } = await import("@/lib/payments/payment-config");
 const { sharedCache } = await import("@/lib/cache");
 const { baseInput } = await import("./stripe-fixture");
 const { sendMetaPurchaseOnce } = await import("@/lib/meta/purchase");
@@ -205,8 +205,8 @@ describe("createOrder payment deferral", () => {
     const [afterVerify] = await db.select().from(payments).where(eq(payments.id, pay!.id));
     expect(afterVerify!.status).toBe("paid");
     expect(afterVerify!.metaPurchaseSentAt).toBeTypeOf("number");
+// requireProof method rejects a reference-only claim.
 
-    // requireProof method rejects a reference-only claim.
     await setPaymentConfig({
       methods: [
         {

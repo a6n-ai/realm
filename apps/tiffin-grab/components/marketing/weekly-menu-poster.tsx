@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Button } from "@foundry/ui/button";
-import { WEEK_DAYS } from "@/lib/menu/delivery-days";
+import { WEEK_DAYS } from "@/lib/deliveries/schedule/delivery-days";
 import { buildPosterColumns, DAY_COLUMNS, type PosterItem } from "@/lib/menu/poster";
 import type { MealSlot } from "@/lib/menu/meal-types";
 import { formatDateOnly } from "@/lib/format/datetime";

@@ -16,3 +16,6 @@ export async function campaignConfig() {
   const env = postalAddress ? { ...processEnv(), CAMPAIGN_POSTAL_ADDRESS: postalAddress } : processEnv();
   return buildCampaignConfig(notificationTables, env, { senderName: BRAND_COMPACT });
 }
+
+/** Without sender/unsubscribe config the handler renders nothing, so a send must be refused up front. */
+export const footerConfigured = async () => !!(await campaignConfig());

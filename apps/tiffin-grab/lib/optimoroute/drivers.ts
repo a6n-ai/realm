@@ -1,0 +1,118 @@
+import { and, eq, isNotNull, sql } from "drizzle-orm";
+import { db } from "@/db/client";
+import { deliveries, orders, payments, users } from "@/db/schema";
+import { PENDING } from "@/lib/payments/status";
+import { paymentStatusIn, planPaymentSql } from "@/lib/payments/status-sql";
+import { loadDayDeliveries } from "@/lib/deliveries/day-deliveries";
+import { loadTripDetails, stopNotes } from "./trip-notes";
+import { effectiveAddress } from "@/lib/deliveries/row-state";
+
+// OptimoRoute exposes no driver-roster endpoint: a driver's serial/name pair only exists on a route it has already
+// planned (pull.ts stores it on deliveries), so it is read back rather than kept in a stale-cache table.
+export type KnownDriver = { driverSerial: string; driverName: string | null };
+
+export async function listKnownDrivers(): Promise<KnownDriver[]> {
+  // Not selectDistinct on the pair: a renamed/corrected driver name would
+  // then surface as two rows for the same serial, colliding as React keys
+  // in the picklist. Sort newest-synced first and keep one row per serial
+  // so a rename wins over the stale name instead of both surviving.
+  const rows = await db
+    .select({
+      driverSerial: deliveries.routeDriverSerial,
+      driverName: deliveries.routeDriverName,
+    })
+    .from(deliveries)
+    .where(isNotNull(deliveries.routeDriverSerial))
+    .orderBy(sql`${deliveries.routeSyncedAt} DESC NULLS LAST`);
+
+  const bySerial = new Map<string, KnownDriver>();
+  for (const r of rows) {
+    if (r.driverSerial == null) continue;
+    if (!bySerial.has(r.driverSerial)) bySerial.set(r.driverSerial, { driverSerial: r.driverSerial, driverName: r.driverName });
+  }
+
+  return [...bySerial.values()].sort((a, b) => a.driverSerial.localeCompare(b.driverSerial));
+}
+
+export type DispatchRow = {
+  orderNo: string;
+  customerName: string;
+  phone: string | null;
+  /** Tiffins on this stop; a trip carrying several eating days is more than one per person. */
+  tiffinUnits: number;
+  coveredDates: string[];
+  coverage: string | null;
+  /** Same text the push sends: unit, driver note, coverage, per-day dishes. */
+  notes: string;
+  routeDriverSerial: string | null;
+  routeDriverName: string | null;
+  routeStopNumber: number | null;
+  routeSyncedAt: number | null;
+};
+
+/** Same scheduled-deliveries read buildPlannedOrders uses, plus the driver fields the push preview doesn't need. */
+export async function buildDispatchRows(date: string): Promise<DispatchRow[]> {
+  const rows = await loadDayDeliveries(date);
+  const trips = await loadTripDetails(rows);
+  return rows.map((row) => {
+    const trip = trips.get(row.delivery.id)!;
+    const address = effectiveAddress(row.delivery, row.order);
+    return {
+      orderNo: row.delivery.publicId,
+      customerName: address.fullName,
+      phone: row.customerPhone ?? null,
+      tiffinUnits: trip.units,
+      coveredDates: trip.covered,
+      coverage: trip.coverage,
+      notes: stopNotes(address.addressUnit, row.driverNote, trip),
+      routeDriverSerial: row.delivery.routeDriverSerial,
+      routeDriverName: row.delivery.routeDriverName,
+      routeStopNumber: row.delivery.routeStopNumber,
+      routeSyncedAt: row.delivery.routeSyncedAt,
+    };
+  });
+}
+
+export type PaymentHeldRow = {
+  deliveryPublicId: string;
+  orderPublicId: string;
+  customerName: string;
+  phone: string | null;
+  paymentStatus: (typeof PENDING)[number];
+  amount: string;
+  reference: string | null;
+};
+
+/**
+ * Scheduled for the date but kept off labels and OptimoRoute by fulfillmentReadyOrder()
+ * because the payment is not confirmed — listed on Dispatch so staff know why a customer
+ * is missing from the route rather than assuming the push failed.
+ */
+export async function listPaymentHeld(date: string): Promise<PaymentHeldRow[]> {
+  const rows = await db
+    .select({
+      deliveryPublicId: deliveries.publicId,
+      orderPublicId: orders.publicId,
+      customerName: orders.fullName,
+      phone: users.phone,
+      paymentStatus: payments.status,
+      amount: payments.amount,
+      reference: payments.reference,
+    })
+    .from(deliveries)
+    .innerJoin(orders, eq(deliveries.orderId, orders.id))
+    .innerJoin(payments, eq(payments.orderId, orders.id))
+    .leftJoin(users, eq(orders.userId, users.id))
+    .where(
+      and(
+        eq(deliveries.deliveryDate, date),
+        eq(deliveries.status, "scheduled"),
+        eq(orders.status, "active"),
+        paymentStatusIn(PENDING),
+        planPaymentSql,
+      ),
+    )
+    .orderBy(orders.fullName);
+  return rows as PaymentHeldRow[];
+}
+

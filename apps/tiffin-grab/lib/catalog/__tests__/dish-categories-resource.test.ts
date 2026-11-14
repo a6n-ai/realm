@@ -6,7 +6,7 @@ vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
 const { db } = await import("@/db/client");
 const { dishCategories, plans } = await import("@/db/schema");
-const { dishCategoriesService } = await import("@/lib/services/dish-categories.service");
+const { dishCategoriesService } = await import("@/lib/menu/dish-categories.service");
 
 // Test-owned keys that do not collide with the seed's real categories, so this
 // suite never wipes the shared seed other live-DB suites depend on.
@@ -16,15 +16,6 @@ async function cleanup() {
 }
 
 describe("dish-categories resource registry", () => {
-  it("is registered, keyed, with the expected fields", () => {
-    const def = RESOURCES["dish-categories"];
-    expect(def).toBeDefined();
-    expect(def.keyed).toBe(true);
-    expect(def.fields.map((f) => f.key)).toEqual(
-      expect.arrayContaining(["key", "label", "planIds", "selectable", "sortOrder"]),
-    );
-  });
-
   it("schema accepts a valid category and requires at least one plan", () => {
     const s = RESOURCES["dish-categories"].schema;
     expect(() => s.parse({ key: "daal", label: "Daal", planIds: ["pln_veg"], selectable: false, sortOrder: "6" })).not.toThrow();
@@ -37,7 +28,7 @@ describe("dishCategoriesService CRUD (integration)", () => {
   beforeEach(cleanup);
   afterAll(cleanup);
 
-  // Slots attach to plans by public_id now, so the test needs a real one.
+  // Slots attach to plans by public_id, so the test needs a real one.
   let vegPlanPublicId: string;
   beforeEach(async () => {
     const [veg] = await db.select({ publicId: plans.publicId }).from(plans).where(eq(plans.key, "veg")).limit(1);

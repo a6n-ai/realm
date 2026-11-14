@@ -1,7 +1,7 @@
 import { round2 } from "@foundry/commons/util/money";
 /**
  * Pure revenue helpers: status/method labels, chart grain and discount lines.
- * Revenue totals themselves come from SQL (lib/services/analytics/metrics/money.ts).
+ * Revenue totals themselves come from SQL (lib/analytics/metrics/money.ts).
  * Discount lines come from each order's pricing snapshot (catalog, coupon, coins), scaled to the
  * share of the order a payment covers and capped at the list price.
  */
@@ -30,7 +30,6 @@ export type PaymentStatusSlice = {
   amount: number;
 };
 
-/** Drop empty statuses and keep a stable order so the breakdown does not jump around. */
 export function presentPaymentStatuses(
   rows: { status: string; count: number; amount: number }[],
 ): PaymentStatusSlice[] {
@@ -137,7 +136,6 @@ export function grainUnitForRange(fromMs: number, toMs: number, tz: string): (ty
   return GRAIN_UNIT[grainForRange(isoDateInZone(fromMs, tz), isoDateInZone(toMs, tz))];
 }
 
-export { paymentMethodLabel as methodLabel } from "@/lib/payments/method-label";
 
 const STAFF_LABEL = "Staff discounts";
 

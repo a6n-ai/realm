@@ -4,7 +4,7 @@ import * as XLSX from "xlsx";
 import { db } from "@/db/client";
 import { ensureSystemUser } from "@/db/test-helpers";
 import { inquiries } from "@/db/schema";
-import { insertTestInquiry, resetInquiryData } from "@/lib/services/__tests__/helpers/inquiry-fixtures";
+import { insertTestInquiry, resetInquiryData } from "@/lib/inquiries/__tests__/helpers/inquiry-fixtures";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 vi.mock("@/lib/auth/guards", () => ({ requireStaff: async () => undefined }));

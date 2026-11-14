@@ -2,7 +2,7 @@ import { requireAccountUser } from "@/lib/account/current-user";
 import { AccountPage } from "@/components/customer/account/account-page";
 import { sectionFromSlug, sectionsForRole } from "@/components/customer/account/sections.config";
 import { addressScopeFor, addressService } from "@/lib/services/addresses.service";
-import { dropOffsFor } from "@/lib/services/address-drop-off.service";
+import { dropOffsFor } from "@/lib/deliveries/address-drop-off.service";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { toClientCatalog } from "@/lib/catalog/types";
 import { dropOffCatalog } from "@/lib/catalog/drop-off";

@@ -3,13 +3,13 @@
 import { createLogger } from "@foundry/commons/logger";
 import { getSession } from "@/lib/auth/session";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
-import { inquiriesService } from "@/lib/services/inquiries.service";
+import { inquiriesService } from "@/lib/inquiries/inquiries.service";
 import { createCustomer, customerInviteUrl, invitePendingCustomers, sendCustomerInvite } from "@/lib/services/customers.service";
 import { sendMenuReminderToCustomer } from "@/lib/notifications/menu-reminder";
 import type { ActionResult } from "@/lib/actions/action-result";
 import { staffAction } from "@/lib/actions/staff-action";
-import { linkCustomer } from "@/lib/services/inquiry-links.service";
-import { userIdByPublicId } from "@/lib/services/session-service";
+import { linkCustomer } from "@/lib/inquiries/inquiry-links.service";
+import { userIdByPublicId } from "@/lib/identity/user-ids";
 
 const log = createLogger("customers-actions");
 
@@ -41,7 +41,7 @@ export async function createCustomerFlow(input: {
       interest: { ...input.interest, subSourceKey: input.source.subSourceKey },
       pickedId: input.pickedInquiryId,
       visible: await resolveSessionVisibleOrgIds(await getSession()),
-    forOrder: true,
+      forOrder: true,
     });
     const actorId = (await getSession())?.user?.id ?? null;
     const { publicId } = await createCustomer(input.contact, { actorId });

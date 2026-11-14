@@ -1,11 +1,12 @@
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { BRAND_HOST } from "@/lib/brand";
+import { getAppSettings } from "@/lib/settings";
 import { formatDiscount } from "@/lib/format/currency";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import type { CatalogSnapshot } from "@/lib/catalog/types";
 import { promoSavings } from "@/lib/landing/savings";
-import { couponsService, type AvailableCoupon } from "@/lib/services/coupons.service";
+import { couponsService, type AvailableCoupon } from "@/lib/coupons/coupons.service";
 import { hasPlacement } from "@/lib/promotions/live";
-import { promotionsService, type Promotion } from "@/lib/services/promotions.service";
+import { promotionsService, type Promotion } from "@/lib/promotions/promotions.service";
 
 import type { LandingPromo, LandingPromos } from "@/lib/landing/promo-types";
 
@@ -24,7 +25,7 @@ export function couponHeadline(c: Pick<AvailableCoupon, "valuePct" | "valueAmoun
 }
 
 function fromCoupon(c: AvailableCoupon, snapshot: CatalogSnapshot | null, currency: string): LandingPromo {
-  const savings = snapshot ? promoSavings(snapshot, c) : null;
+  const savings = snapshot ? promoSavings(snapshot, c, currency) : null;
   return {
     savings,
     id: `coupon:${c.code}`,
@@ -48,7 +49,7 @@ export function ownImagePath(url: string | null): string | null {
   if (!url) return url;
   try {
     const u = new URL(url);
-    const own = u.hostname === "tiffingrab.ca" || u.hostname.endsWith(".tiffingrab.ca");
+    const own = u.hostname === BRAND_HOST || u.hostname.endsWith(`.${BRAND_HOST}`);
     return own && !u.search && u.pathname.startsWith("/landing/") ? u.pathname : url;
   } catch {
     return url;
@@ -57,7 +58,7 @@ export function ownImagePath(url: string | null): string | null {
 
 function fromPromotion(p: Promotion, coupons: Map<string, AvailableCoupon>, snapshot: CatalogSnapshot | null, currency: string): LandingPromo {
   const coupon = p.couponCode ? coupons.get(p.couponCode.toUpperCase()) : undefined;
-  const savings = coupon && snapshot ? promoSavings(snapshot, coupon) : null;
+  const savings = coupon && snapshot ? promoSavings(snapshot, coupon, currency) : null;
   return {
     savings,
     id: p.publicId,
@@ -73,7 +74,19 @@ function fromPromotion(p: Promotion, coupons: Map<string, AvailableCoupon>, snap
   };
 }
 
+const PROMOS_NONE: LandingPromos = { sticker: null, popup: null, sections: [] };
+
+/** Optional content: any failure reads as "no promos". */
 export async function loadLandingPromos(): Promise<LandingPromos> {
+  try {
+    return await buildLandingPromos();
+  } catch {
+    return PROMOS_NONE;
+  }
+}
+
+/** Throws on failure: for callers that must not cache a fallback (the public API keeps answers for an hour). */
+export async function buildLandingPromos(): Promise<LandingPromos> {
   const [coupons, live, snapshot, { currency }] = await Promise.all([
     couponsService.listAvailable().catch(() => [] as AvailableCoupon[]),
     promotionsService.listLive().catch(() => [] as Promotion[]),

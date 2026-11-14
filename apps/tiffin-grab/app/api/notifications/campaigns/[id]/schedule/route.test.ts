@@ -10,14 +10,14 @@ vi.mock("@relay/engine", () => ({
   scheduleCampaign: async (_d: unknown, _id: string, at: number | null) => ({ scheduledAt: at }),
   zonedLocalToEpoch: () => 4_000_000,
 }));
-vi.mock("@/lib/services/customer-groups.service", () => ({ staleGroupsForCampaign: async () => [] }));
+vi.mock("@/lib/customer-groups/customer-groups.service", () => ({ staleGroupsForCampaign: async () => [] }));
 vi.mock("@/lib/auth/guards", () => ({ requireAdmin: async () => {} }));
 vi.mock("@/db/client", () => ({ db: {} }));
 vi.mock("@/lib/notifications/tables", () => ({ notificationTables: {}, usersRef: {} }));
 vi.mock("@/lib/notifications/campaign-config", () => ({ campaignConfig: async () => ({}) }));
 vi.mock("@/lib/campaigns/segment", () => ({ resolveSegment: () => {} }));
 vi.mock("@/lib/runtime/workflow-wake", () => ({ scheduleCampaignWake: wake }));
-vi.mock("@/lib/services/app-settings.service", () => ({ getAppSettings: async () => ({ timezone: "America/Toronto" }) }));
+vi.mock("@/lib/settings", () => ({ getAppSettings: async () => ({ timezone: "America/Toronto" }) }));
 
 import { POST } from "./route";
 

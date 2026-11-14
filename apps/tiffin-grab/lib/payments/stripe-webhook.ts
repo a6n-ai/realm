@@ -5,7 +5,7 @@ import { getWebhookSecret, normalizeEvent, parseStripeEvent, type StripeNormaliz
 import type Stripe from "stripe";
 import { db } from "@/db/client";
 import { stripeEvents } from "@/db/schema";
-import { touchStripeLastEventAt } from "../services/app-settings.service";
+import { touchStripeLastEventAt } from "@/lib/payments/integrations-config";
 import { stripeDeps, stripeRuntime } from "@/lib/payments/stripe";
 import { findStripePayment, recordStripeDispute, recordStripeFailure, recordStripeRefund, settleStripePayment } from "./payment-stripe";
 
@@ -24,7 +24,7 @@ async function dispatch(n: StripeNormalized): Promise<string | null> {
   }
 }
 
-/** Runs a stored event through the handler. Used by the webhook and by staff "Reprocess". */
+/** Also used by staff "Reprocess". */
 export async function processStripeEvent(eventId: string): Promise<void> {
   const [row] = await db.select().from(stripeEvents).where(eq(stripeEvents.eventId, eventId));
   if (!row || row.processedAt) return;

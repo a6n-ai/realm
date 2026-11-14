@@ -1,34 +1,21 @@
-import { redirect } from "next/navigation";
-import { desc, eq } from "drizzle-orm";
-import { db } from "@/db/client";
-import { deliveryFrequencies, orders, plans } from "@/db/schema";
-import { loadCatalogSnapshot } from "@/lib/catalog/load";
-import { getTrialSettings } from "@/lib/services/trial-settings.service";
-import { popularMealSizesByPlan } from "@/lib/services/popular-meal-sizes.service";
+import { requireCustomerIdOrRedirect } from "@/lib/account/customer";
 import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
-import { toClientCatalog } from "@/lib/catalog/types";
-import { currentUserId } from "@/lib/services/session-service";
 import { myRenewalWindow, mySubscriptionsSummary } from "@/lib/deliveries/customer-deliveries.service";
-import { checkoutHolidayDates } from "@/lib/deliveries/holidays.service";
-import { appToday, earliestPlanStart, planStartDays } from "@/lib/orders/start-date";
+import { loadBuilderInputs, withFirstStart } from "@/lib/wizard/builder-inputs";
 import { PageShell } from "@/components/ds";
 import { RenewCheckout } from "./quick-renew-client";
 import { CheckoutUnavailable } from "@/components/checkout/checkout-unavailable";
-import { loadCheckoutProps } from "@/components/checkout/load-checkout-props";
-import { getSession } from "@/lib/auth/session";
+import { loadCheckoutProps } from "@/lib/checkout/load-props";
 import { UnpaidRenewalNotice } from "@/components/renew/unpaid-renewal-notice";
-import { findUnpaidRenewalForOwner, loadQuickRenewForCustomer } from "@/lib/renewals/quick-renew.service";
+import { findUnpaidRenewalForOwner, loadPriorSelections, loadQuickRenewForCustomer } from "@/lib/renewals/quick-renew.service";
 import { renewPageMode } from "@/lib/renewals/renew-selections";
 import { Wizard } from "@/components/wizard/wizard";
-import { quoteCodes, quoteCoins, selectionsFromPriorOrder, selectionsFromQuote, type QuoteParams } from "@/lib/wizard/selections";
+import { quoteCodes, quoteCoins, selectionsFromQuote, type QuoteParams } from "@/lib/wizard/selections";
 import type { CurrentPlanSummary } from "@/components/wizard/current-plan-hint";
-import { utcIso } from "@foundry/commons/util/dates";
-
-const LIVE = new Set(["active", "upcoming", "paused", "waitlisted", "pending"]);
+import { LIVE, inOrderStatuses } from "@/lib/orders/status";
 
 export default async function RenewPlanPage({ searchParams }: { searchParams: Promise<QuoteParams & { full?: string }> }) {
-  const userId = await currentUserId();
-  if (userId == null) redirect("/login");
+  const userId = await requireCustomerIdOrRedirect();
   const params = await searchParams;
   const quoteParams = Boolean(params.p);
   const full = params.full === "1";
@@ -37,7 +24,7 @@ export default async function RenewPlanPage({ searchParams }: { searchParams: Pr
   if (unpaid) return <PageShell><UnpaidRenewalNotice payPublicId={unpaid.payPublicId} /></PageShell>;
   const data = quoteParams || full ? null : await loadQuickRenewForCustomer(userId, orgId);
   if (data && renewPageMode({ quoteParams, full, data }) === "quick") {
-    const checkout = await getSession().then((session) => loadCheckoutProps(userId, session!.user.id, orgId));
+    const checkout = await loadCheckoutProps(orgId);
     if (!checkout) return <CheckoutUnavailable />;
     return (
       <PageShell>
@@ -48,62 +35,20 @@ export default async function RenewPlanPage({ searchParams }: { searchParams: Pr
     );
   }
 
-  const [catalog, trialSettings, [lastOrder], { earliestStart: earliestStartDate, lastTiffin }, subs, popular, checkout] = await Promise.all([
-    loadCatalogSnapshot(),
-    resolveRequestOrg().then(getTrialSettings),
-    db
-      .select({
-        mealSizeId: orders.mealSizeId,
-        planKey: plans.key,
-        persons: orders.persons,
-        eatingDays: orders.eatingDays,
-        includeSaturday: orders.includeSaturday,
-        includeSunday: orders.includeSunday,
-        durationWeeks: orders.durationWeeks,
-        frequencyKey: deliveryFrequencies.key,
-      })
-      .from(orders)
-      .innerJoin(plans, eq(orders.planId, plans.id))
-      .innerJoin(deliveryFrequencies, eq(orders.frequencyId, deliveryFrequencies.id))
-      .where(eq(orders.userId, userId))
-      .orderBy(desc(orders.createdAt))
-      .limit(1),
+  const [{ client, today, holidayDates, popular, trial }, { earliestStart: earliestStartDate, lastTiffin }, subs, checkout] = await Promise.all([
+    loadBuilderInputs(orgId),
     myRenewalWindow(userId),
     mySubscriptionsSummary(userId),
-    popularMealSizesByPlan(orgId),
-    getSession().then((session) => loadCheckoutProps(userId, session!.user.id, orgId)),
+    loadCheckoutProps(orgId),
   ]);
-  const client = toClientCatalog(catalog);
-  const today = appToday(client.timezone, client.cutoffHour);
-  const holidayDates = await checkoutHolidayDates(utcIso(today));
-  const mealSizePublicId = lastOrder
-    ? catalog.mealSizes.find((m) => m.id === lastOrder.mealSizeId)?.publicId
-    : undefined;
-  const prior = selectionsFromPriorOrder(
-    client,
-    lastOrder
-      ? {
-          planKey: lastOrder.planKey,
-          mealSizePublicId,
-          persons: 1,
-          eatingDays: lastOrder.eatingDays,
-          includeSaturday: lastOrder.includeSaturday,
-          includeSunday: lastOrder.includeSunday,
-          durationWeeks: lastOrder.durationWeeks,
-          frequencyKey: lastOrder.frequencyKey,
-        }
-      : null,
-  );
+  const prior = await loadPriorSelections(userId, client);
   // A renewal keeps its length and lands on its start date already picked: the first day
   // the plan starts on after the running plan's last tiffin (or tomorrow when none runs).
   // A staff estimate link wins over the last order: it is what the customer just agreed to.
   const quoted = selectionsFromQuote(client, params);
   const base = quoted ?? prior;
-  const basePlan = client.plans.find((p) => p.key === base.planKey);
-  const initial = basePlan
-    ? { ...base, startDate: earliestPlanStart(today, planStartDays(basePlan.allowedStartDays, client.frequencies.find((f) => f.key === base.frequencyKey)?.weekdays), earliestStartDate, new Set(holidayDates)) }
-    : base;
-  const live = subs.filter((s) => LIVE.has(s.status));
+  const initial = withFirstStart(client, base, today, earliestStartDate, holidayDates);
+  const live = subs.filter((s) => inOrderStatuses(LIVE, s.status));
   const currentRow =
     live.find((s) => s.status === "active") ??
     live.find((s) => s.status === "paused") ??
@@ -138,11 +83,7 @@ export default async function RenewPlanPage({ searchParams }: { searchParams: Pr
           holidayDates={holidayDates}
           popular={popular}
           existingStartDates={live.map((s) => s.startDate).filter(Boolean)}
-          trial={
-            trialSettings.maxDays != null && trialSettings.maxDays >= 1 && trialSettings.weekdays.length > 0
-              ? { maxDays: trialSettings.maxDays, weekdays: trialSettings.weekdays }
-              : null
-          }
+          trial={trial}
         />
       </div>
     </PageShell>

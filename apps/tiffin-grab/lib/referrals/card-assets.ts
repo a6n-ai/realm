@@ -1,13 +1,13 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { getCloudflareContext } from "@opennextjs/cloudflare";
+import { cfEnv } from "@/lib/runtime/cf-env";
 import { isWorkers } from "@foundry/commons/runtime/platform";
 
 const NAMES = ["Poppins-Bold.ttf", "Poppins-Medium.ttf", "tiffin.png", "mark.png"] as const;
 
 async function load(name: string, origin: URL): Promise<ArrayBuffer> {
   if (isWorkers()) {
-    const res = await getCloudflareContext().env.ASSETS.fetch(new URL(`/refer-card/${name}`, origin));
+    const res = await cfEnv().ASSETS.fetch(new URL(`/refer-card/${name}`, origin));
     if (!res.ok) throw new Error(`refer-card asset ${name}: ${res.status}`);
     return res.arrayBuffer();
   }

@@ -2,26 +2,28 @@ import { Skeleton } from "@foundry/ui/skeleton";
 import { cache, Suspense } from "react";
 import { BanknoteIcon, TrendingUpIcon } from "lucide-react";
 import { paymentsHref } from "@/lib/analytics/drill";
-import { scopeOrAlert } from "@/components/analytics/franchise-unavailable";
-import { DATE_BASIS_LABEL, type AnalyticsScope } from "@/lib/services/analytics/metrics/scope";
+import { scopeOrAlert } from "@/components/dashboard/analytics/franchise-unavailable";
+import { DATE_BASIS_LABEL } from "@/lib/analytics/metrics/scope";
+import { type AnalyticsScope } from "@/lib/analytics/scope-types";
 import { PAID } from "@/lib/payments/status";
-import { ChartCard } from "@/components/analytics/chart-card";
-import { ChartSkeleton } from "@/components/analytics/skeletons";
-import { DivergingBarChart, WaterfallChart } from "@/components/analytics/charts";
+import { ChartCard } from "@/components/dashboard/analytics/chart-card";
+import { ChartSkeleton } from "@/components/dashboard/analytics/skeletons";
+import { DivergingBarChart, WaterfallChart } from "@/components/dashboard/analytics/charts";
 import { buildProfitWaterfall } from "@/lib/analytics/waterfall";
 
 import { AnalyticsStatCards, AnalyticsStatCardsSkeleton, StatFootnote, type AnalyticsStatCardItem } from "@/components/dashboard/stat-cards";
-import { AnalyticsIntro } from "@/components/analytics/analytics-intro";
+import { AnalyticsIntro } from "@/components/dashboard/analytics/analytics-intro";
 import { Badge } from "@/components/reui/badge";
-import { getProfitabilityReport } from "@/lib/services/analytics/profitability.service";
-import { currentMonth, navScope, type Grain, type ProfitabilityKpis } from "@/lib/analytics/profitability";
-import { ManualRefresh } from "@/components/analytics/manual-refresh";
+import { getProfitabilityReport } from "@/lib/analytics/profitability.service";
+import { navScope, type Grain, type ProfitabilityKpis } from "@/lib/analytics/profitability";
+import { currentMonth } from "@/lib/dates/epoch-window";
+import { ManualRefresh } from "@/components/dashboard/analytics/manual-refresh";
 import { AssumptionChips } from "./assumption-chips";
 import { DayCards } from "./day-cards";
 import { GrainNav } from "./grain-nav";
 import { isoDateInZone } from "@foundry/commons/util/dates";
 import { requestNow } from "@/lib/dates/request-now";
-import { getMoneyFormatter } from "@/lib/services/app-settings.service";
+import { getMoneyFormatter } from "@/lib/settings";
 
 function pct(n: number | null) {
   return n == null ? "—" : `${n.toFixed(1)}%`;

@@ -6,7 +6,7 @@ import type { ActionResult } from "@/lib/actions/action-result";
 import { ValidationError } from "@foundry/commons";
 import { staffAction } from "@/lib/actions/staff-action";
 import { PROMO_PLACEMENTS } from "@/db/schema/promotions";
-import { promotionsService } from "@/lib/services/promotions.service";
+import { promotionsService } from "@/lib/promotions/promotions.service";
 import { revalidatePublicSite } from "@/lib/landing/revalidate-site";
 
 const emptyToNull = (v: unknown) => (typeof v === "string" && v.trim() === "" ? null : v);

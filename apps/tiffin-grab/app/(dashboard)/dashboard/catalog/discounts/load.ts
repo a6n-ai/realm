@@ -2,7 +2,7 @@ import { asc, desc, eq } from "drizzle-orm";
 import { zonedDateIso } from "@foundry/commons";
 import { db } from "@/db/client";
 import { deliveryFrequencies, deliveryStrategies, deliveryStrategyGroups, discounts, durationPackages, mealSizes } from "@/db/schema";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import type { DiscountDto } from "./build-rows";
 
 export async function loadDiscountData() {

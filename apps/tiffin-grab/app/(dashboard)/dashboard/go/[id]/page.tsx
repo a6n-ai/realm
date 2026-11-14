@@ -1,4 +1,5 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { orgScope } from "@/lib/tenant/org-scope";
+import { and, eq } from "drizzle-orm";
 import { notFound, redirect } from "next/navigation";
 import { db } from "@/db/client";
 import { deliveries, orders } from "@/db/schema";
@@ -17,7 +18,7 @@ export default async function GoToOrder({ params }: { params: Promise<{ id: stri
   // Same org scope as the order page (readOrder), so an id from another franchise doesn't
   // even resolve to its order id.
   const visible = await resolveSessionVisibleOrgIds(await getSession());
-  const inScope = visible === "all" ? undefined : inArray(orders.organizationId, visible);
+  const inScope = orgScope(orders.organizationId, visible);
 
   const match = id.startsWith("dlv_")
     ? eq(deliveries.publicId, id)

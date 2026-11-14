@@ -1,4 +1,4 @@
-import { getCloudflareContext } from "@opennextjs/cloudflare";
+import { cfEnv } from "@/lib/runtime/cf-env";
 import { createLogger } from "@foundry/commons/logger";
 import { isWorkers } from "@foundry/commons/runtime/platform";
 
@@ -13,7 +13,7 @@ const log = createLogger("outbox-signal");
 export async function signalOutbox(): Promise<void> {
   if (!isWorkers()) return;
   try {
-    await (getCloudflareContext().env as { OUTBOX: { send(m: { at: number }): Promise<void> } }).OUTBOX.send({ at: Date.now() });
+    await cfEnv().OUTBOX.send({ at: Date.now() });
   } catch (err) {
     log.warn({ err }, "outbox signal failed");
   }

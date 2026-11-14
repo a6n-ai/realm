@@ -1,8 +1,10 @@
+import { formatAddressLine } from "@/lib/catalog/address-line";
 import { cutoffOpenSql } from "@/lib/dates/cutoff-sql";
-import { and, eq, gt, inArray, isNull, notInArray, sql, type SQL } from "drizzle-orm";
+import { and, eq, inArray, isNull, notInArray, sql, type SQL } from "drizzle-orm";
 import { ValidationError } from "@foundry/commons";
 import type { AddressHooks, AddressSnapshot, AddressTx } from "@foundry/address";
 import { deliveries, orderActivities, orders, users } from "@/db/schema";
+import { ENDED } from "@/lib/orders/status";
 import { currentUserId } from "@/lib/services/session-service";
 import { findZone } from "@/lib/catalog/zone-match";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
@@ -73,7 +75,7 @@ async function retarget(tx: AddressTx, fromAddressId: bigint, toAddressId: bigin
   const planOrders = await tx
     .select({ id: orders.id, orgId: orders.organizationId })
     .from(orders)
-    .where(and(eq(orders.addressId, fromAddressId), notInArray(orders.status, ["completed", "cancelled"])));
+    .where(and(eq(orders.addressId, fromAddressId), notInArray(orders.status, [...ENDED])));
   const inheritingFromPlan = planOrders.length
     ? await editable(tx, and(inArray(deliveries.orderId, planOrders.map((o) => o.id)), isNull(deliveries.addressLine)))
     : [];
@@ -90,7 +92,7 @@ async function retarget(tx: AddressTx, fromAddressId: bigint, toAddressId: bigin
   }
   const editableIds = new Set(affected.map((d) => d.id));
   const actor = await currentUserId();
-  const line = [to.addressUnit ? `${to.addressUnit} – ${to.addressLine}` : to.addressLine, to.city, to.postalCode].filter(Boolean).join(", ");
+  const line = formatAddressLine(to);
   for (const o of planOrders) {
     const [before] = await tx.select({ line: orders.addressLine, unit: orders.addressUnit, city: orders.city, pc: orders.postalCode, org: orders.organizationId })
       .from(orders).where(eq(orders.id, o.id)).limit(1);

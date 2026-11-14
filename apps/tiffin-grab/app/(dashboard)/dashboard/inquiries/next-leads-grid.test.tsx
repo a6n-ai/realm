@@ -6,7 +6,7 @@ import { cleanup, render as rtlRender, screen } from "@testing-library/react";
 import { eq } from "@foundry/commons/model/condition";
 import { TimezoneProvider } from "@foundry/design-system/timezone-provider";
 import { TooltipProvider } from "@foundry/ui/tooltip";
-import type { PipelineRow } from "@/lib/services/inquiries.service";
+import type { PipelineRow } from "@/lib/inquiries/inquiries.service";
 import { NextLeadsGrid, leadScope, type NextLeadsGridProps } from "./next-leads-grid";
 
 vi.mock("./actions", () => ({

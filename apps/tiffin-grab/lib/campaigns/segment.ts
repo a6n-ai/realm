@@ -6,8 +6,6 @@ import { orders, users } from "@/db/schema";
 type Segment = NonNullable<AudienceDef["segment"]>;
 
 /**
- * Turn a segment definition into customer user ids.
- *
  * Lives in the app because the package cannot know what an order is. Aggregates
  * over `orders` grouped by owner; orders with no owner (pre-backfill) simply do
  * not participate.
@@ -19,7 +17,7 @@ export async function resolveSegment(segment: Segment): Promise<bigint[]> {
   if (segment.lastOrderAfter) having.push(sql`max(${orders.createdAt}) >= ${segment.lastOrderAfter}`);
   if (segment.lastOrderBefore) having.push(sql`max(${orders.createdAt}) <= ${segment.lastOrderBefore}`);
 
-  // Marketing SMS requires a verified number (Plan D's isSmsDeliverable).
+  // Marketing SMS requires a verified number.
   // Excluding here is one query; excluding at send time would already have
   // created the outbox row.
   const filters = [sql`${orders.userId} is not null`];

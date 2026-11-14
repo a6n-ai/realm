@@ -3,7 +3,7 @@
 import { z } from "zod";
 import { parseInput, staffAction } from "@/lib/actions/staff-action";
 import type { ActionResult } from "@/lib/actions/action-result";
-import { setProvinceTaxes } from "@/lib/services/app-settings.service";
+import { setProvinceTaxes } from "@/lib/tax/province-taxes";
 import { PROVINCES } from "@/lib/tax/canada";
 
 const taxLineSchema = z.object({

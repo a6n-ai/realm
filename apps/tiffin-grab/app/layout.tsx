@@ -1,3 +1,4 @@
+import { BRAND_NAME } from "@/lib/brand";
 import type { Metadata } from "next";
 import { MetaPageViews } from "@/components/meta/meta-page-views";
 import { AreaTransition } from "@/components/motion/page-transition";
@@ -35,7 +36,7 @@ const poppins = Poppins({
 // Absolute URLs for canonical and share-card tags; SITE_URL is the deployed origin.
 export const metadata: Metadata = {
   metadataBase: new URL(siteOrigin()),
-  title: "Tiffin Grab",
+  title: BRAND_NAME,
   description: "Customizable tiffin subscriptions across the GTA.",
 };
 

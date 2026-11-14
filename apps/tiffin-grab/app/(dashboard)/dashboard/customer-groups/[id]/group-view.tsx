@@ -15,7 +15,7 @@ import { RowActionTooltipButton } from "@/components/ds/row-action-tooltip-butto
 import { Alert, AlertDescription } from "@/components/reui/alert";
 import { useTimezone } from "@foundry/design-system/timezone-provider";
 import { formatEpoch } from "@/lib/format/datetime";
-import type { CustomerGroupRow, GroupActionRow, GroupMember } from "@/lib/services/customer-groups.service";
+import type { CustomerGroupRow, GroupActionRow, GroupMember } from "@/lib/customer-groups/customer-groups.service";
 import { AccountSearch } from "../new/account-search";
 import { addGroupMemberAction, removeGroupMemberAction } from "../actions";
 import { GroupHeaderActions } from "../group-quick-actions";

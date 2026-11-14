@@ -1,17 +1,13 @@
 import Link from "next/link";
 import { inStatuses, UNPAID } from "@/lib/payments/status";
-import { eq } from "drizzle-orm";
 import { notFound, redirect } from "next/navigation";
-import { db } from "@/db/client";
-import { orders, payments, users } from "@/db/schema";
 import { CheckCircle2Icon, ClockIcon, HourglassIcon } from "lucide-react";
 import { Card } from "@foundry/ui/card";
 import { StaticMapClient } from "@/components/maps/static-map-client";
 import { getSession } from "@/lib/auth/session";
-import { isStaffRole } from "@/lib/auth/roles";
 import { stripeMethodAvailable } from "@/lib/payments/stripe";
-import { getAppSettings } from "@/lib/services/app-settings.service";
-import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
+import { getAppSettings } from "@/lib/settings";
+import { loadActivation } from "@/lib/account/order-access";
 import { getClaimPaymentContext } from "@/lib/payments/verification";
 import { ClaimPayment } from "@/components/customer/wallet/claim-payment";
 
@@ -24,36 +20,14 @@ export default async function ActivatePage({ params }: { params: Promise<{ deplo
   const session = await getSession();
   if (!session?.user) redirect(`/login?callbackUrl=${encodeURIComponent(`/activate/${deploymentId}`)}`);
 
-  const [sub] = await db.select().from(orders).where(eq(orders.deploymentId, deploymentId)).limit(1);
-  if (!sub) notFound();
-
-  const [pay] = await db
-    .select({ publicId: payments.publicId, status: payments.status })
-    .from(payments)
-    .where(eq(payments.orderId, sub.id))
-    .limit(1);
+  const found = await loadActivation(deploymentId, session);
+  if (!found) notFound();
+  const { order: sub, payment: pay, owns: ownsOrder } = found;
 
   const waitlisted = sub.status === "waitlisted";
   const inReview = pay?.status === "pending_verification";
   const needsPayment = pay != null && (inStatuses(UNPAID, pay.status));
   const claimable = inReview || needsPayment;
-
-  let ownsOrder = false;
-  if (sub.userId != null) {
-    const [u] = await db
-      .select({ publicId: users.publicId })
-      .from(users)
-      .where(eq(users.id, sub.userId))
-      .limit(1);
-    ownsOrder = u?.publicId === session.user.id;
-  }
-  // Someone else's order reads as missing, so ids can't be probed. Staff see orders in their
-  // own organizations only, like the admin order pages and receipts.
-  if (!ownsOrder) {
-    if (!isStaffRole(session.user.role)) notFound();
-    const visible = await resolveSessionVisibleOrgIds(session);
-    if (visible !== "all" && (sub.organizationId == null || !visible.includes(sub.organizationId))) notFound();
-  }
 
   const { currency } = await getAppSettings();
   const claimCtx =

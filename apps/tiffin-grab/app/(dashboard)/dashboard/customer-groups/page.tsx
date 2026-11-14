@@ -5,7 +5,7 @@ import { PageShell, PageHeader, SectionCard, parseFilterState, type FacetDef } f
 import { StatCards, StatCardsSkeleton, type StatCardItem } from "@/components/dashboard/stat-cards";
 import { SectionDateRange } from "@/components/filters/section-date-range";
 import { epochRange, withDefaultMonth, withListDates } from "@/lib/list/default-month";
-import { customerGroupStats, listCustomerGroups } from "@/lib/services/customer-groups.service";
+import { customerGroupStats, listCustomerGroups } from "@/lib/customer-groups/customer-groups.service";
 import { GroupsTable, GroupsTableSkeleton } from "./groups-table";
 import { NewGroupButtonSkeleton, NewGroupLauncher } from "./new-group-launcher";
 

@@ -2,8 +2,8 @@
 
 import { useState, useTransition, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Button, Card, Field } from "@/components/customer/kit";
-import { enterReferralCode } from "@/app/(customer)/me/refer/actions";
+import { Button, Card, Field } from "@/components/kit";
+import { enterReferralCode } from "@/lib/referrals/customer-actions";
 
 export function EnterCodeCard() {
   const router = useRouter();

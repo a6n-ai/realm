@@ -1,17 +1,18 @@
+import { type Visible, noVisibleOrgs } from "@/lib/tenant/org-scope";
 import { Suspense, type ReactNode } from "react";
 import { requireAdmin } from "@/lib/auth/guards";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/reui/alert";
 import { BarChart3Icon } from "lucide-react";
 import { PageShell, PageHeader, type FacetDef } from "@/components/ds";
-import { AnalyticsFilters } from "@/components/analytics/analytics-filters";
-import { getAnalyticsFilterOptions } from "@/lib/services/analytics/shared-filters";
-import type { AnalyticsFilterOptions } from "@/lib/services/analytics/shared-filter-params";
-import { REVENUE_METHODS } from "@/lib/services/analytics/revenue.service";
-import { methodLabel } from "@/lib/analytics/revenue";
+import { AnalyticsFilters } from "@/components/dashboard/analytics/analytics-filters";
+import { getAnalyticsFilterOptions } from "@/lib/analytics/shared-filters";
+import type { AnalyticsFilterOptions } from "@/lib/analytics/shared-filter-params";
+import { REVENUE_METHODS } from "@/lib/analytics/revenue.service";
+import { paymentMethodLabel } from "@/lib/payments/method-label";
 import { categoryLabel, SUBCATEGORIES, TICKET_CATEGORIES } from "@/lib/support/ticket-taxonomy";
 import { PRIORITY_OPTIONS } from "@/lib/support/ticket-priority";
-import { STATUS_OPTIONS } from "@/lib/services/analytics/complaint-filters";
+import { STATUS_OPTIONS } from "@/lib/support/complaint-filters";
 import { getSession } from "@/lib/auth/session";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import { AnalyticsTabs } from "./analytics-tabs";
@@ -21,7 +22,7 @@ const REVENUE_FACETS: FacetDef[] = [
     kind: "multi",
     field: "method",
     label: "Payment method",
-    options: REVENUE_METHODS.map((m) => ({ value: m, label: methodLabel(m) })),
+    options: REVENUE_METHODS.map((m) => ({ value: m, label: paymentMethodLabel(m) })),
   },
 ];
 
@@ -53,7 +54,7 @@ function complaintFacets(tickets: AnalyticsFilterOptions["tickets"]): FacetDef[]
 export default async function AnalyticsLayout({ children }: { children: ReactNode }) {
   await requireAdmin();
   const visible = await resolveSessionVisibleOrgIds(await getSession());
-  const noAccess = visible !== "all" && visible.length === 0;
+  const noAccess = noVisibleOrgs(visible);
 
   return (
     <PageShell>
@@ -81,7 +82,7 @@ export default async function AnalyticsLayout({ children }: { children: ReactNod
   );
 }
 
-async function SharedFilters({ visible }: { visible: "all" | string[] }) {
+async function SharedFilters({ visible }: { visible: Visible }) {
   const options = await getAnalyticsFilterOptions(visible);
   return (
     <AnalyticsFilters

@@ -1,5 +1,5 @@
 import { ONGOING, RUNNING, inOrderStatuses } from "@/lib/orders/status";
-import { isAdmin } from "@/lib/auth/roles";
+import { isAdmin } from "@/lib/roles";
 import { inStatuses, PAID, UNPAID } from "@/lib/payments/status";
 import { isWordpressImport } from "@/lib/orders/wordpress-import";
 import { Suspense } from "react";
@@ -9,7 +9,7 @@ import { NotFoundError, formatMoney as fmt, zonedDateIso } from "@foundry/common
 import { eq } from "drizzle-orm";
 import { enabledMethods, findMethod } from "@foundry/payments";
 import { after } from "next/server";
-import { expireUnpaidStripeOrders } from "@/lib/payments/stripe-expiry";
+import { expireUnpaidStripeOrders } from "@/lib/orders/unpaid-checkouts";
 import { mealSizeAddons } from "@/lib/catalog/types";
 import { requireStaff, roleCan } from "@/lib/auth/guards";
 import { settleStaleOnView } from "@/lib/payments/payment-stripe";
@@ -17,23 +17,25 @@ import { getSession } from "@/lib/auth/session";
 import { readOrder, listOrderActivities, ordersService } from "@/lib/orders/orders.service";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import { getClaimPaymentContext } from "@/lib/payments/verification";
-import { appToday } from "@/lib/orders/start-date";
+import { appToday } from "@/lib/dates/start-date";
 import { earliestNewPlanStart, runningPlans } from "@/lib/orders/order-window";
 import { orderTiffinCounts } from "@/lib/deliveries/customer-deliveries.service";
 import { earliestTrialIso } from "@/lib/trial/schedule";
 import { nextWeekday } from "@foundry/commons";
-import { canTakeAddonPayment, complimentaryBlocker, orderDisplayStatus } from "@/lib/orders/display-status";
+import { canTakeAddonPayment } from "@/lib/orders/addon-eligibility";
+import { complimentaryBlocker, orderDisplayStatus } from "@/lib/orders/display-status";
 import { listDeliveries } from "@/lib/deliveries/deliveries.service";
 import { lapseElapsedPausesSafe } from "@/lib/deliveries/pause-days.service";
 import { isOrderFullyPaused } from "@/lib/deliveries/pause-state";
 import { getPauseLimits, getPauseUsage } from "@/lib/deliveries/pause-limits.service";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
-import { getAppSettings, getPaymentConfig } from "@/lib/services/app-settings.service";
-import { dishCategoriesService } from "@/lib/services/dish-categories.service";
+import { getAppSettings } from "@/lib/settings";
+import { getPaymentConfig } from "@/lib/payments/payment-config";
+import { dishCategoriesService } from "@/lib/menu/dish-categories.service";
 import { db } from "@/db/client";
-import { canReassign } from "@/lib/services/reassign";
-import { listAssignableStaff } from "@/lib/services/assignable-staff";
-import { ReassignControl } from "@/components/reassign/reassign-control";
+import { canReassign } from "@/lib/staff/reassign";
+import { listAssignableStaff } from "@/lib/staff/assignable-staff";
+import { ReassignControl } from "@/components/dashboard/reassign/reassign-control";
 import { reassignOrderAction } from "../actions";
 import { deliveryZones, plans, users } from "@/db/schema";
 import { BreadcrumbLabel } from "@/components/dashboard/app-breadcrumbs";
@@ -44,7 +46,7 @@ import Link from "next/link";
 import { humanDate } from "@/lib/deliveries/view";
 import { formatEpoch } from "@/lib/format/datetime";
 import { projectedEndDate, tripsFor } from "@/lib/orders/bounded-deliveries";
-import { dayAllowed, orderDeliveryDays, planDeliveryDays, type DayOfWeek } from "@/lib/menu/delivery-days";
+import { dayAllowed, orderDeliveryDays, planDeliveryDays, type DayOfWeek } from "@/lib/deliveries/schedule/delivery-days";
 import type { OrderPricingSnapshot } from "@/lib/pricing/types";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { payLink } from "@/lib/payments/stripe";
@@ -140,8 +142,7 @@ async function OrderDetail({
   ]);
 
   // Lazy status check on view (no cron): settle card payments the webhook may have missed.
-  const unsettledCards = order.payments.filter((p) => p.method === "stripe" && p.status === "awaiting_payment" && p.providerRef);
-  if (unsettledCards.length) after(() => settleStaleOnView(unsettledCards));
+  after(() => settleStaleOnView(order.payments));
   after(() => expireUnpaidStripeOrders({ orderId: order.id }));
   const role = session?.user.role ?? "";
 

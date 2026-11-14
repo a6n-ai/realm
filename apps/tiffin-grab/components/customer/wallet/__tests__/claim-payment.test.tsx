@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { ClaimPayment } from "../claim-payment";
 import type { ClaimPaymentContext } from "@/lib/payments/verification";
 
@@ -17,7 +17,7 @@ vi.mock("sonner", () => ({
   toast: (...args: unknown[]) => mockToast(...args),
 }));
 
-vi.mock("@/app/(customer)/me/wallet/actions", () => ({
+vi.mock("@/lib/payments/customer-actions", () => ({
   claimPaymentAction: (...args: unknown[]) => mockClaimPaymentAction(...args),
 }));
 

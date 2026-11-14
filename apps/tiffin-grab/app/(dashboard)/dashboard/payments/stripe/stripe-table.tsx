@@ -1,5 +1,6 @@
 "use client";
 
+import { cardBrandLabel } from "@/lib/billing/payment-labels";
 import { pageOffset } from "@foundry/design-system/filters/parse-filter-state";
 import { inStatuses, UNPAID } from "@/lib/payments/status";
 import { useState, useTransition, type ReactNode } from "react";
@@ -149,7 +150,7 @@ export function StripeTable({
             </TableCell>
             <TableCell className="whitespace-nowrap text-xs">
               {(() => {
-                const card = r.cardLast4 ? `${r.cardBrand ?? "card"} ••${r.cardLast4}` : r.providerRef ? "Stripe" : "-";
+                const card = r.cardLast4 ? `${cardBrandLabel(r.cardBrand)} ••${r.cardLast4}` : r.providerRef ? "Stripe" : "-";
                 return r.providerRef ? (
                   <a
                     href={`https://dashboard.stripe.com/${livemode ? "" : "test/"}payments/${r.providerRef}`}

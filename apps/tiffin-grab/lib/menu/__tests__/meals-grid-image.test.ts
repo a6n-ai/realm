@@ -4,7 +4,7 @@ import { db } from "@/db/client";
 import { deliveries, deliveryFrequencies, dishes, menuItems, menuWeeks, orders, plans, users } from "@/db/schema";
 import { attachDishToPlans, categoryIdFor, testPlanId, deleteNonSystemUsers } from "@/db/test-helpers";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
-import { thisWeekStartIso } from "@/lib/menu/delivery-dates";
+import { thisWeekStartIso } from "@/lib/deliveries/schedule/delivery-dates";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 const { buildMealsGrid } = await import("../meals-grid");

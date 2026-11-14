@@ -6,8 +6,8 @@ import { useRouter } from "next/navigation";
 import { useCallback, useRef, useState, useTransition, type ComponentType, type FormEvent, type ReactNode } from "react";
 import type { Area, CropperProps } from "react-easy-crop";
 import { BellIcon, KeyRoundIcon, LockIcon, MailIcon, Trash2Icon } from "lucide-react";
-import { Button, Field, IconTile, ListGroup, ListRow, Notice, Pill, Sheet, Textarea, Toggle, type IconTint } from "@/components/customer/kit";
-import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
+import { Button, Field, IconTile, ListGroup, ListRow, Notice, Pill, Sheet, Textarea, Toggle, type IconTint } from "@/components/kit";
+import { cn, FONT, FOCUS } from "@/components/kit/cn";
 import { getCroppedBlob } from "@foundry/design-system/image-crop";
 import {
   updateMyContact,
@@ -21,6 +21,7 @@ import { DeleteAccountForm } from "@/components/account/leaves/delete-account-fo
 import { PinForm } from "@foundry/auth-ui";
 import { GoogleConnectionField } from "@/components/account/leaves/google-connection-field";
 import { setMyPin, removeMyPin } from "@/lib/account/actions";
+import { unwrapAction } from "@/lib/actions/unwrap";
 import { kitAuthUi } from "./auth-ui-kit";
 import { SettingsBlock } from "./settings-block";
 import { Avatar } from "./avatar";
@@ -199,7 +200,7 @@ export function ProfileForm({ image, name, username }: { image: string | null; n
     if (v.username && !/^[a-zA-Z0-9_.]{3,30}$/.test(v.username)) e.username = "3 to 30 characters: letters, numbers, _ or .";
     setErr(e);
     if (e.name || e.username) return;
-    s.run(() => updateMyProfile(v), "Profile saved.", () => setSaved(v));
+    s.run(() => unwrapAction(updateMyProfile(v)), "Profile saved.", () => setSaved(v));
   }
 
   return (
@@ -220,7 +221,7 @@ export function ContactForm({ phone, email, emailVerified, phoneVerified }: { ph
   const s = useSave();
   return (
     <Block title="Phone" subtitle="We text you when your tiffin is out for delivery.">
-      <form onSubmit={submit(() => s.run(() => updateMyContact({ phone: v }), "Phone saved.", () => setSaved(v)))} className="grid max-w-md gap-4">
+      <form onSubmit={submit(() => s.run(() => unwrapAction(updateMyContact({ phone: v })), "Phone saved.", () => setSaved(v)))} className="grid max-w-md gap-4">
         <Field label="Phone number" type="tel" inputMode="tel" autoComplete="tel" value={v} onChange={(e) => setV(e.target.value)} hint={phone ? (phoneVerified ? "Verified" : "Not verified yet") : undefined} />
         <SaveBar pending={s.pending} dirty={v !== saved} status={s.status} label="Save phone" />
       </form>
@@ -244,7 +245,7 @@ export function DietaryForm({ allergens, dietaryNotes }: { allergens: string[]; 
   return (
     <Block title="Dietary & allergens" subtitle="Tell the kitchen what to avoid. Allergens are flagged on every order.">
       <form
-        onSubmit={submit(() => s.run(() => updateMyPreferences({ allergens: picked, dietaryNotes: notes.trim() }), "Dietary preferences saved.", () => setSaved({ picked, notes: notes.trim() })))}
+        onSubmit={submit(() => s.run(() => unwrapAction(updateMyPreferences({ allergens: picked, dietaryNotes: notes.trim() })), "Dietary preferences saved.", () => setSaved({ picked, notes: notes.trim() })))}
         className="space-y-5"
       >
         <fieldset className="space-y-2">
@@ -284,7 +285,7 @@ export function NotificationsForm({ notifyEmail }: { notifyEmail: boolean }) {
   const set = (patch: Partial<typeof state>) => {
     const prev = state;
     setState({ ...state, ...patch });
-    s.run(() => updateMyPreferences({ ...state, ...patch }).catch((e) => { setState(prev); throw e; }), "Saved.");
+    s.run(() => unwrapAction(updateMyPreferences({ ...state, ...patch })).catch((e) => { setState(prev); throw e; }), "Saved.");
   };
   return (
     // The row group is the surface itself, like every other settings page (no card around a card).

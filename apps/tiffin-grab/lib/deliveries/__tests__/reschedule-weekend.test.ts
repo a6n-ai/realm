@@ -11,10 +11,10 @@ const { deliveries, ledgerEntries, orders, payments, users } = await import("@/d
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { createOrder } = await import("../../orders/create-order");
 const { rescheduleDelivery } = await import("../deliveries.service");
-const { coveredDates } = await import("@/lib/menu/coverage");
-const { carryTripDateIso } = await import("@/lib/menu/carry-trip");
+const { coveredDates } = await import("@/lib/deliveries/schedule/coverage");
+const { carryTripDateIso } = await import("@/lib/deliveries/schedule/carry-trip");
 const { allowWeekendMeals } = await import("../../services/__tests__/trip-fixture");
-import type { DayOfWeek } from "@/lib/menu/delivery-days";
+import type { DayOfWeek } from "@/lib/deliveries/schedule/delivery-days";
 
 const createdOrderIds: bigint[] = [];
 const createdUserIds: bigint[] = [];
@@ -113,7 +113,7 @@ describe("rescheduleDelivery for eatingDays / MWF", () => {
     await db.update(orders).set({ eatingDays: ["mon", "tue", "wed", "fri", "sat", "sun"] }).where(eq(orders.id, order.id));
     const delivery = await firstDeliveryOf(order);
 
-    const tue = farFutureIso(2); // Tuesday
+    const tue = farFutureIso(2);
     const tueRes = await rescheduleDelivery(delivery.publicId, tue, null);
     expect(weekdayKey(parseIsoDateUtc(tueRes.carriedOn))).toBe("mon");
     expect(tueRes.carriedOn).toBe(carryTripDateIso(tue, ["mon", "wed", "fri"])!);
@@ -124,7 +124,6 @@ describe("rescheduleDelivery for eatingDays / MWF", () => {
     const order = await makeOrder(false, "mwf");
     await db.update(orders).set({ eatingDays: ["mon", "wed", "thu", "fri"] }).where(eq(orders.id, order.id));
     const all = await db.select().from(deliveries).where(eq(deliveries.orderId, order.id));
-    const mon = all.find((d) => weekdayKey(parseIsoDateUtc(d.deliveryDate)) === "mon");
     const dates = new Set(all.map((d) => d.deliveryDate));
     const plusDays = (iso: string, n: number) => {
       const d = parseIsoDateUtc(iso);

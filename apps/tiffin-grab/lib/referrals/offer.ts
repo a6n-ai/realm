@@ -1,5 +1,6 @@
 import { friendOfferParts, referralPillLabel, referrerOfferParts, siteFigure, type CoinRate } from "@/lib/referrals/share";
-import { getAppSettings, getReferralSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
+import { getReferralSettings } from "@/lib/referrals/referral-settings";
 import { walletService } from "@/lib/wallet/wallet.service";
 
 export type OfferFigure = { big: string; small: string };
@@ -19,11 +20,28 @@ export type ReferralOffer = {
 
 const forSite = (f: OfferFigure | null): OfferFigure | null => (f ? { ...f, big: siteFigure(f.big) } : null);
 
-/** Live referral figures for the public site, from the same settings and rate the share card uses. */
-export async function loadReferralOffer(): Promise<ReferralOffer> {
-  const [settings, { currency }] = await Promise.all([getReferralSettings(), getAppSettings()]);
+/** The active coin rate for display; null when none is set for the currency (callers then show coins only). */
+export async function activeCoinRate(currency: string): Promise<CoinRate> {
   const perCoin = await walletService.activeRate(currency).catch(() => null);
-  const rate: CoinRate = perCoin == null ? null : { perCoin, currency };
+  return perCoin == null ? null : { perCoin, currency };
+}
+
+/** Live referral figures for the public site, from the same settings and rate the share card uses. */
+const OFFER_OFF: ReferralOffer = { on: false, friend: null, referrer: null, maxPerReferrer: null, pillLabel: null, friendCoins: null, referrerCoins: null };
+
+/** Optional content: any failure reads as "no referral offer" (every caller hides the surface when `on` is false). */
+export async function loadReferralOffer(): Promise<ReferralOffer> {
+  try {
+    return await buildReferralOffer();
+  } catch {
+    return OFFER_OFF;
+  }
+}
+
+/** Throws on failure: for callers that must not cache a fallback (the public API keeps answers for an hour). */
+export async function buildReferralOffer(): Promise<ReferralOffer> {
+  const [settings, { currency }] = await Promise.all([getReferralSettings(), getAppSettings()]);
+  const rate = await activeCoinRate(currency);
   const friend = friendOfferParts(settings, rate);
   const referrer = referrerOfferParts(settings, rate);
   return {

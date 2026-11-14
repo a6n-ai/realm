@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { KvTier, type KvLike } from "./kv-tier";
+import { KvTier } from "./kv-tier";
+import type { KvLike } from "@/lib/runtime/cf-env";
 
 function fakeKv(): KvLike & { store: Map<string, string>; ttls: Map<string, number | undefined> } {
   const store = new Map<string, string>();
@@ -91,7 +92,7 @@ describe("config cache on Workers", () => {
     });
     vi.doMock("@opennextjs/cloudflare", () => ({ getCloudflareContext: ctx }));
     vi.doMock("@/db/client", () => ({ db: {} }));
-    const svc = await import("../services/owner-pool.service");
+    const svc = await import("../staff/owner-pool.service");
     await svc.resetPoolCache();
     expect(ctx).not.toHaveBeenCalled();
     vi.doUnmock("@/db/client");

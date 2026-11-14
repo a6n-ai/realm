@@ -11,9 +11,9 @@ import {
   durationPackageService,
   mealSizeService,
   planService,
-} from "@/lib/services/catalog.service";
-import { dishesService } from "@/lib/services/dishes.service";
-import { dishCategoriesService } from "@/lib/services/dish-categories.service";
+} from "@/lib/catalog/catalog.service";
+import { dishesService } from "@/lib/menu/dishes.service";
+import { dishCategoriesService } from "@/lib/menu/dish-categories.service";
 // NOTE: lead-source services were never catalog resources — drop them from this map;
 // lead sources are managed on /dashboard/settings/lead-sources.
 

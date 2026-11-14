@@ -1,7 +1,8 @@
+import { orgScope, type Visible } from "@/lib/tenant/org-scope";
 import { MOVED_AWAY } from "@/lib/deliveries/row-state";
 import { appTodayIso } from "@/lib/dates/today";
 import { isCutoffPassed } from "@/lib/dates/cutoff";
-import { ONGOING, RUNNING } from "@/lib/orders/status";
+import { ENDED, ONGOING, RUNNING, inOrderStatuses } from "@/lib/orders/status";
 import { orderStatusIn } from "@/lib/orders/status-sql";
 import { NotFoundError, ValidationError, cutoffMsFor } from "@foundry/commons";
 import { createLogger } from "@foundry/commons/logger";
@@ -14,9 +15,9 @@ import { humanDate } from "@/lib/deliveries/view";
 import { enqueueNotification } from "@/lib/notifications/enqueue";
 import { orderTemplateVars } from "@/lib/notifications/events";
 import { notificationTables } from "@/lib/notifications/tables";
-import { getAppSettings } from "../services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { getBrandOrgId } from "../services/organizations.service";
-import { removeStopsBestEffort, type OptimoSyncedRow } from "../services/optimoroute/stops";
+import { removeStopsBestEffort, type OptimoSyncedRow } from "../optimoroute/stops";
 import { applyHolidaysToOrder, placeHolidayExtras, undoHolidayForOrder, type HolidayApplied, type HolidayUndone } from "./holiday-apply";
 import { HOLIDAY_DISMISSED, HOLIDAY_DISMISSED_NOTE } from "./pause-state";
 import { isRealDate } from "@foundry/commons/util/dates";
@@ -26,7 +27,6 @@ const log = createLogger("holidays.service");
 const sources = alias(deliveries, "holiday_sources");
 const NAME_MAX = 60;
 
-type Visible = "all" | string[];
 type Holiday = typeof holidays.$inferSelect;
 type Order = typeof orders.$inferSelect;
 
@@ -62,7 +62,7 @@ async function assertOrgVisible(organizationId: string, visible: Visible): Promi
   if (!found) throw new NotFoundError("Organization not found");
 }
 
-const scope = (visible: Visible) => (visible === "all" ? undefined : inArray(holidays.organizationId, visible));
+const scope = (visible: Visible) => (orgScope(holidays.organizationId, visible));
 const sees = (visible: Visible) => visible === "all" || visible.length > 0;
 
 async function today(): Promise<string> {
@@ -343,7 +343,7 @@ export function holidayOutcome(r: {
   if (r.mergedDate) return { kind: "moved", date: r.mergedDate, merged: true };
   if (r.dismissed) return { kind: "dismissed" };
   if (r.status === "scheduled") return { kind: "back_on" };
-  if (r.status === "cancelled" || r.orderStatus === "cancelled" || r.orderStatus === "completed" || r.tiffinUnits === 0) return { kind: "cancelled" };
+  if (r.status === "cancelled" || inOrderStatuses(ENDED, r.orderStatus) || r.tiffinUnits === 0) return { kind: "cancelled" };
   return { kind: "needs_placing", trial: r.trial };
 }
 
@@ -422,7 +422,7 @@ export async function listNeedsPlacing(visible: Visible): Promise<NeedsPlacingRo
 export async function listDeclarableOrganizations(visible: Visible): Promise<{ id: string; name: string }[]> {
   if (!sees(visible)) return [];
   return db.select({ id: organization.id, name: organization.name }).from(organization)
-    .where(visible === "all" ? undefined : inArray(organization.id, visible))
+    .where(orgScope(organization.id, visible))
     .orderBy(sql`${organization.parentOrganizationId} is not null`, asc(organization.name));
 }
 

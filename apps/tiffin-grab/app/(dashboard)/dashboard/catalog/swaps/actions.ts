@@ -3,7 +3,7 @@
 import { z } from "zod";
 import type { ActionResult } from "@/lib/actions/action-result";
 import { parseInput, staffAction } from "@/lib/actions/staff-action";
-import { dishCategoriesService } from "@/lib/services/dish-categories.service";
+import { dishCategoriesService } from "@/lib/menu/dish-categories.service";
 import { currentUserId } from "@/lib/services/session-service";
 
 // The wizard reads swap pairs off the cached snapshot, hence catalog: true.

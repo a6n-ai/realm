@@ -1,6 +1,6 @@
 /* eslint-disable */
 "use client";
-import { useAppCurrency } from "@/components/app-currency";
+import { useAppCurrency, useFormatMoney } from "@/components/app-currency";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
@@ -11,9 +11,9 @@ import { formatDateOnly } from "@/lib/format/datetime";
 import { PlanSummary } from "./plan-summary";
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
 import type { PricingResult } from "@/lib/pricing";
-import { reprice } from "@/app/(public)/subscribe/actions";
-import { useBounceAfterPaid } from "@/lib/payments/paid-flag";
-import { BottomBar, Button, Sheet, buttonClass } from "@/components/customer/kit";
+import { useReprice } from "@/lib/wizard/use-reprice";
+import { useBounceAfterPaid } from "@/lib/wizard/paid-flag";
+import { BottomBar, Button, Sheet, buttonClass } from "@/components/kit";
 import { AddonsPanel } from "./addons-panel";
 import { trialSendDays } from "@/lib/trial/schedule";
 import { firstBlockedStep, initialSelections, mealNote, nextBlockedReason, offeredAddons, pickedAddons, mealAllowedDays, selectionIsTrial, servesWeekends, reconcileSelections, type WizardOrigin, type WizardSelections } from "@/lib/wizard/selections";
@@ -31,7 +31,7 @@ import { Checkout } from "@/components/checkout/checkout";
 import { trackMeta } from "@foundry/meta-pixel/client";
 import { gtagEvent } from "@foundry/google-analytics/client";
 import { sendMetaClientEvent } from "@/lib/meta/actions";
-import type { CheckoutProps } from "@/components/checkout/load-checkout-props";
+import type { CheckoutProps } from "@/lib/checkout/load-props";
 import { IdentityGate } from "./identity-gate";
 import { PauseCircle, Star, Truck } from "lucide-react";
 import { DeliveryCheck } from "./delivery-check";
@@ -91,6 +91,7 @@ export function Wizard({
   trial?: { maxDays: number; weekdays: string[] } | null;
 }) {
   const currency = useAppCurrency();
+  const money = useFormatMoney();
   const router = useRouter();
   const bouncing = useBounceAfterPaid();
   // A quote opens on the first step that still needs the customer, normally Start.
@@ -98,7 +99,7 @@ export function Wizard({
   const setStep = (n: number | ((s: number) => number)) =>
     setStepState((s) => {
       const next = typeof n === "function" ? n(s) : n;
-      try { wizardSession.saveStep(next); } catch { /* storage unavailable */ }
+      wizardSession.saveStep(next);
       return next;
     });
   const [selections, setSelections] = useState<WizardSelections>(() => {
@@ -123,9 +124,8 @@ export function Wizard({
       // The quote is the newer intent; a cart saved earlier in this tab must not replace it.
       if (quote) return;
       if (wizardSession.origin() !== origin) return;
-      const raw = wizardSession.selectionsRaw();
-      if (!raw) return;
-      const saved = JSON.parse(raw) as WizardSelections;
+      const saved = wizardSession.selections();
+      if (!saved) return;
       if (saved.planKey != null && !catalog.plans.some((p) => p.key === saved.planKey)) return;
       let savedStep = pageOf(wizardSession.step() || 0);
       const restored = reconcileSelections(catalog, { ...initial, ...saved });
@@ -147,22 +147,24 @@ export function Wizard({
 
   const set = (patch: Partial<WizardSelections>) => setSelections((s) => ({ ...s, ...patch }));
 
-  useEffect(() => {
-    // Clearing the stale invoice when no meal is chosen; intentional effect-driven reset.
-     
-    // No frequency until the Schedule step: pricing would throw "Invalid frequency" (a 500) on every Bundle pick.
-    const trialPick = trial != null && selectionIsTrial(catalog, selections);
-    if (!selections.mealSizeId || (trialPick ? selections.trialDays == null || !selections.startDate : !selections.frequencyKey)) { setTimeout(() => setResult(null), 0); return; }
-    let active = true;
-    reprice(selections, undefined, selections.planKey ?? undefined)
-      .then((r) => {
-        if (!active) return;
+  useReprice(
+    () => {
+      // No frequency until the Schedule step: pricing would throw "Invalid frequency" (a 500) on every Bundle pick.
+      const trialPick = trial != null && selectionIsTrial(catalog, selections);
+      if (!selections.mealSizeId || (trialPick ? selections.trialDays == null || !selections.startDate : !selections.frequencyKey)) return null;
+      return [selections, undefined, selections.planKey ?? undefined];
+    },
+    {
+      // Clearing the stale invoice when no meal is chosen; intentional effect-driven reset.
+      onSkip: () => { setTimeout(() => setResult(null), 0); },
+      onResult: (r) => {
         setResult("error" in r ? null : r.pricing);
         setNewOnlyCodes("error" in r ? [] : r.appliedCoupons.filter((c) => c.newCustomersOnly).map((c) => c.code));
-      })
-      .catch(() => { if (active) setResult(null); });
-    return () => { active = false; };
-  }, [selections, trial, catalog]);
+      },
+      onError: () => setResult(null),
+    },
+    [selections, trial, catalog],
+  );
 
   const blocked = step === 0 ? nextBlockedReason(0, catalog, selections) ?? nextBlockedReason(1, catalog, selections) : nextBlockedReason(step, catalog, selections);
   // Once a meal is picked, the bar says what's picked, so nobody scrolls back up to check.
@@ -204,7 +206,7 @@ export function Wizard({
       return;
     }
     if (signIn) {
-      gtagEvent("begin_checkout", { ...(result ? { value: result.total, currency: "CAD" } : {}), signed_in: false });
+      gtagEvent("begin_checkout", { ...(result ? { value: result.total, currency } : {}), signed_in: false });
       setAtGate(true);
       window.scrollTo({ top: 0 });
       return;
@@ -393,8 +395,8 @@ export function Wizard({
                 <p className="text-footnote font-semibold text-muted-foreground">Your plan</p>
                 <p className="text-headline leading-tight font-semibold tracking-[-0.02em]">{meal ?? "Your tiffin"}</p>
               </div>
-              <button type="button" onClick={() => setInvoiceOpen(true)} className="shrink-0 text-right" aria-label={`$${result.total.toFixed(2)} total. Show the price summary`}>
-                <span className="block text-headline font-bold tabular-nums">${result.total.toFixed(2)}</span>
+              <button type="button" onClick={() => setInvoiceOpen(true)} className="shrink-0 text-right" aria-label={`${money(result.total)} total. Show the price summary`}>
+                <span className="block text-headline font-bold tabular-nums">{money(result.total)}</span>
                 <span className="block text-caption text-muted-foreground underline-offset-4 hover:underline">Price details</span>
               </button>
             </div>

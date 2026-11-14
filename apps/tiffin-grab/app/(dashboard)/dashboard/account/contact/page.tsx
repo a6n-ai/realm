@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { ContactSection } from "@/components/account/sections/contact-section";
 import { requireAccountUser } from "@/lib/account/current-user";
 

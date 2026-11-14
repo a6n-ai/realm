@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { ClockIcon } from "lucide-react";
 import { PageHeader, SectionCard, parseFilterState } from "@/components/ds";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { CRON_JOBS, nextCronRun } from "@/lib/cron/jobs";
 import { CRON_RUN_FACETS } from "@/lib/cron/facets";
 import { listCronRunsPage, recentCronRuns } from "@/lib/cron/run";

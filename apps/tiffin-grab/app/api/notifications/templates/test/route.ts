@@ -1,9 +1,7 @@
-import { eq } from "drizzle-orm";
-import { handler, problem } from "@foundry/routes";
+import { problem } from "@foundry/routes";
 import { appendUnsubscribeFooter, buildUnsubscribeUrl } from "@relay/engine";
-import { requireAdmin } from "@/lib/auth/guards";
-import { db } from "@/db/client";
-import { users } from "@/db/schema";
+import { adminRoute } from "@/lib/notifications/admin-route";
+import { emailByPublicId } from "@/lib/identity/user-ids";
 import { getSession } from "@/lib/auth/session";
 import { getEmailProvider } from "@/lib/email/provider";
 import { campaignConfig } from "@/lib/notifications/campaign-config";
@@ -14,17 +12,16 @@ import { campaignConfig } from "@/lib/notifications/campaign-config";
  * (EmailTemplateBuilder); `marketing` (campaigns) sends it the way a real
  * campaign goes out: campaign From address plus the CASL footer.
  */
-export const POST = handler(async (req: Request): Promise<Response> => {
-  await requireAdmin();
+export const POST = adminRoute(async (req) => {
   const { subject, html, text, to, marketing } = await req.json();
 
   const publicId = (await getSession())?.user?.id;
   if (!publicId) return problem(401, "Unauthorized");
-  const [admin] = await db.select({ email: users.email }).from(users).where(eq(users.publicId, publicId));
-  if (!admin?.email) return problem(422, "Acting admin has no email address");
+  const adminEmail = await emailByPublicId(publicId);
+  if (!adminEmail) return problem(422, "Acting admin has no email address");
 
   // Default to the acting admin; allow an explicit recipient for cross-client testing.
-  const recipient = typeof to === "string" && to.trim() ? to.trim() : admin.email;
+  const recipient = typeof to === "string" && to.trim() ? to.trim() : adminEmail;
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipient)) {
     return problem(422, "Invalid recipient email");
   }
@@ -52,5 +49,5 @@ export const POST = handler(async (req: Request): Promise<Response> => {
     html: stamped.html,
     text: stamped.text,
   });
-  return Response.json({ sent: true, footerIncluded: !!config });
+  return { sent: true, footerIncluded: !!config };
 });

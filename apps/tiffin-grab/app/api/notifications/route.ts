@@ -3,14 +3,12 @@ import { handler, problem } from "@foundry/routes";
 import { getFeed, markRead } from "@/lib/notifications/feed";
 import { currentUserId } from "@/lib/services/session-service";
 
-/** GET: recent feed + unread count for the logged-in user. */
 export const GET = handler(async (): Promise<Response> => {
   const userId = await currentUserId();
   if (!userId) return problem(401, "Unauthorized");
   return Response.json(await getFeed(userId));
 });
 
-/** POST { publicIds? }: mark those read, or all unread when omitted. */
 export const POST = handler(async (req: Request): Promise<Response> => {
   const userId = await currentUserId();
   if (!userId) return problem(401, "Unauthorized");

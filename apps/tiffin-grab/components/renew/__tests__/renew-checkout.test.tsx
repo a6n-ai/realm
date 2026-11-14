@@ -9,11 +9,11 @@ import "@/components/checkout/__tests__/address-helper";
 
 const { repriceMock } = vi.hoisted(() => ({ repriceMock: vi.fn() }));
 const router = vi.hoisted(() => ({ push: vi.fn(), back: vi.fn(), replace: vi.fn() }));
-vi.mock("@/app/(public)/subscribe/actions", () => ({
+vi.mock("@/lib/wizard/actions", () => ({
   reprice: repriceMock,
   validatePostal: vi.fn().mockResolvedValue({ served: true, zone: { publicId: "zn_1", name: "Downtown", slotWindow: "6-8pm" } }),
 }));
-vi.mock("@/app/(public)/checkout/actions", () => ({ confirmSubscription: vi.fn(), payCheckout: vi.fn() }));
+vi.mock("@/lib/checkout/actions", () => ({ confirmSubscription: vi.fn(), payCheckout: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => router }));
 vi.mock("sonner", () => ({ toast: { error: vi.fn() } }));
 

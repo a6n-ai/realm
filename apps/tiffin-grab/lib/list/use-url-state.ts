@@ -10,12 +10,6 @@ export function mergeParam(current: string, key: string, value: string, fallback
   return sp.toString();
 }
 
-export function dropParams(current: string, keys: string[]): string {
-  const sp = new URLSearchParams(current);
-  for (const k of keys) sp.delete(k);
-  return sp.toString();
-}
-
 export function useUrlState(key: string, fallback: string): [string, (v: string) => void] {
   const nav = useListNav();
   const pathname = usePathname();

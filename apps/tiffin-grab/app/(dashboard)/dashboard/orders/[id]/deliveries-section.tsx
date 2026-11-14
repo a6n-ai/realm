@@ -1,16 +1,16 @@
 import { appTodayIso } from "@/lib/dates/today";
-import { isLiveOrder } from "@/lib/deliveries/status";
-import { isAdmin } from "@/lib/auth/roles";
+import { RUNNING, inOrderStatuses } from "@/lib/orders/status";
+import { isAdmin } from "@/lib/roles";
 import { eq } from "drizzle-orm";
 import { getSession } from "@/lib/auth/session";
 import type { OrderDetail } from "@/lib/orders/orders.service";
-import { loadOrderWeek, type OrderWeek } from "@/lib/orders/order-week.service";
+import { loadOrderWeek, type OrderWeek } from "@/lib/deliveries/view/order-week.service";
 import { OrderWeekHub } from "@/app/(dashboard)/dashboard/orders/[id]/order-week/order-week-hub";
 import type { OptimoRouteRow } from "./optimoroute-panel";
 import type { Subscription } from "@/lib/deliveries/customer-deliveries.service";
 import { orderDisplayStatus } from "@/lib/orders/display-status";
 import { db } from "@/db/client";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { isOrderFullyPaused } from "@/lib/deliveries/pause-state";
 import { plans } from "@/db/schema/index";
 import { loadSubscriptionAddons } from "@/lib/menu/order-addon-items";
@@ -50,7 +50,8 @@ export async function loadSubscription(
   // While payment is unconfirmed, match the customer: schedule and picks stay hidden.
   const paymentReview = displayStatus === "payment_review";
 
-  const live = isLiveOrder(order.status);
+  // A plan that still has days to deliver (the delivery schedule is manageable).
+  const live = inOrderStatuses(RUNNING, order.status);
   const fullyPaused = live && (await isOrderFullyPaused(db, order.id, appTodayIso((await getAppSettings()).timezone)));
   // A finished plan still shows its days, read-only.
   const finished = order.status === "completed";

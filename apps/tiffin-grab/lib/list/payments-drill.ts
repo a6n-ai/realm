@@ -3,7 +3,6 @@
  * Only use when the card's predicate is exactly expressible as list facets.
  */
 
-/** The Payments tabs, in display order. */
 export const PAYMENTS_TABS = [
   { key: "requests", label: "E-transfer", href: "/dashboard/payments/requests" },
   { key: "stripe", label: "Stripe", href: "/dashboard/payments/stripe" },

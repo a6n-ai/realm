@@ -1,7 +1,7 @@
 import { and, gte, lte, type SQL } from "drizzle-orm";
 import type { AnyColumn } from "drizzle-orm";
-import { getAppSettings } from "@/lib/services/app-settings.service";
-import { currentMonthEpochRange } from "@/lib/services/analytics/shared-filter-params";
+import { getAppSettings } from "@/lib/settings";
+import { currentMonthEpochRange } from "@/lib/dates/epoch-window";
 
 type Dated = { from?: string; to?: string };
 

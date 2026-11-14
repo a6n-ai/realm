@@ -1,9 +1,9 @@
-import { ChartCard } from "@/components/analytics/chart-card";
-import { TickBar } from "@/components/analytics/tick-bar";
+import { ChartCard } from "@/components/dashboard/analytics/chart-card";
+import { TickBar } from "@/components/dashboard/analytics/tick-bar";
 import { Badge } from "@/components/reui/badge";
-import { getOptimoRouteStatus } from "@/lib/services/optimoroute/config";
-import { nextRoutePushStatus } from "@/lib/services/optimoroute/push-status";
-import { getDriverLanes } from "@/lib/services/overview.service";
+import { getOptimoRouteStatus } from "@/lib/optimoroute/config";
+import { nextRoutePushStatus } from "@/lib/optimoroute/push-status";
+import { getDriverLanes } from "@/lib/overview/overview.service";
 import { PushDayButton } from "./push-day-button";
 import { FooterLink } from "./footer-link";
 import { formatDateOnly } from "@/lib/format/datetime";

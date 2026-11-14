@@ -14,19 +14,16 @@ import {
 } from "@foundry/payments/stripe";
 import { db } from "@/db/client";
 import { payments, users } from "@/db/schema";
-import {
-  getIntegrationsConfigFresh,
-  getPaymentConfig,
-  setIntegrationsConfig,
-} from "@/lib/services/app-settings.service";
-import { appOrigin } from "@/lib/runtime/env";
+import { getIntegrationsConfigFresh, setIntegrationsConfig } from "@/lib/payments/integrations-config";
+import { getPaymentConfig } from "@/lib/payments/payment-config";
+import { appOrigin, integrationsMasterKey } from "@/lib/runtime/env";
 
 const log = createLogger("payments.stripe");
 
 export const stripeDeps: ConnectDeps = {
   // get is uncached; set evicts the shared cache (appSettingsEntity.update).
   store: { get: getIntegrationsConfigFresh, set: setIntegrationsConfig },
-  masterKey: () => process.env.INTEGRATIONS_ENCRYPTION_KEY,
+  masterKey: integrationsMasterKey,
   hasOpenPayments: async () => {
     const [row] = await db
       .select({ id: payments.id })

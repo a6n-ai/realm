@@ -7,7 +7,7 @@ import { eq } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
 import { dishCategories, dishes, menuDaySides, menuSideDefaults } from "@/db/schema";
-import type { DayOfWeek } from "@/lib/menu/delivery-days";
+import type { DayOfWeek } from "@/lib/deliveries/schedule/delivery-days";
 import { foldSwaps, type SwapRow } from "@/lib/menu/swap-rules";
 
 export type { MealItemRole };
@@ -49,19 +49,6 @@ export function sideOptions(rule: SideRule | undefined, dayItems: SideItem[], pl
   if (!rule) return [];
   if (rule.dish) return [rule.dish];
   return dayItems.filter((i) => i.slot === rule.sourceCategory && planDishIds.has(i.dishId));
-}
-
-/**
- * The default dish for a side pick, or undefined to keep the normal default. A source
- * category with nothing servable on that day falls back too, so a side box is never empty.
- */
-export function sideDefault(
-  rule: SideRule | undefined,
-  dayItems: SideItem[],
-  planDishIds: Set<bigint>,
-): SideItem | undefined {
-  const options = sideOptions(rule, dayItems, planDishIds);
-  return options.find((i) => i.isDefault) ?? options[0];
 }
 
 /** Standing rules, then each day's overrides on top, for one menu week. */

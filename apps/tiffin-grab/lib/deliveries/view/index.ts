@@ -1,17 +1,16 @@
 import { isCutoffPassed } from "@/lib/dates/cutoff";
-import type { DayOfWeek } from "@/lib/menu/delivery-days";
+import type { DayOfWeek } from "@/lib/deliveries/schedule/delivery-days";
 import type { DropOffValue } from "@/lib/catalog/drop-off";
 import { cutoffMsFor, parseIsoDateUtc, zonedDateIso } from "@foundry/commons";
-import { coveredDates, formatCoversLabel } from "@/lib/menu/coverage";
+import { coveredDates, formatCoversLabel } from "@/lib/deliveries/schedule/coverage";
 
 export type TripStatus = "upcoming" | "delivered" | "unconfirmed" | "paused" | "rescheduled" | "combined-into" | "locked" | "cutoff-passed" | "failed" | "holiday";
 export type TripAction = "pick" | "swap" | "move" | "address";
 export type Availability = { ok: boolean; why: string | null; sub: string };
-export type LegendKey = "delivered" | "upcoming" | "paused" | "onHold" | "holiday";
 
 type MealLike = { label: string; picks: { name: string }[]; quantity: number }[];
 
-/** Structural subset of myCalendar's CalendarDay plus optional fields other work adds (cutoffAt, pooled, rescheduled, per-eating-day swaps/meals). */
+/** Structural subset of myCalendar's CalendarDay plus optional fields (cutoffAt, pooled, rescheduled, per-eating-day swaps/meals). */
 export type CalendarDayInput = {
   date: string;
   deliveryId?: string;
@@ -137,7 +136,7 @@ export function buildTrips(days: CalendarDayInput[], now: number, plan: PlanCont
       if (d.holidayName && (d.status === "paused" || (d.status !== "scheduled" && (rescheduled || !!d.combinedInto)))) status = "holiday";
       else if (d.combinedInto) status = "combined-into";
       else if (d.status !== "scheduled" && rescheduled) status = "rescheduled";
-      // Nobody holds a day any more: a skipped row that wasn't moved away is a failed drop.
+      // A skipped row that wasn't moved away is a failed drop.
       else if (d.status === "skipped") status = "failed";
       else if (d.status === "cancelled" || (d.status !== "scheduled" && past)) status = "locked";
       else if (d.status === "paused") status = "paused";
@@ -182,32 +181,8 @@ export function buildTrips(days: CalendarDayInput[], now: number, plan: PlanCont
     .sort((a, b) => a.date.localeCompare(b.date));
 }
 
-const LEGEND: Record<TripStatus, LegendKey | null> = {
-  upcoming: "upcoming",
-  delivered: "delivered",
-  unconfirmed: "upcoming",
-  "cutoff-passed": "delivered",
-  rescheduled: "onHold",
-  locked: "onHold",
-  paused: "paused",
-  "combined-into": null,
-  failed: "onHold",
-  holiday: "holiday",
-};
-const LEGEND_LABEL: Record<LegendKey, string> = { delivered: "Delivered", upcoming: "Upcoming", paused: "Paused", onHold: "Not delivered", holiday: "Holiday" };
-
 /** Paused, then its cutoff passed: stored as a hold (Move only), but the customer still reads it as Paused. */
 export const isPastPause = (t: Pick<Trip, "status" | "lapsedPause">): boolean => t.status === "failed" && !!t.lapsedPause;
-
-/** Replaces day-status.ts: legend bucket per eating day, keyed by ISO date. */
-export function buildDayStatusMap(trips: Trip[]): Record<string, { status: TripStatus; legend: LegendKey | null; label: string | null }> {
-  const out: Record<string, { status: TripStatus; legend: LegendKey | null; label: string | null }> = {};
-  for (const t of trips) {
-    const legend = isPastPause(t) ? "paused" : LEGEND[t.status];
-    for (const c of t.coversDates) out[c] = { status: t.status, legend, label: legend ? LEGEND_LABEL[legend] : null };
-  }
-  return out;
-}
 
 /**
  * A day put on hold after its cutoff may still go out: the label is printed and the stop may be

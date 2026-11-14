@@ -2,7 +2,7 @@ import { Document, Page, renderToBuffer, StyleSheet, Text, View } from "@react-p
 import { NotFoundError } from "@foundry/commons";
 import { buildPosterColumns } from "@/lib/menu/poster";
 import type { PlanType } from "@/lib/menu/meal-types";
-import { menuService } from "@/lib/services/menu.service";
+import { menuService } from "@/lib/menu/menu.service";
 
 const styles = StyleSheet.create({
   page: { padding: 36, fontSize: 11 },

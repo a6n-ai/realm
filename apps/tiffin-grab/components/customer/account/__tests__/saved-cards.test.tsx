@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const remove = vi.fn();
 const refresh = vi.fn();
-vi.mock("@/app/(customer)/me/account/card-actions", () => ({ removeSavedCard: (...a: unknown[]) => remove(...a) }));
+vi.mock("@/lib/payments/card-actions", () => ({ removeSavedCard: (...a: unknown[]) => remove(...a) }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh }) }));
 
 const { SavedCards } = await import("../saved-cards");

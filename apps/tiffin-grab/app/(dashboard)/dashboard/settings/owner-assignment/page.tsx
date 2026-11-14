@@ -1,16 +1,17 @@
+import { activeStaffWhere } from "@/lib/staff/staff-roster";
 import { Suspense } from "react";
-import { and, eq, ne } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { UsersIcon } from "lucide-react";
 import { Card } from "@foundry/ui/card";
 import { Separator } from "@foundry/ui/separator";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { db } from "@/db/client";
 import { leadSources, users } from "@/db/schema";
-import { getLeadAssignment } from "@/lib/services/app-settings.service";
-import { listConfig } from "@/lib/services/owner-pool.service";
+import { getLeadAssignment } from "@/lib/staff/lead-assignment-settings";
+import { listConfig } from "@/lib/staff/owner-pool.service";
 import { PageHeader } from "@/components/ds";
 import { OwnerAssignmentForm, type TabState, type TabStates } from "./form";
-import type { OwnerEntity } from "@/lib/services/assignment";
+import type { OwnerEntity } from "@/lib/staff/assignment";
 
 type SearchParams = Promise<Record<string, string | undefined>>;
 
@@ -85,7 +86,7 @@ async function OwnerAssignmentData({ searchParams }: { searchParams: SearchParam
     db
       .select({ userId: users.id, publicId: users.publicId, name: users.name })
       .from(users)
-      .where(and(ne(users.role, "user"), eq(users.isSystem, false))),
+      .where(activeStaffWhere()),
     listConfig("inquiry"),
     listConfig("order"),
     listConfig("ticket"),

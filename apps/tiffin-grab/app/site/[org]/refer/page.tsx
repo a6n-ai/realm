@@ -1,6 +1,8 @@
+import { BRAND_NAME } from "@/lib/brand";
 import { BreadcrumbSchema } from "@/components/landing/breadcrumb-schema";
 import type { Metadata } from "next";
-import { ReferContent, type ReferExtras } from "@/components/landing/refer/refer-content";
+import { ReferContent } from "@/components/landing/refer/refer-content";
+import type { ReferExtras } from "@/components/landing/refer/refer-types";
 import { referHeadline } from "@/lib/referrals/headline";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { lowestRate, shortMoney } from "@/lib/landing/live-figures";
@@ -8,8 +10,8 @@ import { pageMeta } from "@/lib/landing/meta";
 import { loadLandingPromos } from "@/lib/landing/promos";
 import { buildWeekBoard } from "@/lib/landing/week-board";
 import { loadReferralOffer } from "@/lib/referrals/offer";
-import { getAppSettings } from "@/lib/services/app-settings.service";
-import { menuService } from "@/lib/services/menu.service";
+import { getAppSettings } from "@/lib/settings";
+import { menuService } from "@/lib/menu/menu.service";
 import { siteOrgId } from "@/lib/tenant/site-org";
 import "@/components/landing/styles/refer.css";
 
@@ -19,8 +21,8 @@ export const dynamic = "error";
 
 export async function generateMetadata(): Promise<Metadata> {
   const offer = await loadReferralOffer();
-  const description = offer.on ? `${referHeadline(offer)} Share your Tiffin Grab link; when a friend pays for their first plan, you both get coins.` : "TiffinGrab referrals are paused right now.";
-  const title = offer.on ? `Refer a Friend: ${referHeadline(offer).replace(/\.$/, "")} | Tiffin Grab` : "Refer a Friend | Tiffin Grab";
+  const description = offer.on ? `${referHeadline(offer)} Share your ${BRAND_NAME} link; when a friend pays for their first plan, you both get coins.` : "TiffinGrab referrals are paused right now.";
+  const title = offer.on ? `Refer a Friend: ${referHeadline(offer).replace(/\.$/, "")} | ${BRAND_NAME}` : `Refer a Friend | ${BRAND_NAME}`;
   return pageMeta(title, description, "/refer");
 }
 
@@ -29,7 +31,7 @@ async function loadExtras(organizationId: string | null): Promise<ReferExtras> {
   const [pub, settings, catalog, promos] = await Promise.all([    menuService.getPublishedWeek(undefined, organizationId).catch(() => null),
     getAppSettings(),
     loadCatalogSnapshot(organizationId).catch(() => null),
-    loadLandingPromos().catch(() => null),
+    loadLandingPromos(),
   ]);
   const rate = catalog ? lowestRate(catalog) : null;
   const days = pub ? buildWeekBoard(pub, settings.timezone).days : [];

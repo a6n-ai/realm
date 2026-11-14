@@ -5,8 +5,8 @@ import { deliveries, notificationOutbox, orders, users, walletLedger } from "@/d
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { awardCustomerBroadcast, listPayoutCandidates } from "../customer-payouts.service";
 
-vi.mock("../app-settings.service", async (orig) => ({
-  ...(await orig<typeof import("../app-settings.service")>()),
+vi.mock("@/lib/wallet/wallet-settings", async (orig) => ({
+  ...(await orig<typeof import("@/lib/wallet/wallet-settings")>()),
   getMaxWalletBalance: async () => 100,
 }));
 

@@ -1,4 +1,4 @@
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { asc, eq } from "drizzle-orm";
 import { inStatuses, PAID } from "@/lib/payments/status";
 import { createLogger } from "@foundry/commons/logger";

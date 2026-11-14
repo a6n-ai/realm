@@ -3,8 +3,8 @@
 import { useEffect, useRef, useState, type PointerEvent, type ReactNode } from "react";
 import { animate, m, useMotionValue, useReducedMotion, useTransform } from "motion/react";
 import { Star, X } from "lucide-react";
-import { buttonClass } from "@/components/customer/kit/button-class";
-import { cn, FOCUS, FONT } from "@/components/customer/kit/cn";
+import { buttonClass } from "@/components/kit/button-class";
+import { cn, FOCUS, FONT } from "@/components/kit/cn";
 
 // Apple's defaults: critically damped to arrive, a touch of bounce only when a flick throws it.
 const ARRIVE = { type: "spring", bounce: 0, duration: 0.45 } as const;

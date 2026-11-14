@@ -8,7 +8,7 @@
 
 import { validateMealRules, type SwapOption } from "./meal-validation";
 import type { HydratedPick, MealRule } from "./meal-rule-types";
-import type { GridDish } from "./meals-grid";
+import type { GridDish } from "./grid-types";
 
 function hydrate(category: string, dish: GridDish): HydratedPick | null {
   if (!dish.ruleId || !dish.planId) return null;
@@ -268,14 +268,4 @@ export function buildSlotDropdownOptions(args: {
   }
 
   return out;
-}
-
-/** True when admin swap pairs expose at least one live bundle from this category. */
-export function hasOutgoingSwapOptions(
-  categoryKey: string,
-  swapOptions: readonly SwapOption[],
-): boolean {
-  return swapOptions.some(
-    (o) => o.available && o.fromCategory === categoryKey && o.validBundles.length > 0,
-  );
 }

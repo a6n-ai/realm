@@ -3,7 +3,7 @@ import type { Country as CountryCode } from "react-phone-number-input";
 
 /** The app-settings country national numbers are read in. Lazy import: app-settings imports back through session-service. */
 export async function appPhoneCountry(): Promise<CountryCode> {
-  const { getAppSettings } = await import("./app-settings.service");
+  const { getAppSettings } = await import("@/lib/settings");
   return (await getAppSettings()).defaultCountry;
 }
 
@@ -14,7 +14,6 @@ export function parsePhone(raw: string, defaultCountry: CountryCode): string {
   return parsed.data;
 }
 
-/** Lowercased email, or a ValidationError. */
 export function parseEmail(raw: string): string {
   const parsed = emailSchema.safeParse(raw);
   if (!parsed.success) throw new ValidationError("Enter a valid email");

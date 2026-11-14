@@ -1,7 +1,7 @@
 import type { ComputedTaxLine } from "@foundry/payments";
-import type { DayOfWeek } from "../menu/delivery-days";
+import type { DayOfWeek } from "../deliveries/schedule/delivery-days";
 import type { DeliveryChargeCalculationResult, DeliveryChargeItemLike } from "@foundry/delivery";
-import type { PricingWaiver } from "./waivers";
+import type { WaiverKind } from "@/lib/catalog/types";
 
 export interface PricingSelections {
   mealSizeId: string;
@@ -102,7 +102,7 @@ export type OrderPricingSnapshot = PricingResult & {
   // Coin spend quoted at checkout but not yet committed — deferred settlement
   // methods park it here; verifyPayment commits it, same as pendingRedemptions.
   pendingCoinRedemption?: { coins: number; amount: number };
-  // Set on orders imported from WordPress (db/seed-customers.ts): where WordPress left off.
+  // Set on orders imported from WordPress: where WordPress left off.
   wordpress?: {
     orderId: number;
     mergedOrderIds: number[];
@@ -111,3 +111,13 @@ export type OrderPricingSnapshot = PricingResult & {
     refreshedOn: string;
   };
 };
+
+export interface PricingWaiver {
+  key: string;
+  /** Customer-facing line label; blank falls back to a generic one. */
+  name?: string;
+  kind: WaiverKind;
+  /** Strategy publicId for waiver_strategy, else null. */
+  strategyId: string | null;
+  percent: number;
+}

@@ -3,7 +3,7 @@ import { zonedDateIso } from "@foundry/commons";
 import { getSession } from "@/lib/auth/session";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import { requireStaff } from "@/lib/auth/guards";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { loadOwnerOptions } from "@/lib/list/facet-options";
 import { ALL_OWNERS, ME, resolveOwnerParam } from "@/lib/list/presets";
 import { requestNow } from "@/lib/dates/request-now";

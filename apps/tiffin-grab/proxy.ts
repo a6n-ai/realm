@@ -6,10 +6,11 @@ import { SESSION_COOKIES } from "./lib/auth/cookie-prefix";
 import { syncSessionHint } from "./lib/auth/session-hint";
 import probePath from "./lib/routing/probe-path.json";
 import publicPages from "./lib/routing/public-pages.json";
+import { isPublicApi } from "./lib/routing/public-api";
 import { AREA_PAGE, apexServes, appServes, skipsOrgResolution } from "./lib/routing/apex";
 import { MD_PAGES, wantsMarkdown } from "@/lib/landing/markdown-negotiation";
-import { REFERRAL_COOKIE, REFERRAL_COOKIE_OPTIONS, isReferralCodeShape, normalizeReferralCode } from "./lib/referrals/cookie";
-import { appUrlOr, isTest } from "@/lib/runtime/env";
+import { normalizeReferralCode, parseReferralCode, setReferralCookie } from "./lib/referrals/cookie";
+import { appUrlOr, corsOrigins, isTest } from "@/lib/runtime/env";
 
 // Proxy defaults to the Node.js runtime as of Next 16 (setting `export const
 // runtime` here throws — the option isn't available for proxy files), so a
@@ -18,26 +19,13 @@ import { appUrlOr, isTest } from "@/lib/runtime/env";
 // the dashboard layout and pages.
 // Better Auth session cookie names: see lib/auth/cookie-prefix.ts.
 
-// /api is private by default. Only these prefixes are reachable without a
-// session cookie: Better Auth's own handler, cron (self-auths via CRON_SECRET
-// bearer inside the route), and the SES feedback webhook (self-auths by
-// verifying the SNS message signature). Add a prefix here to make it public.
-// /api/unsubscribe: the HMAC token is the auth, and Gmail/Yahoo POST to it
-// (List-Unsubscribe one-click) with no cookie — a 401 there breaks unsubscribe.
-// /api/receipts: the email queue fetches the PDF with no cookie; the route checks the
-// signed link, or the session owner/staff when there is no signature.
-// /api/refer-card: the referral promo image; link-preview crawlers fetch it with no cookie.
-// /api/analytics: the GA bootstrap script, loaded on every page including signed-out ones.
-const PUBLIC_API = ["/api/auth", "/api/captcha", "/api/cron", "/api/webhooks", "/api/unsubscribe", "/api/receipts", "/api/refer-card", "/api/analytics", "/api/meta/events", "/api/health", "/api/public"];
-// /api/public: the read-only public JSON API (lib/public-api); it only republishes what the public pages show.
-
 // Vuln scanners (.env, .git, next.config, IDE mcp files, …). 404 before org resolution / Next.
 // The pattern lives in lib/routing/probe-path.json, which cloudflare/worker.js also imports.
 const PROBE_PATH = new RegExp(probePath.source, probePath.flags);
 
 // Cross-origin allowlist, comma-separated env. Empty = same-origin only
 // (browsers block cross-origin by default — this stays locked until set).
-const CORS_ORIGINS = (process.env.CORS_ORIGINS ?? "")
+const CORS_ORIGINS = (corsOrigins() ?? "")
   .split(",")
   .map((s) => s.trim())
   .filter(Boolean);
@@ -76,9 +64,6 @@ async function orgs(): Promise<OrgSnapshot> {
   return orgSnapshot;
 }
 
-// Front door: the apex and www rules, in the app itself, with Cloudflare in front. The app host comes from BETTER_AUTH_URL;
-// the apex is that host without "app.". Any other config (localhost, previews) leaves this inert.
-// Paths match case-insensitively, a trailing "*" as a prefix, and "/*.svg" within one segment.
 // Public pages served from the cacheable /site/<org> tree. Exact matches only.
 // The cacheable pages (public-pages.json) plus two legacy paths next.config.ts redirects.
 const SITE_PAGES = new Set([...publicPages, "/menu/weekly", "/plans"]);
@@ -86,14 +71,21 @@ const SITE_PAGES = new Set([...publicPages, "/menu/weekly", "/plans"]);
 // A referral friend page, /refer/<code>: personalised, so never in public-pages.json (edge cache).
 // Any one segment goes through: the page falls back to the general refer content for a mistyped
 // or unknown code, which beats a 404 for someone who typed a friend's code by hand.
-function siteFriendPath(pathname: string): string | null {
+function friendCode(pathname: string): string {
   const m = /^\/refer\/([^/]+)$/.exec(pathname);
-  const code = m ? normalizeReferralCode(m[1]!).replace(/[^A-Z0-9]/g, "") : "";
+  return m ? normalizeReferralCode(m[1]!).replace(/[^A-Z0-9]/g, "") : "";
+}
+
+function siteFriendPath(pathname: string): string | null {
+  const code = friendCode(pathname);
   return code ? `/refer/${code}` : null;
 }
 
 const STATIC_PATH = /^\/(?:_next\/(?:static|image)\/|favicon\.ico$|sitemap\.xml$|robots\.txt$)|\.(?:svg|json|png|ico|jpg|jpeg|webp|woff|woff2|txt|xml)$/;
 
+// Front door: the apex and www rules, in the app itself, with Cloudflare in front. The app host comes from BETTER_AUTH_URL;
+// the apex is that host without "app.". Any other config (localhost, previews) leaves this inert.
+// Paths match case-insensitively, a trailing "*" as a prefix, and "/*.svg" within one segment.
 function frontDoor(request: NextRequest): NextResponse | null {
   const appHost = new URL(appUrlOr("http://localhost")).hostname;
   if (!appHost.startsWith("app.")) return null;
@@ -139,8 +131,8 @@ export async function proxy(request: NextRequest) {
   syncSessionHint(request, res);
   // A share link: remember the code until the friend signs in (attached there).
   // ...or the friend page itself (/refer/<code>): its header and footer links carry no ?ref=.
-  const ref = normalizeReferralCode(request.nextUrl.searchParams.get("ref") ?? /^\/refer\/([^/]+)$/.exec(pathname)?.[1] ?? "");
-  if (isReferralCodeShape(ref)) res.cookies.set(REFERRAL_COOKIE, ref, REFERRAL_COOKIE_OPTIONS);
+  const ref = parseReferralCode(request.nextUrl.searchParams.get("ref") ?? friendCode(pathname));
+  if (ref) setReferralCookie(res.cookies, ref);
   return res;
 }
 
@@ -154,12 +146,9 @@ async function route(request: NextRequest): Promise<NextResponse> {
   request.headers.delete("x-realm-org-id");
 
   const onApi = pathname.startsWith("/api");
-  const onDashboard = pathname.startsWith("/dashboard");
   const resolutionExempt = skipsOrgResolution(pathname);
 
-  // Set on the forwarded request when a URL-segment/default org resolves, so
-  // NextResponse.next() below can carry it through via the `request.headers`
-  // forwarding mechanism (Task 4 reads it on the Node side).
+  // NextResponse.next() carries this to the Node side via `request.headers` forwarding.
   let resolvedOrgId: string | undefined;
 
   if (!resolutionExempt) {
@@ -200,8 +189,8 @@ async function route(request: NextRequest): Promise<NextResponse> {
     // Preflight carries no cookies — answer before the session gate.
     if (request.method === "OPTIONS") return new NextResponse(null, { status: 204, headers: cors });
 
-    const isPublic = PUBLIC_API.some((p) => pathname === p || pathname.startsWith(`${p}/`));
-    if (!isPublic && !hasSession) {
+    // Which prefixes skip this gate, and why, lives in lib/routing/public-api.ts.
+    if (!isPublicApi(pathname) && !hasSession) {
       const res = unauthorized();
       cors.forEach((v, k) => res.headers.set(k, v));
       return res;

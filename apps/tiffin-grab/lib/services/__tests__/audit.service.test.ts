@@ -18,8 +18,8 @@ vi.mock("@foundry/commons/logger", () => {
 
 const { db } = await import("@/db/client");
 const { auditLog, inquiries, inquiryActivities } = await import("@/db/schema");
-const { inquiriesService } = await import("../inquiries.service");
-const { recordAudit } = await import("../session-service");
+const { inquiriesService } = await import("../../inquiries/inquiries.service");
+const { recordAudit } = await import("@/lib/identity/audit");
 
 async function reset() {
   await db.delete(auditLog);

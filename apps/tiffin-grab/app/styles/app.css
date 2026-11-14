@@ -9,6 +9,6 @@
 @source "../../../../node_modules/@relay/engine/src/ui";
 @source "../../../../node_modules/@foundry/auth-ui/src";
 @source "../../../../node_modules/@foundry/design-system/src";
-@source "../../../../node_modules/@foundry/delivery/src/ui";
-@source "../../../../node_modules/@foundry/address/src/ui";
+@source "../../node_modules/@foundry/delivery/src/ui";
+@source "../../node_modules/@foundry/address/src/ui";
 @source "../../../../node_modules/@foundry/crm/src";

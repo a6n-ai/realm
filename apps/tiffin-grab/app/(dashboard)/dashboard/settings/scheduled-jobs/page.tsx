@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ChevronRightIcon, ClockIcon } from "lucide-react";
 import { PageHeader } from "@/components/ds";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { CRON_JOBS } from "@/lib/cron/jobs";
 import { recentCronRuns } from "@/lib/cron/run";
 import { formatEpoch } from "@/lib/format/datetime";

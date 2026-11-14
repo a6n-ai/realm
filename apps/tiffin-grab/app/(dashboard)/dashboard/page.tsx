@@ -1,18 +1,19 @@
-import { isAdmin } from "@/lib/auth/roles";
+import { type Visible, noVisibleOrgs } from "@/lib/tenant/org-scope";
+import { isAdmin } from "@/lib/roles";
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { LayoutDashboardIcon } from "lucide-react";
 import { zonedDateIso } from "@foundry/commons";
 import { requireStaff } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
-import { coversAllOrgs, getTodayCounts, getTodayQueue } from "@/lib/services/today.service";
-import { staffFirstName } from "@/lib/services/overview.service";
+import { coversAllOrgs, getTodayCounts, getTodayQueue } from "@/lib/today/today.service";
+import { staffFirstName } from "@/lib/overview/overview.service";
 import { OVERVIEW_KINDS, isTodayKind, type TodayKind } from "@/lib/today/types";
 import { formatDateOnly } from "@/lib/format/datetime";
 import { Alert, AlertDescription, AlertTitle } from "@/components/reui/alert";
-import { ChartSkeleton } from "@/components/analytics/skeletons";
+import { ChartSkeleton } from "@/components/dashboard/analytics/skeletons";
 import { StatCardsSkeleton } from "@/components/dashboard/stat-cards";
 import { PageShell, PageHeader, SectionCard, PageSkeleton, DataTableSkeleton } from "@/components/ds";
 import { parseWeekParam } from "@/lib/deliveries/view/week";
@@ -60,7 +61,7 @@ async function DashboardData({ searchParams }: { searchParams: SearchParams }) {
   const seesAll = await coversAllOrgs(visible);
   const weekStart = parseWeekParam(week) ?? mondayOfIso(today);
 
-  if (visible !== "all" && visible.length === 0) {
+  if (noVisibleOrgs(visible)) {
     return (
       <PageShell>
         <PageHeader icon={LayoutDashboardIcon} title={greeting} subtitle={`${todayLabel} · What is waiting on us today.`} />
@@ -143,7 +144,7 @@ const QUEUE_SKELETON_COLUMNS = [
   { key: "action", label: "Action", align: "right" },
 ] as const;
 
-async function TodayQueueSection({ visible, today, now, activeType }: { visible: "all" | string[]; today: string; now: number; activeType: TodayKind | null }) {
+async function TodayQueueSection({ visible, today, now, activeType }: { visible: Visible; today: string; now: number; activeType: TodayKind | null }) {
   const [counts, queue] = await Promise.all([
     getTodayCounts(visible, today),
     getTodayQueue(visible, now, activeType ? [activeType] : undefined),

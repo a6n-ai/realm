@@ -29,7 +29,6 @@ export function MetaViewContent({ contentIds, contentName, contentType = "produc
       eventSourceUrl: window.location.href,
       customData: params,
     });
-    // Intentionally once per mount (one page view); ignore prop identity churn.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

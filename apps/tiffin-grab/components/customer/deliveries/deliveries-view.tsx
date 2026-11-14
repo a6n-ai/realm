@@ -2,9 +2,9 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
-import { Button, Card, Notice, Toast } from "@/components/customer/kit";
+import { Button, Card, Notice, Toast } from "@/components/kit";
 import { ClaimPayment } from "@/components/customer/wallet/claim-payment";
-import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
+import { cn, FONT, FOCUS } from "@/components/kit/cn";
 import { humanDate, type Trip, type TripAction } from "@/lib/deliveries/view";
 import { buildEatingDays, eatingRowsInWeek, isAddressRow, type EatingRow } from "@/lib/deliveries/view/eating";
 import { applySwapsToCounts, hasEvenPortionSwap } from "@/lib/menu/swap-rules";
@@ -16,13 +16,14 @@ import { pausedLine, resumeLine } from "./pause-copy";
 import { TripActions } from "./action-panel";
 import { ActionSheet } from "./actions/registry";
 import { PauseSheet } from "./actions/pause-sheet";
-import { pauseMyDays, releaseMyDays } from "@/app/(customer)/me/deliveries/actions";
+import { pauseMyDays, releaseMyDays } from "@/lib/deliveries/customer-actions";
 import { planLines, renewDays, type PlanView } from "@/lib/deliveries/view/adapter";
 import { PlanHeader, windowLabel } from "./plan-header";
 import { EatingCard, mealCategories, splitMealAddons, TripInfoSheet } from "./trip-parts";
 import { WeekStrip } from "./week-strip";
 import { deliveryAddress } from "@/lib/deliveries/view/current-address";
 import { addDaysIso, mondayOfIso } from "@foundry/commons/util/dates";
+import { LIVE_DISPLAY, inOrderStatuses } from "@/lib/orders/status";
 
 const ACTIONS: TripAction[] = ["pick", "swap", "move"];
 
@@ -58,7 +59,6 @@ interface Props {
 function PlanTab({ selected, className, ...rest }: React.ComponentProps<"button"> & { selected: boolean }) {
   return <button type="button" aria-pressed={selected} {...rest} className={cn(FOCUS, "min-h-10 shrink-0 snap-start whitespace-nowrap rounded-full px-4 text-sm font-semibold transition-colors [touch-action:manipulation]", selected ? "bg-[var(--primary-wash,#FBE3D2)] text-foreground ring-[1.5px] ring-primary" : "c-surface bg-[var(--card,#fff)] text-[var(--muted-foreground)] hover:text-foreground", className)} />;
 }
-const DEAD = new Set(["cancelled", "rejected"]);
 const rank = (t: Trip) => (t.status === "upcoming" ? 0 : t.status === "failed" ? 1 : 2);
 
 export function DeliveriesView({ plan, subs, waitingRenewal = false, windows, trips, agenda, weekStart, firstWeek, lastWeek, now, customerName, locked = false, claimPayment = null, cardAvailable = false, currency, initialTrip, initialAction }: Props) {
@@ -134,7 +134,7 @@ export function DeliveriesView({ plan, subs, waitingRenewal = false, windows, tr
   const switchPlan = (id: string) => startNav(() => (router.replace(`/me?sub=${id}`, { scroll: false }), router.refresh()));
 
   // Renewals continue a plan, so they share its tab; only plans running side by side get tabs of their own.
-  const lines = planLines(subs.filter((s) => !DEAD.has(s.displayStatus)), windows);
+  const lines = planLines(subs.filter((s) => inOrderStatuses(LIVE_DISPLAY, s.displayStatus)), windows);
   const line = lines.find((l) => l.some((s) => s.publicId === plan.orderId)) ?? [];
   const at = line.findIndex((s) => s.publicId === plan.orderId);
   const after = line[at + 1];

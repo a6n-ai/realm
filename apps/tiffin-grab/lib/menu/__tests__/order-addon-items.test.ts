@@ -31,7 +31,8 @@ describe("addonItemsForOrder (integration)", () => {
     const { eq } = await import("drizzle-orm");
     const { db } = await import("@/db/client");
     const { orderAddons, plans } = await import("@/db/schema");
-    const { addonItemsForOrder, ADDON_SORT_BASE } = await import("../order-addon-items");
+    const { addonItemsForOrder } = await import("../order-addon-items");
+    const { ADDON_SORT_BASE } = await import("../grid-types");
     const { makeTripOrder, resetTrips } = await import("@/lib/services/__tests__/trip-fixture");
     await resetTrips(DEPLOY, PREFIX);
     try {

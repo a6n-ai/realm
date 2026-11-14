@@ -1,0 +1,44 @@
+import "server-only";
+import { sql } from "drizzle-orm";
+import { and, between, inList, type Condition } from "@foundry/commons/model/condition";
+import { db } from "@/db/client";
+import { orders } from "@/db/schema";
+import { ordersListWhere } from "@/lib/orders/queries";
+import type { AnalyticsScope } from "@/lib/analytics/scope-types";
+import { noOrgs } from "./scope";
+
+// ORDER_FACET_FIELDS is type-imported by orders-spec.ts, so keep it a plain const. Shared by the Orders page and analytics drill links.
+export const ORDER_FACET_FIELDS = ["status", "plan", "tier", "mealSize", "zone", "org", "createdAt"] as const;
+export type OrderFacetField = (typeof ORDER_FACET_FIELDS)[number];
+
+type Extra = { status?: string[] };
+
+/** The Condition the Orders listing parses from the same URL. Org narrowing is the listing's `visible` argument (scope.orgIds). */
+export function scopeToOrdersCondition(scope: AnalyticsScope, extra: Extra = {}): Condition {
+  const parts: Condition[] = [between("createdAt", scope.fromMs, scope.toMs)];
+  if (extra.status?.length) parts.push(inList("status", extra.status));
+  if (scope.plans.length) parts.push(inList("plan", scope.plans));
+  if (scope.mealSizes.length) parts.push(inList("mealSize", scope.mealSizes));
+  if (scope.zones.length) parts.push(inList("zone", scope.zones));
+  return and(...parts);
+}
+
+/** Same where as listOrdersPage, so this equals the listing's total. */
+export async function countOrders(scope: AnalyticsScope, extra: Extra = {}): Promise<number> {
+  if (noOrgs(scope)) return 0;
+  const [{ n }] = await db
+    .select({ n: sql<number>`cast(count(*) as int)` })
+    .from(orders)
+    .where(ordersListWhere(scopeToOrdersCondition(scope, extra), scope.orgIds));
+  return n;
+}
+
+export async function countCustomers(scope: AnalyticsScope, extra: Extra = {}): Promise<number> {
+  if (noOrgs(scope)) return 0;
+  const [{ n }] = await db
+    .select({ n: sql<number>`cast(count(distinct ${orders.userId}) as int)` })
+    .from(orders)
+    .where(ordersListWhere(scopeToOrdersCondition(scope, extra), scope.orgIds));
+  return n;
+}
+

@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { DownloadIcon } from "lucide-react";
 import { Button } from "@foundry/ui/button";
 import { ResponsiveDialog } from "@/components/ds";
-import { CUSTOMER_EXPORT_COLUMNS, PLAN_EXPORT_COLUMNS } from "./renewal-export-columns";
+import { CUSTOMER_EXPORT_COLUMNS, PLAN_EXPORT_COLUMNS } from "@/lib/renewals/export-columns";
 
 export function RenewalsExportButton() {
   const searchParams = useSearchParams();

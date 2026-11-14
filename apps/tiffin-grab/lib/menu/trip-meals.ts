@@ -2,11 +2,12 @@
 // alone (ignores for_date), so a carried day would inherit its sibling's swaps. We fold only
 // the swaps that belong to the day into categoryCounts and pass deliveryId null instead.
 import { weekdayKey, parseIsoDateUtc } from "@foundry/commons";
-import { menuService } from "@/lib/services/menu.service";
-import { type DayOfWeek } from "@/lib/menu/delivery-days";
+import { menuService } from "@/lib/menu/menu.service";
+import { type DayOfWeek } from "@/lib/deliveries/schedule/delivery-days";
 import { resolveDeliveryMeal, type MealResolveCache, type ResolvedCategory } from "@/lib/menu/resolve-delivery-meal";
 import { applySwapsToCounts, type SwapRow } from "@/lib/menu/swap-rules";
-import { mondayOfIso } from "@foundry/commons/util/dates";
+import { DAY_NAMES, mondayOfIso } from "@foundry/commons/util/dates";
+import { extraTiffinLabelAt } from "@/lib/deliveries/delivery-extras";
 
 /** Swaps of one trip that apply to one eating day; NULL for_date means the trip's own date. */
 export function swapsForDay<T extends { deliveryId: bigint; forDate: string | null }>(
@@ -15,6 +16,21 @@ export function swapsForDay<T extends { deliveryId: bigint; forDate: string | nu
   date: string,
 ): T[] {
   return swaps.filter((s) => s.deliveryId === delivery.id && (s.forDate ?? delivery.deliveryDate) === date);
+}
+
+// Under the pool size (10) so the other loaders on the labels page still get connections.
+export const ROW_CONCURRENCY = 6;
+
+/** What prints for one tiffin: "For Tue" on a trip carrying several eating days, plus "Extra · Oct 7" on a moved-in repeat; null if neither. */
+export function forLabelFor(
+  moves: Parameters<typeof extraTiffinLabelAt>[0],
+  covered: readonly string[],
+  forDate: string,
+  nth: number,
+): string | null {
+  const extraLabel = extraTiffinLabelAt(moves, forDate, nth);
+  return [covered.length > 1 ? `For ${DAY_NAMES[parseIsoDateUtc(forDate).getUTCDay()]}` : null, extraLabel]
+    .filter(Boolean).join(" · ") || null;
 }
 
 type Order = { id: bigint; planId: bigint; mealSizeId: bigint; categoryCounts: Record<string, number> | null };

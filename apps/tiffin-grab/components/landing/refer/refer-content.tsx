@@ -10,6 +10,7 @@ import { rewardOf, tagFaces } from "./friend-copy";
 import { ReferCta } from "./refer-cta";
 import { ReferDock } from "./refer-dock";
 import { ReferFlow } from "./refer-flow";
+import { NO_EXTRAS, type ReferExtras } from "./refer-types";
 import { ReferSticker } from "./refer-sticker";
 import { ReferTag } from "./refer-tag";
 
@@ -45,17 +46,6 @@ function rewardLine({ friend, referrer }: ReferralOffer) {
 }
 
 const TIFFIN_ALT = "An illustrated tiffin carrier with green tiers and a marigold lid, on a kitchen board beside a stove and a calendar";
-
-export type ReferExtras = {
-  /** Lowest live per-tiffin rate, formatted ("$9.99"); null when no plan is orderable. */
-  fromRate: string | null;
-  /** One day of the published week, tier by tier; null when no week is published. */
-  day: { label: string; today: boolean; tiers: { row: string; dishes: string[] }[] } | null;
-  /** "10% off with WELCOME10" from the running promotion; null when none runs. */
-  promo: string | null;
-};
-
-const NO_EXTRAS: ReferExtras = { fromRate: null, day: null, promo: null };
 
 export function ReferContent({ offer, extras = NO_EXTRAS }: { offer: ReferralOffer; extras?: ReferExtras }) {
   if (!offer.on) {

@@ -6,7 +6,7 @@ import { Card } from "@/components/ds";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@foundry/ui/tabs";
 import { Badge } from "@/components/reui/badge";
 import type { KitchenWeekRow } from "@/lib/overview/kitchen-week";
-import type { KitchenCount } from "@/lib/services/daily-labels.service";
+import type { KitchenCount } from "@/lib/menu/daily-labels.service";
 import { delta } from "@/lib/overview/delta";
 import { KitchenCounts } from "../labels/labels-view";
 import { DAY_SHORT, WEEK_DAYS } from "@/lib/dates/weekdays";

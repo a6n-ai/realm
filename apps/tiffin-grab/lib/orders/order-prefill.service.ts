@@ -1,9 +1,10 @@
-import { and, asc, desc, eq, inArray, isNull, ne } from "drizzle-orm";
+import { orgScope, type Visible } from "@/lib/tenant/org-scope";
+import { and, asc, desc, eq, isNull, ne } from "drizzle-orm";
 import { db } from "@/db/client";
 import { customerAddresses, deliveryFrequencies, mealSizes, orderAddons, orders, plans, users } from "@/db/schema";
 
 /** The customer's most recent plan (cancelled ones skipped) inside the visible organizations. */
-export async function findRenewableOrder(customerPublicId: string, visible: "all" | string[]) {
+export async function findRenewableOrder(customerPublicId: string, visible: Visible) {
   const [last] = await db
     .select({ publicId: orders.publicId, deploymentId: orders.deploymentId })
     .from(orders)
@@ -11,7 +12,7 @@ export async function findRenewableOrder(customerPublicId: string, visible: "all
     .where(and(
       eq(users.publicId, customerPublicId),
       ne(orders.status, "cancelled"),
-      visible === "all" ? undefined : inArray(orders.organizationId, visible),
+      orgScope(orders.organizationId, visible),
     ))
     .orderBy(desc(orders.startDate), desc(orders.createdAt))
     .limit(1);

@@ -1,13 +1,15 @@
 import { appPhoneCountry, parseEmail, parsePhone } from "@/lib/services/contact";
 import { isUniqueViolation } from "@/lib/db/errors";
-import { isCustomerRole, isStaffRole } from "@/lib/auth/roles";
+import { isCustomerRole, isStaffRole } from "@/lib/roles";
 import { UpdatableRepository } from "@foundry/database";
-import { AuthError, ValidationError, phoneSchema, emailSchema, pinSchema, type RoleValue } from "@foundry/commons";
+import { AuthError, ValidationError, pinSchema, type RoleValue } from "@foundry/commons";
 import { and, eq, ne, sql } from "drizzle-orm";
 import { db, type Tx } from "@/db/client";
-import { account, addressTags, deliveryStrategies, invitation, session, users } from "@/db/schema";
-import { hashPassword, verifyPassword } from "@/lib/auth/password";
-import { SessionUpdatableService, recordAudit, requireUserId } from "./session-service";
+import { account, invitation, session, users } from "@/db/schema";
+import { hashPassword, verifyPassword } from "@foundry/auth";
+import { SessionUpdatableService } from "./session-service";
+import { requireUserId } from "@/lib/identity/user-ids";
+import { recordAudit } from "@/lib/identity/audit";
 import { pickUserWritable } from "./users-writable";
 import { syncStaffMembership } from "./organizations.service";
 import { createLogger } from "@foundry/commons/logger";
@@ -19,7 +21,6 @@ const REDACT_FIELDS = new Set(["pinHash", "password"]);
 
 const isUsernameConflict = (e: unknown) => isUniqueViolation(e, "users_username_unique");
 
-// A transaction handle (the callback arg of db.transaction), for helpers that
 
 export function redactUserChanges(
   changes: Record<string, { from: unknown; to: unknown }> | null,
@@ -98,7 +99,6 @@ class UsersService extends SessionUpdatableService<typeof users> {
     return super.update(publicId, { status });
   }
 
-  /** Delete every session row for a user — "sign out everywhere". */
   async revokeSessions(publicId: string) {
     await db.delete(session).where(eq(session.userId, await requireUserId(publicId)));
   }
@@ -108,11 +108,9 @@ class UsersService extends SessionUpdatableService<typeof users> {
    * reuse, and revoke every session (log out everywhere). Business rows
    * (orders/wallet/tickets) are preserved — we never hard-delete a user.
    *
-   * The email is tombstoned rather than nulled. It used to be set to null, which
-   * silently stopped working when email became NOT NULL — every soft-delete has been
-   * throwing a 23502 since. The tombstone keeps the column non-null, stays unique
-   * (publicId is), releases the real address for re-registration, and uses the
-   * reserved .invalid TLD so nothing can ever route mail to it.
+   * The email is tombstoned rather than nulled (the column is NOT NULL). The tombstone
+   * stays unique (publicId is), releases the real address for re-registration, and uses
+   * the reserved .invalid TLD so nothing can ever route mail to it.
    */
   async softDelete(publicId: string) {
     await this.revokeSessions(publicId);
@@ -125,7 +123,6 @@ class UsersService extends SessionUpdatableService<typeof users> {
     return res;
   }
 
-  /** Verify a plaintext password against the user's credential account. */
   async verifyAccountPassword(publicId: string, plain: string): Promise<boolean> {
     const [u] = await db.select({ id: users.id }).from(users).where(eq(users.publicId, publicId)).limit(1);
     if (!u) return false;
@@ -200,7 +197,7 @@ class UsersService extends SessionUpdatableService<typeof users> {
     if (!u) return;
     try {
       // Lazy: customer-groups.service pulls app-settings, which imports back through session-service.
-      const { syncGroupsForUser } = await import("./customer-groups.service");
+      const { syncGroupsForUser } = await import("../customer-groups/customer-groups.service");
       await syncGroupsForUser(u.id);
     } catch (e) {
       // The preference already saved; the next sync catches up.

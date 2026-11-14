@@ -3,7 +3,6 @@ import {
   addDishPortion,
   countPackNaturalTotal,
   countTotalFromPack,
-  formatDishCell,
   formatItemCell,
   formatPackingRequirement,
   formatPortionLabel,
@@ -56,18 +55,6 @@ describe("formatItemCell", () => {
     expect(formatItemCell({ name: "Roti", portion: "4 roti", quantity: 2, packStyle: "count-total" })).toBe("8 Rotis");
     expect(formatItemCell({ name: "Veg Pulao", portion: "1 unit", quantity: 1, packStyle: "count-total" })).toBe("Veg Pulao");
     expect(formatItemCell({ name: "Jeera Rice", portion: "1 unit", quantity: 2, packStyle: "count-total" })).toBe("2 Jeera Rice");
-  });
-});
-
-describe("formatDishCell", () => {
-  it("joins multiple portions and uses an em dash when empty", () => {
-    expect(formatDishCell([])).toBe("—");
-    expect(
-      formatDishCell([
-        { portion: "12oz", quantity: 1 },
-        { portion: "8oz", quantity: 1 },
-      ]),
-    ).toBe("12oz; 8oz");
   });
 });
 

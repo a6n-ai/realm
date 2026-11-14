@@ -3,7 +3,7 @@ import { nextWeekday } from "@foundry/commons";
 import { db } from "@/db/client";
 import { couponRedemptions, deliveries, ledgerEntries, notificationOutbox, orderActivities, orders, payments, stripeEvents, users, walletLedger } from "@/db/schema";
 import { createOrder } from "../../orders/create-order";
-import { setPaymentConfig } from "../../services/app-settings.service";
+import { setPaymentConfig } from "@/lib/payments/payment-config";
 import { sharedCache } from "@/lib/cache";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 
@@ -53,7 +53,6 @@ export async function reset() {
   await sharedCache("app-settings").evictAll();
 }
 
-/** An order with one stripe payment row; amount overrides make cents math explicit. */
 export let OWNER = "";
 // One customer per phone: a random suffix collided often enough (51 orders) to trip the plan-overlap guard.
 let phoneSeq = 1000;

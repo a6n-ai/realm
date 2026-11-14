@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
 const { renderWeeklyMenuPdf } = await import("../pdf");
-const { menuService } = await import("@/lib/services/menu.service");
+const { menuService } = await import("@/lib/menu/menu.service");
 
 describe("renderWeeklyMenuPdf", () => {
   it("returns a %PDF- byte stream for a published week", async () => {

@@ -3,17 +3,17 @@ import { sharedCache } from "@/lib/cache";
 import { computeSiteNextAt } from "@/lib/landing/site-boundaries";
 import { runInBackground } from "@foundry/cloud/background";
 import { scheduleSiteRefreshWake } from "@/lib/runtime/workflow-wake";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { purgeEdgePages } from "@/lib/landing/edge-purge";
 
 const WEEK_MS = 7 * 24 * 3600_000;
 
 // Cron bookkeeping (last boundary, requested-at, followed-up). L1 is capped so every isolate sees a fresh value.
-export const publicSiteState = sharedCache("public-site", WEEK_MS, WEEK_MS, 60_000);
+export const publicSiteState = sharedCache("public-site", WEEK_MS, WEEK_MS, true);
 
 // The public API and MCP answers (lib/public-api/load.ts). Kept an hour: every edit that changes the public
 // pages, and every promo or cutoff boundary, runs revalidateSitePaths, which clears it. L1 capped like the pages.
-export const publicApiCache = sharedCache("public-api", 3600_000, 0, 60_000);
+export const publicApiCache = sharedCache("public-api", 3600_000, 0, true);
 
 // Public pages live under app/site/[org] (rewritten from /, /menu...), and Next revalidates a rewritten
 // route by its destination path. Call after the shared data caches are evicted.
@@ -32,8 +32,7 @@ export function revalidateSitePaths(): void {
 export function revalidatePublicSite(): void {
   revalidateSitePaths();
   try {
-    // One wake at computeSiteNextAt (includes requestedAt+90s and any sooner boundary),
-    // instead of always booking a separate +90s instance alongside the boundary chain.
+    // One wake at computeSiteNextAt, which already includes requestedAt+90s and any sooner boundary.
     runInBackground(async () => {
       const now = Date.now();
       const followedUp = (await publicSiteState.get<number>("followed-up"))?.value;

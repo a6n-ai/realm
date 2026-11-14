@@ -20,7 +20,7 @@ import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
 } from "@foundry/ui/form";
 import { Input } from "@foundry/ui/input";
-import { IOS_BUTTON, IOS_PRESS } from "@/components/customer/ios-button";
+import { IOS_BUTTON, IOS_PRESS } from "@/components/kit/ios-button";
 import { verifyPinAction } from "./actions";
 import { LAST_USER_COOKIE } from "@foundry/auth/last-user";
 import { AuthLegal, AuthLogo, IOS_INPUT, tiffinAuthUi } from "@/components/auth/auth-kit";

@@ -5,9 +5,10 @@ import { StatCards, StatCardsSkeleton } from "@/components/dashboard/stat-cards"
 import { zonedDateIso } from "@foundry/commons";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { requireStaff } from "@/lib/auth/guards";
-import { getAppSettings } from "@/lib/services/app-settings.service";
-import { dailyLabelSheet, listDayDeliveryStatuses } from "@/lib/services/daily-labels.service";
-import { getKitchenPackingSheet } from "@/lib/services/kitchen-packing-sheet.service";
+import { getAppSettings } from "@/lib/settings";
+import { dailyLabelSheet } from "@/lib/menu/daily-labels.service";
+import { listDayDeliveryStatuses } from "@/lib/deliveries/day-deliveries";
+import { getKitchenPackingSheet } from "@/lib/menu/kitchen-packing-sheet.service";
 import { HolidayBanner } from "@/components/dashboard/holiday-banner";
 import { getSession } from "@/lib/auth/session";
 import { holidaysOn } from "@/lib/deliveries/holidays.service";

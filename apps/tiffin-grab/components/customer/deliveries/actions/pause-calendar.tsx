@@ -2,14 +2,14 @@
 import { useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { parseIsoDateUtc } from "@foundry/commons";
-import { IconButton } from "../../kit/icon-button";
-import { useSwipePages } from "@/components/customer/kit/use-swipe-pages";
+import { IconButton } from "../../../kit/icon-button";
+import { useSwipePages } from "@/components/kit/use-swipe-pages";
 import { humanDate } from "@/lib/deliveries/view";
-import type { PauseDayChoice } from "@/app/(customer)/me/deliveries/actions";
+import type { PauseDayChoice } from "@/lib/deliveries/customer-actions";
 import { utcIso } from "@foundry/commons/util/dates";
+import { MONTH_YEAR_LONG } from "@/components/kit/date-formats";
 
 const WEEK = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-const MONTH = new Intl.DateTimeFormat("en-CA", { month: "long", year: "numeric", timeZone: "UTC" });
 
 /**
  * One grid per month the days span, Monday first; the leading blanks line day 1 up under its
@@ -29,7 +29,7 @@ function months(dates: string[]): { key: string; label: string; cells: (string |
     const rows = Array.from({ length: cells.length / 7 }, (_, r) => cells.slice(r * 7, r * 7 + 7));
     const used = rows.map((row) => row.some((d) => d != null && has.has(d)));
     const kept = rows.slice(used.indexOf(true), used.lastIndexOf(true) + 1);
-    return { key, label: MONTH.format(first), cells: kept.flat() };
+    return { key, label: MONTH_YEAR_LONG.format(first), cells: kept.flat() };
   });
 }
 

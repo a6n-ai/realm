@@ -1,7 +1,7 @@
 import { effectivePrice, type PricingSelections } from "@/lib/pricing";
 import { APP_DEFAULTS } from "@/db/schema/app-defaults";
 import { listableMealSizes, mealSizeAddons, type CatalogAddon, type ClientCatalogSnapshot } from "@/lib/catalog/types";
-import { eatingDaysError, frequencyFits, MON_FRI, planDaysError, WEEK_DAYS, type DayOfWeek } from "@/lib/menu/delivery-days";
+import { eatingDaysError, frequencyFits, MON_FRI, planDaysError, WEEK_DAYS, type DayOfWeek } from "@/lib/deliveries/schedule/delivery-days";
 import { dropOffCatalog, validDropOff } from "@/lib/catalog/drop-off";
 
 export interface WizardSelections extends PricingSelections {
@@ -10,16 +10,7 @@ export interface WizardSelections extends PricingSelections {
 
 export type WizardOrigin = "subscribe" | "renew" | "trial";
 
-/**
- * The subscribe wizard still sells one person per order and no separate
- * weekend delivery (weekend tiffins ship with Friday's delivery — see
- * `orderDeliveryDays`/`materializeDeliveries`). That part is unchanged.
- *
- * Delivery frequency itself is no longer locked to 5-day: every active
- * `delivery_frequencies` catalog row (including admin-configured alternate
- * cadences) is selectable. `catalog.frequencies` already comes pre-filtered
- * to active rows, so nothing here needs to re-check availability.
- */
+/** One person per order; weekend tiffins ship with Friday's delivery (see `orderDeliveryDays`/`materializeDeliveries`). */
 export const FIXED_PERSONS = 1;
 
 export const DEFAULT_EATING_DAYS: DayOfWeek[] = [...MON_FRI];
@@ -55,13 +46,6 @@ export function pickedAddons(catalog: ClientCatalogSnapshot | undefined, s: Wiza
 export function selectionIsTrial(catalog: ClientCatalogSnapshot, s: WizardSelections): boolean {
   if (s.mealSizeId === "") return false;
   return catalog.mealSizes?.find((m) => m.publicId === s.mealSizeId)?.trial === true;
-}
-
-/** Next or previous step. A trial jumps Bundle (1) straight to Start (3). */
-export function adjacentWizardStep(step: number, dir: 1 | -1, trial: boolean): number {
-  if (trial && dir === 1 && step === 1) return 3;
-  if (trial && dir === -1 && step === 3) return 1;
-  return step + dir;
 }
 
 /** What the customer still needs to do before the current step's button works; null = good to go. */
@@ -157,17 +141,9 @@ export function reconcileSelections(catalog: Partial<ClientCatalogSnapshot>, s: 
   return next;
 }
 
-/** The first wizard step a cart still has to fill in, or null when it can be priced. */
 export function firstBlockedStep(catalog: ClientCatalogSnapshot, s: WizardSelections): number | null {
   for (let step = 0; step <= 3; step++) if (nextBlockedReason(step, catalog, s) != null) return step;
   return null;
-}
-
-// Validates against the live catalog rather than a hardcoded plan list — a
-// plan set only ever grows (admin adds a diet/plan), so any fixed union here
-// would go stale the moment a new one is added.
-function asPlanKey(catalog: ClientCatalogSnapshot, key: string | null | undefined): WizardSelections["planKey"] {
-  return catalog.plans.find((p) => p.key === key)?.key ?? null;
 }
 
 export const initialSelections: WizardSelections = {
@@ -176,9 +152,7 @@ export const initialSelections: WizardSelections = {
   frequencyKey: "",
   eatingDays: DEFAULT_EATING_DAYS,
   persons: 1,
-  // Dish selection now happens per-delivery after subscribing; mealSlots is
-  // populated from the chosen plan's categories (see StepBaseline) purely to
-  // satisfy the pricing guard — the subscriber never picks it directly.
+  // Filled from the plan's categories (see StepBaseline) only to satisfy the pricing guard; dishes are picked per delivery.
   mealSlots: [],
   includeSaturday: false,
   includeSunday: false,
@@ -186,47 +160,6 @@ export const initialSelections: WizardSelections = {
   startDate: "",
   addonSelections: [],
 };
-
-/** Prefill the renew stepper from the customer's most recent order. Start date stays empty. */
-export function selectionsFromPriorOrder(
-  catalog: ClientCatalogSnapshot,
-  prior: {
-    planKey: string;
-    mealSizePublicId?: string | null;
-    persons: number;
-    includeSaturday: boolean;
-    includeSunday: boolean;
-    durationWeeks: number;
-    frequencyKey: string;
-    eatingDays?: string[] | null;
-  } | null,
-): WizardSelections {
-  if (!prior) return initialSelections;
-  const planKey = asPlanKey(catalog, prior.planKey);
-  const plan = catalog.plans.find((p) => p.key === planKey);
-  const mealSizeId =
-    prior.mealSizePublicId &&
-    listableMealSizes(catalog.mealSizes).some((m) => m.publicId === prior.mealSizePublicId && m.planKey === planKey)
-      ? prior.mealSizePublicId
-      : "";
-  return {
-    planKey,
-    mealSizeId,
-    // Not carried over from the prior order: the controls for these are gone, so
-    // restoring 2 persons or a Saturday would silently change the quote with
-    // nothing on screen to explain it, and no way for the customer to undo it.
-    frequencyKey: "",
-    eatingDays: (prior.eatingDays as DayOfWeek[] | null | undefined) ?? DEFAULT_EATING_DAYS,
-    persons: FIXED_PERSONS,
-    mealSlots: plan?.offeredSlots ?? [],
-    includeSaturday: false,
-    includeSunday: false,
-    durationWeeks: prior.durationWeeks > 0 ? prior.durationWeeks : 1,
-    startDate: "",
-    // Not carried over, same reasoning as frequencyKey/persons above — re-picked fresh.
-    addonSelections: [],
-  };
-}
 
 /**
  * A staff estimate link (`/subscribe?p=veg&m=msz_x&f=5_day&w=4&c=EXTRA5`): the picks a sales rep quoted,
@@ -288,7 +221,6 @@ export function quoteCoins(q: QuoteParams): number {
   return Number.isInteger(n) && n > 0 ? n : 0;
 }
 
-/** The quote params alone, for forwarding through sign-in; "" when the URL carries none. */
 /** Signed-in "new order": the full stepper (`?full=1`), never Quick Renew, carrying any estimate-link picks. */
 export function newOrderHref(params: QuoteParams | URLSearchParams): string {
   const q = quoteQuery(params);

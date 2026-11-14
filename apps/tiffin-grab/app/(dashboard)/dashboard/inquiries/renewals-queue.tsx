@@ -13,7 +13,7 @@ import { withListDates } from "@/lib/list/default-month";
 import { ALL_OWNERS, ME, resolveOwnerParam } from "@/lib/list/presets";
 import { RENEWAL_QUEUES, parseRenewalsFilter, renewalQueueFilter, resolveRange, type RenewalQueue, type RenewalsFilter } from "@/lib/renewals/filters";
 import { requestNow } from "@/lib/dates/request-now";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { countTrackQueues, listRenewals } from "@/lib/renewals/renewals.service";
 import { RenewalsQueueList } from "./renewals-queue-list";
 const TABS: { value: RenewalQueue; label: string }[] = [

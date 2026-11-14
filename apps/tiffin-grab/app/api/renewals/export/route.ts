@@ -1,3 +1,4 @@
+import { xlsxResponse } from "@/lib/files/export-response";
 import { appTodayIso } from "@/lib/dates/today";
 import { dayRange } from "@foundry/commons/util/dates";
 import { handler } from "@foundry/routes";
@@ -6,12 +7,12 @@ import {
   exportHeaders,
   parseExportColumns,
   planRowToExcelRecord,
-} from "@/app/(dashboard)/dashboard/renewals/renewal-export-columns";
+} from "@/lib/renewals/export-columns";
 import { requirePermission } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { withListDates } from "@/lib/list/default-month";
 import { parseRenewalsFilter, resolveRange } from "@/lib/renewals/filters";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import { resolveOwnerParam } from "@/lib/list/presets";
 import {
@@ -43,20 +44,10 @@ export const GET = handler(async (request: Request): Promise<Response> => {
           planRowToExcelRecord(r, today, timezone, columns),
         );
 
-  const XLSX = await import("xlsx");
-  const sheet = XLSX.utils.json_to_sheet(records, { header: headers });
-  const workbook = XLSX.utils.book_new();
-  const sheetName = f.tab === "customers" ? "Renewed customers" : "Renewals";
-  XLSX.utils.book_append_sheet(workbook, sheet, sheetName);
-  const buffer = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" }) as Buffer;
-
-  const dateIso = appTodayIso(timezone);
-  const fileStem = f.tab === "customers" ? "renewed-customers" : "renewals";
-  return new Response(new Uint8Array(buffer), {
-    status: 200,
-    headers: {
-      "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "Content-Disposition": `attachment; filename="${fileStem}-${dateIso}.xlsx"`,
-    },
+  const isCustomers = f.tab === "customers";
+  return xlsxResponse(`${isCustomers ? "renewed-customers" : "renewals"}-${today}.xlsx`, {
+    name: isCustomers ? "Renewed customers" : "Renewals",
+    headers,
+    records,
   });
 });

@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { appEvent } from "@/db/schema";
-import { EVENTS, NOTIFICATION_EVENTS, orderTemplateVars } from "../events";
-import { eventCategory } from "../event-categories";
+import { EVENTS, NOTIFICATION_EVENTS, eventCategory, orderTemplateVars } from "../events";
 
 describe("EVENTS", () => {
   it("has exactly the appEvent enum values", () => {

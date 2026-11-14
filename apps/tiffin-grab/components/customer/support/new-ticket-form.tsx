@@ -2,11 +2,11 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Button, Field, Notice, Select, Skeleton, Textarea } from "@/components/customer/kit";
-import { cn } from "@/components/customer/kit/cn";
+import { Button, Field, Notice, Select, Skeleton, Textarea } from "@/components/kit";
+import { cn } from "@/components/kit/cn";
 import { makeImageThumbnail } from "@/components/ds";
 import { MAX_FILES, PhotoPicker, useImageFiles } from "./parts";
-import { createTicket } from "@/app/(customer)/me/support/actions";
+import { createTicket } from "@/lib/support/customer-actions";
 import {
   CATEGORY_LABEL,
   SUBCATEGORIES,

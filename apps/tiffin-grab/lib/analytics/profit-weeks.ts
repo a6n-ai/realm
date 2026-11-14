@@ -1,6 +1,6 @@
 import { round2 } from "@foundry/commons/util/money";
 import { type ProfitRow } from "./profitability";
-import { addDaysIso, mondayIndex } from "@foundry/commons/util/dates";
+import { addDaysIso, mondayOfIso } from "@foundry/commons/util/dates";
 
 export type ProfitWeek = { start: string; end: string; row: ProfitRow };
 
@@ -10,7 +10,7 @@ const SUMMED = ["tiffins", "revenue", "cashCollected", "unpaidRevenue", "kitchen
 export function groupProfitWeeks(rows: ProfitRow[]): ProfitWeek[] {
   const weeks = new Map<string, ProfitWeek>();
   for (const r of [...rows].sort((a, b) => a.date.localeCompare(b.date))) {
-    const start = addDaysIso(r.date, -mondayIndex(r.date));
+    const start = mondayOfIso(r.date);
     let w = weeks.get(start);
     if (!w) {
       const row = { date: start, marginPct: null } as ProfitRow;

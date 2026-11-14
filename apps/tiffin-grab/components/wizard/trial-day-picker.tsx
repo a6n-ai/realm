@@ -1,11 +1,11 @@
 "use client";
 
-import { WEEK_DAYS } from "@/lib/menu/delivery-days";
-import { PillToggle } from "@/components/customer/kit";
+import { WEEK_DAYS } from "@/lib/deliveries/schedule/delivery-days";
+import { PillToggle } from "@/components/kit";
 import { toggleTrialPick } from "@/lib/trial/schedule";
-import type { DayOfWeek } from "@/lib/menu/delivery-days";
+import type { DayOfWeek } from "@/lib/deliveries/schedule/delivery-days";
+import { DAY_SHORT } from "@/lib/dates/weekdays";
 
-const LABEL: Record<DayOfWeek, string> = { mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun" };
 
 /** Weekday toggles for a multi-day trial: send days only, 1 to `maxDays` picked. */
 export function TrialDayPicker({
@@ -31,7 +31,7 @@ export function TrialDayPicker({
               disabled={!on && (!sendDays.includes(day) || picked.length >= maxDays)}
               onClick={() => onChange(toggleTrialPick(picked, day, sendDays, maxDays))}
             >
-              {LABEL[day]}
+              {DAY_SHORT[day]}
             </PillToggle>
           );
         })}

@@ -5,7 +5,7 @@ import { PageHeader, PageShell, SectionCard } from "@/components/ds";
 import { db } from "@/db/client";
 import { coupons } from "@/db/schema";
 import { requireAdmin } from "@/lib/auth/guards";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { DiscountCapForm, DiscountCapSkeleton } from "./discount-cap-form";
 import { AllDiscountsSkeleton, AllDiscountsTable } from "./all-discounts-table";
 import { WaiversTable } from "./waivers-table";

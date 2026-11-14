@@ -9,10 +9,10 @@ import { OTP_CODE_REGEX, OTP_LENGTH, OTP_TTL_MINUTES } from "@foundry/commons";
 import { emailSchema } from "@foundry/commons/util/email";
 import { authClient, signIn } from "@/lib/auth/client";
 import { warmCaptchaOnInput } from "@/lib/auth/captcha-client";
-import { checkExistingAccount, createCheckoutAccount, rememberReferralCode } from "@/app/(public)/subscribe/actions";
-import { BottomBar, Button, Field, Label, Notice } from "@/components/customer/kit";
+import { checkExistingAccount, createCheckoutAccount, rememberReferralCode } from "@/lib/wizard/actions";
+import { BottomBar, Button, Field, Label, Notice } from "@/components/kit";
 import { AuthLegal, tiffinAuthUi } from "@/components/auth/auth-kit";
-import { normalizeReferralCode } from "@/lib/referrals/cookie";
+import { referralCodeInput } from "@/lib/referrals/cookie";
 import { CodeOtp, EmailSuggestions, GoogleOneTap, GoogleSignInButton, ResendCode, oauthErrorMessage } from "@foundry/auth-ui";
 import { newOrderHref } from "@/lib/wizard/selections";
 import { publicAuthUrl } from "@/lib/runtime/env.public";
@@ -277,7 +277,7 @@ export function IdentityGate({
                 maxLength={8}
                 placeholder="From a friend, like QR7K2M"
                 value={referralCode}
-                onChange={(e) => setReferralCode(normalizeReferralCode(e.target.value).replace(/[^A-HJ-NP-Z2-9]/g, "").slice(0, 8))}
+                onChange={(e) => setReferralCode(referralCodeInput(e.target.value))}
                 error={error?.field === "referral" ? error.message : undefined}
                 className="uppercase tracking-[0.08em] placeholder:normal-case placeholder:tracking-normal"
               />

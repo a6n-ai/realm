@@ -7,17 +7,11 @@
  * list already understands, so a click lands on the same days.
  */
 
-import { dayRange } from "@foundry/commons/util/dates";
-import type { AnalyticsScope } from "@/lib/services/analytics/metrics/scope";
+import type { AnalyticsScope } from "@/lib/analytics/scope-types";
 
 const PAYMENTS = "/dashboard/payments/all";
 const ORDERS = "/dashboard/orders";
 const INQUIRIES = "/dashboard/inquiries";
-
-/** Inclusive calendar range in `timeZone`, as the epoch window list filters expect. */
-export function zonedRangeMs(from: string, to: string, timeZone: string): { from: number; to: number } {
-  return { from: dayRange(from, timeZone).start, to: dayRange(to, timeZone).end - 1 };
-}
 
 /**
  * `org` is omitted when it adds nothing: all franchises, or the viewer's whole visible set.

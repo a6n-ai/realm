@@ -1,12 +1,12 @@
-import { onlyOnMessage, type DayOfWeek } from "@/lib/menu/delivery-days";
+import { onlyOnMessage, type DayOfWeek } from "@/lib/deliveries/schedule/delivery-days";
 import { APP_DEFAULTS } from "@/db/schema/app-defaults";
 import { parseIsoDateUtc, ValidationError, weekdayKey } from "@foundry/commons";
 import type { CatalogSnapshot } from "@/lib/catalog/types";
 import { effectivePrice } from "@/lib/pricing/meal-size-discount";
 import { assertPersons, buildDeliveryChargeConfig, catalogWaivers } from "@/lib/pricing/build-catalog";
 import type { PricingCatalog, PricingSelections } from "@/lib/pricing/types";
-import { getTrialSettings } from "@/lib/services/trial-settings.service";
-import { appToday } from "@/lib/orders/start-date";
+import { getTrialSettings } from "@/lib/trial/trial-settings.service";
+import { appToday } from "@/lib/dates/start-date";
 import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 import { assertTrialStart, durationWeeksCovering, orderedTrialWeekdays, resolveTrialDays, trialDeliveryDates, trialSendDays } from "./schedule";
 

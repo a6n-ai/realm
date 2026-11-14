@@ -18,14 +18,14 @@ vi.mock("../pause-state", async (importOriginal) => {
 
 const deletedStops: string[] = [];
 let failDelete = false;
-vi.mock("@/lib/services/optimoroute/client", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/services/optimoroute/client")>();
+vi.mock("@/lib/optimoroute/client", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/optimoroute/client")>();
   return { ...actual, deleteOrder: async (orderNo: string) => { if (failDelete) throw new Error("optimoroute down"); deletedStops.push(orderNo); } };
 });
 
 const pushedStops: string[][] = [];
 let failPush = false;
-vi.mock("@/lib/services/optimoroute/push", () => ({
+vi.mock("@/lib/optimoroute/push", () => ({
   pushOneDelivery: async (orderNo: string, date: string) => {
     if (failPush) throw new Error("optimoroute push down");
     pushedStops.push([orderNo, date]);
@@ -36,7 +36,7 @@ const { db } = await import("@/db/client");
 const { deleteNonSystemUsers } = await import("@/db/test-helpers");
 const { deliveries, deliveryMoves, durationPackages, ledgerEntries, orderActivities, orders, payments, subscriptionPauses } = await import("@/db/schema");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
-const { setPaymentConfig } = await import("../../services/app-settings.service");
+const { setPaymentConfig } = await import("@/lib/payments/payment-config");
 const { sharedCache } = await import("@/lib/cache");
 const { createOrder } = await import("../../orders/create-order");
 const { pauseDays, releasePausedDaysDetailed, lapseElapsedPauses, lapseElapsedPausesSafe, lapseAllElapsedPauses, listPauseDays } = await import("../pause-days.service");
@@ -45,7 +45,7 @@ const { isOrderFullyPaused } = await import("../pause-state");
 const { setAutoMovePaused } = await import("../pause-auto-move");
 const { getPauseUsage } = await import("../pause-limits.service");
 const { rescheduleDelivery, adminSetDeliveryStatus } = await import("../deliveries.service");
-const { loadDayDeliveries } = await import("../../services/daily-labels.service");
+const { loadDayDeliveries } = await import("../day-deliveries");
 const { myActiveSubscriptions, myDeliveries } = await import("../customer-deliveries.service");
 const { runCronJob } = await import("@/lib/cron/run");
 

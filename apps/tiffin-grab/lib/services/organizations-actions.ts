@@ -4,8 +4,8 @@ import { revalidatePath } from "next/cache";
 import { eq } from "drizzle-orm";
 import { assertHierarchyDepth } from "@foundry/auth";
 import { db } from "@/db/client";
-import { member, organization, users } from "@/db/schema";
-import { userIdByPublicId } from "./session-service";
+import { member, organization } from "@/db/schema";
+import { systemUserId, userIdByPublicId } from "@/lib/identity/user-ids";
 import { requireAdmin } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import {
@@ -33,11 +33,10 @@ async function resolveActingUserId(): Promise<bigint | null> {
     const id = await userIdByPublicId(session.user.id);
     if (id) return id;
   }
-  const [sys] = await db.select({ id: users.id }).from(users).where(eq(users.isSystem, true)).limit(1);
-  return sys?.id ?? null;
+  return systemUserId();
 }
 
-// DEVIATION FROM THE BRIEF: this does not call `auth.api.createOrganization`.
+// Does not call `auth.api.createOrganization`.
 //
 // Two real problems surfaced going through the org plugin's own endpoint:
 //   1. `parentOrganizationId` is `input: false` on the plugin (lib/auth/index.ts) —
@@ -55,7 +54,7 @@ async function resolveActingUserId(): Promise<bigint | null> {
 //      plugin's internal getOrgAdapter throws
 //      `BetterAuthError: The model "member" was not found in the schema object`
 //      the moment it tries to create the owner membership row. Fixing that is a
-//      change to the shared auth config, out of scope for this task.
+//      change to the shared auth config.
 //
 // So we do what seed-brand-org.ts already does for the brand org: write the
 // organization + owner member rows directly, after re-running the same depth guard

@@ -1,20 +1,21 @@
 import { ratePct } from "@/lib/money";
-import { scopeOrAlert } from "@/components/analytics/franchise-unavailable";
+import { scopeOrAlert } from "@/components/dashboard/analytics/franchise-unavailable";
 import { Suspense } from "react";
-import { AnalyticsIntro } from "@/components/analytics/analytics-intro";
+import { AnalyticsIntro } from "@/components/dashboard/analytics/analytics-intro";
 import { AnalyticsStatCards, AnalyticsStatCardsSkeleton } from "@/components/dashboard/stat-cards";
 import { inquiriesHref } from "@/lib/analytics/drill";
-import { ChartCard } from "@/components/analytics/chart-card";
-import { ChartSkeleton } from "@/components/analytics/skeletons";
-import { PartsDonut, TreemapChart } from "@/components/analytics/charts";
-import { slotTone, TONE_COLOR } from "@/components/analytics/chart-math";
+import { ChartCard } from "@/components/dashboard/analytics/chart-card";
+import { ChartSkeleton } from "@/components/dashboard/analytics/skeletons";
+import { PartsDonut, TreemapChart } from "@/components/dashboard/analytics/charts";
+import { slotTone, TONE_COLOR } from "@/components/dashboard/analytics/chart-math";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { Card, CardContent } from "@foundry/ui/card";
 import { Badge } from "@/components/reui/badge";
-import { getEmployeeRollup } from "@/lib/services/analytics/employees.service";
+import { getEmployeeRollup } from "@/lib/analytics/employees.service";
 import { EmployeeRollupTable } from "./rollup-table";
-import { DATE_BASIS_LABEL, type AnalyticsScope } from "@/lib/services/analytics/metrics/scope";
-import { getMoneyFormatter } from "@/lib/services/app-settings.service";
+import { DATE_BASIS_LABEL } from "@/lib/analytics/metrics/scope";
+import { type AnalyticsScope } from "@/lib/analytics/scope-types";
+import { getMoneyFormatter } from "@/lib/settings";
 
 type SearchParams = Promise<Record<string, string | undefined>>;
 

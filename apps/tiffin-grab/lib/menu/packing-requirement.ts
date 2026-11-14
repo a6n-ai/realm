@@ -14,13 +14,11 @@
 
 import { tuToNatural, type TuCategory } from "@/lib/menu/format-tu";
 
-export type PortionQty = { portion: string; quantity: number };
-
 export type PackingItemLine = {
   name: string;
   /** Pack size label from formatTuHuman ("4 roti", "1 unit") or oz for weight. */
   portion: string;
-  /** Pack/container count (the old × multiplier). */
+  /** Pack/container count. */
   quantity: number;
   /** Stable pack order (category sort, then pick index). */
   sort: number;
@@ -99,11 +97,6 @@ export function countPackNaturalTotal(
   return total;
 }
 
-/** Identity helper for summary-style joins that already pass pre-merged lines. */
-export function rollUpEqualPortions(portions: PortionQty[]): PortionQty[] {
-  return portions;
-}
-
 /** Item cell, one shape for every dish: count → "8 Rotis" / "Veg Pulao" (one); weight → "Dal - 8oz" / "Dal - 8oz × 2". */
 export function formatItemCell(
   line: Pick<PackingItemLine, "name" | "portion" | "quantity" | "packStyle">,
@@ -170,16 +163,6 @@ export function labelLineTexts(lines: PackLine[]): { text: string; defaulted: bo
     }),
     defaulted,
   }));
-}
-
-/** @deprecated Prefer formatItemCell; kept for summary-style portion-only joins. */
-export function formatDishCell(portions: PortionQty[]): string {
-  const parts = rollUpEqualPortions(
-    portions.filter((p) => p.quantity > 0 && p.portion.trim()),
-  )
-    .sort((a, b) => a.portion.localeCompare(b.portion))
-    .map((p) => formatPackingRequirement(p.portion, p.quantity));
-  return parts.length > 0 ? parts.join("; ") : "—";
 }
 
 /** Merge pick counts keyed by dish → portion label (Kitchen Summary). */

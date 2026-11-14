@@ -1,4 +1,4 @@
-import type { KitchenCount } from "@/lib/services/daily-labels.service";
+import type { KitchenCount } from "@/lib/menu/daily-labels.service";
 
 export type KitchenDish = { dish: string; total: number; portions: { portion: string | null; count: number }[] };
 

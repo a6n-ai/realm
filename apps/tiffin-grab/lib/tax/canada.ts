@@ -82,11 +82,10 @@ const POSTAL_PREFIX: Record<string, Province> = {
   X: "NT", Y: "YT",
 };
 
-export function isProvince(value: string): value is Province {
+function isProvince(value: string): value is Province {
   return (PROVINCES as readonly string[]).includes(value);
 }
 
-/** Normalise free-text province input ("ontario", " on ", "ON") to a code. */
 export function normalizeProvince(raw: string | null | undefined): Province | null {
   if (!raw) return null;
   const trimmed = raw.trim();
@@ -98,7 +97,6 @@ export function normalizeProvince(raw: string | null | undefined): Province | nu
   return byName?.[0] ?? null;
 }
 
-/** Province implied by a Canadian postal code's first letter. */
 export function provinceFromPostalCode(postalCode: string | null | undefined): Province | null {
   if (!postalCode) return null;
   const first = postalCode.trim().charAt(0).toUpperCase();
@@ -106,9 +104,7 @@ export function provinceFromPostalCode(postalCode: string | null | undefined): P
 }
 
 /**
- * Resolve the delivery province, preferring an explicit value and falling back
- * to the postal code. Returns null when neither yields a province — callers
- * decide what that means (see resolveTaxLines).
+ * Explicit province first, then the postal code. Null when neither resolves (see resolveTaxLines).
  */
 export function resolveProvince(input: {
   province?: string | null;

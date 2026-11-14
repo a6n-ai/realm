@@ -1,4 +1,5 @@
-import { MON_FRI, WEEK_DAYS } from "@/lib/menu/delivery-days";
+import { BRAND_NAME } from "@/lib/brand";
+import { MON_FRI, WEEK_DAYS } from "@/lib/deliveries/schedule/delivery-days";
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { LandingReviews } from "@/components/landing/landing-reviews";
@@ -8,13 +9,12 @@ import { PageIntro, dashless } from "@/components/landing/public-shell";
 import { ArrowRight, ChevronDown } from "lucide-react";
 import { MealParts } from "@/components/landing/meal-parts";
 import { PriceMath, type MathFrequency, type MathLength, type MathPlan } from "@/components/landing/price-math";
-import type { DayOfWeek } from "@/lib/menu/delivery-days";
-import { makeCategoryLook } from "@/components/customer/meals/category-look";
+import type { DayOfWeek } from "@/lib/deliveries/schedule/delivery-days";
+import { makeCategoryLook } from "@/components/kit/category-look";
 import { isComingSoon, publicPlans } from "@/lib/landing/plan-options";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { listableMealSizes } from "@/lib/catalog/types";
 import { effectivePrice } from "@/lib/pricing";
-import { APP_DEFAULTS } from "@/db/schema/app-defaults";
 import { tiffinBounds } from "@/lib/wizard/selections";
 import { savePct } from "@/lib/pricing/discounts";
 import { pageMeta } from "@/lib/landing/meta";
@@ -24,8 +24,8 @@ import "@/components/landing/styles/pricing.css";
 import { PlanPicks } from "@/components/landing/pricing/plan-picks";
 import { BuildTiffinLink } from "@/components/landing/build-tiffin-link";
 import { biggestDurationOff, deliveryIsFree, lowestRate, shortMoney, trialLength, trialOffer } from "@/lib/landing/live-figures";
-import { getTrialSettings } from "@/lib/services/trial-settings.service";
-import { getAppSettings, getMoneyFormatter } from "@/lib/services/app-settings.service";
+import { getTrialSettings } from "@/lib/trial/trial-settings.service";
+import { getAppSettings, getMoneyFormatter } from "@/lib/settings";
 import { isWeekendDay } from "@foundry/commons/util/dates";
 
 // Plans live on this page too (/plans redirects here), so the copy names both.
@@ -33,7 +33,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const [catalog, { currency }] = await Promise.all([loadCatalogSnapshot(), getAppSettings()]);
   const rate = lowestRate(catalog);
   const off = biggestDurationOff(catalog);
-  const title = rate != null ? `Tiffin Plans & Prices in Toronto, from ${shortMoney(rate, currency)} | Tiffin Grab` : "Tiffin Plans & Prices in Toronto & GTA | Tiffin Grab";
+  const title = rate != null ? `Tiffin Plans & Prices in Toronto, from ${shortMoney(rate, currency)} | ${BRAND_NAME}` : `Tiffin Plans & Prices in Toronto & GTA | ${BRAND_NAME}`;
   const saving = off != null ? `, up to ${off}% off longer plans` : "";
   const delivery = deliveryIsFree(catalog) ? ", and free GTA delivery" : "";
   return pageMeta(title, `Veg and non-veg plans with every meal size, what's in it and its calories. One rate per tiffin${saving}${delivery}.`, "/pricing");
@@ -48,7 +48,7 @@ const VISIBLE_SIZES = 5;
 
 export default async function PricingPage() {
   const money = await getMoneyFormatter();
-  const [catalog, trialSettings, { currency }] = await Promise.all([loadCatalogSnapshot(), getTrialSettings(), getAppSettings()]);
+  const [catalog, trialSettings, { currency, maxDiscountPct }] = await Promise.all([loadCatalogSnapshot(), getTrialSettings(), getAppSettings()]);
   const origin = publicOrigin();
   const offers = pricingJsonLd(catalog, origin, currency);
   const trial = trialOffer(catalog, trialSettings);
@@ -82,7 +82,7 @@ export default async function PricingPage() {
       days: (m.allowedDays && m.allowedDays.length > 0 ? m.allowedDays : WEEK_DAYS).filter((d) => m.servesWeekends || (!isWeekendDay(d))),
     })),
   }));
-  const maxPct = catalog.maxDiscountPct ?? APP_DEFAULTS.maxDiscountPct;
+  const maxPct = catalog.maxDiscountPct ?? maxDiscountPct;
   const bounds = tiffinBounds(catalog);
   const weeksList = [...new Set(catalog.durations.map((d) => d.weeks))].sort((a, b) => a - b);
   // Delivery frequencies as the kitchen defines them (fixed weekdays), each with its delivery discount per plan length.

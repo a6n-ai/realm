@@ -16,7 +16,7 @@ import {
 } from "@foundry/clover";
 import type { ActionResult } from "@/lib/actions/action-result";
 import { staffAction } from "@/lib/actions/staff-action";
-import { integrationsConfigStore } from "@/lib/services/app-settings.service";
+import { integrationsConfigStore } from "@/lib/payments/integrations-config";
 
 const OPTS = {
   guard: "admin",

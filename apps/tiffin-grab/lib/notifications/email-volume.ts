@@ -4,7 +4,7 @@ import type { EmailEventType, EmailStream } from "@relay/email";
 import { db } from "@/db/client";
 import { sharedCache } from "@/lib/cache";
 import { notificationOutbox as o } from "@/db/schema";
-import { getTrackedEmailEvents } from "@/lib/services/app-settings.service";
+import { getTrackedEmailEvents } from "@/lib/notifications/tracked-email-events";
 
 type Volume = Partial<Record<EmailEventType, number>>;
 export interface VolumeRow {

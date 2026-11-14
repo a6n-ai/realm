@@ -2,7 +2,7 @@ import { createRateLimiter, drainPending as drain, sendScheduledCampaign } from 
 import { createLogger } from "@foundry/commons/logger";
 import { db } from "@/db/client";
 import { notifySendRate } from "@/lib/runtime/env";
-import { notificationTables, usersRef } from "./tables";
+import { notificationTables } from "./tables";
 import { buildAppHandlers } from "./handlers";
 import { campaignConfig } from "./campaign-config";
 import { dueScheduledCampaignIds } from "./campaign-schedule";
@@ -25,7 +25,6 @@ export async function drainPending(limit = 25, maxBatches = 20): Promise<number>
   );
 }
 
-/** Expand any scheduled campaign whose time has come. Returns rows queued. */
 export async function materializeDue(): Promise<number> {
   const due = await dueScheduledCampaignIds();
   let queued = 0;

@@ -1,3 +1,4 @@
+import { formatAddressLine } from "@/lib/catalog/address-line";
 import { round2 } from "@foundry/commons/util/money";
 import { CAPTURED, inStatuses, PAID, UNPAID } from "@/lib/payments/status";
 import { isWordpressImport } from "@/lib/orders/wordpress-import";
@@ -5,9 +6,9 @@ import { and, asc, eq, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, ledgerEntries, mealSizes, orders, payments, plans, users } from "@/db/schema";
 import { payPageLines, type Line } from "@/lib/billing/pay-lines";
-import { paymentMethodLabel } from "./payment-labels";
+import { paymentMethodDisplay } from "./payment-labels";
 import { getBrandOrganizationAddress } from "@/lib/services/organizations.service";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { BRAND_COMPACT } from "@/lib/brand";
 
 
@@ -122,7 +123,7 @@ export async function loadReceipt(orderPublicId: string, now = Date.now()): Prom
     const refunded = ledgerRefund.get(p.id) ?? (p.status === "refunded" ? amount : 0);
     return {
       date: p.capturedAt ?? p.createdAt,
-      method: paymentMethodLabel(p),
+      method: paymentMethodDisplay(p),
       card: p.method === "stripe",
       reference: p.method === "stripe" ? p.providerRef : p.reference,
       amount,
@@ -151,7 +152,7 @@ export async function loadReceipt(orderPublicId: string, now = Date.now()): Prom
     customer: {
       name: o.fullName,
       email: o.email,
-      address: [o.addressUnit ? `${o.addressUnit} - ${o.addressLine}` : o.addressLine, o.city, o.postalCode].filter(Boolean).join(", "),
+      address: formatAddressLine(o),
     },
     plan: { title: `${o.mealSize} · ${o.plan}`, startDate: o.startDate, lastDate: last?.d ?? null, weeks: o.weeks, tiffins: o.tiffins },
     lines: order.lines,

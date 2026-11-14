@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { adjacentWizardStep, initialSelections, nextBlockedReason, type WizardSelections } from "@/lib/wizard/selections";
+import { initialSelections, nextBlockedReason, type WizardSelections } from "@/lib/wizard/selections";
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
 
 const catalog = {
@@ -31,9 +31,6 @@ describe("nextBlockedReason", () => {
       ...catalog,
       mealSizes: [{ publicId: "msz_trial", trial: true }],
     } as unknown as ClientCatalogSnapshot;
-    expect(adjacentWizardStep(1, 1, true)).toBe(3);
-    expect(adjacentWizardStep(3, -1, true)).toBe(1);
-    expect(adjacentWizardStep(1, 1, false)).toBe(2);
     expect(nextBlockedReason(3, trialCatalog, sel({ mealSizeId: "msz_trial", startDate: "2026-10-05" }))).toMatch(/trial days/i);
     expect(nextBlockedReason(3, trialCatalog, sel({ mealSizeId: "msz_trial", trialDays: 2, startDate: "2026-10-05" }))).toBeNull();
   });
