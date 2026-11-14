@@ -39,7 +39,7 @@ describe("inquiry-links", () => {
     const r = await links.recordPurchase({ orderId: o.id, userId: u.id, contact, kind: "plan", source: "website" });
     expect(r).toEqual({ inquiryPublicId: inq.publicId, round: "first" });
     expect(await row(inq.id)).toMatchObject({
-      customerId: u.id, currentOrderId: o.id, convertedOrderId: o.id, subStatus: "took_plan", stage: "converted", nextFollowUpAt: null,
+      customerId: u.id, currentOrderId: o.id, subStatus: "took_plan", stage: "converted", nextFollowUpAt: null,
     });
     const conv = await actsOf(inq.id, "converted");
     expect(conv).toHaveLength(1);
@@ -72,7 +72,7 @@ describe("inquiry-links", () => {
     const r = await links.recordPurchase({ orderId: o2.id, userId: u.id, contact, kind: "plan", source: "website" });
     expect(r?.round).toBe("renewal");
     expect(await row(inq.id)).toMatchObject({
-      currentOrderId: o2.id, convertedOrderId: o1.id, subStatus: "took_plan",
+      currentOrderId: o2.id, subStatus: "took_plan",
       renewalStatus: null, renewalStatusSetAt: null, renewalStatusSource: null, renewalFollowUpAt: null,
     });
     const renewed = await actsOf(inq.id, "renewed");

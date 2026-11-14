@@ -95,11 +95,13 @@ async function InquiryDetail({ params }: { params: Promise<{ id: string }> }) {
   );
 
   let convertedOrderHref: string | undefined;
-  if (inq.convertedOrderId != null) {
+  // currentOrderId is the round's order; convertedOrderId is only set on rows converted before it existed.
+  const linkedOrderId = inq.currentOrderId ?? inq.convertedOrderId;
+  if (linkedOrderId != null) {
     const [ord] = await db
       .select({ publicId: orders.publicId })
       .from(orders)
-      .where(eq(orders.id, inq.convertedOrderId))
+      .where(eq(orders.id, linkedOrderId))
       .limit(1);
     if (ord) convertedOrderHref = `/dashboard/orders/${ord.publicId}`;
   }

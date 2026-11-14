@@ -69,7 +69,6 @@ export async function recordPurchase(p: PurchaseInput): Promise<{ inquiryPublicI
       ...patch,
       customerId: p.userId,
       currentOrderId: p.orderId,
-      convertedOrderId: p.orderId,
       subStatus,
       stage: stageFor(subStatus),
       nextFollowUpAt: null,

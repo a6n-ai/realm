@@ -1,4 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { invalidateCatalogSnapshot } from "@/lib/catalog/load";
 import { eq } from "drizzle-orm";
 import { nextWeekday } from "@foundry/commons";
 
@@ -27,6 +28,8 @@ async function reset() {
     await db.delete(mealSizeItems).where(eq(mealSizeItems.mealSizeId, c.id));
     await db.delete(mealSizes).where(eq(mealSizes.id, c.id));
   }
+  // The catalog snapshot is cached across files (shared L2); a stale copy keeps the deleted custom size first.
+  if (customs.length) await invalidateCatalogSnapshot();
 }
 
 async function customSize() {

@@ -8,6 +8,8 @@ import { createCustomer, customerInviteUrl, invitePendingCustomers, sendCustomer
 import { sendMenuReminderToCustomer } from "@/lib/notifications/menu-reminder";
 import type { ActionResult } from "@/lib/actions/action-result";
 import { staffAction } from "@/lib/actions/staff-action";
+import { linkCustomer } from "@/lib/services/inquiry-links.service";
+import { userIdByPublicId } from "@/lib/services/session-service";
 
 const log = createLogger("customers-actions");
 
@@ -43,6 +45,8 @@ export async function createCustomerFlow(input: {
     });
     const actorId = (await getSession())?.user?.id ?? null;
     const { publicId } = await createCustomer(input.contact, { actorId });
+    const userId = await userIdByPublicId(publicId);
+    if (userId != null) await linkCustomer(inquiryId, userId);
     // Best-effort: an account created by staff already exists and is usable even
     // if the mail fails — "Resend invite" on their page covers a retry.
     try {

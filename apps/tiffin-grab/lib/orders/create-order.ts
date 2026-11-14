@@ -4,6 +4,7 @@ import { formatMoney, generateCode, ValidationError, emailSchema } from "@foundr
 import { createLogger } from "@foundry/commons/logger";
 import { enabledMethods, findMethod } from "@foundry/payments";
 import { replaceOlderUnpaidCheckouts } from "../payments/stripe-expiry";
+import { recordPurchase } from "@/lib/services/inquiry-links.service";
 import { and, eq, sql } from "drizzle-orm";
 import { db, type Tx } from "@/db/client";
 import { startPaidStripeOrder } from "@/lib/payments/verification";
@@ -183,6 +184,8 @@ export interface CreateOrderOptions {
   allowCustomMeal?: boolean;
   /** Staff-created order: a Stripe payment link stays payable for 7 days instead of 48 hours. */
   staffCreated?: boolean;
+  /** The inquiry this order comes from (staff convert); otherwise recordPurchase finds or creates one. */
+  inquiryId?: string;
   // Staff-only: replaces a custom meal's computed per-tiffin base price before
   // the pricing engine runs (discounts still apply).
   basePriceOverride?: number;
@@ -764,6 +767,20 @@ export async function createOrder(
 
   // Simulated (local) settle never hits verifyPayment — fire Purchase here once.
   if (!deferSettlement) runInBackground(() => sendMetaPurchaseOnce(txResult.paymentPublicId), "meta purchase");
+
+  // After commit and never fatal: a lost link is repaired by the daily reconcile, a lost order is not.
+  if (txResult.ownerId != null) try {
+    await recordPurchase({
+      orderId: txResult.orderId,
+      userId: txResult.ownerId,
+      inquiryId: opts.inquiryId,
+      contact: { fullName: input.contact.fullName, email, phone },
+      kind: trial ? "trial" : "plan",
+      source: staffCreated ? "manual" : "website",
+    });
+  } catch (e) {
+    log.error({ err: e, orderId: String(txResult.orderId) }, "inquiry link failed");
+  }
 
   return { deploymentId: txResult.deploymentId, publicId: txResult.publicId, paymentPublicId: txResult.paymentPublicId };
 }

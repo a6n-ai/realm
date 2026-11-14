@@ -660,13 +660,13 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
     opts?: { allowAdditionalOrder?: boolean; allowCustomMeal?: boolean; basePriceOverride?: number },
   ) {
     const inq = await this.read(publicId);
-    if (inq.stage === "converted") throw new ValidationError("Inquiry is already converted");
+    // A converted inquiry is a customer's row: converting again books their next round (a renewal).
+    const repeat = inq.stage === "converted";
 
     const contactPhone = orderInput.contact.phone?.trim();
     const contactEmail = orderInput.contact.email?.trim();
     if (!orderInput.contact.fullName?.trim()) throw new ValidationError("Name is required");
     // A generated "Lead <n>" must never become a customer's name.
-    const quick = isQuickAdd(inq);
     if (looksGeneratedName(orderInput.contact.fullName)) {
       throw new ValidationError("Add the customer's real name before converting");
     }
@@ -699,31 +699,15 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
     const result = await createOrder(
       { ...orderInput, currentOwner: inq.currentOwner },
       // convert is the staff order path, and staff may start a plan today.
-      { actorId: actorPublicId, allowCustomMeal: opts?.allowCustomMeal, staffCreated: true, basePriceOverride: opts?.basePriceOverride },
+      { actorId: actorPublicId, allowCustomMeal: opts?.allowCustomMeal, staffCreated: true, basePriceOverride: opts?.basePriceOverride, inquiryId: inq.publicId },
     );
     const [order] = await db
-      .select({ id: orders.id, trialLength: orders.trialLength, userId: orders.userId })
+      .select({ id: orders.id, userId: orders.userId })
       .from(orders)
       .where(eq(orders.deploymentId, result.deploymentId))
       .limit(1);
-    const subStatus = order.trialLength != null ? "took_trial" : "took_plan";
-    await this.update(publicId, {
-      phone: contactPhone,
-      email: contactEmail,
-      fullName: quick ? orderInput.contact.fullName.trim() : (inq.fullName ?? (orderInput.contact.fullName?.trim() || null)),
-      stage: "converted",
-      subStatus,
-      nextFollowUpAt: null,
-      convertedOrderId: order.id,
-    });
-    await addActivity({
-      inquiryId: inq.id,
-      type: "converted",
-      fromStage: inq.stage,
-      toStage: "converted",
-      fromSubStatus: inq.subStatus,
-      toSubStatus: subStatus,
-    });
+    // createOrder → recordPurchase wrote the link, status and converted/renewed activity.
+    if (repeat) return result;
     // Instant Forms → Maximize number of qualified leads optimizes to this event.
     sendMetaCrmQualifiedLead({
       publicId: inq.publicId,

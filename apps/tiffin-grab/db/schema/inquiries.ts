@@ -36,7 +36,8 @@ export const inquiries = pgTable("inquiries", {
   stage: inquiryStage("stage").notNull().default("new"),
   subStatus: inquirySubStatus("sub_status"),
   nextFollowUpAt: bigint("next_follow_up_at", { mode: "number" }),
-  currentOwner: bigint("current_owner", { mode: "bigint" }).references(() => users.id),
+  // set null: a hard-deleted user (tests; prod only soft-deletes) must not block on the leads they owned.
+  currentOwner: bigint("current_owner", { mode: "bigint" }).references(() => users.id, { onDelete: "set null" }),
   convertedOrderId: bigint("converted_order_id", { mode: "bigint" }).references(() => orders.id),
   customerId: bigint("customer_id", { mode: "bigint" }).references(() => users.id, { onDelete: "set null" }),
   // The order of the open round: null = first sale; set = renewal of that order. Replaces convertedOrderId.

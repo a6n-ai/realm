@@ -56,15 +56,47 @@ describe("inquiriesService.convert", () => {
     });
     const [row] = await db.select().from(inquiries).where(eq(inquiries.id, inq.id));
     expect(row.stage).toBe("converted");
-    expect(row.convertedOrderId).not.toBeNull();
+    expect(row.currentOrderId).not.toBeNull();
     const [order] = await db.select().from(orders).where(eq(orders.deploymentId, deploymentId));
-    expect(row.convertedOrderId).toBe(order.id);
     expect(order.publicId).toMatch(/^ord_/);
     expect(order.createdBy).not.toBeNull();
     expect(inqRow.currentOwner).not.toBeNull();
     expect(order.currentOwner).toBe(inqRow.currentOwner);
     const acts = await inquiriesService.listActivities(inq.publicId);
-    expect(acts.some((a) => a.type === "converted")).toBe(true);
+    const converted = acts.filter((a) => a.type === "converted");
+    expect(converted).toHaveLength(1);
+    expect(converted[0].orderId).toBe(order.id);
+    expect(row.currentOrderId).toBe(order.id);
+  });
+
+  it("a converted lead converts again as a renewal round", async () => {
+    const snap = await loadCatalogSnapshot();
+    const [staff] = await db
+      .insert(users)
+      .values({ email: `u${Math.random().toString(36).slice(2)}@test.invalid`, name: "Agent Staff", role: "member" })
+      .returning({ publicId: users.publicId });
+    session.user = { id: staff.publicId, role: "member" };
+    const email = `inq-${Math.random().toString(36).slice(2)}@test.invalid`;
+    const inq = await inquiriesService.create({ fullName: "Repeat R", phone: "+16475551210", sourceKey: "manual", email });
+    const input = (startDate: string) => ({
+      planKey: snap.plans[0].key,
+      selections: {
+        mealSizeId: snap.mealSizes[0].publicId, frequencyKey: "5_day", persons: 1, mealSlots: ["lunch" as const],
+        includeSaturday: false, includeSunday: false, durationWeeks: 1, startDate,
+      },
+      contact: { email, fullName: "Repeat R", phone: "+16475551210", addressLine: "1 St", city: "Toronto", postalCode: "M5V 2T6" },
+    });
+    const first = nextWeekday(new Date()).toISOString().slice(0, 10);
+    const later = nextWeekday(new Date(Date.now() + 21 * 86_400_000)).toISOString().slice(0, 10);
+    await inquiriesService.convert(inq.publicId, input(first));
+    const { deploymentId } = await inquiriesService.convert(inq.publicId, input(later), { allowAdditionalOrder: true });
+    const [second] = await db.select().from(orders).where(eq(orders.deploymentId, deploymentId));
+    const [row] = await db.select().from(inquiries).where(eq(inquiries.id, inq.id));
+    expect(row.stage).toBe("converted");
+    expect(row.currentOrderId).toBe(second.id);
+    const acts = await inquiriesService.listActivities(inq.publicId);
+    expect(acts.filter((a) => a.type === "renewed").map((a) => a.orderId)).toEqual([second.id]);
+    expect(acts.filter((a) => a.type === "converted")).toHaveLength(1);
   });
 });
 

@@ -10,19 +10,6 @@ import type { CreateOrderInput } from "../../orders/create-order";
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 const session: { user: { id: string; role: string } | null } = { user: null };
 vi.mock("@/lib/auth/session", () => ({ getSession: async () => (session.user ? session : null) }));
-const makeTrial = { on: false };
-vi.mock("../../orders/create-order", async (orig) => {
-  const actual = await orig<typeof import("../../orders/create-order")>();
-  return {
-    ...actual,
-    createOrder: async (...args: Parameters<typeof actual.createOrder>) => {
-      const r = await actual.createOrder(...args);
-      if (makeTrial.on) await db.update(orders).set({ trialLength: 3 }).where(eq(orders.deploymentId, r.deploymentId));
-      return r;
-    },
-  };
-});
-
 vi.mock("@/lib/auth/guards", () => ({ requireStaff: async () => ({}) }));
 // The bulk action checks org visibility; these tests act as staff who see every organization.
 vi.mock("@/lib/auth/visible-orgs", () => ({ resolveSessionVisibleOrgIds: async () => "all" }));
@@ -298,7 +285,6 @@ describe("inquiriesService.convert contact + status", () => {
   beforeEach(async () => {
     await reset();
     await ensureSystemUser();
-    makeTrial.on = false;
     const [staff] = await db
       .insert(users)
       .values({ email: email(), name: "Agent Staff", role: "member" })
@@ -338,16 +324,11 @@ describe("inquiriesService.convert contact + status", () => {
     expect(r.email).toBe(c.email);
     expect(r.subStatus).toBe("took_plan");
     expect(r.stage).toBe("converted");
-    expect(r.convertedOrderId).not.toBeNull();
+    expect(r.currentOrderId).not.toBeNull();
     expect((await acts(inq.id)).some((a) => a.toSubStatus === "took_plan")).toBe(true);
   });
 
-  it("sets took_trial for a trial order", async () => {
-    makeTrial.on = true;
-    const inq = await inquiriesService.create({ fullName: "Trial", sourceKey: "manual" });
-    await inquiriesService.convert(inq.publicId, await orderInput(contact()));
-    expect((await row(inq.id)).subStatus).toBe("took_trial");
-  });
+  // took_trial comes from createOrder's quoted trial via recordPurchase (inquiry-links.service.test.ts).
 
   it("rejects when another open lead holds the email, creating no order", async () => {
     const other = await mk();
