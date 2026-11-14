@@ -374,4 +374,8 @@ html[data-nav="pending"] body::before { content: ""; position: fixed; inset: 0 0
 }
 
 /* The dock never hides: the cookie question floats just above it. */
+/* Sits above the dock, which is pinned to the small viewport: 100dvh - 100svh cancels Safari resizing its bar. */
 html[data-dock] .tg-consent[data-slim] { bottom: calc(max(14px, env(safe-area-inset-bottom)) + 66px); }
+@media (max-width: 640px) {
+  html[data-dock] .tg-consent[data-slim] { bottom: calc(100dvh - 100svh + max(14px, env(safe-area-inset-bottom)) + 60px); }
+}
