@@ -49,6 +49,9 @@ overrides:
   "glob@>=10.2 <10.5": "^10.5.0"
   "glob@>=11 <=14.0.1": "^14.0.2"
   "minimatch@>=7 <11.0.1": "^11.0.1"
+  "vite@<8.1.6": "^8.1.6"
+  "happy-dom@<21.0.4": "^21.0.4"
+  "source-map-js@<1.2.2": "^1.2.2"
   # One copy only: two drizzle-orm copies make @foundry/database types incompatible.
   "drizzle-orm": "0.45.4"
   "stripe": "23.0.1"

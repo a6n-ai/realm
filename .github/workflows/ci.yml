@@ -29,7 +29,7 @@ jobs:
           curl -sSfLO "https://github.com/gitleaks/gitleaks/releases/download/v$v/gitleaks_${v}_linux_x64.tar.gz"
           curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v$v/gitleaks_${v}_checksums.txt" | grep linux_x64 | sha256sum -c -
           tar xzf "gitleaks_${v}_linux_x64.tar.gz" gitleaks
-          ./gitleaks git . --redact --no-banner
+          ./gitleaks git . --redact --no-banner --verbose
 
   # A half-resolved merge or stash pop (<<<<<<< markers) fails here in seconds,
   # instead of minutes into the deploy build.
