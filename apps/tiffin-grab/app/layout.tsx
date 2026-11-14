@@ -12,6 +12,7 @@ import { StaleDeployReloader } from "@/components/stale-deploy-reloader";
 import { NavPending } from "@/components/landing/nav-pending";
 import { BrowserChrome } from "@/components/browser-chrome";
 import { CrossHostSplash } from "@/components/cross-host-splash";
+import { splashInitScript } from "@/lib/splash/handoff";
 import { CookieConsent } from "@/components/consent/cookie-consent";
 import { AreaBoundary } from "@/components/area-boundary";
 import { siteOrigin } from "@/lib/runtime/env";
@@ -53,6 +54,8 @@ export default function RootLayout({
     >
       <head>
         <InlineScript html={themeInitScript} />
+        {/* Keeps the splash up from this page's first paint when the page before raised it. */}
+        <InlineScript html={splashInitScript} />
         {/* Before the stylesheet arrives the page would paint white (a white blur on iOS when
             hopping between tiffingrab.ca and app.); start on the brand ground instead. */}
         <style>{`html{background:#FBF4E7}html.dark{background:#14201A}`}</style>
