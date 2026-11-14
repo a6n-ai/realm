@@ -116,3 +116,19 @@ export const invitation = pgTable(
   },
   (t) => [index("invitation_org_idx").on(t.organizationId), index("invitation_email_idx").on(t.email)],
 );
+
+// Better Auth organization-plugin dynamic access control: one row per custom role.
+export const organizationRole = pgTable(
+  "organization_role",
+  {
+    id: text("id").primaryKey().default(nextIdText),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    role: text("role").notNull(),
+    permission: text("permission").notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("organization_role_org_role_unique").on(t.organizationId, t.role)],
+);

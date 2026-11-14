@@ -12,9 +12,9 @@ import {
 import { OTP_LENGTH, OTP_TTL_SECONDS, PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH, Role } from "@foundry/commons";
 import { createLogger } from "@foundry/commons/logger";
 import { db } from "@/db/client";
-import { account, invitation, member, organization, rateLimit, session, users, verification } from "@/db/schema";
+import { account, invitation, member, organization, organizationRole, rateLimit, session, users, verification } from "@/db/schema";
 import { betterAuthPassword } from "./password";
-import { ac, roles } from "./permissions";
+import { ac, orgRoles, roles } from "./permissions";
 import { isCustomerRole } from "@/lib/roles";
 import {
   notifyNewLoginIfNewDevice,
@@ -55,7 +55,7 @@ export const auth = betterAuth({
     // this adapter, and an explicit `schema` here takes precedence over the db's own
     // full schema (see @better-auth/drizzle-adapter's getSchema: `config.schema ||
     // db._.fullSchema`), so an incomplete map throws "model not found" at call time.
-    schema: { user: users, account, session, verification, organization, member, invitation, rateLimit },
+    schema: { user: users, account, session, verification, organization, organizationRole, member, invitation, rateLimit },
   }),
   advanced: {
     database: { generateId: false },
@@ -223,6 +223,9 @@ export const auth = betterAuth({
       db: db as unknown as Parameters<typeof createOrganizationPlugin>[0]["db"],
       organizationTable: organization,
       eq,
+      ac,
+      roles: orgRoles,
+      dynamicAccessControl: { enabled: true, maximumRolesPerOrganization: 20 },
       allowUserToCreateOrganization: (user) => !isCustomerRole(user.role),
       // No sendInvitationEmail: the invite mail carries a magic link, which needs
       // auth.api — unreachable from inside this config. Every createInvitation

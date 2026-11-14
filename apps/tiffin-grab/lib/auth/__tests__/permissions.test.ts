@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { roles, INVITABLE_ROLES } from "../permissions";
+import { roles, INVITABLE_ROLES, orgRoles, appStatement, RESOURCE_LABELS } from "../permissions";
 
 describe("tiffin-grab permission map", () => {
   it("has admin, member and user roles, and user holds nothing", () => {
@@ -49,5 +49,19 @@ describe("tiffin-grab permission map", () => {
   it("does not let member publish the menu", () => {
     expect(roles.member.authorize({ menu: ["read"] }).success).toBe(true);
     expect(roles.member.authorize({ menu: ["write", "publish"] }).success).toBe(false);
+  });
+
+  it("org member denies order:cancel", () => {
+    expect(orgRoles.member.authorize({ order: ["cancel"] }).success).toBe(false);
+  });
+
+  it("org admin allows every app action", () => {
+    expect(orgRoles.admin.authorize(appStatement as unknown as Record<string, string[]>).success).toBe(true);
+  });
+
+  it("RESOURCE_LABELS covers every app resource and action", () => {
+    const labelled = Object.fromEntries(RESOURCE_LABELS.map((r) => [r.resource, r.actions.map((a) => a.action).sort()]));
+    const expected = Object.fromEntries(Object.entries(appStatement).map(([k, v]) => [k, [...v].sort()]));
+    expect(labelled).toEqual(expected);
   });
 });
