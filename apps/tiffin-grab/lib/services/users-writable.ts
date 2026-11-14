@@ -1,8 +1,7 @@
-// Columns an admin may set on a user through the REST/service write path.
+// Columns an admin may set on a user through the service write path.
 // Deliberately excludes passwordHash (must go through hashPassword), email
-// verification, and the framework-managed audit/identity columns — so a raw
-// PATCH /api/users/[id] cannot inject a bcrypt-bypassing hash or forge
-// emailVerified. Password changes are out of scope for this slice.
+// verification, and the framework-managed audit/identity columns, so a raw
+// update cannot inject a bcrypt-bypassing hash or forge emailVerified.
 export const USER_WRITABLE_FIELDS = ["name", "email", "phone", "role", "status"] as const;
 
 export function pickUserWritable(values: Record<string, unknown>): Record<string, unknown> {

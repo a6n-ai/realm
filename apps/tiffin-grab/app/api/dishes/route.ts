@@ -1,5 +1,0 @@
-import { createCollectionRoute } from "@foundry/routes";
-import { requireAdmin } from "@/lib/auth/guards";
-import { dishesService } from "@/lib/menu/dishes.service";
-
-export const { GET, POST } = createCollectionRoute(dishesService, { guard: () => requireAdmin() });
