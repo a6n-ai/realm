@@ -150,6 +150,14 @@ export const EVENTS: Record<AppEvent, EventDef> = {
       fields: [{ name: "customerName", label: "Customer name" }],
     },
   },
+  inquiry_reinquiry: {
+    category: "inquiries",
+    channels: ["in_app"],
+    vars: {
+      entity: "inquiry",
+      fields: [{ name: "customerName", label: "Customer name" }],
+    },
+  },
   inquiry_converted: {
     category: "inquiries",
     channels: ["in_app"],

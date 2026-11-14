@@ -1,11 +1,12 @@
 import { baseColumns, updatableColumns } from "@foundry/database";
 import { sql } from "drizzle-orm";
-import { bigint, check, date, index, integer, numeric, pgEnum, pgTable, text, uniqueIndex } from "drizzle-orm/pg-core";
+import { bigint, check, date, index, integer, jsonb, numeric, pgEnum, pgTable, text, uniqueIndex } from "drizzle-orm/pg-core";
 import { users } from "./auth";
 import { orders } from "./orders";
 import { leadSources, leadSubsources } from "./lead-sources";
 import { deliveryZones } from "./delivery";
 import { organization } from "./organizations";
+import { inquiryLostReason, renewalStatus, renewalStatusSource } from "./inquiry-enums";
 
 export const inquiryStage = pgEnum("inquiry_stage", ["new", "contacted", "quoted", "follow_up", "converted", "lost"]);
 export const inquiryActivityType = pgEnum("inquiry_activity_type", [
@@ -13,9 +14,9 @@ export const inquiryActivityType = pgEnum("inquiry_activity_type", [
   "quote_sent", "sample_sent", "payment_link_sent", "visit", "callback",
   // Same person reached out again (phone/email match on an open lead).
   "reinquiry",
-]);
-export const inquiryLostReason = pgEnum("inquiry_lost_reason", [
-  "price", "out_of_zone", "no_response", "chose_competitor", "not_ready", "other", "asked_to_stop",
+  "renewal_started", "renewed", "reminder_sent", "reassigned", "merged",
+  // Two different rows matched one contact; nothing was merged.
+  "match_conflict",
 ]);
 // Literal list: drizzle-kit loads this file, so it can't import from lib/. status-enum.test.ts keeps it in sync with SUB_STATUSES.
 export const inquirySubStatus = pgEnum("inquiry_sub_status", [
@@ -37,6 +38,14 @@ export const inquiries = pgTable("inquiries", {
   nextFollowUpAt: bigint("next_follow_up_at", { mode: "number" }),
   currentOwner: bigint("current_owner", { mode: "bigint" }).references(() => users.id),
   convertedOrderId: bigint("converted_order_id", { mode: "bigint" }).references(() => orders.id),
+  customerId: bigint("customer_id", { mode: "bigint" }).references(() => users.id, { onDelete: "set null" }),
+  // The order of the open round: null = first sale; set = renewal of that order. Replaces convertedOrderId.
+  currentOrderId: bigint("current_order_id", { mode: "bigint" }).references(() => orders.id, { onDelete: "set null" }),
+  renewalStatus: renewalStatus("renewal_status"),
+  renewalStatusSetAt: bigint("renewal_status_set_at", { mode: "number" }),
+  renewalStatusSource: renewalStatusSource("renewal_status_source"),
+  renewalFollowUpAt: bigint("renewal_follow_up_at", { mode: "number" }),
+  renewalLostReason: inquiryLostReason("renewal_lost_reason"),
   planInterest: text("plan_interest"),
   mealSizeInterest: text("meal_size_interest"),
   personsInterest: integer("persons_interest"),
@@ -83,6 +92,9 @@ export const inquiries = pgTable("inquiries", {
   index("inquiries_sub_source_idx").on(t.subSourceId),
   index("inquiries_zone_idx").on(t.zoneId),
   index("inquiries_next_follow_up_idx").on(t.nextFollowUpAt),
+  index("inquiries_customer_idx").on(t.customerId),
+  index("inquiries_current_order_idx").on(t.currentOrderId),
+  index("inquiries_renewal_follow_up_idx").on(t.renewalFollowUpAt),
   check("inquiries_name_or_phone", sql`coalesce(nullif(trim(${t.fullName}), ''), nullif(trim(${t.phone}), '')) is not null`),
 ]);
 
@@ -98,6 +110,10 @@ export const inquiryActivities = pgTable("inquiry_activities", {
   toStage: inquiryStage("to_stage"),
   fromSubStatus: inquirySubStatus("from_sub_status"),
   toSubStatus: inquirySubStatus("to_sub_status"),
+  // The round this activity belongs to (null = first sale).
+  orderId: bigint("order_id", { mode: "bigint" }).references(() => orders.id, { onDelete: "set null" }),
+  lostReason: inquiryLostReason("lost_reason"),
+  details: jsonb("details"),
   // Client-scoping — see orders.organizationId for the pattern. Nullable during backfill.
   organizationId: text("organization_id").references(() => organization.id),
 }, (t) => [
@@ -105,4 +121,5 @@ export const inquiryActivities = pgTable("inquiry_activities", {
   // (inquiry_id = ? order by created_at desc limit 1) — index both columns.
   index("inquiry_activities_inquiry_created_idx").on(t.inquiryId, t.createdAt),
   index("inquiry_activities_organization_idx").on(t.organizationId),
+  index("inquiry_activities_order_idx").on(t.orderId, t.createdAt),
 ]);

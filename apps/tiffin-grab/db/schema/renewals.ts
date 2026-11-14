@@ -1,13 +1,9 @@
 import { baseColumns, updatableColumns } from "@foundry/database";
 import { bigint, index, pgEnum, pgTable, text } from "drizzle-orm/pg-core";
 import { orders } from "./orders";
-import { inquiryLostReason } from "./inquiries";
+import { inquiryLostReason, renewalStatus } from "./inquiry-enums";
 import { organization } from "./organizations";
 
-export const renewalStatus = pgEnum("renewal_status", [
-  "renewed", "unresponsive", "not_renewed", "expected", "follow_up", "pending_payment",
-]);
-export const renewalStatusSource = pgEnum("renewal_status_source", ["staff", "auto"]);
 export const renewalActivityType = pgEnum("renewal_activity_type", [
   "note", "call", "whatsapp", "email", "callback", "status_change", "reminder_sent",
 ]);

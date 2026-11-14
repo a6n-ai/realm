@@ -5,6 +5,7 @@ export * from "./holidays";
 export * from "./promotions";
 export * from "./deliveries";
 export * from "./coupons";
+export * from "./inquiry-enums";
 export * from "./inquiries";
 export * from "./lead-counters";
 export * from "./tickets";

@@ -14,7 +14,7 @@ export const appEvent = pgEnum("app_event", [
   "payment_received", "refund_issued",
   "menu_released",
   "wallet_credited", "wallet_redeemed",
-  "inquiry_created", "inquiry_follow_up", "inquiry_converted",
+  "inquiry_created", "inquiry_follow_up", "inquiry_converted", "inquiry_reinquiry",
   "ticket_created", "ticket_reply", "ticket_resolved",
   "signup", "manual_adjustment",
   // Auth/security transactional email — migrated off @foundry/auth's direct-send
