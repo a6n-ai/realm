@@ -7,7 +7,7 @@ import { humanDate, isPastPause, type Trip } from "@/lib/deliveries/view";
 import { dayNote, deliveryLine, isDone, moveNotes, weekdayShort, type EatingRow } from "@/lib/deliveries/view/eating";
 import { dateTimeFormat } from "@foundry/commons/util/intl-format";
 import type { PlanView } from "@/lib/deliveries/view/adapter";
-import type { SubscriptionAddon } from "@/lib/deliveries/customer-deliveries.service";
+import type { SubscriptionAddon } from "@/lib/menu/order-addon-items";
 import { isoToUtcDate } from "@foundry/commons/util/dates";
 
 const WD = dateTimeFormat("en-CA", { weekday: "short", timeZone: "UTC" });

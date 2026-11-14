@@ -417,7 +417,7 @@ class DishCategoriesService extends SessionUpdatableService<typeof dishCategorie
    * Every plan a meal size's own composition draws dishes from — the meal
    * size's own planId plus whatever other plans its mealSizeItems rows
    * independently target (e.g. a non-veg thali with a veg-tagged Sabzi row).
-   * Mirrors allowedDishIdsForMealSize in selections.service.ts, which unions
+   * Mirrors allowedDishIdsForMealSize in lib/menu/dish-eligibility.ts, which unions
    * dishes the same way; swap eligibility must see the same set meal
    * selection does, or a rule scoped to a reachable plan silently does
    * nothing. A veg meal size's composition never references the non-veg

@@ -3,7 +3,6 @@ import { db } from "@/db/client";
 import { addons as addonCatalog, dishCategories, orderAddons, plans } from "@/db/schema";
 import { slotRowsAfterSwaps, type MealSizeItemRow, type PortionSwap } from "./pick-size";
 import { formatTuHuman, isCountCategory, type TuCategory } from "./format-tu";
-import type { SubscriptionAddon } from "@/lib/deliveries/customer-deliveries.service";
 
 /**
  * Catalog add-ons as extra rows in every tiffin. Each qty of an order's add-on is one
@@ -48,6 +47,16 @@ export async function addonItemsByOrder(orderIds: bigint[]): Promise<Map<bigint,
 type AddonViewRow = { orderId: bigint; name: string; qty: number; category: string; tuAmount: string };
 
 /** Portions read as oz/roti, never raw TU; roti/rice add-ons fold into one total, a sabzi is a row each. */
+export type SubscriptionAddon = {
+  name: string;
+  qty: number;
+  category: string;
+  /** Roti/rice: every qty folds into one total ("2 roti"); else each qty is its own row (a sabzi). */
+  folded: boolean;
+  /** The folded total, or one row's portion; null when the category is unknown. */
+  portion: string | null;
+};
+
 export function buildSubscriptionAddons(rows: AddonViewRow[], cats: Map<string, TuCategory>): Map<bigint, SubscriptionAddon[]> {
   const out = new Map<bigint, SubscriptionAddon[]>();
   for (const a of rows) {

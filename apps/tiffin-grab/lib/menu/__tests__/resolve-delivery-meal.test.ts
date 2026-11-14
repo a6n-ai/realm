@@ -4,7 +4,7 @@ import { db } from "@/db/client";
 import { dishes, mealSelections, mealSizeItems, menuItems, menuSideDefaults, menuWeeks, orders, users } from "@/db/schema";
 import { attachDishToPlans, categoryIdFor, testPlanId, deleteNonSystemUsers } from "@/db/test-helpers";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
-import { exclusiveDishIdsForPlan } from "../selections.service";
+import { exclusiveDishIdsForPlan } from "../dish-eligibility";
 import { maxTuPickIndex } from "../default-pick";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));

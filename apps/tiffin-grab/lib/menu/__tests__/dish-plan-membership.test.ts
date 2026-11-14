@@ -2,7 +2,7 @@ import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import { dishes, plans } from "@/db/schema";
-import { dishIdsForPlan } from "../selections.service";
+import { dishIdsForPlan } from "../dish-eligibility";
 
 // The food-safety boundary. `diet` is gone: a dish reaches a subscriber only if
 // its planId matches that subscriber's plan. If this breaks, a vegetarian gets

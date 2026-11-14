@@ -11,7 +11,7 @@ import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lt, lte, or, sql }
 import { db } from "@/db/client";
 import { orderPaymentStatuses } from "@/lib/payments/order-payments";
 import { deliveries, deliveryCategorySwaps, deliveryFrequencies, deliveryMoves, dishCategories, dishes, holidays, mealSizes, menuItems, orderActivities, orders, payments, plans } from "@/db/schema";
-import { loadSubscriptionAddons } from "@/lib/menu/order-addon-items";
+import { loadSubscriptionAddons, type SubscriptionAddon } from "@/lib/menu/order-addon-items";
 import { resolveTripDay, weekLoader } from "@/lib/menu/trip-meals";
 import { coveredDates, formatCoversLabel, swapAppliesTo } from "@/lib/menu/coverage";
 import type { ExchangeOverride } from "@/lib/menu/swap-rules";
@@ -23,7 +23,7 @@ import {
   resolvedMealsWeekKey,
   type ResolvedCategory,
 } from "@/lib/menu/resolve-delivery-meal";
-import { allowedDishIdsForMealSize } from "@/lib/menu/selections.service";
+import { allowedDishIdsForMealSize } from "@/lib/menu/dish-eligibility";
 import { PAYMENT_REJECTED_STATUS, isHiddenFromCustomer, isPaymentReviewStatus, orderDisplayStatus } from "@/lib/orders/display-status";
 import { getSession } from "@/lib/auth/session";
 import { isStaffRole } from "@/lib/roles";
@@ -99,15 +99,6 @@ export type CustomerDelivery = Delivery & {
   routePushed?: boolean;
 };
 /** One add-on on a plan: shown under "Add-ons", never part of the meal or its swaps. */
-export type SubscriptionAddon = {
-  name: string;
-  qty: number;
-  category: string;
-  /** Roti/rice: every qty folds into one total ("2 roti"); else each qty is its own row (a sabzi). */
-  folded: boolean;
-  /** The folded total, or one row's portion; null when the category is unknown. */
-  portion: string | null;
-};
 
 export type Subscription = {
   publicId: string;

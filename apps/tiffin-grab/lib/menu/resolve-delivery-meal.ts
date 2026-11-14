@@ -6,7 +6,7 @@ import { and, asc, eq, gte, inArray, lte, notInArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, deliveryCategorySwaps, dishCategories, dishes, mealSelections, mealSizes, menuItems, menuWeeks, orders } from "@/db/schema";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
-import { allowedDishIdsForMealSize, exclusiveDishIdsForPlan } from "@/lib/menu/selections.service";
+import { allowedDishIdsForMealSize, exclusiveDishIdsForPlan } from "@/lib/menu/dish-eligibility";
 import { defaultMenuItem, keepDefaultsWithinRules, maxTuPickIndex } from "@/lib/menu/default-pick";
 import { mealRulesService } from "@/lib/services/meal-rules.service";
 import type { MealRule } from "@/lib/menu/meal-rule-types";
