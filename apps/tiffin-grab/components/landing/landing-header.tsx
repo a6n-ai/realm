@@ -9,6 +9,7 @@ import { usePublicSession } from "@/lib/auth/public-session";
 import { roleLanding } from "@/lib/auth/landing";
 import { Role, type RoleValue } from "@foundry/commons";
 import { pageOf } from "@/lib/routing/public-pages";
+import { CookieSettingsButton } from "@/components/consent/cookie-consent";
 
 const navLink = (path: string) => ({ href: path, label: pageOf(path).label });
 const LINKS = ["/menu", "/pricing", "/locations"].map(navLink);
@@ -49,9 +50,6 @@ export function LandingHeader({ rating, refer = false }: { rating?: ReactNode; r
   const path = usePathname();
   const isCurrent = (href: string) => path === href || path.startsWith(`${href}/`);
   const [open, setOpen] = useState(false);
-  // null until the observer reports: nav.css then picks the first-paint tone from the page
-  // itself, so a phone that hydrates late never shows a cream bar over the dark hero.
-  const [tone, setTone] = useState<"light" | "dark" | null>(null);
   const barRef = useRef<HTMLElement>(null);
   const linksRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLButtonElement>(null);
@@ -94,21 +92,6 @@ export function LandingHeader({ rating, refer = false }: { rating?: ReactNode; r
   }, [open]);
 
 
-  // Tone: dark while any .dark band (hero, green sections) sits under the capsule. The
-  // observer's root is a thin strip where the capsule floats, so no scroll math is needed.
-  useEffect(() => {
-    const bands = [...document.querySelectorAll<HTMLElement>(".tg-land main .dark")];
-    // A page with no dark band resets to light: the previous page's tone otherwise sticks (Back from home).
-    if (bands.length === 0) { setTone(null); return; }
-    const under = new Set<Element>();
-    const io = new IntersectionObserver((entries) => {
-      for (const e of entries) e.isIntersecting ? under.add(e.target) : under.delete(e.target);
-      setTone(under.size > 0 ? "dark" : "light");
-    }, { rootMargin: "-4% 0px -95% 0px" });
-    bands.forEach((b) => io.observe(b));
-    return () => io.disconnect();
-  }, [path]);
-
   // Refer sits in the menu on every width while the referral programme runs.
   const navLinks = refer ? [...LINKS, navLink("/refer"), account] : [...LINKS, account];
   const sheetLinks = refer ? [...LINKS, { href: "/refer", label: "Refer a friend" }, account] : navLinks;
@@ -117,7 +100,7 @@ export function LandingHeader({ rating, refer = false }: { rating?: ReactNode; r
     <>
       <a href="#main" className="tg-skip">Skip to content</a>
       {open ? <div className="tg-bar-scrim" aria-hidden onClick={close} /> : null}
-      <header ref={barRef} className="tg-bar" data-tone={open ? "light" : tone ?? undefined} data-open={open} style={{ viewTransitionName: "site-header" }}>
+      <header ref={barRef} className="tg-bar" data-open={open} style={{ viewTransitionName: "site-header" }}>
         <div className="tg-bar__in">
           <Link href="/" className="tg-bar__brand" aria-label="TiffinGrab home" onClick={close}>
             <BrandMark className="tg-bar__mark" />
@@ -161,6 +144,7 @@ export function LandingHeader({ rating, refer = false }: { rating?: ReactNode; r
           <div className="tg-sheet__foot">
             <Link href="/contact" onClick={close}>{pageOf("/contact").label}</Link>
             <Link href="/faq" onClick={close}>{pageOf("/faq").label}</Link>
+            <CookieSettingsButton className="tg-sheet__cookie" onOpen={close} />
           </div>
         </div>
       </header>

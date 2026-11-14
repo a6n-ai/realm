@@ -9,13 +9,15 @@
 .tg-burger > span, .tg-roll > span, .tg-pill, .tg-pill__orb, .tg-pill, .tg-drum__nav, .tg-drum, .tg-code, .tg-promo-cta, .tg-board__tab, .tg-cta, .tg-btn, .tg-chip, .tg-rating, .tg-review-glass, .tg-sticker, .tg-split__row strong, .lp-cta, .lp-textlink > svg, .lp-days__thumb, .lp-days__tab span, .lp-ticket { transition: var(--tr-lift); }
 .tg-land { --lp-glass-bg: color-mix(in srgb, var(--card) 58%, transparent); --lp-glass-edge: color-mix(in srgb, #fff 55%, transparent); --lp-glass-shadow: var(--sh-rim), var(--sh-3); }
 .dark .tg-land, .tg-land:where(.dark *) { --lp-glass-bg: color-mix(in srgb, var(--card) 52%, transparent); --lp-glass-edge: color-mix(in srgb, #fff 16%, transparent); --lp-glass-shadow: 0 1px 0 0 color-mix(in srgb, #fff 14%, transparent) inset, 0 24px 48px -16px rgb(0 0 0 / 0.6); }
-.tg-bar { --bar-fill: rgb(251 244 231 / 0.72); --bar-ink: var(--tg-ink); --bar-ink-soft: rgb(36 31 27 / 0.72); --bar-lens: rgb(255 255 255 / 0.62); --bar-lens-rim: rgb(255 255 255 / 0.9); --bar-rim-top: rgb(255 255 255 / 0.85); --bar-rim-bot: rgb(255 255 255 / 0.12); --bar-grab: #185936; position: sticky; top: calc(var(--tg-announce-h, 0px) + 10px); z-index: 40; width: calc(min(1200px, 100%) - 2 * var(--gutter, 16px)); margin: 10px auto 0; border-radius: 999px; color: var(--bar-ink); background: var(--bar-fill); -webkit-backdrop-filter: var(--blur-glass); backdrop-filter: var(--blur-glass); box-shadow:
-    var(--sh-rim), var(--sh-ring-light), var(--sh-3); transition:
+/* iOS Safari's bar material, shared by the header and the dock on every section of every page: a pale fill that lets
+   the page tint through (measured against Safari's own bar: about half white, colour kept), a soft lift and a hairline, so the site's chrome reads as the same family as the browser's. */
+:root { --blur-chrome: blur(14px) saturate(200%); --chrome-fill: rgb(255 255 255 / 0.38); --sh-chrome: var(--sh-rim), inset 0 0 0 0.5px rgb(255 255 255 / 0.5), 0 0 0 0.5px rgb(36 31 27 / 0.08), 0 10px 26px -12px rgb(36 31 27 / 0.3);
+  --chrome-ease: cubic-bezier(0.32, 0.72, 0, 1); --chrome-ms: 320ms; }
+.tg-bar { --bar-fill: var(--chrome-fill); --bar-ink: var(--tg-ink); --bar-ink-soft: rgb(36 31 27 / 0.72); --bar-lens: rgb(255 255 255 / 0.62); --bar-lens-rim: rgb(255 255 255 / 0.9); --bar-rim-top: rgb(255 255 255 / 0.85); --bar-rim-bot: rgb(255 255 255 / 0.12); --bar-grab: #185936; position: sticky; top: calc(var(--tg-announce-h, 0px) + 10px); z-index: 40; width: calc(min(1200px, 100%) - 2 * var(--gutter, 16px)); margin: 10px auto 0; border-radius: 999px; color: var(--bar-ink); background: var(--bar-fill); -webkit-backdrop-filter: var(--blur-chrome); backdrop-filter: var(--blur-chrome); box-shadow:
+    var(--sh-chrome); transition:
     background-color 420ms var(--ease-soft),
     color 420ms var(--ease-soft),
     transform 520ms var(--ease-soft); }
-.tg-bar[data-tone="dark"],
-.tg-land:is(:has(.lp-hero.dark), :has(.tg-refer-stage)) .tg-bar:not([data-tone]) { --bar-fill: rgb(22 30 25 / 0.42); --bar-ink: var(--tg-cream); --bar-ink-soft: rgb(251 244 231 / 0.78); --bar-lens: rgb(251 244 231 / 0.16); --bar-lens-rim: rgb(255 255 255 / 0.32); --bar-rim-top: rgb(255 255 255 / 0.42); --bar-rim-bot: rgb(255 255 255 / 0.06); --bar-grab: #9BCB72; }
 .tg-bar > * { position: relative; z-index: 1; }
 .tg-bar__in { display: flex; align-items: center; gap: 12px; height: var(--lp-nav-h); padding: 0 8px 0 18px; }
 .tg-bar__brand { display: inline-flex; align-items: center; gap: 8px; color: inherit; text-decoration: none; flex: none; }
@@ -49,7 +51,7 @@
   :is(a, button):hover > .tg-roll > span:first-child { transform: translateY(-110%); }
   :is(a, button):hover > .tg-roll > span + span { transform: none; }
 }
-@keyframes tg-bar-in { from { opacity: 0; scale: 0.96; } }
+@keyframes tg-bar-in { from { opacity: 0; } }
 @media (prefers-reduced-motion: no-preference) {
   .tg-bar { animation: tg-bar-in 700ms var(--ease-soft) 120ms both; }
   @media (hover: hover) {
@@ -80,8 +82,8 @@
   .tg-sheet .tg-sheet__cta { width: 100%; min-height: 56px; font-size: 17px; opacity: 0; transform: translateY(10px); transition: var(--tr-lift); }
   .tg-bar[data-open="true"] .tg-sheet__cta { opacity: 1; transform: none; transition-delay: 360ms; }
   .tg-sheet__foot { display: flex; justify-content: center; gap: 4px 20px; flex-wrap: wrap; }
-  .tg-sheet__foot a { display: inline-flex; align-items: center; min-height: 40px; font-size: 14px; font-weight: 600; color: rgb(36 31 27 / 0.7); text-decoration: none; }
-  .tg-sheet__foot a:active { color: var(--tg-ink); }
+  .tg-sheet__foot :is(a, .tg-sheet__cookie) { padding: 0; border: 0; background: none; font-family: inherit; cursor: pointer; display: inline-flex; align-items: center; min-height: 40px; font-size: 14px; font-weight: 600; color: rgb(36 31 27 / 0.7); text-decoration: none; }
+  .tg-sheet__foot :is(a, .tg-sheet__cookie):active { color: var(--tg-ink); }
   .tg-bar-scrim { position: fixed; inset: 0; z-index: 44; background: rgb(20 16 12 / 0.45); -webkit-backdrop-filter: var(--blur-soft); backdrop-filter: var(--blur-soft); animation: tg-scrim-in 280ms ease both; }
 }
 @keyframes tg-scrim-in { from { opacity: 0; } }
@@ -91,11 +93,9 @@
 }
 @media (prefers-reduced-transparency: reduce) {
   .tg-bar { --bar-fill: var(--tg-cream); -webkit-backdrop-filter: none; backdrop-filter: none; }
-  .tg-bar[data-tone="dark"], .tg-land:is(:has(.lp-hero.dark), :has(.tg-refer-stage)) .tg-bar:not([data-tone]) { --bar-fill: #1F2E26; }
 }
 @media (prefers-contrast: more) {
   .tg-bar { --bar-fill: var(--tg-cream); --bar-ink-soft: var(--tg-ink); outline: 1px solid var(--tg-ink); }
-  .tg-bar[data-tone="dark"], .tg-land:is(:has(.lp-hero.dark), :has(.tg-refer-stage)) .tg-bar:not([data-tone]) { --bar-fill: #1A1A1A; --bar-ink-soft: var(--tg-cream); outline-color: var(--tg-cream); }
 }
 .tg-refer { display: grid; gap: clamp(32px, 5vw, 56px); }
 .tg-refer__hero { display: grid; gap: clamp(32px, 5vw, 56px); align-items: center; }
@@ -163,9 +163,9 @@
 .tg-pill { position: fixed; z-index: 45; display: flex; }
 .tg-pill a { text-decoration: none; -webkit-tap-highlight-color: transparent; }
 .tg-pill a:focus-visible { outline: 2px solid var(--tg-orange); outline-offset: 3px; }
-.tg-pill__orb, .tg-drum { --glass-tint: rgb(255 255 255 / 0.62); -webkit-backdrop-filter: var(--blur-glass); backdrop-filter: var(--blur-glass); position: relative; isolation: isolate; border-radius: 999px; background:
-    var(--g-sheen); box-shadow:
-    var(--sh-rim), var(--sh-ring-light), var(--sh-3); }
+.tg-pill__orb, .tg-drum { --glass-tint: var(--chrome-fill); -webkit-backdrop-filter: var(--blur-chrome); backdrop-filter: var(--blur-chrome); position: relative; isolation: isolate; border-radius: 999px;
+  background: var(--g-sheen), linear-gradient(var(--glass-tint) 0 0);
+  box-shadow: var(--sh-chrome); }
 .tg-bar::after, .tg-pill__orb::after, .tg-drum::after { content: ""; position: absolute; inset: 2px 30% 50% 12%; border-radius: 999px; pointer-events: none; z-index: 2; background: radial-gradient(closest-side, rgb(255 255 255 / 0.5), transparent); opacity: 0.35; }
 .tg-pill__orb { display: grid; place-items: center; width: 54px; height: 54px; flex: none; }
 .tg-pill__orb:active { transform: scale(0.92); }
@@ -218,14 +218,7 @@
 @keyframes tg-orb-in { from { opacity: 0; transform: scale(0.6); } }
 @keyframes tg-g-pop { from { transform: scale(0.55) rotate(-18deg); } }
 .tg-pill { left: 50%; bottom: max(14px, env(safe-area-inset-bottom)); align-items: center; gap: 8px; translate: -50% 0; transform-origin: 50% 100%; }
-.tg-pill[data-compact] { scale: 0.82; }
 .tg-pill :is(a, button) { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
-.tg-pill[data-compact] .tg-drum__nav { opacity: 0.55; }
-:is(.tg-pill[data-hero], html[data-edge-bottom="dark"] .tg-pill) :is(.tg-pill__orb, .tg-drum) { --glass-tint: rgb(255 255 255 / 0.08); -webkit-backdrop-filter: var(--blur-smoke); backdrop-filter: var(--blur-smoke); }
-:is(.tg-pill[data-hero], html[data-edge-bottom="dark"] .tg-pill) :is(.tg-drum__face, .tg-drum__nav, .tg-pill__home) { color: var(--tg-cream); }
-:is(.tg-pill[data-hero], html[data-edge-bottom="dark"] .tg-pill) .tg-drum__face > svg { color: var(--tg-peach); }
-:is(.tg-pill[data-hero], html[data-edge-bottom="dark"] .tg-pill) .tg-pill__wa { color: #7BE3A4; }
-:is(.tg-pill[data-hero], html[data-edge-bottom="dark"] .tg-pill) .tg-drum__face em { background: rgb(251 244 231 / 0.16); color: var(--tg-cream); }
 .tg-drum::before { content: ""; position: absolute; left: 14px; right: 14px; bottom: 3px; height: 2.5px; border-radius: 2px; z-index: 4; background: var(--tg-orange); transform: scaleX(0); transform-origin: left; opacity: 0; pointer-events: none; }
 html[data-nav="pending"] .tg-drum::before { opacity: 1; animation: tg-dock-load 1.8s var(--ease-soft) forwards; }
 @keyframes tg-dock-load { from { transform: scaleX(0.06); } to { transform: scaleX(0.88); } }
@@ -250,14 +243,36 @@ html[data-nav="pending"][data-dock] body::before { display: none; }
 .tg-drum__face, .tg-drum__nav, .tg-pill__orb { transition-property: color, transform, background-color, opacity; transition-duration: 240ms; }
 .tg-drum__face, .tg-pill__home { text-shadow: 0 0 10px rgb(255 255 255 / 0.9), 0 0 2px rgb(255 255 255 / 0.8); }
 .tg-pill a > svg, .tg-drum__nav > svg { filter: drop-shadow(0 0 4px rgb(255 255 255 / 0.85)); }
-:is(.tg-pill[data-hero], html[data-edge-bottom="dark"] .tg-pill) :is(.tg-drum__face, .tg-pill__home) { text-shadow: 0 1px 8px rgb(0 0 0 / 0.55), 0 0 2px rgb(0 0 0 / 0.5); }
-:is(.tg-pill[data-hero], html[data-edge-bottom="dark"] .tg-pill) :is(a > svg, .tg-drum__nav > svg) { filter: drop-shadow(0 1px 4px rgb(0 0 0 / 0.6)); }
 .tg-drum:has(.tg-drum__face:active) { scale: 0.97; }
 .tg-drum__face[data-tapped] { background: rgb(240 107 26 / 0.18); }
 .tg-pill__orb[data-tapped] { --glass-tint: rgb(240 107 26 / 0.22); scale: 0.94; }
 .tg-drum__face[data-tapped] > svg, .tg-pill__orb[data-tapped] > svg { color: var(--tg-orange); }
 @media (prefers-reduced-motion: reduce) {
   .tg-drum:has(.tg-drum__face:active), .tg-pill__orb[data-tapped] { scale: none; }
+}
+/* Phones match iOS Safari's bottom bar: the same sizes (48pt buttons around a 260pt bar), and scrolling down
+   morphs it into a small capsule with the side buttons gone, as Safari's bar does under it. Both directions
+   use the same critically damped curve, so it never bounces. */
+@media (max-width: 640px) {
+  .tg-pill { gap: 8px; transition: gap var(--chrome-ms) var(--chrome-ease); }
+  .tg-pill__orb { width: 48px; height: 48px; }
+  .tg-drum { width: 260px; height: 48px; padding: 2px; }
+  .tg-drum__face { font-size: 14.5px; }
+  .tg-drum__nav { height: 40px; }
+  .tg-pill__orb, .tg-pill__me, .tg-drum, .tg-drum__nav, .tg-drum__face {
+    transition-property: width, height, opacity, scale, font-size, color, background-color; transition-duration: var(--chrome-ms); transition-timing-function: var(--chrome-ease); }
+  html[data-chrome="compact"] .tg-pill { gap: 0; }
+  html[data-chrome="compact"] .tg-pill :is(.tg-pill__orb, .tg-pill__me) { width: 0; opacity: 0; scale: 0.5; pointer-events: none; }
+  html[data-chrome="compact"] .tg-pill .tg-drum { width: 156px; height: 36px; }
+  html[data-chrome="compact"] .tg-pill .tg-drum__nav { width: 0; opacity: 0; pointer-events: none; }
+  html[data-chrome="compact"] .tg-pill .tg-drum__face { gap: 6px; padding: 0 12px; font-size: 12.5px; }
+  html[data-chrome="compact"] .tg-pill .tg-drum__face > svg { width: 15px; height: 15px; }
+}
+@media (max-width: 400px) {
+  .tg-drum { width: 228px; }
+}
+@media (max-width: 640px) and (prefers-reduced-motion: reduce) {
+  .tg-pill, .tg-pill__orb, .tg-pill__me, .tg-drum, .tg-drum__nav, .tg-drum__face { transition: none; }
 }
 .tg-pill__me { position: relative; isolation: isolate; display: grid; place-items: center; flex: none; border-radius: 999px; transition: var(--tr-lift); }
 .tg-pill__me:active, .tg-pill__me[data-tapped] { scale: 0.92; }
@@ -289,13 +304,11 @@ html[data-nav="pending"][data-dock] body::before { display: none; }
 @media (prefers-reduced-transparency: reduce) {
   .tg-pill__avatar { -webkit-backdrop-filter: none; backdrop-filter: none; }
 }
-:is(.tg-pill[data-hero], html[data-edge-bottom="dark"] .tg-pill) .tg-pill__initials { color: #FFFFFF; text-shadow: 0 1px 2px rgb(0 0 0 / 0.35); }
 .tg-drum__nav { place-items: center; flex: none; cursor: pointer; width: 36px; min-height: 44px; }
 @media (max-width: 400px) {
   .tg-drum__nav { width: 32px; }
 }
 .tg-drum__face--estimate > svg { color: var(--tg-green); }
-html[data-edge-bottom="dark"] .tg-pill .tg-drum__face--estimate > svg, .tg-pill[data-hero] .tg-drum__face--estimate > svg { color: #7BE3A4; }
 .tg-promo-scope { font-family: var(--font-poppins), ui-sans-serif, system-ui, sans-serif; color: var(--foreground); }
 .tg-code { position: relative; display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 16px; border-radius: 14px; border: 1.5px dashed color-mix(in oklch, var(--foreground) 45%, transparent); background: color-mix(in srgb, var(--card) 70%, transparent); color: var(--foreground); font: inherit; font-weight: 700; letter-spacing: 0.06em; cursor: pointer; }
 .tg-code:hover { border-color: var(--foreground); }
@@ -333,7 +346,7 @@ html[data-edge-bottom="dark"] .tg-pill .tg-drum__face--estimate > svg, .tg-pill[
 .lp-coupon__title { font-size: 17px; font-weight: 700; }
 .lp-coupon__blurb { margin: 0; max-width: 40ch; font-size: 16px; line-height: 1.5; color: rgb(46 18 0 / 0.8); }
 .lp-coupon__stub { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 24px; border-left: 2px dashed rgb(46 18 0 / 0.3); }
-.lp-coupon__label { font-size: 12px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: rgb(46 18 0 / 0.85); }
+.lp-coupon__label { font-size: 14px; font-weight: 600; color: rgb(46 18 0 / 0.85); }
 .lp-coupon .tg-code:hover { background: #fff; border-color: var(--tg-ink-warm); transform: translateY(-1px); }
 .lp-coupon .tg-code { background: var(--tg-cream); color: var(--tg-ink-warm); border-color: rgb(46 18 0 / 0.35); font-size: 17px; min-height: 52px; padding: 0 18px; }
 .lp-coupon .lp-promo-frame { border-radius: 16px; }
@@ -882,13 +895,28 @@ html[data-dock] { scroll-padding-bottom: 112px; }
 @media (prefers-reduced-transparency: reduce), (max-width: 767px) {
   .lp-offers__arrow, .lp-swipe-play { background: #FFFFFF; -webkit-backdrop-filter: none; backdrop-filter: none; }
 }
+/* Phones: one offer per card with the next one in view, so the row reads as a row. The coupon carries the offer;
+   its worked-out saving sits right under it as the glass receipt, with no photo behind it. The dots and the
+   pause button share one glass capsule, centred like an iOS page control. */
+@container (max-width: 560px) {
+  .lp-offers .lp-offers__track { grid-auto-columns: 86%; }
+  .lp-offers .lp-offers__slide { gap: 10px; }
+  .lp-offers .lp-coupon__badge { font-size: clamp(40px, 12cqi, 52px); overflow-wrap: normal; }
+  .lp-offers :is(.lp-offers__photo--receipt, .lp-offers__photo--own.lp-offers__photo--receipt) { padding: 0; background: none; box-shadow: none; overflow: visible; }
+  .lp-offers .lp-offers__photo--receipt > img { display: none; }
+  .lp-offers .lp-offers__nav { justify-content: center; width: max-content; margin: 16px auto 0; padding: 2px 4px 2px 8px; gap: 4px; border-radius: 999px;
+    background: rgb(255 255 255 / 0.55); -webkit-backdrop-filter: var(--blur-chrome); backdrop-filter: var(--blur-chrome); box-shadow: var(--sh-chrome); }
+  .lp-offers .lp-offers__arrow--play { width: 40px; height: 40px; background: none; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
+}
+@container (max-width: 560px) {
+  @media (prefers-reduced-transparency: reduce) {
+    .lp-offers .lp-offers__nav { background: #FFFFFF; -webkit-backdrop-filter: none; backdrop-filter: none; }
+  }
+}
 .tg-cta, .lp-cta, .tg-promo-cta, .lp-coupon { position: relative; overflow: hidden; }
 .tg-cta::after, .lp-cta::after, .tg-promo-cta::after, .lp-coupon__main::after { content: ""; position: absolute; inset: -20% auto -20% 0; width: 40%; pointer-events: none; background: var(--g-shine); transform: translateX(-160%) skewX(-18deg); }
-.lp-offers .lp-kicker { position: relative; display: inline-flex; align-items: center; gap: 8px; }
-.lp-offers .lp-kicker::before { content: ""; width: 8px; height: 8px; border-radius: 999px; background: #E2621B; box-shadow: none; }
 @media (prefers-reduced-motion: no-preference) {
   .tg-cta::after, .lp-cta::after, .tg-promo-cta::after { animation: lp-glint 7s var(--ease-soft) 2s infinite; }
-  .lp-offers .lp-kicker::after { content: ""; position: absolute; left: 0; top: 50%; width: 8px; height: 8px; margin-top: -4px; border-radius: 999px; background: rgb(226 98 27 / 0.5); pointer-events: none; animation: lp-live 2.4s ease-out infinite; }
   .lp-today__badge::after { animation: lp-glow 3s ease-in-out infinite; }
   @media (hover: hover) and (pointer: fine) {
     .tg-cta:hover, .lp-cta:hover, .tg-promo-cta:hover { transform: translateY(-2px); }

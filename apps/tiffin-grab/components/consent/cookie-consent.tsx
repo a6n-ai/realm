@@ -1,5 +1,6 @@
 "use client";
 
+import { CircleCheck, CircleX, Cookie } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -235,6 +236,7 @@ export function CookieConsent() {
         // First ask: a slim bar, so the hero headline and its CTA stay in view. Choose opens the full card.
         <p className="tg-consent__text">
           {/* Phones show the short label in the dock-sized capsule; wider screens the full sentence. */}
+          <Cookie className="tg-consent__icon" aria-hidden />
           <strong className="tg-consent__q">{question(path)}</strong>{" "}
           <span className="tg-consent__long">Analytics cookies, only if you say yes.</span>{" "}
           <span className="tg-consent__links">
@@ -288,17 +290,21 @@ export function CookieConsent() {
         ) : slim ? null : (
           <button type="button" className="tg-consent__btn tg-consent__btn--ghost" onClick={() => setDetails(true)}>Choose</button>
         )}
-        <button type="button" className="tg-consent__btn" data-act="no" onClick={() => decide(false)}>{slim ? "No thanks" : "Essential only"}</button>
-        <button type="button" className="tg-consent__btn" data-act="yes" onClick={() => decide(true)}>{slim ? "Yes, OK" : "Accept all"}</button>
+        <button type="button" className="tg-consent__btn" data-act="no" onClick={() => decide(false)}>
+          {slim ? <><CircleX aria-hidden />No thanks</> : "Essential only"}
+        </button>
+        <button type="button" className="tg-consent__btn" data-act="yes" onClick={() => decide(true)}>
+          {slim ? <><CircleCheck aria-hidden />Yes, OK</> : "Accept all"}
+        </button>
       </div>
     </section>
   );
 }
 
-/** Footer link that reopens the choices. */
-export function CookieSettingsButton({ className }: { className?: string }) {
+/** Footer and menu link that reopens the choices. */
+export function CookieSettingsButton({ className, onOpen }: { className?: string; onOpen?: () => void }) {
   return (
-    <button type="button" className={className} onClick={() => dispatchEvent(new Event(OPEN_EVENT))}>
+    <button type="button" className={className} onClick={() => { onOpen?.(); dispatchEvent(new Event(OPEN_EVENT)); }}>
       Cookie settings
     </button>
   );

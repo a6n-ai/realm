@@ -3,10 +3,8 @@
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 
-// Reads the colour of the section under the screen edges as the page scrolls:
-// - the html background follows the top edge, so overscroll and the strip behind Safari's status
-//   bar match a green hero instead of showing cream;
-// - data-edge-bottom tells the dock whether it sits over a dark band (cream labels) or a light one.
+// Reads the colour of the section under the screen edge as the page scrolls: the html background follows
+// it, so overscroll and the strip behind Safari's status bar match a green hero instead of showing cream.
 // No elements are drawn: fixed 1px edge lines showed as thin bars once Safari (iOS 26) started
 // drawing the page under its own bars.
 const SKIP = ".tg-bar, .tg-pill, .tg-consent";
@@ -18,11 +16,6 @@ function gradientColour(image: string, edge: "top" | "bottom"): string | null {
   const base = image.slice(Math.max(image.lastIndexOf("linear-gradient("), image.lastIndexOf("radial-gradient(")));
   const stops = (base.match(/rgba?\([^)]+\)/g) ?? []).filter((c) => !/,\s*0\)$/.test(c));
   return (edge === "top" ? stops[0] : stops.at(-1)) ?? null;
-}
-
-function isDark(rgb: string): boolean {
-  const [r = 255, g = 255, b = 255] = (rgb.match(/[\d.]+/g) ?? []).map(Number);
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b < 128;
 }
 
 function colourAt(y: number, minWidth = 0.9): string | null {
@@ -55,10 +48,6 @@ export function EdgeTint() {
       const nearEnd = scrollY + innerHeight > root.scrollHeight - innerHeight * 0.5;
       const edge = nearEnd ? bottom ?? top : top;
       if (edge) root.style.backgroundColor = edge;
-      // The dock's label colour follows what sits right behind it (a boxed green panel counts, a
-      // small card does not), so it reads cream over green and dark over cream.
-      const behind = colourAt(innerHeight - 40, 0.3) ?? bottom;
-      if (behind) root.dataset.edgeBottom = isDark(behind) ? "dark" : "light";
     };
     // Throttled by time, plus one trailing paint where scrolling stops. (A requestAnimationFrame gate
     // could stay stuck if a frame was asked for while the tab was in the background.)
@@ -80,7 +69,6 @@ export function EdgeTint() {
       removeEventListener("scroll", queue);
       removeEventListener("resize", queue);
       root.style.removeProperty("background-color");
-      delete root.dataset.edgeBottom;
     };
   }, [path]);
   return null;

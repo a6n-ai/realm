@@ -135,8 +135,7 @@ export function OfferBand({ promos, photo }: { promos: LandingPromo[]; photo: St
       <div className="lp-wrap">
         <header className="lp-head lp-head--split">
           <div>
-            <span className="lp-kicker">Running now</span>
-            <h2 id="lp-offer" className="lp-h2">Offers on your <span className="c-accent">tiffin.</span></h2>
+            <h2 id="lp-offer" className="lp-h2">Offers on your tiffin</h2>
           </div>
           <p className="lp-lede">Codes apply at checkout. You see the price drop before you pay.</p>
         </header>

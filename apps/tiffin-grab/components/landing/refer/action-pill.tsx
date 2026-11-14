@@ -12,44 +12,7 @@ import { roleLanding } from "@/lib/auth/landing";
 import { isStaffRole } from "@/lib/roles";
 import { Role, type RoleValue } from "@foundry/commons";
 import { pillVisible } from "./pill-visible";
-
-// Over a hero the bar keeps its size (one behaviour everywhere) and only swaps to smoky glass over video.
-const HERO = ".lp-hero, .tg-refer-stage";
-// Safari 26's bar: it shrinks while the page scrolls down, grows back the moment it scrolls up,
-// and grows back once scrolling rests.
-const REST_MS = 260;
-const DIR_PX = 6;
-function useScrolling(): boolean {
-  const [scrolling, setScrolling] = useState(false);
-  useEffect(() => {
-    let rest: ReturnType<typeof setTimeout> | undefined;
-    let last = scrollY;
-    const onScroll = () => {
-      const y = scrollY;
-      clearTimeout(rest);
-      if (y > last + DIR_PX) setScrolling(true);
-      else if (y < last - DIR_PX) setScrolling(false);
-      if (Math.abs(y - last) > DIR_PX) last = y;
-      rest = setTimeout(() => setScrolling(false), REST_MS);
-    };
-    addEventListener("scroll", onScroll, { passive: true });
-    return () => { removeEventListener("scroll", onScroll); clearTimeout(rest); };
-  }, []);
-  return scrolling;
-}
-function useHeroInView(path: string | null, mounted: boolean): boolean {
-  const [inView, setInView] = useState(false);
-  useEffect(() => {
-    if (!mounted) return;
-    const hero = document.querySelector(HERO);
-    if (!hero) { setInView(false); return; }
-    // "In view" while the hero still reaches below the middle of the screen.
-    const io = new IntersectionObserver(([e]) => setInView(!!e?.isIntersecting), { rootMargin: "0px 0px -50% 0px" });
-    io.observe(hero);
-    return () => io.disconnect();
-  }, [path, mounted]);
-  return inView;
-}
+import { expandChrome, isChromeCompact, useCompactChrome } from "@/components/landing/compact-chrome";
 
 const AVATAR_PALETTE = [
   "bg-orange-400/60 text-gray-950",
@@ -82,8 +45,7 @@ const SWIPE_PX = 28;
 export function ActionPill({ label, refer, promo }: { label: string | null; refer?: string | null; promo?: DockPromo | null }) {
   const path = usePathname();
   const [mounted, setMounted] = useState(false);
-  const overHero = useHeroInView(path, mounted);
-  const scrolling = useScrolling();
+  useCompactChrome();
   const { data: session } = usePublicSession();
   // `turn` counts moves (any integer); `dir` is the last move's direction; `leaving` is the face sliding out.
   const [slide, setSlide] = useState<{ turn: number; dir: 1 | -1; leaving: number | null }>({ turn: 0, dir: 1, leaving: null });
@@ -97,6 +59,13 @@ export function ActionPill({ label, refer, promo }: { label: string | null; refe
   const onTap = (e: MouseEvent) => {
     const a = (e.target as Element).closest("a[href]") as HTMLAnchorElement | null;
     if (a && new URL(a.href).pathname !== location.pathname) setTapped(a.getAttribute("href"));
+  };
+  // Only phones collapse the bar (CSS); there the first tap on it opens it rather than following a link.
+  const onCompactTap = (e: MouseEvent) => {
+    if (!isChromeCompact() || !matchMedia("(max-width: 640px)").matches) return;
+    e.preventDefault();
+    e.stopPropagation();
+    expandChrome();
   };
   const lit = (href: string) => (tapped === href) || undefined;
   const manual = useRef(0);
@@ -146,13 +115,10 @@ export function ActionPill({ label, refer, promo }: { label: string | null; refe
   }, [slide.leaving, slide.turn]);
 
   if (!mounted || !pillVisible(path)) return null;
-  // Smoky glass only over the home hero's video; other heroes (Refer's stage, with its light phone)
-  // keep the colour-aware glass.
-  const overVideo = !!document.querySelector(".lp-hero");
   const go = (d: 1 | -1) => { manual.current = Date.now(); move(d); };
   const shown = [...(slide.leaving != null && slide.leaving !== front ? [{ i: slide.leaving, role: "out" as const }] : []), { i: front, role: "in" as const }];
   return (
-    <nav className="tg-pill" aria-label="Quick actions" onClick={onTap} data-compact={scrolling || undefined} data-hero={(overHero && overVideo) || undefined}>
+    <nav className="tg-pill" aria-label="Quick actions" onClick={onTap} onClickCapture={onCompactTap}>
       {user ? (
         // Signed in: the way back into the app, shown as their account avatar (solid, not glass).
         <Link href={orderHref} prefetch={false} className="tg-pill__me" data-tapped={lit(orderHref)} aria-label={isStaffRole(role ?? Role.USER) ? "Open dashboard" : "Open my account"}>
