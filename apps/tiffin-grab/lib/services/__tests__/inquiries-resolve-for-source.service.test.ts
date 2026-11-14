@@ -1,5 +1,6 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { ensureSystemUser } from "@/db/test-helpers";
+import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { inquiries, inquiryActivities } from "@/db/schema";
 import { NotFoundError, ValidationError } from "@foundry/commons";
@@ -117,6 +118,22 @@ describe("inquiriesService.createOrFold — one open lead per person", () => {
     const out = await inquiriesService.createOrFold({ fullName: "L", phone, sourceKey: "facebook", email: testEmail() });
     expect(out.outcome).toBe("reopened");
     expect(out.inquiry.publicId).toBe(first.publicId);
+  });
+
+  it("a picked inquiry whose typed contact belongs to another row is refused", async () => {
+    const other = await inquiriesService.create({ fullName: "Other", phone: "+16475554140", sourceKey: "facebook", email: testEmail() });
+    const picked = await inquiriesService.create({ fullName: "Picked", phone: "+16475554141", sourceKey: "facebook", email: testEmail() });
+    await expect(
+      inquiriesService.resolveForSource({ phone: "+16475554140", sourceKey: "manual", contact: { fullName: "Picked" }, pickedId: picked.publicId, visible: "all" }),
+    ).rejects.toThrow(`contact belongs to ${other.publicId}`);
+  });
+
+  it("forOrder accepts a picked converted inquiry; without it the pick is refused", async () => {
+    const conv = await inquiriesService.create({ fullName: "Conv", phone: "+16475554142", sourceKey: "facebook", email: testEmail() });
+    await db.update(inquiries).set({ stage: "converted", subStatus: "took_plan" }).where(eq(inquiries.id, conv.id));
+    const input = { phone: "+16475554142", sourceKey: "manual", contact: { fullName: "Conv" }, pickedId: conv.publicId, visible: "all" as const };
+    await expect(inquiriesService.resolveForSource(input)).rejects.toThrow("That inquiry is already converted");
+    expect(await inquiriesService.resolveForSource({ ...input, forOrder: true })).toBe(conv.publicId);
   });
 
   it("email wins over an older phone match at the same stage", async () => {

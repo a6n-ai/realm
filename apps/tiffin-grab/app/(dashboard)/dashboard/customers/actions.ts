@@ -39,6 +39,7 @@ export async function createCustomerFlow(input: {
       interest: { ...input.interest, subSourceKey: input.source.subSourceKey },
       pickedId: input.pickedInquiryId,
       visible: await resolveSessionVisibleOrgIds(await getSession()),
+    forOrder: true,
     });
     const actorId = (await getSession())?.user?.id ?? null;
     const { publicId } = await createCustomer(input.contact, { actorId });

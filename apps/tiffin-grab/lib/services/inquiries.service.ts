@@ -1037,11 +1037,18 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
     pickedId?: string;
     /** The caller's visible orgs; a picked inquiry outside them reads as not found. */
     visible: "all" | string[];
+    /** Staff are creating an order: a converted inquiry is the customer's row and its next order is a renewal round. */
+    forOrder?: boolean;
   }): Promise<string> {
     if (input.pickedId) {
       await assertInquiriesVisible([input.pickedId], input.visible);
       const picked = await this.read(input.pickedId);
-      if (picked.stage === "converted") throw new ValidationError("That inquiry is already converted");
+      if (picked.stage === "converted" && !input.forOrder) throw new ValidationError("That inquiry is already converted");
+      const phone = input.phone?.trim() ? parsePhone(input.phone.trim()) : null;
+      const whatsapp = input.whatsappPhone?.trim() ? parsePhone(input.whatsappPhone.trim()) : null;
+      const email = input.contact.email?.trim() ? parseEmail(input.contact.email.trim()) : null;
+      const { match } = await findMatch(phone, email, picked.id, whatsapp);
+      if (match) throw new ValidationError(`This contact belongs to ${match.publicId}. Open that inquiry instead.`);
       return picked.publicId;
     }
     // create() folds into the person's open inquiry (phone or email match).

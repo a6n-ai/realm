@@ -182,7 +182,7 @@ export function AddInquirySheet({
         notes: values.notes || undefined,
       }));
       localStore.setJson(LAST_SOURCE_KEY, { source: values.sourceKey, sub: values.subSourceKey || "" });
-      toast.success(res.folded ? `Added to ${res.fullName ?? "their"} open lead` : "Lead added", {
+      toast.success(res.outcome === "reopened" ? `Added back to ${res.fullName ?? "their"} inquiry` : res.folded ? `Added to ${res.fullName ?? "their"} inquiry` : "Lead added", {
         action: { label: "Open", onClick: () => router.push(`/dashboard/inquiries/${res.publicId}`) },
       });
       router.refresh();

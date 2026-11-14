@@ -54,7 +54,7 @@ export function QuickAddDialog({ trigger, sources }: { trigger: React.ReactNode;
       const res = await unwrapAction(quickAddInquiries({ text, sourceKey, subSourceKey: subSourceKey || undefined }));
       localStore.setJson(LAST_SOURCE_KEY, { source: sourceKey, sub: subSourceKey });
       const failedPart = res.failed.length ? `, ${res.failed.length} failed` : "";
-      toast.success(`${res.added} added, ${res.folded} already open${failedPart}`, {
+      toast.success(`${res.added} added, ${res.folded} already on file${failedPart}`, {
         description: res.failed.length ? res.failed.map((f) => `${f.phone}: ${f.error}`).join("\n") : undefined,
       });
       router.refresh();

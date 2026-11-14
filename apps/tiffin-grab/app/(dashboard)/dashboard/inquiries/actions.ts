@@ -48,8 +48,8 @@ export async function createInquiry(input: {
 }) {
   return staffAction(listOpts, async () => {
     // Same person (phone or email) with an open inquiry: logged there as a re-inquiry.
-    const { inquiry, folded } = await inquiriesService.createOrFold(input);
-    return { publicId: inquiry.publicId, folded, fullName: inquiry.fullName };
+    const { inquiry, folded, outcome } = await inquiriesService.createOrFold(input);
+    return { publicId: inquiry.publicId, folded, outcome, fullName: inquiry.fullName };
   });
 }
 

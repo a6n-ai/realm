@@ -47,6 +47,7 @@ async function resolveOrderLead(input: {
     interest: { ...input.interest, subSourceKey: input.source.subSourceKey },
     pickedId: input.pickedInquiryId,
     visible: await resolveSessionVisibleOrgIds(await getSession()),
+    forOrder: true,
   });
   return { inquiryId, email };
 }
