@@ -1,5 +1,5 @@
 import { AppError, AuthError, ForbiddenError } from "@foundry/commons";
-import { MealRuleViolationError } from "@/lib/menu/meal-rule-error";
+import { MealRuleViolationError } from "@/lib/errors";
 
 /**
  * Shared return shape for customer-facing "use server" mutations that can be

@@ -7,7 +7,7 @@ import Link from "next/link";
 import { db } from "@/db/client";
 import { deliveryZones, inquiries } from "@/db/schema";
 import { requireStaff, roleCan } from "@/lib/auth/guards";
-import { LOST_REASON_LABELS } from "@/lib/analytics/leads.service";
+import { LOST_REASON_LABELS } from "@/lib/inquiries/lost-reason";
 import { getAppSettings } from "@/lib/settings";
 import { listActiveLeadSources } from "@/lib/inquiries/lead-sources.service";
 import { inquiriesService, inquiryBucketWhere, type QueueTab } from "@/lib/inquiries/inquiries.service";

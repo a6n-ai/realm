@@ -10,9 +10,8 @@ const { attachDishToPlans, categoryIdFor, testPlanId, deleteNonSystemUsers } = a
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { createOrder } = await import("../../orders/create-order");
 const { ordersService } = await import("../../orders/orders.service");
+const { assertOwnsDelivery, assertOwnsOrder } = await import("../../orders/access");
 const {
-  assertOwnsDelivery,
-  assertOwnsOrder,
   myActiveSubscriptions,
   myCalendar,
   myDeliveries,

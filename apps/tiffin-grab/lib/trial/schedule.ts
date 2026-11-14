@@ -1,6 +1,6 @@
 import { dayAllowed, type AllowedDays, WEEK_DAYS, type DayOfWeek } from "@/lib/deliveries/schedule/delivery-days";
 import { parseIsoDateUtc, weekdayKey, nextWeekday, ValidationError } from "@foundry/commons";
-import { validateStartDate } from "@/lib/orders/start-date";
+import { validateStartDate } from "@/lib/dates/start-date";
 import { addDaysIso, isWeekendDay, utcIso, daysBetween } from "@foundry/commons/util/dates";
 
 /** A trial runs inside one week: at most 5 days. */

@@ -8,7 +8,7 @@ import { durationSavings } from "@/lib/pricing/recommend";
 import { formatDateOnly } from "@/lib/format/datetime";
 import { DateField } from "@/components/kit/date-field";
 import { earliestTrialIso } from "@/lib/trial/schedule";
-import { appToday, planStartDays, startWindow } from "@/lib/orders/start-date";
+import { appToday, planStartDays, startWindow } from "@/lib/dates/start-date";
 import { TrialDayPicker } from "../trial-day-picker";
 import { plannedSchedule, ScheduleCard } from "../schedule-card";
 import { WeeksSlider } from "../weeks-slider";

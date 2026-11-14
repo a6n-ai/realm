@@ -6,7 +6,7 @@ import { currentUserId } from "@/lib/services/session-service";
 import { moveMissedDelivery, reconcileMissedDeliveries } from "@/lib/deliveries/missed-deliveries.service";
 import type { ActionResult } from "@/lib/actions/action-result";
 import { staffAction } from "@/lib/actions/staff-action";
-import { orderAction } from "@/lib/actions/order-action";
+import { orderAction } from "@/lib/orders/order-action";
 
 export async function reconcileMissedAction(): Promise<ActionResult> {
   return staffAction(

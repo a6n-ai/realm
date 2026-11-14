@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache";
 import type { AddressInput } from "@foundry/address";
 import { NotFoundError } from "@foundry/commons";
 import { currentUserId } from "@/lib/services/session-service";
-import { assertCanManageDelivery, assertCanManageOrder, assertOrderUnlocked } from "@/lib/deliveries/customer-deliveries.service";
+import { assertCanManageDelivery, assertCanManageOrder, assertOrderUnlocked } from "@/lib/orders/access";
 import { setDeliveryAddress, clearDeliveryAddress, rescheduleDelivery } from "@/lib/deliveries/deliveries.service";
 import { listPauseDays, pauseDays, releasePausedDaysDetailed, type PauseDay, type ReclosedDay } from "@/lib/deliveries/pause-days.service";
 import { autoMovePausedOn, setAutoMovePaused } from "@/lib/deliveries/pause-auto-move";

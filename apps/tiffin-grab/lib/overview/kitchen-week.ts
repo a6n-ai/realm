@@ -1,10 +1,12 @@
+import { addDaysIso as addDays } from "@foundry/commons/util/dates";
+
 export const KITCHEN_WEEK_ROWS = 8;
 
 export type WeekCell = { mealSize: string; date: string; units: number };
 export type KitchenWeekRow = { mealSize: string; days: number[]; total: number; prevTotal: number };
 
 /** Rows per meal size for Mon-Sun from `monday`; `prevTotal` is the 7 days before. Sorted by total, desc. */
-export function buildKitchenWeek(cells: WeekCell[], monday: string, addDays: (iso: string, n: number) => string): KitchenWeekRow[] {
+export function buildKitchenWeek(cells: WeekCell[], monday: string): KitchenWeekRow[] {
   const dates = Array.from({ length: 7 }, (_, i) => addDays(monday, i));
   const prevFrom = addDays(monday, -7);
   const byName = new Map<string, KitchenWeekRow>();

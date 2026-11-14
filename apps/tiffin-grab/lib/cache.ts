@@ -7,11 +7,12 @@ import { isWorkers } from "@foundry/commons/runtime/platform";
  * dev/tests/build are LRU-only). The tier is wired here and injected. `name` namespaces
  * keys and scopes `evictAll()` to just this cache.
  */
-export function sharedCache(name: string, defaultTtlMs = 60_000, kvRetainMs = 0, workersL1CapMs?: number): TieredCache {
-  const l1 = isWorkers() && workersL1CapMs ? new CappedLruTier(workersL1CapMs) : new LruTier();
+export function sharedCache(name: string, defaultTtlMs = 60_000, kvRetainMs = 0, capWorkersL1 = false): TieredCache {
+  const l1 = isWorkers() && capWorkersL1 ? new CappedLruTier(WORKERS_L1_CAP_MS) : new LruTier();
   return new TieredCache({ name, tiers: [l1, ...sharedTier(name, kvRetainMs)], defaultTtlMs });
 }
 
+const WORKERS_L1_CAP_MS = 60_000;
 // Another isolate's L1 cannot be evicted, so a cache that public pages regenerate from must not hold
 // a copy longer than the cap, or a revalidation re-caches the stale value.
 class CappedLruTier extends LruTier {

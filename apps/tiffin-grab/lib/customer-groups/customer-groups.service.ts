@@ -23,6 +23,7 @@ import { formatEpoch } from "@/lib/format/datetime";
 import { DEFAULT_GRANT_REASON, walletCreditedEmailDraft } from "@/lib/notifications/wallet-credited-copy";
 import { listPayoutCandidates } from "../services/customer-payouts.service";
 import { walletService } from "../wallet/wallet.service";
+import { grantActionId, grantGroupName, grantGroupPublicId, grantSourceId, legacyGroup } from "../wallet/grant-source";
 import { balanceSql } from "../wallet/wallet-balances.service";
 import { campaignDeps } from "@/lib/notifications/deps";
 const BATCH = 500;
@@ -68,8 +69,6 @@ export type GroupActionRow = {
   createdAt: number;
   createdBy: string | null;
 };
-export type GroupCampaignRow = { publicId: string; name: string; status: string; createdAt: number };
-
 function chunks<T>(xs: T[]): T[][] {
   const out: T[][] = [];
   for (let i = 0; i < xs.length; i += BATCH) out.push(xs.slice(i, i + BATCH));
@@ -262,11 +261,6 @@ export type GiveHistoryFilters = {
 };
 
 const giver = alias(users, "giver");
-export const grantActionId = sql`split_part(${walletLedger.sourceId}, ':', 2)`;
-// Legacy grants stored the GROUP public id (not an action id) in that segment.
-export const legacyGroup = alias(customerGroups, "legacy_group");
-export const grantGroupName = sql<string | null>`coalesce(${customerGroups.name}, ${legacyGroup.name})`;
-export const grantGroupPublicId = sql<string | null>`coalesce(${customerGroups.publicId}, ${legacyGroup.publicId})`;
 
 export async function giveHistoryRows(f: GiveHistoryFilters) {
   const term = f.q?.trim();
@@ -550,7 +544,7 @@ export async function giveGroupCoins(
           userId,
           direction: "credit" as const,
           sourceType: "manual_broadcast",
-          sourceId: `grant:${a.publicId}:${userId}`,
+          sourceId: grantSourceId(a.publicId, userId),
           coins: input.coins,
           memo: memo ?? "Manual customer payout",
           createdBy: actorId,

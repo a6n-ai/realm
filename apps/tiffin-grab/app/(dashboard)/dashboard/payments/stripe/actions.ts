@@ -18,7 +18,7 @@ import {
 import { refundStripePayment } from "@/lib/payments/stripe-charge";
 import type { ActionResult } from "@/lib/actions/action-result";
 import { staffAction, type Guard } from "@/lib/actions/staff-action";
-import { orderAction } from "@/lib/actions/order-action";
+import { orderAction } from "@/lib/orders/order-action";
 
 const OUTCOME_TEXT: Record<SettleOutcome, string> = {
   paid: "Settled: payment marked paid",

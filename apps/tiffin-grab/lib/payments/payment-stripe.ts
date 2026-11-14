@@ -14,7 +14,7 @@ import { db } from "@/db/client";
 import { ledgerEntries, orderActivities, orders, payments, users } from "@/db/schema";
 import { clearStripeCustomer, customerStore, stripeRuntime } from "@/lib/payments/stripe";
 import { fromCents, toCents } from "@/lib/money";
-import { cardPayClosed } from "@/lib/orders/display-status";
+import { cardPayClosed } from "@/lib/payments/card-pay-closed";
 import { resolveProvince } from "@/lib/tax/canada";
 import { stripeTaxFor } from "@/lib/tax/checkout-taxes";
 import type { OrderPricingSnapshot } from "@/lib/pricing/types";
@@ -27,6 +27,7 @@ import { enqueueStaffNotification } from "@/lib/notifications/enqueue";
 import { enqueueOrderNotice } from "@/lib/notifications/order-notice";
 import { getAppSettings } from "@/lib/settings";
 import { settleAddonPayment } from "../orders/order-addons.service";
+import { notifyPaidNotStarted } from "../orders/start-paid-order";
 import { chargedCents, tryChargeLock } from "./stripe-charge";
 import { verifyPayment, refundPaymentInTx } from "@/lib/payments/verification";
 import { resolveUserId } from "@/lib/identity/user-ids";
@@ -150,19 +151,13 @@ export async function settleStripePayment(
   const [order] = await db.select({ status: orders.status, publicId: orders.publicId, deploymentId: orders.deploymentId }).from(orders).where(eq(orders.id, pay.orderId)).limit(1);
   if (order?.status === "cancelled" && !pay.addonRequest) {
     await activityOnce(pay.orderId, "payment_failed", NOTE_CANCELLED_ORDER, piId, "- refund it in Stripe");
-    await db.transaction((tx) => enqueueStaffNotification(tx, {
-      organizationId: pay.organizationId,
-      title: "Card payment needs attention",
-      body: `Paid on a cancelled order — refund needed · order ${order.deploymentId}`,
-      href: `/dashboard/orders/${order.publicId}`,
-      dedupeKey: `paid_not_started:${order.publicId}`,
-    }));
+    await db.transaction((tx) => notifyPaidNotStarted(tx, { ...order, organizationId: pay.organizationId }, "Paid on a cancelled order — refund needed"));
     log.error({ paymentId: pay.publicId, piId, source }, "stripe payment on cancelled order");
     return "order_cancelled";
   }
 
   const { currency } = await getAppSettings();
-  const expected = toCents(pay.amount) + toCents(pay.surchargeAmount ?? 0);
+  const expected = chargedCents(pay);
   if (st.amountReceivedCents !== expected || st.currency !== currency.toLowerCase()) {
     await activityOnce(
       pay.orderId,
@@ -454,7 +449,7 @@ export async function listSavedCards(userPublicId: string): Promise<SavedCard[]>
 
 type PaymentRow = typeof payments.$inferSelect;
 function receiptOf(pay: Pick<PaymentRow, "cardBrand" | "cardLast4" | "surchargeAmount" | "amount">): CardReceipt {
-  return { paidWith: paidWithLabel({ brand: pay.cardBrand, last4: pay.cardLast4 }), feeCents: toCents(pay.surchargeAmount), totalCents: toCents(pay.amount) + toCents(pay.surchargeAmount) };
+  return { paidWith: paidWithLabel({ brand: pay.cardBrand, last4: pay.cardLast4 }), feeCents: toCents(pay.surchargeAmount), totalCents: chargedCents(pay) };
 }
 
 /** What was actually charged, read from the payment row (a 3DS return has no in-memory card). */

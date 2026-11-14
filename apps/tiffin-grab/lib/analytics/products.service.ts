@@ -181,14 +181,6 @@ const TIER_LABELS: Record<string, string> = { budget: "Budget", medium: "Medium"
 
 export type PaidTierRow = { tier: string; key: string; payments: number; paid: number };
 
-export type PaidMealTypeRow = {
-  mealType: string;
-  key: string;
-  plan: string;
-  payments: number;
-  paid: number;
-};
-
 /**
  * Every revenue bucket, so each split sums to the Revenue tab's net. Custom sizes (and money on a size no longer
  * in the catalog) have no tier; they fall under tier "custom".

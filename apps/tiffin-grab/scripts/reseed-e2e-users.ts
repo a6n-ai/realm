@@ -1,7 +1,7 @@
 import { db } from "../db/client";
 import { sql } from "drizzle-orm";
 import { assertLocalDb } from "../db/is-local-db";
-import { hashPassword } from "../lib/auth/password";
+import { hashPassword } from "@foundry/auth";
 
 /**
  * PROD SAFETY: this script writes credentials for info@foodmonks.ca — which is also the

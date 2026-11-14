@@ -109,7 +109,7 @@ export async function getKitchenWeek(visible: Visible, monday: string): Promise<
       ),
     )
     .groupBy(plans.name, deliveries.deliveryDate);
-  return buildKitchenWeek(rows.map((r) => ({ mealSize: r.mealSize, date: String(r.date), units: r.units })), monday, addDaysIso);
+  return buildKitchenWeek(rows.map((r) => ({ mealSize: r.mealSize, date: String(r.date), units: r.units })), monday);
 }
 
 /**

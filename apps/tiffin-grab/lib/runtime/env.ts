@@ -43,6 +43,12 @@ export const sesTransactionalConfigSet = () => process.env.SES_TRANSACTIONAL_CON
 export const sesTrackedConfigSet = () => process.env.SES_TRACKED_CONFIGURATION_SET;
 export const processEnv = () => process.env;
 
+export const integrationsMasterKey = () => process.env.INTEGRATIONS_ENCRYPTION_KEY;
+export const gaMeasurementId = () => process.env.GA_MEASUREMENT_ID;
+export const e2eBaseUrl = () => process.env.E2E_BASE_URL;
+export const turnstileSiteKey = () => process.env.TURNSTILE_SITE_KEY;
+export const turnstileSecretKey = () => process.env.TURNSTILE_SECRET_KEY;
+
 export const cronSecret = () => process.env.CRON_SECRET;
 /** Cloudflare token (Cache Purge on tiffingrab.ca only). Set: pages stay in the edge cache an hour and are purged on edit. */
 export const edgePurgeToken = () => process.env.CF_CACHE_PURGE_TOKEN;

@@ -189,15 +189,16 @@ export async function getKitchenPackingSheet(dateIso: string): Promise<KitchenPa
     const nth = seenByDate.get(forDate) ?? 0;
     seenByDate.set(forDate, nth + 1);
     const extraLabel = extraTiffinLabelAt(movesInById.get(row.deliveryId), forDate, nth);
+    const daySwaps = swapsForDay(swapRows, { id: row.deliveryId, deliveryDate: row.deliveryDate }, forDate);
     // Slot key → line. Selectable picks keep pickIndex so sabzi 12oz and 8oz stay separate.
     const lineBySlot = new Map<string, PackingItemLine>();
     const portions = portionsByCategory(
       itemsFor(row),
       tuByKey,
-      swapsForDay(swapRows, { id: row.deliveryId, deliveryDate: row.deliveryDate }, forDate),
+      daySwaps,
     );
     // Add-on rows (extra sabzi…) are marked so the packer sees what's extra in the tiffin.
-    const addonPicks = addonPickIndexes(itemsFor(row), swapsForDay(swapRows, { id: row.deliveryId, deliveryDate: row.deliveryDate }, forDate), tuByKey);
+    const addonPicks = addonPickIndexes(itemsFor(row), daySwaps, tuByKey);
 
     const week = await loadWeek(forDate);
     if (week) {
@@ -207,7 +208,7 @@ export async function getKitchenPackingSheet(dateIso: string): Promise<KitchenPa
           week,
           forDate,
           person,
-          swapsForDay(swapRows, { id: row.deliveryId, deliveryDate: row.deliveryDate }, forDate),
+          daySwaps,
           mealCache,
         );
         const ordered = [...resolved].sort(
@@ -236,7 +237,6 @@ export async function getKitchenPackingSheet(dateIso: string): Promise<KitchenPa
             });
           } else {
             // Count (roti/rice): every slot's pieces summed into one total ("8 Rotis"); never × in the cell.
-            const daySwaps = swapsForDay(swapRows, { id: row.deliveryId, deliveryDate: row.deliveryDate }, forDate);
             const pick = cat.picks[0]!;
             const mealItems = itemsFor(row);
             const slots = slotTuAfterSwaps(mealItems, daySwaps, tuByKey).get(cat.category) ?? [];

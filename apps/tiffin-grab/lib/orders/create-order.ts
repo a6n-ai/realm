@@ -39,7 +39,7 @@ import { scheduleWrite } from "../deliveries/holiday-apply";
 import { ledgerService } from "../payments/ledger.service";
 import { assertStartable } from "./order-window";
 import { matchCustomerAccounts, provisionCustomerByPhone, STAFF_ACCOUNT_MESSAGE } from "../services/customers.service";
-import { appToday, validateStartDate } from "./start-date";
+import { appToday, validateStartDate } from "@/lib/dates/start-date";
 import {
   lockAndQuoteCoinRedemption,
   balanceInTx,

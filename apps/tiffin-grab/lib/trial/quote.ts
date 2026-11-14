@@ -6,7 +6,7 @@ import { effectivePrice } from "@/lib/pricing/meal-size-discount";
 import { assertPersons, buildDeliveryChargeConfig, catalogWaivers } from "@/lib/pricing/build-catalog";
 import type { PricingCatalog, PricingSelections } from "@/lib/pricing/types";
 import { getTrialSettings } from "@/lib/trial/trial-settings.service";
-import { appToday } from "@/lib/orders/start-date";
+import { appToday } from "@/lib/dates/start-date";
 import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 import { assertTrialStart, durationWeeksCovering, orderedTrialWeekdays, resolveTrialDays, trialDeliveryDates, trialSendDays } from "./schedule";
 

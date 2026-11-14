@@ -9,7 +9,7 @@ const { db } = await import("@/db/client");
 const { deleteNonSystemUsers } = await import("@/db/test-helpers");
 const { ticketMessages, tickets, users } = await import("@/db/schema");
 const { ticketsService } = await import("../tickets.service");
-const { parseComplaintFilters, complaintHref } = await import("../../analytics/complaint-filters");
+const { parseComplaintFilters, complaintHref } = await import("../complaint-filters");
 
 const now = Date.now();
 const DAY = 24 * 60 * 60 * 1000;

@@ -1,5 +1,6 @@
 "use client";
 
+import { formatAddressLine } from "@/lib/catalog/address-line";
 import { useTimezone } from "@foundry/design-system/timezone-provider";
 import { useAppCurrency, useFormatMoney } from "@/components/app-currency";
 import { sanitizeClientError } from "@foundry/commons/util/client-error";
@@ -110,7 +111,7 @@ const addressOf = (c: Contact): AddressDraft => ({
   deliveryInstructions: c.deliveryInstructions ?? "",
 });
 
-const oneLine = (a: AddressDraft) => [a.addressUnit ? `${a.addressUnit}–${a.addressLine}` : a.addressLine, a.city, a.postalCode].filter(Boolean).join(", ");
+const oneLine = formatAddressLine;
 
 function addressFields(a: SavedAddress): Partial<Contact> {
   return {

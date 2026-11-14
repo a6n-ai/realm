@@ -6,7 +6,7 @@ import { effectiveTrackStatus, isClosedTrack, type TrackStatus } from "@/lib/ren
 import { NotFoundError, ValidationError } from "@foundry/commons";
 import { BaseRepository, UpdatableRepository } from "@foundry/database";
 import { and, desc, eq, gte, inArray, isNull, lt, sql, type SQL } from "drizzle-orm";
-import { assertFiniteFollowUp, type LostReason } from "../inquiries/inquiries.service";
+import { assertFiniteFollowUp, type LostReason } from "../inquiries/lost-reason";
 import { SessionBaseService, SessionUpdatableService } from "../services/session-service";
 
 export const computedStatusSql = sql<RenewalStatus>`(case when ${orders.trialLength} is not null then ${renewalStatusSql(true)} else ${renewalStatusSql(false)} end)`;

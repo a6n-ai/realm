@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { CalendarDaysIcon } from "lucide-react";
 import { Button } from "@foundry/ui/button";
-import { ChartCard } from "@/components/analytics/chart-card";
+import { ChartCard } from "@/components/dashboard/analytics/chart-card";
 import { Badge } from "@/components/reui/badge";
 import { menuService } from "@/lib/menu/menu.service";
 import { FooterLink } from "./footer-link";

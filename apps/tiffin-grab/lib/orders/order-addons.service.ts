@@ -11,7 +11,7 @@ import { deliveries, mealSizes, orderActivities, orderAddons, orders, payments, 
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { countsWithAddons, orderAddonValues } from "@/lib/menu/order-addon-items";
 import { enqueueStaffNotification } from "@/lib/notifications/enqueue";
-import { canTakeAddonPayment } from "@/lib/orders/display-status";
+import { canTakeAddonPayment } from "@/lib/orders/addon-eligibility";
 import { nextCutoffMs } from "@/lib/orders/paid-start";
 import { fromCents, toCents } from "@/lib/money";
 import { resolveAddonSelections, type ResolvedAddon } from "@/lib/pricing/build-catalog";

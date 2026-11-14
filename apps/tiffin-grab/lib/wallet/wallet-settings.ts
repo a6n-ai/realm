@@ -21,8 +21,10 @@ export async function setMaxWalletBalance(cap: number | null): Promise<void> {
  * Read on the checkout path, so cached like the rest.
  */
 export async function getMaxCoinRedeemPctOfBalance(): Promise<number | null> {
-  const [row] = await db.select({ val: app.maxCoinRedeemPctOfBalance }).from(app).limit(1);
-  return row?.val ?? null;
+  return settingsCache.getOrSet("maxCoinRedeemPctOfBalance", async () => {
+    const [row] = await db.select({ v: app.maxCoinRedeemPctOfBalance }).from(app).limit(1);
+    return row?.v ?? null;
+  });
 }
 
 export async function getMaxCoinPctOfSubtotal(): Promise<number | null> {
@@ -55,5 +57,5 @@ export async function setCoinEarnPct(pct: number): Promise<void> {
 }
 
 export async function setMaxCoinRedeemPctOfBalance(pct: number | null): Promise<void> {
-  await db.update(app).set({ maxCoinRedeemPctOfBalance: pct });
+  await saveSetting({ maxCoinRedeemPctOfBalance: pct });
 }

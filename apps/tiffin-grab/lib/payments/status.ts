@@ -27,6 +27,8 @@ export const PAID = ["paid", "simulated_paid"] as const;
 export const CAPTURED = [...PAID, "refunded"] as const;
 /** Staff still has to confirm money. */
 export const PENDING = ["awaiting_payment", "pending_verification"] as const;
+/** Staff rejected the claim; customer must start a new order (hidden from /me lists). */
+export const REJECTED = "rejected" as const;
 /** Customer still owes: an open link or a rejected claim. */
 export const UNPAID = ["awaiting_payment", "rejected"] as const;
 /** A provider confirmation or manual verify may still settle these. */

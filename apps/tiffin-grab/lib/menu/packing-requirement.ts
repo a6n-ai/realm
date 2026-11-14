@@ -99,11 +99,6 @@ export function countPackNaturalTotal(
   return total;
 }
 
-/** Identity helper for summary-style joins that already pass pre-merged lines. */
-export function rollUpEqualPortions(portions: PortionQty[]): PortionQty[] {
-  return portions;
-}
-
 /** Item cell, one shape for every dish: count → "8 Rotis" / "Veg Pulao" (one); weight → "Dal - 8oz" / "Dal - 8oz × 2". */
 export function formatItemCell(
   line: Pick<PackingItemLine, "name" | "portion" | "quantity" | "packStyle">,

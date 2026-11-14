@@ -1,11 +1,11 @@
 import { ImageResponse } from "next/og";
 import { referCardAssets } from "@/lib/referrals/card-assets";
-import { isReferralCodeShape, normalizeReferralCode } from "@/lib/referrals/cookie";
+import { parseReferralCode } from "@/lib/referrals/cookie";
 import { friendOfferParts } from "@/lib/referrals/share";
 import { getAppSettings } from "@/lib/settings";
 import { getReferralSettings } from "@/lib/referrals/referral-settings";
 import { findReferrerByCode } from "@/lib/referrals/referrals.service";
-import { walletService } from "@/lib/wallet/wallet.service";
+import { activeCoinRate } from "@/lib/referrals/offer";
 import { siteOrigin } from "@/lib/runtime/env";
 
 // Public (see PUBLIC_API in proxy.ts): WhatsApp and other link-preview crawlers fetch it with no cookie.
@@ -50,8 +50,8 @@ const LAYOUT = {
 };
 
 export async function GET(req: Request, { params }: { params: Promise<{ code: string }> }) {
-  const code = normalizeReferralCode((await params).code);
-  if (!isReferralCodeShape(code)) return new Response("Not found", { status: 404 });
+  const code = parseReferralCode((await params).code);
+  if (!code) return new Response("Not found", { status: 404 });
   const og = new URL(req.url).searchParams.get("size") === "og";
   const L = LAYOUT[og ? "og" : "phone"];
   const T = THEMES[new URL(req.url).searchParams.get("theme") === "dark" ? "dark" : "light"];
@@ -59,8 +59,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ code: st
   const [referrer, [bold, medium, tiffin, mark], settings, { currency }] = await Promise.all([findReferrerByCode(code), referCardAssets(req.url), getReferralSettings(), getAppSettings()]);
   // No card for codes that don't belong to an active customer.
   if (!referrer) return new Response("Not found", { status: 404 });
-  const perCoin = await walletService.activeRate(currency).catch(() => null);
-  const offer = friendOfferParts(settings, perCoin == null ? null : { perCoin, currency });
+  const offer = friendOfferParts(settings, await activeCoinRate(currency));
   const who = referrer.firstName ?? "A friend";
   const host = new URL(siteOrigin()).host;
   const k = L.width / 1080;

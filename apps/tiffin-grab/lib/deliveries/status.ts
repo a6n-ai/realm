@@ -1,4 +1,3 @@
-import { RUNNING, inOrderStatuses } from "@/lib/orders/status";
 
 export type DeliveryStatus = "delivered" | "upcoming" | "paused" | "hold" | "combined" | "holiday";
 
@@ -56,6 +55,3 @@ export function deliveryTripState(d: StateInput): DeliveryStatus {
   // Not confirmed by OptimoRoute or an admin yet, whatever the cutoff says.
   return "upcoming";
 }
-
-/** A plan that still has days to deliver (the delivery schedule is manageable). */
-export const isLiveOrder = (status: string) => inOrderStatuses(RUNNING, status);

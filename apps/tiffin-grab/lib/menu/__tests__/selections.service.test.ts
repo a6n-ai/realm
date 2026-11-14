@@ -175,7 +175,7 @@ describe("selectionsService.setSelection", () => {
 describe("selectionsService.setSelection on a custom meal", () => {
   it("holds each sabzi pick to its own row's diet (non-veg row, then veg rows incl. an add-on)", async () => {
     await reset();
-    const { findOrCreateCustomMealSize } = await import("@/lib/custom-meal/custom-meal.service");
+    const { findOrCreateCustomMealSize } = await import("@/db/custom-meal-fixtures");
     const snap = await loadCatalogSnapshot();
     const nonVegPlanId = await testPlanId("non-veg");
     const size = await findOrCreateCustomMealSize([

@@ -2,6 +2,7 @@ import { CONTACT_EMAIL, CONTACT_PHONE } from "@/lib/brand";
 import type { SiteFacts } from "@/lib/landing/site-facts";
 import { shortMoney } from "@/lib/landing/live-figures";
 import { dropOffNote } from "@/lib/landing/llms-text";
+import { PAUSE_NOTICE_HOURS, PAYMENT_METHODS } from "@/lib/landing/policy-facts";
 
 export type FaqGroup = { heading: string; items: { q: string; a: string }[] };
 
@@ -36,7 +37,7 @@ export function buildFaq(f: SiteFacts, referral: string | null): FaqGroup[] {
   const changing: FaqGroup["items"] = [];
   if (f.cutoff) changing.push({ q: "What is the cutoff to change or pause a day?", a: `You can change or pause any day by ${f.cutoff} the night before it. The cutoff is the same on every delivery run. If you would rather ask us, message us on WhatsApp or email at least 24 hours before your next delivery, and we will sort it out.` });
   changing.push({ q: "Can I skip a day?", a: `Yes. Pause the day${f.cutoff ? ` before the ${f.cutoff} cutoff the night before` : " before the cutoff"} and it stays yours: move it to a later date, or let it go to the end of your plan. Unused days are credited to the end of the period, not refunded as cash.` });
-  changing.push({ q: "Can I pause my whole plan?", a: "Yes. Ask us at least 24 hours before your next delivery, by WhatsApp or email. Unused days can be credited to the end of your plan, not refunded in cash. Plans are tied to your delivery address, so tell us before you move, and we will confirm your new area." });
+  changing.push({ q: "Can I pause my whole plan?", a: `Yes. Ask us at least ${PAUSE_NOTICE_HOURS} hours before your next delivery, by WhatsApp or email. Unused days can be credited to the end of your plan, not refunded in cash. Plans are tied to your delivery address, so tell us before you move, and we will confirm your new area.` });
   changing.push({ q: "Can I choose my dishes?", a: `Yes. Each week you pick dishes from the released menu. This week's dishes are on the Menu page, day by day, so you can see what is coming before you choose.${f.cutoff ? ` Change any day before the ${f.cutoff} cutoff the night before.` : " Change any day before the cutoff the night before."}` });
 
   const plans: FaqGroup["items"] = [];
@@ -56,7 +57,7 @@ export function buildFaq(f: SiteFacts, referral: string | null): FaqGroup[] {
   food.push({ q: "How are meals packed, and how do I store and reheat them?", a: "Meals are prepared fresh and packed in food-safe materials. Refrigerate within two hours of delivery if you are not eating right away, and eat refrigerated meals within 24 hours. Reheat thoroughly, and do not refreeze a meal that has been refrigerated." });
 
   const pay: FaqGroup["items"] = [
-    { q: "How do I pay?", a: `You pay by card through Stripe, or by Interac e-Transfer. Plans are paid upfront for the length you choose, in ${f.currency}. With an e-Transfer, deliveries start once we confirm it. Automatic renewal applies only if checkout says so; otherwise you renew by hand.` },
+    { q: "How do I pay?", a: `You pay by ${PAYMENT_METHODS}. Plans are paid upfront for the length you choose, in ${f.currency}. With an e-Transfer, deliveries start once we confirm it. Automatic renewal applies only if checkout says so; otherwise you renew by hand.` },
     { q: "Can I get a refund?", a: "Trial and weekly plans are not refundable, except where the law requires. Monthly plans are generally non-refundable once started, but you can cancel in writing at least 48 hours before your first delivery for a full refund. Your rights under Ontario consumer law still apply." },
     { q: "Can I cancel after my plan starts?", a: "Monthly fees are generally non-refundable after the plan starts. If you need a break, pause instead: unused days are credited to the end of your plan. If we stop serving your area after you buy, you get a pro-rata refund for undelivered days within 14 business days." },
     { q: "What if there is a problem with my meal?", a: `Report it within two hours of delivery, in writing to ${CONTACT_EMAIL}, with photos, your order number and the delivery time. We aim to reply within three business days. A fix can be a replacement meal or a credit for one service day. Storage after delivery is not covered.` },

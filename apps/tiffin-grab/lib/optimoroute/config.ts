@@ -49,8 +49,6 @@ const optimoRouteConfigSchema = z.object({
     .object({ start: z.string().regex(/^\d{2}:\d{2}$/), end: z.string().regex(/^\d{2}:\d{2}$/) })
     .default({ start: "07:00", end: "23:00" }),
 });
-export type OptimoRouteConfig = z.infer<typeof optimoRouteConfigSchema>;
-
 export const optimoRouteSlice = integrationSlice(OPTIMOROUTE_KEY, optimoRouteConfigSchema, {
   store: integrationsConfigStore,
   readStore: integrationsConfigReadStore,

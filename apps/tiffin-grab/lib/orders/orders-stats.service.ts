@@ -7,7 +7,7 @@ import { db } from "@/db/client";
 import { deliveries, orderActivities, orders, payments } from "@/db/schema";
 import { getAppSettings } from "@/lib/settings";
 import { PENDING } from "@/lib/payments/status";
-import { paymentStatusIn } from "@/lib/payments/status-sql";
+import { paymentStatusIn, planPaymentSql } from "@/lib/payments/status-sql";
 import { freeTiffinsWhere, lastTiffinSql, laterOrderSql, paymentReviewWhere, type FreeTiffinRange } from "@/lib/orders/queries";
 import { addDaysIso, DAY_MS } from "@foundry/commons/util/dates";
 import { requestNow } from "@/lib/dates/request-now";
@@ -146,7 +146,7 @@ export async function getPaymentReviewStats(visible: Visible): Promise<PaymentRe
     .innerJoin(orders, sql`${orders.id} = ${payments.orderId}`)
     .where(and(
       orderStatusIn(ONGOING),
-      isNull(payments.addonRequest),
+      planPaymentSql,
       paymentStatusIn(PENDING),
       orgScope(orders.organizationId, visible),
     ));

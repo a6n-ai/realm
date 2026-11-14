@@ -16,7 +16,7 @@ import { cancelOrderAndOpenPayments } from "@/lib/orders/unpaid-checkouts";
 import { adminSetDeliveryStatus, grantComplimentaryTiffin, isAdminDeliveryStatus, redeliverTrip } from "@/lib/deliveries/deliveries.service";
 import { pushOneDelivery, removeOneDelivery } from "@/lib/optimoroute/push";
 import { ActionResult } from "@/lib/actions/action-result";
-import { orderAction } from "@/lib/actions/order-action";
+import { orderAction } from "@/lib/orders/order-action";
 import { DayOfWeek } from "@/lib/deliveries/schedule/delivery-days";
 
 // Staff of one organization must not act on another's order: every action goes through

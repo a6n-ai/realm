@@ -2,6 +2,7 @@ import { requireCustomerIdOrRedirect } from "@/lib/account/customer";
 import { Suspense } from "react";
 import { getAppSettings } from "@/lib/settings";
 import { getReferralSummary } from "@/lib/referrals/referrals.service";
+import { activeCoinRate } from "@/lib/referrals/offer";
 import { walletService } from "@/lib/wallet/wallet.service";
 import { PageHeader } from "@/components/kit";
 import { ReferView } from "@/components/customer/refer/refer-view";
@@ -25,10 +26,6 @@ async function ReferData({ userId }: { userId: bigint }) {
     walletService.balance(userId),
     getAppSettings(),
   ]);
-  const [dollars, perCoin] = await Promise.all([
-    walletService.moneyValue(coins, currency),
-    // Display only; no rate set for this currency means coins-only cards.
-    walletService.activeRate(currency).catch(() => null),
-  ]);
-  return <ReferView summary={summary} wallet={{ coins, dollars }} rate={perCoin == null ? null : { perCoin, currency }} />;
+  const [dollars, rate] = await Promise.all([walletService.moneyValue(coins, currency), activeCoinRate(currency)]);
+  return <ReferView summary={summary} wallet={{ coins, dollars }} rate={rate} />;
 }

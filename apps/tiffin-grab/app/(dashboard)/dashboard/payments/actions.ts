@@ -5,7 +5,7 @@ import { rejectPayment, updatePaymentReference, verifyPayment } from "@/lib/paym
 import { currentUserId } from "@/lib/services/session-service";
 import { sendPaymentReminder } from "@/lib/payments/payment-reminder";
 import type { ActionResult } from "@/lib/actions/action-result";
-import { orderAction } from "@/lib/actions/order-action";
+import { orderAction } from "@/lib/orders/order-action";
 import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { orders, users } from "@/db/schema";

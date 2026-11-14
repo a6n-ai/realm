@@ -2,7 +2,7 @@ import type { Visible } from "@/lib/tenant/org-scope";
 import Link from "next/link";
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 import { Button } from "@foundry/ui/button";
-import { ChartCard } from "@/components/analytics/chart-card";
+import { ChartCard } from "@/components/dashboard/analytics/chart-card";
 import { getKitchenWeek, getKitchenWeekDishes } from "@/lib/overview/overview.service";
 import { KitchenWeekView } from "./kitchen-week-view";
 import { addDaysIso } from "@foundry/commons/util/dates";

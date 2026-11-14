@@ -7,7 +7,7 @@ import {
   exportHeaders,
   parseExportColumns,
   planRowToExcelRecord,
-} from "@/app/(dashboard)/dashboard/renewals/renewal-export-columns";
+} from "@/lib/renewals/export-columns";
 import { requirePermission } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { withListDates } from "@/lib/list/default-month";
@@ -44,9 +44,8 @@ export const GET = handler(async (request: Request): Promise<Response> => {
           planRowToExcelRecord(r, today, timezone, columns),
         );
 
-  const dateIso = appTodayIso(timezone);
   const isCustomers = f.tab === "customers";
-  return xlsxResponse(`${isCustomers ? "renewed-customers" : "renewals"}-${dateIso}.xlsx`, {
+  return xlsxResponse(`${isCustomers ? "renewed-customers" : "renewals"}-${today}.xlsx`, {
     name: isCustomers ? "Renewed customers" : "Renewals",
     headers,
     records,

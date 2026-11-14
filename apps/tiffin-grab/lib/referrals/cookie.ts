@@ -36,3 +36,14 @@ export function normalizeReferralCode(raw: string): string {
 export function isReferralCodeShape(code: string): boolean {
   return /^[A-HJ-NP-Z2-9]{6}(?:[A-HJ-NP-Z2-9]{2})?$/.test(code);
 }
+
+/** The normalised code when it is one of ours, else null. */
+export function parseReferralCode(raw: string | null | undefined): string | null {
+  const code = normalizeReferralCode(raw ?? "");
+  return isReferralCodeShape(code) ? code : null;
+}
+
+/** Live typing: drop everything outside the code alphabet, capped at the longest code. */
+export function referralCodeInput(raw: string): string {
+  return normalizeReferralCode(raw).replace(/[^A-HJ-NP-Z2-9]/g, "").slice(0, 8);
+}

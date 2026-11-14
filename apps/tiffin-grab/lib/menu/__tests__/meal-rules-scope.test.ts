@@ -59,7 +59,7 @@ describe("rule scope", () => {
   afterAll(reset);
 
   it("no rule applies to a custom meal: its composition is what the customer bought", async () => {
-    const { findOrCreateCustomMealSize } = await import("../../custom-meal/custom-meal.service");
+    const { findOrCreateCustomMealSize } = await import("@/db/custom-meal-fixtures");
     const { nonveg } = await ids();
     await makeRule({});
     await makeRule({ scopePlanId: nonveg });

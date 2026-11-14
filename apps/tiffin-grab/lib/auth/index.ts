@@ -28,7 +28,7 @@ import { trustedIpHeaders } from "@/lib/runtime/platform";
 import { recordAudit } from "@/lib/identity/audit";
 
 import { AUTH_COOKIE_PREFIX } from "./cookie-prefix";
-import { authBaseUrl, authSecret, cookieDomain, isProduction } from "@/lib/runtime/env";
+import { authBaseUrl, authSecret, cookieDomain, e2eBaseUrl, isProduction } from "@/lib/runtime/env";
 
 const log = createLogger("auth");
 
@@ -37,7 +37,7 @@ const SESSION_MAX_AGE_S = 30 * 24 * 60 * 60;
 export const auth = betterAuth({
   baseURL: authBaseUrl(),
   trustedOrigins: [
-    ...(!isProduction() && process.env.E2E_BASE_URL ? [process.env.E2E_BASE_URL] : []),
+    ...(!isProduction() && e2eBaseUrl() ? [e2eBaseUrl()!] : []),
     // Public pages live on the apex (tiffingrab.ca) while auth stays on app.; the
     // marketing header's useSession call comes from the apex origin.
     ...(cookieDomain() ? [`https://${cookieDomain()}`] : []),

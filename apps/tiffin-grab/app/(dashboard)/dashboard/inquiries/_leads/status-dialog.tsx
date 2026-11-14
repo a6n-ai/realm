@@ -22,21 +22,11 @@ import {
   SUB_STATUSES, groupFor, isClosed, isOpenPickable, statusLabel,
   type StatusGroup, type SubStatus,
 } from "@/lib/inquiries/status";
-import type { LostReason } from "@/lib/inquiries/inquiries.service";
+import { LOST_REASON_OPTIONS, type LostReason } from "@/lib/inquiries/lost-reason";
 import { addNote, logActivity, updateStatus } from "../actions";
 import { unwrapAction } from "@/lib/actions/unwrap";
 import { useTimezone } from "@foundry/design-system/timezone-provider";
 import { useCardRefresh } from "@/components/dashboard/next-item/recommendation-card";
-
-const LOST_REASONS: { value: LostReason; label: string }[] = [
-  { value: "price", label: "Price" },
-  { value: "out_of_zone", label: "Out of zone" },
-  { value: "no_response", label: "No response" },
-  { value: "chose_competitor", label: "Chose competitor" },
-  { value: "not_ready", label: "Not ready" },
-  { value: "other", label: "Other" },
-  { value: "asked_to_stop", label: "Asked to stop" },
-];
 
 // Every status gets its own icon and colour (categorical, so raw palette with dark pairs).
 // Violet and teal are taken by the row quick actions.
@@ -316,7 +306,7 @@ function LostDialog({
       pending={pending}
       title="Lost reason"
       confirmLabel="Mark lost"
-      reasons={LOST_REASONS}
+      reasons={LOST_REASON_OPTIONS}
       onSave={onSave}
     />
   );

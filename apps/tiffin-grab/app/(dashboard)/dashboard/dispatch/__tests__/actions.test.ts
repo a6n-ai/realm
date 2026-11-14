@@ -11,13 +11,13 @@ const assignDriverMock = vi.fn(async () => undefined);
 const pullRoutesMock = vi.fn(async () => ({ date: "2026-01-01", matched: 0, cleared: 0, unknownOrderNos: [], stops: [] }));
 
 vi.mock("@/lib/optimoroute/drivers", () => ({
-  assignDriver: (...args: Parameters<typeof assignDriverMock>) => assignDriverMock(...args),
   listKnownDrivers: async () => [],
 }));
 vi.mock("@/lib/optimoroute/pull", () => ({
   pullRoutes: (...args: Parameters<typeof pullRoutesMock>) => pullRoutesMock(...args),
 }));
 vi.mock("@/lib/optimoroute/push", () => ({
+  assignDriver: (...args: Parameters<typeof assignDriverMock>) => assignDriverMock(...args),
   pushDay: async () => ({}),
   removeStops: async () => ({}),
 }));

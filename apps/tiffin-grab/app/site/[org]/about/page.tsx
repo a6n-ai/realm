@@ -4,7 +4,7 @@ import { ArrowRight } from "lucide-react";
 import { BreadcrumbSchema } from "@/components/landing/breadcrumb-schema";
 import { PageIntro } from "@/components/landing/public-shell";
 import { BuildTiffinLink } from "@/components/landing/build-tiffin-link";
-import { summaryOrNull } from "@/components/landing/landing-reviews";
+import { summaryOrNull } from "@/lib/landing/reviews";
 import { pageMeta } from "@/lib/landing/meta";
 import { jsonLdScript } from "@/lib/landing/business-jsonld";
 import { loadSiteFacts } from "@/lib/landing/site-facts";

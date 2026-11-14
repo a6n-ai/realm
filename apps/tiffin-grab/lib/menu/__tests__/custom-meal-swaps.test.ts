@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 const { db } = await import("@/db/client");
 const { mealSizeItems, mealSizes } = await import("@/db/schema");
 const { dishCategoriesService } = await import("../dish-categories.service");
-const svc = await import("../../custom-meal/custom-meal.service");
+const svc = await import("@/db/custom-meal-fixtures");
 
 describe("custom meals swap like catalog meals", () => {
   const createdIds: bigint[] = [];

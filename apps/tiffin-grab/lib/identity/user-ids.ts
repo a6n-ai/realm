@@ -35,3 +35,9 @@ export async function resolveUserId(
   const [row] = await tx.select({ id: users.id }).from(users).where(eq(users.publicId, publicId)).limit(1);
   return row?.id ?? null;
 }
+
+/** The seeded system user, or null when none is seeded. */
+export async function systemUserId(): Promise<bigint | null> {
+  const [row] = await db.select({ id: users.id }).from(users).where(eq(users.isSystem, true)).limit(1);
+  return row?.id ?? null;
+}

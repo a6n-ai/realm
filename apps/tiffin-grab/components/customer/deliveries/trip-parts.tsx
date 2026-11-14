@@ -2,7 +2,7 @@
 import { ArrowDownLeft, ArrowUpRight, CalendarCheck, Check, House, Info, MapPin, Pencil, Truck } from "lucide-react";
 import { Pill, Sheet, StatusDot, type Tone } from "@/components/kit";
 import { STATUS_TONE, type DeliveryStatus } from "@/lib/deliveries/status";
-import { cn, FONT, FOCUS } from "@/components/kit/cn";
+import { cn, FOCUS } from "@/components/kit/cn";
 import { humanDate, isPastPause, type Trip } from "@/lib/deliveries/view";
 import { dayNote, deliveryLine, isDone, moveNotes, weekdayShort, type EatingRow } from "@/lib/deliveries/view/eating";
 import { dateTimeFormat } from "@foundry/commons/util/intl-format";
@@ -62,34 +62,6 @@ export function rowSubline(t: Trip, _tz: string): string {
   if (t.coversLabel) return t.coversLabel;
   if (t.isMakeup) return "Make-up delivery";
   return humanDate(t.date);
-}
-
-export function TripRow({ trip, tz, selected, onSelect, plan }: { trip: Trip; tz: string; selected: boolean; onSelect: (trip: Trip) => void; plan?: PlanTagInfo }) {
-  const m = statusMeta(trip);
-  return (
-    <button
-      type="button"
-      data-testid="trip-row"
-      aria-pressed={selected}
-      aria-label={`${humanDate(trip.date)}${plan ? `, ${plan.label}` : ""}, ${m.label}`}
-      onClick={() => onSelect(trip)}
-      className={cn(
-        FONT, FOCUS,
-        "flex min-h-14 w-full items-center gap-3 rounded-xl px-3 py-2 text-left transition-colors [touch-action:manipulation] motion-reduce:transition-none",
-        selected ? "bg-muted" : "hover:bg-muted/60",
-      )}
-    >
-      <span className="min-w-0 flex-1">
-        <span className="block text-subhead font-semibold">{humanDate(trip.date)}</span>
-        <span className="block text-footnote text-[var(--muted-foreground)]">{trip.status === "combined-into" ? rowSubline(trip, tz) : trip.coversLabel ?? tiffins(trip.units)}{trip.complimentaryNote ? " · Complimentary" : ""}</span>
-        {plan && <span className="mt-1 block"><PlanTag plan={plan} /></span>}
-      </span>
-      <span className="flex shrink-0 items-center gap-1.5 text-footnote text-[var(--muted-foreground)]">
-        {m.dot && <StatusDot decorative status={m.dot} />}
-        {m.label}
-      </span>
-    </button>
-  );
 }
 
 /** "Bhindi Masala, Bhindi Masala" -> "Bhindi Masala x2". */

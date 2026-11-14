@@ -6,7 +6,7 @@ const { customMealPricing, mealSizeItems, mealSizes } = await import("@/db/schem
 const { loadCatalogSnapshot, invalidateCatalogSnapshot } = await import("@/lib/catalog/load");
 const { listableMealSizes } = await import("@/lib/catalog/types");
 const { buildPricingCatalog } = await import("@/lib/pricing/build-catalog");
-const svc = await import("@/lib/custom-meal/custom-meal.service");
+const svc = await import("@/db/custom-meal-fixtures");
 
 async function reset() {
   for (const c of await db.select({ id: mealSizes.id }).from(mealSizes).where(eq(mealSizes.custom, true))) {

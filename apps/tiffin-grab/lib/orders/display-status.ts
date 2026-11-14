@@ -1,16 +1,8 @@
-import { isWordpressImport } from "./wordpress-import";
-import { PAID, PENDING } from "@/lib/payments/status";
-
-/** Staff rejected the claim; customer must start a new order (hidden from /me lists). */
-export const PAYMENT_REJECTED_STATUS = "rejected" as const;
-
-const PAYMENT_REVIEW = new Set<string>(PENDING);
-const PAYMENT_SETTLED = new Set<string>(PAID);
+import { PAID, PENDING, REJECTED, inStatuses } from "@/lib/payments/status";
 
 /** Order statuses where payment overlays replace the green “Active” badge. */
 const OVERLAY_ORDER = new Set(["active", "pending", "paused"]);
 
-/**
 /**
  * Shared admin + customer badge vocabulary:
  * Payment review → Rejected → Active → Completed (plus waitlisted/cancelled when those rows appear).
@@ -23,26 +15,24 @@ export function orderDisplayStatus(
   paymentStatuses: readonly (string | null | undefined)[],
 ): string {
   const statuses = paymentStatuses.filter((s): s is string => s != null);
-  const needsReview = statuses.some((s) => PAYMENT_REVIEW.has(s));
+  const needsReview = statuses.some((s) => inStatuses(PENDING, s));
   if (needsReview && OVERLAY_ORDER.has(orderStatus)) return "payment_review";
 
   const rejectedOnly =
-    statuses.some((s) => s === PAYMENT_REJECTED_STATUS) &&
-    !statuses.some((s) => PAYMENT_SETTLED.has(s)) &&
+    statuses.some((s) => s === REJECTED) &&
+    !statuses.some((s) => inStatuses(PAID, s)) &&
     !needsReview;
   if (rejectedOnly && OVERLAY_ORDER.has(orderStatus)) return "rejected";
 
   // Plan-level pause is not part of the shared tag set — treat as Active when settled.
   if (orderStatus === "paused") return "active";
-  // Future-dated active plans still read as Active (window copy handles "Starts …").
-  if (orderStatus === "upcoming") return "active";
 
   return orderStatus;
 }
 
 /** True when payment is still awaiting customer claim or staff verification. */
 export function isPaymentReviewStatus(status: string | null | undefined): boolean {
-  return status != null && PAYMENT_REVIEW.has(status);
+  return inStatuses(PENDING, status);
 }
 
 /**
@@ -62,38 +52,7 @@ export function isHiddenFromCustomer(
  */
 export function complimentaryBlocker(orderStatus: string, paymentStatuses: readonly string[]): string | null {
   if (orderStatus !== "active" && orderStatus !== "completed") return "Only an active plan or one that is over can get a complimentary tiffin";
-  if (paymentStatuses.some((s) => PAYMENT_REVIEW.has(s))) return "Payment is still pending on this plan. Confirm it first.";
-  if (paymentStatuses.length > 0 && paymentStatuses.every((s) => s === PAYMENT_REJECTED_STATUS)) return "This plan's payment was rejected";
-  return null;
-}
-
-/**
- * Why add-on money can't be recorded on a plan, or null when it can. The add-on payment is
- * written as settled, and fulfillmentReadyOrder() treats any settled payment as "plan is paid",
- * so it must never be the first settled money on a plan that was rejected or never paid.
- * A WordPress-imported plan (`wc-`) was prepaid there and carries no payment rows.
- */
-export function canTakeAddonPayment(
-  order: { deploymentId: string },
-  rows: readonly { status: string; addonRequest?: unknown; expiresAt?: number | null }[],
-  now = Date.now(),
-): string | null {
-  // An add-on link past its expiry can't be paid, so it neither blocks nor counts.
-  const live = rows.filter((r) => !(r.addonRequest != null && r.expiresAt != null && r.expiresAt <= now));
-  if (live.some((r) => r.addonRequest != null && (PAYMENT_REVIEW.has(r.status) || r.status === PAYMENT_REJECTED_STATUS))) {
-    return "Regenerate or cancel the existing link first";
-  }
-  const paymentStatuses = live.map((r) => r.status);
-  if (paymentStatuses.some((s) => PAYMENT_REVIEW.has(s) || s === "pending")) return "A payment is still pending on this plan. Confirm it first.";
-  if (paymentStatuses.includes(PAYMENT_REJECTED_STATUS)) return "This plan's payment was rejected. Settle the plan before adding add-ons.";
-  if (paymentStatuses.some((s) => PAYMENT_SETTLED.has(s))) return null;
-  if (paymentStatuses.length === 0 && isWordpressImport(order)) return null;
-  return "This plan has no confirmed payment yet.";
-}
-
-/** Why an unpaid card payment can no longer be paid (order cancelled, link expired or void), or null. */
-export function cardPayClosed(orderStatus: string, expiresAt: number | null, now = Date.now()): string | null {
-  if (orderStatus === "cancelled") return "This order was cancelled";
-  if (expiresAt != null && expiresAt <= now) return "This payment link has expired. Ask us for a new one.";
+  if (paymentStatuses.some((s) => inStatuses(PENDING, s))) return "Payment is still pending on this plan. Confirm it first.";
+  if (paymentStatuses.length > 0 && paymentStatuses.every((s) => s === REJECTED)) return "This plan's payment was rejected";
   return null;
 }

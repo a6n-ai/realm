@@ -1,6 +1,6 @@
 "use client";
 import { isCutoffPassed } from "@/lib/dates/cutoff";
-import { NETWORK_CLIENT_ERROR } from "@foundry/commons/util/client-error";
+import { NETWORK_CLIENT_ERROR, sanitizeClientError } from "@foundry/commons/util/client-error";
 import { ArrowLeftRight, Minus, Plus, X } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { applyMyDeliverySwap, loadMySwapOptions, removeMyDeliverySwap } from "@/lib/deliveries/customer-actions";
@@ -153,7 +153,7 @@ export function SwapSheet({ trip, plan, open, day: startDay, onDone, onChanged }
     try {
       const r = await call();
       if ("error" in r) {
-        setError(r.error);
+        setError(sanitizeClientError(r.error));
         reloadOptions();
       } else {
         setPair(null);

@@ -1,3 +1,4 @@
+import { formatAddressLine } from "@/lib/catalog/address-line";
 import type { SendState } from "@/lib/notifications/send-state";
 import { inviteAlreadySent, lastInviteState } from "@/lib/notifications/invite-state";
 import { resolveUserId } from "@/lib/identity/user-ids";
@@ -525,7 +526,7 @@ type AddressAudit = { operation: string; changes: unknown; label: string; actor:
 /** One line for an address-book change in the staff timeline. Customers never see this. */
 export function addressEventLabel(e: AddressAudit): string {
   const c = (e.changes ?? {}) as { label?: string; addressLine?: string; addressUnit?: string | null; city?: string; postalCode?: string; isDefault?: boolean };
-  const where = [c.addressUnit ? `${c.addressUnit} – ${c.addressLine}` : c.addressLine, c.city, c.postalCode].filter(Boolean).join(", ");
+  const where = formatAddressLine(c);
   const name = c.label ?? e.label;
   const what =
     e.operation === "create" ? `Address added: "${name}" ${where}`

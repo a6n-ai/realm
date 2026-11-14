@@ -227,7 +227,6 @@ describe("complaints per 100 tiffins", () => {
         tiffinUnits: r.tiffinUnits,
         optimoCompletionStatus: r.optimo,
       })),
-      now,
     );
 
     const k = await getComplaintKpis(NO_FILTERS);

@@ -1,3 +1,4 @@
+import { lockUser } from "@/lib/identity/lock-user";
 import { orgScope, type Visible } from "@/lib/tenant/org-scope";
 import { parseIsoDate } from "@/lib/dates/iso-date";
 import { appTodayIso } from "@/lib/dates/today";
@@ -42,7 +43,7 @@ import { cancelDeliveries, dropVoidRows } from "../deliveries/deliveries.service
 import { removeStopsBestEffort } from "../optimoroute/stops";
 import { applyHolidaysToOrder, scheduleWrite } from "../deliveries/holiday-apply";
 import { assertStartable } from "./order-window";
-import { appToday, assertFirstDeliveryOpen, validateStartDate } from "./start-date";
+import { appToday, assertFirstDeliveryOpen, validateStartDate } from "@/lib/dates/start-date";
 import { assertTrialStart } from "@/lib/trial/schedule";
 import {
   reverseCoinRedemption,
@@ -429,7 +430,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
     });
   }
 
-  // A plan migrated from WordPress (db/seed-customers.ts) waits as `pending` with its
+  // A plan migrated from WordPress (one-off import, finished) waits as `pending` with its
   // prepaid balance and no deliveries while WordPress still delivers. Staff start it on the
   // day the customer leaves WordPress: the balance is scheduled from that date, bounded to
   // the exact count (materializeDeliveries only fills whole weeks). No payment or coin
@@ -747,7 +748,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
         .where(eq(orders.publicId, publicId)).limit(1);
       if (!idRow) throw new NotFoundError(`Order not found: ${publicId}`);
       // Customer lock first, then the order lock: the order verifyPayment and @foundry/wallet take them.
-      if (idRow.userId) await tx.select({ id: users.id }).from(users).where(eq(users.id, idRow.userId)).for("update");
+      if (idRow.userId) await lockUser(tx, idRow.userId);
       await lockOrder(tx, idRow.id);
 
       const [order] = await tx.select().from(orders).where(eq(orders.id, idRow.id)).limit(1);

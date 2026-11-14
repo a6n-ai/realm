@@ -17,7 +17,7 @@ const { couponRedemptions, coupons, deliveries, ledgerEntries, orderActivities, 
 const { settleStripePayment } = await import("../payment-stripe");
 const { plans } = await import("@/db/schema");
 const { getAppSettings } = await import("@/lib/settings");
-const { appToday } = await import("../../orders/start-date");
+const { appToday } = await import("../../dates/start-date");
 const { weekdayKey, parseIsoDateUtc } = await import("@foundry/commons");
 const { ordersService } = await import("../../orders/orders.service");
 const { createOrder } = await import("../../orders/create-order");

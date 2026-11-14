@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { coinsUnderCap, earnCoins } from "../earn-coins";
+import { coinsUnderCap, earnCoins, earnsOrderCoins } from "../earn-coins";
 
 describe("earnCoins", () => {
   it("pays pct of the pre-tax amount, in coins", () => {
@@ -30,5 +30,23 @@ describe("coinsUnderCap", () => {
 
   it("is 0 when the award would push the wallet past the cap", () => {
     expect(coinsUnderCap({ coins: 50, balance: 951, cap: 1000 })).toBe(0);
+  });
+});
+
+describe("earnsOrderCoins", () => {
+  it("pays only when money was actually paid", () => {
+    expect(earnsOrderCoins({ total: "120.00", paymentStatus: "paid" })).toBe(true);
+    expect(earnsOrderCoins({ total: "120.00", paymentStatus: "simulated_paid" })).toBe(true);
+  });
+
+  it("pays nothing for a $0 order (coins or a coupon covered it)", () => {
+    expect(earnsOrderCoins({ total: "0.00", paymentStatus: "paid" })).toBe(false);
+    expect(earnsOrderCoins({ total: 0, paymentStatus: null })).toBe(false);
+  });
+
+  it("pays nothing while the payment is unsettled or missing", () => {
+    expect(earnsOrderCoins({ total: "120.00", paymentStatus: "awaiting_payment" })).toBe(false);
+    expect(earnsOrderCoins({ total: "120.00", paymentStatus: "pending_verification" })).toBe(false);
+    expect(earnsOrderCoins({ total: "120.00", paymentStatus: null })).toBe(false);
   });
 });

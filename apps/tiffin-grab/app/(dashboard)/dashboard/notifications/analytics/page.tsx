@@ -4,10 +4,10 @@ import { AnalyticsStatCards, AnalyticsStatCardsSkeleton, type AnalyticsStatCardI
 import { getChannelCounts, getNotificationBuckets, getStatusCounts } from "@/lib/analytics/notifications.service";
 import { epochBoundsWhere, withDefaultMonth } from "@/lib/list/default-month";
 import { notificationLogsHref } from "@/lib/notifications/outcome";
-import { ChartCard } from "@/components/analytics/chart-card";
-import { ChartSkeleton } from "@/components/analytics/skeletons";
-import { PartsDonut, SegmentedBar } from "@/components/analytics/charts";
-import type { Tone } from "@/components/analytics/chart-math";
+import { ChartCard } from "@/components/dashboard/analytics/chart-card";
+import { ChartSkeleton } from "@/components/dashboard/analytics/skeletons";
+import { PartsDonut, SegmentedBar } from "@/components/dashboard/analytics/charts";
+import type { Tone } from "@/components/dashboard/analytics/chart-math";
 
 const STATUS_TONE: Record<string, Tone> = { sent: "success", failed: "destructive", skipped: "muted" };
 

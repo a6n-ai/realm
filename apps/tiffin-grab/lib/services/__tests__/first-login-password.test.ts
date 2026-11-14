@@ -5,7 +5,7 @@ vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
 const { db } = await import("@/db/client");
 const { users, account } = await import("@/db/schema");
-const { verifyPassword } = await import("@/lib/auth/password");
+const { verifyPassword } = await import("@foundry/auth");
 const { createCustomer } = await import("../customers.service");
 const { usersService } = await import("../users.service");
 

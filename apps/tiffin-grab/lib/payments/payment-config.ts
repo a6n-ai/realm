@@ -3,7 +3,7 @@ import { mergePaymentCatalog } from "@foundry/payments/providers";
 import { saveSetting, settingsCache } from "@/lib/settings";
 import { db } from "@/db/client";
 import { app } from "@/db/schema";
-import { getIntegrationsConfig } from "./integrations-config";
+import { installedPlugins } from "./integrations-config";
 
 // Enabled payment methods + per-method taxes. NULL/garbage → no methods (simulated mode),
 // so the app keeps its current behavior until an admin enables one. Cached like discountPolicy.
@@ -21,16 +21,8 @@ export async function getPaymentConfigFresh(): Promise<PaymentConfig> {
 }
 
 export async function setPaymentConfig(cfg: PaymentConfig): Promise<void> {
-  // parse-then-store: normalizes field defaults and rejects a malformed blob before it lands.
   const parsed = parsePaymentConfig(cfg);
   await saveSetting({ paymentConfig: parsed });
-}
-
-export async function installedPlugins(): Promise<string[]> {
-  const integrations = await getIntegrationsConfig();
-  return Object.entries(integrations)
-    .filter(([, v]) => (v as { installed?: boolean } | null)?.installed)
-    .map(([k]) => k);
 }
 
 /**

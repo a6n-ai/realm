@@ -13,6 +13,9 @@ export async function isActiveStaff(userId: bigint): Promise<boolean> {
   return !!u;
 }
 
+export const activeStaffPool = () =>
+  db.select({ id: users.id, publicId: users.publicId, weight: sql<number>`1` }).from(users).where(staffWhere);
+
 const CURSOR_KEY = { order: "orders", ticket: "tickets" } as const;
 
 /**
@@ -27,7 +30,7 @@ export async function defaultOwner(actorUserId: bigint | null, entity: "order" |
   if (!configured.length && entity === "order") configured = await poolFor("inquiry");
   const pool = configured.length
     ? configured
-    : await db.select({ id: users.id, publicId: users.publicId, weight: sql<number>`1` }).from(users).where(staffWhere);
+    : await activeStaffPool();
   if (!pool.length) return null;
   const cfg = await getLeadAssignment();
   const cursorKey = CURSOR_KEY[entity];

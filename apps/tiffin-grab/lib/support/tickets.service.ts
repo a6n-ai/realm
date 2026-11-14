@@ -11,7 +11,7 @@ import type { Page, PageRequest } from "@foundry/commons/util/pagination";
 import { db } from "@/db/client";
 import { enqueueNotification, enqueueStaffNotification } from "@/lib/notifications/enqueue";
 import { deliveryZones, orders, plans, ticketMessages, tickets, users, type Attachment } from "@/db/schema";
-import { complaintWhere, type ComplaintFilters } from "@/lib/analytics/complaint-filters";
+import { complaintWhere, type ComplaintFilters } from "@/lib/support/complaint-filters";
 import { getSession } from "@/lib/auth/session";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import { assertReassignAllowed, resolveAssignableOwner } from "@/lib/staff/reassign";
@@ -529,5 +529,3 @@ export type QueueRow = {
   overdue: boolean;
 };
 export type CustomerTicketRow = Awaited<ReturnType<TicketsService["listForCustomer"]>>[number];
-export type TicketRecord = typeof tickets.$inferSelect;
-export type TicketMessageRecord = typeof ticketMessages.$inferSelect;

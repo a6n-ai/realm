@@ -2,7 +2,7 @@ import { orgScope, type Visible, noVisibleOrgs } from "@/lib/tenant/org-scope";
 import { and, asc, eq, exists } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveryZones, mealSizes, orders, organization, plans, tickets } from "@/db/schema";
-import { ticketOrgWhere } from "./complaint-filters";
+import { ticketOrgWhere } from "@/lib/support/complaint-filters";
 import { noOrgs } from "./metrics/scope";
 import type { AnalyticsFilterOptions } from "./shared-filter-params";
 

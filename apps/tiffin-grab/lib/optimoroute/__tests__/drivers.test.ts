@@ -19,7 +19,8 @@ vi.mock("../client", async (importOriginal) => {
   };
 });
 
-const { listKnownDrivers, assignDriver } = await import("../drivers");
+const { listKnownDrivers } = await import("../drivers");
+const { assignDriver } = await import("../push");
 
 const DATE = (() => {
   const d = new Date(Date.now() + 77 * 86400000);

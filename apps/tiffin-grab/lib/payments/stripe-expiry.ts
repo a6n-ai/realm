@@ -1,6 +1,6 @@
-import { and, eq, isNull, not } from "drizzle-orm";
+import { and, eq, not } from "drizzle-orm";
 import { UNPAID } from "@/lib/payments/status";
-import { paymentStatusIn } from "@/lib/payments/status-sql";
+import { paymentStatusIn, planPaymentSql } from "@/lib/payments/status-sql";
 import { wordpressImportSql } from "@/lib/orders/wordpress-import-sql";
 import { db } from "@/db/client";
 import { orders, payments } from "@/db/schema";
@@ -55,7 +55,7 @@ export async function hasChargeInFlight(userId: bigint): Promise<boolean> {
       not(wordpressImportSql),
       eq(payments.method, "stripe"),
       paymentStatusIn(UNPAID),
-      isNull(payments.addonRequest),
+      planPaymentSql,
     ));
   for (const r of rows) {
     const locked = await db.transaction(async (tx) => !(await tryChargeLock(tx, r.payPublicId)));

@@ -1,3 +1,4 @@
+import { formatAddressLine } from "@/lib/catalog/address-line";
 import { cutoffOpenSql } from "@/lib/dates/cutoff-sql";
 import { and, eq, inArray, isNull, notInArray, sql, type SQL } from "drizzle-orm";
 import { ValidationError } from "@foundry/commons";
@@ -91,7 +92,7 @@ async function retarget(tx: AddressTx, fromAddressId: bigint, toAddressId: bigin
   }
   const editableIds = new Set(affected.map((d) => d.id));
   const actor = await currentUserId();
-  const line = [to.addressUnit ? `${to.addressUnit} – ${to.addressLine}` : to.addressLine, to.city, to.postalCode].filter(Boolean).join(", ");
+  const line = formatAddressLine(to);
   for (const o of planOrders) {
     const [before] = await tx.select({ line: orders.addressLine, unit: orders.addressUnit, city: orders.city, pc: orders.postalCode, org: orders.organizationId })
       .from(orders).where(eq(orders.id, o.id)).limit(1);

@@ -22,7 +22,7 @@ const { ticketsService } = await import("../../support/tickets.service");
 const { inquiriesService } = await import("../../inquiries/inquiries.service");
 const { refundOrder } = await import("@/lib/payments/verification");
 const { recordStripeRefund } = await import("../../payments/payment-stripe");
-const { deleteMyAccount } = await import("@/lib/account/account-actions");
+const { deleteMyAccount } = await import("@/lib/account/actions");
 const { ensureSystemUser } = await import("@/db/test-helpers");
 
 const R = Math.random().toString(36).slice(2, 8);

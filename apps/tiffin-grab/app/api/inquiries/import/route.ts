@@ -8,7 +8,7 @@ import { getSession } from "@/lib/auth/session";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import { getAppSettings } from "@/lib/settings";
 import { inquiriesService } from "@/lib/inquiries/inquiries.service";
-import { STAGE_MAP, type ImportMapping } from "@/app/(dashboard)/dashboard/inquiries/import/inquiry-import-columns";
+import { STAGE_MAP, type ImportMapping } from "@/lib/inquiries/import-columns";
 
 type RawRow = Record<string, unknown>;
 

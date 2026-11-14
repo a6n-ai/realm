@@ -1,3 +1,4 @@
+import { lockUser } from "@/lib/identity/lock-user";
 import { couponStatus } from "@/lib/coupons/status";
 import { hasPaidOrder } from "@/lib/orders/paid-history";
 import { isStaffRole } from "@/lib/roles";
@@ -365,7 +366,7 @@ class CouponsService extends SessionUpdatableService<typeof coupons> {
     // can't see. Recount under the same user-row lock issueRepCode takes, so a concurrent
     // issue or apply can't both take the last use.
     if (coupon.kind === "rep_daily" && coupon.ownerUserId != null && coupon.istDate && coupon.maxRedemptions != null) {
-      await tx.select({ id: users.id }).from(users).where(eq(users.id, coupon.ownerUserId)).for("update");
+      await lockUser(tx, coupon.ownerUserId);
       if ((await this.repUsesToday(tx, coupon.ownerUserId, coupon.istDate)) >= coupon.maxRedemptions) {
         throw new ValidationError("You have reached today's discount limit");
       }
@@ -482,7 +483,7 @@ class CouponsService extends SessionUpdatableService<typeof coupons> {
     }
     return db.transaction(async (tx) => {
       // Serialize this rep's issues, or two requests could both take the last use of the day.
-      await tx.select({ id: users.id }).from(users).where(eq(users.id, input.ownerUserId)).for("update");
+      await lockUser(tx, input.ownerUserId);
       const used = await this.repUsesToday(tx, input.ownerUserId, input.istDate);
       if (used >= input.dailyUses) throw new ValidationError("You have reached today's discount limit");
       const code = `TG-${randomCode(6)}`;

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Callout, Clause, LegalPage, List, Mail, Sub, SeeSection, type KeyPoint } from "@/components/marketing/legal";
 import { legalMeta } from "@/lib/landing/meta";
+import { CANCEL_NOTICE_HOURS } from "@/lib/landing/policy-facts";
 
 export const metadata: Metadata = legalMeta("Refund and return policy", "When TiffinGrab refunds trial, weekly, and monthly plans, how to report quality issues, and processing times.", "/refund-policy");
 export const revalidate = 86400;
@@ -21,7 +22,7 @@ const SECTIONS = [
 
 const KEY_POINTS: KeyPoint[] = [
   { text: "Trial and weekly plans are not refundable, except where the law requires.", section: 2 },
-  { text: "Monthly plans: cancel in writing at least 48 hours before your first delivery for a full refund.", section: 3 },
+  { text: `Monthly plans: cancel in writing at least ${CANCEL_NOTICE_HOURS} hours before your first delivery for a full refund.`, section: 3 },
   { text: "Problem with a meal? Report it within 2 hours of delivery, with photos.", section: 4 },
   { text: "Damaged packaging gets a one-day service credit for each verified incident.", section: 5 },
   { text: "If we stop delivering to your area, you get a pro-rata refund within 14 business days.", section: 6 },
@@ -76,7 +77,7 @@ export default function RefundPolicyPage() {
         </Sub>
         <Sub title="3.3 Pre-commencement cancellation">
           <p className="m-0">
-            Cancel in writing at least <strong>48 hours before</strong> your first scheduled delivery for a{" "}
+            Cancel in writing at least <strong>{CANCEL_NOTICE_HOURS} hours before</strong> your first scheduled delivery for a{" "}
             <strong>full refund</strong>. Cancellations inside that window are non-refundable.
           </p>
         </Sub>

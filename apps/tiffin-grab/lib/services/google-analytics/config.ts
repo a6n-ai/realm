@@ -1,4 +1,5 @@
 import { createGoogleAnalytics } from "@foundry/google-analytics";
+import { integrationsMasterKey, gaMeasurementId } from "@/lib/runtime/env";
 import { googleAnalyticsPlugin as plugin } from "@foundry/google-analytics/server";
 import { integrationsConfigReadStore, integrationsConfigStore } from "@/lib/payments/integrations-config";
 
@@ -7,8 +8,8 @@ import { integrationsConfigReadStore, integrationsConfigStore } from "@/lib/paym
 export const googleAnalytics = createGoogleAnalytics({
   store: integrationsConfigStore,
   readStore: integrationsConfigReadStore,
-  masterKey: () => process.env.INTEGRATIONS_ENCRYPTION_KEY,
-  legacyMeasurementId: () => process.env.GA_MEASUREMENT_ID,
+  masterKey: integrationsMasterKey,
+  legacyMeasurementId: gaMeasurementId,
 });
 
 export const googleAnalyticsPlugin = () => plugin(googleAnalytics);

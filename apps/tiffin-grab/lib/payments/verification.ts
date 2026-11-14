@@ -1,5 +1,4 @@
 import { markPaymentCaptured } from "@/lib/payments/capture";
-import { paymentMethodLabel } from "@/lib/payments/method-label";
 import { createLogger } from "@foundry/commons/logger";
 import { resolveUserId } from "@/lib/identity/user-ids";
 import { isWordpressImport } from "@/lib/orders/wordpress-import";
@@ -8,9 +7,9 @@ import { trackConversion } from "@/lib/services/tracking";
 import { canVerify, findMethod } from "@foundry/payments";
 import { commitTax } from "@foundry/payments/stripe";
 import { stripeRuntime } from "@/lib/payments/stripe";
-import { and, desc, eq, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { inStatuses, PAID, SETTLEABLE, UNPAID } from "@/lib/payments/status";
-import { paymentStatusIn } from "@/lib/payments/status-sql";
+import { paymentStatusIn, planPaymentSql } from "@/lib/payments/status-sql";
 import { db, type Tx } from "@/db/client";
 import { coupons, deliveryFrequencies, ledgerEntries, orderActivities, orders, payments, users, type PaymentProof } from "@/db/schema";
 import { sendMetaOrderSubmitted } from "@/lib/meta/order-submitted";
@@ -32,46 +31,11 @@ import { getPaymentConfig } from "@/lib/payments/payment-config";
 import { publishPaymentsInbox, publishUserRefresh } from "@/lib/realtime/publish-inbox";
 import { lockUser } from "@/lib/identity/lock-user";
 import { lockOrder } from "@/lib/orders/order-lock";
+import { startPaidStripeOrder } from "@/lib/orders/start-paid-order";
+import { paymentTemplateVars, receiptVars } from "./email-vars";
 
 const log = createLogger("payments.verification");
-import { startPaidStripeOrder } from "@/lib/orders/start-paid-order";
 
-
-/** Receipt extras for payment_approved: card fee, taxes (Stripe Tax lines included), the card used and the total charged. */
-export function receiptVars(
-  pay: Pick<typeof payments.$inferSelect, "method" | "amount" | "cardBrand" | "cardLast4" | "surchargeAmount">,
-  taxLines: { name: string; ratePct: number; amount: number }[],
-) {
-  const isCard = pay.method === "stripe";
-  const fee = isCard ? Number(pay.surchargeAmount) : 0;
-  const total = isCard ? formatMoney(Number(pay.amount) + fee) : "";
-  const brand = pay.cardBrand ? pay.cardBrand.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "Card";
-  const parts = [
-    ...taxLines.map((t) => `${t.name} ${t.ratePct}%: ${formatMoney(t.amount)}`),
-    fee > 0 ? `Card fee ${formatMoney(fee)}` : null,
-    isCard ? `Total charged ${total}` : null,
-  ].filter(Boolean);
-  return {
-    receiptLines: parts.join(" · "),
-    paidWith: isCard && pay.cardLast4 ? `${brand} •••• ${pay.cardLast4}` : paymentMethodLabel(pay.method, "full"),
-    cardFee: fee > 0 ? formatMoney(fee) : "",
-    totalCharged: total,
-  };
-}
-
-/** Shared `{{payment.*}}` template variables for the payment_* customer emails. */
-export function paymentTemplateVars(
-  pay: Pick<typeof payments.$inferSelect, "amount" | "method">,
-  orderCode: string,
-  customerName: string | null | undefined,
-) {
-  return {
-    amount: formatMoney(Number(pay.amount)),
-    orderCode,
-    customerName: customerName || "there",
-    method: paymentMethodLabel(pay.method, "full"),
-  };
-}
 
 // Staff settles a real-method payment: credits the ledger, redeems any deferred
 // coupons from the pricing snapshot, awards earn-back coins, and marks paid.
@@ -557,7 +521,7 @@ export async function getClaimPaymentContextForOrder(orderPublicId: string): Pro
     .where(
       and(
         eq(orders.publicId, orderPublicId),
-        isNull(payments.addonRequest),
+        planPaymentSql,
         paymentStatusIn(SETTLEABLE),
       ),
     )

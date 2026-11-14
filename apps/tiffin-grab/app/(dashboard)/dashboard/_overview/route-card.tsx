@@ -1,5 +1,5 @@
-import { ChartCard } from "@/components/analytics/chart-card";
-import { TickBar } from "@/components/analytics/tick-bar";
+import { ChartCard } from "@/components/dashboard/analytics/chart-card";
+import { TickBar } from "@/components/dashboard/analytics/tick-bar";
 import { Badge } from "@/components/reui/badge";
 import { getOptimoRouteStatus } from "@/lib/optimoroute/config";
 import { nextRoutePushStatus } from "@/lib/optimoroute/push-status";

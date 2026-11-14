@@ -1,9 +1,9 @@
-import { and, eq, isNull, lt, lte, ne, not, or, type SQL } from "drizzle-orm";
+import { and, eq, gt, isNull, lt, lte, ne, not, or, type SQL } from "drizzle-orm";
 import { inStatuses, UNPAID, VOID_EXPIRY } from "@/lib/payments/status";
-import { paymentStatusIn } from "@/lib/payments/status-sql";
+import { paymentStatusIn, planPaymentSql } from "@/lib/payments/status-sql";
 import { wordpressImportSql } from "@/lib/orders/wordpress-import-sql";
 import { db } from "@/db/client";
-import { orderActivities, orders, payments } from "@/db/schema";
+import { orderActivities, orders, payments, users } from "@/db/schema";
 import { createLogger } from "@foundry/commons/logger";
 import { ValidationError } from "@foundry/commons";
 import { ordersService } from "./orders.service";
@@ -27,7 +27,7 @@ async function cancelUnpaidStripeOrders(extra: SQL | undefined, note = "Unpaid c
       not(wordpressImportSql),
       eq(payments.method, "stripe"),
       paymentStatusIn(UNPAID),
-      isNull(payments.addonRequest),
+      planPaymentSql,
       extra,
     ));
   const seen = new Set<bigint>();
@@ -113,4 +113,26 @@ export async function cancelOrderAndOpenPayments(publicId: string, actorId: bigi
       log.error({ orderId: publicId, paymentId: p.publicId, err: e }, "could not close card payment on cancelled order");
     }
   }
+}
+
+/** A live, unexpired card checkout of this customer's pending order, with the amount it will charge. */
+export async function findOpenCardCheckout(paymentPublicId: string, userPublicId: string) {
+  const [row] = await db
+    .select({ order: orders, amount: payments.amount })
+    .from(payments)
+    .innerJoin(orders, eq(orders.id, payments.orderId))
+    .innerJoin(users, eq(users.id, orders.userId))
+    .where(
+      and(
+        eq(payments.publicId, paymentPublicId),
+        eq(payments.method, "stripe"),
+        paymentStatusIn(UNPAID),
+        planPaymentSql,
+        or(isNull(payments.expiresAt), gt(payments.expiresAt, Date.now())),
+        eq(orders.status, "pending"),
+        eq(users.publicId, userPublicId),
+      ),
+    )
+    .limit(1);
+  return row ?? null;
 }

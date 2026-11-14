@@ -13,7 +13,7 @@ import { deliveryCategorySwaps, dishes, mealSelections, mealSizeItems, mealSizes
 import { applySwapsToCounts } from "@/lib/menu/swap-rules";
 import { categoryCountsFromItems } from "@/lib/menu/pick-size";
 import { validateMealRules } from "@/lib/menu/meal-validation";
-import { MealRuleViolationError } from "@/lib/menu/meal-rule-error";
+import { MealRuleViolationError } from "@/lib/errors";
 import type { HydratedPick, MealRule } from "@/lib/menu/meal-rule-types";
 import type { RuleLabels } from "@/lib/menu/meal-rule-text";
 import { dishCategoriesService } from "@/lib/menu/dish-categories.service";

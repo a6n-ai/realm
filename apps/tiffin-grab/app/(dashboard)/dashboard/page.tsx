@@ -13,7 +13,7 @@ import { staffFirstName } from "@/lib/overview/overview.service";
 import { OVERVIEW_KINDS, isTodayKind, type TodayKind } from "@/lib/today/types";
 import { formatDateOnly } from "@/lib/format/datetime";
 import { Alert, AlertDescription, AlertTitle } from "@/components/reui/alert";
-import { ChartSkeleton } from "@/components/analytics/skeletons";
+import { ChartSkeleton } from "@/components/dashboard/analytics/skeletons";
 import { StatCardsSkeleton } from "@/components/dashboard/stat-cards";
 import { PageShell, PageHeader, SectionCard, PageSkeleton, DataTableSkeleton } from "@/components/ds";
 import { parseWeekParam } from "@/lib/deliveries/view/week";

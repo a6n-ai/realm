@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { reviewsConnected } from "@/components/landing/landing-reviews";
+import { reviewsConnected } from "@/lib/landing/reviews";
 import { areasMd, faqMd, tokenEstimate } from "@/lib/landing/agent-markdown";
 import { loadFaqGroups } from "@/lib/landing/faq-data";
 import { llmsTxt, pricingMd } from "@/lib/landing/llms-text";

@@ -2,7 +2,7 @@ import type { Visible } from "@/lib/tenant/org-scope";
 import Link from "next/link";
 import { ActivityIcon, PackageIcon, RefreshCwIcon, UtensilsCrossedIcon, type LucideIcon } from "lucide-react";
 import { Card, CardContent } from "@foundry/ui/card";
-import { Sparkline } from "@/components/analytics/sparkline";
+import { Sparkline } from "@/components/dashboard/analytics/sparkline";
 import { Badge } from "@/components/reui/badge";
 import { zonedRangeMs } from "@/lib/dates/epoch-window";
 import { ordersListHref } from "@/lib/list/orders-drill";

@@ -13,6 +13,7 @@ import { portionsAfterSwaps } from "@/lib/menu/eating-day-portions";
 import { stripeMethodAvailable } from "@/lib/payments/stripe";
 import { getClaimPaymentContextForOrder } from "@/lib/payments/verification";
 import { getAppSettings } from "@/lib/settings";
+import { orderPaymentLocked } from "@/lib/orders/access";
 import { addressService } from "@/lib/services/addresses.service";
 import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 import { dropOffsFor } from "@/lib/deliveries/address-drop-off.service";
@@ -20,7 +21,6 @@ import { holidayNamesForUser } from "@/lib/deliveries/holidays.service";
 import {
   makeupSourceIdsForOrder,
   myActiveSubscriptions,
-  orderPaymentLocked,
   myCalendar,
   myDeliveries,
   myEndedPlan,

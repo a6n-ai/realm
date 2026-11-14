@@ -1,3 +1,4 @@
+import { LOST_REASON_LABELS } from "@/lib/inquiries/lost-reason";
 import { orgScope } from "@/lib/tenant/org-scope";
 import { ratePct } from "@/lib/money";
 import { and, eq, inArray, sql, type SQL } from "drizzle-orm";
@@ -70,16 +71,6 @@ export async function getLeadsByStage(scope: AnalyticsScope) {
     .groupBy(inquiries.stage);
   return rows.map((r) => ({ stage: STAGE_LABELS[r.stage] ?? r.stage, key: r.stage, n: r.n }));
 }
-
-export const LOST_REASON_LABELS: Record<(typeof inquiries.lostReason.enumValues)[number], string> = {
-  price: "Price",
-  out_of_zone: "Out of zone",
-  no_response: "No response",
-  chose_competitor: "Chose competitor",
-  not_ready: "Not ready",
-  other: "Other",
-  asked_to_stop: "Asked to stop",
-};
 
 export async function getLostReasonBreakdown(
   scope: AnalyticsScope,

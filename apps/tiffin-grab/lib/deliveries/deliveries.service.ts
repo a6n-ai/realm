@@ -1,3 +1,4 @@
+import { formatAddressLine } from "@/lib/catalog/address-line";
 import { CLEAR_ADDRESS_OVERRIDE, HAS_HOLIDAY_EXTRA, POINTED_AT } from "@/lib/deliveries/row-state";
 import { appTodayIso } from "@/lib/dates/today";
 import { isCutoffPassed } from "@/lib/dates/cutoff";
@@ -1187,7 +1188,7 @@ export async function setDeliveryAddress(
       .returning({ id: deliveries.id });
     if (updated.length === 0) throw new ValidationError(`Cannot re-address a ${row.status} delivery`);
     const to = address
-      ? [address.addressUnit ? `${address.addressUnit} – ${address.addressLine}` : address.addressLine, address.city, address.postalCode].filter(Boolean).join(", ")
+      ? formatAddressLine(address)
       : null;
     await tx.insert(orderActivities).values({
       orderId, deliveryId: row.id, type: "delivery_address_changed", createdBy: actorId,

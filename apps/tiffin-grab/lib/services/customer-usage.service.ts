@@ -1,6 +1,7 @@
 // Usage analytics for a single logged-in customer (app/(customer)/me/usage) — every
 // query here is scoped to one userId and, optionally, a [from, to] epoch-ms window.
 // Distinct from lib/services/analytics/* (staff-facing, business-wide aggregates).
+import { netSpendSql } from "@/lib/payments/net-spend-sql";
 import { getAppSettings } from "@/lib/settings";
 import { zonedDateIso } from "@foundry/commons";
 import { and, eq, gte, lte, sql } from "drizzle-orm";
@@ -16,7 +17,7 @@ export type UsageSummary = {
   totalSaved: string;
 };
 
-async function tiffinsDelivered(userId: bigint, from: number, to: number, nowMs: number): Promise<number> {
+async function tiffinsDelivered(userId: bigint, from: number, to: number): Promise<number> {
   const { timezone } = await getAppSettings();
   const fromIso = zonedDateIso(from, timezone);
   const toIso = zonedDateIso(to, timezone);
@@ -39,7 +40,7 @@ async function tiffinsDelivered(userId: bigint, from: number, to: number, nowMs:
         lte(deliveries.deliveryDate, toIso),
       ),
     );
-  return deliveredTiffinCount(rows, nowMs);
+  return deliveredTiffinCount(rows);
 }
 
 async function subscriptionsAndPlans(
@@ -68,21 +69,19 @@ async function subscriptionsAndPlans(
 async function spendAndSavings(userId: bigint, from: number, to: number): Promise<{ spent: string; saved: string }> {
   const [row] = await db
     .select({
-      paid: sql<string>`coalesce(sum(case when ${ledgerEntries.type} = 'payment' then ${ledgerEntries.amount} else 0 end), 0)`,
-      refunded: sql<string>`coalesce(sum(case when ${ledgerEntries.type} = 'refund' then ${ledgerEntries.amount} else 0 end), 0)`,
+      spent: netSpendSql,
       discounted: sql<string>`coalesce(sum(case when ${ledgerEntries.type} = 'discount' then ${ledgerEntries.amount} else 0 end), 0)`,
     })
     .from(ledgerEntries)
     .where(and(eq(ledgerEntries.userId, userId), gte(ledgerEntries.createdAt, from), lte(ledgerEntries.createdAt, to)));
-  const spent = (Number(row?.paid ?? 0) - Number(row?.refunded ?? 0)).toFixed(2);
+  const spent = Number(row?.spent ?? 0).toFixed(2);
   const saved = Number(row?.discounted ?? 0).toFixed(2);
   return { spent, saved };
 }
 
 export async function getCustomerUsage(userId: bigint, from: number, to: number): Promise<UsageSummary> {
-  const now = Date.now();
   const [delivered, subs, money] = await Promise.all([
-    tiffinsDelivered(userId, from, to, now),
+    tiffinsDelivered(userId, from, to),
     subscriptionsAndPlans(userId, from, to),
     spendAndSavings(userId, from, to),
   ]);

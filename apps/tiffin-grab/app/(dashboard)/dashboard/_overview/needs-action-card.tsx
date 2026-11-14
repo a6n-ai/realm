@@ -3,7 +3,7 @@ import Link from "next/link";
 import { inStatuses, PENDING } from "@/lib/payments/status";
 import { CalendarDaysIcon, CheckIcon, CircleAlertIcon, CreditCardIcon, LifeBuoyIcon, RefreshCwIcon, RouteIcon, type LucideIcon } from "lucide-react";
 import { Button } from "@foundry/ui/button";
-import { ChartCard } from "@/components/analytics/chart-card";
+import { ChartCard } from "@/components/dashboard/analytics/chart-card";
 import { Badge } from "@/components/reui/badge";
 import { getOptimoRouteStatus } from "@/lib/optimoroute/config";
 import { nextRoutePushStatus } from "@/lib/optimoroute/push-status";

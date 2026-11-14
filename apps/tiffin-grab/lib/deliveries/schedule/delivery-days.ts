@@ -1,5 +1,6 @@
 import { MON_FRI, WEEK_DAYS, type DayOfWeek } from "@/db/schema/enums";
 import { isWeekendDay } from "@foundry/commons/util/dates";
+import { DAY_SHORT } from "@/lib/dates/weekdays";
 /** The one week order (Monday first) and day type; every list of weekdays in the app derives from these. */
 export { WEEK_DAYS, MON_FRI, type DayOfWeek } from "@/db/schema/enums";
 const MWF: DayOfWeek[] = ["mon", "wed", "fri"];
@@ -37,7 +38,6 @@ export function weekendDaysError(days: readonly DayOfWeek[], servesWeekends: boo
   return !servesWeekends && days.some((d) => isWeekendDay(d)) ? NO_WEEKEND_DISH : null;
 }
 
-const SHORT: Record<DayOfWeek, string> = { mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun" };
 
 /** A meal size's allowed days (Catalog → Meal sizes), null/empty = every day. */
 export type AllowedDays = readonly DayOfWeek[] | null | undefined;
@@ -46,7 +46,7 @@ const limited = (allowed: AllowedDays): allowed is readonly DayOfWeek[] => allow
 
 /** "Mon, Wed and Fri" in week order. */
 export function dayList(days: readonly DayOfWeek[]): string {
-  const names = WEEK_DAYS.filter((d) => days.includes(d)).map((d) => SHORT[d]);
+  const names = WEEK_DAYS.filter((d) => days.includes(d)).map((d) => DAY_SHORT[d]);
   return names.length <= 1 ? (names[0] ?? "") : `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`;
 }
 

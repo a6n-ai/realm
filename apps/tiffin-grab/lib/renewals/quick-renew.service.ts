@@ -3,7 +3,7 @@ import { and, desc, eq, gt, inArray, isNull, ne, sql, type SQL } from "drizzle-o
 import { enabledMethods } from "@foundry/payments";
 import { db } from "@/db/client";
 import { deliveries, deliveryFrequencies, mealSizes, orders, payments, plans } from "@/db/schema";
-import { UNSTARTED } from "@/lib/orders/status";
+import { RUNNING_OR_DONE, UNSTARTED, inOrderStatuses } from "@/lib/orders/status";
 import { loadBuilderInputs } from "@/lib/wizard/builder-inputs";
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
 import { initialSelections, type WizardSelections } from "@/lib/wizard/selections";
@@ -15,15 +15,13 @@ import { getPaymentConfig } from "@/lib/payments/payment-config";
 import { addressService } from "../services/addresses.service";
 import { dropOffsFor } from "../deliveries/address-drop-off.service";
 import { earliestNewPlanStart, lastRunningTiffinDate } from "../orders/order-window";
-import { earliestPlanStart, planStartDays } from "../orders/start-date";
+import { earliestPlanStart, planStartDays } from "../dates/start-date";
 
 export type { QuickRenewData };
 
-const RENEWABLE = new Set(["active", "paused", "upcoming", "completed"]);
-
 /** The renewable order that ends last: running plans lose to a queued one that ends later. */
 export function pickRenewSource<T extends { status: string; trialLength: number | null; endDate: string | null }>(rows: T[]): T | null {
-  const eligible = rows.filter((r) => RENEWABLE.has(r.status) && r.trialLength == null);
+  const eligible = rows.filter((r) => inOrderStatuses(RUNNING_OR_DONE, r.status) && r.trialLength == null);
   eligible.sort((a, b) => (b.endDate ?? "").localeCompare(a.endDate ?? ""));
   return eligible[0] ?? null;
 }

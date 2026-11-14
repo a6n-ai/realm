@@ -1,3 +1,4 @@
+import { formatAddressLine } from "@/lib/catalog/address-line";
 import { round2 } from "@foundry/commons/util/money";
 import { CAPTURED, inStatuses, PAID, UNPAID } from "@/lib/payments/status";
 import { isWordpressImport } from "@/lib/orders/wordpress-import";
@@ -151,7 +152,7 @@ export async function loadReceipt(orderPublicId: string, now = Date.now()): Prom
     customer: {
       name: o.fullName,
       email: o.email,
-      address: [o.addressUnit ? `${o.addressUnit} - ${o.addressLine}` : o.addressLine, o.city, o.postalCode].filter(Boolean).join(", "),
+      address: formatAddressLine(o),
     },
     plan: { title: `${o.mealSize} · ${o.plan}`, startDate: o.startDate, lastDate: last?.d ?? null, weeks: o.weeks, tiffins: o.tiffins },
     lines: order.lines,

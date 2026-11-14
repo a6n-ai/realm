@@ -4,13 +4,13 @@ import { ONGOING } from "@/lib/orders/status";
 import { orderStatusIn } from "@/lib/orders/status-sql";
 import { ordersListWhere } from "@/lib/orders/queries";
 import { PENDING, type PaymentStatus } from "@/lib/payments/status";
-import { paymentStatusIn } from "@/lib/payments/status-sql";
-import { hasMissedDeliveries, missedWhere } from "@/lib/orders/missed-where";
+import { paymentStatusIn, planPaymentSql } from "@/lib/payments/status-sql";
+import { hasMissedDeliveries, missedWhere } from "@/lib/deliveries/missed-where";
 import { OVERDUE_DAYS } from "@/lib/orders/orders-stats.service";
 import { requestNow } from "@/lib/dates/request-now";
 import type { Condition } from "@foundry/commons/model/condition";
 import { DAY_MS } from "@foundry/commons/util/dates";
-import { and, eq, inArray, isNull, lt, sql, type SQL } from "drizzle-orm";
+import { and, eq, inArray, lt, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, mealSizes, orders, payments, plans, users } from "@/db/schema";
 
@@ -54,7 +54,7 @@ function ranking(today: string) {
     sql`exists (select 1 from ${payments} where ${payments.orderId} = ${orders.id} and ${where})`;
   const payMin = (where: SQL) =>
     sql`(select min(${payments.createdAt}) from ${payments} where ${payments.orderId} = ${orders.id} and ${where})`;
-  const openPayment = (where: SQL): SQL => and(isNull(payments.addonRequest), where)!;
+  const openPayment = (where: SQL): SQL => and(planPaymentSql, where)!;
   const verify = openPayment(eq(payments.status, "pending_verification"));
   const overdue = openPayment(and(eq(payments.status, "awaiting_payment"), lt(payments.createdAt, overdueBefore))!);
   const pending = openPayment(paymentStatusIn(PENDING));
@@ -111,7 +111,7 @@ async function hydrate(picked: Picked[]): Promise<NextOrderRow[]> {
   const open = await db
     .select({ orderId: payments.orderId, publicId: payments.publicId, amount: payments.amount, status: payments.status })
     .from(payments)
-    .where(and(inArray(payments.orderId, picked.map((p) => p.id)), isNull(payments.addonRequest), paymentStatusIn(PENDING)))
+    .where(and(inArray(payments.orderId, picked.map((p) => p.id)), planPaymentSql, paymentStatusIn(PENDING)))
     .orderBy(payments.createdAt, payments.id);
   return picked.map((p) => {
     const reason = REASON_BY_RANK[p.rank];

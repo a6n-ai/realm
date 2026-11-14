@@ -13,7 +13,7 @@ import { db, type Tx } from "@/db/client";
 import { orderActivities, orders, referrals, users } from "@/db/schema";
 import type { OrderPricingSnapshot } from "@/lib/pricing";
 import { referralCoins } from "@/lib/referrals/reward";
-import { earnsOrderCoins } from "@/lib/wallet/earns-coins";
+import { earnsOrderCoins } from "@/lib/wallet/earn-coins";
 import { getAppSettings } from "@/lib/settings";
 import { getReferralSettings, type ReferralSettings } from "@/lib/referrals/referral-settings";
 import { creditCoins, reverseCoinAward, walletService, type AwardableOrder } from "../wallet/wallet.service";

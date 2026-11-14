@@ -9,7 +9,7 @@ import publicPages from "./lib/routing/public-pages.json";
 import { isPublicApi } from "./lib/routing/public-api";
 import { AREA_PAGE, apexServes, appServes, skipsOrgResolution } from "./lib/routing/apex";
 import { MD_PAGES, wantsMarkdown } from "@/lib/landing/markdown-negotiation";
-import { isReferralCodeShape, normalizeReferralCode, setReferralCookie } from "./lib/referrals/cookie";
+import { normalizeReferralCode, parseReferralCode, setReferralCookie } from "./lib/referrals/cookie";
 import { appUrlOr, corsOrigins, isTest } from "@/lib/runtime/env";
 
 // Proxy defaults to the Node.js runtime as of Next 16 (setting `export const
@@ -64,9 +64,6 @@ async function orgs(): Promise<OrgSnapshot> {
   return orgSnapshot;
 }
 
-// Front door: the apex and www rules, in the app itself, with Cloudflare in front. The app host comes from BETTER_AUTH_URL;
-// the apex is that host without "app.". Any other config (localhost, previews) leaves this inert.
-// Paths match case-insensitively, a trailing "*" as a prefix, and "/*.svg" within one segment.
 // Public pages served from the cacheable /site/<org> tree. Exact matches only.
 // The cacheable pages (public-pages.json) plus two legacy paths next.config.ts redirects.
 const SITE_PAGES = new Set([...publicPages, "/menu/weekly", "/plans"]);
@@ -86,6 +83,9 @@ function siteFriendPath(pathname: string): string | null {
 
 const STATIC_PATH = /^\/(?:_next\/(?:static|image)\/|favicon\.ico$|sitemap\.xml$|robots\.txt$)|\.(?:svg|json|png|ico|jpg|jpeg|webp|woff|woff2|txt|xml)$/;
 
+// Front door: the apex and www rules, in the app itself, with Cloudflare in front. The app host comes from BETTER_AUTH_URL;
+// the apex is that host without "app.". Any other config (localhost, previews) leaves this inert.
+// Paths match case-insensitively, a trailing "*" as a prefix, and "/*.svg" within one segment.
 function frontDoor(request: NextRequest): NextResponse | null {
   const appHost = new URL(appUrlOr("http://localhost")).hostname;
   if (!appHost.startsWith("app.")) return null;
@@ -131,8 +131,8 @@ export async function proxy(request: NextRequest) {
   syncSessionHint(request, res);
   // A share link: remember the code until the friend signs in (attached there).
   // ...or the friend page itself (/refer/<code>): its header and footer links carry no ?ref=.
-  const ref = normalizeReferralCode(request.nextUrl.searchParams.get("ref") ?? friendCode(pathname));
-  if (isReferralCodeShape(ref)) setReferralCookie(res.cookies, ref);
+  const ref = parseReferralCode(request.nextUrl.searchParams.get("ref") ?? friendCode(pathname));
+  if (ref) setReferralCookie(res.cookies, ref);
   return res;
 }
 

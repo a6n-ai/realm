@@ -18,6 +18,6 @@ export async function requireAccountUser() {
   }
   // Status may have flipped after this session was issued (admin deactivate /
   // self delete). Only `active` accounts keep access.
-  if ((user as { status?: string }).status !== "active") redirect("/login");
+  if (user.status !== "active") redirect("/login");
   return { user, role: session.user.role as RoleValue };
 }

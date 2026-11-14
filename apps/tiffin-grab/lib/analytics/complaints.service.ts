@@ -13,7 +13,7 @@ import {
   complaintWhere,
   scopeToComplaintFilters,
   ticketOrgWhere,
-} from "./complaint-filters";
+} from "@/lib/support/complaint-filters";
 import { localDay, intCount } from "./metrics/scope";
 import { type AnalyticsScope } from "@/lib/analytics/scope-types";
 import { STATUS_LABEL } from "@/lib/support/ticket-status";

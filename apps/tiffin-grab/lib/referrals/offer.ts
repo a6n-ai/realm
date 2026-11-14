@@ -20,6 +20,12 @@ export type ReferralOffer = {
 
 const forSite = (f: OfferFigure | null): OfferFigure | null => (f ? { ...f, big: siteFigure(f.big) } : null);
 
+/** The active coin rate for display; null when none is set for the currency (callers then show coins only). */
+export async function activeCoinRate(currency: string): Promise<CoinRate> {
+  const perCoin = await walletService.activeRate(currency).catch(() => null);
+  return perCoin == null ? null : { perCoin, currency };
+}
+
 /** Live referral figures for the public site, from the same settings and rate the share card uses. */
 const OFFER_OFF: ReferralOffer = { on: false, friend: null, referrer: null, maxPerReferrer: null, pillLabel: null, friendCoins: null, referrerCoins: null };
 
@@ -35,8 +41,7 @@ export async function loadReferralOffer(): Promise<ReferralOffer> {
 /** Throws on failure: for callers that must not cache a fallback (the public API keeps answers for an hour). */
 export async function buildReferralOffer(): Promise<ReferralOffer> {
   const [settings, { currency }] = await Promise.all([getReferralSettings(), getAppSettings()]);
-  const perCoin = await walletService.activeRate(currency).catch(() => null);
-  const rate: CoinRate = perCoin == null ? null : { perCoin, currency };
+  const rate = await activeCoinRate(currency);
   const friend = friendOfferParts(settings, rate);
   const referrer = referrerOfferParts(settings, rate);
   return {

@@ -64,7 +64,7 @@ const { addOrderAddons, cancelAddonPayment, quoteOrderAddons, regenerateAddonPay
 const { sendPaymentReminder } = await import("../../payments/payment-reminder");
 const { findUnpaidPayment } = await import("../../payments/payment-settle");
 const { listOrdersPage } = await import("../orders.service");
-const { orderPaymentLocked } = await import("../../deliveries/customer-deliveries.service");
+const { orderPaymentLocked } = await import("../access");
 const { payByCard, settleStripePayment } = await import("../../payments/payment-stripe");
 const { nextCutoffMs } = await import("@/lib/orders/paid-start");
 const { toCents } = await import("@/lib/money");

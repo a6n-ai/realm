@@ -2,6 +2,7 @@ import { BRAND_HOST } from "@/lib/brand";
 import type { Metadata } from "next";
 import { Callout, Clause, LegalPage, List, Mail, Sub, type KeyPoint } from "@/components/marketing/legal";
 import { legalMeta } from "@/lib/landing/meta";
+import { PAUSE_NOTICE_HOURS, POLICY_CURRENCY } from "@/lib/landing/policy-facts";
 
 export const metadata: Metadata = legalMeta("Terms and conditions", "The terms that govern ordering from and subscribing to TiffinGrab in Ontario, Canada.", "/terms");
 export const revalidate = 86400;
@@ -32,8 +33,8 @@ const SECTIONS = [
 
 const KEY_POINTS: KeyPoint[] = [
   { text: "You must be 18 or older (or have a guardian's consent) and live in an area we deliver to.", section: 2 },
-  { text: "Prices are in CAD and plans are paid upfront. A plan renews automatically only if checkout says so.", section: 4 },
-  { text: "To pause, tell us at least 24 hours before your next delivery. Unused days may be credited to the end of your plan, not refunded in cash.", section: 5 },
+  { text: `Prices are in ${POLICY_CURRENCY} and plans are paid upfront. A plan renews automatically only if checkout says so.`, section: 4 },
+  { text: `To pause, tell us at least ${PAUSE_NOTICE_HOURS} hours before your next delivery. Unused days may be credited to the end of your plan, not refunded in cash.`, section: 5 },
   { text: "Our kitchen handles gluten, dairy, tree nuts, peanuts, sesame, soy, and eggs. Our food is not suitable for severe allergies.", section: 6 },
   { text: "If something goes wrong, our liability is limited to what you paid for that order or period in the last 30 days.", section: 9 },
   { text: "Ontario and Canadian law apply, and disputes go to Ontario courts.", section: 10 },
@@ -95,7 +96,7 @@ export default function TermsPage() {
         </Sub>
         <Sub title="4.2 Currency & pricing">
           <p className="m-0">
-            Prices are in <strong>CAD</strong> and include applicable taxes unless stated otherwise. We may change prices
+            Prices are in <strong>{POLICY_CURRENCY}</strong> and include applicable taxes unless stated otherwise. We may change prices
             with reasonable notice; changes do not apply retroactively to active prepaid periods where stated.
           </p>
         </Sub>
@@ -116,7 +117,7 @@ export default function TermsPage() {
       <Clause n={5} title={SECTIONS[4]}>
         <p className="m-0">Plans are non-transferable and tied to the registered delivery address unless we approve a change.</p>
         <p className="m-0">
-          <strong>Pausing:</strong> request at least <strong>24 hours</strong> before the next delivery via WhatsApp or
+          <strong>Pausing:</strong> request at least <strong>{PAUSE_NOTICE_HOURS} hours</strong> before the next delivery via WhatsApp or
           email; unused days may be credited to the end of the period (not cash).
         </p>
         <p className="m-0">

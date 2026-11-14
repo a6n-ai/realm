@@ -2,13 +2,13 @@ import { orgScope, type Visible, noVisibleOrgs } from "@/lib/tenant/org-scope";
 import { paymentMethodLabel } from "@/lib/payments/method-label";
 import { cache } from "react";
 import { displayName } from "@/lib/inquiries/display";
-import { and, asc, eq, isNull, sql } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 import { formatMoney, tzOffsetMinutes, zonedDateIso } from "@foundry/commons";
 import { dayRange } from "@foundry/commons/util/dates";
 import { db } from "@/db/client";
 import { orders, organization, payments } from "@/db/schema";
 import { inStatuses, PENDING } from "@/lib/payments/status";
-import { paymentStatusIn } from "@/lib/payments/status-sql";
+import { paymentStatusIn, planPaymentSql } from "@/lib/payments/status-sql";
 import { categoryLabel } from "@/lib/support/ticket-taxonomy";
 import { getAppSettings } from "@/lib/settings";
 import { countMissedDeliveries, listMissedDeliveries } from "@/lib/deliveries/missed-deliveries.service";
@@ -56,7 +56,7 @@ export function rankTodayItems(items: TodayItem[]): TodayItem[] {
 const PAYMENT_STATUS_LABEL: Record<string, string> = { pending_verification: "claimed, to verify", awaiting_payment: "awaiting payment" };
 
 const reviewPaymentWhere = (visible: Visible) =>
-  and(paymentReviewWhere(), isNull(payments.addonRequest), paymentStatusIn(PENDING), orgScope(orders.organizationId, visible));
+  and(paymentReviewWhere(), planPaymentSql, paymentStatusIn(PENDING), orgScope(orders.organizationId, visible));
 
 export async function countReviewPayments(visible: Visible): Promise<number> {
   if (empty(visible)) return 0;

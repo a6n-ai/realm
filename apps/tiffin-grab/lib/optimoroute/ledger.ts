@@ -6,7 +6,7 @@ import { labelDeliveryStatus } from "@/lib/deliveries/label-status";
 import { loadDayDeliveries, STATUS_DAY_STATUSES } from "@/lib/deliveries/day-deliveries";
 import { effectiveAddress } from "@/lib/deliveries/row-state";
 import { loadExtraDates } from "@/lib/deliveries/delivery-extras";
-import { missedPublicIdsOn } from "@/lib/orders/missed-where";
+import { missedPublicIdsOn } from "@/lib/deliveries/missed-where";
 import { getCompletionDetails, searchOrdersForDate } from "./client";
 import { movedSourceIds, tiffinsMoved } from "./completions";
 import { listPaymentHeld, type PaymentHeldRow } from "./drivers";

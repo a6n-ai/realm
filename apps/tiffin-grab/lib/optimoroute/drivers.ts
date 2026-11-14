@@ -1,8 +1,8 @@
-import { and, eq, isNotNull, isNull, sql } from "drizzle-orm";
+import { and, eq, isNotNull, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, orders, payments, users } from "@/db/schema";
 import { PENDING } from "@/lib/payments/status";
-import { paymentStatusIn } from "@/lib/payments/status-sql";
+import { paymentStatusIn, planPaymentSql } from "@/lib/payments/status-sql";
 import { loadDayDeliveries } from "@/lib/deliveries/day-deliveries";
 import { loadTripDetails, stopNotes } from "./trip-notes";
 import { effectiveAddress } from "@/lib/deliveries/row-state";
@@ -109,11 +109,10 @@ export async function listPaymentHeld(date: string): Promise<PaymentHeldRow[]> {
         eq(deliveries.status, "scheduled"),
         eq(orders.status, "active"),
         paymentStatusIn(PENDING),
-        isNull(payments.addonRequest),
+        planPaymentSql,
       ),
     )
     .orderBy(orders.fullName);
   return rows as PaymentHeldRow[];
 }
 
-export { assignDriver } from "./push";

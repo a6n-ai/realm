@@ -1,11 +1,11 @@
 "use client";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@foundry/ui/tabs";
-import { DayCard, DayGridView } from "@/components/analytics/day-card";
+import { DayCard, DayGridView } from "@/components/dashboard/analytics/day-card";
 import { useFormatMoney } from "@/components/app-currency";
-import { weekLabel } from "@/components/analytics/daily-scorecard";
+import { weekLabel } from "@/components/dashboard/analytics/daily-scorecard";
 import { groupProfitWeeks } from "@/lib/analytics/profit-weeks";
-import { ChartEmpty } from "@/components/analytics/chart-boundary";
+import { ChartEmpty } from "@/components/dashboard/analytics/chart-boundary";
 import { profitCalendar } from "@/lib/analytics/profit-calendar";
 import { periodLabel, type Grain, type ProfitRow } from "@/lib/analytics/profitability";
 

@@ -9,19 +9,24 @@ import { enqueueStaffNotification } from "@/lib/notifications/enqueue";
 import { lockOrder } from "@/lib/orders/order-lock";
 import { assertStartable } from "@/lib/orders/order-window";
 import { paidStartDate } from "@/lib/orders/paid-start";
-import { appToday } from "@/lib/orders/start-date";
+import { appToday } from "@/lib/dates/start-date";
 import { ENDED, inOrderStatuses } from "@/lib/orders/status";
 import { getAppSettings } from "@/lib/settings";
 
-async function flagPaidNotStarted(tx: Tx, order: typeof orders.$inferSelect, note: string, actorId: bigint | null) {
-  await tx.insert(orderActivities).values({ orderId: order.id, type: "note", note, createdBy: actorId });
-  await enqueueStaffNotification(tx, {
+/** Staff alert for money taken on an order that cannot start; one alert per order. */
+export function notifyPaidNotStarted(tx: Tx, order: { organizationId: string | null; publicId: string; deploymentId: string }, note: string) {
+  return enqueueStaffNotification(tx, {
     organizationId: order.organizationId,
     title: "Card payment needs attention",
     body: `${note} · order ${order.deploymentId}`,
     href: `/dashboard/orders/${order.publicId}`,
     dedupeKey: `paid_not_started:${order.publicId}`,
   });
+}
+
+async function flagPaidNotStarted(tx: Tx, order: typeof orders.$inferSelect, note: string, actorId: bigint | null) {
+  await tx.insert(orderActivities).values({ orderId: order.id, type: "note", note, createdBy: actorId });
+  await notifyPaidNotStarted(tx, order, note);
 }
 
 // A pending Stripe order starts when its payment settles. Pending orders reserve no days, so

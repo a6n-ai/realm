@@ -16,16 +16,16 @@ import { PlayOnView } from "@/components/landing/home/play-on-view";
 import { SwipeRow } from "@/components/landing/home/swipe-row";
 import { MenuBoard } from "@/components/landing/home/menu-board";
 import { TodayPicks } from "@/components/landing/home/today-picks";
+import { DAY_SHORT } from "@/lib/dates/weekdays";
 
 const WEEK_LETTER: Record<(typeof WEEK_DAYS)[number], string> = { mon: "M", tue: "T", wed: "W", thu: "T", fri: "F", sat: "S", sun: "S" };
-const WEEK_SHORT: Record<(typeof WEEK_DAYS)[number], string> = { mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun" };
 
 /** "Mon to Fri" for a run of days, "Mon, Wed, Fri" otherwise. */
 function dayRange(days: string[]): string {
   const idx = WEEK_DAYS.flatMap((d, i) => (days.includes(d) ? [i] : []));
   if (idx.length === 0) return "";
   const run = idx.length > 2 && idx.every((v, i) => i === 0 || v === idx[i - 1]! + 1);
-  return run ? `${WEEK_SHORT[WEEK_DAYS[idx[0]!]!]} to ${WEEK_SHORT[WEEK_DAYS[idx[idx.length - 1]!]!]}` : idx.map((i) => WEEK_SHORT[WEEK_DAYS[i]!]).join(", ");
+  return run ? `${DAY_SHORT[WEEK_DAYS[idx[0]!]!]} to ${DAY_SHORT[WEEK_DAYS[idx[idx.length - 1]!]!]}` : idx.map((i) => DAY_SHORT[WEEK_DAYS[i]!]).join(", ");
 }
 
 /** The running promotion as a die-cut sticker on the hero: short headline in the middle,

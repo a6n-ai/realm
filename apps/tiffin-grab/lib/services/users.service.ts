@@ -6,7 +6,7 @@ import { AuthError, ValidationError, pinSchema, type RoleValue } from "@foundry/
 import { and, eq, ne, sql } from "drizzle-orm";
 import { db, type Tx } from "@/db/client";
 import { account, invitation, session, users } from "@/db/schema";
-import { hashPassword, verifyPassword } from "@/lib/auth/password";
+import { hashPassword, verifyPassword } from "@foundry/auth";
 import { SessionUpdatableService } from "./session-service";
 import { requireUserId } from "@/lib/identity/user-ids";
 import { recordAudit } from "@/lib/identity/audit";

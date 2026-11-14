@@ -6,9 +6,8 @@ import type { ReactNode } from "react";
 import type { DayOfWeek } from "@/lib/deliveries/schedule/delivery-days";
 import { formatDateOnly } from "@/lib/format/datetime";
 import { addDaysIso } from "@foundry/commons/util/dates";
+import { DAY_SHORT, DAY_NAME } from "@/lib/dates/weekdays";
 
-const SHORT: Record<DayOfWeek, string> = { mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun" };
-const FULL: Record<DayOfWeek, string> = { mon: "Monday", tue: "Tuesday", wed: "Wednesday", thu: "Thursday", fri: "Friday", sat: "Saturday", sun: "Sunday" };
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 const PRIMARY = "var(--primary)";
 
@@ -92,11 +91,11 @@ export function TripTimeline({
               </span>
               <div className="min-w-0 pt-0.5">
                 <p className="flex flex-wrap items-baseline gap-x-2">
-                  <span className="text-body leading-tight font-semibold tracking-[-0.02em]">{FULL[t.day]}{weekStart ? `, ${dateOf(t.day)}` : ""}</span>
+                  <span className="text-body leading-tight font-semibold tracking-[-0.02em]">{DAY_NAME[t.day]}{weekStart ? `, ${dateOf(t.day)}` : ""}</span>
                   <span className="text-primary text-subhead font-semibold tabular-nums">{plural(t.units, "tiffin", "tiffins")}</span>
                 </p>
                 <p className="text-muted-foreground mt-1 text-footnote">
-                  {t.units === 1 && t.days[0] === t.day ? "Eaten the same day" : `For ${t.days.map((d) => FULL[d]).join(", ").replace(/, ([^,]*)$/, " and $1")}`}
+                  {t.units === 1 && t.days[0] === t.day ? "Eaten the same day" : `For ${t.days.map((d) => DAY_NAME[d]).join(", ").replace(/, ([^,]*)$/, " and $1")}`}
                 </p>
               </div>
             </m.li>
@@ -119,12 +118,12 @@ export function TripTimeline({
             const off = pick?.disabled?.(d) ?? false;
             const head = pick ? (
               <>
-                <span className={`text-caption-2 font-semibold uppercase tracking-[0.08em] ${eats ? "text-muted-foreground" : "text-muted-foreground/60"}`}>{SHORT[d]}</span>
+                <span className={`text-caption-2 font-semibold uppercase tracking-[0.08em] ${eats ? "text-muted-foreground" : "text-muted-foreground/60"}`}>{DAY_SHORT[d]}</span>
                 <span className={`grid size-8 place-items-center rounded-full text-[16px] font-bold tabular-nums ${pick.today === d && !sel ? "border-primary border-2" : ""}`}>{Number(dateIso(d).slice(8))}</span>
               </>
             ) : (
               <>
-                <span className={`text-caption-2 font-semibold uppercase tracking-[0.06em] ${eats ? "text-muted-foreground" : "text-muted-foreground/50"}`}>{SHORT[d]}</span>
+                <span className={`text-caption-2 font-semibold uppercase tracking-[0.06em] ${eats ? "text-muted-foreground" : "text-muted-foreground/50"}`}>{DAY_SHORT[d]}</span>
                 {/* The day number only: the month is in the card's week line, so "Nov 10" x7 doesn't crowd the row. */}
                 {weekStart && <span className={`text-subhead font-semibold tabular-nums ${eats ? "text-foreground" : "text-muted-foreground/50"}`}>{Number(dateIso(d).slice(8))}</span>}
               </>

@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState, useTransition } from "react";
 import { loadMyPauseDays, pauseMyDays, releaseMyDays, setMyAutoMovePaused, type PauseDayChoice } from "@/lib/deliveries/customer-actions";
+import { NETWORK_CLIENT_ERROR, sanitizeClientError } from "@foundry/commons/util/client-error";
 import { PauseCalendar } from "./pause-calendar";
 import { cutoffTime } from "@/lib/deliveries/view";
 import { RESUME_ALL_LABEL } from "../action-model";
@@ -34,7 +35,7 @@ export function PauseSheet({ plan, open, onDone, onMove, ui }: Omit<ActionSheetP
     let cancel = false;
     loadMyPauseDays(plan.orderId).then((res) => {
       if (cancel) return;
-      if ("error" in res) setError(res.error);
+      if ("error" in res) setError(sanitizeClientError(res.error));
       else { setDays(res.days); setAutoMove(res.autoMove); }
     });
     return () => { cancel = true; };
@@ -64,33 +65,36 @@ export function PauseSheet({ plan, open, onDone, onMove, ui }: Omit<ActionSheetP
     : resuming.length ? (resuming.length > 1 ? `Resume ${resuming.length} deliveries` : "Resume this delivery")
     : picked.length > 1 ? `Pause ${picked.length} deliveries` : "Pause this delivery";
 
+  // A dropped connection must still leave the sheet with a message.
+  const attempt = (fn: () => Promise<void>) => start(async () => { try { await fn(); } catch { setError(NETWORK_CLIENT_ERROR); } });
+
   const toggle = (date: string) => setPicked((cur) => (cur.includes(date) ? cur.filter((d) => d !== date) : atCap ? cur : [...cur, date]));
 
   const flipResume = (date: string) => setResuming((cur) => (cur.includes(date) ? cur.filter((d) => d !== date) : [...cur, date]));
 
   // Every day still open in one go, like Resume all; offered only when the limits allow all of them.
   const canPauseAll = !limitReached && openDays.length > 1 && (cap == null || cap >= openDays.length);
-  const pauseAll = () => start(async () => {
+  const pauseAll = () => attempt(async () => {
     setError(null);
     const res = await pauseMyDays(plan.orderId, openDays.map((d) => d.date));
-    if ("error" in res) return setError(res.error);
+    if ("error" in res) return setError(sanitizeClientError(res.error));
     if (res.paused.length === 0) return setError("Nothing was paused. Those days are past their cutoff.");
     onDone(pausedLine(res.paused, res.skipped));
   });
 
   // Pause first, then resume; each half reports what the server actually changed.
-  const commit = () => start(async () => {
+  const commit = () => attempt(async () => {
     setError(null);
     const lines: string[] = [];
     if (picked.length) {
       const res = await pauseMyDays(plan.orderId, picked);
-      if ("error" in res) return setError(res.error);
+      if ("error" in res) return setError(sanitizeClientError(res.error));
       if (res.paused.length === 0) return setError("Nothing was paused. Those days are past their cutoff.");
       lines.push(pausedLine(res.paused, res.skipped));
     }
     if (resuming.length) {
       const res = await releaseMyDays(plan.orderId, resuming);
-      if ("error" in res) return lines.length ? onDone(`${lines[0]} ${res.error}`) : setError(res.error);
+      if ("error" in res) return lines.length ? onDone(`${lines[0]} ${sanitizeClientError(res.error)}`) : setError(sanitizeClientError(res.error));
       const line = resumeLine(res.dates, res.reclosed);
       if (!line && !lines.length) return setError("Nothing was resumed.");
       if (line) lines.push(line);
@@ -104,16 +108,21 @@ export function PauseSheet({ plan, open, onDone, onMove, ui }: Omit<ActionSheetP
     setError(null);
     setAutoMove(on);
     start(async () => {
-      const res = await setMyAutoMovePaused(plan.orderId, on);
-      if ("error" in res) { setAutoMove(!on); return setError(res.error); }
-      if (res.moved > 0) onDone(`Moved ${res.moved} paused ${res.moved === 1 ? "day" : "days"} to the end of your plan.`);
+      try {
+        const res = await setMyAutoMovePaused(plan.orderId, on);
+        if ("error" in res) { setAutoMove(!on); return setError(sanitizeClientError(res.error)); }
+        if (res.moved > 0) onDone(`Moved ${res.moved} paused ${res.moved === 1 ? "day" : "days"} to the end of your plan.`);
+      } catch {
+        setAutoMove(!on);
+        setError(NETWORK_CLIENT_ERROR);
+      }
     });
   };
 
-  const release = (dates: string[] | "all") => start(async () => {
+  const release = (dates: string[] | "all") => attempt(async () => {
     setError(null);
     const res = await releaseMyDays(plan.orderId, dates);
-    if ("error" in res) return setError(res.error);
+    if ("error" in res) return setError(sanitizeClientError(res.error));
     const line = resumeLine(res.dates, res.reclosed);
     if (!line) return setError("Nothing was resumed.");
     onDone(line);

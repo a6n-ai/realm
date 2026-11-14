@@ -1,6 +1,6 @@
-import { ChartCard } from "@/components/analytics/chart-card";
-import type { Part } from "@/components/analytics/chart-math";
-import { SegmentedBar } from "@/components/analytics/charts";
+import { ChartCard } from "@/components/dashboard/analytics/chart-card";
+import type { Part } from "@/components/dashboard/analytics/chart-math";
+import { SegmentedBar } from "@/components/dashboard/analytics/charts";
 import { getAppSettings } from "@/lib/settings";
 import { dayServiceSummary } from "@/lib/menu/daily-labels.service";
 import { deliveryGroup } from "./delivery-groups";

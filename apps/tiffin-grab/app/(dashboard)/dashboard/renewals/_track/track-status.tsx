@@ -21,8 +21,8 @@ import { FollowUpPicker, type FollowUpValue } from "@/components/dashboard/pipel
 import { ReasonDialog } from "@/components/dashboard/pipeline/reason-dialog";
 import { StatusTileButton, TonePill } from "@/components/dashboard/pipeline/status-tile";
 import { unwrapAction } from "@/lib/actions/unwrap";
-import { isClosedTrack, LOST_REASON_OPTIONS, TRACK_STATUSES, trackLabel, type TrackStatus } from "@/lib/renewals/status";
-import type { LostReason } from "@/lib/inquiries/inquiries.service";
+import { isClosedTrack, TRACK_STATUSES, trackLabel, type TrackStatus } from "@/lib/renewals/status";
+import { LOST_REASON_OPTIONS, type LostReason } from "@/lib/inquiries/lost-reason";
 import { setTrackStatusAction } from "../actions";
 
 type Look = { icon: LucideIcon; pill: string; text: string; tile: string };

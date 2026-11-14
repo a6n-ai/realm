@@ -35,17 +35,6 @@ export const DAY_COLUMNS: { label: string; days: DayOfWeek[] }[] = [
   { label: "Weekends", days: ["sat", "sun"] },
 ];
 
-/** Customer home/menu strip: one column per day, including Sat and Sun. */
-export const HOME_MENU_DAY_COLUMNS: { label: string; days: DayOfWeek[] }[] = [
-  { label: "Mon", days: ["mon"] },
-  { label: "Tue", days: ["tue"] },
-  { label: "Wed", days: ["wed"] },
-  { label: "Thu", days: ["thu"] },
-  { label: "Fri", days: ["fri"] },
-  { label: "Sat", days: ["sat"] },
-  { label: "Sun", days: ["sun"] },
-];
-
 type DayColumn = { label: string; days: DayOfWeek[] };
 
 // A merged display column (Weekends) draws from two stored days, and the usual case is

@@ -1,7 +1,7 @@
 import { findOwnedPayment, requireCustomerSession } from "@/lib/account/customer";
 import { toCents } from "@/lib/money";
 import { notFound } from "next/navigation";
-import { cardPayClosed } from "@/lib/orders/display-status";
+import { cardPayClosed } from "@/lib/payments/card-pay-closed";
 import { cardCheckoutContext } from "@/lib/payments/card-checkout-context";
 import { resolveProvince } from "@/lib/tax/canada";
 import { PayForm } from "./pay-form";

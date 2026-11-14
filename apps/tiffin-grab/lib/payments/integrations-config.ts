@@ -12,6 +12,13 @@ export async function getIntegrationsConfig(): Promise<IntegrationsConfig> {
   });
 }
 
+export async function installedPlugins(): Promise<string[]> {
+  const integrations = await getIntegrationsConfig();
+  return Object.entries(integrations)
+    .filter(([, v]) => (v as { installed?: boolean } | null)?.installed)
+    .map(([k]) => k);
+}
+
 // Uncached: Stripe writers are read-modify-write; a stale blob would resurrect wiped keys.
 export async function getIntegrationsConfigFresh(): Promise<IntegrationsConfig> {
   const [row] = await db.select({ cfg: app.integrationsConfig }).from(app).limit(1);

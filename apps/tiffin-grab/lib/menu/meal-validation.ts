@@ -47,12 +47,6 @@ export type MealSizeItemRow = {
   sortOrder: number;
 };
 
-export type ProposedDishPick = {
-  category: string;
-  /** Dish id (internal bigint as string or number — compared via Set membership). */
-  dishId: bigint;
-};
-
 export type CompositionContext = {
   /** Snapshot categoryCounts on the order (pre-swap base). */
   baseCounts: Record<string, number>;

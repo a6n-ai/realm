@@ -6,7 +6,7 @@ import { conditionToSql, columnResolver } from "@foundry/database";
 import { and, eq, gt, ilike, inArray, isNotNull, isNull, ne, or, sql, type SQL } from "drizzle-orm";
 import { UNASSIGNED_OWNER } from "@/lib/list/presets";
 import { epochBoundsWhere } from "@/lib/list/default-month";
-import { hasMissedDeliveries } from "@/lib/orders/missed-where";
+import { hasMissedDeliveries } from "@/lib/deliveries/missed-where";
 import { PENDING } from "@/lib/payments/status";
 import { paymentStatusIn } from "@/lib/payments/status-sql";
 import { db } from "@/db/client";

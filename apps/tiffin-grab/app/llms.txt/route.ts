@@ -1,4 +1,4 @@
-import { reviewsConnected } from "@/components/landing/landing-reviews";
+import { reviewsConnected } from "@/lib/landing/reviews";
 import { llmsTxt } from "@/lib/landing/llms-text";
 import { loadSiteFacts } from "@/lib/landing/site-facts";
 import { publicOrigin } from "@/lib/routing/apex";

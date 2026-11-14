@@ -2,7 +2,7 @@ import { orgScope, type Visible } from "@/lib/tenant/org-scope";
 import { pageOffset } from "@foundry/design-system/filters/parse-filter-state";
 import { and, asc, desc, eq, gte, ilike, inArray, isNotNull, isNull, like, lte, or, sql } from "drizzle-orm";
 import { UNPAID } from "@/lib/payments/status";
-import { paymentStatusIn } from "@/lib/payments/status-sql";
+import { paymentStatusIn, planPaymentSql } from "@/lib/payments/status-sql";
 import type { Page, PageRequest } from "@foundry/commons/util/pagination";
 import { db } from "@/db/client";
 import { deliveries, ledgerEntries, mealSizes, messageSuppression, notificationOutbox, orders, payments, plans, renewals as renewalRecords, tickets, users, walletLedger } from "@/db/schema";
@@ -13,8 +13,9 @@ import { lastTiffinSql, renewalStatusSql, type RenewalStatus } from "@/lib/order
 import { addDaysIso, DAY_MS, daysBetween } from "@foundry/commons/util/dates";
 import { computedStatusSql, effectiveTrackStatusSql, followUpWhere, getTrackRows, laterBookedAtSql, latestTrackActivities, listTrackActivities, type TrackActivity, type TrackRow } from "./renewal-tracking.service";
 import type { TrackStatus } from "@/lib/renewals/status";
-import type { LostReason } from "../inquiries/inquiries.service";
+import type { LostReason } from "../inquiries/lost-reason";
 import { walletBalanceSql } from "@/lib/wallet/balance-sql";
+import { netSpendSql } from "@/lib/payments/net-spend-sql";
 
 export type RenewalRow = {
   orderPublicId: string;
@@ -518,7 +519,7 @@ export async function getCustomerRenewal(visible: Visible, customerPublicId: str
     const pays = await db
       .select({ orderId: payments.orderId, publicId: payments.publicId })
       .from(payments)
-      .where(and(inArray(payments.orderId, pendingIds), isNull(payments.addonRequest), paymentStatusIn(UNPAID)))
+      .where(and(inArray(payments.orderId, pendingIds), planPaymentSql, paymentStatusIn(UNPAID)))
       .orderBy(desc(payments.createdAt));
     for (const p of pays) if (!unpaid.has(p.orderId.toString())) unpaid.set(p.orderId.toString(), p.publicId);
   }
@@ -624,8 +625,7 @@ async function renewalMoney(
     db
       .select({
         userId: ledgerEntries.userId,
-        // Same formula as ledgerService.totalSpent — payment credits minus refund debits.
-        spent: sql<string>`(coalesce(sum(case when ${ledgerEntries.type} = 'payment' then ${ledgerEntries.amount} else 0 end), 0) - coalesce(sum(case when ${ledgerEntries.type} = 'refund' then ${ledgerEntries.amount} else 0 end), 0))::text`,
+        spent: sql<string>`(${netSpendSql})::text`,
       })
       .from(ledgerEntries)
       .where(inArray(ledgerEntries.userId, userIds))

@@ -4,8 +4,8 @@ import { revalidatePath } from "next/cache";
 import { eq } from "drizzle-orm";
 import { assertHierarchyDepth } from "@foundry/auth";
 import { db } from "@/db/client";
-import { member, organization, users } from "@/db/schema";
-import { userIdByPublicId } from "@/lib/identity/user-ids";
+import { member, organization } from "@/db/schema";
+import { systemUserId, userIdByPublicId } from "@/lib/identity/user-ids";
 import { requireAdmin } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import {
@@ -33,8 +33,7 @@ async function resolveActingUserId(): Promise<bigint | null> {
     const id = await userIdByPublicId(session.user.id);
     if (id) return id;
   }
-  const [sys] = await db.select({ id: users.id }).from(users).where(eq(users.isSystem, true)).limit(1);
-  return sys?.id ?? null;
+  return systemUserId();
 }
 
 // Does not call `auth.api.createOrganization`.

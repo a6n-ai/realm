@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canTakeAddonPayment, cardPayClosed, complimentaryBlocker, isHiddenFromCustomer, orderDisplayStatus } from "../display-status";
+import { complimentaryBlocker, isHiddenFromCustomer, orderDisplayStatus } from "../display-status";
 
 describe("orderDisplayStatus", () => {
   it("overlays Active with Payment review while money is unpaid or claimed", () => {
@@ -18,11 +18,10 @@ describe("orderDisplayStatus", () => {
     expect(orderDisplayStatus("active", ["rejected", "pending_verification"])).toBe("payment_review");
   });
 
-  it("keeps Active once payment is settled; maps paused/upcoming to Active", () => {
+  it("keeps Active once payment is settled; maps paused to Active", () => {
     expect(orderDisplayStatus("active", ["paid"])).toBe("active");
     expect(orderDisplayStatus("active", ["simulated_paid"])).toBe("active");
     expect(orderDisplayStatus("paused", ["paid"])).toBe("active");
-    expect(orderDisplayStatus("upcoming", ["paid"])).toBe("active");
     expect(orderDisplayStatus("active", [])).toBe("active");
     expect(orderDisplayStatus("active", [null])).toBe("active");
   });
@@ -65,58 +64,5 @@ describe("complimentaryBlocker", () => {
     expect(complimentaryBlocker("active", ["rejected"])).toMatch(/rejected/);
     expect(complimentaryBlocker("pending", [])).toMatch(/active plan/);
     expect(complimentaryBlocker("cancelled", ["paid"])).toMatch(/active plan/);
-  });
-});
-
-describe("canTakeAddonPayment", () => {
-  const wp = { deploymentId: "wc-123" };
-  const own = { deploymentId: "tg-1" };
-  const st = (s: string[]) => s.map((status) => ({ status }));
-
-  it("allows a plan with settled money and nothing in review", () => {
-    expect(canTakeAddonPayment(own, st(["paid"]))).toBeNull();
-    expect(canTakeAddonPayment(own, st(["simulated_paid", "paid"]))).toBeNull();
-    expect(canTakeAddonPayment(own, st(["paid", "refunded"]))).toBeNull();
-  });
-
-  it("allows a WordPress-prepaid plan with no payment rows", () => {
-    expect(canTakeAddonPayment(wp, st([]))).toBeNull();
-  });
-
-  it("refuses while any payment is open", () => {
-    for (const s of ["awaiting_payment", "pending_verification", "pending"]) {
-      expect(canTakeAddonPayment(own, st(["paid", s]))).toBe("A payment is still pending on this plan. Confirm it first.");
-    }
-  });
-
-  it("refuses a rejected payment even beside a paid one", () => {
-    expect(canTakeAddonPayment(own, st(["rejected"]))).toMatch(/rejected/);
-    expect(canTakeAddonPayment(own, st(["paid", "rejected"]))).toMatch(/rejected/);
-  });
-
-  it("refuses when no payment is confirmed", () => {
-    expect(canTakeAddonPayment(own, st([]))).toBe("This plan has no confirmed payment yet.");
-    expect(canTakeAddonPayment(own, st(["refunded"]))).toBe("This plan has no confirmed payment yet.");
-    expect(canTakeAddonPayment(wp, st(["refunded"]))).toBe("This plan has no confirmed payment yet.");
-  });
-
-  it("refuses a second live add-on link, but not an expired one", () => {
-    const link = (expiresAt: number) => ({ status: "awaiting_payment", addonRequest: {}, expiresAt });
-    expect(canTakeAddonPayment(own, [{ status: "paid" }, link(2_000)], 1_000)).toBe("Regenerate or cancel the existing link first");
-    expect(canTakeAddonPayment(own, [{ status: "paid" }, link(1_000)], 1_000)).toBeNull();
-    expect(canTakeAddonPayment(own, [{ status: "paid" }, link(0)], 1_000)).toBeNull();
-  });
-});
-
-describe("cardPayClosed", () => {
-  const now = 1_000_000;
-  it("is open for a live link on a running or pending order", () => {
-    expect(cardPayClosed("pending", now + 1, now)).toBeNull();
-    expect(cardPayClosed("active", null, now)).toBeNull();
-  });
-  it("closes on a cancelled order, an expired link and a void link (expiresAt 0)", () => {
-    expect(cardPayClosed("cancelled", null, now)).toMatch(/cancelled/);
-    expect(cardPayClosed("pending", now, now)).toMatch(/expired/);
-    expect(cardPayClosed("active", 0, now)).toMatch(/expired/);
   });
 });

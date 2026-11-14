@@ -1,18 +1,18 @@
 import { cache, Suspense } from "react";
-import { AnalyticsIntro } from "@/components/analytics/analytics-intro";
+import { AnalyticsIntro } from "@/components/dashboard/analytics/analytics-intro";
 import { calendarSkeletonHeight } from "@/lib/analytics/calendar-height";
-import { ChartCard } from "@/components/analytics/chart-card";
-import { ChartSkeleton } from "@/components/analytics/skeletons";
+import { ChartCard } from "@/components/dashboard/analytics/chart-card";
+import { ChartSkeleton } from "@/components/dashboard/analytics/skeletons";
 import { AnalyticsStatCards, AnalyticsStatCardsSkeleton } from "@/components/dashboard/stat-cards";
-import { BreakdownBarChart, CalendarHeatmap, GaugeChart, PartsDonut } from "@/components/analytics/charts";
-import { DELIVERY_TONE } from "@/components/analytics/status-tones";
+import { BreakdownBarChart, CalendarHeatmap, GaugeChart, PartsDonut } from "@/components/dashboard/analytics/charts";
+import { DELIVERY_TONE } from "@/components/dashboard/analytics/status-tones";
 import {
   getDeliveriesDaily,
   getDeliveryStatusMix,
   getOperationsStats,
   getRouteLoadByDriver,
 } from "@/lib/analytics/operations.service";
-import { scopeOrAlert } from "@/components/analytics/franchise-unavailable";
+import { scopeOrAlert } from "@/components/dashboard/analytics/franchise-unavailable";
 import { DATE_BASIS_LABEL } from "@/lib/analytics/metrics/scope";
 import { type AnalyticsScope } from "@/lib/analytics/scope-types";
 import { isoDateInZone } from "@foundry/commons/util/dates";

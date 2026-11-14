@@ -1,4 +1,5 @@
 import { createMetaPixel } from "@foundry/meta-pixel";
+import { integrationsMasterKey } from "@/lib/runtime/env";
 import { metaPixelPlugin as plugin } from "@foundry/meta-pixel/server";
 import { integrationsConfigReadStore, integrationsConfigStore } from "@/lib/payments/integrations-config";
 
@@ -6,7 +7,7 @@ import { integrationsConfigReadStore, integrationsConfigStore } from "@/lib/paym
 export const metaPixel = createMetaPixel({
   store: integrationsConfigStore,
   readStore: integrationsConfigReadStore,
-  masterKey: () => process.env.INTEGRATIONS_ENCRYPTION_KEY,
+  masterKey: integrationsMasterKey,
 });
 
 export const metaPixelPlugin = () => plugin(metaPixel);

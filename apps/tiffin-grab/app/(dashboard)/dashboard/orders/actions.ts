@@ -11,7 +11,7 @@ import { ordersService } from "@/lib/orders/orders.service";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import type { CreateOrderInput } from "@/lib/orders/create-order";
 import type { ActionResult } from "@/lib/actions/action-result";
-import { orderAction } from "@/lib/actions/order-action";
+import { orderAction } from "@/lib/orders/order-action";
 import { parseInput, staffAction, type Guard } from "@/lib/actions/staff-action";
 import { getSession } from "@/lib/auth/session";
 import { uploadPaymentProof } from "@/lib/payments/payment-proof";

@@ -6,9 +6,9 @@ import { periodKey } from "@/lib/analytics/profitability";
 import { chartPeriod } from "@/lib/analytics/buckets";
 import { clampToToday } from "@/lib/analytics/clamp";
 import { inStatuses, PAID, PENDING } from "@/lib/payments/status";
+import { paymentMethodLabel } from "@/lib/payments/method-label";
 import {
   grainForRange,
-  methodLabel,
   presentPaymentStatuses,
   summarizeDiscounts,
   type PaymentStatusSlice,
@@ -119,7 +119,7 @@ export async function getRevenueReport(scope: AnalyticsScope, now = Date.now()):
       .map(([key, b]) => ({ ...chartPeriod(key, grain), netSales: round2(b.netSales), collected: round2(b.collected) })),
     byMethod: methods
       .filter((m) => m.net !== 0)
-      .map((m) => ({ method: methodLabel(m.key), key: m.key, amount: m.net }))
+      .map((m) => ({ method: paymentMethodLabel(m.key), key: m.key, amount: m.net }))
       .sort((a, b) => b.amount - a.amount),
     discounts: disc.lines,
     byStatus: presentPaymentStatuses(statusRows),

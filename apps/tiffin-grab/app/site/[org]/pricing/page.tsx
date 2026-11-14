@@ -15,7 +15,6 @@ import { isComingSoon, publicPlans } from "@/lib/landing/plan-options";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { listableMealSizes } from "@/lib/catalog/types";
 import { effectivePrice } from "@/lib/pricing";
-import { APP_DEFAULTS } from "@/db/schema/app-defaults";
 import { tiffinBounds } from "@/lib/wizard/selections";
 import { savePct } from "@/lib/pricing/discounts";
 import { pageMeta } from "@/lib/landing/meta";
@@ -49,7 +48,7 @@ const VISIBLE_SIZES = 5;
 
 export default async function PricingPage() {
   const money = await getMoneyFormatter();
-  const [catalog, trialSettings, { currency }] = await Promise.all([loadCatalogSnapshot(), getTrialSettings(), getAppSettings()]);
+  const [catalog, trialSettings, { currency, maxDiscountPct }] = await Promise.all([loadCatalogSnapshot(), getTrialSettings(), getAppSettings()]);
   const origin = publicOrigin();
   const offers = pricingJsonLd(catalog, origin, currency);
   const trial = trialOffer(catalog, trialSettings);
@@ -83,7 +82,7 @@ export default async function PricingPage() {
       days: (m.allowedDays && m.allowedDays.length > 0 ? m.allowedDays : WEEK_DAYS).filter((d) => m.servesWeekends || (!isWeekendDay(d))),
     })),
   }));
-  const maxPct = catalog.maxDiscountPct ?? APP_DEFAULTS.maxDiscountPct;
+  const maxPct = catalog.maxDiscountPct ?? maxDiscountPct;
   const bounds = tiffinBounds(catalog);
   const weeksList = [...new Set(catalog.durations.map((d) => d.weeks))].sort((a, b) => a - b);
   // Delivery frequencies as the kitchen defines them (fixed weekdays), each with its delivery discount per plan length.

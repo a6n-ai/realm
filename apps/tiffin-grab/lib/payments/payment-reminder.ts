@@ -2,10 +2,10 @@ import { and, eq } from "drizzle-orm";
 import { NotFoundError, ValidationError, formatMoney } from "@foundry/commons";
 import { findMethod } from "@foundry/payments";
 import { db } from "@/db/client";
-import { cardPayClosed } from "@/lib/orders/display-status";
+import { cardPayClosed } from "@/lib/payments/card-pay-closed";
 import { orderActivities, orders, payments, users } from "@/db/schema";
 import { sendPaymentReminderLink } from "@/lib/auth/invite-links";
-import { paymentTemplateVars } from "@/lib/payments/verification";
+import { paymentTemplateVars } from "@/lib/payments/email-vars";
 import { getPaymentConfig } from "@/lib/payments/payment-config";
 
 type MethodConfig = { payeeHandle?: string | null; instructions?: string | null; requireProof?: boolean };

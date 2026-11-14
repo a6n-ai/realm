@@ -2,7 +2,8 @@
 
 import { MessageCircle } from "lucide-react";
 import { formatEpoch } from "@/lib/format/datetime";
-import type { CustomerTicketRow, TicketStatus } from "@/lib/support/tickets.service";
+import type { CustomerTicketRow } from "@/lib/support/tickets.service";
+import type { TicketStatusValue as TicketStatus } from "@/lib/support/ticket-status";
 import { EmptyState, ListGroup, ListRow, Pill, Skeleton } from "@/components/kit";
 import { categoryLabel } from "@/lib/support/ticket-taxonomy";
 import { STATUS_LABEL, STATUS_TONE } from "./parts";

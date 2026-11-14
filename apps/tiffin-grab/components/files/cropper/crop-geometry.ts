@@ -97,10 +97,6 @@ export function resizeBox(
   return { x, y, w, h };
 }
 
-export function screenToImage(pt: Point, view: View, origin: Point): Point {
-  return { x: (pt.x - origin.x - view.panX) / view.zoom, y: (pt.y - origin.y - view.panY) / view.zoom };
-}
-
 export function imageToScreen(pt: Point, view: View, origin: Point): Point {
   return { x: pt.x * view.zoom + view.panX + origin.x, y: pt.y * view.zoom + view.panY + origin.y };
 }

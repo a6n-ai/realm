@@ -1,5 +1,5 @@
 import type { MetadataRoute } from "next";
-import { reviewsConnected } from "@/components/landing/landing-reviews";
+import { reviewsConnected } from "@/lib/landing/reviews";
 import { publicOrigin } from "@/lib/routing/apex";
 import { PUBLIC_PAGES } from "@/lib/routing/public-pages";
 

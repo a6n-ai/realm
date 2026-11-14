@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { betterAuthPassword, hashPassword, verifyPassword } from "../password";
+import { hashPassword, verifyPassword } from "@foundry/auth";
+import { betterAuthPassword } from "../password";
 
 describe("password hashing", () => {
   it("hashes to a non-plaintext scrypt string", async () => {

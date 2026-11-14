@@ -136,7 +136,6 @@ export function grainUnitForRange(fromMs: number, toMs: number, tz: string): (ty
   return GRAIN_UNIT[grainForRange(isoDateInZone(fromMs, tz), isoDateInZone(toMs, tz))];
 }
 
-export { paymentMethodLabel as methodLabel } from "@/lib/payments/method-label";
 
 const STAFF_LABEL = "Staff discounts";
 

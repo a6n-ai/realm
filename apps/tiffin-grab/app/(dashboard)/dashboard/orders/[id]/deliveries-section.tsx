@@ -1,5 +1,5 @@
 import { appTodayIso } from "@/lib/dates/today";
-import { isLiveOrder } from "@/lib/deliveries/status";
+import { RUNNING, inOrderStatuses } from "@/lib/orders/status";
 import { isAdmin } from "@/lib/roles";
 import { eq } from "drizzle-orm";
 import { getSession } from "@/lib/auth/session";
@@ -50,7 +50,8 @@ export async function loadSubscription(
   // While payment is unconfirmed, match the customer: schedule and picks stay hidden.
   const paymentReview = displayStatus === "payment_review";
 
-  const live = isLiveOrder(order.status);
+  // A plan that still has days to deliver (the delivery schedule is manageable).
+  const live = inOrderStatuses(RUNNING, order.status);
   const fullyPaused = live && (await isOrderFullyPaused(db, order.id, appTodayIso((await getAppSettings()).timezone)));
   // A finished plan still shows its days, read-only.
   const finished = order.status === "completed";

@@ -15,7 +15,7 @@ import { DataTable, ListPagination, type Column, type FacetDef } from "@/compone
 import { ListSearchFilters } from "@/components/filters/reui-facet-filters";
 import { humanDate } from "@/lib/deliveries/view";
 import { rowStatus, statusLabel, type RenewalRowStatus } from "@/lib/renewals/filters";
-import { LOST_REASON_LABELS } from "@/lib/renewals/status";
+import { LOST_REASON_LABELS } from "@/lib/inquiries/lost-reason";
 import type { RenewalRow, RenewedCustomerRow } from "@/lib/renewals/renewals.service";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@foundry/design-system/timezone-provider";

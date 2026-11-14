@@ -1,9 +1,9 @@
-import { and, eq, exists, isNull, not, or, sql } from "drizzle-orm";
+import { and, eq, exists, not, or, sql } from "drizzle-orm";
 import { wordpressImportSql } from "./wordpress-import-sql";
 import { db } from "@/db/client";
 import { orders, payments } from "@/db/schema";
 import { PAID, PENDING } from "@/lib/payments/status";
-import { paymentStatusIn } from "@/lib/payments/status-sql";
+import { paymentStatusIn, planPaymentSql } from "@/lib/payments/status-sql";
 
 /**
  * Labels, kitchen packing, and OptimoRoute: only active orders whose money is
@@ -31,7 +31,7 @@ export function fulfillmentReadyOrder() {
           .select({ _: sql`1` })
           .from(payments)
           // A pending add-on link holds nothing: its add-ons are not on the plan until it is paid.
-          .where(and(eq(payments.orderId, orders.id), paymentStatusIn(PENDING), isNull(payments.addonRequest))),
+          .where(and(eq(payments.orderId, orders.id), paymentStatusIn(PENDING), planPaymentSql)),
       ),
     ),
   );

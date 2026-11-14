@@ -24,9 +24,9 @@ describe("pickRenewSource", () => {
     expect(pickRenewSource(rows)).toBeNull();
   });
 
-  it("prefers the queued plan that ends after the running one", () => {
+  it("prefers the plan that ends last", () => {
     const running = row("active", "2026-11-01");
-    const queued = row("upcoming", "2026-11-29");
+    const queued = row("active", "2026-11-29");
     expect(pickRenewSource([running, queued])).toBe(queued);
   });
 

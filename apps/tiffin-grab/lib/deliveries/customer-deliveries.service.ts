@@ -1,3 +1,4 @@
+import { planPaymentSql } from "@/lib/payments/status-sql";
 import { appTodayIso } from "@/lib/dates/today";
 import { isCutoffPassed } from "@/lib/dates/cutoff";
 import { cutoffPassedSql } from "@/lib/dates/cutoff-sql";
@@ -5,9 +6,9 @@ import { ENDED, RUNNING, UNSTARTED } from "@/lib/orders/status";
 import { orderStatusIn } from "@/lib/orders/status-sql";
 import { loadExtraDates } from "@/lib/deliveries/delivery-extras";
 import { isWordpressImport } from "@/lib/orders/wordpress-import";
-import { NotFoundError, ValidationError, weekdayKey } from "@foundry/commons";
+import { NotFoundError, weekdayKey } from "@foundry/commons";
 import type { FileDetail } from "@foundry/storage/model";
-import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lte, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNotNull, lte, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { orderPaymentStatuses } from "@/lib/payments/order-payments";
 import { deliveries, deliveryCategorySwaps, deliveryFrequencies, deliveryMoves, dishCategories, dishes, holidays, mealSizes, menuItems, orderActivities, orders, payments, plans } from "@/db/schema";
@@ -24,9 +25,8 @@ import {
   type ResolvedCategory,
 } from "@/lib/menu/resolve-delivery-meal";
 import { allowedDishIdsForMealSize } from "@/lib/menu/dish-eligibility";
-import { PAYMENT_REJECTED_STATUS, isHiddenFromCustomer, isPaymentReviewStatus, orderDisplayStatus } from "@/lib/orders/display-status";
-import { getSession } from "@/lib/auth/session";
-import { isStaffRole } from "@/lib/roles";
+import { isHiddenFromCustomer, orderDisplayStatus } from "@/lib/orders/display-status";
+import { assertOwnsOrder } from "@/lib/orders/access";
 import { dishCategoriesService } from "../menu/dish-categories.service";
 import { menuService } from "../menu/menu.service";
 import { autoResumeIfElapsed, lapseElapsedPausesSafe } from "./pause-days.service";
@@ -36,51 +36,9 @@ import type { DropOffValue } from "@/lib/catalog/drop-off";
 import { earliestNewPlanStart, lastRunningTiffinDate } from "../orders/order-window";
 import { getAppSettings } from "@/lib/settings";
 import { getPauseLimits, getPauseUsage } from "./pause-limits.service";
-import { currentUserId } from "../services/session-service";
 import { deliveredTiffinCount, scheduledTiffinCount, type DeliveryForCounts } from "./tiffin-counts";
 import { mealSizeAllowedDays, mealSizeServesWeekends } from "./weekend-dish";
 import { isoToUtcDate, mondayOfIso } from "@foundry/commons/util/dates";
-
-// Staff (admin or member) may manage ANY customer order/delivery; a plain customer only their own.
-async function callerIsStaff(): Promise<boolean> {
-  const session = await getSession();
-  return session != null && isStaffRole(session.user.role);
-}
-
-// Passes if the caller is staff, or owns the order. Not-owned and not-existent both throw the same
-// NotFoundError — no existence oracle for another customer's data.
-export async function assertCanManageOrder(orderPublicId: string): Promise<void> {
-  if (await callerIsStaff()) return;
-  const userId = await currentUserId();
-  if (userId == null) throw new NotFoundError("Subscription not found");
-  await assertOwnsOrder(userId, orderPublicId);
-}
-
-export async function assertCanManageDelivery(deliveryPublicId: string): Promise<void> {
-  if (await callerIsStaff()) return;
-  const userId = await currentUserId();
-  if (userId == null) throw new NotFoundError("Delivery not found");
-  await assertOwnsDelivery(userId, deliveryPublicId);
-}
-
-// True while any payment on the order is unconfirmed (awaiting, under review, or rejected and
-// awaiting a re-claim). Used to freeze customer schedule changes until staff approve.
-export async function orderPaymentLocked(orderPublicId: string): Promise<boolean> {
-  const rows = await db
-    .select({ status: payments.status })
-    .from(payments)
-    .innerJoin(orders, eq(orders.id, payments.orderId))
-    .where(and(eq(orders.publicId, orderPublicId), isNull(payments.addonRequest)));
-  return rows.some((r) => isPaymentReviewStatus(r.status) || r.status === PAYMENT_REJECTED_STATUS);
-}
-
-// A customer's plan is read-only until payment is confirmed (meal picks included); staff can always act.
-export async function assertOrderUnlocked(orderPublicId: string): Promise<void> {
-  if (await callerIsStaff()) return;
-  if (await orderPaymentLocked(orderPublicId)) {
-    throw new ValidationError("You can edit your plan once we confirm your payment.");
-  }
-}
 
 type Delivery = typeof deliveries.$inferSelect;
 export type CustomerDelivery = Delivery & {
@@ -395,27 +353,6 @@ export async function myDeliveries(userId: bigint, from: string, until: string):
   }));
 }
 
-// Ownership guards for customer server actions that delegate to admin mutations without their own check.
-// Not-owned and not-existent throw the same NotFoundError: no existence oracle.
-export async function assertOwnsDelivery(userId: bigint, deliveryPublicId: string): Promise<void> {
-  const [row] = await db
-    .select({ ownerId: orders.userId })
-    .from(deliveries)
-    .innerJoin(orders, eq(deliveries.orderId, orders.id))
-    .where(eq(deliveries.publicId, deliveryPublicId))
-    .limit(1);
-  if (!row || row.ownerId !== userId) throw new NotFoundError("Delivery not found");
-}
-
-export async function assertOwnsOrder(userId: bigint, orderPublicId: string): Promise<void> {
-  const [row] = await db
-    .select({ ownerId: orders.userId })
-    .from(orders)
-    .where(eq(orders.publicId, orderPublicId))
-    .limit(1);
-  if (!row || row.ownerId !== userId) throw new NotFoundError("Subscription not found");
-}
-
 export type TiffinCounts = {
   /** tiffinCount snapshot from checkout (persons × delivery days) plus complimentary tiffins. */
   total: number;
@@ -481,7 +418,7 @@ export async function orderTiffinCounts(orderPublicId: string): Promise<TiffinCo
     .from(deliveries)
     .where(eq(deliveries.orderId, order.id));
 
-  const delivered = deliveredTiffinCount(rows as DeliveryForCounts[], Date.now());
+  const delivered = deliveredTiffinCount(rows as DeliveryForCounts[]);
   // A day whose tiffin went to another row is not the last one (HOLDS_DAY).
   const handedOn = handedOnIds(rows);
   const lastDeliveryDate = rows.reduce<string | null>(
@@ -586,7 +523,7 @@ export async function myWaitlistedSubscriptions(userId: bigint, now = Date.now()
           inArray(payments.orderId, rows.map((r) => r.id)),
           eq(payments.method, "stripe"),
           eq(payments.status, "awaiting_payment"),
-          isNull(payments.addonRequest),
+          planPaymentSql,
         ))
         .orderBy(desc(payments.id))
     : [];

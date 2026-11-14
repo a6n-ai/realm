@@ -1,7 +1,9 @@
-import { activeStaffWhere } from "@/lib/staff/staff-roster";
+import { activeStaffPool, isActiveStaff } from "@/lib/staff/default-owner";
+import { systemUserId } from "@/lib/identity/user-ids";
 import { orgScope, type Visible, noVisibleOrgs } from "@/lib/tenant/org-scope";
 import { parseEmail, parsePhone } from "@/lib/services/contact";
 import { isUniqueViolation } from "@/lib/db/errors";
+import { assertFiniteFollowUp, type LostReason } from "@/lib/inquiries/lost-reason";
 import { LIVE } from "@/lib/orders/status";
 import { orderStatusIn } from "@/lib/orders/status-sql";
 import { pageOffset } from "@foundry/design-system/filters/parse-filter-state";
@@ -117,7 +119,6 @@ type Stage = (typeof inquiries.stage.enumValues)[number];
 type ActivityType =
   | "call" | "whatsapp" | "email" | "note"
   | "quote_sent" | "sample_sent" | "payment_link_sent" | "visit" | "callback";
-type LostReason = (typeof inquiries.lostReason.enumValues)[number];
 
 const newWhere = (visible: Visible) =>
   and(eq(inquiries.stage, "new"), orgScope(inquiries.organizationId, visible));
@@ -165,10 +166,6 @@ function recommendedPosition(publicId: string, dayStart: number, dayEnd: number)
   const mine = sql`(${sql.join(recommendedOrder(inquiries, dayStart, dayEnd), sql`, `)})`;
   const theirs = sql`(select ${sql.join(recommendedOrder(recommendCur, dayStart, dayEnd), sql`, `)} from ${inquiries} as "cur" where ${recommendCur.publicId} = ${publicId})`;
   return { mine, theirs };
-}
-
-export function assertFiniteFollowUp(at: number | null | undefined) {
-  if (at != null && !Number.isFinite(at)) throw new ValidationError("Invalid follow-up date");
 }
 
 export function computeOverdue(stage: string, nextFollowUpAt: number | null, now: number): boolean {
@@ -250,13 +247,13 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
   // per-source, then default, then every active staff member.
   private async resolveOwner(sourceId: bigint, sourceKey: string): Promise<bigint> {
     const actor = await this.currentUserId();
-    if (actor && (await this.isActiveStaff(actor))) return actor;
+    if (actor && (await isActiveStaff(actor))) return actor;
     const cfg = await getLeadAssignment();
     // "creator" has no staff creator to fall back on here, so it rotates instead.
     const strat = strategyFor(cfg, sourceKey) === "percentage" ? "percentage" : "round_robin";
     const sourcePool = await poolFor("inquiry", sourceId);
     const configured = sourcePool.length ? sourcePool : await poolFor("inquiry");
-    const pool = configured.length ? configured : await this.activeStaffPool();
+    const pool = configured.length ? configured : await activeStaffPool();
     if (!pool.length) return this.systemUserId();
 
     const roll = await this.rollFor();
@@ -268,23 +265,10 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
     return chosen.id;
   }
 
-  private staffWhere() {
-    return activeStaffWhere();
-  }
-
-  private async isActiveStaff(userId: bigint): Promise<boolean> {
-    const [u] = await db.select({ id: users.id }).from(users).where(and(eq(users.id, userId), this.staffWhere())).limit(1);
-    return !!u;
-  }
-
-  private async activeStaffPool() {
-    return db.select({ id: users.id, publicId: users.publicId, weight: sql<number>`1` }).from(users).where(this.staffWhere());
-  }
-
   private async systemUserId(): Promise<bigint> {
-    const [sys] = await db.select({ id: users.id }).from(users).where(eq(users.isSystem, true)).limit(1);
-    if (!sys) throw new Error("system user not seeded");
-    return sys.id;
+    const id = await systemUserId();
+    if (!id) throw new Error("system user not seeded");
+    return id;
   }
 
   private async rollFor(): Promise<number> {

@@ -11,6 +11,7 @@ import { MealSizePrice } from "../meal-size-price";
 import { CurrentPlanHint, type CurrentPlanSummary } from "../current-plan-hint";
 import { dayAllowed, frequencyFits, onlyOnMessage, type DayOfWeek } from "@/lib/deliveries/schedule/delivery-days";
 import { effectivePrice } from "@/lib/pricing";
+import { DAY_SHORT } from "@/lib/dates/weekdays";
 
 const TIERS: ClientMealSizeView["tier"][] = ["budget", "medium", "premium"];
 // Price level instead of a word: "Budget" read as cheap. Screen readers still hear the level.
@@ -174,7 +175,6 @@ export function StepBundle({
   );
 }
 
-const DAY_SHORT: Record<DayOfWeek, string> = { mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun" };
 
 /** The days a size is made on, as pills (e.g. non-veg only: Mon, Wed, Fri). Nothing for a size made every day. */
 function MealDays({ meal, className = "" }: { meal: ClientMealSizeView; className?: string }) {
