@@ -1,13 +1,11 @@
-import { eq } from "drizzle-orm";
 import { handler, problem } from "@foundry/routes";
 import { phoneSchema, emailSchema, ValidationError } from "@foundry/commons";
-import { db } from "@/db/client";
-import { inquiries, leadSources, leadSubsources } from "@/db/schema";
 import { requireStaff } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import { getAppSettings } from "@/lib/settings";
 import { inquiriesService } from "@/lib/inquiries/inquiries.service";
+import { loadLeadSourceAliases } from "@/lib/inquiries/lead-sources.service";
 import { STAGE_MAP, type ImportMapping } from "@/lib/inquiries/import-columns";
 
 type RawRow = Record<string, unknown>;
@@ -70,28 +68,8 @@ export const POST = handler(async (request: Request): Promise<Response> => {
 
   const { defaultCountry } = await getAppSettings();
 
-  // Loaded once: case-insensitive key/label -> canonical key lookups, scoped so a
-  // subsource only resolves within its own parent source.
-  const sourceRows = await db
-    .select({ key: leadSources.key, label: leadSources.label })
-    .from(leadSources);
-  const subRows = await db
-    .select({ key: leadSubsources.key, label: leadSubsources.label, parentKey: leadSources.key })
-    .from(leadSubsources)
-    .innerJoin(leadSources, eq(leadSubsources.sourceId, leadSources.id));
-  const sourceByAlias = new Map<string, string>();
-  for (const s of sourceRows) {
-    sourceByAlias.set(s.key.toLowerCase(), s.key);
-    sourceByAlias.set(s.label.toLowerCase(), s.key);
-  }
+  const { sourceByAlias, subByParentAndAlias } = await loadLeadSourceAliases();
   const defaultSourceKey = sourceByAlias.get(defaultSourceKeyInput.toLowerCase()) ?? "manual";
-  const subByParentAndAlias = new Map<string, Map<string, string>>();
-  for (const s of subRows) {
-    const m = subByParentAndAlias.get(s.parentKey) ?? new Map<string, string>();
-    m.set(s.key.toLowerCase(), s.key);
-    m.set(s.label.toLowerCase(), s.key);
-    subByParentAndAlias.set(s.parentKey, m);
-  }
 
   const results: RowResult[] = [];
 
@@ -155,30 +133,21 @@ export const POST = handler(async (request: Request): Promise<Response> => {
           .join("\n") || undefined;
 
       // Same person (phone or email) with an open lead: the row folds into it as a re-inquiry.
-      const existingOpen = await inquiriesService.findOpenMatch(phone ?? null, email, undefined, whatsappPhone);
-
-      const publicId = await inquiriesService.resolveForSource({
+      const { publicId, created: isNew, previousStage } = await inquiriesService.importRow({
         phone,
         whatsappPhone,
         sourceKey,
         contact: { fullName: rawFullName || undefined, email },
         interest: { subSourceKey, notes },
+        createdAt: dateMs,
         visible,
       });
-
-      const isNew = !existingOpen;
-      if (isNew) {
-        // resolveForSource/create always stamp createdAt as "now" (a managed field,
-        // stripped from client input) — for a bulk historical import that's wrong,
-        // so backdate it directly once, only for rows that just created a fresh row.
-        await db.update(inquiries).set({ createdAt: dateMs }).where(eq(inquiries.publicId, publicId));
-      }
 
       const rawStage = cell(row, mapping.stage);
       const normalizedStage = rawStage.toLowerCase().trim();
       const mappedStage = normalizedStage ? STAGE_MAP[normalizedStage] : undefined;
       if (rawStage && !mappedStage) warnings.push(`Unrecognized stage "${rawStage}" — left as New`);
-      const currentStage = existingOpen?.stage ?? "new";
+      const currentStage = previousStage ?? "new";
       const targetStage = mappedStage ?? "new";
       // An open lead cannot go back to New and conversion happens via convert, so neither is applied here.
       if (targetStage !== currentStage && targetStage !== "new" && targetStage !== "converted") {

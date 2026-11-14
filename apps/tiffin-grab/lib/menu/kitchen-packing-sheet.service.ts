@@ -1,7 +1,6 @@
 // Daily Kitchen Packing Sheet: one delivery = one row. Columns are Item1…ItemN (not dish
 // names). Each cell is worded by lib/menu/packing-requirement ("Dal - 8oz × 2", "5 Rotis"). Kitchen Summary still aggregates by dish + portion across the day.
 import { and, asc, eq, inArray } from "drizzle-orm";
-import { parseIsoDateUtc } from "@foundry/commons";
 import { db } from "@/db/client";
 import {
   deliveries,
@@ -14,9 +13,9 @@ import {
   users,
 } from "@/db/schema";
 import { coveredDates, occurrenceDates } from "@/lib/deliveries/schedule/coverage";
-import { extraTiffinLabelAt, loadExtraDates, loadMovesIn } from "@/lib/deliveries/delivery-extras";
+import { loadExtraDates, loadMovesIn } from "@/lib/deliveries/delivery-extras";
 import { fulfillmentReadyOrder } from "@/lib/orders/fulfillment";
-import { resolveTripDay, swapsForDay, weekLoader } from "@/lib/menu/trip-meals";
+import { forLabelFor, resolveTripDay, ROW_CONCURRENCY, swapsForDay, weekLoader } from "@/lib/menu/trip-meals";
 import { createMealResolveCache } from "@/lib/menu/resolve-delivery-meal";
 import {
   addDishPortion,
@@ -30,10 +29,6 @@ import { portionForPick, portionsByCategory, slotTuAfterSwaps } from "@/lib/menu
 import { addonItemsByOrder, addonPickIndexes } from "@/lib/menu/order-addon-items";
 import { dishCategoriesService } from "@/lib/menu/dish-categories.service";
 import { withConcurrency } from "@foundry/commons/util/concurrency";
-import { DAY_NAMES } from "@foundry/commons/util/dates";
-
-// Under the pool size (10) so the other loaders on the labels page still get connections.
-const ROW_CONCURRENCY = 6;
 
 export type KitchenPackingRow = {
   deliveryPublicId: string;
@@ -188,7 +183,6 @@ export async function getKitchenPackingSheet(dateIso: string): Promise<KitchenPa
     // Second+ tiffin for the same eating day: name it so staff don't read it as a duplicate.
     const nth = seenByDate.get(forDate) ?? 0;
     seenByDate.set(forDate, nth + 1);
-    const extraLabel = extraTiffinLabelAt(movesInById.get(row.deliveryId), forDate, nth);
     const daySwaps = swapsForDay(swapRows, { id: row.deliveryId, deliveryDate: row.deliveryDate }, forDate);
     // Slot key → line. Selectable picks keep pickIndex so sabzi 12oz and 8oz stay separate.
     const lineBySlot = new Map<string, PackingItemLine>();
@@ -265,8 +259,7 @@ export async function getKitchenPackingSheet(dateIso: string): Promise<KitchenPa
     rowAcc.push({
       deliveryPublicId: row.deliveryPublicId,
       forDate,
-      forLabel: [covered.length > 1 ? `For ${DAY_NAMES[parseIsoDateUtc(forDate).getUTCDay()]}` : null, extraLabel]
-        .filter(Boolean).join(" · ") || null,
+      forLabel: forLabelFor(movesInById.get(row.deliveryId), covered, forDate, nth),
       customerName: (row.fullName ?? "").trim() || "Customer",
       phone: row.customerPhone ?? null,
       routeDriver: row.routeDriverName ?? row.routeDriverSerial ?? null,

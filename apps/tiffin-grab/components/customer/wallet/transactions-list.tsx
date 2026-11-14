@@ -10,7 +10,7 @@ import { useTimezone } from "@foundry/design-system/timezone-provider";
 import type { MoneyLedgerTx } from "@/lib/services/customer-finances.service";
 import { MONEY_LEDGER_FACETS } from "./money-ledger-facets";
 import { MethodName } from "@/components/payments/stripe-mark";
-import { paymentMethodLabel } from "@/lib/billing/payment-labels";
+import { paymentMethodDisplay } from "@/lib/billing/payment-labels";
 import { FilterBar, GroupHeader, QuietPagination, groupByMonth } from "./finance-kit";
 import { FilterBarSkeleton, MonthGroupSkeleton } from "@/components/kit/skeleton-parts";
 import { formatMoney } from "@foundry/commons";
@@ -63,7 +63,7 @@ function MoneyTxRow({ tx, currency }: { tx: MoneyLedgerTx; currency: string }) {
   // The ledger is the business's: its credit is the customer paying. The customer reads it the other
   // way round, so a payment is money out (−) and a refund or discount is money back to them (+, green).
   const toCustomer = tx.direction === "debit";
-  const method = tx.payment ? paymentMethodLabel(tx.payment) : null;
+  const method = tx.payment ? paymentMethodDisplay(tx.payment) : null;
   const details: { label: string; value: ReactNode }[] = [
     tx.orderDeploymentId ? { label: "Order", value: tx.orderDeploymentId } : null,
     method ? { label: "Paid with", value: <MethodName method={tx.payment!.method}>{method}</MethodName> } : null,

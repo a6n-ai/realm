@@ -21,6 +21,8 @@ export type ActionResult<T extends Record<string, unknown> = Record<string, neve
       violatedRuleId?: string;
       /** The AppError's HTTP-style status, so a caller can branch on a conflict (409) without matching text. */
       status?: number;
+      /** Machine-readable reason a caller can branch on instead of matching `error` text. */
+      errorCode?: string;
     };
 
 function isRedirectError(e: unknown): boolean {
@@ -71,7 +73,8 @@ export async function runAction<T extends Record<string, unknown>>(
       return { error: e.message === "Forbidden" ? "You do not have permission to perform this action." : e.message };
     }
     if (e instanceof AppError) {
-      return { error: e.message, status: e.status };
+      const errorCode = (e as { errorCode?: unknown }).errorCode;
+      return { error: e.message, status: e.status, ...(typeof errorCode === "string" && { errorCode }) };
     }
     // Unexpected error (e.g. database error, file storage timeout, etc.).
     // Log the full error on the server for debugging, and return a clean error message

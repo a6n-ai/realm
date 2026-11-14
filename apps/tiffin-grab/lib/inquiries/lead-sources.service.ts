@@ -1,5 +1,6 @@
 import { UpdatableRepository } from "@foundry/database";
 import type { PgTable } from "drizzle-orm/pg-core";
+import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { leadSources, leadSubsources } from "@/db/schema";
 import { SessionUpdatableService } from "../services/session-service";
@@ -24,4 +25,31 @@ export async function listActiveLeadSources(): Promise<{ key: string; label: str
       label: s.label,
       subs: subRows.filter((sub) => sub.active && sub.sourceId === s.id).map((sub) => ({ key: sub.key, label: sub.label })),
     }));
+}
+
+/**
+ * Case-insensitive key/label -> canonical key lookups for the spreadsheet import, scoped so a
+ * subsource only resolves within its own parent source.
+ */
+export async function loadLeadSourceAliases(): Promise<{ sourceByAlias: Map<string, string>; subByParentAndAlias: Map<string, Map<string, string>> }> {
+  const sourceRows = await db
+    .select({ key: leadSources.key, label: leadSources.label })
+    .from(leadSources);
+  const subRows = await db
+    .select({ key: leadSubsources.key, label: leadSubsources.label, parentKey: leadSources.key })
+    .from(leadSubsources)
+    .innerJoin(leadSources, eq(leadSubsources.sourceId, leadSources.id));
+  const sourceByAlias = new Map<string, string>();
+  for (const s of sourceRows) {
+    sourceByAlias.set(s.key.toLowerCase(), s.key);
+    sourceByAlias.set(s.label.toLowerCase(), s.key);
+  }
+  const subByParentAndAlias = new Map<string, Map<string, string>>();
+  for (const s of subRows) {
+    const m = subByParentAndAlias.get(s.parentKey) ?? new Map<string, string>();
+    m.set(s.key.toLowerCase(), s.key);
+    m.set(s.label.toLowerCase(), s.key);
+    subByParentAndAlias.set(s.parentKey, m);
+  }
+  return { sourceByAlias, subByParentAndAlias };
 }

@@ -56,14 +56,6 @@ export function PlanTag({ plan }: { plan: PlanTagInfo }) {
 
 export const tiffins = (n: number) => `${n} ${n === 1 ? "tiffin" : "tiffins"}`;
 
-export function rowSubline(t: Trip, _tz: string): string {
-  if (t.status === "rescheduled" && t.movedTo) return `Moved to ${humanDate(t.movedTo)}`;
-  if (t.status === "combined-into" && t.mergedInto) return `Combined into ${humanDate(t.mergedInto)}`;
-  if (t.coversLabel) return t.coversLabel;
-  if (t.isMakeup) return "Make-up delivery";
-  return humanDate(t.date);
-}
-
 /** "Bhindi Masala, Bhindi Masala" -> "Bhindi Masala x2". */
 export function dedupeDishes(summary: string | null): string[] {
   const counts = new Map<string, number>();

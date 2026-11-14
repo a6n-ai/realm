@@ -1082,6 +1082,28 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
     });
     return inq.publicId;
   }
+
+  /**
+   * One spreadsheet-import row: folds into the person's open inquiry or creates one, and for a
+   * fresh row backdates createdAt to the sheet's date (create() always stamps "now", a managed
+   * field stripped from client input; wrong for a bulk historical import).
+   */
+  async importRow(input: {
+    phone?: string;
+    whatsappPhone?: string;
+    sourceKey: string;
+    contact: { fullName?: string; email?: string };
+    interest?: { subSourceKey?: string; notes?: string };
+    createdAt: number;
+    visible: Visible;
+  }): Promise<{ publicId: string; created: boolean; previousStage: Stage | null }> {
+    const { createdAt, ...rest } = input;
+    const existingOpen = await this.findOpenMatch(input.phone ?? null, input.contact.email, undefined, input.whatsappPhone);
+    const publicId = await this.resolveForSource(rest);
+    const created = !existingOpen;
+    if (created) await db.update(inquiries).set({ createdAt }).where(eq(inquiries.publicId, publicId));
+    return { publicId, created, previousStage: existingOpen?.stage ?? null };
+  }
 }
 
 const repo = new UpdatableRepository(db, inquiries, inquiries.publicId, inquiries.id);

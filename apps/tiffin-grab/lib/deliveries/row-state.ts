@@ -39,12 +39,6 @@ export type AddressOverrideRow = Record<(typeof ADDRESS_OVERRIDE_COLUMNS)[number
 export const hasAddressOverride = (row: AddressOverrideRow): boolean =>
   ADDRESS_OVERRIDE_COLUMNS.some((col) => row[col] != null) || row.deliveryStrategyIds.length > 0;
 
-/** The update that puts a delivery back on the plan's address (the legacy single deliveryStrategyId is not written). */
-export const CLEAR_ADDRESS_OVERRIDE = {
-  addressId: null, fullName: null, addressLine: null, addressUnit: null, city: null, postalCode: null,
-  deliveryInstructions: null, deliveryTagId: null, deliveryStrategyIds: [], addressTagId: null, zoneId: null,
-};
-
 /** addressLine NULL means "inherit the order's address". */
 export function effectiveAddress(
   d: Delivery,

@@ -1,5 +1,5 @@
 import { formatAddressLine } from "@/lib/catalog/address-line";
-import { CLEAR_ADDRESS_OVERRIDE, HAS_HOLIDAY_EXTRA, POINTED_AT } from "@/lib/deliveries/row-state";
+import { HAS_HOLIDAY_EXTRA, POINTED_AT } from "@/lib/deliveries/row-state";
 import { appTodayIso } from "@/lib/dates/today";
 import { isCutoffPassed } from "@/lib/dates/cutoff";
 import { ValidationError, cutoffMsFor, parseIsoDateUtc, weekdayKey, zonedDateIso } from "@foundry/commons";
@@ -1197,24 +1197,5 @@ export async function setDeliveryAddress(
     return row.id;
   });
   await refreshStopBestEffort(deliveryId);
-}
-
-export async function clearDeliveryAddress(deliveryPublicId: string, actorId: bigint | null): Promise<void> {
-  await db.transaction(async (tx) => {
-    const orderId = await loadOrderIdByPublicId(tx, deliveryPublicId);
-    await lockOrder(tx, orderId);
-    const row = await loadByPublicId(tx, deliveryPublicId);
-    assertMutable(row);
-    if (row.status !== "scheduled") throw new ValidationError(`Cannot re-address a ${row.status} delivery`);
-    const updated = await tx.update(deliveries)
-      .set(CLEAR_ADDRESS_OVERRIDE)
-      .where(and(eq(deliveries.id, row.id), eq(deliveries.status, "scheduled")))
-      .returning({ id: deliveries.id });
-    if (updated.length === 0) throw new ValidationError(`Cannot re-address a ${row.status} delivery`);
-    await tx.insert(orderActivities).values({
-      orderId, deliveryId: row.id, type: "delivery_address_changed", createdBy: actorId,
-      note: `${row.deliveryDate} delivery back on the plan address`,
-    });
-  });
 }
 

@@ -6,7 +6,7 @@ import { and, asc, eq, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, ledgerEntries, mealSizes, orders, payments, plans, users } from "@/db/schema";
 import { payPageLines, type Line } from "@/lib/billing/pay-lines";
-import { paymentMethodLabel } from "./payment-labels";
+import { paymentMethodDisplay } from "./payment-labels";
 import { getBrandOrganizationAddress } from "@/lib/services/organizations.service";
 import { getAppSettings } from "@/lib/settings";
 import { BRAND_COMPACT } from "@/lib/brand";
@@ -123,7 +123,7 @@ export async function loadReceipt(orderPublicId: string, now = Date.now()): Prom
     const refunded = ledgerRefund.get(p.id) ?? (p.status === "refunded" ? amount : 0);
     return {
       date: p.capturedAt ?? p.createdAt,
-      method: paymentMethodLabel(p),
+      method: paymentMethodDisplay(p),
       card: p.method === "stripe",
       reference: p.method === "stripe" ? p.providerRef : p.reference,
       amount,

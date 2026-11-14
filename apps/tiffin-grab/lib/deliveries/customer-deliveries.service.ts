@@ -173,38 +173,6 @@ export async function myActiveSubscriptions(userId: bigint): Promise<Subscriptio
     });
 }
 
-/**
- * The customer's default plan. Prefer `active` over `paused`; among several (sequential plans),
- * the one that delivers next, and only when nothing is left to deliver the newest by createdAt.
- */
-export async function myPrimarySubscription(userId: bigint): Promise<Subscription | null> {
-  const all = await myActiveSubscriptions(userId);
-  if (all.length === 0) return null;
-  const active = all.filter((s) => s.status === "active");
-  const pool = active.length > 0 ? active : all;
-  if (pool.length === 1) return pool[0]!;
-  const ids = pool.map((s) => s.publicId);
-  const { timezone } = await getAppSettings();
-  const today = appTodayIso(timezone);
-  const upcoming = await db
-    .select({ publicId: orders.publicId, next: sql<string>`min(${deliveries.deliveryDate})` })
-    .from(deliveries)
-    .innerJoin(orders, eq(deliveries.orderId, orders.id))
-    .where(and(inArray(orders.publicId, ids), inArray(deliveries.status, [...VISIBLE]), gte(deliveries.deliveryDate, today)))
-    .groupBy(orders.publicId)
-    .orderBy(asc(sql`min(${deliveries.deliveryDate})`), desc(sql`max(${orders.createdAt})`))
-    .limit(1);
-  const nextUp = pool.find((s) => s.publicId === upcoming[0]?.publicId);
-  if (nextUp) return nextUp;
-  const [newest] = await db
-    .select({ publicId: orders.publicId })
-    .from(orders)
-    .where(inArray(orders.publicId, ids))
-    .orderBy(desc(orders.createdAt))
-    .limit(1);
-  return pool.find((s) => s.publicId === newest?.publicId) ?? pool[0]!;
-}
-
 /** First, last and next (>= today) delivery date of each of the customer's plans, keyed by order publicId. */
 export type SubscriptionWindow = { first: string; last: string; next: string | null };
 
@@ -631,28 +599,6 @@ export async function mySubscriptionsSummary(userId: bigint): Promise<SubSummary
       createdAt: r.createdAt,
       startDate: r.startDate,
     }));
-}
-
-// Pure read: resolves "what's coming" for one delivery against the released menu_week for its
-// plan/week. Never calls reconcileMakeups/materializeDeliveries — those are write paths reached
-// only through the admin/cron flows, not from a customer-facing lookup.
-export async function myDeliveryMeal(d: CustomerDelivery, person = 1): Promise<ResolvedCategory[] | { pending: true }> {
-  const [order] = await db
-    .select({ id: orders.id, planId: orders.planId, mealSizeId: orders.mealSizeId, categoryCounts: orders.categoryCounts, planType: plans.planType })
-    .from(orders)
-    .innerJoin(plans, eq(orders.planId, plans.id))
-    .where(eq(orders.publicId, d.orderPublicId))
-    .limit(1);
-  if (!order) return { pending: true };
-
-  const weekStart = mondayOfIso(d.deliveryDate);
-  // Same exact released-week gate as Menu (`menuService.getReleasedWeek`) — never a parallel query.
-  const week = await menuService.getReleasedWeek(weekStart);
-  if (!week) return { pending: true };
-
-  // Explicit-UTC parse (the mandatory `Z`): local-midnight parsing shifts the weekday.
-  const dayOfWeek = weekdayKey(isoToUtcDate(d.deliveryDate));
-  return resolveDeliveryMeal({ id: order.id, planId: order.planId, mealSizeId: order.mealSizeId, categoryCounts: order.categoryCounts }, { id: week.id, weekStart: week.weekStart }, dayOfWeek, person, d.id);
 }
 
 // Reuse resolveDeliveryMeal's own return shape for a single day — one implementation of

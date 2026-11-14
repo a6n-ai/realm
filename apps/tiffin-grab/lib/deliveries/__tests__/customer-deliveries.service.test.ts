@@ -16,7 +16,6 @@ const {
   myCalendar,
   myDeliveries,
   myPausePanel,
-  myPrimarySubscription,
   mySubscriptionWindows,
   myAgendaDots,
 } = await import("../customer-deliveries.service");
@@ -124,32 +123,6 @@ describe("customer-deliveries.service (integration)", () => {
     expect(new Set(subs.map((s) => s.publicId))).toEqual(new Set([settled.publicId, reviewing.publicId]));
     expect(subs.find((s) => s.publicId === settled.publicId)?.displayStatus).toBe("active");
     expect(subs.find((s) => s.publicId === reviewing.publicId)?.displayStatus).toBe("payment_review");
-  });
-
-  it("myPrimarySubscription prefers the plan that delivers next, not the newest one", async () => {
-    // The customer bought a follow-up plan (created later, starts later) while the first is running:
-    // the running plan must be the default, otherwise the hub shows an empty month.
-    const aOrder1 = await makeOrder(PHONE_A, "User A");
-    const aOrder2 = await makeOrder(PHONE_A, "User A", 1);
-    const userA = await userIdByPhone(PHONE_A);
-
-    const primary = await myPrimarySubscription(userA);
-    expect(primary?.publicId).toBe(aOrder1.publicId);
-
-    // orders.status = paused no longer exists as a state (it reads back as active), so the first plan stops delivering instead.
-    await db.update(deliveries).set({ status: "cancelled" }).where(eq(deliveries.orderId, aOrder1.id));
-    const afterPause = await myPrimarySubscription(userA);
-    expect(afterPause?.publicId).toBe(aOrder2.publicId);
-  });
-
-  it("myPrimarySubscription falls back to the newest plan when nothing is left to deliver", async () => {
-    const aOrder1 = await makeOrder(PHONE_A, "User A");
-    const aOrder2 = await makeOrder(PHONE_A, "User A", 1);
-    const userA = await userIdByPhone(PHONE_A);
-    await db.update(deliveries).set({ status: "cancelled" }).where(inArray(deliveries.orderId, [aOrder1.id, aOrder2.id]));
-
-    const primary = await myPrimarySubscription(userA);
-    expect(primary?.publicId).toBe(aOrder2.publicId);
   });
 
   it("myAgendaDots returns per-day (order, status) for every plan in one range read", async () => {

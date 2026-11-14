@@ -7,7 +7,7 @@ import type { AddressInput } from "@foundry/address";
 import { NotFoundError } from "@foundry/commons";
 import { currentUserId } from "@/lib/services/session-service";
 import { assertCanManageDelivery, assertCanManageOrder, assertOrderUnlocked } from "@/lib/orders/access";
-import { setDeliveryAddress, clearDeliveryAddress, rescheduleDelivery } from "@/lib/deliveries/deliveries.service";
+import { setDeliveryAddress, rescheduleDelivery } from "@/lib/deliveries/deliveries.service";
 import { listPauseDays, pauseDays, releasePausedDaysDetailed, type PauseDay, type ReclosedDay } from "@/lib/deliveries/pause-days.service";
 import { autoMovePausedOn, setAutoMovePaused } from "@/lib/deliveries/pause-auto-move";
 import { applyDeliverySwap, removeDeliverySwap } from "@/lib/menu/category-swaps.service";
@@ -64,15 +64,6 @@ export async function setMyDeliveryAddress(
       .limit(1);
     if (!owner?.userId) throw new NotFoundError("Delivery not found");
     await setDeliveryAddress(deliveryPublicId, pick, { userId: owner.userId, orgId: owner.orgId }, await currentUserId());
-    await revalidateForDelivery(deliveryPublicId);
-  });
-}
-
-export async function clearMyDeliveryAddress(deliveryPublicId: string): Promise<ActionResult> {
-  return runAction(async () => {
-    await assertCanManageDelivery(deliveryPublicId);
-    await assertDeliveryUnlocked(deliveryPublicId);
-    await clearDeliveryAddress(deliveryPublicId, await currentUserId());
     await revalidateForDelivery(deliveryPublicId);
   });
 }

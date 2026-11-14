@@ -1,7 +1,6 @@
 import { orderDeliveryDays, planWeek, type DayOfWeek } from "@/lib/deliveries/schedule/delivery-days";
 import { subscriptionDeliveryDates } from "@/lib/deliveries/schedule/delivery-dates";
 import { tripCoverage } from "@/lib/deliveries/schedule/coverage";
-import { addDaysIso } from "@foundry/commons/util/dates";
 
 // A plan migrated from WordPress carries a remaining balance (e.g. 17 tiffins) that
 // rarely fills whole weeks, which materializeDeliveries refuses. These mirror its
@@ -50,11 +49,6 @@ export function buildBoundedDeliveryRows(input: {
     cumulative += units;
   }
   return kept;
-}
-
-/** The first delivery trip strictly after `lastDelivered` (the day a migrated plan picks up). */
-export function nextTripDate(lastDelivered: string, trips: Trip[]): string {
-  return buildBoundedDeliveryRows({ startDate: addDaysIso(lastDelivered, 1), trips, persons: 1, targetTiffinCount: 1 })[0]!.deliveryDate;
 }
 
 /** Last delivery date if the balance is scheduled from `startDate`: the plan's end date. */

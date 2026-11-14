@@ -320,7 +320,7 @@ describe("Checkout Pay step", () => {
   });
 
   it("a changed total re-prices so the next Pay sends the new one", async () => {
-    payCheckout.mockResolvedValueOnce({ error: "Your total changed. Check it and pay again." });
+    payCheckout.mockResolvedValueOnce({ error: "Your total changed. Check it and pay again.", errorCode: "total_changed" });
     await toPayment();
     const before = reprice.mock.calls.length;
     reprice.mockImplementation(async () => ({ pricing: { ...pricing, total: 55 }, paymentMethods: methods, coinBalance: null, appliedCoupons: [] }));

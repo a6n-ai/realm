@@ -18,7 +18,6 @@ import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 import { createWebsiteInquiry } from "@/lib/landing/contact-actions";
 import { runAction, type ActionResult } from "@/lib/actions/action-result";
 import type { CardSource, PayByCardResult } from "@/lib/payments/payment-stripe";
-import { TOTAL_CHANGED } from "@/lib/payments/total-changed";
 import { captureMetaAttribution } from "@/lib/meta/request-context";
 
 export type ConfirmInput = CreateOrderInput & {
@@ -41,6 +40,14 @@ export type ConfirmResult =
   | { waitlisted: true };
 
 const log = createLogger("checkout");
+
+// Carries a code so checkout re-prices on it without matching the message.
+class TotalChangedError extends ValidationError {
+  readonly errorCode = "total_changed";
+  constructor() {
+    super("Your total changed. Check it and pay again.");
+  }
+}
 
 /**
  * A checkout that provisions a brand-new customer (no credential row yet) gets a
@@ -129,7 +136,7 @@ export async function payCheckout(
       }
       // The wallet/card sheet was priced client-side; never charge a different number than it showed.
       if (toCents(await paymentAmount(paymentPublicId)) !== expectedAmountCents) {
-        throw new ValidationError(TOTAL_CHANGED);
+        throw new TotalChangedError();
       }
       const [{ payByCard }, { appBaseUrl }] = await Promise.all([import("@/lib/payments/payment-stripe"), import("@/lib/payments/stripe")]);
       const result = await payByCard({

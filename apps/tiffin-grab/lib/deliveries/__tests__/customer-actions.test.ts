@@ -17,7 +17,6 @@ const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { createOrder } = await import("@/lib/orders/create-order");
 const {
   setMyDeliveryAddress,
-  clearMyDeliveryAddress,
   loadMyPauseDays,
   pauseMyDays,
   releaseMyDays,
@@ -104,17 +103,6 @@ describe("(customer)/me/deliveries actions (integration)", () => {
     await expect(setMyDeliveryAddress(bDelivery.publicId, { newAddress: ADDR })).resolves.toMatchObject({ error: expect.any(String) });
     const [row] = await db.select().from(deliveries).where(eq(deliveries.id, bDelivery.id));
     expect(row.fullName).not.toBe(ADDR.fullName);
-  });
-
-  it("rejects clearing another user's delivery address", async () => {
-    const aOrder = await makeOrder(PHONE_A, "User A");
-    const bOrder = await makeOrder(PHONE_B, "User B");
-    const [userA] = await db.select({ id: users.id, publicId: users.publicId }).from(orders)
-      .innerJoin(users, eq(orders.userId, users.id)).where(eq(orders.id, aOrder.id));
-    const bDelivery = await firstDeliveryOf(bOrder);
-
-    actAs(userA.publicId);
-    await expect(clearMyDeliveryAddress(bDelivery.publicId)).resolves.toMatchObject({ error: expect.any(String) });
   });
 
   // A real day on B's plan with a far-off cutoff: the ownership check is the only thing that can refuse it.

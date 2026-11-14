@@ -7,7 +7,6 @@
 import { loadMealSizeItems } from "@/lib/menu/meal-size-items";
 import { loadDayDeliveries, STATUS_DAY_STATUSES, toStatusRows, type DayDeliveryRow, type DayDeliveryStatusRow } from "@/lib/deliveries/day-deliveries";
 import { asc, inArray, isNotNull } from "drizzle-orm";
-import { parseIsoDateUtc } from "@foundry/commons";
 import { db } from "@/db/client";
 import {
   deliveryCategorySwaps,
@@ -18,18 +17,15 @@ import {
 import { effectiveAddress } from "@/lib/deliveries/row-state";
 import { menuService } from "@/lib/menu/menu.service";
 import { coveredDates, occurrenceDates } from "@/lib/deliveries/schedule/coverage";
-import { extraTiffinLabelAt, loadExtraDates, loadMovesIn } from "@/lib/deliveries/delivery-extras";
+import { loadExtraDates, loadMovesIn } from "@/lib/deliveries/delivery-extras";
 import { packLines } from "@/lib/menu/packing-requirement";
 import { isCountCategory } from "@/lib/menu/format-tu";
-import { resolveTripDay, swapsForDay, weekLoader } from "@/lib/menu/trip-meals";
+import { forLabelFor, resolveTripDay, ROW_CONCURRENCY, swapsForDay, weekLoader } from "@/lib/menu/trip-meals";
 import { createMealResolveCache } from "@/lib/menu/resolve-delivery-meal";
 import { portionForPick, portionsByCategory } from "@/lib/menu/pick-size";
 import { addonItemsByOrder, addonPickIndexes } from "@/lib/menu/order-addon-items";
 import { withConcurrency } from "@foundry/commons/util/concurrency";
-import { DAY_NAMES, mondayOfIso } from "@foundry/commons/util/dates";
-
-// Under the pool size (10) so the other loaders on the labels page still get connections.
-const ROW_CONCURRENCY = 6;
+import { mondayOfIso } from "@foundry/commons/util/dates";
 
 export type LabelLine = {
   category: string;
@@ -209,7 +205,6 @@ export async function dailyLabelSheet(dateIso: string): Promise<DailyLabelSheet>
     // Second+ tiffin for one eating day gets the same "Extra · Nov 6" tag as the packing sheet.
     const nth = seenByDate.get(forDate) ?? 0;
     seenByDate.set(forDate, nth + 1);
-    const extraLabel = extraTiffinLabelAt(movesInById.get(delivery.id), forDate, nth);
     for (let person = 1; person <= order.persons; person++) {
       const dayWeek = forDate === dateIso ? week : await loadWeek(forDate);
       const portions = portionsFor(row, forDate);
@@ -251,8 +246,7 @@ export async function dailyLabelSheet(dateIso: string): Promise<DailyLabelSheet>
         personIndex: person,
         persons: order.persons,
         forDate,
-        forLabel: [covered.length > 1 ? `For ${DAY_NAMES[parseIsoDateUtc(forDate).getUTCDay()]}` : null, extraLabel]
-          .filter(Boolean).join(" · ") || null,
+        forLabel: forLabelFor(movesInById.get(delivery.id), covered, forDate, nth),
         deliveryNotes: row.driverNote,
         lines: packLines(lines),
       });

@@ -1,5 +1,5 @@
 // Applying/removing a category swap on one specific delivery. Modeled directly on
-// setDeliveryAddress/clearDeliveryAddress in deliveries.service.ts: same
+// setDeliveryAddress in deliveries.service.ts: same
 // transaction + advisory-lock + assertMutable shape, same "log an orderActivities
 // row" convention. Kept in its own file rather than folded into
 // deliveries.service.ts, same reasoning selections.service.ts is its own file.

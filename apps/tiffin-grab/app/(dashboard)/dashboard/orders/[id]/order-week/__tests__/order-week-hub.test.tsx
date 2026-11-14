@@ -18,7 +18,7 @@ const pse = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/deliveries/customer-actions", () => ({
   applyMyDeliverySwap: vi.fn(), pauseMyDays: pse, loadMyPauseDays: vi.fn(async () => ({ ok: true, days: [] })), releaseMyDays: rel, removeMyDeliverySwap: vi.fn(), rescheduleMyDelivery: vi.fn(),
   scheduleMyPooledTiffin: vi.fn(), unskipMyDelivery: vi.fn(),
-  setMyDeliveryAddress: vi.fn(), clearMyDeliveryAddress: vi.fn(),
+  setMyDeliveryAddress: vi.fn(),
 }));
 const sds = vi.hoisted(() => vi.fn(async (..._args: unknown[]) => ({ ok: true, message: "Delivery status updated" })));
 vi.mock("@/app/(dashboard)/dashboard/orders/[id]/actions", () => ({ setDeliveryStatusAction: sds }));

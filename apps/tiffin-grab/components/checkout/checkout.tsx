@@ -36,7 +36,6 @@ import { receiptLines } from "@/lib/payments/receipt-lines";
 import { PaymentMethodCards } from "./payment-method-cards";
 import { updateSavedAddress } from "@/lib/account/address-actions";
 import type { CardCheckoutContext } from "@/lib/payments/card-checkout-context";
-import { TOTAL_CHANGED } from "@/lib/payments/total-changed";
 import { billingAddress, e164 } from "@/lib/payments/billing-address";
 import type { CardSource } from "@/lib/payments/payment-stripe";
 import { createWebsiteInquiry } from "@/lib/landing/contact-actions";
@@ -815,7 +814,7 @@ export function Checkout({
     });
     if ("error" in res) {
       // The server priced differently: show its total so the next Pay sends that one.
-      if (res.error === TOTAL_CHANGED) void refreshPrice(selections, appliedCodes, paymentMethodId, appliedCoins || undefined).catch(repriceFailed);
+      if (res.errorCode === "total_changed") void refreshPrice(selections, appliedCodes, paymentMethodId, appliedCoins || undefined).catch(repriceFailed);
       return { error: res.error };
     }
     placed.current = { paymentPublicId: res.paymentPublicId, deploymentId: res.deploymentId };

@@ -48,13 +48,6 @@ export function selectionIsTrial(catalog: ClientCatalogSnapshot, s: WizardSelect
   return catalog.mealSizes?.find((m) => m.publicId === s.mealSizeId)?.trial === true;
 }
 
-/** Next or previous step. A trial jumps Bundle (1) straight to Start (3). */
-export function adjacentWizardStep(step: number, dir: 1 | -1, trial: boolean): number {
-  if (trial && dir === 1 && step === 1) return 3;
-  if (trial && dir === -1 && step === 3) return 1;
-  return step + dir;
-}
-
 /** What the customer still needs to do before the current step's button works; null = good to go. */
 export function nextBlockedReason(step: number, catalog: ClientCatalogSnapshot, s: WizardSelections): string | null {
   if (step === 0) return s.planKey == null ? "Choose a baseline plan to continue." : null;

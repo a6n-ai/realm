@@ -14,8 +14,6 @@
 
 import { tuToNatural, type TuCategory } from "@/lib/menu/format-tu";
 
-export type PortionQty = { portion: string; quantity: number };
-
 export type PackingItemLine = {
   name: string;
   /** Pack size label from formatTuHuman ("4 roti", "1 unit") or oz for weight. */

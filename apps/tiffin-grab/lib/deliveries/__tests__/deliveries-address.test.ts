@@ -11,7 +11,7 @@ const { deleteNonSystemUsers } = await import("@/db/test-helpers");
 const { deliveries, ledgerEntries, orderActivities, orders, payments } = await import("@/db/schema");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { createOrder } = await import("../../orders/create-order");
-const { setDeliveryAddress, clearDeliveryAddress } = await import("../deliveries.service");
+const { setDeliveryAddress } = await import("../deliveries.service");
 const { effectiveAddress } = await import("@/lib/deliveries/row-state");
 
 async function reset() {
@@ -62,7 +62,7 @@ async function seedDelivery(opts: {
   return row;
 }
 
-describe("setDeliveryAddress / clearDeliveryAddress / effectiveAddress (integration)", () => {
+describe("setDeliveryAddress / effectiveAddress (integration)", () => {
   beforeEach(reset);
   afterAll(reset);
 
@@ -191,33 +191,4 @@ describe("setDeliveryAddress / clearDeliveryAddress / effectiveAddress (integrat
     expect(eff.deliveryStrategyIds).toEqual([]);
   });
 
-  it("clearDeliveryAddress restores inheritance", async () => {
-    const order = await makeOrder();
-    const d = await seedDelivery({ deliveryDate: "2030-01-07", cutoffAt: Date.now() + 1e9, orderId: order.id });
-    await setDeliveryAddress(d.publicId, { newAddress: {
-      fullName: "New Name",
-      addressLine: "2 Other St",
-      city: "Toronto",
-      postalCode: "M4C 1A1",
-    } }, { userId: order.userId!, orgId: null }, 1n);
-    await clearDeliveryAddress(d.publicId, 1n);
-    const [row] = await db.select().from(deliveries).where(eq(deliveries.id, d.id));
-    expect(row.fullName).toBeNull();
-    expect(row.addressLine).toBeNull();
-    expect(row.city).toBeNull();
-    expect(row.postalCode).toBeNull();
-    expect(row.zoneId).toBeNull();
-    const eff = effectiveAddress(row, order);
-    expect(eff).toEqual({
-      addressUnit: null,
-      deliveryInstructions: null,
-      deliveryTagId: null,
-      deliveryStrategyIds: [],
-      fullName: order.fullName,
-      addressLine: order.addressLine,
-      city: order.city,
-      postalCode: order.postalCode,
-      zoneId: order.zoneId,
-    });
-  });
 });
