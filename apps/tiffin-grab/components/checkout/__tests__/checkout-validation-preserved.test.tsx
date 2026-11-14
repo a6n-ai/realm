@@ -116,7 +116,7 @@ describe("Checkout Spec-B validation gates (preserved through revamp)", () => {
         phone: "+14165551234", // PhoneInput normalizes to E.164
         email: "jane@example.com",
         postalCode: "99999",
-      }),
+      }, { detailsSource: "waitlist" }),
     );
     expect(await screen.findByText(/you.re on the waitlist/i)).toBeTruthy();
   });

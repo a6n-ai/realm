@@ -1,4 +1,4 @@
-import { parseEmail, parsePhone } from "@/lib/services/contact";
+import { appPhoneCountry, parseEmail, parsePhone } from "@/lib/services/contact";
 import { isUniqueViolation } from "@/lib/db/errors";
 import { isCustomerRole, isStaffRole } from "@/lib/auth/roles";
 import { UpdatableRepository } from "@foundry/database";
@@ -157,7 +157,7 @@ class UsersService extends SessionUpdatableService<typeof users> {
         if (isCustomerRole(current.role) && !opts.removePhone) throw new ValidationError("Phone is required for customers");
         patch.phone = null;
       } else {
-        const p = parsePhone(phone);
+        const p = parsePhone(phone, await appPhoneCountry());
         await this.assertFree(userId, "phone", p, opts.nameClash);
         patch.phone = p;
       }

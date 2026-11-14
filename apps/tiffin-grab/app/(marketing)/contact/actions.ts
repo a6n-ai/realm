@@ -4,6 +4,7 @@ import { ValidationError, phoneSchema, emailSchema } from "@foundry/commons";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { matchZone } from "@/lib/catalog/postal";
 import { inquiriesService } from "@/lib/services/inquiries.service";
+import { appPhoneCountry } from "@/lib/services/contact";
 import { trackConversion } from "@/lib/services/tracking";
 
 export interface ContactInput {
@@ -20,13 +21,13 @@ export interface ContactInput {
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-export async function createWebsiteInquiry(input: ContactInput): Promise<{ ok: true; waitlisted: boolean }> {
+export async function createWebsiteInquiry(input: ContactInput, opts?: { detailsSource?: "website" | "waitlist" }): Promise<{ ok: true; waitlisted: boolean }> {
   // Honeypot: a filled hidden field means a bot — accept silently, write nothing.
   if (input.company && input.company.trim() !== "") return { ok: true, waitlisted: false };
 
   const fullName = input.fullName.trim();
   if (!fullName) throw new ValidationError("Name is required");
-  const parsedPhone = phoneSchema().safeParse(input.phone.trim());
+  const parsedPhone = phoneSchema(await appPhoneCountry()).safeParse(input.phone.trim());
   if (!parsedPhone.success) throw new ValidationError("Invalid phone number");
   const phone = parsedPhone.data;
   // Mandatory, and rejected here rather than deeper: InquiriesService.create
@@ -45,13 +46,17 @@ export async function createWebsiteInquiry(input: ContactInput): Promise<{ ok: t
   }
   const waitlisted = hasPostal ? servedZone === null : false;
 
-  const inquiry = await inquiriesService.create({
+  const { inquiry, outcome } = await inquiriesService.createOrFold({
     fullName,
     phone,
     email,
     sourceKey: "website",
+    postalCode: input.postalCode?.trim() || undefined,
     notes: input.message?.trim() || null,
+    details: { source: opts?.detailsSource ?? "website" },
   });
+  // A repeat contact is the same lead: a second Lead event would double-count it at Meta and Google.
+  if (outcome === "folded") return { ok: true, waitlisted };
 
   const eventId = input.eventId?.trim() ?? "";
   trackConversion(

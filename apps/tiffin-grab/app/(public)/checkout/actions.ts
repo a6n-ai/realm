@@ -253,7 +253,7 @@ async function placeSubscription(rawInput: ConfirmInput): Promise<ConfirmResult>
       phone: input.contact.phone,
       email: input.contact.email,
       postalCode: input.contact.postalCode,
-    });
+    }, { detailsSource: "waitlist" });
     return { waitlisted: true };
   }
 

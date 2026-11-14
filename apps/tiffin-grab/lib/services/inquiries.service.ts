@@ -1,4 +1,4 @@
-import { parseEmail, parsePhone } from "@/lib/services/contact";
+import { appPhoneCountry, parseEmail, parsePhone } from "@/lib/services/contact";
 import { isUniqueViolation } from "@/lib/db/errors";
 import { LIVE } from "@/lib/orders/status";
 import { orderStatusIn } from "@/lib/orders/status-sql";
@@ -282,8 +282,9 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
     const rawWhatsapp = clean(values.phone) ? clean(values.whatsappPhone) : null;
     const rawEmail = clean(values.email);
     if (!fullName && !rawPhone) throw new ValidationError("Enter a name or phone number");
-    const phone = rawPhone ? parsePhone(rawPhone) : null;
-    const whatsappPhone = rawWhatsapp ? parsePhone(rawWhatsapp) : null;
+    const country = await appPhoneCountry();
+    const phone = rawPhone ? parsePhone(rawPhone, country) : null;
+    const whatsappPhone = rawWhatsapp ? parsePhone(rawWhatsapp, country) : null;
     const email = rawEmail ? parseEmail(rawEmail) : null;
 
     const {
@@ -486,8 +487,9 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
       const raw = clean(input[k]);
       return raw ? parse(raw) : null;
     };
-    const phone = pick("phone", parsePhone, inq.phone);
-    const whatsappPhone = pick("whatsappPhone", parsePhone, inq.whatsappPhone);
+    const country = await appPhoneCountry();
+    const phone = pick("phone", (raw) => parsePhone(raw, country), inq.phone);
+    const whatsappPhone = pick("whatsappPhone", (raw) => parsePhone(raw, country), inq.whatsappPhone);
     const email = pick("email", parseEmail, inq.email);
 
     let fullName = "fullName" in input ? clean(input.fullName) : inq.fullName;
@@ -1028,8 +1030,9 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
       await assertInquiriesVisible([input.pickedId], input.visible);
       const picked = await this.read(input.pickedId);
       if (picked.stage === "converted" && !input.forOrder) throw new ValidationError("That inquiry is already converted");
-      const phone = input.phone?.trim() ? parsePhone(input.phone.trim()) : null;
-      const whatsapp = input.whatsappPhone?.trim() ? parsePhone(input.whatsappPhone.trim()) : null;
+      const country = await appPhoneCountry();
+      const phone = input.phone?.trim() ? parsePhone(input.phone.trim(), country) : null;
+      const whatsapp = input.whatsappPhone?.trim() ? parsePhone(input.whatsappPhone.trim(), country) : null;
       const email = input.contact.email?.trim() ? parseEmail(input.contact.email.trim()) : null;
       const { match } = await findMatch(phone, email, picked.id, whatsapp);
       if (match) throw new ValidationError(`This contact belongs to ${match.publicId}. Open that inquiry instead.`);

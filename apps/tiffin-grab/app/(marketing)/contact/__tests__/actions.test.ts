@@ -6,6 +6,8 @@ import { inquiries, inquiryActivities, leadSources, users } from "@/db/schema";
 
 // Contact action transitively imports the session service (NextAuth) — stub it.
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
+const tracked = vi.hoisted(() => ({ calls: 0 }));
+vi.mock("@/lib/services/tracking", () => ({ trackConversion: () => { tracked.calls++; } }));
 
 const { createWebsiteInquiry } = await import("../actions");
 
@@ -35,6 +37,27 @@ describe("createWebsiteInquiry", () => {
     expect(row.notes).toBe("Interested");
     const acts = await db.select().from(inquiryActivities).where(eq(inquiryActivities.inquiryId, row.id));
     expect(acts.some((a) => a.type === "created")).toBe(true);
+  });
+
+  it("stores the postal code on the inquiry", async () => {
+    await createWebsiteInquiry({ fullName: "Postal Lead", phone: "+16475559010", postalCode: "M5V 2T6", email: testEmail() });
+    const [row] = await db.select().from(inquiries).where(eq(inquiries.phone, "+16475559010"));
+    expect(row.postalCode).toBe("M5V 2T6");
+  });
+
+  it("a repeat contact does not send a second Lead event", async () => {
+    const email = testEmail();
+    tracked.calls = 0;
+    await createWebsiteInquiry({ fullName: "Twice", phone: "+16475559011", email });
+    await createWebsiteInquiry({ fullName: "Twice", phone: "+16475559011", email });
+    expect(tracked.calls).toBe(1);
+  });
+
+  it("a waitlist inquiry records details.source waitlist", async () => {
+    await createWebsiteInquiry({ fullName: "Wait", phone: "+16475559012", postalCode: "X0X 0X0", email: testEmail() }, { detailsSource: "waitlist" });
+    const [row] = await db.select().from(inquiries).where(eq(inquiries.phone, "+16475559012"));
+    const [created] = await db.select().from(inquiryActivities).where(eq(inquiryActivities.inquiryId, row.id));
+    expect(created.details).toMatchObject({ source: "waitlist" });
   });
 
   it("flags an unserved postal code as waitlisted", async () => {

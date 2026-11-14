@@ -1,5 +1,5 @@
 import { resolveUserId } from "@/lib/services/session-service";
-import { parseCustomerContact, requireEmail } from "@/lib/services/contact";
+import { appPhoneCountry, parseCustomerContact, requireEmail } from "@/lib/services/contact";
 import { inOrderStatuses, RUNNING } from "@/lib/orders/status";
 import { pageOffset } from "@foundry/design-system/filters/parse-filter-state";
 import { isCustomerRole } from "@/lib/auth/roles";
@@ -109,7 +109,7 @@ export async function createCustomer(
   contact: { fullName: string; phone: string; email: string },
   opts: { actorId?: string | null },
 ): Promise<{ publicId: string }> {
-  const { phone, email } = parseCustomerContact(contact);
+  const { phone, email } = parseCustomerContact(contact, await appPhoneCountry());
   return db.transaction(async (tx) => {
     const createdBy = await resolveUserId(tx, opts.actorId);
     const id = await provisionCustomerByPhone(

@@ -308,7 +308,7 @@ export async function createOrder(
   input.contact = { ...input.contact, postalCode: parseCanadianPostalCode(input.contact.postalCode) };
   let zoneRow = await findZone(snapshot.zones, input.contact, orgId);
 
-  const { phone, email } = parseCustomerContact(input.contact);
+  const { phone, email } = parseCustomerContact(input.contact, (await getAppSettings()).defaultCountry);
 
   const deploymentId = generateCode("SUB", 6);
 

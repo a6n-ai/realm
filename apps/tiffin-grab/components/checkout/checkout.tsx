@@ -600,7 +600,7 @@ export function Checkout({
         phone: contact.phone,
         email: contact.email,
         postalCode: contact.postalCode,
-      });
+      }, { detailsSource: "waitlist" });
       setWaitlisted(true);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not join the waitlist.");
