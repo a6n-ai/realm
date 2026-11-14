@@ -4,6 +4,7 @@ import { and, asc, desc, eq, gte, inArray, isNotNull, ne, notExists, sql } from 
 import { db } from "@/db/client";
 import { inquiries, inquiryActivities, orders, users } from "@/db/schema";
 import { stageFor } from "@/lib/inquiries/status";
+import { laterOrderSql } from "@/lib/orders/queries";
 import { addActivity, fillEmpty, findMatch, inquiryRows, resolveOwner, resolveSource, type InquiryRow } from "./inquiry-core";
 import { getBrandOrgId } from "./organizations.service";
 
@@ -156,4 +157,117 @@ export async function reconcileOrders(sinceMs: number): Promise<{ linked: number
     repointed++;
   }
   return { linked, repointed };
+}
+
+async function orderBuyer(orderId: bigint) {
+  const [o] = await db
+    .select({ id: orders.id, userId: orders.userId, trialLength: orders.trialLength, fullName: orders.fullName, name: users.name, email: users.email, phone: users.phone })
+    .from(orders)
+    .leftJoin(users, eq(users.id, orders.userId))
+    .where(eq(orders.id, orderId))
+    .limit(1);
+  return o;
+}
+
+/** The inquiry that tracks an order: the one pointing at it, else the customer's, else a contact match. Never creates. */
+export async function inquiryForOrder(orderId: bigint): Promise<InquiryRow | null> {
+  const [byPointer] = await db.select().from(inquiries).where(eq(inquiries.currentOrderId, orderId)).limit(1);
+  if (byPointer) return byPointer;
+  const o = await orderBuyer(orderId);
+  if (!o?.userId) return null;
+  const [byCustomer] = await db.select().from(inquiries).where(eq(inquiries.customerId, o.userId)).orderBy(desc(inquiries.updatedAt)).limit(1);
+  if (byCustomer) return byCustomer;
+  return (await findMatch(o.phone, o.email)).match;
+}
+
+/** Daily, as an order nears its end: open its renewal round once (auto `expected`). Skips once a later plan exists. */
+export async function openRenewal(orderId: bigint): Promise<"opened" | "skipped"> {
+  const [later] = await db.select({ later: laterOrderSql }).from(orders).where(eq(orders.id, orderId)).limit(1);
+  if (!later || later.later) return "skipped";
+  let inq = await inquiryForOrder(orderId);
+  if (!inq) {
+    const o = await orderBuyer(orderId);
+    if (!o?.userId) return "skipped";
+    await recordPurchase({
+      orderId,
+      userId: o.userId,
+      contact: { fullName: o.name ?? o.fullName, email: o.email, phone: o.phone },
+      kind: o.trialLength != null ? "trial" : "plan",
+      source: "website",
+    });
+    inq = await inquiryForOrder(orderId);
+    if (!inq) return "skipped";
+  }
+  const [started] = await db
+    .select({ id: inquiryActivities.id })
+    .from(inquiryActivities)
+    .where(and(eq(inquiryActivities.inquiryId, inq.id), eq(inquiryActivities.orderId, orderId), eq(inquiryActivities.type, "renewal_started")))
+    .limit(1);
+  if (started) return "skipped";
+  await inquiryRows.update(inq.publicId, {
+    currentOrderId: orderId,
+    renewalStatus: "expected",
+    renewalStatusSource: "auto",
+    renewalStatusSetAt: Date.now(),
+  });
+  await addActivity({ inquiryId: inq.id, type: "renewal_started", orderId, details: { renewalStatusTo: "expected" } });
+  return "opened";
+}
+
+/** One reminder_sent activity per reminder key (the outbox dedupe key), so a cron rerun adds nothing. */
+export async function logReminderSent(orderId: bigint, reminderKey?: string): Promise<void> {
+  const inq = await inquiryForOrder(orderId);
+  if (!inq) return;
+  if (reminderKey) {
+    const [dup] = await db
+      .select({ id: inquiryActivities.id })
+      .from(inquiryActivities)
+      .where(and(eq(inquiryActivities.inquiryId, inq.id), eq(inquiryActivities.type, "reminder_sent"), sql`${inquiryActivities.details}->>'reminderKey' = ${reminderKey}`))
+      .limit(1);
+    if (dup) return;
+  }
+  await addActivity({ inquiryId: inq.id, type: "reminder_sent", orderId, details: reminderKey ? { reminderKey } : null });
+}
+
+export type RenewalMirror = {
+  type: "note" | "call" | "whatsapp" | "email" | "callback" | "status_change" | "reminder_sent";
+  note?: string | null;
+  outcome?: string | null;
+  nextFollowUpAt?: number | null;
+  status?: { from: RenewalTrackStatus | null; to: RenewalTrackStatus | null; lostReason: LostReasonValue | null };
+};
+type RenewalTrackStatus = NonNullable<InquiryRow["renewalStatus"]>;
+type LostReasonValue = NonNullable<InquiryRow["renewalLostReason"]>;
+
+/**
+ * Phase 3 dual write: a Renewals-desk write also lands on the person's inquiry. The renewal columns change
+ * only for the inquiry's current order; any order gets the activity on its round.
+ */
+export async function mirrorRenewalActivity(orderId: bigint, m: RenewalMirror): Promise<void> {
+  const inq = await inquiryForOrder(orderId);
+  if (!inq) return;
+  if (inq.currentOrderId === orderId) {
+    const patch: Partial<InquiryRow> = {};
+    if (m.status) {
+      // "renewed" is never stored: orders decide it (laterOrderSql).
+      Object.assign(patch, {
+        renewalStatus: m.status.to === "renewed" ? null : m.status.to,
+        renewalStatusSource: "staff",
+        renewalStatusSetAt: Date.now(),
+        renewalLostReason: m.status.lostReason,
+      });
+    }
+    if (m.nextFollowUpAt !== undefined) patch.renewalFollowUpAt = m.nextFollowUpAt;
+    if (Object.keys(patch).length) await inquiryRows.update(inq.publicId, patch);
+  }
+  await addActivity({
+    inquiryId: inq.id,
+    orderId,
+    type: m.type === "status_change" ? "stage_change" : m.type,
+    note: m.note ?? null,
+    outcome: m.outcome ?? null,
+    nextFollowUpAt: m.nextFollowUpAt ?? null,
+    lostReason: m.status?.lostReason ?? null,
+    details: m.status ? { renewalStatusFrom: m.status.from, renewalStatusTo: m.status.to } : null,
+  });
 }

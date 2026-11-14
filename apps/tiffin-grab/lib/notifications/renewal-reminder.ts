@@ -1,6 +1,6 @@
 import { RUNNING, inOrderStatuses } from "@/lib/orders/status";
 import { orderStatusIn } from "@/lib/orders/status-sql";
-import { and, eq, isNotNull, isNull, sql } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 import { dedupeKeyStartsWith } from "@/lib/notifications/dedupe-prefix";
 import { NotFoundError, ValidationError, zonedDateIso } from "@foundry/commons";
 import { db } from "@/db/client";
@@ -9,6 +9,7 @@ import { formatDateOnly } from "@/lib/format/datetime";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { lastTiffinSql, laterOrderSql } from "@/lib/orders/queries";
 import { enqueueNotification } from "./enqueue";
+import { logReminderSent, openRenewal, reconcileOrders } from "@/lib/services/inquiry-links.service";
 import { orderTemplateVars } from "./events";
 import { addDaysIso, daysBetween } from "@foundry/commons/util/dates";
 
@@ -17,6 +18,7 @@ export const RENEWAL_REMINDER_DAYS = [5, 1] as const;
 
 
 export type RenewalCandidate = {
+  orderId: bigint;
   orderPublicId: string;
   code: string;
   userId: bigint;
@@ -49,6 +51,7 @@ export function renewalReminderMessage(c: RenewalCandidate, daysLeft: number) {
 async function candidates(lastTiffin: string): Promise<RenewalCandidate[]> {
   const rows = await db
     .select({
+      orderId: orders.id,
       orderPublicId: orders.publicId,
       code: orders.deploymentId,
       userId: orders.userId,
@@ -69,10 +72,32 @@ async function candidates(lastTiffin: string): Promise<RenewalCandidate[]> {
   return rows.map((r) => ({ ...r, userId: r.userId!, lastTiffin }));
 }
 
+/** Days ahead of a plan's last tiffin that its inquiry's renewal round opens (trials included). */
+export const RENEWAL_ROUND_DAYS = 7;
+
+/** Opens the renewal round on the inquiry of every plan ending between today and RENEWAL_ROUND_DAYS out. */
+export async function openRenewalsDue(today: string): Promise<number> {
+  const rows = await db
+    .select({ id: orders.id })
+    .from(orders)
+    .where(and(
+      inArray(orders.status, ["active", "paused", "completed"]),
+      isNotNull(orders.userId),
+      sql`${lastTiffinSql} between ${today} and ${addDaysIso(today, RENEWAL_ROUND_DAYS)}`,
+    ));
+  let opened = 0;
+  for (const r of rows) if ((await openRenewal(r.id)) === "opened") opened++;
+  return opened;
+}
+
 /** Daily: queue each reminder once per plan ending. Safe to rerun; the outbox dedupe key drops repeats. */
 export async function sendRenewalReminders(now = Date.now()) {
   const today = zonedDateIso(now, (await getAppSettings()).timezone);
   const summary: Record<string, number> = {};
+  summary.roundsOpened = await openRenewalsDue(today);
+  const repaired = await reconcileOrders(now - 2 * 86_400_000);
+  summary.inquiriesLinked = repaired.linked;
+  summary.inquiriesRepointed = repaired.repointed;
   for (const daysLeft of RENEWAL_REMINDER_DAYS) {
     const plans = await candidates(addDaysIso(today, daysLeft));
     for (const c of plans) {
@@ -88,6 +113,7 @@ export async function sendRenewalReminders(now = Date.now()) {
           dedupeKey: m.dedupeKey,
         }),
       );
+      await logReminderSent(c.orderId, m.dedupeKey);
     }
     summary[`days${daysLeft}`] = plans.length;
   }
@@ -103,6 +129,7 @@ export async function sendRenewalReminderNow(orderPublicId: string, now = Date.n
   const today = zonedDateIso(now, (await getAppSettings()).timezone);
   const [c] = await db
     .select({
+      orderId: orders.id,
       orderPublicId: orders.publicId,
       code: orders.deploymentId,
       userId: orders.userId,

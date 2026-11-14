@@ -8,6 +8,10 @@ import { BaseRepository, UpdatableRepository } from "@foundry/database";
 import { and, desc, eq, gte, inArray, isNull, lt, sql, type SQL } from "drizzle-orm";
 import { assertFiniteFollowUp, type LostReason } from "../services/inquiries.service";
 import { SessionBaseService, SessionUpdatableService } from "../services/session-service";
+import { logReminderSent, mirrorRenewalActivity, type RenewalMirror } from "../services/inquiry-links.service";
+import { createLogger } from "@foundry/commons/logger";
+
+const log = createLogger("renewal-tracking");
 
 export const computedStatusSql = sql<RenewalStatus>`(case when ${orders.trialLength} is not null then ${renewalStatusSql(true)} else ${renewalStatusSql(false)} end)`;
 
@@ -120,12 +124,13 @@ export async function setTrackStatus(
     note: input.note?.trim() || null,
     nextFollowUpAt,
   });
+  await mirror(renewal.orderId, { type: "status_change", note: input.note?.trim() || null, nextFollowUpAt, status: { from: previous, to: input.status, lostReason } });
   return { previous };
 }
 
 async function recordActivity(
   orderPublicId: string,
-  input: { type: RenewalActivityType; note?: string; outcome?: string; nextFollowUpAt?: number },
+  input: { type: RenewalActivityType; note?: string; outcome?: string; nextFollowUpAt?: number; reminderKey?: string },
 ) {
   assertFiniteFollowUp(input.nextFollowUpAt);
   const renewal = await ensureRenewal(orderPublicId);
@@ -141,6 +146,22 @@ async function recordActivity(
     nextFollowUpAt: input.nextFollowUpAt ?? null,
   });
   if (input.nextFollowUpAt != null) await renewalsService.update(renewal.publicId, { nextFollowUpAt: input.nextFollowUpAt });
+  await mirror(renewal.orderId, {
+    type: input.type,
+    note: input.note ?? null,
+    outcome: input.outcome ?? null,
+    ...(input.nextFollowUpAt != null ? { nextFollowUpAt: input.nextFollowUpAt } : {}),
+  }, input.type === "reminder_sent" ? input.reminderKey : undefined);
+}
+
+// Phase 3 dual write onto the inquiry; the desk still reads renewals, so a failed mirror must not fail the desk write.
+async function mirror(orderId: bigint, m: RenewalMirror, reminderKey?: string) {
+  try {
+    if (m.type === "reminder_sent") await logReminderSent(orderId, reminderKey);
+    else await mirrorRenewalActivity(orderId, m);
+  } catch (err) {
+    log.warn({ err, orderId: String(orderId) }, "renewal inquiry mirror failed");
+  }
 }
 
 export function addTrackNote(orderPublicId: string, note: string, nextFollowUpAt?: number): Promise<void> {
@@ -149,7 +170,7 @@ export function addTrackNote(orderPublicId: string, note: string, nextFollowUpAt
 
 export function logTrackActivity(
   orderPublicId: string,
-  input: { type: "call" | "whatsapp" | "email" | "callback" | "reminder_sent"; note?: string; outcome?: string; nextFollowUpAt?: number },
+  input: { type: "call" | "whatsapp" | "email" | "callback" | "reminder_sent"; note?: string; outcome?: string; nextFollowUpAt?: number; reminderKey?: string },
 ): Promise<void> {
   return recordActivity(orderPublicId, input);
 }

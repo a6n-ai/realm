@@ -45,3 +45,13 @@ describe("effectiveTrackStatus", () => {
       .toEqual({ status: null, source: null });
   });
 });
+
+describe("effectiveTrackStatus with an auto-set status", () => {
+  it("treats an auto status like no staff status, so the computed rule decides", () => {
+    expect(effectiveTrackStatus({ staff: "expected", staffSetAt: 300, staffSource: "auto", computed: "unpaid", laterBookedAt: 100 }))
+      .toEqual({ status: "pending_payment", source: "auto" });
+    expect(effectiveTrackStatus({ staff: "expected", staffSetAt: 300, staffSource: "auto", computed: "none", laterBookedAt: null }))
+      .toEqual({ status: "expected", source: "auto" });
+  });
+});
+

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { describeCron } from "@/lib/cron/jobs";
 import { renewalReminderMessage } from "../renewal-reminder";
 
-const plan = { orderPublicId: "ord_1", code: "SUB-ABC123", userId: 1n, customerName: "Asha", mealSize: "Large", lastTiffin: "2026-10-30" };
+const plan = { orderId: 1n, orderPublicId: "ord_1", code: "SUB-ABC123", userId: 1n, customerName: "Asha", mealSize: "Large", lastTiffin: "2026-10-30" };
 
 describe("renewalReminderMessage", () => {
   it("5 days out names the date; 1 day out says tomorrow", () => {

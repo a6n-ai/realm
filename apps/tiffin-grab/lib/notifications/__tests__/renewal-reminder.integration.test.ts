@@ -51,8 +51,8 @@ describe("renewal reminders (integration)", () => {
     const [{ last }] = await db.select({ last: sql<string>`max(${deliveries.deliveryDate})` }).from(deliveries)
       .innerJoin(orders, eq(orders.id, deliveries.orderId)).where(eq(orders.publicId, o.publicId));
 
-    expect(await sendRenewalReminders(noonOn(minusDays(last, 4)))).toEqual({ days5: 0, days1: 0 });
-    expect(await sendRenewalReminders(noonOn(minusDays(last, 5)))).toEqual({ days5: 1, days1: 0 });
+    expect(await sendRenewalReminders(noonOn(minusDays(last, 4)))).toMatchObject({ days5: 0, days1: 0 });
+    expect(await sendRenewalReminders(noonOn(minusDays(last, 5)))).toMatchObject({ days5: 1, days1: 0 });
     // Rerun the same day: the dedupe key keeps it to one email.
     await sendRenewalReminders(noonOn(minusDays(last, 5)));
     // The engine suffixes the channel onto the dedupe key.
@@ -62,13 +62,13 @@ describe("renewal reminders (integration)", () => {
     const next = await createOrder(input(snap.mealSizes[0].publicId, snap.plans[0].key, "+16475550444"));
     const [first] = await db.select({ userId: orders.userId }).from(orders).where(eq(orders.publicId, o.publicId));
     await db.update(orders).set({ userId: first.userId, startDate: "2099-01-05", status: "pending" }).where(eq(orders.publicId, next.publicId));
-    expect(await sendRenewalReminders(noonOn(minusDays(last, 1)))).toEqual({ days5: 0, days1: 0 });
+    expect(await sendRenewalReminders(noonOn(minusDays(last, 1)))).toMatchObject({ days5: 0, days1: 0 });
     // So does a waitlisted one.
     await db.update(orders).set({ status: "waitlisted" }).where(eq(orders.publicId, next.publicId));
-    expect(await sendRenewalReminders(noonOn(minusDays(last, 1)))).toEqual({ days5: 0, days1: 0 });
+    expect(await sendRenewalReminders(noonOn(minusDays(last, 1)))).toMatchObject({ days5: 0, days1: 0 });
     // A cancelled one does not.
     await db.update(orders).set({ status: "cancelled" }).where(eq(orders.publicId, next.publicId));
-    expect(await sendRenewalReminders(noonOn(minusDays(last, 1)))).toEqual({ days5: 0, days1: 1 });
+    expect(await sendRenewalReminders(noonOn(minusDays(last, 1)))).toMatchObject({ days5: 0, days1: 1 });
   });
 
   it("never reminds a trial", async () => {
@@ -77,7 +77,7 @@ describe("renewal reminders (integration)", () => {
     await db.update(orders).set({ status: "active", trialLength: 1 }).where(and(eq(orders.publicId, o.publicId)));
     const [{ last }] = await db.select({ last: sql<string>`max(${deliveries.deliveryDate})` }).from(deliveries)
       .innerJoin(orders, eq(orders.id, deliveries.orderId)).where(eq(orders.publicId, o.publicId));
-    expect(await sendRenewalReminders(noonOn(minusDays(last, 5)))).toEqual({ days5: 0, days1: 0 });
+    expect(await sendRenewalReminders(noonOn(minusDays(last, 5)))).toMatchObject({ days5: 0, days1: 0 });
   });
 
   it("staff send now: once a day per plan, only while the plan runs with nothing booked after it", async () => {

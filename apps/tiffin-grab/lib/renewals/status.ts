@@ -44,13 +44,19 @@ export function autoTrackStatus(computed: RenewalStatus): TrackStatus | null {
 export function effectiveTrackStatus(i: {
   staff: TrackStatus | null;
   staffSetAt: number | null;
+  /** "auto" when the system set `staff` (openRenewal's `expected`): it never outranks the computed status. */
+  staffSource?: "staff" | "auto" | null;
   computed: RenewalStatus;
   laterBookedAt: number | null;
 }): { status: TrackStatus | null; source: "staff" | "auto" | null } {
   const auto = autoTrackStatus(i.computed);
+  if (i.staffSource === "auto") return auto ? { status: auto, source: "auto" } : { status: i.staff, source: i.staff ? "auto" : null };
   if (auto && (i.staffSetAt == null || (i.laterBookedAt != null && i.laterBookedAt > i.staffSetAt))) {
     return { status: auto, source: "auto" };
   }
   if (i.staff) return { status: i.staff, source: "staff" };
   return { status: null, source: null };
 }
+
+/** Renewal activity kinds, independent of the renewal_activities table that Phase 5 drops. */
+export type TrackActivityType = "note" | "call" | "whatsapp" | "email" | "callback" | "status_change" | "reminder_sent";
