@@ -25,7 +25,7 @@ import { ledgerService } from "./ledger.service";
 import { PAY_IN_PROGRESS, withCustomerPayLock } from "./customer-pay-lock";
 import { enqueueStaffNotification } from "@/lib/notifications/enqueue";
 import { enqueueOrderNotice } from "@/lib/notifications/order-notice";
-import { getAppSettings } from "../services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { settleAddonPayment } from "../orders/order-addons.service";
 import { chargedCents, tryChargeLock } from "./stripe-charge";
 import { verifyPayment, refundPaymentInTx } from "@/lib/payments/verification";

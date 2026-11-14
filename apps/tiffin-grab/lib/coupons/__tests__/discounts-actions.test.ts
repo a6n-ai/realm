@@ -11,7 +11,7 @@ vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 const { db } = await import("@/db/client");
 const { coupons, couponRedemptions, customerGroupActions, customerGroups, ledgerEntries } = await import("@/db/schema");
 const { couponKind } = await import("@/db/schema/coupons");
-const { setDiscountPolicy } = await import("@/lib/services/app-settings.service");
+const { setDiscountPolicy } = await import("@/lib/coupons/discount-policy-settings");
 const { saveCoupon, setCouponActive } = await import(
   "@/app/(dashboard)/dashboard/discounts/actions"
 );

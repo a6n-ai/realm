@@ -15,7 +15,7 @@ import { humanDate } from "@/lib/deliveries/view";
 import { enqueueNotification } from "@/lib/notifications/enqueue";
 import { orderTemplateVars } from "@/lib/notifications/events";
 import { notificationTables } from "@/lib/notifications/tables";
-import { getAppSettings } from "../services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { getBrandOrgId } from "../services/organizations.service";
 import { removeStopsBestEffort, type OptimoSyncedRow } from "../optimoroute/stops";
 import { applyHolidaysToOrder, placeHolidayExtras, undoHolidayForOrder, type HolidayApplied, type HolidayUndone } from "./holiday-apply";

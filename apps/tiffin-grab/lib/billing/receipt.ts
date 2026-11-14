@@ -7,7 +7,7 @@ import { deliveries, ledgerEntries, mealSizes, orders, payments, plans, users } 
 import { payPageLines, type Line } from "@/lib/billing/pay-lines";
 import { paymentMethodLabel } from "./payment-labels";
 import { getBrandOrganizationAddress } from "@/lib/services/organizations.service";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { BRAND_COMPACT } from "@/lib/brand";
 
 

@@ -27,7 +27,7 @@ import { revenueTotals } from "@/lib/analytics/metrics/money";
 import { buildSizeTreemap, type SizeMetric } from "@/lib/analytics/size-treemap";
 import { DATE_BASIS_LABEL } from "@/lib/analytics/metrics/scope";
 import { type AnalyticsScope } from "@/lib/analytics/scope-types";
-import { getMoneyFormatter } from "@/lib/services/app-settings.service";
+import { getMoneyFormatter } from "@/lib/settings";
 
 // Several cards read the same numbers; React's cache shares one query per request (the scope object is the key).
 const productStats = cache(getProductStats);

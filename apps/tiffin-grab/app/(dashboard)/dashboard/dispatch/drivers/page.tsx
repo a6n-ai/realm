@@ -1,7 +1,7 @@
 import { parseIsoDate } from "@/lib/dates/iso-date";
 import { TruckIcon } from "lucide-react";
 import { requireStaff } from "@/lib/auth/guards";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { zonedDateIso } from "@foundry/commons";
 import { buildDispatchRows, listKnownDrivers } from "@/lib/optimoroute/drivers";
 import { PageShell, PageHeader, SectionCard } from "@/components/ds";

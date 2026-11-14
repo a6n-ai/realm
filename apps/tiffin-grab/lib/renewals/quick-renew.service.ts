@@ -10,7 +10,7 @@ import type { DayOfWeek } from "@/lib/deliveries/schedule/delivery-days";
 import { renewSelections } from "@/lib/renewals/renew-selections";
 import type { QuickRenewData } from "@/lib/renewals/quick-renew-types";
 import { stripeMethodAvailable } from "@/lib/payments/stripe";
-import { getPaymentConfig } from "../services/app-settings.service";
+import { getPaymentConfig } from "@/lib/payments/payment-config";
 import { addressService } from "../services/addresses.service";
 import { dropOffsFor } from "../deliveries/address-drop-off.service";
 import { checkoutHolidayDates } from "../deliveries/holidays.service";

@@ -7,7 +7,7 @@ import { parseSort, type SortState } from "@foundry/design-system/list-sort";
 import { epochRange, withDefaultMonth } from "@/lib/list/default-month";
 import { formatEpoch } from "@/lib/format/datetime";
 import { formatMoney } from "@foundry/commons";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import {
   listWalletBalances,
   walletBalanceStats,

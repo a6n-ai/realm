@@ -2,19 +2,19 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/db/client", () => ({ db: {} }));
-vi.mock("@/lib/services/app-settings.service", () => {
+vi.mock("@/lib/payments/integrations-config", () => {
   let blob: Record<string, unknown> = {};
   const stale = { stripe: { installed: true, accountId: "acct_old", secretKey: { v: 1, iv: "a", tag: "b", ct: "OLD" } } };
   return {
     getIntegrationsConfig: async () => ({ ...stale }),
     getIntegrationsConfigFresh: async () => blob,
     setIntegrationsConfig: async (b: Record<string, unknown>) => { blob = b; },
-    getPaymentConfig: async () => ({ methods: [] }),
     __set: (b: Record<string, unknown>) => { blob = b; },
   };
 });
+vi.mock("@/lib/payments/payment-config", () => ({ getPaymentConfig: async () => ({ methods: [] }) }));
 
-const settings = (await import("@/lib/services/app-settings.service")) as unknown as { __set: (b: Record<string, unknown>) => void };
+const settings = (await import("@/lib/payments/integrations-config")) as unknown as { __set: (b: Record<string, unknown>) => void };
 const { stripeRuntime, stripeDeps } = await import("../stripe");
 const { toCents, fromCents } = await import("@/lib/money");
 

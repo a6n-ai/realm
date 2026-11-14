@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { getPaymentConfig } from "@/lib/services/app-settings.service";
+import { getPaymentConfig } from "@/lib/payments/payment-config";
 import { ProviderCatalogSkeleton } from "../provider-catalog";
 import { ProviderCatalogLoader } from "../provider-catalog-loader";
 import { PaymentsBackLink } from "../back-link";

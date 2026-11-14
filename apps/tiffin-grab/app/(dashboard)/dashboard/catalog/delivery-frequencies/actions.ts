@@ -3,7 +3,8 @@
 import { ValidationError } from "@foundry/commons";
 import type { ActionResult } from "@/lib/actions/action-result";
 import { staffAction } from "@/lib/actions/staff-action";
-import { getAppSettings, setAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
+import { setAppSettings } from "@/lib/deliveries/set-app-settings";
 
 export async function saveTiffinsPerWeek(input: { minTiffinsPerWeek: number; maxTiffinsPerWeek: number }): Promise<ActionResult> {
   return staffAction({ guard: "admin", revalidate: ["/dashboard/catalog/delivery-frequencies", "/subscribe"], catalog: true }, async () => {

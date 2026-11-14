@@ -1,12 +1,7 @@
 import { Suspense } from "react";
 import { latestCoinRateValue } from "@/lib/wallet/wallet-balances.service";
-import {
-  getAppSettings,
-  getCoinEarnPct,
-  getMaxCoinPctOfSubtotal,
-  getMaxCoinRedeemPctOfBalance,
-  getMaxWalletBalance,
-} from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
+import { getCoinEarnPct, getMaxCoinPctOfSubtotal, getMaxCoinRedeemPctOfBalance, getMaxWalletBalance } from "@/lib/wallet/wallet-settings";
 import { CoinRateSettings, WalletCapSettings } from "./foundry-forms";
 import { CoinRateFormSkeleton } from "./coin-rate-form-skeleton";
 import { EarnPctForm } from "./earn-pct-form";

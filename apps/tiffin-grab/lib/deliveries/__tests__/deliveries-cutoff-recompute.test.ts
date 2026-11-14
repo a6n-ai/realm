@@ -9,7 +9,8 @@ const { deleteNonSystemUsers } = await import("@/db/test-helpers");
 const { auditLog, deliveries, ledgerEntries, orderActivities, orders, payments } = await import("@/db/schema");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { createOrder } = await import("../../orders/create-order");
-const { getAppSettings, setAppSettings } = await import("../../services/app-settings.service");
+const { getAppSettings } = await import("@/lib/settings");
+const { setAppSettings } = await import("@/lib/deliveries/set-app-settings");
 
 async function reset() {
   await db.delete(deliveries);

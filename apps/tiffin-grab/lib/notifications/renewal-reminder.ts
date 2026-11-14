@@ -6,7 +6,7 @@ import { NotFoundError, ValidationError, zonedDateIso } from "@foundry/commons";
 import { db } from "@/db/client";
 import { mealSizes, notificationOutbox, orders, users } from "@/db/schema";
 import { formatDateOnly } from "@/lib/format/datetime";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { lastTiffinSql, laterOrderSql } from "@/lib/orders/queries";
 import { enqueueNotification } from "./enqueue";
 import { orderTemplateVars } from "./events";

@@ -23,7 +23,7 @@ import { deliveryIsFree, hourLabel, lowestRate, trialOffer } from "@/lib/landing
 import { getTrialSettings } from "@/lib/trial/trial-settings.service";
 import { businessJsonLd, jsonLdScript } from "@/lib/landing/business-jsonld";
 import { publicOrigin } from "@/lib/routing/apex";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { menuService } from "@/lib/menu/menu.service";
 import { loadReferralOffer } from "@/lib/referrals/offer";
 import "@/components/landing/styles/home.css";

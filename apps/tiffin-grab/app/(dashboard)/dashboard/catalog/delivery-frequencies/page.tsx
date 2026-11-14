@@ -5,7 +5,7 @@ import { CatalogData, type SearchParams } from "../catalog-data";
 import { ResourceEditorSkeleton } from "../[resource]/resource-editor";
 import { GroupedResourceTabs } from "../grouped-resource-tabs";
 import { requireAdmin } from "@/lib/auth/guards";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { TiffinsPerWeekForm, TiffinsPerWeekSkeleton } from "./tiffins-per-week-form";
 
 async function TiffinsPerWeekData() {

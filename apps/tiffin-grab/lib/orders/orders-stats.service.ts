@@ -5,7 +5,7 @@ import { zonedDateIso } from "@foundry/commons";
 import { and, inArray, isNotNull, isNull, sql, type AnyColumn, type SQL } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, orderActivities, orders, payments } from "@/db/schema";
-import { getAppSettings } from "../services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { PENDING } from "@/lib/payments/status";
 import { paymentStatusIn } from "@/lib/payments/status-sql";
 import { freeTiffinsWhere, lastTiffinSql, laterOrderSql, paymentReviewWhere, type FreeTiffinRange } from "@/lib/orders/queries";

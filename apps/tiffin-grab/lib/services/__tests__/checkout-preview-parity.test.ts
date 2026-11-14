@@ -22,7 +22,8 @@ const priced = async (...args: Parameters<typeof reprice>) => {
   if ("error" in r) throw new Error(r.error);
   return r;
 };
-const { setPaymentConfig, setProvinceTaxes } = await import("../app-settings.service");
+const { setPaymentConfig } = await import("@/lib/payments/payment-config");
+const { setProvinceTaxes } = await import("@/lib/tax/province-taxes");
 const { loadCatalogSnapshot, invalidateCatalogSnapshot } = await import("@/lib/catalog/load");
 const { sharedCache } = await import("@/lib/cache");
 

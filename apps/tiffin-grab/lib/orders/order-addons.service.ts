@@ -19,7 +19,8 @@ import { addAddonsToSnapshot, type MidPlanAddonPricing } from "@/lib/pricing/mid
 import type { OrderPricingSnapshot } from "@/lib/pricing/types";
 import { publishUserRefresh } from "@/lib/realtime/publish-inbox";
 import { resolveCheckoutTaxes, stripeTaxFor, taxLinesFromQuote } from "@/lib/tax/checkout-taxes";
-import { getAppSettings, getPaymentConfig } from "../services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
+import { getPaymentConfig } from "@/lib/payments/payment-config";
 import { chargedCents, refundStripePayment, tryChargeLock } from "../payments/stripe-charge";
 import { cancelOpenIntent } from "../payments/stripe-expiry";
 import { openTiffinCount } from "../deliveries/tiffin-counts";

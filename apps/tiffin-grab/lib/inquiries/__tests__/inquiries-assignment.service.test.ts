@@ -8,7 +8,7 @@ const session: { user: { id: string; role: string } | null } = { user: null };
 vi.mock("@/lib/auth/session", () => ({ getSession: async () => (session.user ? session : null) }));
 
 const { inquiriesService } = await import("../inquiries.service");
-const { setLeadAssignment } = await import("../../services/app-settings.service");
+const { setLeadAssignment } = await import("@/lib/staff/lead-assignment-settings");
 const { resetPoolCache } = await import("../../staff/owner-pool.service");
 
 const seededUserIds: bigint[] = [];

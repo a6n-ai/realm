@@ -4,7 +4,7 @@ import { handler, problem } from "@foundry/routes";
 import { requireAdmin } from "@/lib/auth/guards";
 import { epochRange, withListDates } from "@/lib/list/default-month";
 import { parseSort } from "@foundry/design-system/list-sort";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { giveHistoryCsv, type GiveSortColumn } from "@/lib/customer-groups/customer-groups.service";
 
 export const GET = handler(async (req: Request): Promise<Response> => {

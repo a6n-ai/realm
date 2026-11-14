@@ -4,7 +4,7 @@ import { createLogger } from "@foundry/commons/logger";
 import { db } from "@/db/client";
 import { deliveries } from "@/db/schema";
 import { acquireLease, readLeaseValue, renewLease, writeLeaseValue } from "@/lib/runtime/lease";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { loadDayDeliveries, type DayDeliveryRow } from "@/lib/menu/daily-labels.service";
 import { getCompletionDetails, getEvents, OptimoRouteError, type OptimoCompletionDetail, type OptimoEvent } from "./client";
 import { applyCompletion, movedSourceIds, tiffinsMoved, type ApplyResult } from "./completions";

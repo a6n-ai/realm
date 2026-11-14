@@ -4,7 +4,7 @@ import { StatCards, StatCardsSkeleton } from "@/components/dashboard/stat-cards"
 import { AdminOnly, requireStaff } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
-import { getSupportHours } from "@/lib/services/app-settings.service";
+import { getSupportHours } from "@/lib/support/support-hours-settings";
 import { SupportHoursDialog } from "./support-hours-dialog";
 import { ticketsService } from "@/lib/support/tickets.service";
 import { parseComplaintFilters, type ComplaintSearchParams } from "@/lib/analytics/complaint-filters";

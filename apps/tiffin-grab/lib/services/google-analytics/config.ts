@@ -1,6 +1,6 @@
 import { createGoogleAnalytics } from "@foundry/google-analytics";
 import { googleAnalyticsPlugin as plugin } from "@foundry/google-analytics/server";
-import { integrationsConfigReadStore, integrationsConfigStore } from "@/lib/services/app-settings.service";
+import { integrationsConfigReadStore, integrationsConfigStore } from "@/lib/payments/integrations-config";
 
 // This app's GA4: @foundry/google-analytics bound to tiffin-grab's integrations blob and master key.
 // GA_MEASUREMENT_ID (SSM) keeps the site tracked until the plugin is installed, which copies it in.

@@ -1,7 +1,7 @@
 import { ChartCard } from "@/components/analytics/chart-card";
 import type { Part } from "@/components/analytics/chart-math";
 import { SegmentedBar } from "@/components/analytics/charts";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { dayServiceSummary } from "@/lib/menu/daily-labels.service";
 import { deliveryGroup } from "./delivery-groups";
 import { FooterLink } from "./footer-link";

@@ -4,7 +4,7 @@ import { customerListQuery } from "@/app/(dashboard)/dashboard/customers/list-qu
 import { requireStaff } from "@/lib/auth/guards";
 import { appTodayIso } from "@/lib/dates/today";
 import { formatEpoch } from "@/lib/format/datetime";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { listCustomersPage } from "@/lib/services/customers.service";
 
 const HEADERS = ["Name", "Email", "Phone", "Total paid", "Free tiffins", "Cancelled orders", "Latest order", "Latest order status", "Last delivered"];

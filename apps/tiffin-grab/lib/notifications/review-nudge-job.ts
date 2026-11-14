@@ -4,7 +4,8 @@ import { dispatchReviewNudge, getGoogleReviewsConfig } from "@foundry/google-rev
 import { db } from "@/db/client";
 import { deliveries, orders, reviewNudges, users } from "@/db/schema";
 import { appOrigin, authSecret } from "@/lib/runtime/env";
-import { getAppSettings, integrationsConfigStore } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
+import { integrationsConfigStore } from "@/lib/payments/integrations-config";
 import { reviewNudgeStore } from "@/lib/notifications/review-nudge.service";
 import { renderEmailTemplate } from "@relay/email";
 import { reviewNudgeEmailProvider } from "./review-nudge-provider";

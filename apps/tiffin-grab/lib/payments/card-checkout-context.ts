@@ -5,7 +5,7 @@ import { db } from "@/db/client";
 import { users } from "@/db/schema";
 import { billingAddress, e164, type AddressInput, type BillingAddress } from "@/lib/payments/billing-address";
 import { customerStore, stripeRuntime } from "@/lib/payments/stripe";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { listSavedCards } from "@/lib/payments/payment-stripe";
 
 export type CardCheckoutContext = {

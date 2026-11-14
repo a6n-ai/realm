@@ -23,7 +23,7 @@ import { DayCards } from "./day-cards";
 import { GrainNav } from "./grain-nav";
 import { isoDateInZone } from "@foundry/commons/util/dates";
 import { requestNow } from "@/lib/dates/request-now";
-import { getMoneyFormatter } from "@/lib/services/app-settings.service";
+import { getMoneyFormatter } from "@/lib/settings";
 
 function pct(n: number | null) {
   return n == null ? "—" : `${n.toFixed(1)}%`;

@@ -1,6 +1,6 @@
 import { requireCustomerIdOrRedirect } from "@/lib/account/customer";
 import { Suspense } from "react";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { getReferralSummary } from "@/lib/referrals/referrals.service";
 import { walletService } from "@/lib/wallet/wallet.service";
 import { PageHeader } from "@/components/kit";

@@ -11,7 +11,7 @@ const { couponsService } = await import("../coupons.service");
 const { ledgerService } = await import("../../payments/ledger.service");
 const { createOrder } = await import("../../orders/create-order");
 const { mintRepCoupons } = await import("../mint-rep-coupons");
-const { setDiscountPolicy } = await import("../../services/app-settings.service");
+const { setDiscountPolicy } = await import("@/lib/coupons/discount-policy-settings");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 
 // taxTotal: sales tax is charged on the post-discount base (destination province),

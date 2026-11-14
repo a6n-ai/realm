@@ -10,7 +10,7 @@ import { portionsAfterSwaps } from "@/lib/menu/eating-day-portions";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { buildTrips, type Trip } from "@/lib/deliveries/view";
 import { defaultWeek, parseWeekParam, splitAgenda, type Agenda } from "@/lib/deliveries/view/week";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import {
   makeupSourceIdsForOrder,
   myAgendaDots,

@@ -6,7 +6,7 @@ import { db } from "@/db/client";
 import { runInBackground } from "@foundry/cloud/background";
 import { deliveries, deliveryCategorySwaps, deliveryFrequencies, orders } from "@/db/schema";
 import { assertCanManageOrder } from "@/lib/deliveries/customer-deliveries.service";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { dishCategoriesService } from "@/lib/menu/dish-categories.service";
 import { buildMealsGrid } from "@/lib/menu/meals-grid";
 import type { GridCell } from "@/lib/menu/grid-types";

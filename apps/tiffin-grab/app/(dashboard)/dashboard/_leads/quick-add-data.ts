@@ -6,7 +6,7 @@ import type { Country as CountryCode } from "react-phone-number-input";
 import { db } from "@/db/client";
 import { deliveryZones } from "@/db/schema";
 import { requireStaff } from "@/lib/auth/guards";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { listActiveLeadSources } from "@/lib/inquiries/lead-sources.service";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { listableMealSizes, mealSizeAddons } from "@/lib/catalog/types";

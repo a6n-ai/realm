@@ -10,7 +10,7 @@ const { db } = await import("@/db/client");
 const {
   deliveries, deliveryFrequencies, inquiries, leadSources, mealSizes, orderActivities, orders, organization, payments, plans, ticketMessages, tickets, users,
 } = await import("@/db/schema");
-const { getAppSettings } = await import("../../services/app-settings.service");
+const { getAppSettings } = await import("@/lib/settings");
 const { countMissedDeliveries } = await import("../../deliveries/missed-deliveries.service");
 const { inquiriesService } = await import("../../inquiries/inquiries.service");
 const { countPaymentReviewOrders } = await import("@/lib/orders/queries");

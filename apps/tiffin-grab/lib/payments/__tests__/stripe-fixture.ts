@@ -3,7 +3,7 @@ import { nextWeekday } from "@foundry/commons";
 import { db } from "@/db/client";
 import { couponRedemptions, deliveries, ledgerEntries, notificationOutbox, orderActivities, orders, payments, stripeEvents, users, walletLedger } from "@/db/schema";
 import { createOrder } from "../../orders/create-order";
-import { setPaymentConfig } from "../../services/app-settings.service";
+import { setPaymentConfig } from "@/lib/payments/payment-config";
 import { sharedCache } from "@/lib/cache";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 

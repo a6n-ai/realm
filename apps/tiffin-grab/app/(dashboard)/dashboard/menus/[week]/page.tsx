@@ -4,7 +4,7 @@ import Link from "next/link";
 import { ArrowLeft, CalendarIcon } from "lucide-react";
 import { requireAdmin } from "@/lib/auth/guards";
 import { menuService } from "@/lib/menu/menu.service";
-import { getMealTypes } from "@/lib/services/app-settings.service";
+import { getMealTypes } from "@/lib/menu/meal-types-settings";
 import { dishCategoriesService } from "@/lib/menu/dish-categories.service";
 import { maxQtyBySlot } from "@/lib/menu/category-hint";
 import { formatDateOnly } from "@/lib/format/datetime";

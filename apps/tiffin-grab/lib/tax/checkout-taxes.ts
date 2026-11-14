@@ -1,5 +1,6 @@
 import type { TaxLine } from "@foundry/payments";
-import { getAppSettings, getProvinceTaxes } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
+import { getProvinceTaxes } from "@/lib/tax/province-taxes";
 import { calculateTax, type TaxAddress, type TaxQuote } from "@foundry/payments/stripe";
 import { createLogger } from "@foundry/commons/logger";
 import { sharedCache } from "@/lib/cache";

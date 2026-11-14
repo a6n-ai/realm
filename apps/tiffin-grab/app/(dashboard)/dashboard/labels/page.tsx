@@ -5,7 +5,7 @@ import { StatCards, StatCardsSkeleton } from "@/components/dashboard/stat-cards"
 import { zonedDateIso } from "@foundry/commons";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { requireStaff } from "@/lib/auth/guards";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { dailyLabelSheet, listDayDeliveryStatuses } from "@/lib/menu/daily-labels.service";
 import { getKitchenPackingSheet } from "@/lib/menu/kitchen-packing-sheet.service";
 import { HolidayBanner } from "@/components/dashboard/holiday-banner";

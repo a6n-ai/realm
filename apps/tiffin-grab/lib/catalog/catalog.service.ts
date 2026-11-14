@@ -14,7 +14,7 @@ import {
   maxTuBelowBaseMessage,
   unknownPlanCategoryMessage,
 } from "@/lib/menu/admin-config-guards";
-import { getAppSettings } from "../services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { dishCategoriesService } from "../menu/dish-categories.service";
 import { SessionUpdatableService } from "../services/session-service";
 import { parsePatch } from "../services/parse-patch";

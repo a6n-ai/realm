@@ -14,7 +14,7 @@ import { planType } from "@/db/schema/catalog";
 import { currentUserId } from "@/lib/services/session-service";
 import { recordCouponGroupAction } from "@/lib/customer-groups/customer-groups.service";
 import { couponsService } from "@/lib/coupons/coupons.service";
-import { getDiscountPolicy, setDiscountPolicy } from "@/lib/services/app-settings.service";
+import { getDiscountPolicy, setDiscountPolicy } from "@/lib/coupons/discount-policy-settings";
 import { revalidatePublicSite } from "@/lib/landing/revalidate-site";
 
 const OPTS = { guard: "admin", revalidate: [["/dashboard/discounts", "layout"]] } as const;

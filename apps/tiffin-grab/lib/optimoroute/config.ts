@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { integrationSlice } from "@foundry/commons/plugin-kit";
-import { integrationsConfigReadStore, integrationsConfigStore } from "@/lib/services/app-settings.service";
+import { integrationsConfigReadStore, integrationsConfigStore } from "@/lib/payments/integrations-config";
 
 // App-local, not @foundry/clover: OptimoRoute is delivery routing for this client, and
 // nothing has proven it shared. It rides in the same integrations_config blob, which is

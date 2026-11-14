@@ -6,7 +6,7 @@ import { parseSort, type SortState } from "@foundry/design-system/list-sort";
 import { withListDates } from "@/lib/list/default-month";
 import { StaffCodes, StaffCodesSkeleton, type IssuedCode } from "./staff-codes";
 import { requestNow } from "@/lib/dates/request-now";
-import { getMoneyFormatter } from "@/lib/services/app-settings.service";
+import { getMoneyFormatter } from "@/lib/settings";
 import { listCodeIssuers, listStaffCodes, STAFF_CODE_SORT_COLUMNS, type StaffCodeKind, type StaffCodeSortColumn } from "@/lib/coupons/staff-codes.service";
 
 const TYPE_OPTIONS = [

@@ -6,7 +6,7 @@ import { inquiries, leadSources, leadSubsources } from "@/db/schema";
 import { requireStaff } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { inquiriesService } from "@/lib/inquiries/inquiries.service";
 import { STAGE_MAP, type ImportMapping } from "@/app/(dashboard)/dashboard/inquiries/import/inquiry-import-columns";
 

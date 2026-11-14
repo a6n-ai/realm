@@ -2,7 +2,7 @@ import { activeStaffWhere } from "@/lib/staff/staff-roster";
 import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { users } from "@/db/schema";
-import { getLeadAssignment, setLeadAssignment } from "../services/app-settings.service";
+import { getLeadAssignment, setLeadAssignment } from "@/lib/staff/lead-assignment-settings";
 import { pickAssignee } from "./assignment";
 import { poolFor } from "./owner-pool.service";
 

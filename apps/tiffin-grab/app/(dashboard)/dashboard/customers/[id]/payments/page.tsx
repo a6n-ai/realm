@@ -7,7 +7,7 @@ import { SectionCard } from "@/components/ds";
 import { StatCards, type StatCardItem } from "@/components/dashboard/stat-cards";
 import { orders } from "@/db/schema";
 import { formatDateOnly, formatEpoch } from "@/lib/format/datetime";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { listPayments } from "@/lib/payments/payments-list.service";
 import { PaymentsTable, PaymentsTableSkeleton } from "../../../payments/payments-table";
 import { loadCustomer, loadViewer } from "../data";

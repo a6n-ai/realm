@@ -5,7 +5,9 @@ vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
 const { db } = await import("@/db/client");
 const { app, auditLog } = await import("@/db/schema");
-const { getAppSettings, setAppSettings, getMealTypes, setMealTypes } = await import("../app-settings.service");
+const { getAppSettings } = await import("@/lib/settings");
+const { setAppSettings } = await import("@/lib/deliveries/set-app-settings");
+const { getMealTypes, setMealTypes } = await import("@/lib/menu/meal-types-settings");
 const { DEFAULT_MEAL_TYPES } = await import("@/lib/menu/meal-types");
 
 // `app` is the one tenant row every other table's app_id FK points at (seeded
@@ -131,7 +133,7 @@ describe("coin earn percent", () => {
   afterAll(restoreAppSingleton);
 
   it("defaults to 0 (earning off) and stores a percent with decimals", async () => {
-    const { getCoinEarnPct, setCoinEarnPct } = await import("../app-settings.service");
+    const { getCoinEarnPct, setCoinEarnPct } = await import("@/lib/wallet/wallet-settings");
     await resetAppToDefaults();
     expect(await getCoinEarnPct()).toBe(0);
     await setCoinEarnPct(10);
@@ -141,7 +143,7 @@ describe("coin earn percent", () => {
   });
 
   it("refuses values outside 0-100 or with more than 2 decimals", async () => {
-    const { setCoinEarnPct } = await import("../app-settings.service");
+    const { setCoinEarnPct } = await import("@/lib/wallet/wallet-settings");
     await expect(setCoinEarnPct(101)).rejects.toThrow(/at most 2 decimals/);
     await expect(setCoinEarnPct(-1)).rejects.toThrow(/at most 2 decimals/);
     await expect(setCoinEarnPct(2.555)).rejects.toThrow(/at most 2 decimals/);
@@ -152,7 +154,7 @@ describe("referral settings", () => {
   afterAll(restoreAppSingleton);
 
   it("defaults to flat, both values 0, no cap", async () => {
-    const { getReferralSettings } = await import("../app-settings.service");
+    const { getReferralSettings } = await import("@/lib/referrals/referral-settings");
     await resetAppToDefaults();
     await db.update(app).set({ referralMode: "flat", referralReferrerValue: 0, referralFriendValue: 0, referralMaxPerReferrer: null });
     const { sharedCache } = await import("@/lib/cache");
@@ -161,13 +163,13 @@ describe("referral settings", () => {
   });
 
   it("round-trips what admin saves", async () => {
-    const { getReferralSettings, setReferralSettings } = await import("../app-settings.service");
+    const { getReferralSettings, setReferralSettings } = await import("@/lib/referrals/referral-settings");
     await setReferralSettings({ mode: "pct", referrerValue: 10, friendValue: 5, maxPerReferrer: 3 });
     expect(await getReferralSettings()).toEqual({ mode: "pct", referrerValue: 10, friendValue: 5, maxPerReferrer: 3 });
   });
 
   it("refuses a percent over 100 and a cap of 0", async () => {
-    const { setReferralSettings } = await import("../app-settings.service");
+    const { setReferralSettings } = await import("@/lib/referrals/referral-settings");
     const { ValidationError } = await import("@foundry/commons");
     await expect(setReferralSettings({ mode: "pct", referrerValue: 150, friendValue: 0, maxPerReferrer: null })).rejects.toBeInstanceOf(ValidationError);
     await expect(setReferralSettings({ mode: "flat", referrerValue: 10, friendValue: 10, maxPerReferrer: 0 })).rejects.toBeInstanceOf(ValidationError);

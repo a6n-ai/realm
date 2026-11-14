@@ -17,10 +17,13 @@ const settings = vi.hoisted(() => ({
   cap: null as number | null,
   referral: { mode: "flat" as "flat" | "pct", referrerValue: 20, friendValue: 10, maxPerReferrer: null as number | null },
 }));
-vi.mock("@/lib/services/app-settings.service", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/lib/services/app-settings.service")>()),
+vi.mock("@/lib/wallet/wallet-settings", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/wallet/wallet-settings")>()),
   getCoinEarnPct: async () => settings.earnPct,
   getMaxWalletBalance: async () => settings.cap,
+}));
+vi.mock("@/lib/referrals/referral-settings", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/referrals/referral-settings")>()),
   getReferralSettings: async () => settings.referral,
 }));
 

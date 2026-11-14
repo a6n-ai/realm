@@ -24,7 +24,7 @@ import { sendMetaCrmLeadCreated, sendMetaCrmLeadStatus, sendMetaCrmQualifiedLead
 import { SessionBaseService, SessionUpdatableService } from "../services/session-service";
 import { assertOnePerson, createOrder, type CreateOrderInput } from "../orders/create-order";
 import { getBrandOrgId } from "../services/organizations.service";
-import { getLeadAssignment, setLeadAssignment } from "../services/app-settings.service";
+import { getLeadAssignment, setLeadAssignment } from "@/lib/staff/lead-assignment-settings";
 import { pickAssignee, strategyFor } from "../staff/assignment";
 import { poolFor } from "../staff/owner-pool.service";
 import { assertReassignAllowed, resolveAssignableOwner } from "../staff/reassign";

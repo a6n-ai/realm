@@ -17,7 +17,7 @@ import { dishCategoriesService } from "@/lib/menu/dish-categories.service";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { categoryPortionSlotsForMealSize, categoryPortionsForMealSize } from "@/lib/catalog/category-portions";
 import { portionsAfterSwaps } from "@/lib/menu/eating-day-portions";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { addressService } from "@/lib/services/addresses.service";
 import { dropOffsFor } from "@/lib/deliveries/address-drop-off.service";
 import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";

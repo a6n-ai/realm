@@ -11,7 +11,7 @@ import { requirePermission } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { loadOwnerOptions } from "@/lib/list/facet-options";
 import { UNASSIGNED_OWNER, resolveOwnerParam } from "@/lib/list/presets";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import { countRenewals, listRenewals, listRenewedCustomers } from "@/lib/renewals/renewals.service";
 import { SectionDateRange } from "@/components/filters/section-date-range";

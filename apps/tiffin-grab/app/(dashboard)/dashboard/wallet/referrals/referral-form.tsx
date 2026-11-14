@@ -9,7 +9,7 @@ import { Button } from "@foundry/ui/button";
 import { Label } from "@foundry/ui/label";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
-import type { ReferralSettings } from "@/lib/services/app-settings.service";
+import type { ReferralSettings } from "@/lib/referrals/referral-settings";
 import { NumberField } from "@/components/dashboard/form-controls";
 import { setReferralSettingsAction } from "./actions";
 

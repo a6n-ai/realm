@@ -10,7 +10,7 @@ const { couponRedemptions, deliveries, ledgerEntries, notificationOutbox, orderA
   await import("@/db/schema");
 const { createOrder } = await import("../../orders/create-order");
 const { updatePaymentReference } = await import("@/lib/payments/verification");
-const { setPaymentConfig } = await import("../../services/app-settings.service");
+const { setPaymentConfig } = await import("@/lib/payments/payment-config");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { sharedCache } = await import("@/lib/cache");
 

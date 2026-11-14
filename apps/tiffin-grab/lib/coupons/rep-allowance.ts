@@ -1,5 +1,5 @@
 import type { DiscountPolicy } from "@/db/schema/types";
-import { getAppSettings } from "../services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 
 // The daily rep allowance is anchored to the app-settings timezone's calendar day, like the
 // rest of the app. The `ist_date` column keeps its name; it now holds that zone's date.

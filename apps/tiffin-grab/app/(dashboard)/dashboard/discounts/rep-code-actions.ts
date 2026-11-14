@@ -6,7 +6,7 @@ import type { ActionResult } from "@/lib/actions/action-result";
 import { staffAction } from "@/lib/actions/staff-action";
 import { db } from "@/db/client";
 import { getSession } from "@/lib/auth/session";
-import { getDiscountPolicy } from "@/lib/services/app-settings.service";
+import { getDiscountPolicy } from "@/lib/coupons/discount-policy-settings";
 import { couponsService } from "@/lib/coupons/coupons.service";
 import { userIdByPublicId } from "@/lib/identity/user-ids";
 import { repAllowanceFor, repAllowanceZone } from "@/lib/coupons/rep-allowance";

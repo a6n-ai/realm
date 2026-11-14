@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { parseFilterState, type FacetDef } from "@/components/ds";
 import { db } from "@/db/client";
 import { users } from "@/db/schema";
-import { getDiscountPolicy } from "@/lib/services/app-settings.service";
+import { getDiscountPolicy } from "@/lib/coupons/discount-policy-settings";
 import { RepAllowanceForm, RepAllowanceFormSkeleton } from "./form";
 
 // Same Search + Filter bar as the other lists. The staff list is small and the allowed flag

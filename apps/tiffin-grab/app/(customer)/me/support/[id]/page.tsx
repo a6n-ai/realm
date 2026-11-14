@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { AuthError, ForbiddenError, NotFoundError } from "@foundry/commons";
 import { SupportHoursNote, loadSupportHoursView } from "@/components/customer/support/support-hours";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { ticketsService } from "@/lib/support/tickets.service";
 import { withAttachmentViews } from "@/lib/support/ticket-attachments";
 import { PageHeader } from "@/components/kit";

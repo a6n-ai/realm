@@ -26,7 +26,7 @@ const {
 const { createOrder } = await import("../../orders/create-order");
 const { readOrder } = await import("../../orders/orders.service");
 const { claimPayment, rejectPayment, verifyPayment, getClaimPaymentContext } = await import("@/lib/payments/verification");
-const { setPaymentConfig, getPaymentConfig } = await import("../../services/app-settings.service");
+const { setPaymentConfig, getPaymentConfig } = await import("@/lib/payments/payment-config");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { sharedCache } = await import("@/lib/cache");
 const { ledgerService } = await import("../ledger.service");

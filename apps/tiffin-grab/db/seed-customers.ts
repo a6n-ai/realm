@@ -28,7 +28,7 @@ import { categoryCountsFromItems } from "../lib/menu/pick-size";
 import type { DayOfWeek } from "../lib/deliveries/schedule/delivery-days";
 import { nextTripDate, tripsFor } from "../lib/orders/bounded-deliveries";
 import { matchZone, parseCanadianPostalCode } from "../lib/catalog/postal";
-import { getAppSettings } from "../lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { provisionCustomerByPhone } from "../lib/services/customers.service";
 import { getBrandOrgId } from "../lib/services/organizations.service";
 import { addressService } from "../lib/services/addresses.service";

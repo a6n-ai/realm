@@ -5,7 +5,7 @@ vi.mock("next/cache", () => ({ revalidatePath: () => undefined }));
 const requireAdmin = vi.fn(async () => undefined);
 vi.mock("@/lib/auth/guards", () => ({ requireAdmin: () => requireAdmin() }));
 const setTracked = vi.fn(async (_: string[]) => undefined);
-vi.mock("@/lib/services/app-settings.service", () => ({ setTrackedEmailEvents: (e: string[]) => setTracked(e) }));
+vi.mock("@/lib/notifications/tracked-email-events", () => ({ setTrackedEmailEvents: (e: string[]) => setTracked(e) }));
 const setRouting = vi.fn(async (..._a: unknown[]) => undefined);
 vi.mock("@relay/email", async (orig) => ({ ...(await orig<object>()), sesEventSettings: () => ({ setRouting }) }));
 vi.mock("@/lib/email/provider", () => ({

@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { NotFoundError } from "@foundry/commons";
 import { usersService } from "@/lib/services/users.service";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { listMembershipsForUser, listOrganizations, type MemberRole } from "@/lib/services/organizations.service";
 import { formatEpoch } from "@/lib/format/datetime";
 import { SectionCard, UserAvatar } from "@/components/ds";

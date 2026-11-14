@@ -7,7 +7,8 @@ import { postCatalogSubtotal } from "@/lib/pricing/discounts";
 import { coinLimits, quoteCoinCap } from "@/lib/pricing/coin-cap";
 import { priceSubscription, type PricingSelections } from "@/lib/pricing";
 import { quoteTrial } from "@/lib/trial/quote";
-import { getAppSettings, getMaxCoinPctOfSubtotal, getMaxCoinRedeemPctOfBalance } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
+import { getMaxCoinPctOfSubtotal, getMaxCoinRedeemPctOfBalance } from "@/lib/wallet/wallet-settings";
 import { walletService } from "@/lib/wallet/wallet.service";
 
 /**

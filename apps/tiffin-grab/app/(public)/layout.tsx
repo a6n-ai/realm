@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { AppCurrencyProvider } from "@/components/app-currency";
 import { MotionProvider } from "@/components/motion/motion-provider";
 import { TimezoneProvider } from "@foundry/design-system/timezone-provider";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 
 // Subscribe and checkout animate with motion; the landing and marketing pages don't, so
 // the provider lives here and in the app areas rather than in the root layout.

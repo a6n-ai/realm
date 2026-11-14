@@ -12,7 +12,7 @@ import { requirePermission } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { withListDates } from "@/lib/list/default-month";
 import { parseRenewalsFilter, resolveRange } from "@/lib/renewals/filters";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import { resolveOwnerParam } from "@/lib/list/presets";
 import {

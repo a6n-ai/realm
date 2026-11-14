@@ -2,7 +2,7 @@ import { round2 } from "@foundry/commons/util/money";
 import { and, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, ledgerEntries, orders, payments } from "@/db/schema";
-import { getProfitabilityAssumptions } from "@/lib/services/app-settings.service";
+import { getProfitabilityAssumptions } from "@/lib/analytics/profitability-settings";
 import { costBreakdown, decorateDay, kpis, rollup, type CostPart, type Grain, type ProfitabilityAssumptions, type ProfitabilityKpis, type ProfitRow } from "@/lib/analytics/profitability";
 import { chartPeriod } from "@/lib/analytics/buckets";
 import { moneyDate, netExTax, refundExTax, revenueBy, revenueTotals } from "./metrics/money";

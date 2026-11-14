@@ -7,7 +7,7 @@ import { alias } from "drizzle-orm/pg-core";
 import { db, type Tx } from "@/db/client";
 import { deliveries, deliveryCategorySwaps, deliveryExtraTiffins, deliveryFrequencies, deliveryMoves, deliveryZones, orderActivities, orders, users } from "@/db/schema";
 import { mealSizeAllowedDays, mealSizeServesWeekends } from "./weekend-dish";
-import { getAppSettings } from "../services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { allowedDaysError, orderDeliveryDays, planDaysError, planDeliveryDays, planWeek, type DayOfWeek, type TrialDays } from "@/lib/deliveries/schedule/delivery-days";
 import { subscriptionDeliveryDates } from "@/lib/deliveries/schedule/delivery-dates";
 import { trialDeliveryDates } from "@/lib/trial/schedule";

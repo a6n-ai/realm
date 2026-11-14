@@ -14,7 +14,7 @@ vi.mock("@/lib/payments/stripe", () => ({
   customerStore: { get: async () => customer },
 }));
 vi.mock("@/lib/payments/payment-stripe", () => ({ listSavedCards: async () => cards }));
-vi.mock("@/lib/services/app-settings.service", () => ({ getAppSettings: async () => ({ defaultCountry: "CA" }) }));
+vi.mock("@/lib/settings", () => ({ getAppSettings: async () => ({ defaultCountry: "CA" }) }));
 let phone: string | null = null;
 
 const { cardCheckoutContext, customerSessionSecret } = await import("../card-checkout-context");

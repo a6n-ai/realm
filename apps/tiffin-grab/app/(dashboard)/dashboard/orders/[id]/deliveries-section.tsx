@@ -10,7 +10,7 @@ import type { OptimoRouteRow } from "./optimoroute-panel";
 import type { Subscription } from "@/lib/deliveries/customer-deliveries.service";
 import { orderDisplayStatus } from "@/lib/orders/display-status";
 import { db } from "@/db/client";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { isOrderFullyPaused } from "@/lib/deliveries/pause-state";
 import { plans } from "@/db/schema/index";
 import { loadSubscriptionAddons } from "@/lib/menu/order-addon-items";

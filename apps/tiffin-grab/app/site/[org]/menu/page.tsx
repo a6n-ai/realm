@@ -16,7 +16,7 @@ import { foldPicks, popularSince } from "@/lib/menu/customer-week";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { lowestRate } from "@/lib/landing/live-figures";
 import { buildWeekBoard, dateOf } from "@/lib/landing/week-board";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { menuService } from "@/lib/menu/menu.service";
 import { siteOrgId } from "@/lib/tenant/site-org";
 import { pageMeta } from "@/lib/landing/meta";

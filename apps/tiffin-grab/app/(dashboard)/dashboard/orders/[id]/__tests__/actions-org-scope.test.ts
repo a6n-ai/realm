@@ -24,7 +24,7 @@ vi.mock("@/lib/orders/orders.service", () => svc);
 vi.mock("@/lib/auth/visible-orgs", () => ({ resolveSessionVisibleOrgIds: svc.resolveSessionVisibleOrgIds }));
 vi.mock("@/lib/payments/verification", () => ({ verifyPayment: svc.verifyPayment, rejectPayment: svc.rejectPayment, updatePaymentReference: svc.updatePaymentReference }));
 vi.mock("@/lib/services/session-service", () => ({ currentUserId: async () => 7n }));
-vi.mock("@/lib/services/app-settings.service", () => ({ getAppSettings: async () => ({ currency: "CAD" }) }));
+vi.mock("@/lib/settings", () => ({ getAppSettings: async () => ({ currency: "CAD" }) }));
 vi.mock("@/lib/payments/payment-reminder", () => ({ sendPaymentReminder: svc.sendPaymentReminder }));
 vi.mock("@/lib/deliveries/deliveries.service", () => ({
   adminSetDeliveryStatus: svc.adminSetDeliveryStatus, grantComplimentaryTiffin: svc.grantComplimentaryTiffin,

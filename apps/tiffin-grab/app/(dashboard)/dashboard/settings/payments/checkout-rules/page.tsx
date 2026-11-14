@@ -1,4 +1,4 @@
-import { getProvinceTaxes } from "@/lib/services/app-settings.service";
+import { getProvinceTaxes } from "@/lib/tax/province-taxes";
 import { ProvinceTaxForm } from "./province-tax-form";
 import { PaymentsBackLink } from "../back-link";
 

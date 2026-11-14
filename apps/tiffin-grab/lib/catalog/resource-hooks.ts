@@ -4,7 +4,7 @@ import type { FilterCondition } from "@foundry/commons/model/condition";
 import { zonedDateIso } from "@foundry/commons";
 import { db } from "@/db/client";
 import { addons, deliveryFrequencies, dishCategories, discounts, dishes, durationPackages, mealSizeItems, mealSizes, plans } from "@/db/schema";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { dishCategoriesService } from "@/lib/menu/dish-categories.service";
 
 type CategoryRow = Awaited<ReturnType<typeof dishCategoriesService.enabledCategories>>[number];

@@ -1,7 +1,7 @@
 // Usage analytics for a single logged-in customer (app/(customer)/me/usage) — every
 // query here is scoped to one userId and, optionally, a [from, to] epoch-ms window.
 // Distinct from lib/services/analytics/* (staff-facing, business-wide aggregates).
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { zonedDateIso } from "@foundry/commons";
 import { and, eq, gte, lte, sql } from "drizzle-orm";
 import { db } from "@/db/client";

@@ -6,7 +6,7 @@ import { loadSiteFacts } from "@/lib/landing/site-facts";
 import { buildWeekBoard } from "@/lib/landing/week-board";
 import { foldPicks, popularSince } from "@/lib/menu/customer-week";
 import { buildReferralOffer } from "@/lib/referrals/offer";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { menuService } from "@/lib/menu/menu.service";
 import { contactBody, deliveryBody, faqBody, menuBody, plansBody, promotionsBody, referralBody } from "@/lib/public-api/data";
 import { deliveryCheck } from "@/lib/public-api/postal";

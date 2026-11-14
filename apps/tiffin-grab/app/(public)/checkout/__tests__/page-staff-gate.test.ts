@@ -13,13 +13,17 @@ vi.mock("@/lib/services/session-service", async (orig) => ({
   ...(await orig<typeof import("@/lib/services/session-service")>()),
   currentUserId: async () => userId.current,
 }));
-vi.mock("@/lib/services/app-settings.service", () => ({
+vi.mock("@/lib/settings", () => ({
   getAppSettings: async () => ({ defaultCountry: "CA" }),
+}));
+vi.mock("@/lib/payments/integrations-config", () => ({
   getIntegrationsConfig: async () => ({}),
   getIntegrationsConfigFresh: async () => ({}),
   setIntegrationsConfig: async () => {},
   integrationsConfigStore: { get: async () => ({}), set: async () => {} },
   integrationsConfigReadStore: { get: async () => ({}), set: async () => {} },
+}));
+vi.mock("@/lib/payments/payment-config", () => ({
   getPaymentConfig: async () => ({}),
 }));
 

@@ -10,7 +10,7 @@ import { db, type Tx } from "@/db/client";
 import { couponRedemptions, coupons, customerGroupMembers, orders, payments, users } from "@/db/schema";
 import type { CouponConfig, CouponKind } from "@/db/schema/coupons";
 import type { PricingLine } from "@/lib/pricing";
-import { getDiscountPolicy } from "../services/app-settings.service";
+import { getDiscountPolicy } from "@/lib/coupons/discount-policy-settings";
 import { ledgerService } from "../payments/ledger.service";
 import { repAllowanceFor } from "./rep-allowance";
 import { SessionUpdatableService } from "../services/session-service";

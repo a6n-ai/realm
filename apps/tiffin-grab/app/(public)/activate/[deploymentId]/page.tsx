@@ -10,7 +10,7 @@ import { StaticMapClient } from "@/components/maps/static-map-client";
 import { getSession } from "@/lib/auth/session";
 import { isStaffRole } from "@/lib/roles";
 import { stripeMethodAvailable } from "@/lib/payments/stripe";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import { getClaimPaymentContext } from "@/lib/payments/verification";
 import { ClaimPayment } from "@/components/customer/wallet/claim-payment";

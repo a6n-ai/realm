@@ -16,9 +16,11 @@ vi.mock("@/lib/auth/guards", () => ({
   }),
 }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
-vi.mock("@/lib/services/app-settings.service", () => ({
-  ensurePaymentCatalog: vi.fn(),
+vi.mock("@/lib/settings", () => ({
   getAppSettings: vi.fn(async () => ({ currency: "CAD" })),
+}));
+vi.mock("@/lib/payments/payment-config", () => ({
+  ensurePaymentCatalog: vi.fn(),
   getPaymentConfigFresh: vi.fn(async () => cfgState.cfg),
   setPaymentConfig: vi.fn(async (c: typeof cfgState.cfg) => { cfgState.cfg = c; }),
 }));

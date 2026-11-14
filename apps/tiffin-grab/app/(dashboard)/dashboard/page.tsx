@@ -6,7 +6,7 @@ import { LayoutDashboardIcon } from "lucide-react";
 import { zonedDateIso } from "@foundry/commons";
 import { requireStaff } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import { coversAllOrgs, getTodayCounts, getTodayQueue } from "@/lib/today/today.service";
 import { staffFirstName } from "@/lib/overview/overview.service";

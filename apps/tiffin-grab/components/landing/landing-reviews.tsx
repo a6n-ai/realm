@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Star } from "lucide-react";
 import { getGoogleReviewsConfig, getReviewsSummary, loadPlacesApiKeyFromEnv, type Review } from "@foundry/google-reviews";
-import { integrationsConfigReadStore } from "@/lib/services/app-settings.service";
+import { integrationsConfigReadStore } from "@/lib/payments/integrations-config";
 import { getPlacePhotos } from "@/lib/landing/place-photos";
 
 /** Plugin installed, listing set and key present. Cheap (no Google call): gates links, not content. */

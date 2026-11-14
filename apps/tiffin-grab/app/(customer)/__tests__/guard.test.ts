@@ -1,8 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/auth/session", () => ({ getSession: vi.fn() }));
-vi.mock("@/lib/services/app-settings.service", () => ({
+vi.mock("@/lib/settings", () => ({
   getAppSettings: vi.fn().mockResolvedValue({ timezone: "Asia/Kolkata", cutoffHour: 18, currency: "INR" }),
+}));
+vi.mock("@/lib/payments/integrations-config", () => ({
   getIntegrationsConfigFresh: vi.fn().mockResolvedValue({}),
   setIntegrationsConfig: vi.fn(),
   integrationsConfigStore: { get: async () => ({}), set: async () => {} },

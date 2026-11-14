@@ -6,7 +6,8 @@ import { Skeleton } from "@foundry/ui/skeleton";
 import { requirePermission } from "@/lib/auth/guards";
 import { stripeRuntime } from "@/lib/payments/stripe";
 import { findMethod } from "@foundry/payments";
-import { getIntegrationsConfig, getPaymentConfig } from "@/lib/services/app-settings.service";
+import { getIntegrationsConfig } from "@/lib/payments/integrations-config";
+import { getPaymentConfig } from "@/lib/payments/payment-config";
 import { PaymentsBackLink } from "../back-link";
 import { StripeSettingsForm, type StripeView } from "./stripe-settings-form";
 

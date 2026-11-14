@@ -1,6 +1,6 @@
 "use server";
 
-import { setSupportHours } from "@/lib/services/app-settings.service";
+import { setSupportHours } from "@/lib/support/support-hours-settings";
 import type { ActionResult } from "@/lib/actions/action-result";
 import { staffAction } from "@/lib/actions/staff-action";
 import {

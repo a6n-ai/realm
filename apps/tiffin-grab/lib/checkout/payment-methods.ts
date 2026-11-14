@@ -1,5 +1,5 @@
 import { enabledMethods } from "@foundry/payments";
-import { getPaymentConfig } from "@/lib/services/app-settings.service";
+import { getPaymentConfig } from "@/lib/payments/payment-config";
 import { stripeMethodAvailable } from "@/lib/payments/stripe";
 
 export interface CheckoutPaymentMethod {

@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { notFound, redirect } from "next/navigation";
-import { ensurePaymentCatalog } from "@/lib/services/app-settings.service";
+import { ensurePaymentCatalog } from "@/lib/payments/payment-config";
 import { PaymentsBackLink } from "../back-link";
 import { PaymentsForm, PaymentsFormSkeleton } from "../payments-form";
 

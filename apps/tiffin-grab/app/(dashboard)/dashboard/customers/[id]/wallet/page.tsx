@@ -8,7 +8,7 @@ import { StatCards, StatCardsSkeleton, type StatCardItem } from "@/components/da
 import { parseSort, type SortState } from "@foundry/design-system/list-sort";
 import { formatEpoch } from "@/lib/format/datetime";
 import { formatMoney } from "@foundry/commons";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { customerWalletStats } from "@/lib/wallet/wallet-balances.service";
 import { walletEntryLabel } from "@/lib/wallet/source-labels";
 import { eventLabel } from "@relay/engine/ui/template-status";

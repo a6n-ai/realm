@@ -7,7 +7,7 @@ import { and, eq, gte, sql } from "drizzle-orm";
 import { AdminOnly, requireStaff } from "@/lib/auth/guards";
 import { db } from "@/db/client";
 import { orders, users } from "@/db/schema";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { listActiveLeadSources } from "@/lib/inquiries/lead-sources.service";
 import { countPendingInvites, listCustomersPage, type CustomerSortColumn } from "@/lib/services/customers.service";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";

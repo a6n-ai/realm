@@ -7,7 +7,7 @@ import { PageHeader, SectionCard, StatGrid, TonePill } from "@/components/ds";
 import { requirePermission } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { humanDate } from "@/lib/deliveries/view";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { getHolidayDetail, listNeedsPlacing } from "@/lib/deliveries/holidays.service";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import { ClosedDaysTable, NeedsPlacingTable } from "../holidays-table";

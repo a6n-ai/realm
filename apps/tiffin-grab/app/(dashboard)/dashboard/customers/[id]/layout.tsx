@@ -9,7 +9,7 @@ import { db } from "@/db/client";
 import { deliveries, orders } from "@/db/schema";
 import { formatEpoch, formatDateOnly } from "@/lib/format/datetime";
 import { formatMoney } from "@foundry/commons";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { currentRate } from "@/lib/wallet/wallet-balances.service";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { walletService } from "@/lib/wallet/wallet.service";

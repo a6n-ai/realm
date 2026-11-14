@@ -8,7 +8,7 @@ import { db } from "@/db/client";
 import { deliveryZones, inquiries } from "@/db/schema";
 import { requireStaff, roleCan } from "@/lib/auth/guards";
 import { LOST_REASON_LABELS } from "@/lib/analytics/leads.service";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { listActiveLeadSources } from "@/lib/inquiries/lead-sources.service";
 import { inquiriesService, inquiryBucketWhere, type QueueTab } from "@/lib/inquiries/inquiries.service";
 import { canReassign } from "@/lib/staff/reassign";

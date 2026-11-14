@@ -14,8 +14,8 @@ import { nextWeekday, ValidationError } from "@foundry/commons";
 // Earn rate and wallet cap are app-wide settings in the shared test DB; writing
 // them would leak into suites running in parallel, so this suite stubs them.
 const settings = vi.hoisted(() => ({ pct: 10, cap: null as number | null }));
-vi.mock("@/lib/services/app-settings.service", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/lib/services/app-settings.service")>()),
+vi.mock("@/lib/wallet/wallet-settings", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/wallet/wallet-settings")>()),
   getCoinEarnPct: async () => settings.pct,
   getMaxWalletBalance: async () => settings.cap,
 }));

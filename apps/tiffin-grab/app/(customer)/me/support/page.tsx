@@ -1,6 +1,6 @@
 import { requireCustomerSession } from "@/lib/account/customer";
 import { Suspense } from "react";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { usersService } from "@/lib/services/users.service";
 import { ticketsService } from "@/lib/support/tickets.service";
 import { getCustomerDashboard } from "@/lib/services/customers.service";

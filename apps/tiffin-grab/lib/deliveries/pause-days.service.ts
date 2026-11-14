@@ -2,7 +2,7 @@ import { MOVED_AWAY } from "@/lib/deliveries/row-state";
 import { isCutoffPassed } from "@/lib/dates/cutoff";
 import { cutoffPassedSql, cutoffOpenSql } from "@/lib/dates/cutoff-sql";
 import { appTodayIso } from "@/lib/dates/today";
-import { getAppSettings } from "../services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { RUNNING, inOrderStatuses } from "@/lib/orders/status";
 import { ValidationError } from "@foundry/commons";
 import { createLogger } from "@foundry/commons/logger";

@@ -9,10 +9,8 @@ const assetsFetch = vi.hoisted(() => vi.fn());
 vi.mock("@foundry/commons/runtime/platform", () => ({ isWorkers: () => workers.on }));
 vi.mock("@opennextjs/cloudflare", () => ({ getCloudflareContext: () => ({ env: { ASSETS: { fetch: assetsFetch } } }) }));
 vi.mock("@/lib/referrals\u002freferrals\u002eservice", () => ({ findReferrerByCode: async () => ({ firstName: "Asha" }) }));
-vi.mock("@/lib/services\u002fapp-settings\u002eservice", () => ({
-  getAppSettings: async () => ({ currency: "CAD" }),
-  getReferralSettings: async () => ({}),
-}));
+vi.mock("@/lib/settings", () => ({ getAppSettings: async () => ({ currency: "CAD" }) }));
+vi.mock("@/lib/referrals/referral-settings", () => ({ getReferralSettings: async () => ({}) }));
 vi.mock("@/lib/wallet\u002fwallet\u002eservice", () => ({ walletService: { activeRate: async () => null } }));
 vi.mock("@/lib/referrals/share", () => ({ friendOfferParts: () => ({ lead: "Get", big: "$15", small: "off your first order" }) }));
 

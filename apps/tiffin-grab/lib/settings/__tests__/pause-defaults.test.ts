@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
-// A separate file (not app-settings.service.test.ts): that suite's reset() does
+// A separate file (not app-settings.test.ts): that suite's reset() does
 // `db.delete(app)`, which FK-violates against `account` in this DB — a pre-existing
 // failure unrelated to pause limits. This suite avoids deleting the singleton row;
 // it snapshots + restores it instead.
@@ -8,7 +8,8 @@ vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
 const { db } = await import("@/db/client");
 const { app } = await import("@/db/schema");
-const { setAppSettings, getPauseDefaultsSetting } = await import("../app-settings.service");
+const { setAppSettings } = await import("@/lib/deliveries/set-app-settings");
+const { getPauseDefaultsSetting } = await import("@/lib/settings");
 
 describe("app-settings pause-limit defaults (integration)", () => {
   let original: (typeof app.$inferSelect) | undefined;

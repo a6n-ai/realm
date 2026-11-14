@@ -17,7 +17,8 @@ import { coinRate, eventPayout, ledgerEntries, orderActivities, orders, users, w
 import type { OrderPricingSnapshot } from "@/lib/pricing";
 import { coinsUnderCap, earnCoins } from "@/lib/wallet/earn-coins";
 import { earnsOrderCoins } from "@/lib/wallet/earns-coins";
-import { getAppSettings, getCoinEarnPct, getMaxWalletBalance } from "../services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
+import { getCoinEarnPct, getMaxWalletBalance } from "@/lib/wallet/wallet-settings";
 import { lockUser } from "@/lib/identity/lock-user";
 import { walletBalanceSql } from "@/lib/wallet/balance-sql";
 

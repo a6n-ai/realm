@@ -4,7 +4,7 @@ import { listableMealSizes, type CatalogSnapshot } from "@/lib/catalog/types";
 import { runsOf } from "@/lib/landing/areas";
 import { biggestDurationOff, deliveryIsFree, hourLabel, paidDropOff, lowestRate, trialLength, trialOffer } from "@/lib/landing/live-figures";
 import { effectivePrice } from "@/lib/pricing";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { getTrialSettings } from "@/lib/trial/trial-settings.service";
 
 export type FactSize = { name: string; rate: number; trial: boolean; parts: string[]; kcalMin: number; kcalMax: number; proteinG: number | null };

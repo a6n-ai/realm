@@ -28,7 +28,7 @@ vi.mock("@/lib/notifications/enqueue", async (importOriginal) => {
 const { db } = await import("@/db/client");
 const { deliveries, holidays, orders, organization, users } = await import("@/db/schema");
 const { notificationTables } = await import("@/lib/notifications/tables");
-const { getAppSettings } = await import("../../services/app-settings.service");
+const { getAppSettings } = await import("@/lib/settings");
 const { getBrandOrgId } = await import("../../services/organizations.service");
 const {
   checkoutHolidayDates, createHoliday, dismissHolidayDay, getHolidayDetail, holidayNamesForUser, holidayOutcome, holidaysOn, listDeclarableOrganizations, listHolidays, listNeedsPlacing, placeHolidayDay,

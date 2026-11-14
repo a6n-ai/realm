@@ -25,7 +25,7 @@ import {
 } from "@/db/schema";
 import { dishCategoriesService } from "@/lib/menu/dish-categories.service";
 import { formatTuHuman } from "@/lib/menu/format-tu";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { WAIVER_KINDS, type CatalogSnapshot, type WaiverKind } from "./types";
 import { revalidatePublicSite } from "@/lib/landing/revalidate-site";
 

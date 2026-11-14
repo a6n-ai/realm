@@ -8,7 +8,7 @@ import {
 } from "@foundry/google-reviews";
 import type { ActionResult } from "@/lib/actions/action-result";
 import { staffAction } from "@/lib/actions/staff-action";
-import { integrationsConfigStore } from "@/lib/services/app-settings.service";
+import { integrationsConfigStore } from "@/lib/payments/integrations-config";
 import { currentUserId } from "@/lib/services/session-service";
 import { recordAudit } from "@/lib/identity/audit";
 import { revalidatePublicSite } from "@/lib/landing/revalidate-site";

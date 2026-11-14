@@ -7,7 +7,7 @@ import { requireStaff } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { quoteQuery } from "@/lib/wizard/selections";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { dishCategoriesService } from "@/lib/menu/dish-categories.service";
 import { assertOrderVisible } from "@/lib/orders/orders.service";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";

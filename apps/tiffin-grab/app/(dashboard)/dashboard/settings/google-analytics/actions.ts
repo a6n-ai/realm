@@ -1,7 +1,7 @@
 "use server";
 
 import { ValidationError } from "@foundry/commons";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import type { ActionResult } from "@/lib/actions/action-result";
 import { staffAction } from "@/lib/actions/staff-action";
 import { currentUserId } from "@/lib/services/session-service";

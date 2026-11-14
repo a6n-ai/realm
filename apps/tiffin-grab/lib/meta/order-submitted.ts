@@ -1,4 +1,4 @@
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { eq } from "drizzle-orm";
 import { createLogger } from "@foundry/commons/logger";
 import type { MetaEventName } from "@foundry/meta-pixel";

@@ -5,7 +5,7 @@ import { SectionCard } from "@/components/ds";
 import { requireAdmin } from "@/lib/auth/guards";
 import { ensureMenuReminder } from "@/lib/notifications/menu-reminder";
 import { listSystemCampaigns } from "@/lib/notifications/lists";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { formatEpoch } from "@/lib/format/datetime";
 
 /**

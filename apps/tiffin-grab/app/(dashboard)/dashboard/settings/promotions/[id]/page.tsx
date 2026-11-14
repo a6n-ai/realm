@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/ds";
 import { couponsService } from "@/lib/coupons/coupons.service";
 import { couponHeadline } from "@/lib/landing/promos";
 import { promoCardHtml } from "@/lib/landing/promo-card-html";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { promotionsService, type Promotion } from "@/lib/promotions/promotions.service";
 import { PromotionForm } from "../promotion-form";
 

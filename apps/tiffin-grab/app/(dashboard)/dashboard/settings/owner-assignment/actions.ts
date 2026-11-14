@@ -6,7 +6,7 @@ import { leadSources } from "@/db/schema";
 import { staffAction } from "@/lib/actions/staff-action";
 import type { ActionResult } from "@/lib/actions/action-result";
 import { setMembership } from "@/lib/staff/owner-pool.service";
-import { getLeadAssignment, setLeadAssignment } from "@/lib/services/app-settings.service";
+import { getLeadAssignment, setLeadAssignment } from "@/lib/staff/lead-assignment-settings";
 import type { OwnerEntity, Strategy } from "@/lib/staff/assignment";
 
 const OPTS = { guard: "admin", revalidate: ["/dashboard/settings/owner-assignment"] } as const;

@@ -18,7 +18,7 @@ vi.mock("@/lib/cache", () => {
   });
   return { sharedCache: cache, configCache: cache };
 });
-vi.mock("../session-service", () => ({
+vi.mock("@/lib/services/session-service", () => ({
   SessionUpdatableService: class {
     async update(_id: string, patch: { integrationsConfig: Record<string, unknown> }) {
       h.row.cfg = patch.integrationsConfig;
@@ -27,7 +27,7 @@ vi.mock("../session-service", () => ({
   },
 }));
 
-const svc = await import("../app-settings.service");
+const svc = await import("@/lib/payments/integrations-config");
 
 describe("integrationsConfigStore (plugin writers)", () => {
   it("does not resurrect Stripe secrets from a stale cache", async () => {

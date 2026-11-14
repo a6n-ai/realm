@@ -22,7 +22,7 @@ import { getSubscriptionMix } from "@/lib/analytics/customers.service";
 import { DATE_BASIS_LABEL } from "@/lib/analytics/metrics/scope";
 import { type AnalyticsScope } from "@/lib/analytics/scope-types";
 import { analyticsHref, type AnalyticsSearchParams } from "@/lib/analytics/shared-filter-params";
-import { getMoneyFormatter } from "@/lib/services/app-settings.service";
+import { getMoneyFormatter } from "@/lib/settings";
 import { OPEN_STATUSES } from "@/lib/support/ticket-status";
 
 type SearchParams = Promise<AnalyticsSearchParams>;

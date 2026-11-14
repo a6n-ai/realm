@@ -23,7 +23,7 @@ import { NeedsReview } from "./needs-review";
 import { isoDateInZone, isoToUtcDate } from "@foundry/commons/util/dates";
 import { StripeMark } from "@/components/payments/stripe-mark";
 import { requestNow } from "@/lib/dates/request-now";
-import { getMoneyFormatter } from "@/lib/services/app-settings.service";
+import { getMoneyFormatter } from "@/lib/settings";
 
 const RANGE_LABEL = new Intl.DateTimeFormat("en-CA", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
 

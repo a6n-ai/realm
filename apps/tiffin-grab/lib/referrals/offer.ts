@@ -1,5 +1,6 @@
 import { friendOfferParts, referralPillLabel, referrerOfferParts, siteFigure, type CoinRate } from "@/lib/referrals/share";
-import { getAppSettings, getReferralSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
+import { getReferralSettings } from "@/lib/referrals/referral-settings";
 import { walletService } from "@/lib/wallet/wallet.service";
 
 export type OfferFigure = { big: string; small: string };

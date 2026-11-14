@@ -10,7 +10,7 @@ import { parseFilterState, type FacetDef } from "@/components/ds";
 import { ALL_KINDS, KIND_LABELS } from "@/lib/coupons/kind-labels";
 import { epochBoundsWhere, withListDates } from "@/lib/list/default-month";
 import { DiscountLogs, DiscountLogsSkeleton } from "./discount-logs";
-import { getMoneyFormatter } from "@/lib/services/app-settings.service";
+import { getMoneyFormatter } from "@/lib/settings";
 
 const customer = alias(users, "customer");
 const redeemer = alias(users, "redeemer");

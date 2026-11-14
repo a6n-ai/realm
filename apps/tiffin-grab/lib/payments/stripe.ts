@@ -14,11 +14,8 @@ import {
 } from "@foundry/payments/stripe";
 import { db } from "@/db/client";
 import { payments, users } from "@/db/schema";
-import {
-  getIntegrationsConfigFresh,
-  getPaymentConfig,
-  setIntegrationsConfig,
-} from "@/lib/services/app-settings.service";
+import { getIntegrationsConfigFresh, setIntegrationsConfig } from "@/lib/payments/integrations-config";
+import { getPaymentConfig } from "@/lib/payments/payment-config";
 import { appOrigin } from "@/lib/runtime/env";
 
 const log = createLogger("payments.stripe");

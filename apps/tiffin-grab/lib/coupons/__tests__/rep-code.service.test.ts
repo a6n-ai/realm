@@ -7,7 +7,7 @@ const { db } = await import("@/db/client");
 const { deleteNonSystemUsers } = await import("@/db/test-helpers");
 const { coupons, couponRedemptions, ledgerEntries, orders, payments, users } = await import("@/db/schema");
 const { couponsService } = await import("../coupons.service");
-const { setDiscountPolicy } = await import("../../services/app-settings.service");
+const { setDiscountPolicy } = await import("@/lib/coupons/discount-policy-settings");
 
 const policy = (over: { enabled?: boolean; perRep?: Record<string, { active: boolean }> } = {}) =>
   setDiscountPolicy({

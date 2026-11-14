@@ -1,5 +1,5 @@
 import { appTodayIso } from "@/lib/dates/today";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { getOptimoRouteConfig, optimoRouteApiKey } from "./config";
 import { pushDay, type PushResult } from "./push";
 import { pullRoutes, type PullResult } from "./pull";

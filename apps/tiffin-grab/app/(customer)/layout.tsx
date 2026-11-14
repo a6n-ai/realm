@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { NotFoundError } from "@foundry/commons";
 import { getSession } from "@/lib/auth/session";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { usersService } from "@/lib/services/users.service";
 import { walletService } from "@/lib/wallet/wallet.service";
 import { ticketsService } from "@/lib/support/tickets.service";

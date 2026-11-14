@@ -8,7 +8,7 @@ import {
   persistCloverOAuthConnection,
 } from "@foundry/clover";
 import { getSession } from "@/lib/auth/session";
-import { integrationsConfigStore } from "@/lib/services/app-settings.service";
+import { integrationsConfigStore } from "@/lib/payments/integrations-config";
 
 function settingsRedirect(request: Request, query: Record<string, string>) {
   const url = new URL("/dashboard/settings/clover", request.url);

@@ -3,7 +3,8 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/lib/auth/guards", () => ({ requireAdmin: vi.fn() }));
 const setAppSettings = vi.fn();
-vi.mock("@/lib/services/app-settings.service", () => ({ setAppSettings, getAppSettings: async () => ({ timezone: "UTC", cutoffHour: 18 }) }));
+vi.mock("@/lib/deliveries/set-app-settings", () => ({ setAppSettings }));
+vi.mock("@/lib/settings", () => ({ getAppSettings: async () => ({ timezone: "UTC", cutoffHour: 18 }) }));
 const invalidateCatalogSnapshot = vi.fn();
 vi.mock("@/lib/catalog/load", () => ({ invalidateCatalogSnapshot }));
 

@@ -10,7 +10,7 @@ import { carryTripDateIso } from "@/lib/deliveries/schedule/carry-trip";
 import { coveredDates, dateCounts } from "@/lib/deliveries/schedule/coverage";
 import type { DayOfWeek } from "@/lib/deliveries/schedule/delivery-days";
 import { loadExtraDates } from "./delivery-extras";
-import { getAppSettings } from "../services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { holidayForOrderDate } from "./holiday-dates";
 import { loadPlanDays, rescheduleDelivery } from "./deliveries.service";
 import { otherPlanDays } from "../orders/order-window";

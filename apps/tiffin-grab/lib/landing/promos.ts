@@ -1,5 +1,5 @@
 import { BRAND_HOST } from "@/lib/brand";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { formatDiscount } from "@/lib/format/currency";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import type { CatalogSnapshot } from "@/lib/catalog/types";

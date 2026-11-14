@@ -49,7 +49,8 @@ import {
 } from "../wallet/wallet.service";
 import { awardReferral } from "../referrals/referrals.service";
 import { eatingDaysError, orderDeliveryDays, planDaysError, type DayOfWeek } from "@/lib/deliveries/schedule/delivery-days";
-import { getAppSettings, getPaymentConfig } from "../services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
+import { getPaymentConfig } from "@/lib/payments/payment-config";
 import { coinQuote, loadCoinConfig } from "./quote";
 import { loadMealCostFloor } from "@/lib/pricing/meal-cost";
 import { applyDiscountLane } from "@/lib/coupons/discount-lane";

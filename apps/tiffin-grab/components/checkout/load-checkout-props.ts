@@ -1,7 +1,7 @@
 import "server-only";
 import type { ComponentProps } from "react";
 import { checkoutPaymentMethods } from "@/lib/checkout/payment-methods";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { getContactOnFile } from "@/lib/services/contact-on-file";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { toClientCatalog } from "@/lib/catalog/types";

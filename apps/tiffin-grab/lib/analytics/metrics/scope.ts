@@ -4,7 +4,7 @@ import { and, gte, inArray, lte, sql, type SQL } from "drizzle-orm";
 import type { AnyColumn } from "drizzle-orm";
 import { deliveryZones, mealSizes, orders, payments, plans } from "@/db/schema";
 import { PAID } from "@/lib/payments/status";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import { currentMonthEpochRange, epoch, list } from "@/lib/dates/epoch-window";
 import { isoDateInZone } from "@foundry/commons/util/dates";

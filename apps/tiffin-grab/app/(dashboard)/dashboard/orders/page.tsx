@@ -7,7 +7,7 @@ import { getSession } from "@/lib/auth/session";
 import { loadOrderFilterOptions, loadOwnerOptions } from "@/lib/list/facet-options";
 import { after } from "next/server";
 import { expireUnpaidStripeOrders } from "@/lib/orders/unpaid-checkouts";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { listActiveLeadSources } from "@/lib/inquiries/lead-sources.service";
 import { countMigratedWaiting, listOrdersPage } from "@/lib/orders/orders.service";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";

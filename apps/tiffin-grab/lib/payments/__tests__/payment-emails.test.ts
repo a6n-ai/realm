@@ -11,7 +11,7 @@ const { db } = await import("@/db/client");
 const { notificationOutbox, orders, payments } = await import("@/db/schema");
 const { createOrder } = await import("../../orders/create-order");
 const { claimPayment, verifyPayment, receiptVars } = await import("@/lib/payments/verification");
-const { setPaymentConfig } = await import("../../services/app-settings.service");
+const { setPaymentConfig } = await import("@/lib/payments/payment-config");
 const { sharedCache } = await import("@/lib/cache");
 const { baseInput, reset, cleanup, makeStripePayment } = await import("./stripe-fixture");
 

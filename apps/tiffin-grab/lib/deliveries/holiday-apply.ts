@@ -8,7 +8,7 @@ import { and, asc, eq, inArray, isNotNull, isNull, ne, not, or, sql } from "driz
 import { deliveries, deliveryCategorySwaps, deliveryExtraTiffins, deliveryMoves, orderActivities, orders } from "@/db/schema";
 import { openPlanDays } from "@/lib/deliveries/next-open-day";
 import { humanDate } from "@/lib/deliveries/view";
-import { getAppSettings } from "../services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import type { Tx } from "@/db/client";
 import { loadPlanDays, materializeDeliveries } from "./deliveries.service";
 import type { OptimoSyncedRow } from "../optimoroute/stops";

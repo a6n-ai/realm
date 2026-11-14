@@ -7,7 +7,7 @@ import { emailStreams } from "@/lib/email/provider";
 import { CATEGORY_LABEL } from "@/lib/notifications/event-categories";
 import { NOTIFICATION_EVENTS, eventCategory } from "@/lib/notifications/events";
 import { emailVolumeByStream } from "@/lib/notifications/email-volume";
-import { getTrackedEmailEvents } from "@/lib/services/app-settings.service";
+import { getTrackedEmailEvents } from "@/lib/notifications/tracked-email-events";
 import type { EmailTypeRow } from "./email-tracking-section";
 import type { StreamState } from "./ses-routing-section";
 

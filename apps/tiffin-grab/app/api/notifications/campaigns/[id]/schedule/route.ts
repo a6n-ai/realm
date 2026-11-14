@@ -5,7 +5,7 @@ import { staleGroupsForCampaign } from "@/lib/customer-groups/customer-groups.se
 import { adminIdRoute } from "@/lib/notifications/admin-route";
 import { footerConfigured } from "@/lib/notifications/campaign-config";
 import { scheduleCampaignWake } from "@/lib/runtime/workflow-wake";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { campaignDeps } from "@/lib/notifications/deps";
 
 /** `{ localDateTime: "YYYY-MM-DDTHH:mm" | null }` in the app-settings timezone; null unschedules. */

@@ -7,7 +7,7 @@ import type { ActionResult } from "@/lib/actions/action-result";
 import { staffAction } from "@/lib/actions/staff-action";
 import { emailStreams } from "@/lib/email/provider";
 import { parseRoutingInput } from "@/lib/email/routing-input";
-import { setTrackedEmailEvents } from "@/lib/services/app-settings.service";
+import { setTrackedEmailEvents } from "@/lib/notifications/tracked-email-events";
 import { NOTIFICATION_EVENTS, eventCategory } from "@/lib/notifications/events";
 
 const OPTS = { guard: "admin", revalidate: ["/dashboard/settings/email-tracking"] } as const;

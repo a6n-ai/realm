@@ -14,7 +14,8 @@ import { orderActivities, orders, referrals, users } from "@/db/schema";
 import type { OrderPricingSnapshot } from "@/lib/pricing";
 import { referralCoins } from "@/lib/referrals/reward";
 import { earnsOrderCoins } from "@/lib/wallet/earns-coins";
-import { getAppSettings, getReferralSettings, type ReferralSettings } from "../services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
+import { getReferralSettings, type ReferralSettings } from "@/lib/referrals/referral-settings";
 import { creditCoins, reverseCoinAward, walletService, type AwardableOrder } from "../wallet/wallet.service";
 import { normalizeReferralCode, readReferralCookie } from "@/lib/referrals/cookie";
 

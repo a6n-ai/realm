@@ -4,7 +4,8 @@ import { getGoogleReviewsConfig, shouldNudge, writeReviewUrl } from "@foundry/go
 import { db } from "@/db/client";
 import { deliveries, orders } from "@/db/schema";
 import { ReviewBanner } from "@/components/customer/review-banner";
-import { getAppSettings, integrationsConfigReadStore } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
+import { integrationsConfigReadStore } from "@/lib/payments/integrations-config";
 import { reviewNudgeStore } from "@/lib/notifications/review-nudge.service";
 import { getSession } from "@/lib/auth/session";
 import { currentUserId } from "@/lib/services/session-service";

@@ -6,7 +6,7 @@ import { EmptyState, PageHeader, SectionCard } from "@/components/ds";
 import { Badge } from "@/components/reui/badge";
 import { formatEpoch } from "@/lib/format/datetime";
 import { promotionStatus, type PromotionStatus } from "@/lib/promotions/live";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { promotionsService } from "@/lib/promotions/promotions.service";
 import { PromotionRowActions } from "./promotion-row-actions";
 import { requestNow } from "@/lib/dates/request-now";

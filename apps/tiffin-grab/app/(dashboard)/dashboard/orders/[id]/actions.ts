@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidateOrder } from "@/lib/revalidate";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { formatMoney, ValidationError } from "@foundry/commons";
 import { db } from "@/db/client";
 import { deliveries, orders } from "@/db/schema";

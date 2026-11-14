@@ -10,7 +10,7 @@ import { orders, organization, payments } from "@/db/schema";
 import { inStatuses, PENDING } from "@/lib/payments/status";
 import { paymentStatusIn } from "@/lib/payments/status-sql";
 import { categoryLabel } from "@/lib/support/ticket-taxonomy";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { countMissedDeliveries, listMissedDeliveries } from "@/lib/deliveries/missed-deliveries.service";
 import { inquiriesService } from "@/lib/inquiries/inquiries.service";
 import { listOrdersPage } from "@/lib/orders/orders.service";

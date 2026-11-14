@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { UtensilsCrossedIcon } from "lucide-react";
-import { getMealTypes } from "@/lib/services/app-settings.service";
+import { getMealTypes } from "@/lib/menu/meal-types-settings";
 import { PageHeader, SectionCard } from "@/components/ds";
 import { MealTypesForm, MealTypesFormSkeleton } from "../meal-types-form";
 

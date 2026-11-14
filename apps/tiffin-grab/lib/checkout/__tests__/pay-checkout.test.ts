@@ -28,7 +28,7 @@ const { acquireLease } = await import("@/lib/runtime/lease");
 const { walletService } = await import("@/lib/wallet/wallet.service");
 const { payCheckout } = await import("../actions");
 const { reprice } = await import("@/lib/wizard/actions");
-const { setPaymentConfig } = await import("@/lib/services/app-settings.service");
+const { setPaymentConfig } = await import("@/lib/payments/payment-config");
 const { sharedCache } = await import("@/lib/cache");
 const { baseInput, reset, cleanup } = await import("@/lib/payments/__tests__/stripe-fixture");
 

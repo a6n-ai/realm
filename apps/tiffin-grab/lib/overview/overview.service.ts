@@ -12,7 +12,7 @@ import { getDeliveriesDaily } from "../analytics/operations.service";
 import { countOrders } from "../analytics/metrics/orders";
 import { buildAnalyticsScope } from "../analytics/metrics/scope";
 import { getOrdersOverview } from "../orders/orders-stats.service";
-import { getAppSettings } from "../services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { dayStartMs } from "../today/today.service";
 import { addDaysIso, DAY_MS } from "@foundry/commons/util/dates";
 

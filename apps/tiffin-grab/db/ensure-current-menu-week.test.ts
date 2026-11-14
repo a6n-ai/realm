@@ -10,7 +10,7 @@ import { describe, expect, it } from "vitest";
 import { parseIsoDateUtc } from "@foundry/commons";
 import { db } from "@/db/client";
 import { dishCategories, dishes, menuItems, menuWeeks } from "@/db/schema";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { menuService } from "@/lib/menu/menu.service";
 import { mondayOfIso } from "@foundry/commons/util/dates";
 

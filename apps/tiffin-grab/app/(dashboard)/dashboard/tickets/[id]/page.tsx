@@ -10,7 +10,7 @@ import { db } from "@/db/client";
 import { mealSizes, orders, plans, tickets, users } from "@/db/schema";
 import { formatEpoch } from "@/lib/format/datetime";
 import { requireStaff } from "@/lib/auth/guards";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import {
   ticketsService,
   type TicketPriority,

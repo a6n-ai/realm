@@ -12,7 +12,7 @@ import { reassignInquiry } from "../actions";
 import { requireStaff } from "@/lib/auth/guards";
 import { assertInquiriesVisible, inquiriesService } from "@/lib/inquiries/inquiries.service";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { findExistingByContact } from "@/lib/services/customers.service";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { listableMealSizes, mealSizeAddons } from "@/lib/catalog/types";

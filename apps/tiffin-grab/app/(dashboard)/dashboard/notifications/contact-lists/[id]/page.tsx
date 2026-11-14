@@ -9,7 +9,7 @@ import { ContactListDeleteButton } from "@relay/engine/ui/contact-list-delete-bu
 import { formatConsentDate } from "@relay/engine/ui/date";
 import { db } from "@/db/client";
 import { contactList } from "@/db/schema";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { ConvertibleMemberRow } from "../convertible-member-row";
 import { campaignDeps } from "@/lib/notifications/deps";
 

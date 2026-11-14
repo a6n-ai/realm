@@ -15,7 +15,7 @@ import { getEmployeeRollup } from "@/lib/analytics/employees.service";
 import { EmployeeRollupTable } from "./rollup-table";
 import { DATE_BASIS_LABEL } from "@/lib/analytics/metrics/scope";
 import { type AnalyticsScope } from "@/lib/analytics/scope-types";
-import { getMoneyFormatter } from "@/lib/services/app-settings.service";
+import { getMoneyFormatter } from "@/lib/settings";
 
 type SearchParams = Promise<Record<string, string | undefined>>;
 

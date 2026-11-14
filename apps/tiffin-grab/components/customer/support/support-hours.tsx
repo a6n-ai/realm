@@ -1,7 +1,8 @@
 import { Clock, Headset } from "lucide-react";
 import { Card, Chip, IconTile, Pill } from "@/components/kit";
 import { cn, FONT } from "@/components/kit/cn";
-import { getAppSettings, getSupportHours } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
+import { getSupportHours } from "@/lib/support/support-hours-settings";
 import { supportHoursView, type SupportHoursView } from "@/lib/support/support-hours";
 
 /** The customer-facing support hours right now, or null until staff set them. */

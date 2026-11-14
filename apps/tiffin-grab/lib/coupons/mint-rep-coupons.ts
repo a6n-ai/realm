@@ -2,7 +2,7 @@ import { activeStaffWhere } from "@/lib/staff/staff-roster";
 import { tzOffsetMinutes, zonedDateIso } from "@foundry/commons";
 import { db } from "@/db/client";
 import { users } from "@/db/schema";
-import { getDiscountPolicy } from "../services/app-settings.service";
+import { getDiscountPolicy } from "@/lib/coupons/discount-policy-settings";
 import { couponsService } from "./coupons.service";
 import { repAllowanceFor, repAllowanceZone } from "./rep-allowance";
 

@@ -1,7 +1,7 @@
 import { publicSiteState as marker, revalidateSitePaths } from "@/lib/landing/revalidate-site";
 import { computeSiteNextAt, lastBoundary, loadWindowEdges } from "@/lib/landing/site-boundaries";
 import { scheduleSiteRefreshWake } from "@/lib/runtime/workflow-wake";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 
 // Isolates may still serve a stale L1 copy (<= 60 s) when an admin edit regenerates the pages, so one
 // follow-up revalidation runs once the edit is this old.

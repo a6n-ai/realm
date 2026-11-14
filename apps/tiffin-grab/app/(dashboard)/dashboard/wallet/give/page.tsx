@@ -8,7 +8,7 @@ import { SectionDateRange } from "@/components/filters/section-date-range";
 import { parseSort } from "@foundry/design-system/list-sort";
 import { epochRange, withDefaultMonth, withListDates } from "@/lib/list/default-month";
 import { formatEpoch } from "@/lib/format/datetime";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { findCustomerGroup, giveCoinsStats, giveFilterOptions, giveHistoryRows, type GiveSortColumn } from "@/lib/customer-groups/customer-groups.service";
 import { MAX_REVIEW_ROWS, listOrderCities } from "@/lib/services/customer-payouts.service";
 import { GiveHistoryTable, GiveHistoryTableSkeleton } from "./give-history-table";

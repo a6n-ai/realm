@@ -4,7 +4,7 @@ import { TruckIcon } from "lucide-react";
 import { zonedDateIso } from "@foundry/commons";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { requireStaff } from "@/lib/auth/guards";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { getOptimoRouteStatus } from "@/lib/optimoroute/config";
 import { buildDayLedger } from "@/lib/optimoroute/ledger";
 import { HolidayBanner } from "@/components/dashboard/holiday-banner";

@@ -34,7 +34,7 @@ import { CUSTOMER_PAUSED, isLapsedPause, isOrderFullyPaused, lapsedPauseDates } 
 import { toDropOffValues } from "./address-drop-off.service";
 import type { DropOffValue } from "@/lib/catalog/drop-off";
 import { earliestNewPlanStart, lastRunningTiffinDate } from "../orders/order-window";
-import { getAppSettings } from "../services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { getPauseLimits, getPauseUsage } from "./pause-limits.service";
 import { currentUserId } from "../services/session-service";
 import { deliveredTiffinCount, scheduledTiffinCount, type DeliveryForCounts } from "./tiffin-counts";

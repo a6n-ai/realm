@@ -9,7 +9,7 @@ import { createLogger } from "@foundry/commons/logger";
 import { zonedDateIso } from "@foundry/commons";
 import { db } from "@/db/client";
 import { cronRuns, users } from "@/db/schema";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import type { SyncMode } from "@/lib/optimoroute/sync";
 import { CRON_JOBS, type CronJobKey } from "./jobs";
 

@@ -7,7 +7,7 @@ import { Separator } from "@foundry/ui/separator";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { db } from "@/db/client";
 import { leadSources, users } from "@/db/schema";
-import { getLeadAssignment } from "@/lib/services/app-settings.service";
+import { getLeadAssignment } from "@/lib/staff/lead-assignment-settings";
 import { listConfig } from "@/lib/staff/owner-pool.service";
 import { PageHeader } from "@/components/ds";
 import { OwnerAssignmentForm, type TabState, type TabStates } from "./form";

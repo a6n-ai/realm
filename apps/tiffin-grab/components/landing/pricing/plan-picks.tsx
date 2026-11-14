@@ -1,4 +1,4 @@
-import { getMoneyFormatter } from "@/lib/services/app-settings.service";
+import { getMoneyFormatter } from "@/lib/settings";
 import { MON_FRI } from "@/lib/deliveries/schedule/delivery-days";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";

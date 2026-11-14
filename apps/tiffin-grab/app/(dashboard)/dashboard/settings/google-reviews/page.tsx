@@ -7,7 +7,7 @@ import { PageHeader, SectionCard } from "@/components/ds";
 import { Alert, AlertAction, AlertDescription, AlertTitle } from "@/components/reui/alert";
 import { Badge } from "@/components/reui/badge";
 import { Button } from "@foundry/ui/button";
-import { integrationsConfigStore } from "@/lib/services/app-settings.service";
+import { integrationsConfigStore } from "@/lib/payments/integrations-config";
 import { PlaceIdForm } from "./place-id-form";
 import { RetryButton } from "./retry-button";
 

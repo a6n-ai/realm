@@ -10,7 +10,7 @@ import { orders, users } from "@/db/schema";
 import { requireStaff } from "@/lib/auth/guards";
 import { appTodayIso } from "@/lib/dates/today";
 import { formatEpoch } from "@/lib/format/datetime";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 
 const HEADERS = ["Created", "Order", "Type", "Method", "Status", "Amount", "Reference", "Card", "Paid at"];
 

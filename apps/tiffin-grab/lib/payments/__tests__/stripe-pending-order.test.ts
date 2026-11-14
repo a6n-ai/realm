@@ -16,12 +16,12 @@ const { db } = await import("@/db/client");
 const { couponRedemptions, coupons, deliveries, ledgerEntries, orderActivities, orders, payments } = await import("@/db/schema");
 const { settleStripePayment } = await import("../payment-stripe");
 const { plans } = await import("@/db/schema");
-const { getAppSettings } = await import("../../services/app-settings.service");
+const { getAppSettings } = await import("@/lib/settings");
 const { appToday } = await import("../../orders/start-date");
 const { weekdayKey, parseIsoDateUtc } = await import("@foundry/commons");
 const { ordersService } = await import("../../orders/orders.service");
 const { createOrder } = await import("../../orders/create-order");
-const { setPaymentConfig } = await import("../../services/app-settings.service");
+const { setPaymentConfig } = await import("@/lib/payments/payment-config");
 const { sharedCache } = await import("@/lib/cache");
 const { baseInput, reset, cleanup } = await import("./stripe-fixture");
 

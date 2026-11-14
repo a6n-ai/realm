@@ -26,7 +26,7 @@ import { PlanPicks } from "@/components/landing/pricing/plan-picks";
 import { BuildTiffinLink } from "@/components/landing/build-tiffin-link";
 import { biggestDurationOff, deliveryIsFree, lowestRate, shortMoney, trialLength, trialOffer } from "@/lib/landing/live-figures";
 import { getTrialSettings } from "@/lib/trial/trial-settings.service";
-import { getAppSettings, getMoneyFormatter } from "@/lib/services/app-settings.service";
+import { getAppSettings, getMoneyFormatter } from "@/lib/settings";
 import { isWeekendDay } from "@foundry/commons/util/dates";
 
 // Plans live on this page too (/plans redirects here), so the copy names both.

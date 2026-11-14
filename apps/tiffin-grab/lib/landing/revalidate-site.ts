@@ -3,7 +3,7 @@ import { sharedCache } from "@/lib/cache";
 import { computeSiteNextAt } from "@/lib/landing/site-boundaries";
 import { runInBackground } from "@foundry/cloud/background";
 import { scheduleSiteRefreshWake } from "@/lib/runtime/workflow-wake";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { purgeEdgePages } from "@/lib/landing/edge-purge";
 
 const WEEK_MS = 7 * 24 * 3600_000;

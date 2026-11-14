@@ -2,7 +2,7 @@ import Link from "next/link";
 import { zonedDateIso } from "@foundry/commons";
 import { Badge } from "@/components/reui/badge";
 import { humanDate } from "@/lib/deliveries/view";
-import { getAppSettings } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/settings";
 import { getOptimoRouteStatus } from "@/lib/optimoroute/config";
 import { nextRoutePushStatus } from "@/lib/optimoroute/push-status";
 import { requestNow } from "@/lib/dates/request-now";

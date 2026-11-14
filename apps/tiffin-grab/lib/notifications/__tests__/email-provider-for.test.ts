@@ -9,7 +9,7 @@ vi.mock("@/lib/email/provider", () => ({
   getMarketingEmailProvider: () => ({ id: "marketing" }),
   getTrackedEmailProvider: tracked,
 }));
-vi.mock("@/lib/services/app-settings.service", () => ({ getTrackedEmailEvents: events }));
+vi.mock("@/lib/notifications/tracked-email-events", () => ({ getTrackedEmailEvents: events }));
 
 import { emailProviderFor } from "../email-provider-for";
 

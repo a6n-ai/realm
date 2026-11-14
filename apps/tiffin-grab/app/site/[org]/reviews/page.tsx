@@ -5,7 +5,7 @@ import { getGoogleReviewsConfig, getReviewsSummary, writeReviewUrl } from "@foun
 import { PageIntro } from "@/components/landing/public-shell";
 import { Suspense } from "react";
 import { ReviewCard, ReviewPhotos, ReviewStars } from "@/components/landing/landing-reviews";
-import { integrationsConfigReadStore } from "@/lib/services/app-settings.service";
+import { integrationsConfigReadStore } from "@/lib/payments/integrations-config";
 import { pageMeta } from "@/lib/landing/meta";
 import { buttonClass } from "@/components/kit/button-class";
 

@@ -3,8 +3,8 @@ import { describe, expect, it, vi } from "vitest";
 const m = vi.hoisted(() => ({ where: vi.fn(), stripe: vi.fn(), methods: vi.fn() }));
 vi.mock("@/db/client", () => ({ db: { select: () => ({ from: () => ({ where: (c: unknown) => { m.where(c); return { limit: async () => [{ publicId: "ord_9" }] }; } }) }) } }));
 vi.mock("@/lib/payments/stripe", () => ({ stripeMethodAvailable: m.stripe }));
-vi.mock("../../services/app-settings.service", () => ({
-  getPaymentConfig: async () => ({}),
+vi.mock("@/lib/payments/payment-config", () => ({ getPaymentConfig: async () => ({}) }));
+vi.mock("@/lib/payments/integrations-config", () => ({
   integrationsConfigStore: { get: async () => ({}), set: async () => {} },
   integrationsConfigReadStore: { get: async () => ({}), set: async () => {} },
 }));

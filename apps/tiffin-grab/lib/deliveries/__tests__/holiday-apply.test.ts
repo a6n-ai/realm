@@ -11,7 +11,7 @@ vi.mock("@/lib/optimoroute/push", () => ({ pushOneDelivery: vi.fn(async () => un
 
 const { db } = await import("@/db/client");
 const { deliveries, deliveryFrequencies, holidays, orderActivities, orders, organization, subscriptionPauses } = await import("@/db/schema");
-const { getAppSettings } = await import("../../services/app-settings.service");
+const { getAppSettings } = await import("@/lib/settings");
 const { applyHolidaysToOrder, placeHolidayExtras, undoHolidayForOrder } = await import("../holiday-apply");
 const { grantComplimentaryTiffin, redeliverTrip, rescheduleDelivery } = await import("../deliveries.service");
 const { makeTripOrder, resetTrips } = await import("../../services/__tests__/trip-fixture");

@@ -37,8 +37,8 @@ import {
 import { usersService } from "../../services/users.service";
 import { campaign as campaigns } from "@/db/schema";
 
-vi.mock("../../services/app-settings.service", async (orig) => ({
-  ...(await orig<typeof import("../../services/app-settings.service")>()),
+vi.mock("@/lib/wallet/wallet-settings", async (orig) => ({
+  ...(await orig<typeof import("@/lib/wallet/wallet-settings")>()),
   getMaxWalletBalance: async () => 100,
 }));
 

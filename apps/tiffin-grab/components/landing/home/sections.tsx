@@ -1,4 +1,4 @@
-import { getMoneyFormatter } from "@/lib/services/app-settings.service";
+import { getMoneyFormatter } from "@/lib/settings";
 import { WEEK_DAYS } from "@/lib/deliveries/schedule/delivery-days";
 import Image, { type StaticImageData } from "next/image";
 import Link from "next/link";
