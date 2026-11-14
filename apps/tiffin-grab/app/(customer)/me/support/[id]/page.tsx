@@ -6,7 +6,7 @@ import { SupportHoursNote, loadSupportHoursView } from "@/components/customer/su
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { ticketsService } from "@/lib/support/tickets.service";
 import { withAttachmentViews } from "@/lib/support/ticket-attachments";
-import { PageHeader } from "@/components/customer/kit";
+import { PageHeader } from "@/components/kit";
 import { BackLink } from "@/components/customer/support/parts";
 import { TicketThread, TicketThreadSkeleton } from "@/components/customer/support/ticket-thread";
 

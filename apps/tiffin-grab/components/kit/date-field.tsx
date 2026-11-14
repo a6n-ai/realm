@@ -1,7 +1,7 @@
 "use client";
 
 import { parseIsoDateUtc, weekdayKey } from "@foundry/commons";
-import { DatePicker } from "@/components/customer/kit";
+import { DatePicker } from "@/components/kit";
 import { formatDateOnly } from "@/lib/format/datetime";
 
 /** Customer date picker — never a native `<input type="date">`. Opens the kit Sheet with a month grid. */

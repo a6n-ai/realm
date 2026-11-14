@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { LogOut } from "lucide-react";
 import { signOut } from "@/lib/auth/client";
-import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
+import { cn, FONT, FOCUS } from "@/components/kit/cn";
 
 export function SignOutRow() {
   const router = useRouter();

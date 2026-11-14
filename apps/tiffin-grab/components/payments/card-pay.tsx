@@ -8,7 +8,7 @@ import { preconnect } from "react-dom";
 import { loadStripe, type Appearance, type Stripe } from "@stripe/stripe-js";
 import { Elements, ExpressCheckoutElement, useElements, useStripe } from "@stripe/react-stripe-js";
 import { useTheme } from "@foundry/themes";
-import { Button as BarButton } from "@/components/customer/kit";
+import { Button as BarButton } from "@/components/kit";
 import { Skeleton } from "@foundry/ui/skeleton";
 import type { CardCheckoutContext } from "@/lib/payments/card-checkout-context";
 import { stripeAppearance } from "@/lib/payments/stripe-appearance";

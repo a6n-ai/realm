@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { ArrowLeft, ImagePlus, X } from "lucide-react";
 import { useRef, useState } from "react";
-import { Button, type Tone } from "@/components/customer/kit";
-import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
+import { Button, type Tone } from "@/components/kit";
+import { cn, FONT, FOCUS } from "@/components/kit/cn";
 import type { TicketStatus } from "@/lib/support/tickets.service";
 
 export const STATUS_LABEL: Record<TicketStatus, string> = {

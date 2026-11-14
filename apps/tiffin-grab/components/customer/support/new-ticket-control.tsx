@@ -3,7 +3,7 @@
 import { PlusIcon } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Button, Sheet } from "@/components/customer/kit";
+import { Button, Sheet } from "@/components/kit";
 import { isTicketCategory } from "@/lib/support/ticket-taxonomy";
 import { NewTicketForm, type TicketCategoryValue } from "./new-ticket-form";
 

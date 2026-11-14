@@ -7,7 +7,7 @@ import { subscriptionTrips, tripsByWeek, type DatedTrip } from "@/lib/menu/deliv
 import { orderDeliveryDays, type DayOfWeek } from "@/lib/menu/delivery-days";
 import { trialDeliveryDates } from "@/lib/trial/schedule";
 import { TripTimeline } from "./trip-timeline";
-import { useSwipePages } from "@/components/customer/kit/use-swipe-pages";
+import { useSwipePages } from "@/components/kit/use-swipe-pages";
 
 /** Every delivery a new order would get, trial or weekly, from the same date walks the server runs. Null while incomplete or invalid. */
 export function plannedSchedule(

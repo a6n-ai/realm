@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { CreditCardIcon, Trash2Icon } from "lucide-react";
-import { Button, EmptyState, IconTile, ListGroup, IconButton, Notice, Pill, Sheet } from "@/components/customer/kit";
+import { Button, EmptyState, IconTile, ListGroup, IconButton, Notice, Pill, Sheet } from "@/components/kit";
 import { removeSavedCard } from "@/lib/payments/card-actions";
 import { SettingsBlock } from "./settings-block";
 import { unwrapAction } from "@/lib/actions/unwrap";

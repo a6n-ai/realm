@@ -7,7 +7,7 @@ import { Suspense } from "react";
 import { ReviewCard, ReviewPhotos, ReviewStars } from "@/components/landing/landing-reviews";
 import { integrationsConfigReadStore } from "@/lib/services/app-settings.service";
 import { pageMeta } from "@/lib/landing/meta";
-import { buttonClass } from "@/components/customer/kit/button-class";
+import { buttonClass } from "@/components/kit/button-class";
 
 export const metadata: Metadata = pageMeta("Tiffin Grab Reviews: What GTA Customers Say on Google", "Read real Google reviews of Tiffin Grab's home-style tiffins from customers across the Greater Toronto Area.", "/reviews");
 export const revalidate = 3600;

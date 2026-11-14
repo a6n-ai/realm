@@ -1,4 +1,4 @@
-import { Skeleton } from "@/components/customer/kit";
+import { Skeleton } from "@/components/kit";
 import { ChromeSkeleton } from "@/components/wizard/chrome-skeleton";
 
 // Same frame as the page: top bar, title, coupon preview, then the sign-in step.

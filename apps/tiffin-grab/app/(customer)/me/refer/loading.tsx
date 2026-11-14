@@ -1,4 +1,4 @@
-import { PageHeader } from "@/components/customer/kit";
+import { PageHeader } from "@/components/kit";
 import { ReferSkeleton } from "@/components/customer/refer/refer-skeleton";
 
 export default function Loading() {

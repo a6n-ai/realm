@@ -1,5 +1,5 @@
-import { ListGroup, PageHeader, Skeleton } from "@/components/customer/kit";
-import { ListRowSkeleton } from "@/components/customer/skeleton-parts";
+import { ListGroup, PageHeader, Skeleton } from "@/components/kit";
+import { ListRowSkeleton } from "@/components/kit/skeleton-parts";
 
 // Mirrors AccountPage's list view: avatar row, Settings-style groups of icon-tile rows, and (desktop) the profile pane.
 const GROUPS = [{ rows: 2, footer: false }, { rows: 3, footer: true }, { rows: 1, footer: false }, { rows: 1, footer: false }];

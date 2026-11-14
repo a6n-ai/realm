@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Tabs } from "@/components/customer/kit";
+import { Tabs } from "@/components/kit";
 import type { FinancesTab } from "./finances-tab";
 
 const TABS: { id: FinancesTab; label: string }[] = [

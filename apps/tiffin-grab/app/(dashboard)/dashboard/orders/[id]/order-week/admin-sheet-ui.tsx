@@ -12,7 +12,7 @@ import { cn } from "@foundry/ui/cn";
 import { ResponsiveDialog, Tabs, TabsList, TabsTrigger } from "@/components/ds/index";
 import type { SheetUi } from "@/components/customer/deliveries/actions/sheet-ui";
 import type { RowChoice } from "@/components/customer/deliveries/actions/choice-row";
-import { DeliveryAreaNote, useDeliveryArea } from "@/components/customer/address/delivery-area";
+import { DeliveryAreaNote, useDeliveryArea } from "@/components/address/delivery-area";
 
 // The delivery action sheets (Edit meal, Move, Change address) drawn in the CRM's shadcn
 // language. Every rule and server call stays in the shared sheets; this file is look only.

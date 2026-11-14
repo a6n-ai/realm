@@ -6,7 +6,7 @@ import { useCallback, useEffect, useEffectEvent, useRef, useState } from "react"
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { nextWeekday, parseIsoDateUtc, weekdayKey } from "@foundry/commons";
-import { useDeliveryArea } from "@/components/customer/address/delivery-area";
+import { useDeliveryArea } from "@/components/address/delivery-area";
 import { dropOffCatalog, NO_DROP_OFF, validDropOff, type DropOffValue } from "@/lib/catalog/drop-off";
 import type { PricingResult } from "@/lib/pricing";
 import { unwrapAction } from "@/lib/actions/unwrap";

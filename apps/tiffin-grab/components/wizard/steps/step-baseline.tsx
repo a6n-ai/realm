@@ -1,7 +1,7 @@
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
 import type { WizardSelections } from "@/lib/wizard/selections";
 import { selectablePlans } from "../plan-filter";
-import { ChoiceGroup, SegmentOption, SelectableCard } from "@/components/customer/kit";
+import { ChoiceGroup, SegmentOption, SelectableCard } from "@/components/kit";
 import { CurrentPlanHint, type CurrentPlanSummary } from "../current-plan-hint";
 
 export function StepBaseline({

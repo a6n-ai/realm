@@ -1,8 +1,8 @@
 "use client";
 
 import { AddressFields as FoundryAddressFields, type AddressFieldsProps as FoundryProps, type AddressUi } from "@foundry/address/ui";
-import { Field, Select } from "@/components/customer/kit";
-import { cn, FONT } from "@/components/customer/kit/cn";
+import { Field, Select } from "@/components/kit";
+import { cn, FONT } from "@/components/kit/cn";
 import { DeliveryAreaNote, useDeliveryArea } from "./delivery-area";
 
 export { deriveSuggestUrl } from "@foundry/address/ui";

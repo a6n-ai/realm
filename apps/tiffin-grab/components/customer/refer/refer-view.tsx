@@ -1,5 +1,5 @@
 import { Coins, Gift, Share2, Users, UtensilsCrossed, Wallet } from "lucide-react";
-import { Card, EmptyState, IconTile, ListGroup, ListRow, Pill, StatGroup, StatTile, StepList, type Tone } from "@/components/customer/kit";
+import { Card, EmptyState, IconTile, ListGroup, ListRow, Pill, StatGroup, StatTile, StepList, type Tone } from "@/components/kit";
 import type { ReferralSettings } from "@/lib/services/app-settings.service";
 import type { ReferralFriendStatus, ReferralSummary } from "@/lib/referrals/referrals.service";
 import { friendOffer } from "@/lib/referrals/share";

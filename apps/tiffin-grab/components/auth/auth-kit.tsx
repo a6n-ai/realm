@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import type { AuthButtonProps, AuthFieldProps, AuthUi } from "@foundry/auth-ui";
-import { Button as KitBtn, Field } from "@/components/customer/kit";
+import { Button as KitBtn, Field } from "@/components/kit";
 import { BrandMark, BrandWordmark } from "@/components/brand-logo";
 
 // TiffinGrab's skin for the shared @foundry/auth-ui screens: the same iOS-sized

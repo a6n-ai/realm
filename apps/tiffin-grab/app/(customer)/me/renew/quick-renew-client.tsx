@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Button, Sheet } from "@/components/customer/kit";
+import { Button, Sheet } from "@/components/kit";
 import { AddonsPanel } from "@/components/wizard/addons-panel";
 import { Checkout } from "@/components/checkout/checkout";
 import { RenewPlanStep } from "@/components/renew/renew-plan-step";

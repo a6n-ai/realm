@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { Check, Copy, Download, Link2, Mail, MessageSquare, Send, Ticket } from "lucide-react";
-import { Button, Card, IconTile, buttonClass, type IconTint } from "@/components/customer/kit";
+import { Button, Card, IconTile, buttonClass, type IconTint } from "@/components/kit";
 import { referCardPath, referPath, shareMessage } from "@/lib/referrals/share";
 import { useCopy } from "@/lib/hooks/use-copy";
 

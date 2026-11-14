@@ -11,7 +11,7 @@ import { AnimatePresence, useReducedMotion } from "motion/react";
 import * as m from "motion/react-m";
 import { formatPhoneNumberIntl, type Country } from "react-phone-number-input";
 import { PhoneInput } from "@foundry/ui/phone-input";
-import { PhoneCountrySheet } from "@/components/customer/phone-country-sheet";
+import { PhoneCountrySheet } from "@/components/kit/phone-country-sheet";
 import type { PricingResult } from "@/lib/pricing";
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
 import {
@@ -55,10 +55,10 @@ function isPlanRenewalCheckout(lastTiffin: string | null): boolean {
 import { OrderSummary, startLabel } from "@/components/checkout/order-summary";
 import { SubscribeChrome } from "@/components/wizard/subscribe-chrome";
 import { CHECKOUT_STEPS, Progress } from "@/components/wizard/progress";
-import { BottomBar, Button, buttonClass, Label, PillToggle, Sheet, InfoBar } from "@/components/customer/kit";
-import { AddressFields } from "@/components/customer/address/address-fields";
+import { BottomBar, Button, buttonClass, Label, PillToggle, Sheet, InfoBar } from "@/components/kit";
+import { AddressFields } from "@/components/address/address-fields";
 import { isFullPostalCode } from "@/lib/catalog/postal";
-import { DropOffPicker } from "@/components/customer/address/drop-off";
+import { DropOffPicker } from "@/components/address/drop-off";
 import { dropOffCatalog, validDropOff, type DropOffValue } from "@/lib/catalog/drop-off";
 import type { SavedAddress } from "@foundry/address";
 import { CheckoutAddressPicker } from "@/components/checkout/checkout-address-picker";
@@ -66,7 +66,7 @@ import { gtagEvent } from "@foundry/google-analytics/client";
 import { Check, ChevronRight, Coins, Info, Lock, MapPin, Plus, Tag, X } from "lucide-react";
 import { StatusBanner, toneClasses } from "@/components/checkout/status-banner";
 import { discountLine } from "@/components/customer/home/coupons-section";
-import { ReferralGift } from "@/components/customer/subscribe/referral-gift";
+import { ReferralGift } from "@/components/wizard/referral-gift";
 import type { AvailableCoupon } from "@/lib/coupons/coupons.service";
 
 const TITLES = { 0: "Renew your plan.", 1: "Where should we deliver?", 2: "How would you like to pay?" } as const;

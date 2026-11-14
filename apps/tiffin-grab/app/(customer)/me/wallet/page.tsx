@@ -9,8 +9,8 @@ import { myBillsPage, myCouponsPage, myCouponTotals, myMoneyLedgerPage } from "@
 import { couponsService } from "@/lib/coupons/coupons.service";
 import { walletService } from "@/lib/wallet/wallet.service";
 import { parseFilterState } from "@/components/ds";
-import { PageHeader } from "@/components/customer/kit";
-import { TabsSkeleton } from "@/components/customer/skeleton-parts";
+import { PageHeader } from "@/components/kit";
+import { TabsSkeleton } from "@/components/kit/skeleton-parts";
 import { getCustomerUsage } from "@/lib/services/customer-usage.service";
 import { FinanceStats, FinanceStatsSkeleton } from "@/components/customer/wallet/finance-stats";
 import { WalletHero } from "@/components/customer/wallet/wallet-hero";

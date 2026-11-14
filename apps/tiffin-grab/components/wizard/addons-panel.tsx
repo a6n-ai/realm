@@ -1,7 +1,7 @@
 import { ChevronDownIcon, PlusIcon } from "lucide-react";
 import type { CatalogAddon } from "@/lib/catalog/types";
-import { IconTile, Stepper } from "@/components/customer/kit";
-import { makeCategoryLook } from "@/components/customer/meals/category-look";
+import { IconTile, Stepper } from "@/components/kit";
+import { makeCategoryLook } from "@/components/kit/category-look";
 import type { WizardSelections } from "@/lib/wizard/selections";
 
 /**

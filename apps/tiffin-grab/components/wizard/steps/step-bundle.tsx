@@ -4,7 +4,7 @@ import { listableMealSizes, type ClientCatalogSnapshot, type ClientMealSizeView 
 import { DEFAULT_EATING_DAYS, offeredAddons, type WizardSelections } from "@/lib/wizard/selections";
 import { AddonsPanel } from "../addons-panel";
 import { ChevronDown, Crown, Gift } from "lucide-react";
-import { IconTile, OptionCard, Pill } from "@/components/customer/kit";
+import { IconTile, OptionCard, Pill } from "@/components/kit";
 import { MealSizeItems } from "../meal-size-items";
 import { mealOffPct } from "../best-deal-state";
 import { MealSizePrice } from "../meal-size-price";

@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import type { Appearance, Stripe } from "@stripe/stripe-js";
 import { Elements, PaymentElement, useElements, useStripe } from "@stripe/react-stripe-js";
 import { ResponsiveDialog } from "@foundry/design-system";
-import { Button } from "@/components/customer/kit";
+import { Button } from "@/components/kit";
 import { Skeleton } from "@foundry/ui/skeleton";
 import type { CardCheckoutContext } from "@/lib/payments/card-checkout-context";
 import type { CardSource } from "@/lib/payments/payment-stripe";

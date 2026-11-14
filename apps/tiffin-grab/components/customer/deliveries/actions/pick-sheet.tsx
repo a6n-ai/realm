@@ -9,7 +9,7 @@ import {
   removeMyDeliverySwap,
 } from "@/lib/deliveries/customer-actions";
 import { saveMyMealSelections, type PickItem } from "@/lib/menu/meal-actions";
-import { panelId } from "@/components/customer/kit";
+import { panelId } from "@/components/kit";
 import { useSheetUi } from "./sheet-ui";
 import { actionAvailability, humanDate } from "@/lib/deliveries/view";
 import type { GridCell } from "@/lib/menu/grid-types";

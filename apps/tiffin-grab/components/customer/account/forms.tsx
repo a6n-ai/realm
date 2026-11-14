@@ -6,8 +6,8 @@ import { useRouter } from "next/navigation";
 import { useCallback, useRef, useState, useTransition, type ComponentType, type FormEvent, type ReactNode } from "react";
 import type { Area, CropperProps } from "react-easy-crop";
 import { BellIcon, KeyRoundIcon, LockIcon, MailIcon, Trash2Icon } from "lucide-react";
-import { Button, Field, IconTile, ListGroup, ListRow, Notice, Pill, Sheet, Textarea, Toggle, type IconTint } from "@/components/customer/kit";
-import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
+import { Button, Field, IconTile, ListGroup, ListRow, Notice, Pill, Sheet, Textarea, Toggle, type IconTint } from "@/components/kit";
+import { cn, FONT, FOCUS } from "@/components/kit/cn";
 import { getCroppedBlob } from "@foundry/design-system/image-crop";
 import {
   updateMyContact,

@@ -1,7 +1,7 @@
 "use client";
 
 import { WEEK_DAYS } from "@/lib/menu/delivery-days";
-import { PillToggle } from "@/components/customer/kit";
+import { PillToggle } from "@/components/kit";
 import { toggleTrialPick } from "@/lib/trial/schedule";
 import type { DayOfWeek } from "@/lib/menu/delivery-days";
 

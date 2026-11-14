@@ -3,8 +3,8 @@
 import { CheckCircle2, Clock, MessageCircleReply, Star, Wrench } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { Button, Card, Textarea } from "@/components/customer/kit";
-import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
+import { Button, Card, Textarea } from "@/components/kit";
+import { cn, FONT, FOCUS } from "@/components/kit/cn";
 import { rateTicket } from "@/lib/support/customer-actions";
 import type { TicketStatus } from "@/lib/support/tickets.service";
 

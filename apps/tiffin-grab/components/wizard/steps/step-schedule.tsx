@@ -5,7 +5,7 @@ import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
 import { mealAllowedDays, scheduleError, selectableFrequencies, servesWeekends, tiffinBounds, type WizardSelections } from "@/lib/wizard/selections";
 import { CurrentPlanHint, type CurrentPlanSummary } from "../current-plan-hint";
 import { savePct } from "@/lib/pricing/discounts";
-import { OptionCard, Pill, PillToggle } from "@/components/customer/kit";
+import { OptionCard, Pill, PillToggle } from "@/components/kit";
 import { dayAllowed, onlyOnMessage, planWeek, type DayOfWeek, WEEK_DAYS } from "@/lib/menu/delivery-days";
 import { TripTimeline } from "../trip-timeline";
 import { isWeekendDay } from "@foundry/commons/util/dates";

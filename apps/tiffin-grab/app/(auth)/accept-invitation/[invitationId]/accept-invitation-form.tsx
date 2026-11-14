@@ -6,7 +6,7 @@ import { Loader2 } from "lucide-react";
 import { CodeOtp, AuthPanel, AuthScreen } from "@foundry/auth-ui";
 import { authClient } from "@/lib/auth/client";
 import { Button } from "@foundry/ui/button";
-import { IOS_BUTTON } from "@/components/customer/ios-button";
+import { IOS_BUTTON } from "@/components/kit/ios-button";
 import { AuthLegal, AuthLogo, IOS_INPUT } from "@/components/auth/auth-kit";
 import { Input } from "@foundry/ui/input";
 import { Label } from "@foundry/ui/label";

@@ -2,8 +2,8 @@
 import { MapPin, MoreHorizontal } from "lucide-react";
 import { Popover } from "radix-ui";
 import { useState } from "react";
-import { Button, Reason } from "@/components/customer/kit";
-import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
+import { Button, Reason } from "@/components/kit";
+import { cn, FONT, FOCUS } from "@/components/kit/cn";
 import { humanDate, type TripAction } from "@/lib/deliveries/view";
 import { ACTION_LABEL, ACTION_SHORT, PAUSE_DAY_LABEL, type actionModel } from "./action-model";
 

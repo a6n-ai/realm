@@ -9,8 +9,8 @@ import { CalendarDays, ChevronDown, Clock, Ellipsis, Gift, LifeBuoy, Plus, Refre
 import { useTheme } from "@foundry/themes";
 import { cutoffNote, cutoffTime, formatCountdown, nextCutoff } from "@/lib/deliveries/view/cutoff";
 import { useTimezone } from "@foundry/design-system/timezone-provider";
-import { AnimatedIcon, CoinChip, IconTile, ListRow, MenuSection, NavPill, Segmented, Sheet, type IconTint } from "@/components/customer/kit";
-import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
+import { AnimatedIcon, CoinChip, IconTile, ListRow, MenuSection, NavPill, Segmented, Sheet, type IconTint } from "@/components/kit";
+import { cn, FONT, FOCUS } from "@/components/kit/cn";
 import { BrandMark, BrandWordmark } from "@/components/brand-logo";
 import { useSupportUnread } from "@/components/customer/support/unread";
 import { PageTransition } from "@/components/motion/page-transition";

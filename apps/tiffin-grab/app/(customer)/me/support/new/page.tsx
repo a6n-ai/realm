@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth/session";
 import { getCustomerDashboard } from "@/lib/services/customers.service";
-import { PageHeader } from "@/components/customer/kit";
+import { PageHeader } from "@/components/kit";
 import { BackLink } from "@/components/customer/support/parts";
 import { NewTicketForm, NewTicketFormSkeleton } from "@/components/customer/support/new-ticket-form";
 import { SupportHoursSlot } from "@/components/customer/support/support-hours";

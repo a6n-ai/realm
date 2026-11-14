@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { inOrderFlow } from "@/components/consent/card-visible";
 import { BarChart3 } from "lucide-react";
-import { buttonClass } from "@/components/customer/kit/button-class";
+import { buttonClass } from "@/components/kit/button-class";
 import { hasConsentAnswer, saveConsent } from "@/components/consent/cookie-consent";
 import { localStore } from "@foundry/ui/safe-storage";
 import { SwipeBanner } from "./review-banner";

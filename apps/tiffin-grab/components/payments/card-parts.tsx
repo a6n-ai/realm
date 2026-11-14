@@ -2,7 +2,7 @@
 
 import { AlertCircle, Info, Loader2 } from "lucide-react";
 import { Alert, AlertAction, AlertDescription } from "@/components/reui/alert";
-import { Button } from "@/components/customer/kit";
+import { Button } from "@/components/kit";
 
 export type PayOutcome =
   | { kind: "done" }

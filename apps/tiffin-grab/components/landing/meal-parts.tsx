@@ -1,5 +1,5 @@
-import { IconTile } from "@/components/customer/kit/icon-tile";
-import { makeCategoryLook } from "@/components/customer/meals/category-look";
+import { IconTile } from "@/components/kit/icon-tile";
+import { makeCategoryLook } from "@/components/kit/category-look";
 
 // "2× Sabzi" -> { count: "2×", name: "Sabzi" }; a part with no count keeps its whole name.
 export function splitPart(part: string): { count: string | null; name: string } {

@@ -1,5 +1,5 @@
 "use client";
-import { Button, Card } from "@/components/customer/kit";
+import { Button, Card } from "@/components/kit";
 
 export default function DeliveriesError({ reset }: { error: Error; reset: () => void }) {
   return (

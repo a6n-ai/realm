@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { TicketPercentIcon } from "lucide-react";
 import { toast } from "sonner";
-import { Button, EmptyState, Skeleton, buttonClass } from "@/components/customer/kit";
+import { Button, EmptyState, Skeleton, buttonClass } from "@/components/kit";
 import { useAppCurrency } from "@/components/app-currency";
 import { formatDiscount } from "@/lib/format/currency";
 import { formatEpoch } from "@/lib/format/datetime";

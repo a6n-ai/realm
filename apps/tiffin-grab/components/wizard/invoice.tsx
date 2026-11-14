@@ -1,5 +1,5 @@
 import type { PricingResult } from "@/lib/pricing";
-import { Divider } from "@/components/customer/kit";
+import { Divider } from "@/components/kit";
 
 export function Invoice({ result }: { result: PricingResult | null }) {
   if (!result) return <p className="rounded-2xl bg-foreground/6 p-4 text-sm text-muted-foreground">Select a meal to see pricing.</p>;

@@ -2,7 +2,7 @@
 import { useFormatMoney } from "@/components/app-currency";
 import type { ButtonHTMLAttributes, ComponentType, ReactNode } from "react";
 import { SparklesIcon } from "lucide-react";
-import { PillToggle } from "@/components/customer/kit";
+import { PillToggle } from "@/components/kit";
 import { cheaperDropOff, dropOffFee, dropOffSummary, pickInConnection, pickTag, toggleStrategy, type DropOffCatalog, type DropOffOption, type DropOffValue } from "@/lib/catalog/drop-off";
 
 /** Under an address's one-liner: its drop-off and its note, read-only. Nothing when both are empty. */

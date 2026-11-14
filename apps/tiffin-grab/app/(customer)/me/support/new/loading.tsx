@@ -1,4 +1,4 @@
-import { PageHeader, Skeleton } from "@/components/customer/kit";
+import { PageHeader, Skeleton } from "@/components/kit";
 import { NewTicketFormSkeleton } from "@/components/customer/support/new-ticket-form";
 
 export default function Loading() {

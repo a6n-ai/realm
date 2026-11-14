@@ -1,8 +1,8 @@
 "use client";
 import { ArrowDownLeft, ArrowUpRight, CalendarCheck, Check, House, Info, MapPin, Pencil, Truck } from "lucide-react";
-import { Pill, Sheet, StatusDot, type Tone } from "@/components/customer/kit";
+import { Pill, Sheet, StatusDot, type Tone } from "@/components/kit";
 import { STATUS_TONE, type DeliveryStatus } from "@/lib/deliveries/status";
-import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
+import { cn, FONT, FOCUS } from "@/components/kit/cn";
 import { humanDate, isPastPause, type Trip } from "@/lib/deliveries/view";
 import { dayNote, deliveryLine, isDone, moveNotes, weekdayShort, type EatingRow } from "@/lib/deliveries/view/eating";
 import { dateTimeFormat } from "@foundry/commons/util/intl-format";

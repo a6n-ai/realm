@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { MapPin } from "lucide-react";
-import { InfoBar } from "@/components/customer/kit";
+import { InfoBar } from "@/components/kit";
 import { validatePostal } from "@/lib/wizard/actions";
 import { parseWindow } from "@/lib/landing/areas";
 import { normalizePostal } from "@/lib/catalog/postal";

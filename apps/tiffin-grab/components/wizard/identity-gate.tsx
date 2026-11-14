@@ -10,7 +10,7 @@ import { emailSchema } from "@foundry/commons/util/email";
 import { authClient, signIn } from "@/lib/auth/client";
 import { warmCaptchaOnInput } from "@/lib/auth/captcha-client";
 import { checkExistingAccount, createCheckoutAccount, rememberReferralCode } from "@/lib/wizard/actions";
-import { BottomBar, Button, Field, Label, Notice } from "@/components/customer/kit";
+import { BottomBar, Button, Field, Label, Notice } from "@/components/kit";
 import { AuthLegal, tiffinAuthUi } from "@/components/auth/auth-kit";
 import { normalizeReferralCode } from "@/lib/referrals/cookie";
 import { CodeOtp, EmailSuggestions, GoogleOneTap, GoogleSignInButton, ResendCode, oauthErrorMessage } from "@foundry/auth-ui";

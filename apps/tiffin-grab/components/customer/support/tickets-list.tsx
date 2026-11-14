@@ -3,11 +3,11 @@
 import { MessageCircle } from "lucide-react";
 import { formatEpoch } from "@/lib/format/datetime";
 import type { CustomerTicketRow, TicketStatus } from "@/lib/support/tickets.service";
-import { EmptyState, ListGroup, ListRow, Pill, Skeleton } from "@/components/customer/kit";
+import { EmptyState, ListGroup, ListRow, Pill, Skeleton } from "@/components/kit";
 import { categoryLabel } from "@/lib/support/ticket-taxonomy";
 import { STATUS_LABEL, STATUS_TONE } from "./parts";
 import { topicFor } from "./topics";
-import { ListGroupSkeleton } from "@/components/customer/skeleton-parts";
+import { ListGroupSkeleton } from "@/components/kit/skeleton-parts";
 
 const DONE = new Set<string>(["resolved", "closed"]);
 

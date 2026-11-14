@@ -1,4 +1,4 @@
-import { Skeleton } from "@/components/customer/kit";
+import { Skeleton } from "@/components/kit";
 
 // Mirrors the weekly menu: header, glass week bar, day title, status card, then each category heading over its dish cards.
 export default function Loading() {

@@ -1,4 +1,4 @@
-import { Skeleton } from "@/components/customer/kit";
+import { Skeleton } from "@/components/kit";
 
 /** Progress's shape: an icon tile + name/note per step, joined by chevrons. */
 export function ProgressSkeleton({ steps = 3 }: { steps?: number }) {

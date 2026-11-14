@@ -4,7 +4,7 @@ import { useMemo, useRef, useState } from "react";
 import { AnimatePresence, useReducedMotion } from "motion/react";
 import * as m from "motion/react-m";
 import { CheckIcon, TagIcon, XIcon } from "lucide-react";
-import { InfoBar } from "@/components/customer/kit";
+import { InfoBar } from "@/components/kit";
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
 import { BEST_DEAL_COPY } from "./best-deal-copy";
 import { bundleDeal, frequencyOrDurationDeal } from "./best-deal-state";

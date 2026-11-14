@@ -3,13 +3,13 @@
 import Link from "next/link";
 import { useRef, useState, type KeyboardEvent } from "react";
 import { ArrowRight, Check, Clock, CookingPot, Heart, Lock, Pause, UtensilsCrossed } from "lucide-react";
-import { EmptyState, IconTile, Pill, Segmented, StatusDot, panelId, tabId, type IconTint } from "@/components/customer/kit";
+import { EmptyState, IconTile, Pill, Segmented, StatusDot, panelId, tabId, type IconTint } from "@/components/kit";
 import type { DeliveryStatus } from "@/lib/deliveries/status";
-import { buttonClass } from "@/components/customer/kit/button-class";
-import { cn, FOCUS } from "@/components/customer/kit/cn";
-import { useSwipePages } from "@/components/customer/kit/use-swipe-pages";
+import { buttonClass } from "@/components/kit/button-class";
+import { cn, FOCUS } from "@/components/kit/cn";
+import { useSwipePages } from "@/components/kit/use-swipe-pages";
 import { useTimezone } from "@foundry/design-system/timezone-provider";
-import { makeCategoryLook } from "./category-look";
+import { makeCategoryLook } from "../../kit/category-look";
 import type { MenuDay, MyDay } from "@/lib/menu/customer-week";
 import { isoToUtcDate } from "@foundry/commons/util/dates";
 

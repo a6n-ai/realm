@@ -1,8 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { IconTile } from "@/components/customer/kit/icon-tile";
-import { makeCategoryLook } from "@/components/customer/meals/category-look";
+import { IconTile } from "@/components/kit/icon-tile";
+import { makeCategoryLook } from "@/components/kit/category-look";
 
 export type TiffinDay = { key: string; label: string; short: string; date: string; today: boolean; tiers: { row: string; dishes: string[] }[]; popular: string[] };
 

@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { ChevronDown, Copy, CreditCard, Percent, ReceiptText, RotateCcw, SlidersHorizontal, type LucideIcon } from "lucide-react";
 import { toast } from "sonner";
-import { EmptyState, IconTile, ListGroup, buttonClass, type IconTint } from "@/components/customer/kit";
+import { EmptyState, IconTile, ListGroup, buttonClass, type IconTint } from "@/components/kit";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@foundry/design-system/timezone-provider";
 import type { MoneyLedgerTx } from "@/lib/services/customer-finances.service";
@@ -12,7 +12,7 @@ import { MONEY_LEDGER_FACETS } from "./money-ledger-facets";
 import { MethodName } from "@/components/payments/stripe-mark";
 import { paymentMethodLabel } from "@/lib/billing/payment-labels";
 import { FilterBar, GroupHeader, QuietPagination, groupByMonth } from "./finance-kit";
-import { FilterBarSkeleton, MonthGroupSkeleton } from "@/components/customer/skeleton-parts";
+import { FilterBarSkeleton, MonthGroupSkeleton } from "@/components/kit/skeleton-parts";
 import { formatMoney } from "@foundry/commons";
 
 const TYPE_STYLE: Record<MoneyLedgerTx["type"], { tint: IconTint; Icon: LucideIcon }> = {

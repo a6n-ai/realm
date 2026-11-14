@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
-import { IconTile } from "@/components/customer/kit";
+import { cn, FONT, FOCUS } from "@/components/kit/cn";
+import { IconTile } from "@/components/kit";
 import { TOPICS } from "./topics";
 
 /** Big tappable topics: each opens a new ticket with that topic already picked. */

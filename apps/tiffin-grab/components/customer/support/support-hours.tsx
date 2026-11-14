@@ -1,6 +1,6 @@
 import { Clock, Headset } from "lucide-react";
-import { Card, Chip, IconTile, Pill } from "@/components/customer/kit";
-import { cn, FONT } from "@/components/customer/kit/cn";
+import { Card, Chip, IconTile, Pill } from "@/components/kit";
+import { cn, FONT } from "@/components/kit/cn";
 import { getAppSettings, getSupportHours } from "@/lib/services/app-settings.service";
 import { supportHoursView, type SupportHoursView } from "@/lib/support/support-hours";
 

@@ -3,10 +3,10 @@ import { WEEK_DAYS } from "@/lib/menu/delivery-days";
 import { useState } from "react";
 import { ChevronLeft, ChevronRight, Truck } from "lucide-react";
 import { STATUS_COLOR, STATUS_LABEL } from "@/lib/deliveries/status";
-import { cn, FOCUS } from "@/components/customer/kit/cn";
+import { cn, FOCUS } from "@/components/kit/cn";
 import { weekDays, weekTimeline, type Agenda } from "@/lib/deliveries/view/week";
 import { ARROW, Legend } from "./week-timeline";
-import { useSwipePages } from "@/components/customer/kit/use-swipe-pages";
+import { useSwipePages } from "@/components/kit/use-swipe-pages";
 import { addDaysIso, isoToUtcDate, mondayOfIso } from "@foundry/commons/util/dates";
 
 const MON = new Intl.DateTimeFormat("en-CA", { month: "short", day: "numeric", timeZone: "UTC" });

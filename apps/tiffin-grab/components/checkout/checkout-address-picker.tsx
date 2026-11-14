@@ -4,8 +4,8 @@ import { Fragment, type ReactNode } from "react";
 import type { SavedAddress } from "@foundry/address";
 import { formatAddress } from "@foundry/address/ui";
 import { Check, MapPin, Pencil, Plus } from "lucide-react";
-import { OptionCard, Pill } from "@/components/customer/kit";
-import { AddressDropOffLines, AddressDropOffPanel } from "@/components/customer/address/drop-off";
+import { OptionCard, Pill } from "@/components/kit";
+import { AddressDropOffLines, AddressDropOffPanel } from "@/components/address/drop-off";
 import type { DropOffCatalog, DropOffValue } from "@/lib/catalog/drop-off";
 
 /**

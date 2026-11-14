@@ -1,5 +1,5 @@
-import { Card, ListGroup, Skeleton, StatGroup } from "@/components/customer/kit";
-import { cn } from "@/components/customer/kit/cn";
+import { Card, ListGroup, Skeleton, StatGroup } from "@/components/kit";
+import { cn } from "@/components/kit/cn";
 
 // Loading twins of the kit's own shapes, sized to match them so a page doesn't jump when its content lands.
 

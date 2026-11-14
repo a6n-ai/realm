@@ -2,8 +2,8 @@
 import type { Subscription, SubscriptionWindow, TiffinCounts } from "@/lib/deliveries/customer-deliveries.service";
 import { ORDER_STATUS_LABEL } from "@/components/ds/order-status-badge";
 import Link from "next/link";
-import { cn } from "@/components/customer/kit/cn";
-import { buttonClass } from "@/components/customer/kit/button-class";
+import { cn } from "@/components/kit/cn";
+import { buttonClass } from "@/components/kit/button-class";
 import { formatDateOnly } from "@/lib/format/datetime";
 
 const HEX = /^#[0-9a-fA-F]{6}$/;

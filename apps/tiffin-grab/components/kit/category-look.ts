@@ -1,5 +1,5 @@
 import { Bean, Beef, CakeSlice, Carrot, Cookie, Croissant, CupSoda, Drumstick, Egg, Fish, Flame, IceCreamCone, Leaf, Milk, Salad, Sandwich, Soup, Sparkles, UtensilsCrossed, Wheat, type LucideIcon } from "lucide-react";
-import type { IconTint } from "@/components/customer/kit";
+import type { IconTint } from "@/components/kit";
 import type { CategoryIcon } from "@/lib/catalog/category-icons";
 
 // Each dish category gets its own Settings-style tile; anything unknown takes the next unused colour.

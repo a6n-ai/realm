@@ -13,7 +13,7 @@ import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
 import type { PricingResult } from "@/lib/pricing";
 import { reprice } from "@/lib/wizard/actions";
 import { useBounceAfterPaid } from "@/lib/payments/paid-flag";
-import { BottomBar, Button, Sheet, buttonClass } from "@/components/customer/kit";
+import { BottomBar, Button, Sheet, buttonClass } from "@/components/kit";
 import { AddonsPanel } from "./addons-panel";
 import { trialSendDays } from "@/lib/trial/schedule";
 import { firstBlockedStep, initialSelections, mealNote, nextBlockedReason, offeredAddons, pickedAddons, mealAllowedDays, selectionIsTrial, servesWeekends, reconcileSelections, type WizardOrigin, type WizardSelections } from "@/lib/wizard/selections";

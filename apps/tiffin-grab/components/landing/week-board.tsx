@@ -2,8 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { Heart } from "lucide-react";
-import { IconTile } from "@/components/customer/kit/icon-tile";
-import { makeCategoryLook } from "@/components/customer/meals/category-look";
+import { IconTile } from "@/components/kit/icon-tile";
+import { makeCategoryLook } from "@/components/kit/category-look";
 import type { BoardDay } from "@/lib/landing/week-board";
 
 /** A dish name, tagged when customers pick it most in its row that day. */

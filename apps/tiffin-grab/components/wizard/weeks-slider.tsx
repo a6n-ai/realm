@@ -1,4 +1,4 @@
-import { cn } from "@/components/customer/kit/cn";
+import { cn } from "@/components/kit/cn";
 
 // Bigger savings read bigger: 12px with nothing off, about 20px at the best deal.
 const saveSize = (save: number, best: number) => (best > 0 ? 12 + Math.round((save / best) * 8) : 12);

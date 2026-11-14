@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import { ArrowLeftIcon, XIcon } from "lucide-react";
-import { Button, IconButton, ThemeToggle } from "@/components/customer/kit";
+import { Button, IconButton, ThemeToggle } from "@/components/kit";
 import { Brand } from "@/components/customer/shell/customer-shell";
 
 /**

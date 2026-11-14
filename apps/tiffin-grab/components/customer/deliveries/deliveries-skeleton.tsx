@@ -1,5 +1,5 @@
-import { Skeleton } from "@/components/customer/kit";
-import { cn } from "@/components/customer/kit/cn";
+import { Skeleton } from "@/components/kit";
+import { cn } from "@/components/kit/cn";
 
 // Inside a card the plain skeleton fill matches the card in dark mode; a wash of the text colour always shows.
 const ON_CARD = "bg-foreground/12!";

@@ -5,7 +5,7 @@ import { getAppSettings } from "@/lib/services/app-settings.service";
 import { usersService } from "@/lib/services/users.service";
 import { ticketsService } from "@/lib/support/tickets.service";
 import { getCustomerDashboard } from "@/lib/services/customers.service";
-import { PageHeader } from "@/components/customer/kit";
+import { PageHeader } from "@/components/kit";
 import { NewTicketControl } from "@/components/customer/support/new-ticket-control";
 import { TicketsList, TicketsListSkeleton } from "@/components/customer/support/tickets-list";
 import { TICKET_CATEGORIES } from "@/lib/support/ticket-taxonomy";

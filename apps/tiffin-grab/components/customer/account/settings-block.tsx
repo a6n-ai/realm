@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Card } from "@/components/customer/kit";
+import { Card } from "@/components/kit";
 
 /** iOS Settings group: small uppercase header, rounded body, small muted footer. `card={false}` lets the body bring its own surface (e.g. a ListGroup). */
 export function SettingsBlock({ title, footer, card = true, children }: { title: string; footer?: string; card?: boolean; children: ReactNode }) {

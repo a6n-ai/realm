@@ -4,8 +4,8 @@ import { useMemo, useState } from "react";
 import { Check, ChevronDown, Search } from "lucide-react";
 import { getCountryCallingCode, type Country } from "react-phone-number-input";
 import flags from "react-phone-number-input/flags";
-import { Sheet } from "@/components/customer/kit";
-import { cn } from "@/components/customer/kit/cn";
+import { Sheet } from "@/components/kit";
+import { cn } from "@/components/kit/cn";
 
 type Option = { label: string; value?: Country };
 

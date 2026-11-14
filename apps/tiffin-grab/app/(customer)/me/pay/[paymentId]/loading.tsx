@@ -1,4 +1,4 @@
-import { Card, PageHeader, Skeleton } from "@/components/customer/kit";
+import { Card, PageHeader, Skeleton } from "@/components/kit";
 
 // PayForm's frame: header, then one card with the plan, price lines and the card form.
 export default function Loading() {

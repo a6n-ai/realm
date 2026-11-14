@@ -8,11 +8,11 @@ import type { AddressValues } from "@foundry/commons";
 import type { AddressInput, SavedAddress } from "@foundry/address";
 import { useAddressBook } from "@foundry/address/hooks";
 import { formatAddress } from "@foundry/address/ui";
-import { Button, Field, IconButton, IconTile, ListGroup, Notice, Pill, Sheet } from "@/components/customer/kit";
+import { Button, Field, IconButton, IconTile, ListGroup, Notice, Pill, Sheet } from "@/components/kit";
 import { SettingsBlock } from "./settings-block";
-import { AddressFields } from "@/components/customer/address/address-fields";
-import { nameTaken } from "@/components/customer/address/address-name";
-import { AddressDropOffLines, DropOffPicker } from "@/components/customer/address/drop-off";
+import { AddressFields } from "@/components/address/address-fields";
+import { nameTaken } from "@/components/address/address-name";
+import { AddressDropOffLines, DropOffPicker } from "@/components/address/drop-off";
 import { EMPTY_DROP_OFF, NO_DROP_OFF, type DropOffCatalog, type DropOffValue } from "@/lib/catalog/drop-off";
 
 const withDropOff = (d: Record<string, DropOffValue>, publicId: string, dropOff: DropOffValue) => {

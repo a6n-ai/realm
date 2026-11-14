@@ -2,9 +2,9 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
-import { Button, Card, Notice, Toast } from "@/components/customer/kit";
+import { Button, Card, Notice, Toast } from "@/components/kit";
 import { ClaimPayment } from "@/components/customer/wallet/claim-payment";
-import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
+import { cn, FONT, FOCUS } from "@/components/kit/cn";
 import { humanDate, type Trip, type TripAction } from "@/lib/deliveries/view";
 import { buildEatingDays, eatingRowsInWeek, isAddressRow, type EatingRow } from "@/lib/deliveries/view/eating";
 import { applySwapsToCounts, hasEvenPortionSwap } from "@/lib/menu/swap-rules";

@@ -1,8 +1,8 @@
 "use client";
 
 import type { ButtonHTMLAttributes, ComponentProps, ComponentType, ReactNode } from "react";
-import { Button, Field, Notice, OptionCard, PillToggle, Reason, Segmented, Sheet, Skeleton, Toggle } from "@/components/customer/kit";
-import { AddressFields } from "@/components/customer/address/address-fields";
+import { Button, Field, Notice, OptionCard, PillToggle, Reason, Segmented, Sheet, Skeleton, Toggle } from "@/components/kit";
+import { AddressFields } from "@/components/address/address-fields";
 import { CategorySection, ChoiceRow } from "./choice-row";
 
 /**

@@ -21,7 +21,7 @@ import { ToggleGroup, ToggleGroupItem } from "@foundry/ui/toggle-group";
 import { toggleVariants } from "@foundry/ui/toggle";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@foundry/ui/tooltip";
 import { DateInput } from "@/components/dashboard/date-fields";
-import { DeliveryAreaNote } from "@/components/customer/address/delivery-area";
+import { DeliveryAreaNote } from "@/components/address/delivery-area";
 import { ScheduleCard } from "@/components/wizard/schedule-card";
 import { discountLine } from "@/components/customer/home/coupons-section";
 import { dropOffSummary } from "@/lib/catalog/drop-off";

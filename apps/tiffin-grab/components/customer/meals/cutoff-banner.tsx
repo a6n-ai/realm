@@ -3,7 +3,7 @@
 import { useReducedMotion } from "motion/react";
 import { ClockIcon } from "lucide-react";
 import { useNow } from "@/lib/hooks/use-now";
-import { cn } from "@/components/customer/kit/cn";
+import { cn } from "@/components/kit/cn";
 
 const DAY_LABEL: Record<string, string> = { mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun" };
 

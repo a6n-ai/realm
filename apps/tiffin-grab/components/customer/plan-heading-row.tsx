@@ -1,6 +1,6 @@
 import type { CSSProperties, ReactNode } from "react";
-import { Pill } from "@/components/customer/kit";
-import { cn } from "@/components/customer/kit/cn";
+import { Pill } from "@/components/kit";
+import { cn } from "@/components/kit/cn";
 import { mealChipLabel } from "@/lib/menu/format-tu";
 type SubscriptionStatus = "active" | "paused";
 

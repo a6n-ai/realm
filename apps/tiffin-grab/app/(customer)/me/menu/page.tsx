@@ -8,9 +8,9 @@ import { buildCustomerWeek, dietLegend, foldPicks, initialDay, planOf, popularSi
 import { menuService } from "@/lib/menu/menu.service";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { myDeliveries } from "@/lib/deliveries/customer-deliveries.service";
-import { EmptyState, PageHeader } from "@/components/customer/kit";
-import { buttonClass } from "@/components/customer/kit/button-class";
-import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
+import { EmptyState, PageHeader } from "@/components/kit";
+import { buttonClass } from "@/components/kit/button-class";
+import { cn, FONT, FOCUS } from "@/components/kit/cn";
 import { formatDateOnly } from "@/lib/format/datetime";
 import { WeeklyMenu } from "@/components/customer/meals/weekly-menu";
 import { requestNow } from "@/lib/dates/request-now";

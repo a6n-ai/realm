@@ -2,7 +2,7 @@
 
 import { useAppCurrency } from "@/components/app-currency";
 import { formatDiscount } from "@/lib/format/currency";
-import { InfoBar } from "@/components/customer/kit";
+import { InfoBar } from "@/components/kit";
 import Link from "next/link";
 import { TicketPercentIcon } from "lucide-react";
 import { OrderStatusBadge } from "@/components/ds";
