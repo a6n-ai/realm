@@ -16,7 +16,7 @@ export { Toast } from "./toast";
 export { BottomBar, TabBar, type TabBarItem } from "./bottom-bar";
 export { EmptyState } from "./empty-state";
 export { ListGroup, ListRow } from "./list-row";
-export { MenuSection } from "./menu-sheet";
+export { MenuSection } from "./menu-section";
 export { CoinChip, NavPill } from "./nav-pill";
 export { PageHeader } from "./page-header";
 export { Choice, ChoiceGroup, OptionCard, PillToggle, SegmentOption, SelectableCard } from "./selectable-card";
