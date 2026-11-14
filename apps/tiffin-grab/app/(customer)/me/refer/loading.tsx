@@ -1,11 +1,6 @@
-import { PageHeader } from "@/components/kit";
-import { ReferSkeleton } from "@/components/customer/refer/refer-skeleton";
+import { OrbLoading } from "@/components/customer/orb-loading";
 
+// The customer app waits on the thinking orb, not a skeleton (components/customer/orb-loading.tsx).
 export default function Loading() {
-  return (
-    <div aria-busy="true" aria-label="Loading" role="status" className="mx-auto w-full max-w-2xl space-y-6">
-      <PageHeader eyebrow="Refer" title="Share TiffinGrab," accent="earn coins." subtitle="Friends who sign up with your code get coins too." />
-      <ReferSkeleton />
-    </div>
-  );
+  return <OrbLoading />;
 }

@@ -254,6 +254,15 @@ html[data-splash]:not([data-splash="out"]) { overflow: hidden; }
 .tg-splash__brand { position: absolute; z-index: 1; left: 0; right: 0; bottom: max(36px, calc(env(safe-area-inset-bottom) + 24px)); display: flex; align-items: center; justify-content: center; gap: 10px; }
 .tg-splash__mark { width: clamp(30px, 4.6vmin, 38px); height: auto; }
 .tg-splash__word { font-size: clamp(20px, 3.2vmin, 26px); }
+/* the customer app's loading screen: the same orb, on the page's own background */
+.tg-orbload { --tg-s1: #72A94B; --tg-s2: #F6A934; --tg-s3: #FB801C; --tg-s4: #185936; --tg-orb-ink: #185936;
+  display: grid; place-items: center; min-height: min(70dvh, 560px); padding: 24px 16px; }
+:root.dark .tg-orbload { --tg-s1: #9CC654; --tg-s3: #FF9843; --tg-s4: #6FCF97; --tg-orb-ink: #9CC654; }
+.tg-orbload__orb { position: relative; width: 72px; aspect-ratio: 1; }
+.tg-orbload__orb canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+/* over a page still waiting on the server: appears only after 250 ms, so quick hops never flash it */
+.tg-orbload--overlay { position: fixed; inset: 0; z-index: 900; min-height: 0; background: color-mix(in oklch, var(--background) 88%, transparent);
+  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); animation: tg-splash-in 220ms var(--ease-soft) 250ms both; }
 @keyframes tg-splash-in { from { opacity: 0; } }
 @keyframes tg-splash-drift { 0% { transform: translate3d(0, 0, 0) scale(1); } 50% { transform: translate3d(7vmax, 4vmax, 0) scale(1.12); } 100% { transform: translate3d(-4vmax, 8vmax, 0) scale(0.94); } }
 @media (prefers-reduced-motion: reduce) {

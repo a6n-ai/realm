@@ -14,7 +14,7 @@ export const SPLASH_STEPS: SplashStep[] = [
 ];
 
 // one beat per step: orb, gather, hold, melt back
-const ORB = 1400, IN = 450, HOLD = 700, OUT = 600, BEAT = ORB + IN + HOLD + OUT, N = 760;
+const ORB = 1400, IN = 450, HOLD = 700, OUT = 600, BEAT = ORB + IN + HOLD + OUT;
 
 const bezier = (x1: number, y1: number, x2: number, y2: number) => (t: number) => {
   if (t <= 0) return 0;
@@ -37,8 +37,16 @@ const rgbOf = (css: string): RGB => {
 };
 const mix = (a: RGB, b: RGB, k: number) => `rgb(${Math.round(a[0] + (b[0] - a[0]) * k)},${Math.round(a[1] + (b[1] - a[1]) * k)},${Math.round(a[2] + (b[2] - a[2]) * k)})`;
 
+export type OrbOptions = {
+  /** Gather into each step's icon and word (the splash). Off: the orb only turns (a small loader). */
+  morph?: boolean;
+  /** Dots on the sphere: many for a large orb, few for a small one so each dot stays crisp. */
+  dots?: number;
+};
+
 /** Starts the orb on `canvas`, writing the current step's word into `wordEl`. Returns a stop function. */
-export function startOrb(canvas: HTMLCanvasElement, wordEl: HTMLElement, reduceMotion: boolean): () => void {
+export function startOrb(canvas: HTMLCanvasElement, wordEl: HTMLElement | null, reduceMotion: boolean, opts: OrbOptions = {}): () => void {
+  const morph = opts.morph ?? true, N = opts.dots ?? 760;
   const ctx = canvas.getContext("2d");
   if (!ctx) return () => {};
   const style = getComputedStyle(canvas);
@@ -54,7 +62,7 @@ export function startOrb(canvas: HTMLCanvasElement, wordEl: HTMLElement, reduceM
     canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     // each step: stroke its icon the way lucide draws it, then sample N dots inside the stroke
-    targets = SPLASH_STEPS.map((s) => {
+    targets = !morph ? [] : SPLASH_STEPS.map((s) => {
       const G = 2, w = Math.round(W * G), h = Math.round(H * G), off = document.createElement("canvas");
       off.width = w; off.height = h;
       const o = off.getContext("2d");
@@ -94,7 +102,7 @@ export function startOrb(canvas: HTMLCanvasElement, wordEl: HTMLElement, reduceM
     for (const q of pts) {
       ctx.globalAlpha = (0.3 + 0.7 * q.d) * (1 - m) + m;
       ctx.fillStyle = mix(ink, col, Math.max(smooth(0.05, 0.6, m), smooth(0.2, 0.6, q.band)));
-      const r = (base / 130) * (0.55 + 0.75 * q.d) * (1 - m) + (base / 150) * m;
+      const r = Math.max(0.9, (base / (N > 400 ? 130 : 46)) * (0.55 + 0.75 * q.d)) * (1 - m) + (base / 150) * m;
       ctx.beginPath(); ctx.arc(q.x, q.y, r, 0, Math.PI * 2); ctx.fill();
     }
     ctx.globalAlpha = 1;
@@ -103,6 +111,7 @@ export function startOrb(canvas: HTMLCanvasElement, wordEl: HTMLElement, reduceM
   setup();
   addEventListener("resize", setup);
   const word = (si: number, w: number) => {
+    if (!wordEl) return;
     const s = SPLASH_STEPS[si];
     if (wordEl.textContent !== s.word) wordEl.textContent = s.word;
     wordEl.style.color = `var(${s.color})`;
@@ -110,16 +119,16 @@ export function startOrb(canvas: HTMLCanvasElement, wordEl: HTMLElement, reduceM
     wordEl.style.filter = `blur(${((1 - w) * 4).toFixed(2)}px)`;
     wordEl.style.transform = `translateY(${((1 - w) * 6).toFixed(2)}px)`;
   };
-  if (reduceMotion) { draw(0, 1, 0); word(0, 1); return () => removeEventListener("resize", setup); }
+  if (reduceMotion) { draw(0, morph ? 1 : 0, 0); if (morph) word(0, 1); return () => removeEventListener("resize", setup); }
 
   let raf = 0;
   const t0 = performance.now();
   const frame = (now: number) => {
     // the first frame's timestamp can come in a hair before t0 was read: never let time run negative
     const el = Math.max(0, now - t0), si = Math.floor(el / BEAT) % SPLASH_STEPS.length, at = el % BEAT;
-    const m = at < ORB ? 0 : at < ORB + IN ? inOut((at - ORB) / IN) : at < ORB + IN + HOLD ? 1 : 1 - easeOut((at - ORB - IN - HOLD) / OUT);
+    const m = !morph ? 0 : at < ORB ? 0 : at < ORB + IN ? inOut((at - ORB) / IN) : at < ORB + IN + HOLD ? 1 : 1 - easeOut((at - ORB - IN - HOLD) / OUT);
     draw(el / 1000, m, si);
-    word(si, smooth(0.55, 1, m));
+    if (morph) word(si, smooth(0.55, 1, m));
     raf = requestAnimationFrame(frame);
   };
   raf = requestAnimationFrame(frame);

@@ -1,6 +1,6 @@
-import { DeliveriesSkeleton } from "@/components/customer/deliveries/deliveries-skeleton";
+import { OrbLoading } from "@/components/customer/orb-loading";
 
-// /me is the deliveries hub, so its segment fallback is the hub's own skeleton (no swap when hub.tsx's Suspense takes over).
+// The customer app waits on the thinking orb, not a skeleton (components/customer/orb-loading.tsx).
 export default function Loading() {
-  return <DeliveriesSkeleton />;
+  return <OrbLoading />;
 }

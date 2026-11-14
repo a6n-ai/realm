@@ -28,7 +28,9 @@ export function NavPending() {
       // A hop to the other host is a full load: the cross-host splash covers it. Dimming here
       // too left a washed-out page with a bar under the splash, and Back restored it that way.
       if (leavesHost(a, new URL(location.href))) return;
-      document.documentElement.dataset.nav = "pending";
+      // Inside the customer app the thinking orb covers the wait (OrbNavOverlay); elsewhere the top bar.
+      const inCustomerApp = (p: string) => p === "/me" || p.startsWith("/me/");
+      document.documentElement.dataset.nav = inCustomerApp(url.pathname) && inCustomerApp(location.pathname) ? "orb" : "pending";
       clearTimeout(timer);
       timer = setTimeout(() => delete document.documentElement.dataset.nav, 8000);
     };
