@@ -11,7 +11,7 @@ import {
   newLeadsSql,
   renewalsDueSql,
   renewedSql,
-  roundSql,
+  renewalNumberSql,
 } from "./round-metrics";
 
 export type LeadStats = { total: number; converted: number; direct: number; lost: number; conversionRatePct: number };
@@ -131,12 +131,12 @@ export type RenewalRound = { round: 1 | 2 | 3 | 4; due: number; renewed: number;
 /** Round 1 is the first sale, round N is "Renewal N-1"; round 4 is every round from 4 on. */
 export async function getRenewalsByRound(scope: AnalyticsScope): Promise<RenewalRound[]> {
   const rows = await db
-    .select({ round: roundSql, due: countWhere(renewalsDueSql), renewed: countWhere(renewedSql) })
+    .select({ round: renewalNumberSql, due: countWhere(renewalsDueSql), renewed: countWhere(renewedSql) })
     .from(inquiryActivities)
     .innerJoin(inquiries, eq(inquiries.id, inquiryActivities.inquiryId))
     .innerJoin(orders, eq(orders.id, inquiryActivities.orderId))
     .where(and(or(renewalsDueSql, renewedSql), activityScopeWhere(scope)))
-    .groupBy(roundSql);
+    .groupBy(renewalNumberSql);
   return ([1, 2, 3, 4] as const).map((round) => {
     const r = rows.find((x) => Number(x.round) === round);
     const due = r?.due ?? 0;

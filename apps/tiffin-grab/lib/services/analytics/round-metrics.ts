@@ -68,5 +68,8 @@ export function lostSql(kind: "lead" | "renewal"): SQL {
 // Needs `orders` joined on the activity's order_id.
 export const orderRankSql = sql<number>`(select count(*)::int from ${orders} o2 where o2.user_id = ${orders.userId} and o2.created_at <= ${orders.createdAt})`;
 
-/** Round 1 is the first sale; round N is "Renewal N-1"; 4 buckets every later round. */
-export const roundSql = sql<number>`least(${orderRankSql}, 4)`;
+/**
+ * Renewal number of a renewal event: renewal_started is stamped on the order that is ending (rank N → renewal N),
+ * renewed on the new order (rank N → renewal N-1), so both land on the same renewal. 4 buckets every later one.
+ */
+export const renewalNumberSql = sql<number>`least(case when ${inquiryActivities.type} = 'renewed' then ${orderRankSql} - 1 else ${orderRankSql} end, 4)`;

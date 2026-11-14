@@ -58,7 +58,7 @@ export default async function LeadsAnalyticsPage({ searchParams }: { searchParam
           </Suspense>
         </ChartCard>
       </div>
-      <ChartCard title="Renewals by round" subtitle="Renewals due and renewed in each round" info="Round 1 is the first sale; round N is renewal N-1. Round 4 counts every round from 4 on.">
+      <ChartCard title="Renewals by round" subtitle="Renewals due and renewed in each round" info="Each renewal of a plan: due when the plan nears its end, renewed when the next plan is booked. Renewal 4 counts every renewal from the 4th on.">
         <Suspense fallback={<ChartSkeleton />}>
           <RenewalRoundsList scope={scope} />
         </Suspense>
@@ -174,7 +174,7 @@ async function RenewalRoundsList({ scope }: { scope: AnalyticsScope }) {
   return (
     <BreakdownList
       rows={rows.map((r) => ({
-        label: r.round === 1 ? "Round 1 (first sale)" : r.round === 4 ? "Round 4 or later" : `Round ${r.round} (renewal ${r.round - 1})`,
+        label: r.round === 4 ? "Renewal 4 or later" : `Renewal ${r.round}`,
         n: r.due,
         meta: r.due > 0 ? `${r.renewed} renewed · ${r.ratePct}%` : undefined,
       }))}

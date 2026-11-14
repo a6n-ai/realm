@@ -99,23 +99,30 @@ describe("round metrics (activity-counted analytics)", () => {
     expect(stats.conversionRatePct).toBe(100);
   });
 
-  it("renewal rate per round: round 2 due 2, renewed 1 gives 50%", async () => {
+  it("renewal rate per renewal: due is stamped on the ending order, renewed on the new one", async () => {
     const { org, now, scope } = await newScope();
-    const [user] = await db.insert(users).values({ email: `rm-${suffix}-${orgIds.length}@x.test`, name: "RM", role: "user" }).returning();
-    userIds.push(user!.id);
-    const first = await order(user!.id, now - 3 * DAY);
-    const second = await order(user!.id, now - 2 * DAY);
-    const r1 = await lead(org, { customerId: user!.id, currentOrderId: second.id });
-    const r2 = await lead(org, { customerId: user!.id, currentOrderId: second.id });
-    await activity(r1.id, { type: "renewal_started", orderId: second.id, details: { renewalStatusTo: "expected" } });
-    await activity(r2.id, { type: "renewal_started", orderId: second.id, details: { renewalStatusTo: "expected" } });
-    await activity(r1.id, { type: "renewed", orderId: second.id });
-    void first;
+    const mk = async (tag: string) => {
+      const [u] = await db.insert(users).values({ email: `rm-${suffix}-${tag}-${orgIds.length}@x.test`, name: "RM", role: "user" }).returning();
+      userIds.push(u!.id);
+      return u!;
+    };
+    // Customer A: first plan ends, comes due (renewal 1), renews with a second plan.
+    const a = await mk("a");
+    const aFirst = await order(a.id, now - 3 * DAY);
+    const aSecond = await order(a.id, now - 2 * DAY);
+    const ra = await lead(org, { customerId: a.id, currentOrderId: aSecond.id });
+    await activity(ra.id, { type: "renewal_started", orderId: aFirst.id, details: { renewalStatusTo: "expected" } });
+    await activity(ra.id, { type: "renewed", orderId: aSecond.id });
+    // Customer B: first plan comes due (renewal 1) and lapses.
+    const b = await mk("b");
+    const bFirst = await order(b.id, now - 3 * DAY);
+    const rb = await lead(org, { customerId: b.id, currentOrderId: bFirst.id });
+    await activity(rb.id, { type: "renewal_started", orderId: bFirst.id, details: { renewalStatusTo: "expected" } });
 
     const rounds = await getRenewalsByRound(scope);
     expect(rounds).toHaveLength(4);
-    expect(rounds[1]).toEqual({ round: 2, due: 2, renewed: 1, ratePct: 50 });
-    expect(rounds[0]).toEqual({ round: 1, due: 0, renewed: 0, ratePct: null });
+    expect(rounds[0]).toEqual({ round: 1, due: 2, renewed: 1, ratePct: 50 });
+    expect(rounds[1]).toEqual({ round: 2, due: 0, renewed: 0, ratePct: null });
   });
 
   it("lost is split into lead and renewal, grouped by the activity's lost reason", async () => {

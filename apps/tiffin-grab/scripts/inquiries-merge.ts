@@ -175,6 +175,17 @@ async function stepBackfill() {
         .where(and(eq(inquiryActivities.inquiryId, inq.id), eq(inquiryActivities.type, "converted"), isNull(inquiryActivities.orderId)));
     }
     const seen = new Set(have.map((h) => String(h.orderId ?? (unstampedConverted ? inq.convertedOrderId ?? live[0].id : ""))));
+    // Every order followed by a later one came due: a renewal_started on it keeps history's renewal rate honest.
+    const started = new Set(
+      (await db.select({ orderId: inquiryActivities.orderId }).from(inquiryActivities)
+        .where(and(eq(inquiryActivities.inquiryId, inq.id), eq(inquiryActivities.type, "renewal_started")))).map((r) => String(r.orderId)),
+    );
+    for (const o of live.slice(0, -1)) {
+      if (started.has(String(o.id))) continue;
+      csv("backfill", inq.publicId, `renewal_started event for order ${o.id}`);
+      changes++;
+      if (APPLY) await db.insert(inquiryActivities).values({ inquiryId: inq.id, type: "renewal_started", orderId: o.id, details: { origin: "backfill" }, createdAt: o.createdAt });
+    }
     for (const [i, o] of live.entries()) {
       if (seen.has(String(o.id))) continue;
       const type = i === 0 ? "converted" : "renewed";

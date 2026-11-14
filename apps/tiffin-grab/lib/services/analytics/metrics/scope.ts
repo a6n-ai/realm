@@ -35,7 +35,7 @@ export const DATE_BASIS_LABEL = {
   orders: "by order date",
   deliveries: "by delivery date",
   tickets: "by ticket date",
-  leads: "by inquiry date",
+  leads: "by activity date",
 } as const;
 
 /** Visible orgs narrowed by the `org` URL value. A value outside the visible set yields [] (never widens). */
