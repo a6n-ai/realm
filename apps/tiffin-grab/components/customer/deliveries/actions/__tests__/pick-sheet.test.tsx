@@ -8,7 +8,6 @@ import type { PlanView } from "@/lib/deliveries/view/adapter";
 import { PickSheet } from "../pick-sheet";
 
 const load = vi.fn();
-const pick = vi.fn();
 const savePicks = vi.fn();
 // Swap options are computed in the sheet now (pick-preview); tests set them directly.
 const swapOptions = vi.fn((): unknown[] => []);
@@ -17,7 +16,6 @@ const removeSwap = vi.fn();
 
 vi.mock("@/lib/menu/pick-grid-actions", () => ({ loadPickGrid: (...a: unknown[]) => load(...a) }));
 vi.mock("@/lib/menu/meal-actions", () => ({
-  pickMyDish: (...a: unknown[]) => pick(...a),
   saveMyMealSelections: (...a: unknown[]) => savePicks(...a),
 }));
 vi.mock("@/lib/menu/pick-preview", async (importOriginal) => ({
@@ -122,7 +120,6 @@ const show = (t = trip()) => {
 
 beforeEach(() => {
   load.mockReset();
-  pick.mockReset().mockResolvedValue({ ok: true });
   savePicks.mockReset().mockResolvedValue({ ok: true, saved: 1 });
   swapOptions.mockReset().mockReturnValue([]);
   applySwap.mockReset().mockResolvedValue({ ok: true });

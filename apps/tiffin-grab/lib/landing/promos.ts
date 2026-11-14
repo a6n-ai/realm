@@ -1,3 +1,4 @@
+import { BRAND_HOST } from "@/lib/brand";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { formatDiscount } from "@/lib/format/currency";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
@@ -48,7 +49,7 @@ export function ownImagePath(url: string | null): string | null {
   if (!url) return url;
   try {
     const u = new URL(url);
-    const own = u.hostname === "tiffingrab.ca" || u.hostname.endsWith(".tiffingrab.ca");
+    const own = u.hostname === BRAND_HOST || u.hostname.endsWith(`.${BRAND_HOST}`);
     return own && !u.search && u.pathname.startsWith("/landing/") ? u.pathname : url;
   } catch {
     return url;

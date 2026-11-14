@@ -3,13 +3,18 @@ import { isProduction } from "@/lib/runtime/env";
 // Kept dependency-free: the proxy imports it.
 export const REFERRAL_COOKIE = "tg_ref";
 export const REFERRAL_COOKIE_MAX_AGE = 60 * 60 * 24 * 30;
-export const REFERRAL_COOKIE_OPTIONS = {
+const REFERRAL_COOKIE_OPTIONS = {
   httpOnly: true,
   sameSite: "lax" as const,
   path: "/",
   maxAge: REFERRAL_COOKIE_MAX_AGE,
   secure: isProduction(),
 };
+
+/** The one writer: the proxy (on ?ref=) and the wizard's rememberReferralCode both set the cookie through it. */
+export function setReferralCookie(jar: { set(name: string, value: string, options: typeof REFERRAL_COOKIE_OPTIONS): unknown }, code: string): void {
+  jar.set(REFERRAL_COOKIE, code, REFERRAL_COOKIE_OPTIONS);
+}
 
 export function readReferralCookie(headers: Headers | null | undefined): string | null {
   const raw = headers?.get("cookie");

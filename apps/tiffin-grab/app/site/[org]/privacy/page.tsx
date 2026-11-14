@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { Callout, Clause, LegalPage, List, Mail, Sub, type KeyPoint } from "@/components/marketing/legal";
-import { pageMeta } from "@/lib/landing/meta";
+import { legalMeta } from "@/lib/landing/meta";
 
-export const metadata: Metadata = pageMeta("Privacy policy | Tiffin Grab", "How TiffinGrab collects, uses, and protects personal information under PIPEDA and Ontario law.", "/privacy");
+export const metadata: Metadata = legalMeta("Privacy policy", "How TiffinGrab collects, uses, and protects personal information under PIPEDA and Ontario law.", "/privacy");
 export const revalidate = 86400;
 export const dynamic = "error";
 
@@ -30,7 +30,7 @@ const KEY_POINTS: KeyPoint[] = [
 
 export default function PrivacyPage() {
   return (
-    <LegalPage title="Privacy policy" intro="What personal information TiffinGrab collects, why, who sees it, how long we keep it, and how to exercise your rights under PIPEDA." updated="October 7, 2026" current="/privacy" sections={SECTIONS} keyPoints={KEY_POINTS}>
+    <LegalPage title="Privacy policy" intro="What personal information TiffinGrab collects, why, who sees it, how long we keep it, and how to exercise your rights under PIPEDA." current="/privacy" sections={SECTIONS} keyPoints={KEY_POINTS}>
       <Callout>
         <strong>Commitment:</strong> TiffinGrab protects personal information in line with Canada’s{" "}
         <em>Personal Information Protection and Electronic Documents Act</em> (PIPEDA) and applicable Ontario law. This

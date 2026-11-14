@@ -24,7 +24,7 @@ import { priceWithTax } from "@/lib/tax/checkout-taxes";
 import { walletService } from "@/lib/wallet/wallet.service";
 import { provisionCustomerByEmail } from "@/lib/services/customers.service";
 import { findReferrerByCode } from "@/lib/referrals/referrals.service";
-import { REFERRAL_COOKIE, REFERRAL_COOKIE_OPTIONS, normalizeReferralCode } from "@/lib/referrals/cookie";
+import { REFERRAL_COOKIE, normalizeReferralCode, setReferralCookie } from "@/lib/referrals/cookie";
 import { cookies } from "next/headers";
 import { getSession } from "@/lib/auth/session";
 import { checkoutPaymentMethods, type CheckoutPaymentMethod } from "@/lib/checkout/payment-methods";
@@ -323,7 +323,7 @@ export async function rememberReferralCode(raw: string): Promise<{ ok: true } | 
   if (!code) return { ok: true };
   const jar = await cookies();
   if (await findReferrerByCode(code)) {
-    jar.set(REFERRAL_COOKIE, code, REFERRAL_COOKIE_OPTIONS);
+    setReferralCookie(jar, code);
     return { ok: true };
   }
   if (jar.get(REFERRAL_COOKIE)?.value === code) {

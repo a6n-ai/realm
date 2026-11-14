@@ -1,5 +1,6 @@
 "use client";
 
+import { BRAND_NAME } from "@/lib/brand";
 import { useEffect } from "react";
 
 // WebMCP (webmachinelearning.github.io/webmcp): lets an AI agent in the visitor's browser ask the page
@@ -16,12 +17,12 @@ const none = { type: "object", properties: {} };
 const TOOLS: Tool[] = [
   {
     name: "check_delivery",
-    description: "Check whether Tiffin Grab delivers to a Canadian postal code (like M5V 2T6) and in which delivery window.",
+    description: `Check whether ${BRAND_NAME} delivers to a Canadian postal code (like M5V 2T6) and in which delivery window.`,
     inputSchema: { type: "object", properties: { postal: { type: "string", description: "Postal code or its first three characters" } }, required: ["postal"] },
     execute: (input) => read(`/delivery/check?postal=${encodeURIComponent(String(input.postal ?? ""))}`)(),
   },
-  { name: "get_plans", description: "Tiffin Grab plans: meal sizes, contents, calories and price per tiffin in CAD.", inputSchema: none, execute: read("/plans") },
-  { name: "get_menu", description: "This week's Tiffin Grab menu, day by day.", inputSchema: none, execute: read("/menu") },
+  { name: "get_plans", description: `${BRAND_NAME} plans: meal sizes, contents, calories and price per tiffin in CAD.`, inputSchema: none, execute: read("/plans") },
+  { name: "get_menu", description: `This week's ${BRAND_NAME} menu, day by day.`, inputSchema: none, execute: read("/menu") },
 ];
 
 export function WebMcpTools() {

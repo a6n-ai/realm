@@ -1,5 +1,4 @@
-import { BRAND_NAME } from "../brand";
-import { CONTACT_EMAIL } from "../landing/contact";
+import { BRAND_NAME, CONTACT_EMAIL } from "../brand";
 import { publicAuthUrl } from "./env.public";
 
 // Every server env read the app shares lives here. Functions, not constants: tests and

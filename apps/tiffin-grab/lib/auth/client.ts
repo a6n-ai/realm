@@ -3,6 +3,7 @@ import { emailOTPClient } from "better-auth/client/plugins";
 import { preventGoogleAutoSignIn } from "@foundry/auth-ui";
 import { getCaptchaToken, needsCaptcha } from "./captcha-client";
 import { publicAuthUrl } from "@/lib/runtime/env.public";
+import { WIZARD_STORAGE_KEY } from "@/lib/wizard/session";
 
 export const authClient = createAuthClient({
   baseURL: publicAuthUrl(),
@@ -25,7 +26,7 @@ export const { signIn, signUp, useSession } = authClient;
 
 // The wizard keeps the plan being built in this tab's sessionStorage (tiffin.wizard*).
 // Without this, the next person to sign in on the same tab gets the previous customer's plan.
-const WIZARD_DRAFT_PREFIX = "tiffin.wizard";
+const WIZARD_DRAFT_PREFIX = WIZARD_STORAGE_KEY;
 
 export const signOut: typeof authClient.signOut = (...args) => {
   try {

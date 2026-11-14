@@ -15,6 +15,9 @@ export const QUOTE_CODES_KEY = "tiffin.quote.codes";
 /** Coins the customer agreed to use, handed to checkout the same way; its server price clamps them. */
 export const QUOTE_COINS_KEY = "tiffin.quote.coins";
 
+/** Set once when checkout reloads to pick up a new deploy after a failed price call, so it reloads at most once. */
+const PRICE_RELOAD_KEY = "tiffin.checkout.price-reload";
+
 const ORIGIN_HREF: Record<WizardOrigin, string> = { subscribe: "/subscribe", renew: "/me/renew", trial: "/me/trial" };
 
 export const asWizardOrigin = (raw: string | null | undefined): WizardOrigin => (raw === "renew" || raw === "trial" ? raw : "subscribe");
@@ -36,6 +39,8 @@ export const wizardSession = {
   selectionsRaw: () => get(WIZARD_STORAGE_KEY),
   origin: () => get(WIZARD_ORIGIN_KEY),
   step: () => Number(get(WIZARD_STEP_KEY)),
+  postalRaw: () => get(WIZARD_POSTAL_KEY),
+  priceReloaded: () => get(PRICE_RELOAD_KEY) != null,
   planStepsRaw: () => get(WIZARD_PLAN_STEPS_KEY),
   quote(): { codes: string[]; coins: number } {
     let codes: string[] = [];
@@ -45,6 +50,8 @@ export const wizardSession = {
 
   saveSelections: (s: WizardSelections) => set(WIZARD_STORAGE_KEY, JSON.stringify(s)),
   saveStep: (n: number) => set(WIZARD_STEP_KEY, String(n)),
+  savePostal: (served: unknown) => set(WIZARD_POSTAL_KEY, JSON.stringify(served)),
+  markPriceReload: () => set(PRICE_RELOAD_KEY, "1"),
   saveHandoff(h: { selections: WizardSelections; origin: WizardOrigin; planSteps: readonly string[]; codes: string[]; coins?: number }) {
     set(WIZARD_STORAGE_KEY, JSON.stringify(h.selections));
     set(WIZARD_ORIGIN_KEY, h.origin);
@@ -53,6 +60,8 @@ export const wizardSession = {
     if (h.coins) set(QUOTE_COINS_KEY, String(h.coins));
   },
 
+  clearPostal: () => remove(WIZARD_POSTAL_KEY),
+  clearPriceReload: () => remove(PRICE_RELOAD_KEY),
   clearQuoteCodes: () => remove(QUOTE_CODES_KEY),
   clearQuoteCoins: () => remove(QUOTE_COINS_KEY),
   /** Checkout placed the order: the saved plan and step go, the origin and quote keys stay. */

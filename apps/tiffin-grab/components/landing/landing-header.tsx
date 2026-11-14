@@ -8,12 +8,10 @@ import { BrandMark, BrandWordmark } from "@/components/brand-logo";
 import { usePublicSession } from "@/lib/auth/public-session";
 import { roleLanding } from "@/lib/auth/landing";
 import { Role, type RoleValue } from "@foundry/commons";
+import { pageOf } from "@/lib/routing/public-pages";
 
-const LINKS = [
-  { href: "/menu", label: "Menu" },
-  { href: "/pricing", label: "Pricing" },
-  { href: "/locations", label: "Locations" },
-];
+const navLink = (path: string) => ({ href: path, label: pageOf(path).label });
+const LINKS = ["/menu", "/pricing", "/locations"].map(navLink);
 
 /** Label that rolls up on hover: the visible copy slides out as an aria-hidden twin rolls in. */
 function Roll({ children, className }: { children: string; className?: string }) {
@@ -112,7 +110,7 @@ export function LandingHeader({ rating, refer = false }: { rating?: ReactNode; r
   }, [path]);
 
   // Refer sits in the menu on every width while the referral programme runs.
-  const navLinks = refer ? [...LINKS, { href: "/refer", label: "Refer" }, account] : [...LINKS, account];
+  const navLinks = refer ? [...LINKS, navLink("/refer"), account] : [...LINKS, account];
   const sheetLinks = refer ? [...LINKS, { href: "/refer", label: "Refer a friend" }, account] : navLinks;
 
   return (
@@ -161,8 +159,8 @@ export function LandingHeader({ rating, refer = false }: { rating?: ReactNode; r
           </nav>
           <Link prefetch={false} href={orderHref} className="tg-cta tg-sheet__cta" onClick={close}>Build my tiffin</Link>
           <div className="tg-sheet__foot">
-            <Link href="/contact" onClick={close}>Contact</Link>
-            <Link href="/faq" onClick={close}>FAQ</Link>
+            <Link href="/contact" onClick={close}>{pageOf("/contact").label}</Link>
+            <Link href="/faq" onClick={close}>{pageOf("/faq").label}</Link>
           </div>
         </div>
       </header>

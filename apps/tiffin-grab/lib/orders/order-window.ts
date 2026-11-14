@@ -183,7 +183,7 @@ export async function assertDayOutsideOtherPlans(
  * active/paused order of this customer: both would materialize deliveries on the same days.
  * `excludeOrderId` skips the order being moved/activated itself.
  */
-export async function assertNoPlanOverlap(
+async function assertNoPlanOverlap(
   tx: Tx | typeof db,
   args: { userId: bigint; startDate: string; durationWeeks: number; excludeOrderId?: bigint },
 ): Promise<void> {

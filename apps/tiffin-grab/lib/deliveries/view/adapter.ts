@@ -90,12 +90,6 @@ export function renewDays(last: string | null, today: string): number | null {
   return Math.max(daysBetween(today, last), 0);
 }
 
-/** ?trip if it names a real trip, else the next upcoming, else the next failed one to move, else the first. */
-export function pickDefaultTrip(trips: Trip[], requested: string | undefined): string | null {
-  if (requested && trips.some((t) => t.date === requested)) return requested;
-  return (trips.find((t) => t.status === "upcoming") ?? trips.find((t) => t.status === "failed") ?? trips[0])?.date ?? null;
-}
-
 /**
  * Groups plans into lines: a renewal joins the line whose latest plan ends before it starts;
  * plans that overlap start their own line. Each line is ordered by start date.

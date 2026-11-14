@@ -1,4 +1,5 @@
-import { CONTACT_EMAIL, CONTACT_PHONE, type SiteFacts } from "@/lib/landing/site-facts";
+import { CONTACT_EMAIL, CONTACT_PHONE } from "@/lib/brand";
+import type { SiteFacts } from "@/lib/landing/site-facts";
 import { shortMoney } from "@/lib/landing/live-figures";
 import { dropOffNote } from "@/lib/landing/llms-text";
 

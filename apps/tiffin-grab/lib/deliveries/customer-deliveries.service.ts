@@ -7,7 +7,7 @@ import { loadExtraDates } from "@/lib/deliveries/delivery-extras";
 import { isWordpressImport } from "@/lib/orders/wordpress-import";
 import { NotFoundError, ValidationError, weekdayKey } from "@foundry/commons";
 import type { FileDetail } from "@foundry/storage/model";
-import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lt, lte, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lte, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { orderPaymentStatuses } from "@/lib/payments/order-payments";
 import { deliveries, deliveryCategorySwaps, deliveryFrequencies, deliveryMoves, dishCategories, dishes, holidays, mealSizes, menuItems, orderActivities, orders, payments, plans } from "@/db/schema";
@@ -401,21 +401,6 @@ export async function myDeliveries(userId: bigint, from: string, until: string):
   }));
 }
 
-// One row per subscription: the earliest still-scheduled delivery. `myDeliveries`
-// already returns deliveryDate ASC, so the first "scheduled" row seen per
-// orderPublicId is the next one — paused/skipped rows are excluded here even
-// though myDeliveries surfaces them (VISIBLE) for other callers.
-export async function nextDeliveryByOrder(userId: bigint, from: string): Promise<Map<string, CustomerDelivery>> {
-  const farFuture = "9999-12-31";
-  const rows = await myDeliveries(userId, from, farFuture);
-  const next = new Map<string, CustomerDelivery>();
-  for (const row of rows) {
-    if (row.status !== "scheduled") continue;
-    if (!next.has(row.orderPublicId)) next.set(row.orderPublicId, row);
-  }
-  return next;
-}
-
 // Ownership guards: called by customer server actions BEFORE delegating to
 // shared admin mutations that have no ownership check of their own. Not-owned
 // and not-existent both throw the same NotFoundError — never a distinct
@@ -678,24 +663,6 @@ export async function myEndedPlan(userId: bigint): Promise<EndedPlan | null> {
   return null;
 }
 
-// Past deliveries for the History section. Bounded lookback [since, before);
-// `before` is today (exclusive) so it never overlaps the forward myDeliveries window.
-export async function myDeliveryHistory(userId: bigint, since: string, before: string): Promise<CustomerDelivery[]> {
-  const rows = await db
-    .select({ d: deliveries, orderPublicId: orders.publicId, planName: plans.name })
-    .from(deliveries)
-    .innerJoin(orders, eq(deliveries.orderId, orders.id))
-    .innerJoin(plans, eq(orders.planId, plans.id))
-    .where(and(
-      eq(orders.userId, userId),
-      inArray(deliveries.status, [...VISIBLE]),
-      gte(deliveries.deliveryDate, since),
-      lt(deliveries.deliveryDate, before),
-    ))
-    .orderBy(desc(deliveries.deliveryDate));
-  return rows.map((r) => ({ ...r.d, orderPublicId: r.orderPublicId, planName: r.planName, isMakeup: r.d.makeupForDeliveryId !== null }));
-}
-
 export type SubSummary = {
   publicId: string;
   planName: string;
@@ -741,37 +708,6 @@ export async function mySubscriptionsSummary(userId: bigint): Promise<SubSummary
       createdAt: r.createdAt,
       startDate: r.startDate,
     }));
-}
-
-export type CustomerActivity = {
-  publicId: string;
-  type: string;
-  note: string | null;
-  fromStatus: string | null;
-  toStatus: string | null;
-  deliveryId: bigint | null;
-  createdAt: number;
-  orderPublicId: string;
-};
-
-// Activity log scoped to the caller's own orders (IDOR via orders.userId).
-export async function myDeliveryActivity(userId: bigint, limit = 50): Promise<CustomerActivity[]> {
-  return db
-    .select({
-      publicId: orderActivities.publicId,
-      type: orderActivities.type,
-      note: orderActivities.note,
-      fromStatus: orderActivities.fromStatus,
-      toStatus: orderActivities.toStatus,
-      deliveryId: orderActivities.deliveryId,
-      createdAt: orderActivities.createdAt,
-      orderPublicId: orders.publicId,
-    })
-    .from(orderActivities)
-    .innerJoin(orders, eq(orderActivities.orderId, orders.id))
-    .where(eq(orders.userId, userId))
-    .orderBy(desc(orderActivities.createdAt))
-    .limit(limit);
 }
 
 // Pure read: resolves "what's coming" for one delivery against the released menu_week for its

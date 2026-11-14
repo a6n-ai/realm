@@ -1,3 +1,4 @@
+import { BRAND_NAME } from "@/lib/brand";
 import { BreadcrumbSchema } from "@/components/landing/breadcrumb-schema";
 import type { Metadata } from "next";
 import { ReferContent } from "@/components/landing/refer/refer-content";
@@ -20,8 +21,8 @@ export const dynamic = "error";
 
 export async function generateMetadata(): Promise<Metadata> {
   const offer = await loadReferralOffer();
-  const description = offer.on ? `${referHeadline(offer)} Share your Tiffin Grab link; when a friend pays for their first plan, you both get coins.` : "TiffinGrab referrals are paused right now.";
-  const title = offer.on ? `Refer a Friend: ${referHeadline(offer).replace(/\.$/, "")} | Tiffin Grab` : "Refer a Friend | Tiffin Grab";
+  const description = offer.on ? `${referHeadline(offer)} Share your ${BRAND_NAME} link; when a friend pays for their first plan, you both get coins.` : "TiffinGrab referrals are paused right now.";
+  const title = offer.on ? `Refer a Friend: ${referHeadline(offer).replace(/\.$/, "")} | ${BRAND_NAME}` : `Refer a Friend | ${BRAND_NAME}`;
   return pageMeta(title, description, "/refer");
 }
 

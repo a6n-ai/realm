@@ -16,7 +16,6 @@
 @source "../../components/brand-logo.tsx";
 @source "../../components/browser-chrome.tsx";
 @source "../../components/cross-host-splash.tsx";
-@source "../../components/inline-script.tsx";
 @source "../../components/stale-deploy-reloader.tsx";
 @source "../../../../node_modules/@foundry/ui/src/{avatar,badge,button,form,label,input,textarea,select,phone-input,command,popover,scroll-area,dialog,sonner,tooltip}.tsx";
 @source "../../../../node_modules/@foundry/design-system/src/{location-picker,responsive-dialog}.tsx";

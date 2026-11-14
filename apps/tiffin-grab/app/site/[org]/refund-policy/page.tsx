@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { Callout, Clause, LegalPage, List, Mail, Sub, SeeSection, type KeyPoint } from "@/components/marketing/legal";
-import { pageMeta } from "@/lib/landing/meta";
+import { legalMeta } from "@/lib/landing/meta";
 
-export const metadata: Metadata = pageMeta("Refund and return policy | Tiffin Grab", "When TiffinGrab refunds trial, weekly, and monthly plans, how to report quality issues, and processing times.", "/refund-policy");
+export const metadata: Metadata = legalMeta("Refund and return policy", "When TiffinGrab refunds trial, weekly, and monthly plans, how to report quality issues, and processing times.", "/refund-policy");
 export const revalidate = 86400;
 export const dynamic = "error";
 
@@ -30,7 +30,7 @@ const KEY_POINTS: KeyPoint[] = [
 
 export default function RefundPolicyPage() {
   return (
-    <LegalPage title="Refund & return policy" intro="When you can get a refund or credit, how to report a problem with a meal, and how long refunds take. Food is perishable, so options are limited." updated="November 9, 2026" current="/refund-policy" sections={SECTIONS} keyPoints={KEY_POINTS}>
+    <LegalPage title="Refund & return policy" intro="When you can get a refund or credit, how to report a problem with a meal, and how long refunds take. Food is perishable, so options are limited." current="/refund-policy" sections={SECTIONS} keyPoints={KEY_POINTS}>
       <Callout tone="warn">
         <strong>Important:</strong> Food is perishable and time-sensitive; refund options are limited. Read this policy
         before purchasing. Submit refund requests in writing to <Mail />.

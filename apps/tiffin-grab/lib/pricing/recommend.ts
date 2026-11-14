@@ -58,11 +58,6 @@ function options(snapshot: ClientCatalogSnapshot, selections: PricingSelections,
   return { current, currentAlt, alternatives };
 }
 
-export function recommendDeals({ snapshot, selections, cap = 1, vary }: { snapshot: ClientCatalogSnapshot; selections: PricingSelections; cap?: number; vary?: "frequency" | "duration" }): RankedDeal<DealPayload>[] {
-  const o = options(snapshot, selections, vary);
-  return o ? rankDeals(dealBasis(o.current.pct), o.alternatives, { limit: cap }) : [];
-}
-
 export type DealComparison =
   | { state: "none" }
   | { state: "recommend"; deal: RankedDeal<DealPayload> }

@@ -16,28 +16,6 @@ async function me(): Promise<bigint> {
   return id;
 }
 
-export async function pickMyDish(input: {
-  orderId: string; menuWeekId: string;
-  dayOfWeek: "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
-  slot: string; personIndex: number; pickIndex?: number; dishId: string;
-}): Promise<ActionResult> {
-  return runAction(async () => {
-    const actorId = await me();
-    await assertCanManageOrder(input.orderId); // owner OR staff
-    await assertOrderUnlocked(input.orderId);
-    const [order] = await db.select().from(orders).where(eq(orders.publicId, input.orderId)).limit(1);
-    if (!order) throw new NotFoundError("Subscription not found");
-    const [week] = await db.select().from(menuWeeks).where(eq(menuWeeks.publicId, input.menuWeekId)).limit(1);
-    if (!week) throw new NotFoundError("Menu week not found");
-    await selectionsService.setSelection({
-      order, menuWeek: week, dayOfWeek: input.dayOfWeek, slot: input.slot,
-      personIndex: input.personIndex, pickIndex: input.pickIndex ?? 1, dishPublicId: input.dishId,
-      actorId,
-    });
-    revalidateOrder(input.orderId, { customerApp: true });
-  });
-}
-
 export type PickItem = {
   menuWeekId: string;
   dayOfWeek: "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";

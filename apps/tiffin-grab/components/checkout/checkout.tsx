@@ -41,7 +41,7 @@ import type { CardSource } from "@/lib/payments/payment-stripe";
 import { createWebsiteInquiry } from "@/lib/landing/contact-actions";
 import { toast } from "sonner";
 import { emailSchema, phoneSchema } from "@foundry/commons";
-import { asWizardOrigin, originHref, parsePlanSteps, WIZARD_POSTAL_KEY, wizardSession } from "@/lib/wizard/session";
+import { asWizardOrigin, originHref, parsePlanSteps, wizardSession } from "@/lib/wizard/session";
 import { firstBlockedStep, mealNote, pickedAddons, reconcileSelections, type WizardOrigin, type WizardSelections } from "@/lib/wizard/selections";
 
 function isPlanRenewalCheckout(lastTiffin: string | null): boolean {
@@ -106,7 +106,7 @@ const EMPTY_ADDRESS: AddressDraft = { addressLine: "", addressUnit: "", city: ""
 /** A new address starts with the postal code the visitor already checked on the builder. */
 function newAddress(): AddressDraft {
   try {
-    const checked = JSON.parse(sessionStorage.getItem(WIZARD_POSTAL_KEY) ?? "null") as { postal?: string } | null;
+    const checked = JSON.parse(wizardSession.postalRaw() ?? "null") as { postal?: string } | null;
     return { ...EMPTY_ADDRESS, postalCode: checked?.postal ?? "" };
   } catch {
     return { ...EMPTY_ADDRESS };
@@ -140,7 +140,6 @@ function formatChargeHint(item: { chargeType: "none" | "fixed" | "percent"; char
 }
 
 const noSubscribe = () => () => {};
-const PRICE_RELOAD_KEY = "tiffin.checkout.price-reload";
 
 /** Quick renew's plan picks over this order's own delivery fields (drop-off and address type belong to Delivery, not Plan). */
 const withPlan = (own: WizardSelections, p: WizardSelections): WizardSelections => ({
@@ -486,7 +485,7 @@ export function Checkout({
     // Coins the customer agreed to on the estimate: tried with the first price, dropped if refused.
     refreshPrice(s, quoted, null, quotedCoins || undefined).then(
       async (r) => {
-        sessionStorage.removeItem(PRICE_RELOAD_KEY);
+        wizardSession.clearPriceReload();
         let coins = quotedCoins;
         if (coins) {
           wizardSession.clearQuoteCoins();
@@ -511,12 +510,12 @@ export function Checkout({
           : { status: "applied", message: `${kept.join(", ")} ${kept.length > 1 ? "are" : "is"} applied` });
       },
       (err) => {
-        if (err instanceof UnpriceableCart) { sessionStorage.removeItem(PRICE_RELOAD_KEY); setResult(null); return; }
+        if (err instanceof UnpriceableCart) { wizardSession.clearPriceReload(); setResult(null); return; }
         // A tab left open across a deploy calls Server Action ids the new build no longer
         // has; deploymentId only catches that on navigation. One reload picks up the new
         // build (the plan is in sessionStorage); a second failure is real and shows Retry.
-        if (!sessionStorage.getItem(PRICE_RELOAD_KEY)) {
-          sessionStorage.setItem(PRICE_RELOAD_KEY, "1");
+        if (!wizardSession.priceReloaded()) {
+          wizardSession.markPriceReload();
           window.location.reload();
           return;
         }

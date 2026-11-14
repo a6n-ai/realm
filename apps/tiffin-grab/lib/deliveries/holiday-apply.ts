@@ -9,7 +9,7 @@ import { openPlanDays } from "@/lib/deliveries/next-open-day";
 import { humanDate } from "@/lib/deliveries/view";
 import { getAppSettings } from "../services/app-settings.service";
 import type { Tx } from "@/db/client";
-import { loadPlanDays } from "./deliveries.service";
+import { loadPlanDays, materializeDeliveries } from "./deliveries.service";
 import type { OptimoSyncedRow } from "../optimoroute/stops";
 import { upcomingHolidays, type HolidayDay } from "./holiday-dates";
 import { otherPlanDays } from "../orders/order-window";
@@ -231,4 +231,13 @@ export async function placeHolidayExtras(tx: Tx, order: Order, sourceId: bigint,
     note: `Holiday day ${source.deliveryDate} placed on ${dates.join(", ")}`,
   });
   return dates;
+}
+
+/**
+ * A schedule write under the order lock: lay the rows out (when `materialize`), then close any
+ * declared holiday they land on. The caller holds the lock (withOrderLock / lockOrder).
+ */
+export async function scheduleWrite(tx: Tx, order: Order, actorId: bigint | null, opts: { materialize?: boolean } = {}): Promise<HolidayApplied[]> {
+  if (opts.materialize) await materializeDeliveries(tx, order);
+  return applyHolidaysToOrder(tx, order, actorId);
 }

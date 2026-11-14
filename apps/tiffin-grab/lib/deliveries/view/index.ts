@@ -7,7 +7,6 @@ import { coveredDates, formatCoversLabel } from "@/lib/menu/coverage";
 export type TripStatus = "upcoming" | "delivered" | "unconfirmed" | "paused" | "rescheduled" | "combined-into" | "locked" | "cutoff-passed" | "failed" | "holiday";
 export type TripAction = "pick" | "swap" | "move" | "address";
 export type Availability = { ok: boolean; why: string | null; sub: string };
-export type LegendKey = "delivered" | "upcoming" | "paused" | "onHold" | "holiday";
 
 type MealLike = { label: string; picks: { name: string }[]; quantity: number }[];
 
@@ -182,32 +181,8 @@ export function buildTrips(days: CalendarDayInput[], now: number, plan: PlanCont
     .sort((a, b) => a.date.localeCompare(b.date));
 }
 
-const LEGEND: Record<TripStatus, LegendKey | null> = {
-  upcoming: "upcoming",
-  delivered: "delivered",
-  unconfirmed: "upcoming",
-  "cutoff-passed": "delivered",
-  rescheduled: "onHold",
-  locked: "onHold",
-  paused: "paused",
-  "combined-into": null,
-  failed: "onHold",
-  holiday: "holiday",
-};
-const LEGEND_LABEL: Record<LegendKey, string> = { delivered: "Delivered", upcoming: "Upcoming", paused: "Paused", onHold: "Not delivered", holiday: "Holiday" };
-
 /** Paused, then its cutoff passed: stored as a hold (Move only), but the customer still reads it as Paused. */
 export const isPastPause = (t: Pick<Trip, "status" | "lapsedPause">): boolean => t.status === "failed" && !!t.lapsedPause;
-
-/** Replaces day-status.ts: legend bucket per eating day, keyed by ISO date. */
-export function buildDayStatusMap(trips: Trip[]): Record<string, { status: TripStatus; legend: LegendKey | null; label: string | null }> {
-  const out: Record<string, { status: TripStatus; legend: LegendKey | null; label: string | null }> = {};
-  for (const t of trips) {
-    const legend = isPastPause(t) ? "paused" : LEGEND[t.status];
-    for (const c of t.coversDates) out[c] = { status: t.status, legend, label: legend ? LEGEND_LABEL[legend] : null };
-  }
-  return out;
-}
 
 /**
  * A day put on hold after its cutoff may still go out: the label is printed and the stop may be

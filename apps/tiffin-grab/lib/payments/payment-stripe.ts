@@ -287,7 +287,7 @@ export type CardReceipt = { paidWith: string | null; feeCents: number; totalCent
 const WALLETS: Record<string, string> = { apple_pay: "Apple Pay", google_pay: "Google Pay", link: "Link" };
 const titleCase = (s: string) => s.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 
-export function paidWithLabel(card: { brand: string | null; last4: string | null; wallet?: string | null }): string | null {
+function paidWithLabel(card: { brand: string | null; last4: string | null; wallet?: string | null }): string | null {
   if (card.wallet) return WALLETS[card.wallet] ?? titleCase(card.wallet);
   return card.brand ? (card.last4 ? `${titleCase(card.brand)} •••• ${card.last4}` : titleCase(card.brand)) : null;
 }

@@ -1,3 +1,4 @@
+import { BRAND_NAME } from "@/lib/brand";
 import type { Viewport } from "next";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
@@ -21,7 +22,7 @@ import { findReferrerByCode } from "@/lib/referrals/referrals.service";
 import { loadReferralOffer } from "@/lib/referrals/offer";
 import { ReferralGift } from "@/components/wizard/referral-gift";
 
-const TITLE = "Build your tiffin plan | Tiffin Grab";
+const TITLE = `Build your tiffin plan | ${BRAND_NAME}`;
 const DESCRIPTION = "Pick your diet, meal size, add-ons, delivery days and weeks, and see the total before you pay.";
 
 // A referral link previews (WhatsApp, iMessage, Facebook) as the friend's promo card with their code.

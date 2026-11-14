@@ -1,3 +1,4 @@
+import { BRAND_NAME } from "@/lib/brand";
 import { WEEK_DAYS } from "@/lib/menu/delivery-days";
 import { siteOrgId } from "@/lib/tenant/site-org";
 import type { Metadata } from "next";
@@ -39,7 +40,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const free = deliveryIsFree(catalog) ? " free" : "";
   const pause = catalog.cutoffHour != null ? `Pause by ${hourLabel(catalog.cutoffHour)} the night before` : "Pause any day you're away";
   return pageMeta(
-    "Home-Style Tiffin Service in Toronto & GTA | Tiffin Grab",
+    `Home-Style Tiffin Service in Toronto & GTA | ${BRAND_NAME}`,
     `Home-style veg and non-veg tiffins, cooked in small batches and delivered${free} across the GTA. Pick your size, days and weeks. ${pause}.`,
     "/",
   );

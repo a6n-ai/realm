@@ -5,8 +5,8 @@ import type { CatalogSnapshot } from "@/lib/catalog/types";
 import { windowOf } from "@/lib/public-api/postal";
 import type { BoardDay, BoardWeekend } from "@/lib/landing/week-board";
 import type { FaqGroup } from "@/lib/landing/faq-list";
-import { SUPPORT_E164 } from "@/lib/landing/contact";
-import { CONTACT_EMAIL, CONTACT_PHONE, type SiteFacts } from "@/lib/landing/site-facts";
+import { CONTACT_EMAIL, CONTACT_PHONE, SUPPORT_E164 } from "@/lib/brand";
+import type { SiteFacts } from "@/lib/landing/site-facts";
 import type { ReferralOffer } from "@/lib/referrals/offer";
 import { referHeadline } from "@/lib/referrals/headline";
 

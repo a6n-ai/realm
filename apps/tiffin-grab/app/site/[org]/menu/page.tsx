@@ -1,3 +1,4 @@
+import { BRAND_NAME } from "@/lib/brand";
 import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
@@ -21,7 +22,7 @@ import { pageMeta } from "@/lib/landing/meta";
 import { breadcrumbJsonLd, jsonLdScript, menuJsonLd } from "@/lib/landing/business-jsonld";
 import { publicOrigin } from "@/lib/routing/apex";
 
-export const metadata: Metadata = pageMeta("This Week's Tiffin Menu: Dal, Sabzi, Roti | Tiffin Grab", "See this week's home-style tiffin menu day by day: sabzi, dal, rice, roti, raita and salad, plus the weekend dish. Subscribers pick their sabzi in the app.", "/menu");
+export const metadata: Metadata = pageMeta(`This Week's Tiffin Menu: Dal, Sabzi, Roti | ${BRAND_NAME}`, "See this week's home-style tiffin menu day by day: sabzi, dal, rice, roti, raita and salad, plus the weekend dish. Subscribers pick their sabzi in the app.", "/menu");
 export const revalidate = 300;
 export const dynamic = "error";
 

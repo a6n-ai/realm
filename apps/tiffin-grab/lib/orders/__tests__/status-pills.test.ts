@@ -1,13 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { orderStatus } from "@/db/schema/orders";
-import {
-  BOOKED_STATUSES,
-  ONGOING_STATUSES,
-  ORDER_STATUS_PILLS,
-  RUNNING_STATUSES,
-  SOON_STATUSES,
-  orderStatusFilter,
-} from "@/lib/orders/status-pills";
+import { BOOKED, ONGOING, RUNNING, STARTING_SOON } from "@/lib/orders/status";
+import { ORDER_STATUS_PILLS, orderStatusFilter } from "@/lib/orders/status-pills";
 
 describe("orderStatusFilter", () => {
   it("passes other statuses through untouched", () => {
@@ -28,9 +22,9 @@ describe("orderStatusFilter", () => {
   });
 
   it("expands running / soon / booked for KPI drills", () => {
-    expect(orderStatusFilter({ status: "running" }).extra).toMatchObject({ value: [...RUNNING_STATUSES] });
-    expect(orderStatusFilter({ status: "soon" }).extra).toMatchObject({ value: [...SOON_STATUSES] });
-    expect(orderStatusFilter({ status: "booked" }).extra).toMatchObject({ value: [...BOOKED_STATUSES] });
+    expect(orderStatusFilter({ status: "running" }).extra).toMatchObject({ value: [...RUNNING] });
+    expect(orderStatusFilter({ status: "soon" }).extra).toMatchObject({ value: [...STARTING_SOON] });
+    expect(orderStatusFilter({ status: "booked" }).extra).toMatchObject({ value: [...BOOKED] });
   });
 });
 
@@ -43,7 +37,7 @@ describe("status pills", () => {
 
   it("pseudo status sets are all real order statuses", () => {
     const real = new Set<string>(orderStatus.enumValues);
-    for (const set of [ONGOING_STATUSES, RUNNING_STATUSES, SOON_STATUSES, BOOKED_STATUSES]) {
+    for (const set of [ONGOING, RUNNING, STARTING_SOON, BOOKED]) {
       expect(set.filter((s) => !real.has(s))).toEqual([]);
     }
   });

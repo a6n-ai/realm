@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { deliveredTiffinCount, remainingTiffinCount, scheduledTiffinCount, type DeliveryForCounts } from "../tiffin-counts";
+import { deliveredTiffinCount, scheduledTiffinCount, type DeliveryForCounts } from "../tiffin-counts";
 
 const past = 1;
 const future = Date.now() + 1e9;
@@ -19,13 +19,11 @@ describe("tiffin-counts", () => {
       { ...row({ cutoffAt: future }), mergedIntoDeliveryId: 7n },
     ];
     expect(scheduledTiffinCount(rows)).toBe(2);
-    expect(remainingTiffinCount(4, rows, now) - scheduledTiffinCount(rows)).toBe(1);
   });
 
   it("sums confirmed scheduled rows' tiffinUnits as delivered", () => {
     const rows = [row({ cutoffAt: past, tiffinUnits: 2, optimoCompletionStatus: "success" }), row({ cutoffAt: future, tiffinUnits: 2 })];
     expect(deliveredTiffinCount(rows, now)).toBe(2);
-    expect(remainingTiffinCount(10, rows, now)).toBe(8);
   });
 
   it("counts a confirmed makeup row (still scheduled) as delivered", () => {
@@ -44,7 +42,6 @@ describe("tiffin-counts", () => {
   it("does not count future scheduled or cancelled as delivered", () => {
     const rows = [row({ cutoffAt: future }), row({ status: "cancelled", cutoffAt: past })];
     expect(deliveredTiffinCount(rows, now)).toBe(0);
-    expect(remainingTiffinCount(9, rows, now)).toBe(9);
   });
 
   it("counts a weekend-bundled Friday's higher tiffinUnits, not a flat per-row count", () => {
@@ -59,7 +56,6 @@ describe("tiffin-counts", () => {
   it("counts a not-yet-cutoff row as delivered once OptimoRoute confirms completion", () => {
     const rows = [row({ cutoffAt: future, optimoCompletionStatus: "success", tiffinUnits: 2 })];
     expect(deliveredTiffinCount(rows, now)).toBe(2);
-    expect(remainingTiffinCount(5, rows, now)).toBe(3);
   });
 
   it("does not count a past-cutoff row until OptimoRoute or an admin confirms it", () => {

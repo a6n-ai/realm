@@ -1,7 +1,7 @@
 import type { CatalogSnapshot } from "@/lib/catalog/types";
 import { isComingSoon, publicPlans } from "@/lib/landing/plan-options";
 import { listableMealSizes } from "@/lib/catalog/types";
-import { SUPPORT_E164 } from "@/lib/landing/contact";
+import { BRAND_NAME, SUPPORT_E164 } from "@/lib/brand";
 import { shortMoney } from "@/lib/landing/live-figures";
 import { effectivePrice } from "@/lib/pricing";
 
@@ -27,7 +27,7 @@ export function businessJsonLd(catalog: CatalogSnapshot, origin: string, { curre
       {
         "@type": "FoodEstablishment",
         "@id": `${origin}/#business`,
-        name: "Tiffin Grab",
+        name: BRAND_NAME,
         url: `${origin}/`,
         logo: `${origin}/brand/mark.svg`,
         image: `${origin}/opengraph-image.png`,
@@ -40,7 +40,7 @@ export function businessJsonLd(catalog: CatalogSnapshot, origin: string, { curre
         ...(rating?.url ? { sameAs: [rating.url] } : {}),
         areaServed: [{ "@type": "AdministrativeArea", name: "Greater Toronto Area" }, ...areas.map((name) => ({ "@type": REGION.test(name) ? "AdministrativeArea" : "City", name }))],
       },
-      { "@type": "WebSite", "@id": `${origin}/#website`, name: "Tiffin Grab", url: `${origin}/`, publisher: { "@id": `${origin}/#business` } },
+      { "@type": "WebSite", "@id": `${origin}/#website`, name: BRAND_NAME, url: `${origin}/`, publisher: { "@id": `${origin}/#business` } },
     ],
   };
 }
@@ -65,7 +65,7 @@ export function pricingJsonLd(catalog: CatalogSnapshot, origin: string, currency
     url: `${origin}/pricing`,
     seller: { "@id": `${origin}/#business` },
   }));
-  return offers.length ? { "@context": "https://schema.org", "@type": "OfferCatalog", name: "Tiffin Grab plans", itemListElement: offers } : null;
+  return offers.length ? { "@context": "https://schema.org", "@type": "OfferCatalog", name: `${BRAND_NAME} plans`, itemListElement: offers } : null;
 }
 
 /** Menu with a section per published day; null when no week is published. */

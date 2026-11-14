@@ -24,7 +24,7 @@ import { enqueueOrderNotice } from "@/lib/notifications/order-notice";
 import { receiptAttachments } from "@/lib/billing/receipt-link";
 import { shiftMissedDeliveries } from "@/lib/deliveries/deliveries.service";
 import { removeStopsBestEffort, type OptimoSyncedRow } from "@/lib/optimoroute/stops";
-import { scheduleWrite } from "@/lib/services/schedule-write";
+import { scheduleWrite } from "@/lib/deliveries/holiday-apply";
 import { upcomingHolidays } from "@/lib/deliveries/holiday-dates";
 import { paidStartDate } from "@/lib/orders/paid-start";
 import { ledgerService } from "@/lib/payments/ledger.service";

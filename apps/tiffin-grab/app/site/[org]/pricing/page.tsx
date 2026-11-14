@@ -1,3 +1,4 @@
+import { BRAND_NAME } from "@/lib/brand";
 import { MON_FRI, WEEK_DAYS } from "@/lib/menu/delivery-days";
 import type { Metadata } from "next";
 import { Suspense } from "react";
@@ -33,7 +34,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const [catalog, { currency }] = await Promise.all([loadCatalogSnapshot(), getAppSettings()]);
   const rate = lowestRate(catalog);
   const off = biggestDurationOff(catalog);
-  const title = rate != null ? `Tiffin Plans & Prices in Toronto, from ${shortMoney(rate, currency)} | Tiffin Grab` : "Tiffin Plans & Prices in Toronto & GTA | Tiffin Grab";
+  const title = rate != null ? `Tiffin Plans & Prices in Toronto, from ${shortMoney(rate, currency)} | ${BRAND_NAME}` : `Tiffin Plans & Prices in Toronto & GTA | ${BRAND_NAME}`;
   const saving = off != null ? `, up to ${off}% off longer plans` : "";
   const delivery = deliveryIsFree(catalog) ? ", and free GTA delivery" : "";
   return pageMeta(title, `Veg and non-veg plans with every meal size, what's in it and its calories. One rate per tiffin${saving}${delivery}.`, "/pricing");

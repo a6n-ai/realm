@@ -1,3 +1,4 @@
+import { BRAND_NAME } from "@/lib/brand";
 import { BreadcrumbSchema } from "@/components/landing/breadcrumb-schema";
 import { siteOrgId } from "@/lib/tenant/site-org";
 import type { Metadata } from "next";
@@ -9,7 +10,7 @@ import { pageMeta } from "@/lib/landing/meta";
 import { jsonLdScript } from "@/lib/landing/business-jsonld";
 import { loadFaqGroups } from "@/lib/landing/faq-data";
 
-export const metadata: Metadata = pageMeta("Tiffin Service FAQ: Delivery, Changes, Pricing | Tiffin Grab", "How Tiffin Grab works: where we deliver in the GTA, changing what comes on a given day, how pricing works, and how to pay for your plan.", "/faq");
+export const metadata: Metadata = pageMeta(`Tiffin Service FAQ: Delivery, Changes, Pricing | ${BRAND_NAME}`, "How Tiffin Grab works: where we deliver in the GTA, changing what comes on a given day, how pricing works, and how to pay for your plan.", "/faq");
 export const revalidate = 3600;
 export const dynamic = "error";
 

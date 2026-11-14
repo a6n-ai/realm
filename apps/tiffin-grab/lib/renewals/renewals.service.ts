@@ -594,7 +594,7 @@ export async function getCustomerRenewal(visible: "all" | string[], customerPubl
 }
 
 /** Batch wallet / lifetime spend / previous-plan total for Renewals rows. */
-export async function renewalMoney(
+async function renewalMoney(
   rows: { id: bigint; userId: bigint | null }[],
 ): Promise<{
   walletByUser: Map<string, number>;

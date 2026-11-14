@@ -82,7 +82,7 @@ const POSTAL_PREFIX: Record<string, Province> = {
   X: "NT", Y: "YT",
 };
 
-export function isProvince(value: string): value is Province {
+function isProvince(value: string): value is Province {
   return (PROVINCES as readonly string[]).includes(value);
 }
 

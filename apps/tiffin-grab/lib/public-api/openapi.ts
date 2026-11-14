@@ -1,4 +1,5 @@
 // The one description of the public API: /openapi.json serves it and /docs is generated from it.
+import { CONTACT_EMAIL, CONTACT_PHONE, SUPPORT_E164 } from "@/lib/brand";
 type Json = Record<string, unknown>;
 
 const ref = (name: string) => ({ $ref: `#/components/schemas/${name}` });
@@ -95,7 +96,7 @@ export function openApi(origin: string): Json & { paths: Record<string, { get: J
         get: {
           summary: "How to reach us",
           description: "Email, phone and WhatsApp.",
-          responses: ok("Contact", ref("Contact"), { email: "info@tiffingrab.ca", phone: "+1 (647) 244-9813", whatsapp: "https://wa.me/16472449813", source: `${origin}/contact` }),
+          responses: ok("Contact", ref("Contact"), { email: CONTACT_EMAIL, phone: CONTACT_PHONE, whatsapp: `https://wa.me/${SUPPORT_E164}`, source: `${origin}/contact` }),
         },
       },
       "/health": {

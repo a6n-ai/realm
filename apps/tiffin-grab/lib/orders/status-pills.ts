@@ -11,17 +11,11 @@ import { inList, type Condition } from "@foundry/commons/model/condition";
 
 // Pseudo-buckets expand to real status sets. They exist because the `pills` facet
 // kind parses to eq() — a comma list in the URL would match nothing.
-export const ONGOING_STATUSES = ONGOING;
-/** Active + paused — matches the Orders "Running plans" KPI. */
-export const RUNNING_STATUSES = RUNNING;
-export const SOON_STATUSES = STARTING_SOON;
-export const BOOKED_STATUSES = BOOKED;
-
 const PSEUDO: Record<string, readonly string[]> = {
-  ongoing: ONGOING_STATUSES,
-  running: RUNNING_STATUSES,
-  soon: SOON_STATUSES,
-  booked: BOOKED_STATUSES,
+  ongoing: ONGOING,
+  running: RUNNING,
+  soon: STARTING_SOON,
+  booked: BOOKED,
 };
 
 /**

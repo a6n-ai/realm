@@ -1,3 +1,4 @@
+import { BRAND_NAME } from "@/lib/brand";
 import "@/app/styles/public.css";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -5,7 +6,7 @@ import { ArrowRight } from "lucide-react";
 import { PageIntro, PublicShell } from "@/components/landing/public-shell";
 import { FIGURE_RASTER, FIGURE_SRCSET } from "@/lib/landing/figure";
 
-export const metadata: Metadata = { title: "Page not found | Tiffin Grab", robots: { index: false } };
+export const metadata: Metadata = { title: `Page not found | ${BRAND_NAME}`, robots: { index: false } };
 
 export default function NotFound() {
   return (

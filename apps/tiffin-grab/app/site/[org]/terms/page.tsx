@@ -1,8 +1,9 @@
+import { BRAND_HOST } from "@/lib/brand";
 import type { Metadata } from "next";
 import { Callout, Clause, LegalPage, List, Mail, Sub, type KeyPoint } from "@/components/marketing/legal";
-import { pageMeta } from "@/lib/landing/meta";
+import { legalMeta } from "@/lib/landing/meta";
 
-export const metadata: Metadata = pageMeta("Terms and conditions | Tiffin Grab", "The terms that govern ordering from and subscribing to TiffinGrab in Ontario, Canada.", "/terms");
+export const metadata: Metadata = legalMeta("Terms and conditions", "The terms that govern ordering from and subscribing to TiffinGrab in Ontario, Canada.", "/terms");
 export const revalidate = 86400;
 export const dynamic = "error";
 
@@ -40,9 +41,9 @@ const KEY_POINTS: KeyPoint[] = [
 
 export default function TermsPage() {
   return (
-    <LegalPage title="Terms & conditions" intro="The agreement between you and TiffinGrab when you order or subscribe: who can order, how billing and plans work, allergens, and what each side is responsible for." updated="November 9, 2026" current="/terms" sections={SECTIONS} keyPoints={KEY_POINTS}>
+    <LegalPage title="Terms & conditions" intro="The agreement between you and TiffinGrab when you order or subscribe: who can order, how billing and plans work, allergens, and what each side is responsible for." current="/terms" sections={SECTIONS} keyPoints={KEY_POINTS}>
       <Callout>
-        <strong>Binding agreement.</strong> By using tiffingrab.ca, placing an order, or subscribing, you agree to these
+        <strong>Binding agreement.</strong> By using {BRAND_HOST}, placing an order, or subscribing, you agree to these
         Terms with TiffinGrab. If you disagree, do not use our services. These Terms are governed by the laws of Ontario
         and Canada.
       </Callout>

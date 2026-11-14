@@ -1,11 +1,12 @@
+import { CONTACT_EMAIL } from "@/lib/brand";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight, FileText, RotateCcw, ShieldCheck, Truck, type LucideIcon } from "lucide-react";
 import { Section } from "@/components/marketing/section";
 import { LEGAL_DOCS, Mail } from "@/components/marketing/legal";
-import { pageMeta } from "@/lib/landing/meta";
+import { legalMeta } from "@/lib/landing/meta";
 
-export const metadata: Metadata = pageMeta("Policies | Tiffin Grab", "TiffinGrab's terms of service, privacy practices, refund rules, and delivery standards for customers in Ontario, Canada.", "/legal");
+export const metadata: Metadata = legalMeta("Policies", "TiffinGrab's terms of service, privacy practices, refund rules, and delivery standards for customers in Ontario, Canada.", "/legal");
 export const revalidate = 86400;
 export const dynamic = "error";
 
@@ -21,7 +22,7 @@ const ICONS: Record<(typeof LEGAL_DOCS)[number]["href"], LucideIcon> = {
 const QUICK_ANSWERS = [
   { q: "Can I get a refund?", a: "Trial and weekly plans, no. Monthly plans, yes, if you cancel in writing at least 48 hours before your first delivery.", href: "/refund-policy#s2" },
   { q: "How do I pause my plan?", a: "Tell us at least 24 hours before your next delivery. Unused days may be credited to the end of your plan.", href: "/terms#s5" },
-  { q: "Something was wrong with my meal.", a: "Report it within 2 hours of delivery, with photos, to info@tiffingrab.ca.", href: "/refund-policy#s4" },
+  { q: "Something was wrong with my meal.", a: `Report it within 2 hours of delivery, with photos, to ${CONTACT_EMAIL}.`, href: "/refund-policy#s4" },
   { q: "What if I miss a delivery?", a: "We make one attempt. If it fails because of our error, the day is credited.", href: "/delivery-policy#s5" },
   { q: "Is the food safe for allergies?", a: "Meals are made in a shared kitchen with common allergens. Not suitable for severe allergies.", href: "/terms#s6" },
   { q: "Do you sell my data?", a: "Never. We share only what's needed, such as your address for delivery. Interac e-Transfer details stay with us so staff can confirm payment.", href: "/privacy#s3" },

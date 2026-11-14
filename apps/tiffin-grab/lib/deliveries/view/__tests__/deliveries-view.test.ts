@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { actionAvailability, buildDayStatusMap, buildTrips, holdAwaitingReconcile, type CalendarDayInput, type PlanContext, type TripAction } from "..";
+import { actionAvailability, buildTrips, holdAwaitingReconcile, type CalendarDayInput, type PlanContext, type TripAction } from "..";
 
 // Mon 2026-09-21 12:00 America/Toronto (EDT, UTC-4)
 const NOW = Date.UTC(2026, 8, 21, 16, 0);
@@ -160,25 +160,3 @@ describe("actionAvailability copy", () => {
   });
 });
 
-describe("buildDayStatusMap", () => {
-  it("maps every eating day to the trip's legend key; merged source has none", () => {
-    const trips = buildTrips([
-      day({ date: "2026-09-25", units: 3, covers: ["2026-09-25", "2026-09-26", "2026-09-27"] }),
-      day({ date: "2026-09-21", locked: true, optimoCompletionStatus: "success" }),
-      day({ date: "2026-09-28", status: "skipped" }),
-      day({ date: "2026-09-30", status: "paused" }),
-      day({ date: "2026-10-01", status: "skipped", lapsedPause: true }),
-      day({ date: "2026-10-02", status: "skipped", combinedInto: "2026-10-05" }),
-    ], NOW, plan);
-    const m = buildDayStatusMap(trips);
-    expect(m["2026-09-26"]).toEqual({ status: "upcoming", legend: "upcoming", label: "Upcoming" });
-    expect(m["2026-09-21"]!.legend).toBe("delivered");
-    expect(m["2026-09-21"]!.label).toBe("Delivered");
-    expect(m["2026-09-28"]!.legend).toBe("onHold");
-    expect(m["2026-09-30"]!.legend).toBe("paused");
-    // A pause past its cutoff is a hold underneath (Move only) but still reads Paused.
-    expect(m["2026-10-01"]).toEqual({ status: "failed", legend: "paused", label: "Paused" });
-    expect(m["2026-10-02"]!.legend).toBeNull();
-    expect(m["2026-10-03"]).toBeUndefined();
-  });
-});

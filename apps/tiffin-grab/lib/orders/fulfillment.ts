@@ -2,7 +2,7 @@ import { and, eq, exists, isNull, not, or, sql } from "drizzle-orm";
 import { wordpressImportSql } from "./wordpress-import-sql";
 import { db } from "@/db/client";
 import { orders, payments } from "@/db/schema";
-import { inStatuses, PAID, PENDING } from "@/lib/payments/status";
+import { PAID, PENDING } from "@/lib/payments/status";
 import { paymentStatusIn } from "@/lib/payments/status-sql";
 
 /**
@@ -35,16 +35,4 @@ export function fulfillmentReadyOrder() {
       ),
     ),
   );
-}
-
-/** Same predicate as a boolean over already-loaded payment statuses (tests / badges). */
-export function isFulfillmentReady(
-  orderStatus: string,
-  paymentStatuses: readonly (string | null | undefined)[],
-  prepaidOnWordPress = false,
-): boolean {
-  if (orderStatus !== "active") return false;
-  const statuses = paymentStatuses.filter((s): s is string => s != null);
-  if (statuses.some((s) => inStatuses(PENDING, s))) return false;
-  return prepaidOnWordPress || statuses.some((s) => inStatuses(PAID, s));
 }

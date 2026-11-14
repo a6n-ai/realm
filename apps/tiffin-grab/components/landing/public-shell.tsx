@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { BRAND_NAME } from "@/lib/brand";
+import { pageOf } from "@/lib/routing/public-pages";
 import { BuildTiffinLink } from "@/components/landing/build-tiffin-link";
 import { Suspense, type ReactNode } from "react";
 import { PageTransition } from "@/components/motion/page-transition";
@@ -61,25 +63,25 @@ async function PublicFooter() {
         </div>
         <div className="tg-close__cols">
           <nav aria-label="Site">
-            <strong>Tiffin Grab</strong>
-            <Link href="/menu">Menu</Link>
-            <Link href="/pricing">Pricing</Link>
-            {showReviews ? <Link href="/reviews">Reviews</Link> : null}
-            <Link href="/faq">FAQ</Link>
-            <Link href="/about">About</Link>
+            <strong>{BRAND_NAME}</strong>
+            <Link href="/menu">{pageOf("/menu").label}</Link>
+            <Link href="/pricing">{pageOf("/pricing").label}</Link>
+            {showReviews ? <Link href="/reviews">{pageOf("/reviews").label}</Link> : null}
+            <Link href="/faq">{pageOf("/faq").label}</Link>
+            <Link href="/about">{pageOf("/about").label}</Link>
           </nav>
           <nav aria-label="Help">
             <strong>Help</strong>
-            <Link href="/contact">Contact</Link>
-            <Link href="/locations">Locations</Link>
+            <Link href="/contact">{pageOf("/contact").label}</Link>
+            <Link href="/locations">{pageOf("/locations").label}</Link>
             <Link prefetch={false} href="/me/support">Support</Link>
           </nav>
           <nav aria-label="Legal">
             <strong>Legal</strong>
-            <Link href="/terms">Terms</Link>
-            <Link href="/privacy">Privacy</Link>
-            <Link href="/refund-policy">Refunds</Link>
-            <Link href="/delivery-policy">Delivery</Link>
+            <Link href="/terms">{pageOf("/terms").label}</Link>
+            <Link href="/privacy">{pageOf("/privacy").label}</Link>
+            <Link href="/refund-policy">{pageOf("/refund-policy").label}</Link>
+            <Link href="/delivery-policy">{pageOf("/delivery-policy").label}</Link>
           </nav>
         </div>
       </div>
@@ -100,7 +102,7 @@ async function PublicFooter() {
             <p className="tg-close__zones-short">Delivering to {zones.length} areas across the GTA. <Link href="/locations">See the areas</Link></p>
           </>
         ) : null}
-        <p>© {new Date().getFullYear()} Tiffin Grab · <CookieSettingsButton className="tg-close__cookie" /></p>
+        <p>© {new Date().getFullYear()} {BRAND_NAME} · <CookieSettingsButton className="tg-close__cookie" /></p>
       </div>
       <div className="tg-close__base">
         {/* Drawn by CSS (content: attr) so the decorative watermark is not read as low-contrast text. */}

@@ -1,3 +1,4 @@
+import { BRAND_NAME } from "@/lib/brand";
 import { Suspense } from "react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
@@ -9,7 +10,7 @@ import { AuthForm } from "./auth-form";
 import type { Metadata } from "next";
 import { pageMeta } from "@/lib/landing/meta";
 
-export const metadata: Metadata = pageMeta("Sign in | Tiffin Grab", "Sign in to Tiffin Grab with your email to manage deliveries, pauses, menus and payments.", "/login");
+export const metadata: Metadata = pageMeta(`Sign in | ${BRAND_NAME}`, "Sign in to Tiffin Grab with your email to manage deliveries, pauses, menus and payments.", "/login");
 
 // Reads session from the DB — must not be statically prerendered at build
 // time (no DB in the build container).

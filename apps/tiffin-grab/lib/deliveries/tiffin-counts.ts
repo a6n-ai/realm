@@ -40,10 +40,6 @@ export function scheduledTiffinCount(rows: (DeliveryForCounts & { mergedIntoDeli
   return units;
 }
 
-export function remainingTiffinCount(tiffinCount: number, rows: DeliveryForCounts[], nowMs: number): number {
-  return tiffinCount - deliveredTiffinCount(rows, nowMs);
-}
-
 export type DeliveryForOpenCount = {
   status: "scheduled" | "paused" | "skipped" | "cancelled";
   cutoffAt: number;

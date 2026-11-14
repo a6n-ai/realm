@@ -35,6 +35,12 @@ async function orderPublicIdForDelivery(deliveryPublicId: string): Promise<strin
   return row?.publicId ?? null;
 }
 
+async function revalidateForDelivery(deliveryPublicId: string) {
+  const orderId = await orderPublicIdForDelivery(deliveryPublicId);
+  if (orderId) await revalidateDeliverySurfaces(orderId);
+  else revalidatePath("/me", "layout");
+}
+
 // While an e-Transfer is unconfirmed the customer may only pick meals, so every action here
 // refuses. Staff bypass inside assertOrderUnlocked.
 async function assertDeliveryUnlocked(deliveryPublicId: string) {
@@ -58,9 +64,7 @@ export async function setMyDeliveryAddress(
       .limit(1);
     if (!owner?.userId) throw new NotFoundError("Delivery not found");
     await setDeliveryAddress(deliveryPublicId, pick, { userId: owner.userId, orgId: owner.orgId }, await currentUserId());
-    const orderId = await orderPublicIdForDelivery(deliveryPublicId);
-    if (orderId) await revalidateDeliverySurfaces(orderId);
-    else revalidatePath("/me", "layout");
+    await revalidateForDelivery(deliveryPublicId);
   });
 }
 
@@ -69,9 +73,7 @@ export async function clearMyDeliveryAddress(deliveryPublicId: string): Promise<
     await assertCanManageDelivery(deliveryPublicId);
     await assertDeliveryUnlocked(deliveryPublicId);
     await clearDeliveryAddress(deliveryPublicId, await currentUserId());
-    const orderId = await orderPublicIdForDelivery(deliveryPublicId);
-    if (orderId) await revalidateDeliverySurfaces(orderId);
-    else revalidatePath("/me", "layout");
+    await revalidateForDelivery(deliveryPublicId);
   });
 }
 
@@ -149,9 +151,7 @@ export async function applyMyDeliverySwap(deliveryPublicId: string, fromCategory
     await assertCanManageDelivery(deliveryPublicId);
     await assertDeliveryUnlocked(deliveryPublicId);
     await applyDeliverySwap(deliveryPublicId, fromCategory, toCategory, fromPicks, await currentUserId(), forDate, fromRow);
-    const orderId = await orderPublicIdForDelivery(deliveryPublicId);
-    if (orderId) await revalidateDeliverySurfaces(orderId);
-    else revalidatePath("/me", "layout");
+    await revalidateForDelivery(deliveryPublicId);
   });
 }
 
@@ -160,9 +160,7 @@ export async function removeMyDeliverySwap(deliveryPublicId: string, appliedSwap
     await assertCanManageDelivery(deliveryPublicId);
     await assertDeliveryUnlocked(deliveryPublicId);
     await removeDeliverySwap(deliveryPublicId, appliedSwapPublicId, await currentUserId(), forDate);
-    const orderId = await orderPublicIdForDelivery(deliveryPublicId);
-    if (orderId) await revalidateDeliverySurfaces(orderId);
-    else revalidatePath("/me", "layout");
+    await revalidateForDelivery(deliveryPublicId);
   });
 }
 
@@ -178,9 +176,7 @@ export async function rescheduleMyDelivery(
     await assertCanManageDelivery(deliveryPublicId);
     await assertDeliveryUnlocked(deliveryPublicId);
     const result = await rescheduleDelivery(deliveryPublicId, newDateIso, await currentUserId(), sourceEatDateIso ?? null, count);
-    const orderId = await orderPublicIdForDelivery(deliveryPublicId);
-    if (orderId) await revalidateDeliverySurfaces(orderId);
-    else revalidatePath("/me", "layout");
+    await revalidateForDelivery(deliveryPublicId);
     return { carriedOn: result.carriedOn, merged: result.merged, message: result.merged ? "merged" : "moved" };
   });
 }

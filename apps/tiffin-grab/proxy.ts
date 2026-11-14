@@ -8,7 +8,7 @@ import probePath from "./lib/routing/probe-path.json";
 import publicPages from "./lib/routing/public-pages.json";
 import { AREA_PAGE, apexServes, appServes, skipsOrgResolution } from "./lib/routing/apex";
 import { MD_PAGES, wantsMarkdown } from "@/lib/landing/markdown-negotiation";
-import { REFERRAL_COOKIE, REFERRAL_COOKIE_OPTIONS, isReferralCodeShape, normalizeReferralCode } from "./lib/referrals/cookie";
+import { isReferralCodeShape, normalizeReferralCode, setReferralCookie } from "./lib/referrals/cookie";
 import { appUrlOr, isTest } from "@/lib/runtime/env";
 
 // Proxy defaults to the Node.js runtime as of Next 16 (setting `export const
@@ -140,7 +140,7 @@ export async function proxy(request: NextRequest) {
   // A share link: remember the code until the friend signs in (attached there).
   // ...or the friend page itself (/refer/<code>): its header and footer links carry no ?ref=.
   const ref = normalizeReferralCode(request.nextUrl.searchParams.get("ref") ?? /^\/refer\/([^/]+)$/.exec(pathname)?.[1] ?? "");
-  if (isReferralCodeShape(ref)) res.cookies.set(REFERRAL_COOKIE, ref, REFERRAL_COOKIE_OPTIONS);
+  if (isReferralCodeShape(ref)) setReferralCookie(res.cookies, ref);
   return res;
 }
 
