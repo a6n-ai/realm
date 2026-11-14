@@ -7,7 +7,7 @@ import type { Page, PageRequest } from "@foundry/commons/util/pagination";
 import { db } from "@/db/client";
 import { deliveries, ledgerEntries, mealSizes, messageSuppression, notificationOutbox, orders, payments, plans, tickets, users, walletLedger } from "@/db/schema";
 import { unexpired } from "@foundry/wallet";
-import { renewalQueueFilter, type PlanType, type RenewalRange, type RenewalsFilter, type TrackFilter } from "@/lib/renewals/filters";
+import { renewalQueueFilter, type PlanType, type RenewalQueue, type RenewalRange, type RenewalsFilter, type TrackFilter } from "@/lib/renewals/filters";
 import { UNASSIGNED_OWNER } from "@/lib/list/presets";
 import { lastTiffinSql, renewalStatusSql, type RenewalStatus } from "@/lib/orders/queries";
 import { addDaysIso, DAY_MS, daysBetween } from "@foundry/commons/util/dates";
@@ -16,6 +16,9 @@ import type { TrackStatus } from "@/lib/renewals/status";
 import type { LostReason } from "../inquiries/lost-reason";
 import { walletBalanceSql } from "@/lib/wallet/balance-sql";
 import { netSpendSql } from "@/lib/payments/net-spend-sql";
+import { pageRows } from "@foundry/commons";
+import { loadPlanFacts, ownerIdOf, visibleTo, type PlanFact } from "./renewal-facts";
+import { renewalMatches, renewalOrder } from "./renewal-filter";
 
 export type RenewalRow = {
   orderPublicId: string;
@@ -204,6 +207,37 @@ export async function hydrateRenewalRows(
   });
 }
 
+/** Facts for the plans `visible` sees, and the owner filter's id when it names someone. */
+async function scopedFacts(visible: Visible, owner: string | null | undefined) {
+  const [facts, ownerId] = await Promise.all([
+    loadPlanFacts(),
+    owner && owner !== UNASSIGNED_OWNER ? ownerIdOf(owner) : Promise.resolve(null),
+  ]);
+  return { facts: facts.filter(visibleTo(visible)), ownerId };
+}
+
+/** The list rows for `picked`, in that order, with their computed renewal status. */
+async function renewalRowsFor(picked: readonly PlanFact[]): Promise<RenewalRow[]> {
+  if (!picked.length) return [];
+  const found = await db
+    .select(renewalSelect)
+    .from(orders)
+    .innerJoin(plans, eq(orders.planId, plans.id))
+    .innerJoin(mealSizes, eq(orders.mealSizeId, mealSizes.id))
+    .leftJoin(users, eq(orders.userId, users.id))
+    .where(inArray(orders.id, picked.map((p) => p.id)));
+  const byId = new Map(found.map((r) => [String(r.id), r]));
+  return hydrateRenewalRows(picked.flatMap((p) => {
+    const row = byId.get(String(p.id));
+    return row ? [{ ...row, status: p.renewal }] : [];
+  }));
+}
+
+async function matchingPlans(visible: Visible, f: RenewalsFilter, today: string, range: RenewalRange, day: DayBounds): Promise<PlanFact[]> {
+  const { facts, ownerId } = await scopedFacts(visible, f.owner);
+  return facts.filter(renewalMatches(f, { today, range, day, ownerId })).sort(renewalOrder(today));
+}
+
 /** Plans that ran (running or finished) in the top date range, narrowed by the optional Ending / Ended windows, Status and search. */
 export async function listRenewals(
   visible: Visible,
@@ -214,63 +248,31 @@ export async function listRenewals(
   day: DayBounds,
 ): Promise<Page<RenewalRow>> {
   if (visible !== "all" && visible.length === 0) return { items: [], page: page.page, size: page.size, total: 0 };
-  const where = renewalsWhere(visible, f, today, range, day);
-
-  const [rows, [{ count }]] = await Promise.all([
-    db
-      .select({ ...renewalSelect, status: computedStatusSql })
-      .from(orders)
-      .innerJoin(plans, eq(orders.planId, plans.id))
-      .innerJoin(mealSizes, eq(orders.mealSizeId, mealSizes.id))
-      .leftJoin(users, eq(orders.userId, users.id))
-      .leftJoinLateral(trackInquiry, sql`true`)
-      .where(where)
-      // Upcoming endings first, soonest on top; then lapsed plans, most recent first.
-      .orderBy(asc(sql`${lastTiffinSql} < ${today}`), asc(sql`case when ${lastTiffinSql} >= ${today} then ${lastTiffinSql} end`), desc(lastTiffinSql), asc(orders.id))
-      .limit(page.size)
-      .offset(pageOffset(page.page, page.size)),
-    db
-      .select({ count: sql<number>`cast(count(*) as int)` })
-      .from(orders)
-      .leftJoin(users, eq(orders.userId, users.id))
-      .leftJoinLateral(trackInquiry, sql`true`)
-      .where(where),
-  ]);
-
-  return { items: await hydrateRenewalRows(rows), page: page.page, size: page.size, total: count };
+  const one = pageRows(await matchingPlans(visible, f, today, range, day), page);
+  return { ...one, items: await renewalRowsFor(one.items) };
 }
 
 /** Full (unpaginated) matching set for the Excel export — same filters as the on-screen list. */
 export async function listRenewalsForExport(visible: Visible, f: RenewalsFilter, today: string, range: RenewalRange, day: DayBounds): Promise<RenewalRow[]> {
   if (visible !== "all" && visible.length === 0) return [];
-  const where = renewalsWhere(visible, f, today, range, day);
-  const rows = await db
-    .select({ ...renewalSelect, status: computedStatusSql })
-    .from(orders)
-    .innerJoin(plans, eq(orders.planId, plans.id))
-    .innerJoin(mealSizes, eq(orders.mealSizeId, mealSizes.id))
-    .leftJoin(users, eq(orders.userId, users.id))
-    .leftJoinLateral(trackInquiry, sql`true`)
-    .where(where)
-    .orderBy(asc(sql`${lastTiffinSql} < ${today}`), asc(sql`case when ${lastTiffinSql} >= ${today} then ${lastTiffinSql} end`), desc(lastTiffinSql), asc(orders.id));
-  return hydrateRenewalRows(rows);
+  return renewalRowsFor(await matchingPlans(visible, f, today, range, day));
 }
 
 /** The five cards: plans in the top date range, split by where their renewal stands. */
 export async function countRenewals(visible: Visible, type: PlanType | null, today: string, range: RenewalRange): Promise<RenewalCounts> {
-  if (visible !== "all" && visible.length === 0) return { plans: 0, renewed: 0, renewedNotPaid: 0, notRenewed: 0, lapsed: 0 };
-  const status = computedStatusSql;
-  const [r] = await db
-    .select({
-      plans: sql<number>`cast(count(*) as int)`,
-      renewed: sql<number>`cast(count(*) filter (where ${status} = 'renewed') as int)`,
-      renewedNotPaid: sql<number>`cast(count(*) filter (where ${status} in ('unpaid', 'waitlisted')) as int)`,
-      notRenewed: sql<number>`cast(count(*) filter (where ${status} = 'none' and ${lastTiffinSql} >= ${today}) as int)`,
-      lapsed: sql<number>`cast(count(*) filter (where ${status} = 'none' and ${lastTiffinSql} < ${today}) as int)`,
-    })
-    .from(orders)
-    .where(and(typeWhere(type), orgScope(orders.organizationId, visible), runningOrDone, rangeWhere(range)));
-  return r;
+  const c: RenewalCounts = { plans: 0, renewed: 0, renewedNotPaid: 0, notRenewed: 0, lapsed: 0 };
+  if (visible !== "all" && visible.length === 0) return c;
+  const f: RenewalsFilter = { tab: "renewals", type, track: null, followUp: null, dateBy: range.by, ending: null, ended: null, status: null, renewed: null, from: null, to: null, q: "" };
+  const keep = renewalMatches(f, { today, range, day: { dayStart: 0, dayEnd: 0 }, ownerId: null });
+  for (const p of (await scopedFacts(visible, null)).facts) {
+    if (!keep(p)) continue;
+    c.plans++;
+    if (p.renewal === "renewed") c.renewed++;
+    else if (p.renewal === "unpaid" || p.renewal === "waitlisted") c.renewedNotPaid++;
+    // A plan with no tiffins yet is neither: the SQL compared a null last tiffin with today.
+    else if (p.last != null) p.last >= today ? c.notRenewed++ : c.lapsed++;
+  }
+  return c;
 }
 
 export type TrackQueueCounts = { renew: number; due: number; overdue: number; upcoming: number; open: number; closed: number };
@@ -278,23 +280,12 @@ export type TrackQueueCounts = { renew: number; due: number; overdue: number; up
 export async function countTrackQueues(visible: Visible, filter: RenewalsFilter, today: string, range: RenewalRange, day: DayBounds): Promise<TrackQueueCounts> {
   if (visible !== "all" && visible.length === 0) return { renew: 0, due: 0, overdue: 0, upcoming: 0, open: 0, closed: 0 };
   const base = { ...filter, type: null, ending: null, ended: null, status: null, renewed: null };
-  const countWhere = (f: RenewalsFilter) =>
-    db
-      .select({ count: sql<number>`cast(count(*) as int)` })
-      .from(orders)
-      .leftJoin(users, eq(orders.userId, users.id))
-      .leftJoinLateral(trackInquiry, sql`true`)
-      .where(renewalsWhere(visible, f, today, range, day))
-      .then(([r]) => r.count);
-  const [renew, due, overdue, upcoming, open, closed] = await Promise.all([
-    countWhere({ ...base, ...renewalQueueFilter("renew") }),
-    countWhere({ ...base, ...renewalQueueFilter("due") }),
-    countWhere({ ...base, ...renewalQueueFilter("overdue") }),
-    countWhere({ ...base, ...renewalQueueFilter("upcoming") }),
-    countWhere({ ...base, ...renewalQueueFilter("open") }),
-    countWhere({ ...base, ...renewalQueueFilter("closed") }),
-  ]);
-  return { renew, due, overdue, upcoming, open, closed };
+  const { facts, ownerId } = await scopedFacts(visible, filter.owner);
+  const count = (queue: RenewalQueue) => {
+    const keep = renewalMatches({ ...base, ...renewalQueueFilter(queue) }, { today, range, day, ownerId });
+    return facts.reduce((n, p) => n + (keep(p) ? 1 : 0), 0);
+  };
+  return { renew: count("renew"), due: count("due"), overdue: count("overdue"), upcoming: count("upcoming"), open: count("open"), closed: count("closed") };
 }
 
 // ── Renewed customers ────────────────────────────────────────────────────────

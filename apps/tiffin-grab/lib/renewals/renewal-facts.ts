@@ -2,7 +2,7 @@
 // (renewalStatusSql, laterOrderWhere, effectiveTrackStatusSql) inline correlated subqueries into each
 // statement; composed into the renewals filters they grew to 100 KB-1 MB statements that took seconds to
 // plan and swapped the database. Keep these rules in step with lib/orders/queries.ts until those go.
-import { and, eq, inArray, isNotNull, ne, sql } from "drizzle-orm";
+import { eq, inArray, isNotNull, ne, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, inquiries, orders, payments, users } from "@/db/schema";
 import type { RenewalStatus } from "@/lib/orders/queries";
@@ -20,12 +20,17 @@ export type PlanFact = {
   createdAt: number;
   organizationId: string | null;
   currentOwner: bigint | null;
+  fullName: string;
+  deploymentId: string;
+  phone: string | null;
   /** The last non-cancelled delivery date, or null before any is scheduled. */
   last: string | null;
   /** Has a paid (or simulated paid) payment. */
   paid: boolean;
   /** Where the renewal stands: the best later plan by the same customer (`renewalStatusSql`). */
   renewal: RenewalStatus;
+  /** The first booking among those later plans: when it renewed (`laterBookedAtFor`). */
+  laterBookedAtFirst: number | null;
   /** The newest booking among those later plans (`laterBookedAtLatestFor`). */
   laterBookedAtLatest: number | null;
   /** The tracking inquiry's renewal fields (the lowest-id inquiry whose current order this is). */
@@ -38,7 +43,7 @@ export type PlanFact = {
 const LATER: ReadonlySet<OrderStatus> = new Set(["pending", "waitlisted", "active", "paused", "completed"]);
 const RUNNING_OR_DONE: ReadonlySet<OrderStatus> = new Set(["active", "paused", "completed"]);
 
-type Base = Omit<PlanFact, "renewal" | "laterBookedAtLatest" | "track"> & {
+type Base = Omit<PlanFact, "renewal" | "laterBookedAtFirst" | "laterBookedAtLatest" | "track"> & {
   staff: TrackStatus | null;
   staffSetAt: number | null;
   staffSource: "staff" | "auto" | null;
@@ -68,8 +73,10 @@ export async function loadPlanFacts(): Promise<PlanFact[]> {
       .select({
         id: orders.id, userId: orders.userId, status: orders.status, startDate: orders.startDate, trialLength: orders.trialLength,
         createdAt: orders.createdAt, organizationId: orders.organizationId, currentOwner: orders.currentOwner,
+        fullName: orders.fullName, deploymentId: orders.deploymentId, phone: users.phone,
       })
-      .from(orders),
+      .from(orders)
+      .leftJoin(users, eq(orders.userId, users.id)),
     db
       .select({ orderId: deliveries.orderId, last: sql<string>`max(${deliveries.deliveryDate})` })
       .from(deliveries)
@@ -97,6 +104,7 @@ export async function loadPlanFacts(): Promise<PlanFact[]> {
     return {
       id: o.id, userId: o.userId, status: o.status, startDate: o.startDate, trial: o.trialLength != null,
       createdAt: Number(o.createdAt), organizationId: o.organizationId, currentOwner: o.currentOwner,
+      fullName: o.fullName, deploymentId: o.deploymentId, phone: o.phone,
       last: lastBy.get(k) ?? null, paid: paidBy.has(k),
       trackFollowUpAt: t?.followUpAt == null ? null : Number(t.followUpAt),
       staff: (t?.status as TrackStatus | null) ?? null, staffSetAt: t?.setAt == null ? null : Number(t.setAt), staffSource: t?.source ?? null,
@@ -108,9 +116,10 @@ export async function loadPlanFacts(): Promise<PlanFact[]> {
   return base.map(({ staff, staffSetAt, staffSource, ...o }) => {
     const later = laterPlans({ ...o, staff, staffSetAt, staffSource }, byUser);
     const renewal = renewalOf(later);
+    const laterBookedAtFirst = later.length ? Math.min(...later.map((n) => n.createdAt)) : null;
     const laterBookedAtLatest = later.length ? Math.max(...later.map((n) => n.createdAt)) : null;
     const track = effectiveTrackStatus({ staff, staffSetAt, staffSource, computed: renewal, laterBookedAt: laterBookedAtLatest }).status;
-    return { ...o, renewal, laterBookedAtLatest, track };
+    return { ...o, renewal, laterBookedAtFirst, laterBookedAtLatest, track };
   });
 }
 
@@ -119,6 +128,6 @@ export const visibleTo = (visible: Visible) => (p: PlanFact) =>
 
 /** A plan owner's internal id from their publicId, for owner filters over facts. */
 export async function ownerIdOf(publicId: string): Promise<bigint | null> {
-  const [u] = await db.select({ id: users.id }).from(users).where(and(eq(users.publicId, publicId))).limit(1);
+  const [u] = await db.select({ id: users.id }).from(users).where(eq(users.publicId, publicId)).limit(1);
   return u?.id ?? null;
 }
