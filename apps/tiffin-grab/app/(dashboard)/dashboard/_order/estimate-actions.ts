@@ -1,5 +1,5 @@
-import { noVisibleOrgs } from "@/lib/tenant/org-scope";
 "use server";
+import { noVisibleOrgs } from "@/lib/tenant/org-scope";
 
 import { ValidationError } from "@foundry/commons";
 import { createShortLink } from "@foundry/shortlinks";
