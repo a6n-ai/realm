@@ -10,7 +10,8 @@ import { grainUnitForRange } from "@/lib/analytics/revenue";
 import { ORDER_TONE } from "@/components/analytics/status-tones";
 import { scopeOrAlert } from "@/components/analytics/franchise-unavailable";
 import { ordersDrillHref } from "@/lib/analytics/drill";
-import { DATE_BASIS_LABEL, type AnalyticsScope } from "@/lib/services/analytics/metrics/scope";
+import { DATE_BASIS_LABEL } from "@/lib/services/analytics/metrics/scope";
+import { type AnalyticsScope } from "@/lib/analytics/scope-types";
 import {
   getCustomerStats,
   getSignupDaily,

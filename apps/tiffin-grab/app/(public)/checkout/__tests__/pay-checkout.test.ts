@@ -217,7 +217,7 @@ describe("payCheckout", () => {
   it("changed inputs are refused while an older payment is mid-charge, and no order is placed", async () => {
     const first = await pay();
     if (!("ok" in first)) throw new Error(first.error);
-    const { tryChargeLock } = await import("@/lib/payments/payment-stripe");
+    const { tryChargeLock } = await import("@/lib/payments/stripe-charge");
     let r: Awaited<ReturnType<typeof pay>> | undefined;
     await db.transaction(async (tx) => {
       expect(await tryChargeLock(tx, first.paymentPublicId)).toBe(true);

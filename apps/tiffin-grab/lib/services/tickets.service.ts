@@ -1,6 +1,6 @@
 import { DAY_MS } from "@foundry/commons/util/dates";
 import { pageOffset } from "@foundry/design-system/filters/parse-filter-state";
-import { isStaffRole } from "@/lib/auth/roles";
+import { isStaffRole } from "@/lib/roles";
 import { BaseRepository, UpdatableRepository, pageOrder } from "@foundry/database";
 import { AuthError, ForbiddenError, NotFoundError, ValidationError, type RoleValue } from "@foundry/commons";
 import { and, asc, count, desc, eq, gt, ilike, inArray, lt, max, or, sql, type SQL } from "drizzle-orm";

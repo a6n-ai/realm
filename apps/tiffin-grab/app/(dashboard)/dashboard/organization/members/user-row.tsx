@@ -1,6 +1,6 @@
 "use client";
 
-import { isCustomerRole } from "@/lib/auth/roles";
+import { isCustomerRole } from "@/lib/roles";
 import Link from "next/link";
 import { Role, formatPhone, type RoleValue } from "@foundry/commons";
 import { useTransition } from "react";

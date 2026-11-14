@@ -4,7 +4,7 @@
  * server builds the very same preview when it is asked for one.
  */
 import { isCountCategory, type TuCategory } from "./format-tu";
-import type { GridCell } from "./meals-grid";
+import type { GridCell } from "./grid-types";
 import { computeAllSwapOptions, validateProposedSwap, type CompositionContext, type MealSizeItemRow as SwapItemRow, type SwapOption } from "./meal-validation";
 import { portionsByCategory, slotRowsAfterSwaps, type MealSizeItemRow, type PortionSwap } from "./pick-size";
 import type { ExchangeOverride, SwapCategory } from "./swap-rules";

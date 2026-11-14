@@ -8,7 +8,8 @@ import { chartPeriod } from "@/lib/analytics/buckets";
 import { moneyDate, netExTax, refundExTax, revenueBy, revenueTotals } from "./metrics/money";
 import { WP_MIGRATED } from "@/lib/orders/wordpress-import-sql";
 import { CAPTURED } from "@/lib/payments/status";
-import { dateWhere, noOrgs, ordersScope, type AnalyticsScope } from "./metrics/scope";
+import { dateWhere, noOrgs, ordersScope } from "./metrics/scope";
+import { type AnalyticsScope } from "@/lib/analytics/scope-types";
 import { eachDate, isoDateInZone, utcIso } from "@foundry/commons/util/dates";
 
 function isoDate(v: unknown): string {

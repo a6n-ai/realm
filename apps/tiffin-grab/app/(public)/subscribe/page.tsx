@@ -5,7 +5,7 @@ import { REFERRAL_COOKIE, isReferralCodeShape, normalizeReferralCode } from "@/l
 import { Wizard } from "@/components/wizard/wizard";
 import { currentUserId } from "@/lib/services/session-service";
 import { getSession } from "@/lib/auth/session";
-import { isStaffRole } from "@/lib/auth/roles";
+import { isStaffRole } from "@/lib/roles";
 import { googleSignInEnabled } from "@foundry/auth";
 import { couponsService } from "@/lib/services/coupons.service";
 import { SubscribeCouponsPreview } from "@/components/customer/subscribe/existing-subscriptions";

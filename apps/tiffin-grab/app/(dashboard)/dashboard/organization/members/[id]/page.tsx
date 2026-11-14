@@ -1,4 +1,4 @@
-import { isStaffRole } from "@/lib/auth/roles";
+import { isStaffRole } from "@/lib/roles";
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { NotFoundError, Role } from "@foundry/commons";

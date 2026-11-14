@@ -1,4 +1,4 @@
-import { isStaffRole } from "@/lib/auth/roles";
+import { isStaffRole } from "@/lib/roles";
 import { NotFoundError } from "@foundry/commons";
 import { getSession } from "@/lib/auth/session";
 import { loadReceipt } from "@/lib/billing/receipt";

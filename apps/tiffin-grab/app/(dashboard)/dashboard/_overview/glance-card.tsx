@@ -3,7 +3,7 @@ import { ActivityIcon, PackageIcon, RefreshCwIcon, UtensilsCrossedIcon, type Luc
 import { Card, CardContent } from "@foundry/ui/card";
 import { Sparkline } from "@/components/analytics/sparkline";
 import { Badge } from "@/components/reui/badge";
-import { zonedRangeMs } from "@/lib/analytics/drill";
+import { zonedRangeMs } from "@/lib/dates/epoch-window";
 import { ordersListHref } from "@/lib/list/orders-drill";
 import { delta, type Delta } from "@/lib/overview/delta";
 import { getOverviewSeries } from "@/lib/services/overview.service";

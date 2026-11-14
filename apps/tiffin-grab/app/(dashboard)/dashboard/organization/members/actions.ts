@@ -1,6 +1,6 @@
 "use server";
 
-import { isCustomerRole } from "@/lib/auth/roles";
+import { isCustomerRole } from "@/lib/roles";
 import { StaffInviteError } from "@foundry/auth";
 import type { RoleValue } from "@foundry/commons";
 import { ValidationError } from "@foundry/commons";

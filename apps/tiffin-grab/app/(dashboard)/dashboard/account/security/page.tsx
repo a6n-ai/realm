@@ -1,4 +1,4 @@
-import { isStaffRole } from "@/lib/auth/roles";
+import { isStaffRole } from "@/lib/roles";
 import { Suspense } from "react";
 import { PasswordSection } from "@/components/account/sections/password-section";
 import { PinSection } from "@/components/account/sections/pin-section";

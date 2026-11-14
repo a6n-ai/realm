@@ -1,7 +1,7 @@
 import type { ComputedTaxLine } from "@foundry/payments";
 import type { DayOfWeek } from "../menu/delivery-days";
 import type { DeliveryChargeCalculationResult, DeliveryChargeItemLike } from "@foundry/delivery";
-import type { PricingWaiver } from "./waivers";
+import type { WaiverKind } from "@/lib/catalog/types";
 
 export interface PricingSelections {
   mealSizeId: string;
@@ -111,3 +111,13 @@ export type OrderPricingSnapshot = PricingResult & {
     refreshedOn: string;
   };
 };
+
+export interface PricingWaiver {
+  key: string;
+  /** Customer-facing line label; blank falls back to a generic one. */
+  name?: string;
+  kind: WaiverKind;
+  /** Strategy publicId for waiver_strategy, else null. */
+  strategyId: string | null;
+  percent: number;
+}

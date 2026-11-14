@@ -1,6 +1,6 @@
 "use server";
 
-import { isStaffRole } from "@/lib/auth/roles";
+import { isStaffRole } from "@/lib/roles";
 import { and, desc, eq, ilike, inArray, or, sql, type Column, type SQL } from "drizzle-orm";
 import { Role } from "@foundry/commons";
 import { db } from "@/db/client";

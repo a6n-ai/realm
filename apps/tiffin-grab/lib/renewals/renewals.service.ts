@@ -6,7 +6,7 @@ import type { Page, PageRequest } from "@foundry/commons/util/pagination";
 import { db } from "@/db/client";
 import { deliveries, ledgerEntries, mealSizes, messageSuppression, notificationOutbox, orders, payments, plans, renewals as renewalRecords, tickets, users, walletLedger } from "@/db/schema";
 import { unexpired } from "@foundry/wallet";
-import { renewalQueueFilter, type DateBy, type PlanType, type RenewalsFilter, type TrackFilter } from "@/lib/renewals/filters";
+import { renewalQueueFilter, type DateBy, type PlanType, type RenewalRange, type RenewalsFilter, type TrackFilter } from "@/lib/renewals/filters";
 import { UNASSIGNED_OWNER } from "@/lib/list/presets";
 import { lastTiffinSql, renewalStatusSql, visibleOrgWhere, type RenewalStatus } from "@/lib/orders/queries";
 import { addDaysIso, DAY_MS, daysBetween } from "@foundry/commons/util/dates";
@@ -49,9 +49,6 @@ export type RenewalRow = {
 };
 
 export type RenewalCounts = { plans: number; renewed: number; renewedNotPaid: number; notRenewed: number; lapsed: number };
-
-/** The top date range, resolved by the page: ISO dates in the app timezone for date columns, epoch ms for created_at. */
-export type RenewalRange = { by: DateBy; fromIso: string | null; toIso: string | null; fromMs: number | null; toMs: number | null };
 
 /** The app-timezone day bounds (epoch ms) for "today": the follow-up filters compare against them. */
 export type DayBounds = { dayStart: number; dayEnd: number };

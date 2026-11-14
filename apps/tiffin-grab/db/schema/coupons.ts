@@ -5,15 +5,9 @@ import { users } from "./auth";
 import { customerGroups } from "./customer-groups";
 import { orders, payments } from "./orders";
 import { organization } from "./organizations";
+import { COUPON_KINDS } from "./types";
 
-export const couponKind = pgEnum("coupon_kind", [
-  "percentage",
-  "fixed",
-  "free_delivery",
-  "first_order",
-  "rep_daily",
-  "rep_code",
-]);
+export const couponKind = pgEnum("coupon_kind", COUPON_KINDS);
 
 export type CouponKind = (typeof couponKind.enumValues)[number];
 
@@ -26,23 +20,6 @@ export type CouponConfig =
   | { kind: "first_order"; mode: "percentage" | "fixed" }
   | { kind: "rep_daily" }
   | { kind: "rep_code" };
-
-// Admin discount governance blob on app_settings (mirrors leadAssignment).
-export interface DiscountPolicy {
-  enabledKinds: CouponKind[];
-  repDaily: {
-    enabled: boolean;
-    defaultCapPct: number;
-    defaultCapAmount: number;
-    // How many times a rep may apply their daily coupon to grant a discount that
-    // day (snapshotted onto the minted coupon's maxRedemptions). 1 = single-use,
-    // preserving the legacy behavior until an admin raises it.
-    defaultDailyUses: number;
-    // How long a code a staff member generates for a customer stays usable.
-    codeValidityHours: number;
-    perRep: Record<string, { capPct?: number; capAmount?: number; dailyUses?: number; active: boolean }>;
-  };
-}
 
 export const coupons = pgTable("coupons", {
   ...updatableColumns("cpn"),

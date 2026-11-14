@@ -1,7 +1,7 @@
 import { markPaymentCaptured } from "@/lib/payments/capture";
 import { paymentMethodLabel } from "@/lib/payments/method-label";
 import { createLogger } from "@foundry/commons/logger";
-import { resolveUserId } from "@/lib/services/session-service";
+import { resolveUserId } from "@/lib/identity/user-ids";
 import { isWordpressImport } from "@/lib/orders/wordpress-import";
 import { formatMoney, NotFoundError, ValidationError } from "@foundry/commons";
 import { trackConversion } from "@/lib/services/tracking";

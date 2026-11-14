@@ -1,4 +1,4 @@
-import { STAFF_ROLES } from "@/lib/auth/roles";
+import { STAFF_ROLES } from "@/lib/roles";
 import { Suspense } from "react";
 import { and, eq, inArray } from "drizzle-orm";
 import { parseFilterState, type FacetDef } from "@/components/ds";

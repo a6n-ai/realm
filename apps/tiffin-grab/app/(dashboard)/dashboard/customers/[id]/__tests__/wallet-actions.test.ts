@@ -4,7 +4,8 @@ import { ValidationError } from "@foundry/commons";
 const adjust = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/auth/guards", () => ({ requireAdmin: async () => {} }));
 vi.mock("@/lib/wallet/wallet.service", () => ({ walletService: { adjust } }));
-vi.mock("@/lib/services/session-service", () => ({ currentUserId: async () => 7n, userIdByPublicId: async () => 42n }));
+vi.mock("@/lib/services/session-service", () => ({ currentUserId: async () => 7n }));
+vi.mock("@/lib/identity/user-ids", () => ({ userIdByPublicId: async () => 42n }));
 vi.mock("next/cache", () => ({ revalidatePath: () => {} }));
 vi.mock("@/lib/services/referrals.service", () => ({ staffAttachReferral: async () => ({ result: "attached", friend: 0, referrer: 0 }) }));
 

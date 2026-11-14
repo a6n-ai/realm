@@ -17,7 +17,8 @@ import {
   getLostReasonBreakdown,
   getSourcePerformance,
 } from "@/lib/services/analytics/leads.service";
-import { DATE_BASIS_LABEL, type AnalyticsScope } from "@/lib/services/analytics/metrics/scope";
+import { DATE_BASIS_LABEL } from "@/lib/services/analytics/metrics/scope";
+import { type AnalyticsScope } from "@/lib/analytics/scope-types";
 
 type SearchParams = Promise<Record<string, string | undefined>>;
 

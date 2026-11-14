@@ -5,7 +5,7 @@ import { eq } from "drizzle-orm";
 import { assertHierarchyDepth } from "@foundry/auth";
 import { db } from "@/db/client";
 import { member, organization, users } from "@/db/schema";
-import { userIdByPublicId } from "./session-service";
+import { userIdByPublicId } from "@/lib/identity/user-ids";
 import { requireAdmin } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import {

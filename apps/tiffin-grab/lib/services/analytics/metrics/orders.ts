@@ -4,7 +4,7 @@ import { and, between, inList, type Condition } from "@foundry/commons/model/con
 import { db } from "@/db/client";
 import { orders } from "@/db/schema";
 import { ordersListWhere } from "@/lib/orders/queries";
-import type { AnalyticsScope } from "./scope";
+import type { AnalyticsScope } from "@/lib/analytics/scope-types";
 import { noOrgs } from "./scope";
 
 // ORDER_FACET_FIELDS is type-imported by orders-spec.ts, so keep it a plain const. Shared by the Orders page and analytics drill links.

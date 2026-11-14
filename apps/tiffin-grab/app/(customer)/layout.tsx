@@ -1,4 +1,4 @@
-import { isCustomerRole } from "@/lib/auth/roles";
+import { isCustomerRole } from "@/lib/roles";
 import "@/app/styles/app.css";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";

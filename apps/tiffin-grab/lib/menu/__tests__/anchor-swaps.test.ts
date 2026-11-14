@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { GridCell } from "../meals-grid";
+import type { GridCell } from "../grid-types";
 import { anchorSwaps, groupPickCells, type AnchoredSwap } from "../pick-groups";
 
 const cat = (key: string, selectable: boolean, sortOrder: number) => ({ key, label: key, selectable, sortOrder });

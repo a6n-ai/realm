@@ -17,7 +17,7 @@ import { groupPickCells } from "../pick-groups";
 import type { SwapCategory, SwapRow } from "../swap-rules";
 import type { TuCategory } from "../format-tu";
 import { tuToNatural } from "../format-tu";
-import type { GridCell } from "../meals-grid";
+import type { GridCell } from "../grid-types";
 
 const cat = (key: string, pickTu: number | null, over: Partial<SwapCategory> = {}): SwapCategory => ({
   key,

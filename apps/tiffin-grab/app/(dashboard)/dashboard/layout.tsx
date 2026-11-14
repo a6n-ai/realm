@@ -1,4 +1,4 @@
-import { isAdmin, isCustomerRole } from "@/lib/auth/roles";
+import { isAdmin, isCustomerRole } from "@/lib/roles";
 import "@/app/styles/app.css";
 import { redirect } from "next/navigation";
 import { Suspense, type ReactNode } from "react";

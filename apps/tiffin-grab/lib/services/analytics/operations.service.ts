@@ -2,7 +2,8 @@ import { ratePct } from "@/lib/money";
 import { and, eq, isNotNull, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, orders } from "@/db/schema";
-import { dateWhereCalendar, ordersScope, type AnalyticsScope, intCount, noOrgs } from "./metrics/scope";
+import { dateWhereCalendar, ordersScope, intCount, noOrgs } from "./metrics/scope";
+import { type AnalyticsScope } from "@/lib/analytics/scope-types";
 
 export type OperationsStats = {
   totalDeliveries: number;

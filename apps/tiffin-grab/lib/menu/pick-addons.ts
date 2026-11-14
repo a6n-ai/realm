@@ -4,12 +4,10 @@
  * picked from the menu only, and never take part in a swap.
  */
 import { isCountCategory } from "./format-tu";
+import { ADDON_SORT_BASE } from "./grid-types";
 import { cellKey, type AnchoredGroup, type PickCategoryGroup } from "./pick-groups";
 import { previewPortions, type PreviewBase, type ProvisionalSwap } from "./pick-preview";
 import { portionsByCategory } from "./pick-size";
-
-/** Add-on rows are appended after every meal row: sortOrder at or above this marks one. */
-export const ADDON_SORT_BASE = 100_000;
 
 /**
  * Cell keys of the per-row add-ons (an extra Sabzi): a category's last N plain rows, where N is

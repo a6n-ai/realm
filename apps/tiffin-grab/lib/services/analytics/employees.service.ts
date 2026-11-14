@@ -1,4 +1,4 @@
-import { isCustomerRole } from "@/lib/auth/roles";
+import { isCustomerRole } from "@/lib/roles";
 import { ratePct } from "@/lib/money";
 import { and, inArray, isNotNull, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db/client";
@@ -6,7 +6,8 @@ import { couponRedemptions, coupons, inquiries, orderActivities, orders, tickets
 import { leadWhere as scopedLeadWhere } from "./leads.service";
 import { laterOrderSql } from "@/lib/orders/queries";
 import { revenueBy } from "./metrics/money";
-import { dateWhere, facetsWhere, ordersScope, type AnalyticsScope, intCount, noOrgs, orgWhere } from "./metrics/scope";
+import { dateWhere, facetsWhere, ordersScope, intCount, noOrgs, orgWhere } from "./metrics/scope";
+import { type AnalyticsScope } from "@/lib/analytics/scope-types";
 
 export type EmployeeRow = {
   userId: string;

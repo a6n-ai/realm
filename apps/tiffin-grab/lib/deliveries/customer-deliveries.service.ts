@@ -26,7 +26,7 @@ import {
 import { allowedDishIdsForMealSize } from "@/lib/menu/selections.service";
 import { PAYMENT_REJECTED_STATUS, isHiddenFromCustomer, isPaymentReviewStatus, orderDisplayStatus } from "@/lib/orders/display-status";
 import { getSession } from "@/lib/auth/session";
-import { isStaffRole } from "@/lib/auth/roles";
+import { isStaffRole } from "@/lib/roles";
 import { dishCategoriesService } from "../services/dish-categories.service";
 import { menuService } from "../services/menu.service";
 import { autoResumeIfElapsed, lapseElapsedPausesSafe } from "./pause-days.service";

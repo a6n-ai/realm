@@ -1,9 +1,9 @@
 import { parseCustomerContact } from "@/lib/services/contact";
-import { isCustomerRole } from "@/lib/auth/roles";
+import { isCustomerRole } from "@/lib/roles";
 import { formatMoney, generateCode, ValidationError, emailSchema } from "@foundry/commons";
 import { createLogger } from "@foundry/commons/logger";
 import { enabledMethods, findMethod } from "@foundry/payments";
-import { replaceOlderUnpaidCheckouts } from "../payments/stripe-expiry";
+import { replaceOlderUnpaidCheckouts } from "./unpaid-checkouts";
 import { and, eq, sql } from "drizzle-orm";
 import { db, type Tx } from "@/db/client";
 import { startPaidStripeOrder } from "@/lib/payments/verification";
@@ -22,7 +22,7 @@ import {
   plans,
   users,
 } from "@/db/schema";
-import { resolveUserId } from "../services/session-service";
+import { resolveUserId } from "@/lib/identity/user-ids";
 import { sendMetaPurchaseOnce } from "@/lib/meta/purchase";
 import { runInBackground } from "@foundry/cloud/background";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";

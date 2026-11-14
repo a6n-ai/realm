@@ -17,9 +17,10 @@ import { formatMoney } from "@foundry/commons";
 import { db } from "@/db/client";
 import { APP_DEFAULTS, app, deliveries } from "@/db/schema";
 import { DEFAULT_MEAL_TYPES, parseMealTypes, type MealTypesSettings } from "@/lib/menu/meal-types";
-import { couponKind, type DiscountPolicy } from "@/db/schema/coupons";
+import { couponKind } from "@/db/schema/coupons";
+import type { DiscountPolicy } from "@/db/schema/types";
 import { SUPPORT_HOURS_DEFAULT, parseSupportHours, type SupportHours } from "@/lib/support/support-hours";
-import { eventCategory } from "@/lib/notifications/event-categories";
+import { eventCategory } from "@/lib/notifications/events";
 import type { LeadAssignmentConfig, Strategy } from "./assignment";
 import { SessionUpdatableService } from "./session-service";
 

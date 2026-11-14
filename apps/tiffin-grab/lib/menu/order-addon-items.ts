@@ -12,9 +12,8 @@ import type { SubscriptionAddon } from "@/lib/deliveries/customer-deliveries.ser
  * alongside meal_size_items; swaps never do — swap-options reads meal_size_items only,
  * and appending keeps every swap's fromRow pointing at the same meal row.
  */
-import { ADDON_SORT_BASE } from "./pick-addons";
+import { ADDON_SORT_BASE } from "./grid-types";
 import { round2 } from "@foundry/commons/util/money";
-export { ADDON_SORT_BASE };
 
 export type AddonItemRow = {
   category: string;

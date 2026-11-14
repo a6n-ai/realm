@@ -1,7 +1,7 @@
 import { isUniqueViolation } from "@/lib/db/errors";
 import type { ReferralStatus } from "@/db/schema/enums";
 import { pageOffset } from "@foundry/design-system/filters/parse-filter-state";
-import { isCustomerRole } from "@/lib/auth/roles";
+import { isCustomerRole } from "@/lib/roles";
 import { CAPTURED } from "@/lib/payments/status";
 import { paymentStatusIn } from "@/lib/payments/status-sql";
 import { wordpressImportSql } from "@/lib/orders/wordpress-import-sql";

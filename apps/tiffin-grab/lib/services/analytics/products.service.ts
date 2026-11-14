@@ -3,7 +3,8 @@ import { db } from "@/db/client";
 import { deliveries, dishCategories, dishes, mealSelections, mealSizes, orderAddons, orders, plans } from "@/db/schema";
 import type { SizeSale } from "@/lib/analytics/size-treemap";
 import { revenueBy } from "./metrics/money";
-import { dateWhere, ordersScope, type AnalyticsScope, intCount, noOrgs, ranOrders } from "./metrics/scope";
+import { dateWhere, ordersScope, intCount, noOrgs, ranOrders } from "./metrics/scope";
+import { type AnalyticsScope } from "@/lib/analytics/scope-types";
 import { deliveryWhere } from "./operations.service";
 import { round2 } from "@foundry/commons/util/money";
 

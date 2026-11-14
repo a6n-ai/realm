@@ -1,4 +1,4 @@
-import { STAFF_ROLES, isAdmin } from "@/lib/auth/roles";
+import { STAFF_ROLES, isAdmin } from "@/lib/roles";
 import { and, eq, inArray } from "drizzle-orm";
 import { ForbiddenError, ValidationError } from "@foundry/commons";
 import { db } from "@/db/client";

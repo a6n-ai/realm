@@ -2,7 +2,8 @@ import { and, isNotNull, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { orders } from "@/db/schema";
 import { clampToToday } from "@/lib/analytics/clamp";
-import { ordersDrillHref, zonedRangeMs } from "@/lib/analytics/drill";
+import { ordersDrillHref } from "@/lib/analytics/drill";
+import { zonedRangeMs } from "@/lib/dates/epoch-window";
 import {
   earliestRelevantEnd,
   summarizeTrialConversion,
@@ -16,7 +17,8 @@ import { getSignupDaily } from "./customers.service";
 import { revenueBy } from "./metrics/money";
 import { scopeToOrdersCondition } from "./metrics/orders";
 import { getDeliveriesDaily } from "./operations.service";
-import { localDay, ordersScope, type AnalyticsScope, noOrgs, ranOrders } from "./metrics/scope";
+import { localDay, ordersScope, noOrgs, ranOrders } from "./metrics/scope";
+import { type AnalyticsScope } from "@/lib/analytics/scope-types";
 import { eachDate, isoDateInZone } from "@foundry/commons/util/dates";
 
 export type { TrialConversionStats };

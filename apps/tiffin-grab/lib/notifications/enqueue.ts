@@ -1,5 +1,5 @@
 import { and, eq, exists, inArray, or } from "drizzle-orm";
-import { STAFF_ROLES } from "@/lib/auth/roles";
+import { STAFF_ROLES } from "@/lib/roles";
 import { enqueue, enqueueMany, type EnqueueInput } from "@relay/engine";
 import type { Tx } from "@/db/client";
 import { member, users } from "@/db/schema";

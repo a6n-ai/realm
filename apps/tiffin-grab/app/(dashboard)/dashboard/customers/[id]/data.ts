@@ -1,4 +1,4 @@
-import { isAdmin } from "@/lib/auth/roles";
+import { isAdmin } from "@/lib/roles";
 import { cache } from "react";
 import { notFound } from "next/navigation";
 import { NotFoundError } from "@foundry/commons";

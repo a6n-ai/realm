@@ -3,7 +3,7 @@ import { isUniqueViolation } from "@/lib/db/errors";
 import { LIVE } from "@/lib/orders/status";
 import { orderStatusIn } from "@/lib/orders/status-sql";
 import { pageOffset } from "@foundry/design-system/filters/parse-filter-state";
-import { STAFF_ROLES } from "@/lib/auth/roles";
+import { STAFF_ROLES } from "@/lib/roles";
 import { BaseRepository, UpdatableRepository, conditionToSql, columnResolver, pageOrder } from "@foundry/database";
 import { NotFoundError, ValidationError, phoneSchema, emailSchema } from "@foundry/commons";
 import type { Condition, FilterCondition } from "@foundry/commons/model/condition";

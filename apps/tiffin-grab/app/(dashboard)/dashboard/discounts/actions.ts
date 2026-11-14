@@ -1,6 +1,6 @@
 "use server";
 
-import { STAFF_ROLES } from "@/lib/auth/roles";
+import { STAFF_ROLES } from "@/lib/roles";
 import { and, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { ValidationError } from "@foundry/commons";
@@ -8,7 +8,8 @@ import { parseInput, staffAction } from "@/lib/actions/staff-action";
 import type { ActionResult } from "@/lib/actions/action-result";
 import { db } from "@/db/client";
 import { coupons, customerGroups, users } from "@/db/schema";
-import { couponKind, type CouponConfig, type DiscountPolicy } from "@/db/schema/coupons";
+import { couponKind, type CouponConfig } from "@/db/schema/coupons";
+import type { DiscountPolicy } from "@/db/schema/types";
 import { planType } from "@/db/schema/catalog";
 import { currentUserId } from "@/lib/services/session-service";
 import { recordCouponGroupAction } from "@/lib/services/customer-groups.service";

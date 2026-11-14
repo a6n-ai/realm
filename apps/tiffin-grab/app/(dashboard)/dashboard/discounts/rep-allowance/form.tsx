@@ -4,7 +4,7 @@ import { unwrapAction } from "@/lib/actions/unwrap";
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import type { DiscountPolicy } from "@/db/schema/coupons";
+import type { DiscountPolicy } from "@/db/schema/types";
 import { DataTable, RowActionTooltipButton, SectionCard, type Column, type FacetDef, type StatItem } from "@/components/ds";
 import { DiscountStats, DiscountStatsSkeleton } from "../discount-stats";
 import { ListSearchFilters } from "@/components/filters/reui-facet-filters";

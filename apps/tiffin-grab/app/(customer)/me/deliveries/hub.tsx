@@ -6,7 +6,7 @@ import { db } from "@/db/client";
 import { users } from "@/db/schema";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
-import { expireUnpaidStripeOrders } from "@/lib/payments/stripe-expiry";
+import { expireUnpaidStripeOrders } from "@/lib/orders/unpaid-checkouts";
 import { zonedDateIso } from "@foundry/commons";
 import { DeliveriesSkeleton } from "@/components/customer/deliveries/deliveries-skeleton";
 import { DeliveriesView } from "@/components/customer/deliveries/deliveries-view";

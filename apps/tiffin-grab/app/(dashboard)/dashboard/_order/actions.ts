@@ -14,7 +14,7 @@ import { assertInquiriesVisible, inquiriesService } from "@/lib/services/inquiri
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import type { CreateOrderInput } from "@/lib/orders/create-order";
 import { couponsService, type AvailableCoupon } from "@/lib/services/coupons.service";
-import { userIdByPublicId } from "@/lib/services/session-service";
+import { userIdByPublicId } from "@/lib/identity/user-ids";
 import { postCatalogSubtotal } from "@/lib/pricing/discounts";
 import { maxDiscountAboveCost } from "@/lib/pricing/cost-floor";
 import { loadMealCostFloor } from "@/lib/pricing/meal-cost";

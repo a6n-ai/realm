@@ -1,6 +1,7 @@
 import { BreadcrumbSchema } from "@/components/landing/breadcrumb-schema";
 import type { Metadata } from "next";
-import { ReferContent, type ReferExtras } from "@/components/landing/refer/refer-content";
+import { ReferContent } from "@/components/landing/refer/refer-content";
+import type { ReferExtras } from "@/components/landing/refer/refer-types";
 import { referHeadline } from "@/lib/referrals/headline";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { lowestRate, shortMoney } from "@/lib/landing/live-figures";

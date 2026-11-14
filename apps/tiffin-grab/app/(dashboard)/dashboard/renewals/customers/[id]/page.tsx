@@ -1,4 +1,4 @@
-import { isAdmin } from "@/lib/auth/roles";
+import { isAdmin } from "@/lib/roles";
 import { notFound } from "next/navigation";
 import { RefreshCwIcon } from "lucide-react";
 import { zonedDateIso } from "@foundry/commons";

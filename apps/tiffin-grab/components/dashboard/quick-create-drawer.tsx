@@ -1,5 +1,5 @@
 "use client";
-import { isStaffRole } from "@/lib/auth/roles";
+import { isStaffRole } from "@/lib/roles";
 import { ClipboardListIcon, PackageIcon, UserPlusIcon, type LucideIcon } from "lucide-react";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@foundry/ui/drawer";
 import { useQuickAdd, type QuickAddKind } from "./quick-add-provider";

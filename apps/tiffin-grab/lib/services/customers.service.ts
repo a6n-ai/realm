@@ -1,8 +1,9 @@
-import { resolveUserId } from "@/lib/services/session-service";
+import type { SendState } from "@/lib/notifications/send-state";
+import { resolveUserId } from "@/lib/identity/user-ids";
 import { parseCustomerContact, requireEmail } from "@/lib/services/contact";
 import { inOrderStatuses, RUNNING } from "@/lib/orders/status";
 import { pageOffset } from "@foundry/design-system/filters/parse-filter-state";
-import { isCustomerRole } from "@/lib/auth/roles";
+import { isCustomerRole } from "@/lib/roles";
 import { inStatuses, PAID, PENDING, UNPAID } from "@/lib/payments/status";
 import { and, asc, desc, eq, gte, ilike, inArray, isNotNull, like, or, sql } from "drizzle-orm";
 import { NotFoundError, ValidationError, phoneSchema, emailSchema } from "@foundry/commons";
@@ -259,9 +260,6 @@ export type CustomerRow = {
   lastInvite: SendState | null;
   lastReminder: SendState | null;
 };
-
-/** One outbox row's delivery state; opened/delivered come from SES events. */
-export type SendState = { status: string; at: number; deliveredAt: number | null; openedAt: number | null };
 
 const sendStateJson = sql`json_build_object('status', o.status, 'at', o.created_at, 'deliveredAt', o.delivered_at, 'openedAt', o.opened_at)`;
 

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { inquiriesHref, ordersDrillHref, paymentsHref, zonedRangeMs } from "../drill";
-import type { AnalyticsScope } from "@/lib/services/analytics/metrics/scope";
+import { inquiriesHref, ordersDrillHref, paymentsHref } from "../drill";
+import { zonedRangeMs } from "@/lib/dates/epoch-window";
+import type { AnalyticsScope } from "@/lib/analytics/scope-types";
 import { presentPaymentStatuses } from "../revenue";
 import { isoDateInZone } from "@foundry/commons/util/dates";
 

@@ -4,7 +4,8 @@ import { deliveries, orders, users } from "@/db/schema";
 import { bucketCounts } from "@/lib/analytics/buckets";
 import { lastTiffinSql, ordersListWhere } from "@/lib/orders/queries";
 import { countCustomers, countOrders, scopeToOrdersCondition } from "./metrics/orders";
-import { dateWhere, localDay, ordersScope, type AnalyticsScope, intCount, noOrgs } from "./metrics/scope";
+import { dateWhere, localDay, ordersScope, intCount, noOrgs } from "./metrics/scope";
+import { type AnalyticsScope } from "@/lib/analytics/scope-types";
 import { isoDateInZone } from "@foundry/commons/util/dates";
 
 const distinctUsers = sql<number>`cast(count(distinct ${orders.userId}) as int)`;

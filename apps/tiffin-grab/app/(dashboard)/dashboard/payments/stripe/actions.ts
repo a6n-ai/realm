@@ -11,11 +11,11 @@ import { processStripeEvent } from "@/lib/payments/stripe-webhook";
 import {
   chargeSavedCardForPayment,
   reconcileStripe,
-  refundStripePayment,
   settleStripePayment,
   type ReconcileRow,
   type SettleOutcome,
 } from "@/lib/payments/payment-stripe";
+import { refundStripePayment } from "@/lib/payments/stripe-charge";
 import type { ActionResult } from "@/lib/actions/action-result";
 import { staffAction, type Guard } from "@/lib/actions/staff-action";
 import { orderAction } from "@/lib/actions/order-action";

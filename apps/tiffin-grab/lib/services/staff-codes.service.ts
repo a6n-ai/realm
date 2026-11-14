@@ -3,7 +3,7 @@ import { alias } from "drizzle-orm/pg-core";
 import { pageOrder } from "@foundry/database";
 import { db } from "@/db/client";
 import { couponRedemptions, coupons, orders, users } from "@/db/schema";
-import { STAFF_ROLES } from "@/lib/auth/roles";
+import { STAFF_ROLES } from "@/lib/roles";
 import { couponExpiredSql, couponLiveSql } from "@/lib/coupons/status-sql";
 import { epochBoundsWhere } from "@/lib/list/default-month";
 import type { SortState } from "@foundry/design-system/list-sort";

@@ -14,7 +14,8 @@ import {
   scopeToComplaintFilters,
   ticketOrgWhere,
 } from "./complaint-filters";
-import { localDay, type AnalyticsScope, intCount } from "./metrics/scope";
+import { localDay, intCount } from "./metrics/scope";
+import { type AnalyticsScope } from "@/lib/analytics/scope-types";
 import { STATUS_LABEL } from "@/lib/support/ticket-status";
 
 /**

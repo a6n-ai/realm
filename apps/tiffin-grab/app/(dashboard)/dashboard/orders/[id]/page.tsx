@@ -1,5 +1,5 @@
 import { ONGOING, RUNNING, inOrderStatuses } from "@/lib/orders/status";
-import { isAdmin } from "@/lib/auth/roles";
+import { isAdmin } from "@/lib/roles";
 import { inStatuses, PAID, UNPAID } from "@/lib/payments/status";
 import { isWordpressImport } from "@/lib/orders/wordpress-import";
 import { Suspense } from "react";
@@ -9,7 +9,7 @@ import { NotFoundError, formatMoney as fmt, zonedDateIso } from "@foundry/common
 import { eq } from "drizzle-orm";
 import { enabledMethods, findMethod } from "@foundry/payments";
 import { after } from "next/server";
-import { expireUnpaidStripeOrders } from "@/lib/payments/stripe-expiry";
+import { expireUnpaidStripeOrders } from "@/lib/orders/unpaid-checkouts";
 import { mealSizeAddons } from "@/lib/catalog/types";
 import { requireStaff, roleCan } from "@/lib/auth/guards";
 import { settleStaleOnView } from "@/lib/payments/payment-stripe";

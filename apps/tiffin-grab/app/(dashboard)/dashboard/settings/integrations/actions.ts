@@ -4,7 +4,8 @@ import { ValidationError } from "@foundry/commons";
 import { blockedBy, resolveStatuses } from "@foundry/crm/server";
 import type { ActionResult } from "@/lib/actions/action-result";
 import { staffAction } from "@/lib/actions/staff-action";
-import { currentUserId, recordAudit } from "@/lib/services/session-service";
+import { currentUserId } from "@/lib/services/session-service";
+import { recordAudit } from "@/lib/identity/audit";
 import { revalidatePublicSite } from "@/lib/landing/revalidate-site";
 import { PLUGINS } from "@/lib/plugins.server";
 

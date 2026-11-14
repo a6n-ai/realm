@@ -1,4 +1,4 @@
-import { isAdmin, isStaffRole } from "@/lib/auth/roles";
+import { isAdmin, isStaffRole } from "@/lib/roles";
 import { type RoleValue } from "@foundry/commons";
 import type { RealtimeRole } from "@foundry/realtime";
 import { getSession } from "@/lib/auth/session";

@@ -20,7 +20,8 @@ import {
   type ComplaintFilters,
 } from "@/lib/services/analytics/complaint-filters";
 import { scopeOrAlert } from "@/components/analytics/franchise-unavailable";
-import { DATE_BASIS_LABEL, type AnalyticsScope } from "@/lib/services/analytics/metrics/scope";
+import { DATE_BASIS_LABEL } from "@/lib/services/analytics/metrics/scope";
+import { type AnalyticsScope } from "@/lib/analytics/scope-types";
 import {
   getByCategory,
   getByPlan,

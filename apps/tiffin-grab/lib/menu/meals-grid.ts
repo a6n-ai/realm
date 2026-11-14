@@ -1,11 +1,11 @@
 import { isCutoffPassed } from "@/lib/dates/cutoff";
 import { asc, eq, inArray } from "drizzle-orm";
 import { parseIsoDateUtc, weekdayKey } from "@foundry/commons";
-import type { FileDetail } from "@foundry/storage/model";
 import { db } from "@/db/client";
 import { dishes, menuWeeks, plans } from "@/db/schema";
 import { thisWeekStartIso, type DeliveryDate } from "./delivery-dates";
 import type { DayOfWeek } from "./delivery-days";
+import type { GridCell, GridDish } from "./grid-types";
 import { allowedDishIdsForMealSize, rowPlansForOrder } from "./selections.service";
 import { itemsForRow, rowDietLabel, type RowPlans } from "./row-plans";
 import { resolveDeliveryMealsForWeek, resolvedMealsWeekKey, sideChoicesForWeek } from "./resolve-delivery-meal";
@@ -16,26 +16,6 @@ import { carryingTrips } from "./trip-lookup";
 import { fullDayName } from "./coverage";
 import { isContainerCategory } from "./format-tu";
 import { addDaysIso, mondayOfIso } from "@foundry/commons/util/dates";
-
-export type GridCell = {
-  day: DayOfWeek;
-  dateIso: string;
-  slot: string;
-  personIndex: number;
-  pickIndex: number;
-  selectable: boolean;
-  quantity: number;
-  selectedDishId: string | null;
-  isDefaulted: boolean;
-  dishes: GridDish[];
-  locked: boolean;
-  lockNote?: string | null;
-  /** A custom meal row whose category mixes diets ("Non-Veg"): its dishes are that diet's only. */
-  diet?: string;
-};
-
-/** `ruleId`/`planId` are dishes.id / dishes.planId as strings — what meal rules test; absent means untestable. */
-export type GridDish = { id: string; name: string; image: FileDetail | null; ruleId?: string; planId?: string };
 
 export type WeekDateView = DeliveryDate & { lockMs: number; locked: boolean; carriedBy?: string | null; lockNote?: string | null };
 

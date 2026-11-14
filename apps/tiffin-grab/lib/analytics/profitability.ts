@@ -6,7 +6,7 @@ import { round2 } from "@foundry/commons/util/money";
  * half its value in each month — even though January's cash is the full amount.
  * Revenue excludes tax; cash is what the customer paid, tax included.
  */
-import { zonedRangeMs } from "@/lib/analytics/drill";
+import { daysInMonth, monthBounds, zonedRangeMs } from "@/lib/dates/epoch-window";
 import { addDaysIso, isoToUtcDate, mondayOfIso } from "@foundry/commons/util/dates";
 
 export type ProfitabilityAssumptions = {
@@ -44,27 +44,10 @@ export function parseAssumptions(raw: unknown): ProfitabilityAssumptions {
 
 export type Grain = "daily" | "weekly" | "monthly";
 
-export function daysInMonth(year: number, month: number): number {
-  return new Date(Date.UTC(year, month, 0)).getUTCDate();
-}
-
 export function addMonths(monthIso: string, delta: number): string {
   const [y, m] = monthIso.split("-").map(Number) as [number, number];
   const d = new Date(Date.UTC(y, m - 1 + delta, 1));
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
-}
-
-export function currentMonth(timeZone: string, now = Date.now()): string {
-  return new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit" }).format(now);
-}
-
-export function monthBounds(monthIso: string): { from: string; to: string } {
-  const [y, m] = monthIso.split("-").map(Number) as [number, number];
-  const last = daysInMonth(y, m);
-  return {
-    from: `${monthIso}-01`,
-    to: `${monthIso}-${String(last).padStart(2, "0")}`,
-  };
 }
 
 /** The calendar range a month/grain nav selection shows: one month, or the 12 months ending at it. */

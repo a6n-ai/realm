@@ -7,7 +7,7 @@ import { useListNav } from "@/components/ds";
 import { useTimezone } from "@foundry/design-system/timezone-provider";
 import { ToggleGroup, ToggleGroupItem } from "@foundry/ui/toggle-group";
 import { activePreset, DATE_PRESETS, presetRange, type DatePresetKey } from "@/lib/analytics/date-presets";
-import { currentMonthEpochRange } from "@/lib/services/analytics/shared-filter-params";
+import { currentMonthEpochRange } from "@/lib/dates/epoch-window";
 
 /**
  * The section date. Writes `from`/`to` epoch-ms on the URL and, when neither is

@@ -8,7 +8,7 @@ import { RowActionTooltipButton } from "@/components/ds/row-action-tooltip-butto
 import { unwrapAction } from "@/lib/actions/unwrap";
 import { useTimezone } from "@foundry/design-system/timezone-provider";
 import { formatEpoch } from "@/lib/format/datetime";
-import type { SendState } from "@/lib/services/customers.service";
+import type { SendState } from "@/lib/notifications/send-state";
 import { copyCustomerInviteLink, resendCustomerInvite, sendCustomerMenuReminder } from "./actions";
 import { sendTone } from "@/lib/notifications/send-tone";
 

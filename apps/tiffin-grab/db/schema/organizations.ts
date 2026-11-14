@@ -15,7 +15,7 @@ import {
 } from "drizzle-orm/pg-core";
 import type { IntegrationsConfig } from "@foundry/clover";
 import type { PaymentConfig } from "@foundry/payments";
-import type { DiscountPolicy } from "./coupons";
+import type { DiscountPolicy } from "./types";
 import { users } from "./auth";
 
 const nextIdText = sql`(next_id())::text`;

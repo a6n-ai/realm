@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { GridCell, GridDish } from "../meals-grid";
+import type { GridCell, GridDish } from "../grid-types";
 import { foldProvisionalCells } from "../pick-preview";
 
 const D = "2026-10-08";

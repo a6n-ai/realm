@@ -1,4 +1,4 @@
-import { isStaffRole } from "@/lib/auth/roles";
+import { isStaffRole } from "@/lib/roles";
 export type OrderActivityLike = {
   type: string;
   note: string | null;

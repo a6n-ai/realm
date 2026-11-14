@@ -8,7 +8,7 @@ import { db } from "@/db/client";
 import { getSession } from "@/lib/auth/session";
 import { getDiscountPolicy } from "@/lib/services/app-settings.service";
 import { couponsService } from "@/lib/services/coupons.service";
-import { userIdByPublicId } from "@/lib/services/session-service";
+import { userIdByPublicId } from "@/lib/identity/user-ids";
 import { repAllowanceFor, repAllowanceZone } from "@/lib/services/rep-allowance";
 
 export type RepCodeAllowance = { capAmount: number; capPct: number; left: number; total: number; validityHours: number };

@@ -25,7 +25,8 @@ import {
 } from "@/lib/services/analytics/products.service";
 import { revenueTotals } from "@/lib/services/analytics/metrics/money";
 import { buildSizeTreemap, type SizeMetric } from "@/lib/analytics/size-treemap";
-import { DATE_BASIS_LABEL, type AnalyticsScope } from "@/lib/services/analytics/metrics/scope";
+import { DATE_BASIS_LABEL } from "@/lib/services/analytics/metrics/scope";
+import { type AnalyticsScope } from "@/lib/analytics/scope-types";
 import { getMoneyFormatter } from "@/lib/services/app-settings.service";
 
 // Several cards read the same numbers; React's cache shares one query per request (the scope object is the key).

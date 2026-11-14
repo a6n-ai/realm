@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { resolveVisibleOrgIds } from "@foundry/auth";
 import { db } from "@/db/client";
 import { member } from "@/db/schema";
-import { userIdByPublicId } from "@/lib/services/session-service";
+import { userIdByPublicId } from "@/lib/identity/user-ids";
 
 // Which orgs a session may see. super_admin bypasses to "all"; everyone else is
 // scoped to their `member` rows. [] means "show nothing", never an unscoped query.

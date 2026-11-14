@@ -22,7 +22,8 @@ import {
   type RevenueCohortSlice,
 } from "@/lib/analytics/revenue-cohorts";
 import { freeTiffins, methodWhere, moneyDate, paymentsByStatus, revenueBy, revenueTotals } from "./metrics/money";
-import { dateWhere, ordersScope, type AnalyticsScope, noOrgs } from "./metrics/scope";
+import { dateWhere, ordersScope, noOrgs } from "./metrics/scope";
+import { type AnalyticsScope } from "@/lib/analytics/scope-types";
 import { eachDate, isoDateInZone } from "@foundry/commons/util/dates";
 
 export type { RevenueSummary, PaymentStatusSlice, RevenueCohortSlice };

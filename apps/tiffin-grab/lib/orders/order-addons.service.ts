@@ -20,7 +20,7 @@ import type { OrderPricingSnapshot } from "@/lib/pricing/types";
 import { publishUserRefresh } from "@/lib/realtime/publish-inbox";
 import { resolveCheckoutTaxes, stripeTaxFor } from "@/lib/tax/checkout-taxes";
 import { getAppSettings, getPaymentConfig } from "../services/app-settings.service";
-import { chargedCents, refundStripePayment, tryChargeLock } from "../payments/payment-stripe";
+import { chargedCents, refundStripePayment, tryChargeLock } from "../payments/stripe-charge";
 import { cancelOpenIntent } from "../payments/stripe-expiry";
 import { openTiffinCount } from "../deliveries/tiffin-counts";
 import { lockOrder } from "./order-lock";

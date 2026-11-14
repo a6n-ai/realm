@@ -5,8 +5,6 @@ import { ticketOrgWhere } from "./complaint-filters";
 import { noOrgs } from "./metrics/scope";
 import type { AnalyticsFilterOptions } from "./shared-filter-params";
 
-export { ANALYTICS_FILTER_PARAMS, currentMonthEpochRange, type AnalyticsSearchParams, type AnalyticsFilterOptions } from "./shared-filter-params";
-
 /** `visibleOrgIds` limits the franchise list (the session's visible set). */
 export async function getAnalyticsFilterOptions(
   visibleOrgIds: "all" | string[],

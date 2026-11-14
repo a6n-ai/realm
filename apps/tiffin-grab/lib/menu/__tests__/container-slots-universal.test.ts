@@ -4,7 +4,7 @@ import { portionsByCategory, portionForPick, sumTuForPicks } from "../pick-size"
 import { groupPickCells, buildMealSummary, type PickCategoryMeta, type PickCategoryGroup } from "../pick-groups";
 import { applySwapsToCounts, type SwapRow } from "../swap-rules";
 import { swapAppliesTo } from "../coverage";
-import type { GridCell } from "../meals-grid";
+import type { GridCell } from "../grid-types";
 import { labelLineTexts } from "../packing-requirement";
 
 describe("Universal Container Slots (1 slot = 1 physical container item)", () => {

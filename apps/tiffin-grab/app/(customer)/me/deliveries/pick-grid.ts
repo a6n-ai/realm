@@ -8,7 +8,8 @@ import { deliveries, deliveryCategorySwaps, deliveryFrequencies, orders } from "
 import { assertCanManageOrder } from "@/lib/deliveries/customer-deliveries.service";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { dishCategoriesService } from "@/lib/services/dish-categories.service";
-import { buildMealsGrid, type GridCell } from "@/lib/menu/meals-grid";
+import { buildMealsGrid } from "@/lib/menu/meals-grid";
+import type { GridCell } from "@/lib/menu/grid-types";
 import { listRuleTextsForOrder } from "@/lib/menu/rule-texts";
 import { mealRulesService } from "@/lib/services/meal-rules.service";
 import type { MealRule } from "@/lib/menu/meal-rule-types";

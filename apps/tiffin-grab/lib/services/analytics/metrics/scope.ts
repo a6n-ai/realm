@@ -5,22 +5,9 @@ import { deliveryZones, mealSizes, orders, payments, plans } from "@/db/schema";
 import { PAID } from "@/lib/payments/status";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
-import { currentMonthEpochRange, epoch, list } from "../shared-filter-params";
+import { currentMonthEpochRange, epoch, list } from "@/lib/dates/epoch-window";
 import { isoDateInZone } from "@foundry/commons/util/dates";
-
-export type AnalyticsScope = {
-  orgIds: "all" | string[];
-  /** Every franchise the viewer may see; drill links omit `org` when the scope already covers all of them. */
-  visible: "all" | string[];
-  fromMs: number;
-  toMs: number;
-  tz: string;
-  plans: string[];
-  mealSizes: string[];
-  zones: string[];
-  /** Tab-only params (method, complaint category/subcategory/status/priority) carried through drill links. */
-  extra: Record<string, string[]>;
-};
+import type { AnalyticsScope } from "@/lib/analytics/scope-types";
 
 export type ScopeSearchParams = Record<string, string | undefined>;
 

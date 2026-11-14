@@ -31,7 +31,7 @@ vi.mock("@/lib/deliveries/deliveries.service", () => ({
   redeliverTrip: svc.redeliverTrip, isAdminDeliveryStatus: () => true,
 }));
 vi.mock("@/lib/orders/order-addons.service", () => ({ quoteOrderAddons: svc.quoteOrderAddons, addOrderAddons: svc.addOrderAddons }));
-vi.mock("@/lib/payments/stripe-expiry", () => ({ cancelOrderAndOpenPayments: svc.cancelOrderAndOpenPayments }));
+vi.mock("@/lib/orders/unpaid-checkouts", () => ({ cancelOrderAndOpenPayments: svc.cancelOrderAndOpenPayments }));
 vi.mock("@/lib/payments/payment-proof", () => ({ uploadPaymentProof: vi.fn(async () => null) }));
 vi.mock("@/lib/services/optimoroute/push", () => ({ pushOneDelivery: svc.pushOneDelivery, removeOneDelivery: svc.removeOneDelivery }));
 

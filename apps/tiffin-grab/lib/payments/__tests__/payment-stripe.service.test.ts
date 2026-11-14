@@ -48,7 +48,7 @@ vi.mock("@/lib/notifications/enqueue", async (orig) => {
 
 const { db } = await import("@/db/client");
 const { ledgerEntries, orderActivities, orders, payments } = await import("@/db/schema");
-const svc = await import("../payment-stripe");
+const svc = { ...(await import("../payment-stripe")), ...(await import("../stripe-charge")) };
 const { claimPayment } = await import("@/lib/payments/verification");
 const fx = await import("./stripe-fixture");
 const { makeStripePayment, reset, cleanup } = fx;

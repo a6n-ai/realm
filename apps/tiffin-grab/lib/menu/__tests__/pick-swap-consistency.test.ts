@@ -8,7 +8,7 @@ import { portionsByCategory } from "../pick-size";
 import { groupPickCells } from "../pick-groups";
 import type { SwapCategory } from "../swap-rules";
 import type { TuCategory } from "../format-tu";
-import type { GridCell } from "../meals-grid";
+import type { GridCell } from "../grid-types";
 
 const sabziCat: SwapCategory = {
   key: "sabzi",

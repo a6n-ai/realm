@@ -2,7 +2,7 @@
  * Pure helpers for the customer Pick Meals sheet: group composition-row cells by
  * category for display without collapsing the underlying pickIndex model.
  */
-import type { GridCell } from "@/lib/menu/meals-grid";
+import type { GridCell } from "@/lib/menu/grid-types";
 import { takeGiven, type SlotRow } from "@/lib/menu/swap-rules";
 
 export type PickCategoryMeta = {

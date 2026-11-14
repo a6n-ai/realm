@@ -1,4 +1,4 @@
-import { STAFF_ROLES } from "@/lib/auth/roles";
+import { STAFF_ROLES } from "@/lib/roles";
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import { users } from "@/db/schema";

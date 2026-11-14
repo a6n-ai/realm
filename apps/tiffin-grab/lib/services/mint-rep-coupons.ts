@@ -1,4 +1,4 @@
-import { STAFF_ROLES } from "@/lib/auth/roles";
+import { STAFF_ROLES } from "@/lib/roles";
 import { tzOffsetMinutes, zonedDateIso } from "@foundry/commons";
 import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";

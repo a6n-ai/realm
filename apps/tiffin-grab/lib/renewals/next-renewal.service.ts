@@ -5,7 +5,8 @@ import { mealSizes, orders, plans, users, renewals as renewalRecords } from "@/d
 import { lastTiffinSql } from "@/lib/orders/queries";
 import { OPEN_TRACKS, type RenewalsFilter } from "@/lib/renewals/filters";
 import { followUpWhere, computedStatusSql } from "./renewal-tracking.service";
-import { hydrateRenewalRows, renewalSelect, renewalsWhere, type DayBounds, type RenewalRange, type RenewalRow } from "./renewals.service";
+import { hydrateRenewalRows, renewalSelect, renewalsWhere, type DayBounds, type RenewalRow } from "./renewals.service";
+import type { RenewalRange } from "./filters";
 
 export type RenewalReason = "overdue" | "due" | "renew";
 export type NextRenewalRow = RenewalRow & { reason: RenewalReason };

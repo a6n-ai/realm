@@ -364,3 +364,8 @@ export const orderTemplateVars = <T extends Record<string, string>>(code: string
   customerName: customerName || "there",
   ...extra,
 });
+
+/** Unlisted events fall into Account & security. */
+export function eventCategory(event: string): EventCategory {
+  return EVENTS[event as AppEvent]?.category ?? "account";
+}

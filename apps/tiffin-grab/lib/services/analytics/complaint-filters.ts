@@ -2,7 +2,8 @@ import { and, eq, gte, inArray, isNull, lte, or, sql, type SQL } from "drizzle-o
 import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import { deliveryZones, mealSizes, orders, plans, tickets } from "@/db/schema";
 import { isTicketCategory, TICKET_CATEGORIES, type TicketCategoryValue } from "@/lib/support/ticket-taxonomy";
-import { orgWhere, type AnalyticsScope } from "./metrics/scope";
+import { orgWhere } from "./metrics/scope";
+import { type AnalyticsScope } from "@/lib/analytics/scope-types";
 import { STATUS_OPTIONS as TICKET_STATUS_OPTIONS } from "@/lib/support/ticket-status";
 
 /**

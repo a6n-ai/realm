@@ -8,7 +8,7 @@
 
 import { validateMealRules, type SwapOption } from "./meal-validation";
 import type { HydratedPick, MealRule } from "./meal-rule-types";
-import type { GridDish } from "./meals-grid";
+import type { GridDish } from "./grid-types";
 
 function hydrate(category: string, dish: GridDish): HydratedPick | null {
   if (!dish.ruleId || !dish.planId) return null;

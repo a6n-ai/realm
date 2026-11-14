@@ -1,4 +1,4 @@
-import { isAdmin } from "@/lib/auth/roles";
+import { isAdmin } from "@/lib/roles";
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { LayoutDashboardIcon } from "lucide-react";

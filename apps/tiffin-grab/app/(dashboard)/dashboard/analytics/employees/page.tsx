@@ -13,7 +13,8 @@ import { Card, CardContent } from "@foundry/ui/card";
 import { Badge } from "@/components/reui/badge";
 import { getEmployeeRollup } from "@/lib/services/analytics/employees.service";
 import { EmployeeRollupTable } from "./rollup-table";
-import { DATE_BASIS_LABEL, type AnalyticsScope } from "@/lib/services/analytics/metrics/scope";
+import { DATE_BASIS_LABEL } from "@/lib/services/analytics/metrics/scope";
+import { type AnalyticsScope } from "@/lib/analytics/scope-types";
 import { getMoneyFormatter } from "@/lib/services/app-settings.service";
 
 type SearchParams = Promise<Record<string, string | undefined>>;

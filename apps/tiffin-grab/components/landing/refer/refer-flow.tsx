@@ -8,8 +8,8 @@ import { makeCategoryLook } from "@/components/customer/meals/category-look";
 import { FaqAccordion } from "@/components/landing/faq-accordion";
 import type { ReferralOffer } from "@/lib/referrals/offer";
 import { rewardOf, tagFaces } from "./friend-copy";
-import type { ReferExtras } from "./refer-content";
 import { ReferCta } from "./refer-cta";
+import type { ReferExtras } from "./refer-types";
 import { ReferSteps, type ReferStep } from "./refer-steps";
 import { ReferTag } from "./refer-tag";
 

@@ -1,11 +1,11 @@
-import { isStaffRole } from "@/lib/auth/roles";
+import { isStaffRole } from "@/lib/roles";
 import { and, desc, eq, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { listFilterUsage, member } from "@/db/schema";
 import type { FacetDef } from "@foundry/design-system";
 import { getSession } from "@/lib/auth/session";
 import { canonicalParams, presetFromCanonical, type FilterPreset } from "@/lib/list/presets";
-import { userIdByPublicId } from "./session-service";
+import { userIdByPublicId } from "@/lib/identity/user-ids";
 
 const MAX_CHIPS = 5;
 // Fetch extra rows: some may no longer map onto the list (removed option) and get dropped.

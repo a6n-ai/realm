@@ -10,7 +10,8 @@ import { ValidationError } from "@foundry/commons";
 import { db } from "@/db/client";
 import { users, walletLedger } from "@/db/schema";
 import { searchCustomers } from "@/lib/services/customers.service";
-import { currentUserId, userIdByPublicId } from "@/lib/services/session-service";
+import { currentUserId } from "@/lib/services/session-service";
+import { userIdByPublicId } from "@/lib/identity/user-ids";
 import {
   addGroupMembers,
   createCustomerGroup,

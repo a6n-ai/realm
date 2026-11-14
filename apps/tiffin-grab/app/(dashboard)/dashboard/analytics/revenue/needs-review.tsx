@@ -2,7 +2,7 @@ import { FileSearchIcon } from "lucide-react";
 import { SectionCard } from "@/components/ds";
 import { Badge } from "@/components/reui/badge";
 import { needsReviewRows, REVIEW_REASON_LABEL } from "@/lib/services/analytics/metrics/needs-review";
-import type { AnalyticsScope } from "@/lib/services/analytics/metrics/scope";
+import type { AnalyticsScope } from "@/lib/analytics/scope-types";
 import { NeedsReviewTable } from "./needs-review-table";
 
 export async function NeedsReview({ scope }: { scope: AnalyticsScope }) {

@@ -1,6 +1,6 @@
 "use server";
 
-import { isCustomerRole } from "@/lib/auth/roles";
+import { isCustomerRole } from "@/lib/roles";
 import { round2 } from "@foundry/commons/util/money";
 import { eq } from "drizzle-orm";
 import { capRedemption } from "@foundry/wallet";
@@ -16,7 +16,7 @@ import { loadMealCostFloor } from "@/lib/pricing/meal-cost";
 import { priceSubscription, type PricingResult, type PricingSelections } from "@/lib/pricing";
 import { quoteTrial } from "@/lib/trial/quote";
 import { applyDiscountLane } from "@/lib/services/discount-lane";
-import { userIdByPublicId } from "@/lib/services/session-service";
+import { userIdByPublicId } from "@/lib/identity/user-ids";
 import { getAppSettings, getCoinEarnPct, getMaxCoinPctOfSubtotal, getMaxCoinRedeemPctOfBalance, getMaxWalletBalance, getPaymentConfig } from "@/lib/services/app-settings.service";
 import { coinsUnderCap, earnCoins } from "@/lib/wallet/earn-coins";
 import { coinCapMessage, coinLimits, quoteCoinCap } from "@/lib/pricing/coin-cap";

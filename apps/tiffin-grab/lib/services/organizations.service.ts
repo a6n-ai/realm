@@ -3,7 +3,7 @@ import { and, asc, eq, ilike, isNull, sql } from "drizzle-orm";
 import type { OrgLocation } from "@foundry/commons";
 import { db } from "@/db/client";
 import { member, organization, users } from "@/db/schema";
-import { userIdByPublicId } from "./session-service";
+import { userIdByPublicId } from "@/lib/identity/user-ids";
 
 // Per-request memoized: the dashboard shell resolves the same actor several times.
 

@@ -4,7 +4,8 @@ import { db } from "@/db/client";
 import { ledgerEntries, orders, payments } from "@/db/schema";
 import { CAPTURED } from "@/lib/payments/status";
 import { methodWhere, moneyDate } from "./money";
-import { dateWhere, ordersScope, type AnalyticsScope, noOrgs } from "./scope";
+import { dateWhere, ordersScope, noOrgs } from "./scope";
+import { type AnalyticsScope } from "@/lib/analytics/scope-types";
 
 export type ReviewReason = "cancelled_paid" | "paid_ne_total" | "partly_refunded" | "refunded_no_ledger";
 

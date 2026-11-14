@@ -2,7 +2,7 @@ import { updatableColumns } from "@foundry/database";
 import { integer, jsonb, numeric, pgTable, text } from "drizzle-orm/pg-core";
 import type { IntegrationsConfig } from "@foundry/clover";
 import type { PaymentConfig } from "@foundry/payments";
-import type { DiscountPolicy } from "./coupons";
+import type { DiscountPolicy } from "./types";
 import { APP_DEFAULTS } from "./app-defaults";
 
 /** One weekday's support window, "HH:MM" 24h in the app timezone. */

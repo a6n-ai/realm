@@ -16,7 +16,8 @@ import type { SortState } from "@foundry/design-system/list-sort";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@foundry/design-system/timezone-provider";
 import { eventLabel } from "@relay/engine/ui/template-status";
-import { CATEGORY_LABEL, EVENT_CATEGORIES, eventCategory, type EventCategory } from "@/lib/notifications/event-categories";
+import { CATEGORY_LABEL, EVENT_CATEGORIES, type EventCategory } from "@/lib/notifications/event-categories";
+import { eventCategory } from "@/lib/notifications/events";
 import { TEMPLATE_COLUMNS, type TemplateSortColumn } from "./template-columns";
 
 export interface TemplateChannel {

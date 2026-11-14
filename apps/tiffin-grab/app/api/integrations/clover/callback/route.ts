@@ -1,4 +1,4 @@
-import { isAdmin } from "@/lib/auth/roles";
+import { isAdmin } from "@/lib/roles";
 import { NextResponse } from "next/server";
 import {
   exchangeCloverAuthorizationCode,

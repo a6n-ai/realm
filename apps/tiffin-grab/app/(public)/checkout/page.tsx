@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { currentUserId } from "@/lib/services/session-service";
 import { getSession } from "@/lib/auth/session";
-import { isStaffRole } from "@/lib/auth/roles";
+import { isStaffRole } from "@/lib/roles";
 import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 import { Checkout } from "@/components/checkout/checkout";
 import { CheckoutUnavailable } from "@/components/checkout/checkout-unavailable";

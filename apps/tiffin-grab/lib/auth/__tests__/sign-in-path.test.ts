@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@/db/client", () => ({ db: {} }));
-vi.mock("@/lib/services/session-service", () => ({ recordAudit: vi.fn() }));
+vi.mock("@/lib/identity/audit", () => ({ recordAudit: vi.fn() }));
 vi.mock("@/lib/auth/security-events", () => ({}));
 
 const { signInPath } = await import("@/lib/auth");

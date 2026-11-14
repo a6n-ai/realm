@@ -1,4 +1,4 @@
-import type { DiscountPolicy } from "@/db/schema/coupons";
+import type { DiscountPolicy } from "@/db/schema/types";
 import { getAppSettings } from "./app-settings.service";
 
 // The daily rep allowance is anchored to the app-settings timezone's calendar day, like the

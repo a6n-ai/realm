@@ -15,7 +15,7 @@ import { db } from "@/db/client";
 import { account, invitation, member, organization, rateLimit, session, users, verification } from "@/db/schema";
 import { betterAuthPassword } from "./password";
 import { ac, roles } from "./permissions";
-import { isCustomerRole } from "./roles";
+import { isCustomerRole } from "@/lib/roles";
 import {
   notifyNewLoginIfNewDevice,
   notifyPasswordChanged,
@@ -25,7 +25,7 @@ import {
 } from "./security-events";
 import { isWorkers } from "@foundry/commons/runtime/platform";
 import { trustedIpHeaders } from "@/lib/runtime/platform";
-import { recordAudit } from "@/lib/services/session-service";
+import { recordAudit } from "@/lib/identity/audit";
 
 import { AUTH_COOKIE_PREFIX } from "./cookie-prefix";
 import { authBaseUrl, authSecret, cookieDomain, isProduction } from "@/lib/runtime/env";

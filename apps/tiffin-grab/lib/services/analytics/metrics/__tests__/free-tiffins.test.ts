@@ -7,7 +7,7 @@ const { db } = await import("@/db/client");
 const { deliveries, deliveryFrequencies, mealSizes, orders, organization, plans, users } = await import("@/db/schema");
 const { buildAnalyticsScope } = await import("../scope");
 const { freeTiffins } = await import("../money");
-const { zonedRangeMs } = await import("@/lib/analytics/drill");
+const { zonedRangeMs } = await import("@/lib/dates/epoch-window");
 
 const TZ = "America/Toronto";
 const AFTER = Date.parse("2035-04-15T16:00:00Z");

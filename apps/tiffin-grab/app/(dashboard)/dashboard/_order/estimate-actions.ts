@@ -12,7 +12,7 @@ import { dishCategoriesService } from "@/lib/services/dish-categories.service";
 import { assertOrderVisible } from "@/lib/orders/orders.service";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import { findRenewableOrder, readOrderPrefill } from "@/lib/orders/order-prefill.service";
-import { userIdByPublicId } from "@/lib/services/session-service";
+import { userIdByPublicId } from "@/lib/identity/user-ids";
 import type { ActionResult } from "@/lib/actions/action-result";
 import { staffAction } from "@/lib/actions/staff-action";
 import { orderFormCatalog } from "./order-form-catalog";

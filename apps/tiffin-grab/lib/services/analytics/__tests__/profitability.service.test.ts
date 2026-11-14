@@ -11,7 +11,7 @@ const { setProfitabilityAssumptions } = await import("../../app-settings.service
 const { buildAnalyticsScope } = await import("../metrics/scope");
 const { revenueTotals } = await import("../metrics/money");
 const { getRevenueReport } = await import("../revenue.service");
-const { zonedRangeMs } = await import("@/lib/analytics/drill");
+const { zonedRangeMs } = await import("@/lib/dates/epoch-window");
 
 const NOW = Date.parse("2036-09-18T16:00:00Z");
 const TZ = "America/Toronto";

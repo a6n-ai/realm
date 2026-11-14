@@ -12,7 +12,7 @@ import { saveMyMealSelections, type PickItem } from "@/app/(customer)/me/meals/a
 import { panelId } from "@/components/customer/kit";
 import { useSheetUi } from "./sheet-ui";
 import { actionAvailability, humanDate } from "@/lib/deliveries/view";
-import type { GridCell } from "@/lib/menu/meals-grid";
+import type { GridCell } from "@/lib/menu/grid-types";
 import type { SwapOption } from "@/lib/menu/meal-validation";
 import { foldProvisionalCells, previewOverride, previewPortions, previewSwapOptions, type ProvisionalSwap } from "@/lib/menu/pick-preview";
 import {

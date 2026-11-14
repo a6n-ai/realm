@@ -1,6 +1,6 @@
 import { couponStatus } from "@/lib/coupons/status";
 import { hasPaidOrder } from "@/lib/orders/paid-history";
-import { isStaffRole } from "@/lib/auth/roles";
+import { isStaffRole } from "@/lib/roles";
 import { round2 } from "@foundry/commons/util/money";
 import { randomInt } from "node:crypto";
 import { ValidationError } from "@foundry/commons";

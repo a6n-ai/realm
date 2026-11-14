@@ -1,6 +1,6 @@
 import { appTodayIso } from "@/lib/dates/today";
 import { isLiveOrder } from "@/lib/deliveries/status";
-import { isAdmin } from "@/lib/auth/roles";
+import { isAdmin } from "@/lib/roles";
 import { eq } from "drizzle-orm";
 import { getSession } from "@/lib/auth/session";
 import type { OrderDetail } from "@/lib/orders/orders.service";

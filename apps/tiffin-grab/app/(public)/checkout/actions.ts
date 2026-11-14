@@ -7,9 +7,10 @@ import { ValidationError } from "@foundry/commons";
 import { createLogger } from "@foundry/commons/logger";
 import { resolveAndPersist } from "@foundry/places";
 import { getSession } from "@/lib/auth/session";
-import { currentUserId, userIdByPublicId } from "@/lib/services/session-service";
+import { currentUserId } from "@/lib/services/session-service";
+import { userIdByPublicId } from "@/lib/identity/user-ids";
 import { getContactOnFile } from "@/lib/services/contact-on-file";
-import { assertOnePerson, createOrder, type CreateOrderInput } from "@/lib/orders/orders.service";
+import { assertOnePerson, createOrder, type CreateOrderInput } from "@/lib/orders/create-order";
 import { usersService } from "@/lib/services/users.service";
 import { sendAccountSetupEmail } from "@/lib/services/customers.service";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
@@ -156,7 +157,7 @@ async function paymentAmount(paymentPublicId: string): Promise<string> {
  * Otherwise cancels the customer's unpaid card orders, which releases the coins they hold for the new order.
  */
 async function replaceUnpaidCheckouts(userPublicId: string): Promise<boolean> {
-  const { hasChargeInFlight, cancelUnpaidCheckouts } = await import("@/lib/payments/stripe-expiry");
+  const [{ hasChargeInFlight }, { cancelUnpaidCheckouts }] = await Promise.all([import("@/lib/payments/stripe-expiry"), import("@/lib/orders/unpaid-checkouts")]);
   const userId = await userIdByPublicId(userPublicId);
   if (!userId) return false;
   if (await hasChargeInFlight(userId)) return true;

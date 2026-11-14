@@ -8,7 +8,7 @@ import {
   selectedProgress,
   cellKey,
 } from "../pick-groups";
-import type { GridCell } from "../meals-grid";
+import type { GridCell } from "../grid-types";
 
 const dishes = [
   { id: "d-aloo", name: "Aloo Gobi", image: null },

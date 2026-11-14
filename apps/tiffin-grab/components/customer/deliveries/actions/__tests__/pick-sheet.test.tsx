@@ -3,7 +3,7 @@ import "@testing-library/jest-dom/vitest";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Trip } from "@/lib/deliveries/view";
-import type { GridCell } from "@/lib/menu/meals-grid";
+import type { GridCell } from "@/lib/menu/grid-types";
 import type { PlanView } from "@/lib/deliveries/view/adapter";
 import { PickSheet } from "../pick-sheet";
 

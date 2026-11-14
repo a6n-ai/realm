@@ -1,13 +1,15 @@
 import { parseEmail, parsePhone } from "@/lib/services/contact";
 import { isUniqueViolation } from "@/lib/db/errors";
-import { isCustomerRole, isStaffRole } from "@/lib/auth/roles";
+import { isCustomerRole, isStaffRole } from "@/lib/roles";
 import { UpdatableRepository } from "@foundry/database";
 import { AuthError, ValidationError, phoneSchema, emailSchema, pinSchema, type RoleValue } from "@foundry/commons";
 import { and, eq, ne, sql } from "drizzle-orm";
 import { db, type Tx } from "@/db/client";
 import { account, addressTags, deliveryStrategies, invitation, session, users } from "@/db/schema";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
-import { SessionUpdatableService, recordAudit, requireUserId } from "./session-service";
+import { SessionUpdatableService } from "./session-service";
+import { requireUserId } from "@/lib/identity/user-ids";
+import { recordAudit } from "@/lib/identity/audit";
 import { pickUserWritable } from "./users-writable";
 import { syncStaffMembership } from "./organizations.service";
 import { createLogger } from "@foundry/commons/logger";

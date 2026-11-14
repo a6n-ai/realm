@@ -11,7 +11,7 @@ import {
 import { attachDishToPlans, categoryIdFor, testPlanId, deleteNonSystemUsers } from "@/db/test-helpers";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { thisWeekStartIso } from "@/lib/menu/delivery-dates";
-import type { GridCell } from "../meals-grid";
+import type { GridCell } from "../grid-types";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 const { resolveDeliveryMeal } = await import("../resolve-delivery-meal");

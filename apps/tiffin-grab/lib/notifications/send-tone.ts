@@ -1,4 +1,4 @@
-import type { SendState } from "@/lib/services/customers.service";
+import type { SendState } from "@/lib/notifications/send-state";
 
 /** How far an invite or reminder email got, as a coloured status line for staff tables. */
 export function sendTone(state: SendState | null, fmt: (ms: number) => string): { tone: string; status: string } {

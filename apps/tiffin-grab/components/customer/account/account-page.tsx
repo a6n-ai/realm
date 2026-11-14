@@ -1,4 +1,4 @@
-import { isCustomerRole } from "@/lib/auth/roles";
+import { isCustomerRole } from "@/lib/roles";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, LifeBuoy, Wallet } from "lucide-react";
 import type { ReactNode } from "react";

@@ -4,7 +4,8 @@ import { db } from "@/db/client";
 import { deliveries, ledgerEntries, mealSizes, orders, payments, plans } from "@/db/schema";
 import { CAPTURED, PAID } from "@/lib/payments/status";
 import { WP_MIGRATED } from "@/lib/orders/wordpress-import-sql";
-import { dateWhere, localDay, ordersScope, type AnalyticsScope, noOrgs } from "./scope";
+import { dateWhere, localDay, ordersScope, noOrgs } from "./scope";
+import { type AnalyticsScope } from "@/lib/analytics/scope-types";
 import { isoDateInZone } from "@foundry/commons/util/dates";
 import { round2 } from "@foundry/commons/util/money";
 

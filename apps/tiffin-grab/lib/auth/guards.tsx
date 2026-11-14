@@ -2,7 +2,7 @@ import { Role } from "@foundry/commons";
 import { createPermissionGuards, createRoleGuards } from "@foundry/auth";
 import { getSession } from "./session";
 import { roles } from "./permissions";
-import { isAdmin } from "./roles";
+import { isAdmin } from "@/lib/roles";
 
 const { requireRole } = createRoleGuards(getSession);
 const { requirePermission, roleCan } = createPermissionGuards(getSession, roles);
