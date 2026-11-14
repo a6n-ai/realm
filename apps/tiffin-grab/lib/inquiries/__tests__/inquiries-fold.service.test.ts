@@ -107,9 +107,9 @@ describe("createOrFold match branches", () => {
   });
 
   it("review: does not reopen a lost row whose other identifier an open row holds", async () => {
-    const email = testEmail();
-    const open = await insertTestInquiry({ email, fullName: "Open twin" });
-    const lost = await insertTestInquiry({ phone: "+16475551209", email, stage: "lost", subStatus: "lost" });
+    // Same column can no longer repeat (unique indexes); across columns it still can.
+    const open = await insertTestInquiry({ phone: "+16475551208", fullName: "Open twin" });
+    const lost = await insertTestInquiry({ phone: "+16475551209", whatsappPhone: "+16475551208", stage: "lost", subStatus: "lost" });
     const r = await inquiriesService.createOrFold({ phone: "+16475551209", sourceKey: "website" });
     expect(r.outcome).toBe("folded");
     expect((await row(lost.id)).stage).toBe("lost");

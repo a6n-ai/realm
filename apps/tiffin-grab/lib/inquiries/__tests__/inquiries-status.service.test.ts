@@ -168,8 +168,8 @@ describe("inquiriesService.setStatus", () => {
   it("reopening a lost lead is refused while another open lead has its phone", async () => {
     const old = await mk();
     await inquiriesService.setStatus(old.publicId, { subStatus: "lost", lostReason: "asked_to_stop" });
-    // A pre-merge duplicate: createOrFold would now reopen `old`, so insert the second row directly.
-    const fresh = await insertTestInquiry({ fullName: "Again", phone: old.phone });
+    // Unique indexes stop a same-column twin; a WhatsApp number equal to the phone can still exist.
+    const fresh = await insertTestInquiry({ fullName: "Again", whatsappPhone: old.phone });
     await expect(inquiriesService.setStatus(old.publicId, { subStatus: null })).rejects.toThrow(fresh.publicId);
     expect((await row(old.id)).stage).toBe("lost");
   });

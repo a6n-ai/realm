@@ -84,11 +84,19 @@ describe("inquiriesService.updateContact", () => {
     expect(note?.note).toContain(`Name changed from ${q.fullName} to Priya S.`);
   });
 
-  it("lost lead with a newer open lead for the same person can still be renamed", async () => {
+  it("lost lead can still be renamed", async () => {
     const old = await quick("+16475555101");
     await db.update(inquiries).set({ stage: "lost" }).where(eq(inquiries.id, old.id));
-    await quick("+16475555101");
     const r = await inquiriesService.updateContact(old.publicId, { fullName: "Old Lead Real Name" });
     expect(r.fullName).toBe("Old Lead Real Name");
+  });
+
+  it("a contact held by a lost or converted row is rejected: one row per person", async () => {
+    const lost = await quick("+16475555102");
+    await db.update(inquiries).set({ stage: "lost" }).where(eq(inquiries.id, lost.id));
+    const me = await quick("+16475555103");
+    await expect(inquiriesService.updateContact(me.publicId, { phone: "+16475555102" })).rejects.toThrow(
+      `Contact belongs to inquiry ${lost.publicId}`,
+    );
   });
 });

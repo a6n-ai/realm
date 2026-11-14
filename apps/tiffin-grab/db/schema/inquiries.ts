@@ -68,23 +68,17 @@ export const inquiries = pgTable("inquiries", {
   // Client-scoping — see orders.organizationId for the pattern. Nullable during backfill.
   organizationId: text("organization_id").references(() => organization.id),
 }, (t) => [
-  index("inquiries_phone_lower_idx").on(sql`lower(${t.phone})`),
-  index("inquiries_email_lower_idx").on(sql`lower(${t.email})`),
   index("inquiries_owner_idx").on(t.currentOwner),
-  index("inquiries_whatsapp_lower_idx").on(sql`lower(${t.whatsappPhone})`),
   uniqueIndex("inquiries_meta_lead_id_unique").on(t.metaLeadId).where(sql`${t.metaLeadId} is not null`),
   uniqueIndex("inquiries_org_lead_number_unique")
     .on(sql`coalesce(${t.organizationId}, '')`, t.leadNumber)
     .where(sql`${t.leadNumber} is not null`),
-  // One open lead per person (phone or email): the DB-level half of the dedup
-  // rule createOrFold enforces in app code, closing the read-then-write race.
-  // Repeat contacts become `reinquiry` activities on that lead.
-  uniqueIndex("inquiries_open_phone_unique")
-    .on(sql`lower(${t.phone})`)
-    .where(sql`${t.stage} not in ('converted', 'lost')`),
-  uniqueIndex("inquiries_open_email_unique")
-    .on(sql`lower(${t.email})`)
-    .where(sql`${t.stage} not in ('converted', 'lost')`),
+  // One row per person, any stage: the DB-level half of findMatch's dedup, closing the
+  // read-then-write race. Repeat contacts become `reinquiry` activities on that row.
+  // These also serve the lower(...) lookups, so no separate plain indexes.
+  uniqueIndex("inquiries_phone_unique").on(sql`lower(${t.phone})`).where(sql`${t.phone} is not null`),
+  uniqueIndex("inquiries_email_unique").on(sql`lower(${t.email})`).where(sql`${t.email} is not null`),
+  uniqueIndex("inquiries_whatsapp_unique").on(sql`lower(${t.whatsappPhone})`).where(sql`${t.whatsappPhone} is not null`),
   index("inquiries_created_idx").on(t.createdAt),
   index("inquiries_organization_idx").on(t.organizationId),
   index("inquiries_stage_created_idx").on(t.stage, t.createdAt),

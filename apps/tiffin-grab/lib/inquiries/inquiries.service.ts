@@ -217,7 +217,7 @@ function inquiriesResolver() {
   };
 }
 
-const isOpenLeadConflict = (e: unknown) => isUniqueViolation(e, /^inquiries_open_(phone|email)_unique$/);
+const isContactConflict = (e: unknown) => isUniqueViolation(e, /^inquiries_(open_)?(phone|email|whatsapp)_unique$/);
 
 class InquiriesService extends SessionUpdatableService<typeof inquiries> {
   /** See inquiry-core `findOpenMatch`. Kept as a method for the import route and existing callers. */
@@ -416,8 +416,8 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
       });
     } catch (e) {
       // Unique contact indexes: a concurrent insert for the same person won the race — fold into it.
-      if (isOpenLeadConflict(e)) {
-        const winner = await this.findOpenMatch(phone, email, undefined, whatsappPhone);
+      if (isContactConflict(e)) {
+        const { match: winner } = await findMatch(phone, email, undefined, whatsappPhone);
         if (winner) return fold(winner, null);
       }
       throw e;
@@ -514,12 +514,10 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
       } else throw new ValidationError("Enter a name or phone number");
     }
 
-    // Only an open lead can collide (a lost one may share the person's newer open lead), and only on changed contact.
+    // One row per person, any stage: a changed contact may not belong to another inquiry.
     const contactChanged = phone !== inq.phone || whatsappPhone !== inq.whatsappPhone || email !== inq.email;
-    const isOpen = inq.stage !== "lost";
-    const other = isOpen && contactChanged ? await this.findOpenMatch(phone, email, inq.id, whatsappPhone) : null;
-    const collision = (o: { publicId: string }) =>
-      new ValidationError(`Another open lead has this phone or email (${o.publicId}). Open that lead instead.`);
+    const other = contactChanged ? (await findMatch(phone, email, inq.id, whatsappPhone)).match : null;
+    const collision = (o: { publicId: string }) => new ValidationError(`Contact belongs to inquiry ${o.publicId}`);
     if (other) throw collision(other);
 
     const labels = { fullName: "Name", phone: "Phone", whatsappPhone: "WhatsApp", email: "Email" } as const;
@@ -532,8 +530,8 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
     try {
       await this.update(publicId, { ...next, leadNumber });
     } catch (e) {
-      if (isOpenLeadConflict(e)) {
-        const winner = await this.findOpenMatch(phone, email, inq.id, whatsappPhone);
+      if (isContactConflict(e)) {
+        const { match: winner } = await findMatch(phone, email, inq.id, whatsappPhone);
         if (winner) throw collision(winner);
       }
       throw e;
