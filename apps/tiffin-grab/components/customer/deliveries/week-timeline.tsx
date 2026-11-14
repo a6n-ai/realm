@@ -4,7 +4,7 @@ import { ChevronLeft, ChevronRight, Info, Truck } from "lucide-react";
 import { Popover } from "radix-ui";
 import { STATUS_COLOR, STATUS_LABEL, type DeliveryStatus } from "@/lib/deliveries/status";
 import { cn, FOCUS } from "@/components/kit/cn";
-import { TripTimeline } from "@/components/wizard/trip-timeline";
+import { TripTimeline } from "@/components/kit/trip-timeline";
 import { weekDays, weekTimeline, type Agenda } from "@/lib/deliveries/view/week";
 import { useSwipePages } from "@/components/kit/use-swipe-pages";
 import { addDaysIso, isoToUtcDate, mondayOfIso } from "@foundry/commons/util/dates";

@@ -1,5 +1,5 @@
 import Image from "next/image";
-import { cn } from "@/components/kit/cn";
+import { cn } from "@foundry/ui/cn";
 
 // Tiffin icon traced from the brand PNGs in docs/Tiffin Grab Logos.
 export function BrandMark({ className }: { className?: string }) {

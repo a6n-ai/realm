@@ -6,7 +6,7 @@ import { formatMenuWeekRange } from "@/lib/format/datetime";
 import { subscriptionTrips, tripsByWeek, type DatedTrip } from "@/lib/menu/delivery-dates";
 import { orderDeliveryDays, type DayOfWeek } from "@/lib/menu/delivery-days";
 import { trialDeliveryDates } from "@/lib/trial/schedule";
-import { TripTimeline } from "./trip-timeline";
+import { TripTimeline } from "../kit/trip-timeline";
 import { useSwipePages } from "@/components/kit/use-swipe-pages";
 
 /** Every delivery a new order would get, trial or weekly, from the same date walks the server runs. Null while incomplete or invalid. */
