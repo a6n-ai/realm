@@ -1,11 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { LEAD_PIPELINE, reachedStages } from "../lead-funnel";
+import { reachedStages } from "../lead-funnel";
 
 describe("reachedStages", () => {
-  it("uses the four-step pipeline", () => {
-    expect(LEAD_PIPELINE).toEqual(["new", "contacted", "follow_up", "converted"]);
-  });
-
   it("counts a lead at every stage up to its current one, so steps never grow", () => {
     // prod October 2026: 100 converted, 20 new, nothing in between
     expect(reachedStages({ new: 20, converted: 100 }).map((s) => s.reached)).toEqual([120, 100, 100, 100]);

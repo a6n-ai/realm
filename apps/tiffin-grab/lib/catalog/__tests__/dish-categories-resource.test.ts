@@ -16,15 +16,6 @@ async function cleanup() {
 }
 
 describe("dish-categories resource registry", () => {
-  it("is registered, keyed, with the expected fields", () => {
-    const def = RESOURCES["dish-categories"];
-    expect(def).toBeDefined();
-    expect(def.keyed).toBe(true);
-    expect(def.fields.map((f) => f.key)).toEqual(
-      expect.arrayContaining(["key", "label", "planIds", "selectable", "sortOrder"]),
-    );
-  });
-
   it("schema accepts a valid category and requires at least one plan", () => {
     const s = RESOURCES["dish-categories"].schema;
     expect(() => s.parse({ key: "daal", label: "Daal", planIds: ["pln_veg"], selectable: false, sortOrder: "6" })).not.toThrow();

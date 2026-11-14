@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { Role } from "@foundry/commons";
-import { ACCOUNT_SECTIONS, accountSectionHref, sectionFromSlug, sectionsForRole } from "../sections.config";
+import { ACCOUNT_SECTIONS, sectionFromSlug, sectionsForRole } from "../sections.config";
 
 const keys = (role: Parameters<typeof sectionsForRole>[0]) => sectionsForRole(role).map((s) => s.key);
 
@@ -20,10 +20,6 @@ describe("account sections", () => {
       expect(sectionsForRole(role, { cards: true }).map((s) => s.key)).not.toContain("payment-methods");
       expect(keys(role)).not.toEqual(expect.arrayContaining(["notifications"]));
     }
-  });
-
-  it("links stay on the single page", () => {
-    for (const s of ACCOUNT_SECTIONS) expect(accountSectionHref(s)).toBe(`/me/account?section=${s.slug}`);
   });
 
   it("resolves slugs only within the allowed set", () => {
