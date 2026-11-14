@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, isNotNull, sql } from "drizzle-orm";
+import { and, asc, inArray, isNotNull, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { addons as addonCatalog, dishCategories, orderAddons, plans } from "@/db/schema";
 import { slotRowsAfterSwaps, type MealSizeItemRow, type PortionSwap } from "./pick-size";

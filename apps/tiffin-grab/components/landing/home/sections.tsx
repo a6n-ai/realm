@@ -292,7 +292,7 @@ export async function Bento({ plans, sizes, sizePlanKey, sides, frequencies, len
   );
 }
 
-export function MenuRail({ days, rows, weekend, cutoffTime, range, photo }: { days: BoardDay[]; rows: string[]; weekend: BoardWeekend | null; cutoffTime: string | null; range: string; photo: StaticImageData }) {
+export function MenuRail({ days, rows, weekend, cutoffTime, range }: { days: BoardDay[]; rows: string[]; weekend: BoardWeekend | null; cutoffTime: string | null; range: string; photo: StaticImageData }) {
   return (
     <section id="menu" className="lp-section lp-menu scroll-mt-24" aria-labelledby="lp-menu">
       <div className="lp-wrap">

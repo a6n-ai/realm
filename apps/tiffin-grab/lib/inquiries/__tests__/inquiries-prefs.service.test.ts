@@ -2,7 +2,7 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { ensureSystemUser } from "@/db/test-helpers";
 import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
-import { deliveryZones, inquiries, inquiryActivities, users } from "@/db/schema";
+import { deliveryZones, inquiries, inquiryActivities } from "@/db/schema";
 
 const session: { user: { id: string; role: string } | null } = { user: null };
 vi.mock("@/lib/auth/session", () => ({ getSession: async () => (session.user ? session : null) }));

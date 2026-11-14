@@ -1,7 +1,7 @@
 "use server";
 
 import { unexpired } from "@foundry/wallet";
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/auth/guards";
 import type { ActionResult } from "@/lib/actions/action-result";

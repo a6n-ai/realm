@@ -29,7 +29,6 @@ import {
   myDeliveries,
   myEndedPlan,
   myPausePanel,
-  myPrimarySubscription,
   myAgendaDots,
   mySubscriptionWindows,
   myTiffinCounts,
@@ -38,7 +37,7 @@ import {
 import { stripeMethodAvailable } from "@/lib/payments/stripe";
 import { getClaimPaymentContextForOrder } from "@/lib/payments/verification";
 import { holidayNamesForUser } from "@/lib/deliveries/holidays.service";
-import { defaultWeek, parseWeekParam, splitAgenda, type Agenda } from "@/lib/deliveries/view/week";
+import { defaultWeek, parseWeekParam, splitAgenda } from "@/lib/deliveries/view/week";
 import { addDaysIso, mondayOfIso } from "@foundry/commons/util/dates";
 import { requestNow } from "@/lib/dates/request-now";
 

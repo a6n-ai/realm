@@ -74,7 +74,7 @@ describe("Order Delivery Charges (Integration)", () => {
     const mealSizePublicId = snap.mealSizes[0].publicId;
 
     // 2. Create order with delivery selections
-    const { deploymentId, publicId } = await createOrder({
+    const { publicId } = await createOrder({
       planKey,
       selections: {
         mealSizeId: mealSizePublicId,

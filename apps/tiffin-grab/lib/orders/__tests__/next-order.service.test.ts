@@ -13,7 +13,6 @@ const iso = (offsetDays: number) => new Date(Date.now() + offsetDays * DAY).toIS
 const scope = { visible: "all" as const };
 const today = iso(0);
 type Reason = "verify" | "overdue" | "missed" | "flagged" | "pending";
-const REASONS: Reason[] = ["verify", "overdue", "missed", "flagged", "pending"];
 const created: (typeof orders.$inferSelect)[] = [];
 const cleanup = async () => {
   if (created.length === 0) return;

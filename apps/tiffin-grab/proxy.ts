@@ -142,7 +142,6 @@ async function route(request: NextRequest): Promise<NextResponse> {
   request.headers.delete("x-realm-org-id");
 
   const onApi = pathname.startsWith("/api");
-  const onDashboard = pathname.startsWith("/dashboard");
   const resolutionExempt = skipsOrgResolution(pathname);
 
   // Set on the forwarded request when a URL-segment/default org resolves, so

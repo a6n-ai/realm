@@ -10,7 +10,6 @@ const day = (o: Partial<CalendarDayInput> & { date: string }): CalendarDayInput 
 });
 const one = (o: Partial<CalendarDayInput> & { date: string }, p: PlanContext = plan, now = NOW) => buildTrips([day(o)], now, p)[0]!;
 const ACTIONS: TripAction[] = ["pick", "swap", "move", "address"];
-const CLOSED = "Changes closed. This trip is being prepared.";
 
 describe("buildTrips status", () => {
   const rows: [string, Partial<CalendarDayInput> & { date: string }, string][] = [

@@ -21,8 +21,6 @@ import {
   RadialBarChart,
   Sankey,
   LabelList,
-  Line,
-  LineChart,
   ReferenceLine,
   Pie,
   PieChart,
@@ -32,8 +30,6 @@ import {
 } from "recharts";
 import {
   ChartContainer,
-  ChartLegend,
-  ChartLegendContent,
   ChartTooltip,
   ChartTooltipContent,
   type ChartConfig,
@@ -50,7 +46,6 @@ import type { FlowLink, FlowNode } from "@/lib/analytics/source-flow";
 import type { WaterfallData } from "@/lib/analytics/waterfall";
 import type { TreemapGroup } from "@/lib/analytics/size-treemap";
 import { ChartEmpty } from "@/components/analytics/chart-boundary";
-import { keySeries, seriesKey } from "@/components/analytics/series-keys";
 import {
   axisTicks,
   calendarWeeks,

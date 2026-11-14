@@ -289,7 +289,7 @@ describe("myCalendar (integration)", () => {
     return { userId: u.id, order, plan };
   }
 
-  async function seedThisWeekMenu(planType: "tiffin" | "healthy") {
+  async function seedThisWeekMenu(_planType: "tiffin" | "healthy") {
     const [week] = await db.insert(menuWeeks).values({
       weekStart: THIS_MONDAY, status: "released", orderCutoff: Date.now() + 999_999_999,
     }).returning();

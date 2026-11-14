@@ -27,7 +27,7 @@ interface Props {
 }
 
 /** Compact 7-day date picker for the customer page: a dot under each day you eat, coloured by status, and a truck (with the tiffin count when more than one) on each delivery day. */
-export function WeekStrip({ firstWeek, lastWeek, week: propWeek, today, selectedDay, agenda, now, onPickDay, onWeek }: Props) {
+export function WeekStrip({ firstWeek, lastWeek, week: propWeek, today, selectedDay, agenda, onPickDay, onWeek }: Props) {
   // The agenda already covers the whole plan, so the strip draws the next week the moment you swipe and
   // lets the URL (and the day details below) catch up behind it, instead of sitting empty until the server
   // answers. A new week from the parent (a link, Back) takes over again.

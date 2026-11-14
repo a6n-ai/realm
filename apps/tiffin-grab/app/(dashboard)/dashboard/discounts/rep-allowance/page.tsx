@@ -1,6 +1,5 @@
 import { activeStaffWhere } from "@/lib/staff/staff-roster";
 import { Suspense } from "react";
-import { and } from "drizzle-orm";
 import { parseFilterState, type FacetDef } from "@/components/ds";
 import { db } from "@/db/client";
 import { users } from "@/db/schema";

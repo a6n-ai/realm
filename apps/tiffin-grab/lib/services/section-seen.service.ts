@@ -1,7 +1,6 @@
 import { and, eq, gt, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { inquiries, payments, sectionSeen, tickets, users } from "@/db/schema";
-import { getSession } from "@/lib/auth/session";
 import { currentUserId as actorId } from "./session-service";
 
 export type Section = "tickets" | "inquiries" | "customers" | "payments";

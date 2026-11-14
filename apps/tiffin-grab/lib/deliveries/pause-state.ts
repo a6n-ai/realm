@@ -2,12 +2,10 @@ import { MOVED_AWAY } from "@/lib/deliveries/row-state";
 import { isCutoffPassed } from "@/lib/dates/cutoff";
 import { cutoffPassedSql, cutoffOpenSql } from "@/lib/dates/cutoff-sql";
 import { ValidationError } from "@foundry/commons";
-import { createLogger } from "@foundry/commons/logger";
 import { and, eq, inArray, isNotNull, not, sql } from "drizzle-orm";
 import { db, type Tx } from "@/db/client";
 import { deliveries, orderActivities, orders, subscriptionPauses } from "@/db/schema";
 
-const log = createLogger("pause-state");
 
 export type Reader = Pick<typeof db, "select">;
 

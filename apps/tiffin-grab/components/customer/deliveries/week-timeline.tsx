@@ -34,7 +34,7 @@ interface Props {
 }
 
 /** The deliveries week as the subscribe flow's trip timeline: trucks and bars in delivery-status colours, days tappable. */
-export function WeekTimeline({ firstWeek, lastWeek, week, today, selectedDay, agenda, now, onPickDay, onWeek, isDisabled, onDisabledTap, deliveryDay }: Props) {
+export function WeekTimeline({ firstWeek, lastWeek, week, today, selectedDay, agenda, onPickDay, onWeek, isDisabled, onDisabledTap, deliveryDay }: Props) {
   const { trips, dayStatus } = weekTimeline(agenda, week);
   const isos = weekDays(week);
   const thisWeek = mondayOfIso(today);

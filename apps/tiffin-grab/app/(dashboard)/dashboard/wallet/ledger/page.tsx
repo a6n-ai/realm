@@ -1,9 +1,7 @@
 import { Suspense } from "react";
-import { and, like, or } from "drizzle-orm";
 import { CoinsIcon, ScaleIcon, ScrollTextIcon, ShoppingBagIcon, WalletIcon } from "lucide-react";
 import { db } from "@/db/client";
-import { unexpired } from "@foundry/wallet";
-import { walletLedger, orders } from "@/db/schema";
+import { walletLedger } from "@/db/schema";
 import { parseSort, type SortState } from "@foundry/design-system/list-sort";
 import { parseFilterState, SectionCard, type FacetDef } from "@/components/ds";
 import { StatCards, StatCardsSkeleton, type StatCardItem } from "@/components/dashboard/stat-cards";

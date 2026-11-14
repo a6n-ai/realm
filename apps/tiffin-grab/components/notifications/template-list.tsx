@@ -8,7 +8,6 @@ import {
   FilterSheet,
   RowActionButton,
   RowActions,
-  type Column,
 } from "@/components/ds";
 import { TableCell } from "@foundry/ui/table";
 import { useUrlState } from "@/lib/list/use-url-state";

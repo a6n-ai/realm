@@ -6,7 +6,7 @@ import { and, eq, or } from "drizzle-orm";
 import type { PgTable } from "drizzle-orm/pg-core";
 import type { z } from "zod";
 import { db } from "@/db/client";
-import { addons, deliveryFrequencies, deliveryStrategies, deliveryZones, discounts, durationPackages, mealSizeItems, mealSizes, orders, plans } from "@/db/schema";
+import { addons, deliveryFrequencies, deliveryStrategies, discounts, durationPackages, mealSizeItems, mealSizes, orders, plans } from "@/db/schema";
 import { categoryCountsFromItems } from "@/lib/menu/pick-size";
 import { RESOURCES, slug } from "@/lib/catalog/resource-config";
 import {

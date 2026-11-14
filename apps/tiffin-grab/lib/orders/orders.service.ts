@@ -45,7 +45,6 @@ import { assertStartable } from "./order-window";
 import { appToday, assertFirstDeliveryOpen, validateStartDate } from "./start-date";
 import { assertTrialStart } from "@/lib/trial/schedule";
 import {
-  walletService,
   reverseCoinRedemption,
   reverseCoinAward,
   awardOrderCoins,

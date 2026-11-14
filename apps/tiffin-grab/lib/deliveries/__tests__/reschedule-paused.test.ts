@@ -51,11 +51,6 @@ async function makeOrder(includeWeekend: boolean, frequencyKey = "5_day") {
   return order;
 }
 
-async function firstDeliveryOf(order: { id: bigint }) {
-  const [row] = await db.select().from(deliveries).where(eq(deliveries.orderId, order.id)).limit(1);
-  return row;
-}
-
 describe("rescheduleDelivery on a paused trip", () => {
   it("moves the paused day to a later plan day, matching actionAvailability's Move offer", async () => {
     const order = await makeOrder(false);

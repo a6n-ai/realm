@@ -20,7 +20,7 @@ const VARIANT: Record<ButtonVariant, string> = {
 };
 
 /** The kit button's classes, for links that must look like buttons (public tg-cta / tg-btn match these). */
-export function buttonClass({ variant = "outline", size = "md", pill, blocked, className }: { variant?: ButtonVariant; size?: "md" | "lg"; pill?: boolean; blocked?: boolean; className?: string }) {
+export function buttonClass({ variant = "outline", size = "md", blocked, className }: { variant?: ButtonVariant; size?: "md" | "lg"; pill?: boolean; blocked?: boolean; className?: string }) {
   const hero = variant === "hero";
   return cn(
     FONT,

@@ -68,7 +68,7 @@ export async function getRouteLoadByDriver(limit = 10, scope: AnalyticsScope) {
   return rows.map((r) => ({ driver: r.driver ?? "Unassigned", n: r.n }));
 }
 
-const DELIVERY_DAY_STATUSES = ["scheduled", "paused", "skipped", "cancelled"] as const;
+type DeliveryDayStatus = "scheduled" | "paused" | "skipped" | "cancelled";
 
 /** Per-day rows split by status, sparse (days with no deliveries are absent); same where-clause as the status counts. */
 export async function getDeliveriesDaily(scope: AnalyticsScope) {
@@ -79,7 +79,7 @@ export async function getDeliveriesDaily(scope: AnalyticsScope) {
         .from(deliveries)
         .where(deliveryWhere(scope))
         .groupBy(sql`1`, deliveries.status);
-  const byDay = new Map<string, Record<(typeof DELIVERY_DAY_STATUSES)[number], number>>();
+  const byDay = new Map<string, Record<DeliveryDayStatus, number>>();
   for (const r of rows) {
     const d = byDay.get(r.iso) ?? { scheduled: 0, paused: 0, skipped: 0, cancelled: 0 };
     if (r.status in d) d[r.status as keyof typeof d] += r.n;

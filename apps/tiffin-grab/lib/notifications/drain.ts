@@ -2,7 +2,7 @@ import { createRateLimiter, drainPending as drain, sendScheduledCampaign } from 
 import { createLogger } from "@foundry/commons/logger";
 import { db } from "@/db/client";
 import { notifySendRate } from "@/lib/runtime/env";
-import { notificationTables, usersRef } from "./tables";
+import { notificationTables } from "./tables";
 import { buildAppHandlers } from "./handlers";
 import { campaignConfig } from "./campaign-config";
 import { dueScheduledCampaignIds } from "./campaign-schedule";

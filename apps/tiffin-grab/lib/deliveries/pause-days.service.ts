@@ -6,7 +6,7 @@ import { getAppSettings } from "../services/app-settings.service";
 import { RUNNING, inOrderStatuses } from "@/lib/orders/status";
 import { ValidationError } from "@foundry/commons";
 import { createLogger } from "@foundry/commons/logger";
-import { and, asc, desc, eq, getTableColumns, gt, gte, inArray, isNotNull, isNull, lte, not, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, getTableColumns, gte, inArray, isNotNull, isNull, lte, not, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, orderActivities, orders, subscriptionPauses } from "@/db/schema";
 import { removeStopsBestEffort, restoreStopsBestEffort, type OptimoSyncedRow } from "../optimoroute/stops";
@@ -248,10 +248,9 @@ export async function releasePausedDaysDetailed(orderPublicId: string, dates: st
  * converts each row once.
  */
 export async function lapseElapsedPauses(orderId: bigint): Promise<number> {
-  let retired = false;
   const n = await db.transaction(async (tx) => {
     await lockOrder(tx, orderId);
-    retired = await retireLegacyPaused(tx, orderId);
+    await retireLegacyPaused(tx, orderId);
     return lapsePausedRows(tx, orderId);
   });
   // The plan's switch sends these new holds straight to the end; its own transactions, after this one commits.

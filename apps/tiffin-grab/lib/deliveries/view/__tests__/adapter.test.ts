@@ -1,4 +1,3 @@
-import { buildTrips } from "@/lib/deliveries/view";
 import { describe, expect, it } from "vitest";
 import { buildPlanContext, planLines, renewDays, toCalendarInputs } from "@/lib/deliveries/view/adapter";
 

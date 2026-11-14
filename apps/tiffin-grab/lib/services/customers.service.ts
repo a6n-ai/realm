@@ -6,7 +6,7 @@ import { pageOffset } from "@foundry/design-system/filters/parse-filter-state";
 import { isCustomerRole } from "@/lib/roles";
 import { inStatuses, PAID, PENDING, UNPAID } from "@/lib/payments/status";
 import { and, asc, desc, eq, gte, ilike, inArray, isNotNull, like, or, sql } from "drizzle-orm";
-import { NotFoundError, ValidationError, phoneSchema, emailSchema } from "@foundry/commons";
+import { NotFoundError, ValidationError } from "@foundry/commons";
 import type { Condition } from "@foundry/commons/model/condition";
 import type { Page, PageRequest } from "@foundry/commons/util/pagination";
 import { conditionToSql, columnResolver, pageOrder } from "@foundry/database";

@@ -4,7 +4,7 @@ import { useEffect, useRef, type ReactNode } from "react";
 import { usePresence, useTyping } from "@foundry/realtime/client";
 import { IconTile, Pill, Skeleton } from "@/components/kit";
 import { cn, FONT } from "@/components/kit/cn";
-import { ChatMessageList, useMessageComposer, type ChatMessage, type ChatUi } from "@foundry/design-system";
+import { ChatMessageList, useMessageComposer, type ChatUi } from "@foundry/design-system";
 import { categoryLabel, subcategoryLabel } from "@/lib/support/ticket-taxonomy";
 import type { TicketStatus } from "@/lib/support/tickets.service";
 import { replyTicket } from "@/lib/support/customer-actions";

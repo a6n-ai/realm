@@ -4,7 +4,7 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { and, asc, eq } from "drizzle-orm";
 import { db } from "@/db/client";
-import { categoryIdFor, testPlanId } from "@/db/test-helpers";
+import { testPlanId } from "@/db/test-helpers";
 import { dishCategories, dishes, mealSelections, menuItems, menuWeeks } from "@/db/schema";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));

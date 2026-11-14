@@ -56,7 +56,7 @@ export function PlanTag({ plan }: { plan: PlanTagInfo }) {
 
 export const tiffins = (n: number) => `${n} ${n === 1 ? "tiffin" : "tiffins"}`;
 
-export function rowSubline(t: Trip, tz: string): string {
+export function rowSubline(t: Trip, _tz: string): string {
   if (t.status === "rescheduled" && t.movedTo) return `Moved to ${humanDate(t.movedTo)}`;
   if (t.status === "combined-into" && t.mergedInto) return `Combined into ${humanDate(t.mergedInto)}`;
   if (t.coversLabel) return t.coversLabel;
@@ -338,7 +338,7 @@ export function MealTiles({ cats }: { cats: MealCategory[] }) {
   );
 }
 
-export function TripInfoSheet({ row, tz, plan, open, onClose }: { row: EatingRow; tz: string; plan?: PlanView; open: boolean; onClose: () => void }) {
+export function TripInfoSheet({ row, plan, open, onClose }: { row: EatingRow; tz: string; plan?: PlanView; open: boolean; onClose: () => void }) {
   const t = row.trip;
   const cats = plan ? mealCategories(row, plan) : [];
   const delivery = row.movedTo ? [deliveryLine(row), movedFact(row)].join(" · ") : [

@@ -101,7 +101,6 @@ export function MenuPickDemo({
   const di = Math.max(0, FULL.indexOf(dayLabel));
   const oi = di === 6 ? 5 : di + 1;
   const other = FULL[oi]!;
-  const otherShort = DAYS[oi]!;
   const cutoff = (i: number) => (cutoffTime ? `Changes until ${DAYS[(i + 6) % 7]} ${cutoffTime}` : "Changes until the day before");
   const ownIdx = DAYS.indexOf(dayShort);
 

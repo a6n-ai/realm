@@ -8,10 +8,10 @@ import {
   type IntegrationsConfig,
   type IntegrationsConfigStore,
 } from "@foundry/clover";
-import { DEFAULT_PAYMENT_CONFIG, parsePaymentConfig, type PaymentConfig } from "@foundry/payments";
+import { parsePaymentConfig, type PaymentConfig } from "@foundry/payments";
 import { mergePaymentCatalog } from "@foundry/payments/providers";
 import type { Country as CountryCode } from "react-phone-number-input";
-import { and, eq, gt, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { configCache } from "@/lib/cache";
 import { formatMoney } from "@foundry/commons";
 import { db } from "@/db/client";

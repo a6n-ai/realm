@@ -450,13 +450,6 @@ const ART = [board(), mat(), plate(), acharJar(-118, 40), calendar(), tiersSvg, 
 const origin = at([0, 0, 0]);
 const up = at([0, 0, 1]);
 const EZ = [up[0] - origin[0], up[1] - origin[1]];
-const fwd = at([0, 1, 0]);
-const pt = (p) => p.map((v) => +v.toFixed(2));
-// The calendar page's top edge on screen, the line it folds up over when a month turns.
-const CAL_TOP_Z = 3 + CAL.h - 15;
-const CAL_HINGE = [...pt(at([CAL.x0, CAL_FACE, CAL_TOP_Z])), ...pt(at([CAL.x1, CAL_FACE, CAL_TOP_Z]))];
-
-const EY = [fwd[0] - origin[0], fwd[1] - origin[1]];
 const LABEL =
   "The Tiffin Grab mark built as a four-tier steel tiffin on a bamboo mat: jeera rice, tur dal, palak paneer and rotis in green tiers under a marigold lid with an orange knob. Behind it, a prep board with dal and rice cooking on a two-burner gas stove and a masala dabba of seven spices; The tiffin stands on a steel thali, a jar of achar on the board, a steel tumbler of water, katoris of boondi raita and kachumber salad and the mark's orange spoon in front; at the back, a desk calendar whose day columns light for the delivery days. At the end the tiffin is latched, steaming, ready for delivery.";
 

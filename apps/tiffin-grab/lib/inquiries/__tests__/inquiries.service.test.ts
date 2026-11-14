@@ -3,7 +3,6 @@ import { ensureSystemUser } from "@/db/test-helpers";
 import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { inquiries, inquiryActivities } from "@/db/schema";
-import { ValidationError } from "@foundry/commons";
 
 // Session services transitively evaluate NextAuth(); stub it for the node env.
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));

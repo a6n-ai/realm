@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidateOrder } from "@/lib/revalidate";
-import { AppError, NotFoundError } from "@foundry/commons";
+import { NotFoundError } from "@foundry/commons";
 import { eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import { menuWeeks, orders } from "@/db/schema";

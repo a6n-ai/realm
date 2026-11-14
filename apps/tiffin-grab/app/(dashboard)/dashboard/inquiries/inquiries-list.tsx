@@ -146,7 +146,6 @@ export function InquiriesList({
   emptyMessage,
   canReassign,
   staff,
-  reassignAction,
   dayStart,
   highlight,
 }: {

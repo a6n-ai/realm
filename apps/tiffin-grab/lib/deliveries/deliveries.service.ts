@@ -2,11 +2,10 @@ import { CLEAR_ADDRESS_OVERRIDE, HAS_HOLIDAY_EXTRA, POINTED_AT } from "@/lib/del
 import { appTodayIso } from "@/lib/dates/today";
 import { isCutoffPassed } from "@/lib/dates/cutoff";
 import { ValidationError, cutoffMsFor, parseIsoDateUtc, weekdayKey, zonedDateIso } from "@foundry/commons";
-import { createLogger } from "@foundry/commons/logger";
 import { and, asc, eq, gte, inArray, isNotNull, isNull, ne, not, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db, type Tx } from "@/db/client";
-import { deliveries, deliveryCategorySwaps, deliveryExtraTiffins, deliveryFrequencies, deliveryMoves, deliveryZones, orderActivities, orders, payments, users } from "@/db/schema";
+import { deliveries, deliveryCategorySwaps, deliveryExtraTiffins, deliveryFrequencies, deliveryMoves, deliveryZones, orderActivities, orders, users } from "@/db/schema";
 import { mealSizeAllowedDays, mealSizeServesWeekends } from "./weekend-dish";
 import { getAppSettings } from "../services/app-settings.service";
 import { allowedDaysError, orderDeliveryDays, planDaysError, planDeliveryDays, planWeek, type DayOfWeek, type TrialDays } from "@/lib/menu/delivery-days";
@@ -37,7 +36,6 @@ import { isCustomerPaused, isLapsedPause, lapsePausedRows, lapsedPauseDates, rel
 import { addDaysIso, isWeekendDay, utcIso } from "@foundry/commons/util/dates";
 import { lockOrder } from "../orders/order-lock";
 
-const log = createLogger("deliveries.service");
 
 async function assertOrderNotTrial(tx: Tx, orderId: bigint): Promise<void> {
   const [row] = await tx.select({ trialLength: orders.trialLength }).from(orders).where(eq(orders.id, orderId)).limit(1);
@@ -303,7 +301,7 @@ export async function adminSetDeliveryStatus(
       .where(or(eq(deliveries.makeupForDeliveryId, row.id), eq(deliveries.holidayExtraForDeliveryId, row.id))).limit(1);
     if (moved) throw new ValidationError("This delivery's tiffins were moved. Change the day they moved to.");
 
-    const order = await assertPlanEditable(tx, orderId, "This subscription can no longer be changed");
+    await assertPlanEditable(tx, orderId, "This subscription can no longer be changed");
 
     // Nothing goes back onto a day the kitchen is closed.
     if (status === "upcoming" && row.status !== "scheduled") {

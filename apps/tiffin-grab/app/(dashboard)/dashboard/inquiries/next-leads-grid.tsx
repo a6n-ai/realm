@@ -7,7 +7,7 @@ import type { PipelineRow } from "@/lib/inquiries/inquiries.service";
 import { ContactChips } from "@/components/dashboard/next-item/contact-chips";
 import { NextItemEmpty } from "@/components/dashboard/next-item/next-item-card";
 import { RecommendationGrid, type RecommendationOwner, type RecommendationItem } from "@/components/dashboard/next-item/recommendation-grid";
-import { ALL_OWNERS, ME, resolveOwnerParam } from "@/lib/list/presets";
+import { ME, resolveOwnerParam } from "@/lib/list/presets";
 import { StatusMenu } from "./_leads/status-dialog";
 import { FollowUpBadge } from "./follow-up-badge";
 import { NextLeadIconAction } from "./next-lead-actions";

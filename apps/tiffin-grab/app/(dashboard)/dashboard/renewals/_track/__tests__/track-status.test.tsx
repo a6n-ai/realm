@@ -4,7 +4,7 @@ import { useState, type ReactElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render as rtlRender, screen, waitFor } from "@testing-library/react";
 import { TimezoneProvider } from "@foundry/design-system/timezone-provider";
-import { addTrackNoteAction, logTrackActivityAction, setTrackStatusAction } from "../../actions";
+import { setTrackStatusAction } from "../../actions";
 import { TrackNoteDialog } from "../track-note-dialog";
 import { TrackStatusBoard, TrackStatusPill } from "../track-status";
 

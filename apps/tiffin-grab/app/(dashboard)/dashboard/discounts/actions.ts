@@ -128,7 +128,7 @@ export async function saveCoupon(publicId: string | null, patch: unknown): Promi
       : undefined;
     const writeValues = groupId === undefined ? values : { ...values, customerGroupId: groupId };
 
-    const saved = publicId ? await couponsService.update(publicId, writeValues) : await couponsService.create(writeValues);
+    await (publicId ? couponsService.update(publicId, writeValues) : couponsService.create(writeValues));
     if (groupId != null && groupId !== (before?.customerGroupId ?? null)) {
       await recordCouponGroupAction(groupId, data.code, await currentUserId());
     }

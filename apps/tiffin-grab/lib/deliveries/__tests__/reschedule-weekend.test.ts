@@ -124,7 +124,6 @@ describe("rescheduleDelivery for eatingDays / MWF", () => {
     const order = await makeOrder(false, "mwf");
     await db.update(orders).set({ eatingDays: ["mon", "wed", "thu", "fri"] }).where(eq(orders.id, order.id));
     const all = await db.select().from(deliveries).where(eq(deliveries.orderId, order.id));
-    const mon = all.find((d) => weekdayKey(parseIsoDateUtc(d.deliveryDate)) === "mon");
     const dates = new Set(all.map((d) => d.deliveryDate));
     const plusDays = (iso: string, n: number) => {
       const d = parseIsoDateUtc(iso);

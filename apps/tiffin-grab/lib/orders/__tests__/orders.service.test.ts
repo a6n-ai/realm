@@ -181,7 +181,7 @@ describe("createOrder (integration)", () => {
     const snap = await loadCatalogSnapshot();
     const input = baseInput(snap.mealSizes[0].publicId, snap.plans[0].key);
     input.contact.phone = "647 555 0100";
-    const { deploymentId } = await createOrder(input);
+    await createOrder(input);
     const [u] = await db.select().from(users).where(eq(users.phone, "+16475550100"));
     expect(u).toBeDefined();
     expect(u.phone).toBe("+16475550100");

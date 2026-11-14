@@ -2,7 +2,7 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { ensureSystemUser } from "@/db/test-helpers";
 import { desc, eq } from "drizzle-orm";
 import { db } from "@/db/client";
-import { inquiries, inquiryActivities, users } from "@/db/schema";
+import { inquiries, inquiryActivities } from "@/db/schema";
 import { ValidationError } from "@foundry/commons";
 
 const session: { user: { id: string; role: string } | null } = { user: null };

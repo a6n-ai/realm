@@ -1,5 +1,5 @@
 import { cutoffOpenSql } from "@/lib/dates/cutoff-sql";
-import { and, eq, gt, inArray, isNull, notInArray, sql, type SQL } from "drizzle-orm";
+import { and, eq, inArray, isNull, notInArray, sql, type SQL } from "drizzle-orm";
 import { ValidationError } from "@foundry/commons";
 import type { AddressHooks, AddressSnapshot, AddressTx } from "@foundry/address";
 import { deliveries, orderActivities, orders, users } from "@/db/schema";

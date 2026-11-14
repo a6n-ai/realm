@@ -1,7 +1,7 @@
 import { isStaffRole } from "@/lib/roles";
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
-import { NotFoundError, Role } from "@foundry/commons";
+import { NotFoundError } from "@foundry/commons";
 import { usersService } from "@/lib/services/users.service";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { listMembershipsForUser, listOrganizations, type MemberRole } from "@/lib/services/organizations.service";

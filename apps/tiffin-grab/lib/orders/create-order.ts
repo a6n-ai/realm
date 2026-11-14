@@ -1,25 +1,20 @@
 import { parseCustomerContact } from "@/lib/services/contact";
 import { isCustomerRole } from "@/lib/roles";
-import { formatMoney, generateCode, ValidationError, emailSchema } from "@foundry/commons";
+import { formatMoney, generateCode, ValidationError } from "@foundry/commons";
 import { createLogger } from "@foundry/commons/logger";
 import { enabledMethods, findMethod } from "@foundry/payments";
 import { replaceOlderUnpaidCheckouts } from "./unpaid-checkouts";
-import { and, eq, sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { db, type Tx } from "@/db/client";
-import { startPaidStripeOrder } from "@/lib/payments/verification";
 import { defaultOwner } from "../staff/default-owner";
 import { getBrandOrgId } from "../services/organizations.service";
 import { priceWithTax } from "@/lib/tax/checkout-taxes";
 import {
   coupons,
-  deliveries,
-  member,
-  mealSizes,
   orderActivities,
   orderAddons,
   orders,
   payments,
-  plans,
   users,
 } from "@/db/schema";
 import { resolveUserId } from "@/lib/identity/user-ids";
@@ -40,7 +35,7 @@ import { postCatalogSubtotal } from "@/lib/pricing/discounts";
 import { couponsService } from "../coupons/coupons.service";
 import { enqueueNotification } from "@/lib/notifications/enqueue";
 import { orderTemplateVars } from "@/lib/notifications/events";
-import { applyHolidaysToOrder, scheduleWrite } from "../deliveries/holiday-apply";
+import { scheduleWrite } from "../deliveries/holiday-apply";
 import { ledgerService } from "../payments/ledger.service";
 import { assertStartable } from "./order-window";
 import { matchCustomerAccounts, provisionCustomerByPhone, STAFF_ACCOUNT_MESSAGE } from "../services/customers.service";

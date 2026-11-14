@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { computeAllSwapOptions, validateProposedSwap, type CompositionContext } from "../meal-validation";
+import { computeAllSwapOptions, type CompositionContext } from "../meal-validation";
 import type { SwapCategory, SwapRow } from "../swap-rules";
-import { portionsByCategory } from "../pick-size";
 import type { TuCategory } from "../format-tu";
 
 describe("Dynamic provisional swap generation", () => {
@@ -9,7 +8,7 @@ describe("Dynamic provisional swap generation", () => {
   const daalCat: SwapCategory = { key: "daal", pickTu: 1.0, unitType: "weight", unitLabel: "oz", unitSize: 8, maxPicksPerTiffin: null };
   const riceCat: SwapCategory = { key: "rice", pickTu: 1.0, unitType: "weight", unitLabel: "oz", unitSize: 8, maxPicksPerTiffin: null };
 
-  const tuMap = new Map<string, TuCategory>([
+  new Map<string, TuCategory>([
     ["sabzi", { tuUnitType: "weight", tuUnitSize: 8, tuUnitLabel: "oz" }],
     ["daal", { tuUnitType: "weight", tuUnitSize: 8, tuUnitLabel: "oz" }],
     ["rice", { tuUnitType: "weight", tuUnitSize: 8, tuUnitLabel: "oz" }],
