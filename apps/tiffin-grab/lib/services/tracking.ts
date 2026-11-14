@@ -2,7 +2,7 @@ import { cookies, headers } from "next/headers";
 import { after } from "next/server";
 import { clientIdFromGaCookie, sendGaEvent, type GaEvent } from "@foundry/google-analytics";
 import type { MetaCustomData } from "@foundry/meta-pixel";
-import { trustedIpHeaders } from "@/lib/runtime/platform";
+import { requestIp } from "@/lib/runtime/platform";
 import { requestHasAnalyticsConsent } from "@/lib/consent.server";
 import { sendMetaEvent } from "@/lib/meta/capi";
 import { googleAnalytics } from "@/lib/services/google-analytics/config";
@@ -21,7 +21,7 @@ export async function requestBrowser(): Promise<BrowserSignals> {
   try {
     const [h, c] = await Promise.all([headers(), cookies()]);
     return {
-      ip: trustedIpHeaders().map((k) => h.get(k)).find(Boolean) ?? null,
+      ip: requestIp(h),
       userAgent: h.get("user-agent"),
       fbp: c.get("_fbp")?.value ?? null,
       fbc: c.get("_fbc")?.value ?? null,

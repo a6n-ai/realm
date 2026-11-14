@@ -6,3 +6,8 @@
 export function trustedIpHeaders(): string[] {
   return ["cf-connecting-ip"];
 }
+
+/** The caller's IP from the trusted edge header only; null when the request did not come through the edge. */
+export function requestIp(h: Headers): string | null {
+  return trustedIpHeaders().map((k) => h.get(k)?.trim()).find(Boolean) ?? null;
+}

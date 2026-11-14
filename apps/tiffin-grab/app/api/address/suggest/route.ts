@@ -1,6 +1,7 @@
 import { readJson } from "@foundry/commons/util/http";
 import { z } from "zod";
-import { clientIp, isRateLimited } from "@foundry/commons";
+import { isRateLimited } from "@foundry/commons";
+import { requestIp } from "@/lib/runtime/platform";
 import { handler, json } from "@foundry/routes";
 import { awsPlaceProvider } from "@foundry/places";
 import { awsRegion } from "@/lib/runtime/env";
@@ -15,7 +16,7 @@ const SUGGEST_WINDOW_MS = 60_000;
 // Session-only (/api/address is not in PUBLIC_API, so the proxy 401s signed-out callers), cheapest Places bucket. Never an error status —
 // a throttled or empty result both degrade to an empty dropdown, not a toast.
 export const POST = handler(async (request: Request): Promise<Response> => {
-  const ip = clientIp(request) ?? "unknown";
+  const ip = requestIp(request.headers) ?? "unknown";
   if (isRateLimited(ip, SUGGEST_LIMIT, SUGGEST_WINDOW_MS, "address-suggest-ip")) {
     return json({ suggestions: [] });
   }

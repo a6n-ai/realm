@@ -1,14 +1,14 @@
 "use server";
 
 import { headers } from "next/headers";
-import { trustedIpHeaders } from "@/lib/runtime/platform";
+import { requestIp } from "@/lib/runtime/platform";
 import { listFranchiseLocations, type FranchiseLocation } from "@/lib/services/organizations.service";
 
 // Trust ONLY the runtime's edge-set header, same as auth/index.ts's rate-limit key;
 // x-forwarded-for is spoofable.
 async function clientIp(): Promise<string | null> {
   const h = await headers();
-  return h.get(trustedIpHeaders()[0]);
+  return requestIp(h);
 }
 
 type IpApiResponse = { status: "success" | "fail"; city?: string };
