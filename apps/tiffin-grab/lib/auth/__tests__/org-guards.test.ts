@@ -1,0 +1,56 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { AuthError, ForbiddenError } from "@foundry/commons";
+
+vi.mock("react", async (orig) => ({ ...(await orig<typeof import("react")>()), cache: <T>(fn: T) => fn }));
+vi.mock("next/headers", () => ({ headers: async () => new Headers() }));
+vi.mock("@/lib/auth/session", () => ({ getSession: vi.fn() }));
+vi.mock("@/lib/auth/index", () => ({
+  auth: { api: { getActiveMemberRole: vi.fn(), listOrgRoles: vi.fn() } },
+}));
+vi.mock("@/lib/identity/audit", () => ({ recordAudit: vi.fn() }));
+vi.mock("@/lib/identity/user-ids", () => ({ userIdByPublicId: vi.fn(async () => 7n) }));
+
+const { getSession } = await import("@/lib/auth/session");
+const { auth } = await import("@/lib/auth/index");
+const { recordAudit } = await import("@/lib/identity/audit");
+const { can, requirePermission } = await import("../guards");
+const session = getSession as unknown as ReturnType<typeof vi.fn>;
+const api = auth.api as unknown as Record<"getActiveMemberRole" | "listOrgRoles", ReturnType<typeof vi.fn>>;
+
+const sess = (platformRole: string | null, org: string | null) => ({
+  user: { id: "u1", platformRole },
+  session: { activeOrganizationId: org },
+});
+
+beforeEach(() => vi.clearAllMocks());
+
+describe("org guards", () => {
+  it("custom kitchen role: can menu:write, denied finance:read", async () => {
+    session.mockResolvedValue(sess(null, "o1"));
+    api.getActiveMemberRole.mockResolvedValue({ role: "kitchen" });
+    api.listOrgRoles.mockResolvedValue([{ role: "kitchen", permission: { menu: ["write"] } }]);
+    expect(await can({ menu: ["write"] })).toBe(true);
+    await expect(requirePermission({ finance: ["read"] })).rejects.toBeInstanceOf(ForbiddenError);
+    expect(recordAudit).not.toHaveBeenCalled();
+  });
+
+  it("super_admin without a member row is allowed and audited", async () => {
+    session.mockResolvedValue(sess("super_admin", null));
+    await expect(requirePermission({ finance: ["read"] })).resolves.toBeUndefined();
+    expect(recordAudit).toHaveBeenCalledWith(
+      expect.objectContaining({ entity: "auth", operation: "update", changes: { _action: "platform_bypass", perms: { finance: ["read"] } } }),
+    );
+    expect(api.getActiveMemberRole).not.toHaveBeenCalled();
+  });
+
+  it("no active org is denied", async () => {
+    session.mockResolvedValue(sess(null, null));
+    expect(await can({ menu: ["read"] })).toBe(false);
+    await expect(requirePermission({ menu: ["read"] })).rejects.toBeInstanceOf(ForbiddenError);
+  });
+
+  it("no session throws AuthError", async () => {
+    session.mockResolvedValue(null);
+    await expect(requirePermission({ menu: ["read"] })).rejects.toBeInstanceOf(AuthError);
+  });
+});

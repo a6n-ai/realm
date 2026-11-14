@@ -4,6 +4,7 @@ import { ValidationError } from "@foundry/commons";
 import { requireAdmin, requirePermission, requireStaff } from "@/lib/auth/guards";
 import { runAction, type ActionResult } from "./action-result";
 
+/** @deprecated "staff"/"admin" go in Task 11; pass a permissions object. */
 export type Guard = "staff" | "admin" | Parameters<typeof requirePermission>[0];
 
 export type RevalidateTarget = string | readonly [path: string, type: "layout" | "page"];
