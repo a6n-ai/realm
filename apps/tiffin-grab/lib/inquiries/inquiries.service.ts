@@ -69,10 +69,6 @@ export type QueueTab = "due" | "overdue" | "upcoming" | "open" | "closed" | "qui
 const openSql = sql`${inquiries.stage} not in ('converted', 'lost')`;
 
 /** SQL twin of isQuickAdd (lib/inquiries/quick-add.ts): open, generated name not yet replaced. */
-const reinquiredSql = sql`exists (select 1 from ${inquiryActivities} a where a.inquiry_id = ${inquiries.id} and a.type = 'reinquiry')`;
-/** The first-time list: open leads that came back are listed on their own (the Re-inquiries card), closed ones stay. */
-const firstTimeSql = sql`not (${openSql} and ${reinquiredSql})`;
-
 export const quickAddSql = sql`(${openSql} and ${inquiries.leadNumber} is not null and ${inquiries.fullName} = 'Lead ' || ${inquiries.leadNumber})`;
 
 /** Same buckets as the Inquiries KPI cards. `all` is their union (null sub-status on a closed stage is in none of them). */
@@ -790,15 +786,14 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
     queue?: { tab: QueueTab; dayStart: number; dayEnd: number },
     /** KPI bucket. When set, the follow-up queue is not applied — the card counted every matching inquiry. */
     bucket?: SQL,
-    /** Leave out open leads that re-inquired; they have their own card. */
-    firstTimeOnly = false,
   ) {
     const where = and(
       conditionToSql(condition, inquiriesResolver()),
       queue ? queuePredicate(queue.tab, queue.dayStart, queue.dayEnd) : undefined,
       bucket,
-      firstTimeOnly ? firstTimeSql : undefined,
     );
+    const now = Date.now();
+    const weekAgo = now - REINQUIRY_RECENT_DAYS * 86_400_000;
 
     const agg = db
       .select({
@@ -862,6 +857,18 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
             left join users u on u.id = a.created_by
             where a.inquiry_id = ${inquiries.id} and a.note is not null
             order by a.created_at desc limit 1
+          )`,          // Re-inquiries: how many, how many this week, the latest, and the source it came through. Older ones
+          // (before the source was recorded) read it from their note, "Re-inquiry via <Label>".
+          reinquiry: sql<{ count: number; recent7: number; lastAt: number | null }>`(
+            select json_build_object('count', count(*), 'recent7', count(*) filter (where a.created_at >= ${weekAgo}), 'lastAt', max(a.created_at))
+            from inquiry_activities a where a.inquiry_id = ${inquiries.id} and a.type = 'reinquiry'
+          )`,
+          reinquirySource: sql<{ key: string; label: string } | null>`(
+            select (select json_build_object('key', s.key, 'label', s.label) from lead_sources s where s.key = coalesce(
+              (select s1.key from lead_sources s1 where s1.key = l.details->>'source'),
+              (select s2.key from lead_sources s2 where l.note like 'Re-inquiry via ' || s2.label || '%' order by length(s2.label) desc limit 1)))
+            from inquiry_activities l where l.inquiry_id = ${inquiries.id} and l.type = 'reinquiry'
+            order by l.created_at desc limit 1
           )`,
         })
         .from(inquiries)
@@ -878,53 +885,24 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
         .where(where),
     ]);
 
-    const now = Date.now();
-    const items = rows.map((r) => ({ ...r, overdue: computeOverdue(r.stage, r.nextFollowUpAt, now) }));
+    const items = rows.map(({ reinquiry, reinquirySource, ...r }) => {
+      const lastAt = reinquiry.lastAt == null ? null : Number(reinquiry.lastAt);
+      return {
+        ...r,
+        overdue: computeOverdue(r.stage, r.nextFollowUpAt, now),
+        reinquiry: lastAt == null ? null : {
+          count: Number(reinquiry.count),
+          lastAt,
+          sourceLabel: reinquirySource?.label ?? null,
+          heat: heatOf({ recent7: Number(reinquiry.recent7), lastAt, sourceKey: reinquirySource?.key ?? null }, now),
+        },
+      };
+    });
     return { items, page: page.page, size: page.size, total: count };
   }
 
-  /**
-   * Open leads that came back, newest re-inquiry first: how many times, how many in the last 7 days, and the source of
-   * the latest one, with its heat. Re-inquiries logged before the source was recorded read it from their note.
-   */
-  async listReinquired(condition: Condition | undefined, now: number, limit = 200) {
-    // Qualified by hand: drizzle prints a bare "id" in select fields, which would bind to the subquery's own row.
-    const lead = sql.raw('"inquiries"."id"');
-    const latest = sql`(select a.id from ${inquiryActivities} a where a.inquiry_id = ${lead} and a.type = 'reinquiry' order by a.created_at desc limit 1)`;
-    const latestSourceKey = sql<string | null>`(select coalesce(
-        (select s.key from ${leadSources} s where s.key = l.details->>'source'),
-        (select s.key from ${leadSources} s where l.note like 'Re-inquiry via ' || s.label || '%' order by length(s.label) desc limit 1))
-      from ${inquiryActivities} l where l.id = ${latest})`;
-    const latestSubSource = sql<string | null>`(select coalesce(l.details->>'subSource', substring(l.note from '^Re-inquiry via [^(\n]*\(([^)]+)\)'))
-      from ${inquiryActivities} l where l.id = ${latest})`;
-    const rows = await db
-      .select({
-        publicId: inquiries.publicId,
-        fullName: inquiries.fullName,
-        phone: inquiries.phone,
-        leadNumber: inquiries.leadNumber,
-        subStatus: inquiries.subStatus,
-        count: sql<number>`(select cast(count(*) as int) from ${inquiryActivities} a where a.inquiry_id = ${lead} and a.type = 'reinquiry')`,
-        recent7: sql<number>`(select cast(count(*) as int) from ${inquiryActivities} a where a.inquiry_id = ${lead} and a.type = 'reinquiry' and a.created_at >= ${now - REINQUIRY_RECENT_DAYS * 86_400_000})`,
-        lastAt: sql<number>`(select max(a.created_at) from ${inquiryActivities} a where a.inquiry_id = ${lead} and a.type = 'reinquiry')`,
-        sourceKey: latestSourceKey,
-        subSource: latestSubSource,
-      })
-      .from(inquiries)
-      .where(and(openSql, reinquiredSql, conditionToSql(condition, inquiriesResolver())))
-      .orderBy(sql`(select max(a.created_at) from ${inquiryActivities} a where a.inquiry_id = ${lead} and a.type = 'reinquiry') desc`, desc(inquiries.id))
-      .limit(limit);
-    const labels = new Map((await db.select({ key: leadSources.key, label: leadSources.label }).from(leadSources)).map((s) => [s.key, s.label]));
-    return rows.map((r) => ({
-      ...r,
-      lastAt: Number(r.lastAt),
-      sourceLabel: r.sourceKey ? (labels.get(r.sourceKey) ?? r.sourceKey) : null,
-      heat: heatOf({ recent7: r.recent7, lastAt: Number(r.lastAt), sourceKey: r.sourceKey }, now),
-    }));
-  }
-
-  async queueCounts(condition: Condition | undefined, dayStart: number, dayEnd: number, firstTimeOnly = false): Promise<Record<QueueTab, number>> {
-    const where = and(conditionToSql(condition, inquiriesResolver()), firstTimeOnly ? firstTimeSql : undefined);
+  async queueCounts(condition: Condition | undefined, dayStart: number, dayEnd: number): Promise<Record<QueueTab, number>> {
+    const where = conditionToSql(condition, inquiriesResolver());
     const tabs: QueueTab[] = ["due", "overdue", "upcoming", "open", "closed", "quick"];
     const [row] = await db
       .select(Object.fromEntries(tabs.map((t) => [t, sql<number>`cast(count(*) filter (where ${queuePredicate(t, dayStart, dayEnd)}) as int)`])) as Record<QueueTab, SQL<number>>)

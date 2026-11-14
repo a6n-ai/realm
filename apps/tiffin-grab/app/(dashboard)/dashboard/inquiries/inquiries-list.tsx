@@ -27,6 +27,7 @@ import { bulkSetStatus, reassignInquiries } from "./actions";
 import { unwrapAction } from "@/lib/actions/unwrap";
 import type { ActionResult } from "@/lib/actions/action-result";
 import { NoteDialog, StatusMenu, type NoteKind } from "./_leads/status-dialog";
+import { ReinquiryHeatIcon } from "./reinquiry-heat-icon";
 
 type InquirySortColumn = "name" | "owner" | "stage" | "source" | "nextFollowUp" | "created";
 type StaffOption = { publicId: string; name: string };
@@ -214,7 +215,10 @@ export function InquiriesList({
               data-highlighted-lead={r.publicId === highlight ? "" : undefined}
             >
               <div className="flex min-w-0 flex-col gap-1">
-                <Link href={`/dashboard/inquiries/${r.publicId}`} className="truncate font-medium">{displayName(r)}</Link>
+                <span className="flex min-w-0 items-center gap-1.5">
+                  <Link href={`/dashboard/inquiries/${r.publicId}`} className="truncate font-medium">{displayName(r)}</Link>
+                  <ReinquiryHeatIcon reinquiry={r.reinquiry} />
+                </span>
                 <span className="text-muted-foreground text-xs">{r.phone ? formatPhone(r.phone) : "No phone"} · {r.source}</span>
                 <div><StatusMenu inquiryId={r.publicId} subStatus={sub} /></div>
               </div>
@@ -240,7 +244,10 @@ export function InquiriesList({
                 ) : null}
               </TableCell>
               <TableCell className="font-medium">
-                <Link href={`/dashboard/inquiries/${r.publicId}`} className="group-hover:underline">{displayName(r)}</Link>
+                <span className="flex items-center gap-1.5">
+                  <Link href={`/dashboard/inquiries/${r.publicId}`} className="group-hover:underline">{displayName(r)}</Link>
+                  <ReinquiryHeatIcon reinquiry={r.reinquiry} />
+                </span>
                 <div className="text-muted-foreground truncate text-xs">
                   {r.phone ? formatPhone(r.phone) : "No phone"} · {r.source}
                 </div>

@@ -39,7 +39,6 @@ import { reassignInquiry } from "./actions";
 import { SUB_STATUSES, SUB_STATUS_META } from "@/lib/inquiries/status";
 import { QueueTabs } from "./queue-tabs";
 import { RenewalsQueue, RenewalsQueueSkeleton } from "./renewals-queue";
-import { ReinquiriesCard } from "./reinquiries-card";
 import { MarkSectionRead } from "@/components/dashboard/mark-section-read";
 import { SectionDateRange } from "@/components/filters/section-date-range";
 import { epochBoundsWhere, withDefaultMonth } from "@/lib/list/default-month";
@@ -107,54 +106,12 @@ export default async function InquiriesPage({ searchParams }: { searchParams: Se
         <NextRenewals searchParams={searchParams} />
       </Suspense>
 
-      <Suspense fallback={<ReinquiriesSkeleton />}>
-        <Reinquiries searchParams={searchParams} />
-      </Suspense>
-
       <SectionCard title="Follow-up queue">
         <Suspense fallback={(await searchParams).view === "renewals" ? <RenewalsQueueSkeleton /> :<InquiriesListSkeleton />}>
           <QueueSection searchParams={searchParams} />
         </Suspense>
       </SectionCard>
     </PageShell>
-  );
-}
-
-/** Open leads that came back, apart from first-time inquiries. Leads view only; follows the list's Owner filter. */
-async function Reinquiries({ searchParams }: { searchParams: SearchParams }) {
-  await requireStaff();
-  const sp = await searchParams;
-  const session = await getSession();
-  if (roleCan(session?.user.role ?? "", { order: ["read"] }) && sp.view === "renewals") return null;
-  const spec: FacetDef[] = [{ kind: "select", field: "owner", label: "Owner", options: [] }];
-  const { condition } = parseFilterState(spec, { owner: resolveOwnerParam(sp.owner, session?.user.id) });
-  const now = requestNow();
-  try {
-    const rows = await inquiriesService.listReinquired(condition, now);
-    return (
-      <SectionCard title="Re-inquiries" subtitle="Leads that came back, by how keen they look. They stay out of the queue below.">
-        <ReinquiriesCard rows={rows} now={now} />
-      </SectionCard>
-    );
-  } catch (error) {
-    console.error("Re-inquiries failed to load", error);
-    return (
-      <SectionCard title="Re-inquiries">
-        <p className="text-destructive text-sm">Something went wrong loading re-inquiries. Reload the page to try again.</p>
-      </SectionCard>
-    );
-  }
-}
-
-function ReinquiriesSkeleton() {
-  return (
-    <SectionCard title="Re-inquiries">
-      <div className="flex flex-col gap-3">
-        <Skeleton className="h-8 w-64" />
-        <Skeleton className="h-10 w-full" />
-        <Skeleton className="h-10 w-full" />
-      </div>
-    </SectionCard>
   );
 }
 
@@ -439,10 +396,8 @@ async function InquiriesData({ searchParams }: { searchParams: SearchParams }) {
       sort,
       bucket ? undefined : { tab: queue, dayStart, dayEnd },
       bucket ? inquiryBucketWhere(bucket) : undefined,
-      // A KPI drill-down lists every inquiry its card counted; the queues leave re-inquiries to their own card.
-      !bucket,
     ),
-    inquiriesService.queueCounts(condition, dayStart, dayEnd, true),
+    inquiriesService.queueCounts(condition, dayStart, dayEnd),
   ]);
   const staff = canReassignRecords ? await listAssignableStaff() : [];
 
