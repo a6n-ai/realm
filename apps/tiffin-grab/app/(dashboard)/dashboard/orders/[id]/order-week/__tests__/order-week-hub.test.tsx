@@ -15,7 +15,7 @@ vi.mock("next/navigation", () => ({
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 const rel = vi.hoisted(() => vi.fn());
 const pse = vi.hoisted(() => vi.fn());
-vi.mock("@/app/(customer)/me/deliveries/actions", () => ({
+vi.mock("@/lib/deliveries/customer-actions", () => ({
   applyMyDeliverySwap: vi.fn(), pauseMyDays: pse, loadMyPauseDays: vi.fn(async () => ({ ok: true, days: [] })), releaseMyDays: rel, removeMyDeliverySwap: vi.fn(), rescheduleMyDelivery: vi.fn(),
   scheduleMyPooledTiffin: vi.fn(), unskipMyDelivery: vi.fn(),
   setMyDeliveryAddress: vi.fn(), clearMyDeliveryAddress: vi.fn(),

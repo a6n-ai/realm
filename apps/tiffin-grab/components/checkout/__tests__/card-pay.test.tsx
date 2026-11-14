@@ -22,11 +22,11 @@ vi.mock("next/navigation", () => ({ useRouter: () => routerNow }));
 
 const payCheckout = vi.fn();
 const confirmSubscription = vi.fn();
-vi.mock("@/app/(public)/checkout/actions", () => ({
+vi.mock("@/lib/checkout/actions", () => ({
   confirmSubscription: (...a: unknown[]) => confirmSubscription(...a),
   payCheckout: (...a: unknown[]) => payCheckout(...a),
 }));
-vi.mock("@/app/(customer)/me/pay/[paymentId]/actions", () => ({
+vi.mock("@/lib/payments/pay-actions", () => ({
   confirmReturn: vi.fn(),
   abandonCard: vi.fn(),
   newCustomerSession: vi.fn(),
@@ -73,7 +73,7 @@ vi.mock("@/components/payments/card-pay", () => {
 });
 
 const reprice = vi.fn();
-vi.mock("@/app/(public)/subscribe/actions", () => ({
+vi.mock("@/lib/wizard/actions", () => ({
   reprice: (...a: unknown[]) => reprice(...a),
   validatePostal: vi.fn().mockResolvedValue({ served: true, zone: { publicId: "zn_1", name: "Downtown", slotWindow: "6-8pm" } }),
 }));

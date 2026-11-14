@@ -8,7 +8,7 @@ import { Input } from "@foundry/ui/input";
 import { Label } from "@foundry/ui/label";
 import { Button } from "@/components/customer/kit";
 import { makeImageThumbnail } from "@/components/ds";
-import { claimPaymentAction } from "@/app/(customer)/me/wallet/actions";
+import { claimPaymentAction } from "@/lib/wallet/customer-actions";
 import { sanitizeClientError } from "@foundry/commons/util/client-error";
 import { PaymentInstructions } from "@/components/payment-instructions";
 import { trackMeta } from "@foundry/meta-pixel/client";

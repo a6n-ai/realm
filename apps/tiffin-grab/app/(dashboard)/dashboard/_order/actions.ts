@@ -18,7 +18,7 @@ import { userIdByPublicId } from "@/lib/identity/user-ids";
 import { postCatalogSubtotal } from "@/lib/pricing/discounts";
 import { maxDiscountAboveCost } from "@/lib/pricing/cost-floor";
 import { loadMealCostFloor } from "@/lib/pricing/meal-cost";
-import type { AppliedCoupon } from "@/app/(public)/subscribe/actions";
+import type { AppliedCoupon } from "@/lib/wizard/actions";
 import { getAppSettings, getDiscountPolicy, getMaxCoinPctOfSubtotal, getMaxCoinRedeemPctOfBalance, getPaymentConfig } from "@/lib/services/app-settings.service";
 import { capRedemption } from "@foundry/wallet";
 import { coinCapMessage, coinLimits, quoteCoinCap } from "@/lib/pricing/coin-cap";

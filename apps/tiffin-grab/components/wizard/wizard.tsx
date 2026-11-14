@@ -11,7 +11,7 @@ import { formatDateOnly } from "@/lib/format/datetime";
 import { PlanSummary } from "./plan-summary";
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
 import type { PricingResult } from "@/lib/pricing";
-import { reprice } from "@/app/(public)/subscribe/actions";
+import { reprice } from "@/lib/wizard/actions";
 import { useBounceAfterPaid } from "@/lib/payments/paid-flag";
 import { BottomBar, Button, Sheet, buttonClass } from "@/components/customer/kit";
 import { AddonsPanel } from "./addons-panel";

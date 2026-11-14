@@ -13,7 +13,7 @@ const { deleteNonSystemUsers } = await import("@/db/test-helpers");
 const { deliveries, ledgerEntries, orderActivities, orders, payments, users } = await import("@/db/schema");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { createOrder } = await import("@/lib/orders/create-order");
-const { setMyDeliveryAddress } = await import("@/app/(customer)/me/deliveries/actions");
+const { setMyDeliveryAddress } = await import("@/lib/deliveries/customer-actions");
 
 function actAs(publicId: string) {
   session.user = { id: publicId, role: "user" };

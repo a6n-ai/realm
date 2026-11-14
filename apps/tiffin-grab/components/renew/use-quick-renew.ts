@@ -1,7 +1,7 @@
 import { GENERIC_CLIENT_ERROR } from "@foundry/commons/util/client-error";
 import { useEffect, useMemo, useState } from "react";
 import { nextWeekday, parseIsoDateUtc, weekdayKey } from "@foundry/commons";
-import { reprice } from "@/app/(public)/subscribe/actions";
+import { reprice } from "@/lib/wizard/actions";
 import { dropOffCatalog, validDropOff } from "@/lib/catalog/drop-off";
 import { offeredAddons, type WizardSelections } from "@/lib/wizard/selections";
 import { formatDateOnly } from "@/lib/format/datetime";

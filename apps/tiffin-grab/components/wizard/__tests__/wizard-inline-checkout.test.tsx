@@ -14,8 +14,8 @@ vi.mock("@foundry/design-system/timezone-provider", () => ({ useTimezone: () => 
 const mockRouter = { push: vi.fn(), replace: vi.fn(), back: vi.fn() };
 vi.mock("next/navigation", () => ({ useRouter: () => mockRouter }));
 vi.mock("sonner", () => ({ toast: { error: vi.fn() } }));
-vi.mock("@/app/(public)/checkout/actions", () => ({ confirmSubscription: vi.fn(), payCheckout: vi.fn() }));
-vi.mock("@/app/(public)/subscribe/actions", () => ({
+vi.mock("@/lib/checkout/actions", () => ({ confirmSubscription: vi.fn(), payCheckout: vi.fn() }));
+vi.mock("@/lib/wizard/actions", () => ({
   reprice: vi.fn().mockResolvedValue({
     pricing: { lineItems: [], adjustments: [], tiffinCount: 5, perTiffinPrice: 10, subtotal: 50, total: 50, taxTotal: 0 },
     appliedCoupons: [],

@@ -20,7 +20,7 @@ const updateContact = vi.fn(async (..._a: unknown[]) => ({}));
 vi.mock("@/lib/services/users.service", () => ({ usersService: { updateContact: (...a: unknown[]) => updateContact(...a) } }));
 vi.mock("@foundry/places", () => ({ resolveAndPersist: async () => null }));
 const createWebsiteInquiry = vi.fn();
-vi.mock("@/app/(marketing)/contact/actions", () => ({ createWebsiteInquiry: (...a: unknown[]) => createWebsiteInquiry(...a) }));
+vi.mock("@/lib/landing/contact-actions", () => ({ createWebsiteInquiry: (...a: unknown[]) => createWebsiteInquiry(...a) }));
 vi.mock("@/lib/auth/session", () => ({ getSession: async () => (signedIn ? { user: { id: "usr_7", email: "priya@example.com" } } : null) }));
 vi.mock("@/lib/auth", () => ({ auth: { api: { sendVerificationEmail: vi.fn() } } }));
 vi.mock("@/lib/tenant/resolve-request-org", () => ({ resolveRequestOrg: async () => null }));

@@ -8,11 +8,11 @@ import { DeliveriesView } from "../deliveries-view";
 import type { PlanView } from "@/lib/deliveries/view/adapter";
 import type { Agenda } from "@/lib/deliveries/view/week";
 
-vi.mock("@/app/(customer)/me/deliveries/pick-grid", () => ({ loadPickGrid: () => new Promise(() => {}) }));
-vi.mock("@/app/(customer)/me/meals/actions", () => ({ pickMyDish: vi.fn() }));
+vi.mock("@/lib/menu/pick-grid-actions", () => ({ loadPickGrid: () => new Promise(() => {}) }));
+vi.mock("@/lib/menu/meal-actions", () => ({ pickMyDish: vi.fn() }));
 const rel = vi.hoisted(() => vi.fn());
 const pse = vi.hoisted(() => vi.fn());
-vi.mock("@/app/(customer)/me/deliveries/actions", () => ({ releaseMyDays: rel, loadMyPauseDays: vi.fn(async () => ({ ok: true, days: [] })), pauseMyDays: pse }));
+vi.mock("@/lib/deliveries/customer-actions", () => ({ releaseMyDays: rel, loadMyPauseDays: vi.fn(async () => ({ ok: true, days: [] })), pauseMyDays: pse }));
 const replace = vi.fn();
 const refresh = vi.fn();
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh, push: vi.fn(), replace }) }));

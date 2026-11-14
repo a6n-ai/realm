@@ -5,7 +5,7 @@ import { parseIsoDateUtc } from "@foundry/commons";
 import { IconButton } from "../../kit/icon-button";
 import { useSwipePages } from "@/components/customer/kit/use-swipe-pages";
 import { humanDate } from "@/lib/deliveries/view";
-import type { PauseDayChoice } from "@/app/(customer)/me/deliveries/actions";
+import type { PauseDayChoice } from "@/lib/deliveries/customer-actions";
 import { utcIso } from "@foundry/commons/util/dates";
 
 const WEEK = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];

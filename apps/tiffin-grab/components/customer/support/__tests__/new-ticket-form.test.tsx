@@ -4,13 +4,13 @@ import { render, screen, cleanup, fireEvent, waitFor } from "@testing-library/re
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { NewTicketForm } from "../new-ticket-form";
 import { TICKET_CATEGORIES } from "@/lib/support/ticket-taxonomy";
-import { createTicket } from "@/app/(customer)/me/support/actions";
+import { createTicket } from "@/lib/support/customer-actions";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ back: vi.fn(), push: vi.fn() }),
 }));
 
-vi.mock("@/app/(customer)/me/support/actions", () => ({
+vi.mock("@/lib/support/customer-actions", () => ({
   createTicket: vi.fn(),
 }));
 

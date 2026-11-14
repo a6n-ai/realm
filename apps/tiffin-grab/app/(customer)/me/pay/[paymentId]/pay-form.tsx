@@ -14,7 +14,7 @@ import { markPaid } from "@/lib/payments/paid-flag";
 import { PaidPage } from "@/components/payments/paid-page";
 import { PaymentMethodCards } from "@/components/checkout/payment-method-cards";
 import type { CardCheckoutContext } from "@/lib/payments/card-checkout-context";
-import { submitCardPayment, confirmReturn, abandonCard, newCustomerSession } from "./actions";
+import { submitCardPayment, confirmReturn, abandonCard, newCustomerSession } from "../../../../../lib/payments/pay-actions";
 
 type Line = { label: string; amount: number };
 

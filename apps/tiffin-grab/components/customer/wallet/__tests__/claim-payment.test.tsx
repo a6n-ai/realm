@@ -17,7 +17,7 @@ vi.mock("sonner", () => ({
   toast: (...args: unknown[]) => mockToast(...args),
 }));
 
-vi.mock("@/app/(customer)/me/wallet/actions", () => ({
+vi.mock("@/lib/wallet/customer-actions", () => ({
   claimPaymentAction: (...args: unknown[]) => mockClaimPaymentAction(...args),
 }));
 

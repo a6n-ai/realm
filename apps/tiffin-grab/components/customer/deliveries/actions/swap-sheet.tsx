@@ -3,7 +3,7 @@ import { isCutoffPassed } from "@/lib/dates/cutoff";
 import { NETWORK_CLIENT_ERROR } from "@foundry/commons/util/client-error";
 import { ArrowLeftRight, Minus, Plus, X } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import { applyMyDeliverySwap, loadMySwapOptions, removeMyDeliverySwap } from "@/app/(customer)/me/deliveries/actions";
+import { applyMyDeliverySwap, loadMySwapOptions, removeMyDeliverySwap } from "@/lib/deliveries/customer-actions";
 import { Button, Chip, Notice, Reason, Segmented, Sheet, Skeleton, panelId } from "@/components/customer/kit";
 import { cn } from "@/components/customer/kit/cn";
 import { actionAvailability, humanDate } from "@/lib/deliveries/view";

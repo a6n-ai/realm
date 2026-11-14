@@ -17,7 +17,7 @@ import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { findZone } from "@/lib/catalog/zone-match";
 import { parseCanadianPostalCode } from "@/lib/catalog/postal";
 import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
-import { createWebsiteInquiry } from "@/app/(marketing)/contact/actions";
+import { createWebsiteInquiry } from "@/lib/landing/contact-actions";
 import { runAction, type ActionResult } from "@/lib/actions/action-result";
 import type { CardSource, PayByCardResult } from "@/lib/payments/payment-stripe";
 import { TOTAL_CHANGED } from "@/lib/payments/total-changed";
@@ -201,7 +201,7 @@ async function findReusableCheckout(paymentPublicId: string, userPublicId: strin
     import("drizzle-orm"),
     import("@/db/client"),
     import("@/db/schema"),
-    import("@/app/(public)/subscribe/actions"),
+    import("@/lib/wizard/actions"),
   ]);
   const [row] = await db
     .select({ order: orders, amount: payments.amount })

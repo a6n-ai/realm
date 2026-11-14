@@ -6,7 +6,7 @@ import { deleteNonSystemUsers } from "@/db/test-helpers";
 import { addressTags, deliveries, deliveryChargeConfigs, deliveryStrategies, deliveryStrategyConnections, deliveryStrategyGroups, ledgerEntries, orders, payments, customerAddresses } from "@/db/schema";
 import { loadCatalogSnapshot, invalidateCatalogSnapshot } from "@/lib/catalog/load";
 import { deliveryService } from "../../services/delivery.service";
-import { reprice } from "@/app/(public)/subscribe/actions";
+import { reprice } from "@/lib/wizard/actions";
 
 const priced = async (...args: Parameters<typeof reprice>) => {
   const r = await reprice(...args);

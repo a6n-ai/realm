@@ -11,7 +11,7 @@ vi.mock("@/lib/catalog/zone-match", () => ({ findZone: async () => ({ name: "Dow
 vi.mock("@/lib/tenant/resolve-request-org", () => ({ resolveRequestOrg: async () => null }));
 vi.mock("@/lib/services/customers.service", () => ({ sendAccountSetupEmail: vi.fn() }));
 vi.mock("@foundry/places", () => ({ resolveAndPersist: async () => null }));
-vi.mock("@/app/(marketing)/contact/actions", () => ({ createWebsiteInquiry: vi.fn() }));
+vi.mock("@/lib/landing/contact-actions", () => ({ createWebsiteInquiry: vi.fn() }));
 vi.mock("@/lib/payments/stripe", async (orig) => ({
   ...(await orig<object>()),
   stripeRuntime: async () => ({
@@ -27,7 +27,7 @@ const { orders, payments, users, orderActivities, coupons, coinRate, walletLedge
 const { acquireLease } = await import("@/lib/runtime/lease");
 const { walletService } = await import("@/lib/wallet/wallet.service");
 const { payCheckout } = await import("../actions");
-const { reprice } = await import("@/app/(public)/subscribe/actions");
+const { reprice } = await import("@/lib/wizard/actions");
 const { setPaymentConfig } = await import("@/lib/services/app-settings.service");
 const { sharedCache } = await import("@/lib/cache");
 const { baseInput, reset, cleanup } = await import("@/lib/payments/__tests__/stripe-fixture");

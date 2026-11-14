@@ -7,7 +7,7 @@ import { inquiries, inquiryActivities, leadSources, users } from "@/db/schema";
 // Contact action transitively imports the session service (NextAuth) — stub it.
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
-const { createWebsiteInquiry } = await import("../actions");
+const { createWebsiteInquiry } = await import("../contact-actions");
 
 function testEmail() {
   return `inq-${Math.random().toString(36).slice(2)}@test.invalid`;

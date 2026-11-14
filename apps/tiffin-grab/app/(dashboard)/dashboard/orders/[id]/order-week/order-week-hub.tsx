@@ -11,7 +11,7 @@ import { Button } from "@foundry/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@foundry/ui/card";
 import { cn } from "@foundry/ui/cn";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@foundry/ui/dialog";
-import { pauseMyDays, releaseMyDays } from "@/app/(customer)/me/deliveries/actions";
+import { pauseMyDays, releaseMyDays } from "@/lib/deliveries/customer-actions";
 import { actionAvailability, humanDate, type Trip, type TripAction } from "@/lib/deliveries/view";
 import { dayNote, deliveryLine, eatingRowsInWeek, isAddressRow, moveNotes, weekdayShort, type EatingRow } from "@/lib/deliveries/view/eating";
 import type { OrderWeek } from "@/lib/orders/order-week.service";

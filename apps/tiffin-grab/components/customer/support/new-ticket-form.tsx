@@ -6,7 +6,7 @@ import { Button, Field, Notice, Select, Skeleton, Textarea } from "@/components/
 import { cn } from "@/components/customer/kit/cn";
 import { makeImageThumbnail } from "@/components/ds";
 import { MAX_FILES, PhotoPicker, useImageFiles } from "./parts";
-import { createTicket } from "@/app/(customer)/me/support/actions";
+import { createTicket } from "@/lib/support/customer-actions";
 import {
   CATEGORY_LABEL,
   SUBCATEGORIES,

@@ -23,7 +23,7 @@ vi.mock("@/lib/orders/create-order", () => ({
 const updateContact = vi.fn(async (..._a: unknown[]) => ({}));
 vi.mock("@/lib/services/users.service", () => ({ usersService: { updateContact: (...a: unknown[]) => updateContact(...a) } }));
 vi.mock("@foundry/places", () => ({ resolveAndPersist: (...a: unknown[]) => resolveAndPersist(...a) }));
-vi.mock("@/app/(marketing)/contact/actions", () => ({ createWebsiteInquiry: (...a: unknown[]) => createWebsiteInquiry(...a) }));
+vi.mock("@/lib/landing/contact-actions", () => ({ createWebsiteInquiry: (...a: unknown[]) => createWebsiteInquiry(...a) }));
 vi.mock("@/lib/auth/session", () => ({ getSession: async () => ({ user: { id: "usr_7", email: "j@x.com" } }) }));
 vi.mock("@/lib/services/customers.service", () => ({ sendAccountSetupEmail: vi.fn() }));
 vi.mock("@/lib/services/session-service", () => ({ currentUserId: async () => 7n }));

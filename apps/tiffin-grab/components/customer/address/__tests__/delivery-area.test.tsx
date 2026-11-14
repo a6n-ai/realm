@@ -4,7 +4,7 @@ import { renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const validatePostal = vi.fn();
-vi.mock("@/app/(public)/subscribe/actions", () => ({ validatePostal: (c: string) => validatePostal(c) }));
+vi.mock("@/lib/wizard/actions", () => ({ validatePostal: (c: string) => validatePostal(c) }));
 const { useDeliveryArea } = await import("../delivery-area");
 
 beforeEach(() => validatePostal.mockReset().mockResolvedValue({ served: true, zone: { publicId: "z", name: "Toronto", slotWindow: null } }));

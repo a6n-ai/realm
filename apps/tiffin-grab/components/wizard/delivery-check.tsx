@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { MapPin } from "lucide-react";
 import { InfoBar } from "@/components/customer/kit";
-import { validatePostal } from "@/app/(public)/subscribe/actions";
+import { validatePostal } from "@/lib/wizard/actions";
 import { parseWindow } from "@/lib/landing/areas";
 import { normalizePostal } from "@/lib/catalog/postal";
 import { CONTACT_EMAIL } from "@/lib/landing/contact";

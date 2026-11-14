@@ -27,7 +27,7 @@ import { discountLine } from "@/components/customer/home/coupons-section";
 import { dropOffSummary } from "@/lib/catalog/drop-off";
 import { allowedDaysError, dayAllowed, eatingDaysError, onlyOnMessage, type DayOfWeek, WEEK_DAYS } from "@/lib/menu/delivery-days";
 import { toggleTrialPick } from "@/lib/trial/schedule";
-import type { CheckoutPaymentMethod } from "@/app/(public)/subscribe/actions";
+import type { CheckoutPaymentMethod } from "@/lib/wizard/actions";
 import type { useOrderDraft } from "./use-order-draft";
 import { type Catalog } from "./order-draft";
 import { CustomerCodeField } from "./customer-code-field";

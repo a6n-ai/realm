@@ -15,8 +15,8 @@ const swapOptions = vi.fn((): unknown[] => []);
 const applySwap = vi.fn();
 const removeSwap = vi.fn();
 
-vi.mock("@/app/(customer)/me/deliveries/pick-grid", () => ({ loadPickGrid: (...a: unknown[]) => load(...a) }));
-vi.mock("@/app/(customer)/me/meals/actions", () => ({
+vi.mock("@/lib/menu/pick-grid-actions", () => ({ loadPickGrid: (...a: unknown[]) => load(...a) }));
+vi.mock("@/lib/menu/meal-actions", () => ({
   pickMyDish: (...a: unknown[]) => pick(...a),
   saveMyMealSelections: (...a: unknown[]) => savePicks(...a),
 }));
@@ -24,7 +24,7 @@ vi.mock("@/lib/menu/pick-preview", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/menu/pick-preview")>()),
   previewSwapOptions: () => swapOptions(),
 }));
-vi.mock("@/app/(customer)/me/deliveries/actions", () => ({
+vi.mock("@/lib/deliveries/customer-actions", () => ({
   applyMyDeliverySwap: (...a: unknown[]) => applySwap(...a),
   removeMyDeliverySwap: (...a: unknown[]) => removeSwap(...a),
 }));

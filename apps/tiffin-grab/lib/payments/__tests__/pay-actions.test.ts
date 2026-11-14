@@ -29,7 +29,7 @@ vi.mock("@/db/client", () => {
   return { db: chain };
 });
 
-const { submitCardPayment, confirmReturn, abandonCard, newCustomerSession } = await import("../actions");
+const { submitCardPayment, confirmReturn, abandonCard, newCustomerSession } = await import("../pay-actions");
 
 describe("newCustomerSession", () => {
   beforeEach(() => { session.current = null; sessionSecret.mockReset(); });

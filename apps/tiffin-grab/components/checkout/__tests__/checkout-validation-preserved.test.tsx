@@ -20,10 +20,10 @@ vi.mock("@foundry/design-system/timezone-provider", () => ({ useTimezone: () => 
 vi.mock("sonner", () => ({ toast: { error: vi.fn() } }));
 const mockRouter = { push: vi.fn(), replace: vi.fn() };
 vi.mock("next/navigation", () => ({ useRouter: () => mockRouter }));
-vi.mock("@/app/(public)/checkout/actions", () => ({ confirmSubscription: vi.fn() }));
+vi.mock("@/lib/checkout/actions", () => ({ confirmSubscription: vi.fn() }));
 
 const createWebsiteInquiry = vi.fn().mockResolvedValue({ ok: true, waitlisted: true });
-vi.mock("@/app/(marketing)/contact/actions", () => ({
+vi.mock("@/lib/landing/contact-actions", () => ({
   createWebsiteInquiry: (...args: unknown[]) => createWebsiteInquiry(...args),
 }));
 
@@ -50,7 +50,7 @@ const reprice = vi.fn(async (...args: unknown[]) => ({
   couponError: args[1] ? "That code isn't valid." : undefined,
 }));
 const validatePostal = vi.fn();
-vi.mock("@/app/(public)/subscribe/actions", () => ({
+vi.mock("@/lib/wizard/actions", () => ({
   reprice: (...args: unknown[]) => reprice(...args),
   validatePostal: (...args: unknown[]) => validatePostal(...args),
 }));

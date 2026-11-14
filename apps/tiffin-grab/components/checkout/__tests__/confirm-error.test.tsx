@@ -18,10 +18,10 @@ const mockRouter = { push: vi.fn(), replace: vi.fn() };
 vi.mock("next/navigation", () => ({
   useRouter: () => mockRouter,
 }));
-vi.mock("@/app/(public)/checkout/actions", () => ({
+vi.mock("@/lib/checkout/actions", () => ({
   confirmSubscription: vi.fn().mockRejectedValue(new Error("Start date cannot be a weekend")),
 }));
-vi.mock("@/app/(public)/subscribe/actions", () => ({
+vi.mock("@/lib/wizard/actions", () => ({
   reprice: vi.fn().mockResolvedValue({
     pricing: {
       lineItems: [],
@@ -76,7 +76,7 @@ describe("Checkout confirm() error handling", () => {
   });
 
   it("shows a returned server error (e.g. staff email) and stays on checkout", async () => {
-    const { confirmSubscription } = await import("@/app/(public)/checkout/actions");
+    const { confirmSubscription } = await import("@/lib/checkout/actions");
     vi.mocked(confirmSubscription).mockResolvedValueOnce({ error: "This phone or email belongs to a staff account" });
     render(<Checkout defaultCountry="CA" prefill={MEMBER} />);
 

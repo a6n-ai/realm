@@ -14,7 +14,7 @@ import type { CreateOrderInput } from "@/lib/orders/create-order";
 import {
   listCheckoutPaymentMethods,
   type CheckoutPaymentMethod,
-} from "@/app/(public)/subscribe/actions";
+} from "@/lib/wizard/actions";
 import type { AdminOrderCreated } from "./admin-order-created-dialog";
 import { eatingDaysError, frequencyFits, type DayOfWeek, WEEK_DAYS } from "@/lib/menu/delivery-days";
 import { DEFAULT_EATING_DAYS, quoteLinkQuery, tiffinBounds } from "@/lib/wizard/selections";

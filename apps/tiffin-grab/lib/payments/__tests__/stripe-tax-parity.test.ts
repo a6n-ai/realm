@@ -17,7 +17,7 @@ const { db } = await import("@/db/client");
 const { deleteNonSystemUsers } = await import("@/db/test-helpers");
 const { deliveries, ledgerEntries, orderActivities, orders, payments, walletLedger } = await import("@/db/schema");
 const { createOrder } = await import("../../orders/create-order");
-const { reprice } = await import("@/app/(public)/subscribe/actions");
+const { reprice } = await import("@/lib/wizard/actions");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 
 async function reset() {

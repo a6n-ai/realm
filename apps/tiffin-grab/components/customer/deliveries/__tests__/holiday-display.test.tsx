@@ -8,9 +8,9 @@ import { DeliveriesView } from "../deliveries-view";
 import { MoveSheet } from "../actions/move-sheet";
 import type { PlanView } from "@/lib/deliveries/view/adapter";
 
-vi.mock("@/app/(customer)/me/deliveries/pick-grid", () => ({ loadPickGrid: () => new Promise(() => {}) }));
-vi.mock("@/app/(customer)/me/meals/actions", () => ({ pickMyDish: vi.fn() }));
-vi.mock("@/app/(customer)/me/deliveries/actions", () => ({ releaseMyDays: vi.fn(), loadMyPauseDays: vi.fn(async () => ({ ok: true, days: [] })), pauseMyDays: vi.fn(), rescheduleMyDelivery: vi.fn() }));
+vi.mock("@/lib/menu/pick-grid-actions", () => ({ loadPickGrid: () => new Promise(() => {}) }));
+vi.mock("@/lib/menu/meal-actions", () => ({ pickMyDish: vi.fn() }));
+vi.mock("@/lib/deliveries/customer-actions", () => ({ releaseMyDays: vi.fn(), loadMyPauseDays: vi.fn(async () => ({ ok: true, days: [] })), pauseMyDays: vi.fn(), rescheduleMyDelivery: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn(), push: vi.fn(), replace: vi.fn() }) }));
 beforeEach(() => vi.spyOn(Date, "now").mockReturnValue(NOW));
 afterEach(cleanup);

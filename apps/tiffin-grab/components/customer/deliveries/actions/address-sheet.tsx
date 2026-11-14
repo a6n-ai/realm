@@ -5,7 +5,7 @@ import { Fragment, useState } from "react";
 import type { AddressValues } from "@foundry/commons";
 import type { SavedAddress } from "@foundry/address";
 import { formatAddress } from "@foundry/address/ui";
-import { setMyDeliveryAddress } from "@/app/(customer)/me/deliveries/actions";
+import { setMyDeliveryAddress } from "@/lib/deliveries/customer-actions";
 import { AddressDropOffLines, AddressDropOffPanel, DropOffPicker } from "@/components/customer/address/drop-off";
 import { NO_DROP_OFF, validDropOff, type DropOffValue } from "@/lib/catalog/drop-off";
 import { nameTaken } from "@/components/customer/address/address-name";

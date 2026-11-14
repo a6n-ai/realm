@@ -9,7 +9,7 @@ const actions = {
   setMyDefaultAddress: vi.fn(),
   archiveMyAddress: vi.fn(),
 };
-vi.mock("@/app/(customer)/me/account/address-actions", () => ({
+vi.mock("@/lib/account/address-actions", () => ({
   createMyAddress: (...a: unknown[]) => actions.createMyAddress(...a),
   updateSavedAddress: (...a: unknown[]) => actions.updateSavedAddress(...a),
   setMyDefaultAddress: (...a: unknown[]) => actions.setMyDefaultAddress(...a),

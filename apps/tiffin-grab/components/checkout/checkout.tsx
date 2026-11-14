@@ -20,9 +20,9 @@ import {
   type AppliedCoupon,
   type CheckoutPaymentMethod,
   type RepriceResult,
-} from "@/app/(public)/subscribe/actions";
-import { confirmSubscription, payCheckout } from "@/app/(public)/checkout/actions";
-import { abandonCard, confirmReturn, newCustomerSession } from "@/app/(customer)/me/pay/[paymentId]/actions";
+} from "@/lib/wizard/actions";
+import { confirmSubscription, payCheckout } from "@/lib/checkout/actions";
+import { abandonCard, confirmReturn, newCustomerSession } from "@/lib/payments/pay-actions";
 import { trackMeta } from "@foundry/meta-pixel/client";
 import { sendMetaClientEvent } from "@/lib/meta/actions";
 import { orderSubmittedEventId } from "@/lib/meta/event-ids";
@@ -33,12 +33,12 @@ import { ReceiptPrinter, type Receipt } from "@/components/payments/receipt-prin
 import { isPaid, markPaid, useBounceAfterPaid } from "@/lib/payments/paid-flag";
 import { receiptLines } from "@/lib/payments/receipt-lines";
 import { PaymentMethodCards } from "./payment-method-cards";
-import { updateSavedAddress } from "@/app/(customer)/me/account/address-actions";
+import { updateSavedAddress } from "@/lib/account/address-actions";
 import type { CardCheckoutContext } from "@/lib/payments/card-checkout-context";
 import { TOTAL_CHANGED } from "@/lib/payments/total-changed";
 import { billingAddress, e164 } from "@/lib/payments/billing-address";
 import type { CardSource } from "@/lib/payments/payment-stripe";
-import { createWebsiteInquiry } from "@/app/(marketing)/contact/actions";
+import { createWebsiteInquiry } from "@/lib/landing/contact-actions";
 import { toast } from "sonner";
 import { emailSchema, phoneSchema } from "@foundry/commons";
 import { asWizardOrigin, originHref, parsePlanSteps, WIZARD_POSTAL_KEY, wizardSession } from "@/lib/wizard/session";

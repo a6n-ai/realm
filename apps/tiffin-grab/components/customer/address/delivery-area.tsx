@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { validatePostal } from "@/app/(public)/subscribe/actions";
+import { validatePostal } from "@/lib/wizard/actions";
 import { isFullPostalCode } from "@/lib/catalog/postal";
 
 export type DeliveryArea = { code: string; served: boolean; zone: string | null; slotWindow: string | null };

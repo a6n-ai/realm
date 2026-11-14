@@ -74,7 +74,7 @@ import {
   createMyAddress,
   setMyDefaultAddress,
   updateSavedAddress,
-} from "@/app/(customer)/me/account/address-actions";
+} from "@/lib/account/address-actions";
 import { unwrapAction } from "@/lib/actions/unwrap";
 
 type Editing = { publicId: string | null; label: string; values: AddressValues; dropOff: DropOffValue };

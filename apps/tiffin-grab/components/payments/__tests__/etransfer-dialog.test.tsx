@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 const h = vi.hoisted(() => ({ claim: vi.fn() }));
 vi.mock("@foundry/ui/use-mobile", () => ({ useIsMobile: () => false }));
-vi.mock("@/app/(customer)/me/wallet/actions", () => ({ claimPaymentAction: h.claim }));
+vi.mock("@/lib/wallet/customer-actions", () => ({ claimPaymentAction: h.claim }));
 vi.mock("@/components/ds", () => ({ makeImageThumbnail: async () => new File(["t"], "thumb.webp", { type: "image/webp" }) }));
 
 import { EtransferDialog } from "../etransfer-dialog";

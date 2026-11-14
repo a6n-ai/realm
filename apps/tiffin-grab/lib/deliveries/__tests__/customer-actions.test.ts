@@ -22,7 +22,7 @@ const {
   pauseMyDays,
   releaseMyDays,
   rescheduleMyDelivery,
-} = await import("../actions");
+} = await import("../customer-actions");
 
 const PHONE_A = "+16475550401";
 const PHONE_B = "+16475550402";
