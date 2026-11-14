@@ -16,8 +16,7 @@ async function reset() {
   await db.delete(orders); await db.delete(dishes);
 }
 
-// setSelection now requires a scheduled `deliveries` row for the date, not just a day-of-week
-// membership computation — order alone no longer implies a schedule.
+// setSelection requires a scheduled `deliveries` row for the date, not just day-of-week membership.
 async function seedDelivery(orderId: bigint, overrides: Partial<typeof deliveries.$inferInsert> = {}) {
   const [row] = await db.insert(deliveries).values({
     orderId, deliveryDate: "2099-01-05", status: "scheduled", cutoffAt: Date.now() + 1e9, ...overrides,

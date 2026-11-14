@@ -21,7 +21,6 @@ const REDACT_FIELDS = new Set(["pinHash", "password"]);
 
 const isUsernameConflict = (e: unknown) => isUniqueViolation(e, "users_username_unique");
 
-// A transaction handle (the callback arg of db.transaction), for helpers that
 
 export function redactUserChanges(
   changes: Record<string, { from: unknown; to: unknown }> | null,
@@ -100,7 +99,6 @@ class UsersService extends SessionUpdatableService<typeof users> {
     return super.update(publicId, { status });
   }
 
-  /** Delete every session row for a user — "sign out everywhere". */
   async revokeSessions(publicId: string) {
     await db.delete(session).where(eq(session.userId, await requireUserId(publicId)));
   }
@@ -110,11 +108,9 @@ class UsersService extends SessionUpdatableService<typeof users> {
    * reuse, and revoke every session (log out everywhere). Business rows
    * (orders/wallet/tickets) are preserved — we never hard-delete a user.
    *
-   * The email is tombstoned rather than nulled. It used to be set to null, which
-   * silently stopped working when email became NOT NULL — every soft-delete has been
-   * throwing a 23502 since. The tombstone keeps the column non-null, stays unique
-   * (publicId is), releases the real address for re-registration, and uses the
-   * reserved .invalid TLD so nothing can ever route mail to it.
+   * The email is tombstoned rather than nulled (the column is NOT NULL). The tombstone
+   * stays unique (publicId is), releases the real address for re-registration, and uses
+   * the reserved .invalid TLD so nothing can ever route mail to it.
    */
   async softDelete(publicId: string) {
     await this.revokeSessions(publicId);
@@ -127,7 +123,6 @@ class UsersService extends SessionUpdatableService<typeof users> {
     return res;
   }
 
-  /** Verify a plaintext password against the user's credential account. */
   async verifyAccountPassword(publicId: string, plain: string): Promise<boolean> {
     const [u] = await db.select({ id: users.id }).from(users).where(eq(users.publicId, publicId)).limit(1);
     if (!u) return false;

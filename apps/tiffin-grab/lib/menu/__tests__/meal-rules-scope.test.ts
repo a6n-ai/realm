@@ -26,7 +26,7 @@ async function ids() {
   return { veg: veg!.id, nonveg: nonveg!.id, sizeA: sizes[0]!.id, sizeB: sizes[1]!.id };
 }
 
-/** Insert a rule directly in the new shape (the Phase 2 builder will do this). */
+/** Insert a rule directly in the new shape. */
 async function makeRule(over: {
   scopePlanId?: bigint | null;
   scopeMealSizeId?: bigint | null;

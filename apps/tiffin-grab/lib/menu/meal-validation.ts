@@ -2,7 +2,7 @@
  * Shared meal + swap validation (pure). Customer, staff, and applyDeliverySwap
  * all go through these helpers so UI never invents a second set of rules.
  *
- * Composition-row TU (Phase 7):
+ * Composition-row TU:
  *   Each meal_size_items row is one pick with its own tuAmount. Swaps remove the
  *   first N remaining rows of fromCategory (same order as portionsByCategory).
  *   Same-unit swaps (oz ↔ oz) are like-for-like: each given row becomes one

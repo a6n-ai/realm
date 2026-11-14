@@ -5,9 +5,7 @@ import { withConcurrency as runLimited } from "@foundry/commons/util/concurrency
 
 const log = createLogger("optimoroute.client");
 
-// Every HTTP call to OptimoRoute goes through this module. One place to inject the key,
-// bound concurrency, and map status codes — so no caller can accidentally hammer the API
-// or leak the key into a log line.
+// Every HTTP call to OptimoRoute goes through here: one place to inject the key, bound concurrency and map status codes.
 const BASE = "https://api.optimoroute.com/v1";
 
 /**
@@ -221,7 +219,6 @@ export async function getOrderDetails(ids: string[]): Promise<Map<string, Optimo
   return bulkLookup<OptimoOrderDetail>("/get_orders", ids);
 }
 
-/** Proof-of-delivery / completion status per OptimoRoute stop id. */
 export async function getCompletionDetails(ids: string[]): Promise<Map<string, OptimoCompletionDetail>> {
   return bulkLookup<OptimoCompletionDetail>("/get_completion_details", ids);
 }

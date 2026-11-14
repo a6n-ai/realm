@@ -437,10 +437,8 @@ const SUBSCRIPTION_RANK: Record<string, number> = {
   active: 0, paused: 1, waitlisted: 2, pending: 3, cancelled: 4,
 };
 
-// The signed-in customer's own dashboard: profile, every order (newest-first), the
-// current/most-relevant subscription, and lifetime spend. Resolves the user
-// public_id to the internal id here so totalSpent can run on the bigint while the
-// returned shape stays public_id-only and fully serializable for the client.
+// Resolves the user public_id to the internal id here so totalSpent can run on the bigint while the
+// returned shape stays public_id-only and serializable for the client.
 export async function getCustomerDashboard(userPublicId: string): Promise<CustomerDashboard> {
   const [user] = await db
     .select({ id: users.id, name: users.name, email: users.email, role: users.role })

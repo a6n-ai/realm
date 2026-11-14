@@ -254,7 +254,6 @@ export type GiveHistoryFilters = {
   q?: string;
   /** `group` = a saved-group grant (`grant:%`), `one` = one customer / renewals page (`broadcast:%`). */
   type?: "group" | "one";
-  /** Staff member's public id. */
   givenBy?: string;
   /** Customer group public id (group grants only). */
   group?: string;
@@ -270,7 +269,6 @@ export const legacyGroup = alias(customerGroups, "legacy_group");
 export const grantGroupName = sql<string | null>`coalesce(${customerGroups.name}, ${legacyGroup.name})`;
 export const grantGroupPublicId = sql<string | null>`coalesce(${customerGroups.publicId}, ${legacyGroup.publicId})`;
 
-/** Wallet -> Give coins table: manual_broadcast credits with the group and staff member behind each. */
 export async function giveHistoryRows(f: GiveHistoryFilters) {
   const term = f.q?.trim();
   const where = and(
@@ -343,7 +341,6 @@ export async function giveHistoryRows(f: GiveHistoryFilters) {
   };
 }
 
-/** Facet options for the Give coins filters: staff who have given, and saved groups. */
 export async function giveFilterOptions() {
   const [givers, groups] = await Promise.all([
     db
@@ -357,7 +354,6 @@ export async function giveFilterOptions() {
   return { givers, groups };
 }
 
-/** Customer groups cards: groups created in the range and the actions taken in it. */
 export async function customerGroupStats(r: EpochRange) {
   const [{ groups, members }, [a]] = await Promise.all([
     groupsInRange(r),

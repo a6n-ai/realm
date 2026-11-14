@@ -138,7 +138,6 @@ export async function runCronJob(
 
 export type CronRunRow = typeof cronRuns.$inferSelect;
 
-/** Recent runs per job, newest first. */
 export async function recentCronRuns(jobs: string[], perJob = 5): Promise<Map<string, CronRunRow[]>> {
   const rows = jobs.length
     ? await db.select().from(cronRuns).where(inArray(cronRuns.job, jobs)).orderBy(desc(cronRuns.startedAt)).limit(jobs.length * 50)
@@ -177,7 +176,6 @@ function runsResolver() {
   };
 }
 
-/** A job's run history, filtered and paged, newest first. */
 export async function listCronRunsPage(job: string, condition: Condition | undefined, page: PageRequest): Promise<Page<CronRunListRow>> {
   const where = and(eq(cronRuns.job, job), conditionToSql(condition, runsResolver()));
   const [items, [{ count }]] = await Promise.all([

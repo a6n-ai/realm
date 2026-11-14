@@ -15,9 +15,6 @@ import {
   type OptimoOrderPayload,
 } from "./client";
 
-// Step 1 is preview-only: this module reads both sides and reports the difference. It
-// contains no create/update/delete call — pushing is the next step, and keeping the diff
-// honest first is what makes that step safe to turn on.
 
 export type PlannedOrder = {
   /** Stable across renames, unlike the spreadsheet's "43 Yatharth Aggarwal". */
@@ -27,11 +24,9 @@ export type PlannedOrder = {
   city: string;
   postalCode: string;
   durationMins: number;
-  /** Unit, drop-off and address note (as on the label), then coverage and per-day dishes. */
   notes: string;
   tiffinUnits: number;
   coveredDates: string[];
-  /** "Covers Mon + Tue · 2 tiffins"; null on a plain single-day stop. */
   coverage: string | null;
   phone: string | null;
   plan: string;
@@ -56,7 +51,6 @@ export type PushPreview = {
     /** Foreign-looking stop whose name matches a real customer — display-only, changes nothing about removal. */
     hint: { name: string; publicId: string; hasActiveOrder: boolean } | null;
   }[];
-  /** Present on both sides — the count that should be the bulk of a normal day. */
   unchangedCount: number;
 };
 
@@ -128,7 +122,7 @@ export async function buildPlannedOrders(date: string): Promise<PlannedOrder[]> 
         customField1: phone,
         customField2: address.fullName,
         customField4: plan,
-        // customField3 was unused; 1/2/4 must stay as they are (completions matching reads them).
+        // customField1/2/4 must stay as they are (completions matching reads them).
         ...(trip.coverage ? { customField3: trip.coverage } : {}),
         // Delivery type: the address's drop-off ("Apartment: Lobby, Call on arrival").
         // Always sent: MERGE keeps an omitted field, so a cleared drop-off would linger.
@@ -178,7 +172,6 @@ async function findPossibleMatch(
   };
 }
 
-/** What a push would do, without doing any of it. */
 export async function previewPush(date: string): Promise<PushPreview> {
   const [orders, routes] = await Promise.all([buildPlannedOrders(date), getRoutes(date)]);
 
@@ -468,7 +461,6 @@ async function recordPushActivities(
 
 export type DeliveryActivity = { id: string; type: string; note: string | null; createdAt: number };
 
-/** Read-only push/pull/reassign history for one delivery, newest first — the drawer's data source. */
 export async function getDeliveryActivities(orderNo: string): Promise<DeliveryActivity[]> {
   const [delivery] = await db
     .select({ id: deliveries.id })
@@ -488,6 +480,5 @@ export async function getDeliveryActivities(orderNo: string): Promise<DeliveryAc
     .where(eq(orderActivities.deliveryId, delivery.id))
     .orderBy(desc(orderActivities.createdAt));
 
-  // createdAt is baseColumns' bigint("created_at", { mode: "number" }) — already a JS number, no Date conversion needed.
   return rows;
 }

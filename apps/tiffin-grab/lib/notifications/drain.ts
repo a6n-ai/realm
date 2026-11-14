@@ -25,7 +25,6 @@ export async function drainPending(limit = 25, maxBatches = 20): Promise<number>
   );
 }
 
-/** Expand any scheduled campaign whose time has come. Returns rows queued. */
 export async function materializeDue(): Promise<number> {
   const due = await dueScheduledCampaignIds();
   let queued = 0;

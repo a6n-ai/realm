@@ -40,7 +40,6 @@ const CHANNEL_OPTIONS = [
 // Labels match eventLabel() so chips read like the Event column.
 const EVENT_OPTIONS = NOTIFICATION_EVENTS.map((value) => ({ value, label: eventLabel(value) }));
 
-/** Shared by the top-level Logs page and a campaign's own Logs tab, so both render the same table/filters. */
 export const LOGS_SPEC: FacetDef[] = [
   { kind: "pills", field: "status", label: "Status", options: [...STATUS_OPTIONS] },
   { kind: "select", field: "channel", label: "Channel", options: [...CHANNEL_OPTIONS] },
@@ -74,12 +73,7 @@ export interface NotificationLogRow {
   renderFailedAt: number | null;
 }
 
-/**
- * One query, two callers: the Notifications > Logs page (unfiltered, or
- * filtered by a plain `?campaignId=` deep link) and a campaign detail page's
- * own Logs tab (`campaignId` pinned, no deep-link param needed). Keeping this
- * in one place means both render identical columns/filters/pagination.
- */
+/** Serves the Logs page (`?campaignId=` deep link) and a campaign's own Logs tab (`campaignId` pinned). */
 export async function loadNotificationLogs(
   sp: Record<string, string | undefined>,
   opts: { campaignId?: bigint } = {},

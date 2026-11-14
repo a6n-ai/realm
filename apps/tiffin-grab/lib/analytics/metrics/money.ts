@@ -204,7 +204,7 @@ export async function freeTiffins(scope: AnalyticsScope, now = Date.now()): Prom
       )}
       group by 1`),
   );
-  // Summed unrounded and rounded once, so the headline equals the old single-query figure; reasons are rounded per row.
+  // Summed unrounded and rounded once; reasons are rounded per row.
   const count = rows.reduce((s, r) => s + n2(r.count), 0);
   const valued = rows.reduce((s, r) => s + n2(r.valued), 0);
   // Reasons are grouped apart, so one order can sit under several; count it once.

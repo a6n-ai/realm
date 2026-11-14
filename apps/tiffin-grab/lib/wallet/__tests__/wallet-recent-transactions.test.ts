@@ -37,7 +37,6 @@ beforeAll(async () => {
   }).returning();
   orderA = o.id;
 
-  // User A: credit with an order (older), then debit without an order (newer)
   await db.insert(walletLedger).values({
     userId: userA,
     direction: "credit",

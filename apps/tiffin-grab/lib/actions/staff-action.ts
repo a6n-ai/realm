@@ -6,7 +6,6 @@ import { runAction, type ActionResult } from "./action-result";
 
 export type Guard = "staff" | "admin" | Parameters<typeof requirePermission>[0];
 
-/** A page to refresh after success; a tuple refreshes a layout and everything under it. */
 export type RevalidateTarget = string | readonly [path: string, type: "layout" | "page"];
 
 export type StaffActionOpts = {
@@ -16,7 +15,6 @@ export type StaffActionOpts = {
   catalog?: boolean;
 };
 
-/** Parses untrusted action input; a bad field becomes a ValidationError the form can show. */
 export function parseInput<S extends z.ZodType>(schema: S, input: unknown): z.infer<S> {
   const r = schema.safeParse(input);
   if (r.success) return r.data;

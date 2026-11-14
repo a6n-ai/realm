@@ -182,7 +182,6 @@ export function openApi(origin: string): Json & { paths: Record<string, { get: J
   };
 }
 
-/** The same document as a Markdown guide. */
 export function docsMarkdown(origin: string): string {
   const spec = openApi(origin);
   const base = (spec.servers as { url: string }[])[0]!.url;

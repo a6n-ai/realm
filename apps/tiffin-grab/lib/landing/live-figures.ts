@@ -16,7 +16,6 @@ export function lowestRate(catalog: CatalogSnapshot): number | null {
   return rates.length ? Math.min(...rates) : null;
 }
 
-/** Biggest duration discount in percent, or null when none runs. */
 export function biggestDurationOff(catalog: CatalogSnapshot): number | null {
   const off = (catalog.discounts ?? []).filter((d) => d.kind === "duration" && d.percent > 0).map((d) => d.percent);
   return off.length ? Math.max(...off) : null;

@@ -22,7 +22,6 @@ export type LedgerOurRow = {
   tiffinUnits: number;
   ourStatus: string;
   side: OurSide;
-  /** "Covers Fri + Sat · 2 tiffins" — the same line the OptimoRoute stop note carries. */
   coverage?: string | null;
 };
 
@@ -210,7 +209,6 @@ export function assembleLedger(input: {
   }
 }
 
-/** Loads both sides for a date and assembles the ledger. Three OptimoRoute calls at most (search pages + completions). */
 /**
  * `visible` limits the board to the viewer's franchises: their deliveries, and OptimoRoute stops that
  * name one of them. Stops naming no delivery of ours ("Not ours") show only to a viewer who sees every franchise.

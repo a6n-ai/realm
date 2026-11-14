@@ -1,6 +1,4 @@
-// saveWeek replaces the per-click addItem/removeItem/reorderItems round trips with one
-// diffing transaction. The invariants those clicks enforced individually now have to hold
-// for a whole list at once, so they are asserted here rather than assumed.
+// saveWeek is one diffing transaction: the per-item invariants must hold for a whole list at once.
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { and, asc, eq } from "drizzle-orm";
 import { db } from "@/db/client";
@@ -10,8 +8,7 @@ import { dishCategories, dishes, mealSelections, menuItems, menuWeeks } from "@/
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 const { menuService } = await import("../menu.service");
 
-// This suite never creates orders or users — the old reset() blanket-deleted both
-// anyway, which meant it 500'd with payments_order_id_orders_id_fk whenever an
+// This suite never creates orders or users — blanket-deleting both would 500 with payments_order_id_orders_id_fk whenever an
 // earlier suite's leftover order still had a payment row. Only delete what this
 // file actually populates.
 async function reset() {

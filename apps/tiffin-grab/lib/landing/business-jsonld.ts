@@ -45,7 +45,6 @@ export function businessJsonLd(catalog: CatalogSnapshot, origin: string, { curre
   };
 }
 
-/** Home > page trail. */
 export const breadcrumbJsonLd = (origin: string, name: string, path: string) => ({
   "@context": "https://schema.org",
   "@type": "BreadcrumbList",

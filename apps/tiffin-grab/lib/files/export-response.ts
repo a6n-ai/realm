@@ -2,7 +2,6 @@ const XLSX_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.s
 
 const attachment = (filename: string) => `attachment; filename="${filename}"`;
 
-/** One-sheet .xlsx download. `headers` fixes the column order. */
 export async function xlsxResponse(filename: string, sheet: { name: string; headers: string[]; records: Record<string, unknown>[] }): Promise<Response> {
   const XLSX = await import("xlsx");
   const workbook = XLSX.utils.book_new();

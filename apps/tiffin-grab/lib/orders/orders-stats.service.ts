@@ -50,7 +50,6 @@ export async function getOrdersOverview(range: { from: number; to: number }, vis
       })
       .from(orders)
       .where(and(inArray(orders.status, [...BOOKED]), between(orders.createdAt, { from: prev.from, to: range.to }), inOrgs)),
-    // Plans whose first tiffin is due within the next week: the ones staff still have to get ready.
     db
       .select({
         count: sql<number>`count(*)`,

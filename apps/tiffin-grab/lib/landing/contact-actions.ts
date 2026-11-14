@@ -29,9 +29,7 @@ export async function createWebsiteInquiry(input: ContactInput): Promise<{ ok: t
   const parsedPhone = phoneSchema().safeParse(input.phone.trim());
   if (!parsedPhone.success) throw new ValidationError("Invalid phone number");
   const phone = parsedPhone.data;
-  // Mandatory, and rejected here rather than deeper: InquiriesService.create
-  // throws "Email is required", so an emailless submission used to surface as a
-  // generic failure and the lead was dropped.
+  // Rejected here because InquiriesService.create throws "Email is required", which would surface as a generic failure.
   if (!input.email?.trim()) throw new ValidationError("Email is required");
   const parsedEmail = emailSchema.safeParse(input.email.trim());
   if (!parsedEmail.success) throw new ValidationError("Enter a valid email");

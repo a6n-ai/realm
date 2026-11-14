@@ -10,7 +10,7 @@ export type Availability = { ok: boolean; why: string | null; sub: string };
 
 type MealLike = { label: string; picks: { name: string }[]; quantity: number }[];
 
-/** Structural subset of myCalendar's CalendarDay plus optional fields other work adds (cutoffAt, pooled, rescheduled, per-eating-day swaps/meals). */
+/** Structural subset of myCalendar's CalendarDay plus optional fields (cutoffAt, pooled, rescheduled, per-eating-day swaps/meals). */
 export type CalendarDayInput = {
   date: string;
   deliveryId?: string;
@@ -136,7 +136,7 @@ export function buildTrips(days: CalendarDayInput[], now: number, plan: PlanCont
       if (d.holidayName && (d.status === "paused" || (d.status !== "scheduled" && (rescheduled || !!d.combinedInto)))) status = "holiday";
       else if (d.combinedInto) status = "combined-into";
       else if (d.status !== "scheduled" && rescheduled) status = "rescheduled";
-      // Nobody holds a day any more: a skipped row that wasn't moved away is a failed drop.
+      // A skipped row that wasn't moved away is a failed drop.
       else if (d.status === "skipped") status = "failed";
       else if (d.status === "cancelled" || (d.status !== "scheduled" && past)) status = "locked";
       else if (d.status === "paused") status = "paused";

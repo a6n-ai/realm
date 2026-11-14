@@ -12,11 +12,8 @@ import { BRAND_NAME } from "@/lib/brand";
 const log = createLogger("auth-otp");
 
 /**
- * emailOTP plugin callback: deliver a reset/verify/sign-in code. Migrated
- * (2026-09) off @foundry/auth's direct-send path onto the notification
- * pipeline — see sendVerification below for why. "sign-in" and "change-email"
- * share the generic verification-code copy with "email-verification", same
- * as the original direct-send routing.
+ * emailOTP plugin callback: deliver a reset/verify/sign-in code. "sign-in" and "change-email"
+ * share the generic verification-code copy with "email-verification".
  */
 export async function sendAuthOtp(email: string, otp: string, type: OtpType, ip: string | null = null): Promise<void> {
   // Over the cap: drop silently. Throwing would turn into an error only known
@@ -43,10 +40,9 @@ export async function sendAuthOtp(email: string, otp: string, type: OtpType, ip:
 }
 
 /**
- * Link-based email verification (signup + on-demand resend). Migrated off the
- * direct-send path (2026-09) onto the notification pipeline — enqueue() writes
+ * Link-based email verification (signup + on-demand resend). enqueue() writes
  * a durable outbox row before anything is sent, and the fast drainer picks it
- * up within ~1s, so this stays effectively as instant as the direct call was.
+ * up within ~1s.
  * Explicit recipientEmail (not recipientId → DB lookup): better-auth may be
  * reverifying an address not yet the user's committed `users.email`.
  */
@@ -157,7 +153,6 @@ export async function sendInviteLinkEmail(email: string, url: string, metadata: 
   throw new Error("magic link requested without invite metadata");
 }
 
-/** Security alert after a password reset or change. */
 export async function notifyPasswordChanged(email: string | null | undefined): Promise<void> {
   if (!email) return;
   await db.transaction((tx) =>

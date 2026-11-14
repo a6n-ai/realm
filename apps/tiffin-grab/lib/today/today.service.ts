@@ -38,7 +38,6 @@ export async function coversAllOrgs(visible: Visible): Promise<boolean> {
 /** Rows per type in the mixed queue, so one large backlog cannot hide every other type. */
 export const PER_KIND_MIXED = 8;
 
-/** Midnight of a calendar date (YYYY-MM-DD) in `tz`, as epoch ms. */
 export function dayStartMs(iso: string, tz: string): number {
   const [y, m, d] = iso.split("-").map(Number);
   const guess = Date.UTC(y!, m! - 1, d!);
@@ -53,7 +52,6 @@ export function rankTodayItems(items: TodayItem[]): TodayItem[] {
   return [...items].sort((a, b) => a.urgency - b.urgency || a.since - b.since || a.key.localeCompare(b.key));
 }
 
-// ---- payments under review: one row per payment ----
 
 const PAYMENT_STATUS_LABEL: Record<string, string> = { pending_verification: "claimed, to verify", awaiting_payment: "awaiting payment" };
 

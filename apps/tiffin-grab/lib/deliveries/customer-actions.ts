@@ -143,9 +143,8 @@ export async function loadMySwapOptions(
   });
 }
 
-// Swap eligibility is global now (category_swap_pairs) — there's no per-meal-size
-// rule catalog to pick a rule id from, so the client sends the category pair and
-// how many picks of fromCategory to give up directly.
+// Swap eligibility is global (category_swap_pairs): the client sends the category pair and
+// how many picks of fromCategory to give up.
 export async function applyMyDeliverySwap(deliveryPublicId: string, fromCategory: string, toCategory: string, fromPicks: number, forDate?: string, fromRow?: number | null): Promise<ActionResult> {
   return runAction(async () => {
     await assertCanManageDelivery(deliveryPublicId);

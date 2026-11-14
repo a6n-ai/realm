@@ -32,8 +32,7 @@ export function revalidateSitePaths(): void {
 export function revalidatePublicSite(): void {
   revalidateSitePaths();
   try {
-    // One wake at computeSiteNextAt (includes requestedAt+90s and any sooner boundary),
-    // instead of always booking a separate +90s instance alongside the boundary chain.
+    // One wake at computeSiteNextAt, which already includes requestedAt+90s and any sooner boundary.
     runInBackground(async () => {
       const now = Date.now();
       const followedUp = (await publicSiteState.get<number>("followed-up"))?.value;

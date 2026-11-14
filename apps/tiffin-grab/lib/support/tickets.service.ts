@@ -324,11 +324,7 @@ class TicketsService extends SessionUpdatableService<typeof tickets> {
     await this.message(ticket, actor.id, "system", `Priority: ${previous} → ${priority}`);
   }
 
-  /**
-   * Staff reclassify a ticket after the customer picked the wrong bucket.
-   * Analytics read these columns live, so the next complaints refresh uses the
-   * corrected pair with no separate backfill.
-   */
+  /** Analytics read these columns live, so a reclassified pair shows on the next refresh with no backfill. */
   async setCategory(
     publicId: string,
     category: TicketCategoryValue,

@@ -1,13 +1,11 @@
 import { ValidationError, emailSchema, phoneSchema } from "@foundry/commons";
 
-/** E.164 phone, or a ValidationError. */
 export function parsePhone(raw: string): string {
   const parsed = phoneSchema().safeParse(raw);
   if (!parsed.success) throw new ValidationError("Enter a valid phone number");
   return parsed.data;
 }
 
-/** Lowercased email, or a ValidationError. */
 export function parseEmail(raw: string): string {
   const parsed = emailSchema.safeParse(raw);
   if (!parsed.success) throw new ValidationError("Enter a valid email");

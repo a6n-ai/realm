@@ -1,5 +1,5 @@
 /**
- * Phase 6.1 / 7 — Pick ↔ Swap quantity consistency for multi-row categories.
+ * Pick ↔ Swap quantity consistency for multi-row categories.
  * Give-side TU uses actual composition rows (front-N); never fromPicks × first pickTu.
  */
 import { describe, expect, it } from "vitest";

@@ -287,7 +287,6 @@ export type ReferralSummary = {
   canEnterCode?: boolean;
 };
 
-/** Everything the customer Refer tab shows. */
 export async function getReferralSummary(userId: bigint): Promise<ReferralSummary> {
   const [code, settings, rows, [me], history] = await Promise.all([
     getOrCreateReferralCode(userId),

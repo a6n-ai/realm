@@ -27,7 +27,6 @@ export type ProfitabilityReport = {
   assumptions: ProfitabilityAssumptions;
   kpis: ProfitabilityKpis;
   rows: ProfitRow[];
-  /** Total costs by kind, for the "where the money goes" donut. */
   costParts: CostPart[];
   /** Delivered tiffins on WP-migrated orders (no stored price, no payment here): left out of revenue and per-tiffin costs. */
   migratedTiffinsExcluded: number;

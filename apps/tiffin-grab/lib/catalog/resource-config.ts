@@ -21,7 +21,6 @@ export interface FieldDef {
   // multiselect: the click order is a priority; pills show their rank.
   ordered?: boolean;
   readOnlyOnEdit?: boolean;
-  // Edited in the dialog but kept out of the list table to keep it scannable.
   tableHidden?: boolean;
   // Groups this field under a labeled section in the edit dialog — a header
   // renders once, before the first field carrying a new section name. Fields
@@ -39,9 +38,7 @@ export interface ResourceDef {
   // Boolean column that carries the retire/restore status. Defaults to "active";
   // dish_categories uses "enabled" instead (no `active` column).
   statusField?: string;
-  // One-line pointer shown at the top of the edit dialog.
   note?: string;
-  // The edit dialog needs more room (composition rows).
   wideDialog?: boolean;
   // Which central discount kind this resource's rows get a "Discounts" panel for.
   discountKind?: "delivery" | "duration" | "meal_size";
@@ -109,8 +106,7 @@ const mealSizesSchema = z.object({
   description: z.string().trim().optional().nullable(),
   tier: z.enum(MEAL_TIERS),
   // Plan dropdown value is the plan publicId/key; the service resolves it to
-  // plans.id on write (mirrors menu.service). `components` is no longer hand-edited
-  // — it is derived from `items` on save.
+  // plans.id on write (mirrors menu.service). `components` is derived from `items` on save.
   planId: z.string().trim().min(1, "Plan is required"),
   items: z.array(compositionItem).default([]),
   kcalMin: reqNum(z.coerce.number().int().nonnegative()),

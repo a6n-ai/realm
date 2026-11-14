@@ -64,7 +64,6 @@ export type ScorecardRow = {
   complaints: number;
   /** Profitability's profit for the day (WP-migrated tiffins excluded). */
   profit: number | null;
-  /** The Orders list for this day, current filters kept. */
   href: string;
 };
 

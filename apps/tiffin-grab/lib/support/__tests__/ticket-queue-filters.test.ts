@@ -120,8 +120,6 @@ describe("ticket queue honours complaint filters", () => {
   });
 
   it("lands on the same rows a dashboard link encodes", async () => {
-    // End-to-end on the contract itself: build the href the chart renders, parse
-    // it back the way the queue page does, and check the queue agrees.
     const { mk } = await seed();
     await mk({ category: "food_meal", subcategory: "food_quality", priority: "high" });
     await mk({ category: "food_meal", subcategory: "food_quantity", priority: "low" });

@@ -1,9 +1,7 @@
 import { BOOKED, ONGOING, RUNNING, STARTING_SOON } from "./status";
 import { inList, type Condition } from "@foundry/commons/model/condition";
 
-// Single source of truth for the Status facet — also the pill/badge label map.
-// "all" is a client-only pseudo-bucket, never a valid `orders.status` value, so
-// it's excluded here and the server facet options map straight off this array.
+// "all" is a client-only pseudo-bucket, never an `orders.status` value, so it is excluded here.
 //
 // Deliberately NOT in orders-list.tsx: that module is "use client", so every one
 // of its exports reaches the RSC graph as a client reference. The server page

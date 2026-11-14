@@ -26,7 +26,6 @@ export async function authorizeChannel(
   const [kind, publicId] = parts;
   if (!kind || !publicId) return null;
 
-  // Personal hub: bell + page refresh for this user only.
   if (kind === "notify") {
     return publicId === userId ? { channel: notifyChannel(userId), userId, role: realtimeRole } : null;
   }

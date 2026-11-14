@@ -154,7 +154,6 @@ export function resolveDishTap(
   const replaceOther = [...cells].reverse().find((c) => effectiveDishId(c, picked) !== dishId);
   if (replaceOther) return { cell: replaceOther, dishId };
 
-  // Every slot already has this dish — no-op.
   return null;
 }
 

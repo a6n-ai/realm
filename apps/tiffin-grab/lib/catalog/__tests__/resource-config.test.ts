@@ -108,7 +108,6 @@ describe("blank numeric fields (form feeds \"\")", () => {
 
   it("meal-sizes: requires a plan and a category on every composition row", () => {
     const base = { key: "x", name: "X", tier: "budget", kcalMin: "1", kcalMax: "2", basePrice: "10" };
-    // Missing plan is rejected.
     expect(() => RESOURCES["meal-sizes"].schema.parse({ ...base, items: [] })).toThrow();
     // A row without a category is rejected — the category IS the item now, and
     // its label becomes the NOT NULL name on insert.

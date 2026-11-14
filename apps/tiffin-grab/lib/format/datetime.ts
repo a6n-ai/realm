@@ -12,8 +12,7 @@ const PRESETS: Record<AbsoluteMode, Intl.DateTimeFormatOptions> = {
 
 type FormatEpochOpts =
   | { mode: "relative"; locale?: string }
-  // timeZone is REQUIRED: omitting it silently formats in the runtime's zone (the server's
-  // during SSR), which is the bug this audit exists to fix.
+  // timeZone is REQUIRED: omitting it silently formats in the runtime's zone (the server's during SSR).
   | { mode?: AbsoluteMode; timeZone: string; withZone?: boolean; locale?: string };
 
 export function formatEpoch(ms: number, opts: FormatEpochOpts): string {
@@ -30,9 +29,7 @@ export function formatEpoch(ms: number, opts: FormatEpochOpts): string {
   // Locale defaults to a fixed "en-US" rather than the runtime's own default: leaving it
   // undefined lets Intl fall back to the server process's locale during SSR and the browser's
   // OS/user locale on the client, which can disagree on field order ("Sun, 19 Jul 2026" vs
-  // "Sun, Jul 19, 2026") and trips a hydration mismatch — surfaced by the Tiffin Calendar's
-  // day-detail panel, which (unlike the old card list) renders a formatted date unconditionally
-  // on first paint.
+  // "Sun, Jul 19, 2026") and trips a hydration mismatch.
   const { mode = "datetime", timeZone, withZone, locale = "en-US" } = opts;
   return dateTimeFormat(locale, {
     ...PRESETS[mode],
@@ -41,7 +38,6 @@ export function formatEpoch(ms: number, opts: FormatEpochOpts): string {
   }).format(ms);
 }
 
-// Labeled datetime in the app/delivery timezone (e.g. "Jul 16, 2026, 6:00 PM EDT").
 export function formatDeliveryTime(ms: number, timezone: string): string {
   return formatEpoch(ms, { timeZone: timezone, mode: "datetime", withZone: true });
 }
@@ -77,7 +73,6 @@ export function formatDateOnly(
   }).format(parseIsoDateUtc(iso));
 }
 
-/** Mon–Sun label for a menu week (`weekStart` is the Monday ISO date). */
 export function formatMenuWeekRange(weekStart: string, locale = "en-US"): string {
   const endIso = addDaysIso(weekStart, 6);
   return `${formatDateOnly(weekStart, { mode: "short", locale })} – ${formatDateOnly(endIso, { mode: "short", locale })}`;

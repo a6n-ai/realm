@@ -96,7 +96,6 @@ export function toggleStrategy(catalog: DropOffCatalog, value: DropOffValue, str
   return { tagId: o.groupId, strategyIds: [...kept, strategyId] };
 }
 
-/** The pick in one connected set replaced (null clears it). */
 export function pickInConnection(catalog: DropOffCatalog, value: DropOffValue, connectionId: string, strategyId: string | null): DropOffValue {
   const others = value.strategyIds.filter((id) => catalog.options.find((x) => x.publicId === id)?.connectionId !== connectionId);
   return strategyId ? toggleStrategy(catalog, { ...value, strategyIds: others }, strategyId) : { ...value, strategyIds: others };

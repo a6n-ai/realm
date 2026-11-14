@@ -253,7 +253,6 @@ export function tierOrder(a: string, b: string) {
   return rank(a) - rank(b);
 }
 
-/** Paid money grouped by catalog meal size (Maharaja Thali, 4 Item Thali, ...). */
 export async function getPaidByMealType(scope: AnalyticsScope): Promise<PaidMealTypeRow[]> {
   return (await paidByMealSize(scope))
     .map(({ size, bucket }) => ({ mealType: size.name, key: size.key, plan: size.plan, payments: bucket.payments, paid: bucket.net }))

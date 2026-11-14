@@ -53,7 +53,6 @@ export async function reset() {
   await sharedCache("app-settings").evictAll();
 }
 
-/** An order with one stripe payment row; amount overrides make cents math explicit. */
 export let OWNER = "";
 // One customer per phone: a random suffix collided often enough (51 orders) to trip the plan-overlap guard.
 let phoneSeq = 1000;

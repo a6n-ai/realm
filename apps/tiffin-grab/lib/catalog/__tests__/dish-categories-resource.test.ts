@@ -37,7 +37,7 @@ describe("dishCategoriesService CRUD (integration)", () => {
   beforeEach(cleanup);
   afterAll(cleanup);
 
-  // Slots attach to plans by public_id now, so the test needs a real one.
+  // Slots attach to plans by public_id, so the test needs a real one.
   let vegPlanPublicId: string;
   beforeEach(async () => {
     const [veg] = await db.select({ publicId: plans.publicId }).from(plans).where(eq(plans.key, "veg")).limit(1);

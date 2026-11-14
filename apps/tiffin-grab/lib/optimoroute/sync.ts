@@ -17,7 +17,6 @@ export type SyncDay = {
 export type SyncSummary = {
   mode: SyncMode;
   ran: boolean;
-  /** Why nothing ran — plugin off, or no key. */
   skipped?: string;
   days: SyncDay[];
 };
@@ -40,8 +39,7 @@ export function parseMode(raw: string | null): SyncMode {
 }
 
 /**
- * The unattended half of the integration. Pushes tomorrow's stops so a dispatcher opens
- * OptimoRoute to a full board, and optionally pulls back whatever has been planned.
+ * Unattended: pushes tomorrow's stops and optionally pulls back what was planned.
  *
  * Deliberately never removes. Deletion takes a stop off a driver's route, and doing that
  * unattended on a schedule — from data that may be mid-edit — is the one operation worth

@@ -98,7 +98,6 @@ async function cleanup() {
   // two wallet suites produce these tables, so a blanket delete is safe.
   await db.delete(walletLedger);
   await db.delete(eventPayout);
-  // Delete wallet ledger entries for our test users first (FK order)
   const testUsers = await db
     .select({ id: users.id })
     .from(users)
@@ -109,8 +108,6 @@ async function cleanup() {
     await db.delete(notificationOutbox).where(eq(notificationOutbox.recipientId, u.id));
   }
 
-  // Clean orders and their dependents created by our test phones
-  // We identify orders by their payments/activities then delete
   const ourOrders = await db
     .select({ id: orders.id, publicId: orders.publicId })
     .from(orders)
@@ -124,7 +121,6 @@ async function cleanup() {
     await db.delete(orders).where(eq(orders.id, o.id));
   }
 
-  // Delete test users
   await db.delete(users).where(inArray(users.phone, TEST_PHONES));
 }
 
@@ -137,7 +133,6 @@ describe("wallet award on order activation", () => {
     const snap = await loadCatalogSnapshot();
     const startDate = nextWeekday(new Date()).toISOString().slice(0, 10);
 
-    // Create order (may land active or waitlisted depending on zone seed)
     const { publicId } = await createOrder({
       planKey: snap.plans[0].key,
       selections: {
@@ -159,7 +154,6 @@ describe("wallet award on order activation", () => {
       },
     });
 
-    // Fetch the order to get userId and current status
     const [orderRow] = await db.select().from(orders).where(eq(orders.publicId, publicId));
     const userId = orderRow.userId!;
 
@@ -172,7 +166,6 @@ describe("wallet award on order activation", () => {
     // Activate — this is the call site under test
     await svc.ordersService.activate(publicId);
 
-    // Assert a credit row was written
     const credits = await db
       .select()
       .from(walletLedger)
@@ -300,7 +293,6 @@ describe("wallet award on order activation", () => {
     await db.delete(walletLedger).where(eq(walletLedger.userId, userId));
     await db.update(orders).set({ status: "waitlisted" }).where(eq(orders.publicId, publicId));
 
-    // First activation — awards coins
     await svc.ordersService.activate(publicId);
 
     // Second activation attempt should throw (already active), but even if we

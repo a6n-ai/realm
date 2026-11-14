@@ -54,7 +54,7 @@ export async function enqueueStaffNotification(tx: Tx, input: StaffInput): Promi
       ...rest,
       recipientId: s.id,
       channels,
-      // Same per-recipient suffix enqueueToRole used, so keys written before this change still dedupe.
+      // Keep this suffix: already-queued rows were keyed with it.
       dedupeKey: rest.dedupeKey ? `${rest.dedupeKey}:u${s.id}` : undefined,
     })),
   );

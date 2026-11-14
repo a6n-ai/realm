@@ -10,7 +10,6 @@ export interface NavItem {
   /** Stable key used for guards (isSectionAllowed) and active-link matching. */
   key: string;
   label: string;
-  /** Absolute href: /dashboard/account/<segment>. */
   href: string;
 }
 

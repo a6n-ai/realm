@@ -15,7 +15,6 @@ export type TripDetail = {
   units: number;
   /** Tiffins beyond one per person: what makes the stop take longer at the door. */
   extraTiffins: number;
-  /** "Covers Mon + Tue · 2 tiffins"; null on a plain single-day stop. */
   coverage: string | null;
   /** One "Tue: Dal, Rice" line per covered day; null unless the trip carries several days. */
   dishLines: string[];

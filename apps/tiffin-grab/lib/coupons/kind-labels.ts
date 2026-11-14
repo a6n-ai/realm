@@ -1,7 +1,7 @@
 import type { CouponKind } from "@/db/schema/coupons";
 
 // Plain module (no "use client") so server components can import these values
-// directly — pulled out of controls.tsx per the RSC value-import rule.
+// directly.
 export const KIND_LABELS: Record<CouponKind, string> = {
   percentage: "Percentage off",
   fixed: "Fixed amount off",

@@ -15,5 +15,4 @@ export function pageMeta(title: string, description: string, path: string): Meta
   };
 }
 
-/** Legal and policy pages share the "<title> | Brand" tab title. */
 export const legalMeta = (title: string, description: string, path: string): Metadata => pageMeta(`${title} | ${BRAND_NAME}`, description, path);

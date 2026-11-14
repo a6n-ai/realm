@@ -76,7 +76,6 @@ describe("first-login password flow (integration)", () => {
   // Regression: an earlier guard refused whenever ANY credential existed, which
   // broke the seeded/invited admin — it holds an operator-issued password with
   // passwordSet still false, and setting its own is the whole point of the flow.
-  // That shipped as an opaque 500 on /set-password.
   it("setOwnPassword ALLOWS an account still on an issued password", async () => {
     const staff = await usersService.create({ email: "rep@example.com", role: "member", name: "Rep" });
     // Simulate seed-admin: credential written, passwordSet left false.

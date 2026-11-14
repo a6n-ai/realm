@@ -13,16 +13,10 @@ import { assertStartNotHoliday } from "../deliveries/holiday-dates";
 export type OrderWindow = { id: bigint; startDate: string; durationWeeks: number };
 
 /**
- * The calendar band an active/paused order actually reserves, keyed by order id, as an
- * exclusive end date (the first day NOT reserved).
- *
- * Prefers the true last materialized delivery date over the naive
- * `startDate + durationWeeks * 7` calculation: pooled/rescheduled tiffins can push real
- * delivery dates later than that naive window (see `TiffinCounts.lastDeliveryDate` in
- * customer-deliveries.service.ts, which this mirrors), so an order whose deliveries have
- * shifted later still reserves through its true last delivery, not just its original
- * calendar window. Rows that no longer hold their day (`HOLDS_DAY`) are ignored.
- * The naive calc is only a fallback for an order with no delivery rows yet.
+ * Exclusive end date of the band an active/paused order reserves. Uses the true last materialized delivery
+ * (pooled/rescheduled tiffins run past `startDate + durationWeeks * 7`; mirrors `TiffinCounts.lastDeliveryDate`
+ * in customer-deliveries.service.ts); the naive window is only the fallback for an order with no delivery rows.
+ * Rows that no longer hold their day (`HOLDS_DAY`) are ignored.
  */
 export async function reservedEndDatesExclusive(
   tx: Tx | typeof db,
@@ -58,7 +52,6 @@ export async function reservedEndDatesExclusive(
 }
 
 
-/** The customer's day-reserving orders with their reserved bands, minus `excludeOrderId`. */
 async function reservedBands(tx: Tx | typeof db, userId: bigint, excludeOrderId?: bigint) {
   const live = await tx
     .select({ id: orders.id, startDate: orders.startDate, durationWeeks: orders.durationWeeks })
@@ -86,7 +79,6 @@ export type RunningPlan = {
   organizationId: string | null;
 };
 
-/** The customer's day-reserving plans, earliest first, as the staff order form lists them. */
 export async function runningPlans(tx: Tx | typeof db, userId: bigint): Promise<RunningPlan[]> {
   const live = await tx
     .select({
@@ -112,12 +104,7 @@ export async function runningPlans(tx: Tx | typeof db, userId: bigint): Promise<
   });
 }
 
-/**
- * First day a new plan may start without overlapping the customer's running plans
- * (the day after the latest reserved band), or null when nothing is running. This is
- * what the start-date pickers use as their minimum, so it must stay the same rule
- * `assertNoPlanOverlap` enforces.
- */
+/** First day a new plan may start; the start-date pickers' minimum, so it must stay the same rule `assertNoPlanOverlap` enforces. */
 export async function earliestNewPlanStart(
   tx: Tx | typeof db,
   userId: bigint,
@@ -128,7 +115,6 @@ export async function earliestNewPlanStart(
   return utcIso(bands.reduce((max, b) => (b.endExclusive > max ? b.endExclusive : max), bands[0]!.endExclusive));
 }
 
-/** The last tiffin date across the customer's running (active/paused) plans, or null when none is scheduled. */
 export async function lastRunningTiffinDate(tx: Tx | typeof db, userId: bigint): Promise<string | null> {
   const [row] = await tx
     .select({ last: sql<string | null>`max(${deliveries.deliveryDate})` })
@@ -168,7 +154,7 @@ export async function otherPlanDays(
   return { onTrip: (date) => trips.get(date) ?? null, onEat: (date) => eats.has(date) };
 }
 
-/** Rejects a single day another plan of this customer holds of this customer. */
+/** Rejects a single day another plan of this customer holds. */
 export async function assertDayOutsideOtherPlans(
   tx: Tx | typeof db,
   args: { userId: bigint; date: string; excludeOrderId: bigint },
@@ -201,11 +187,7 @@ async function assertNoPlanOverlap(
   }
 }
 
-/**
- * Whether a plan can occupy [startDate, startDate + durationWeeks*7): not on a declared holiday
- * (unless the date was already placed, `holiday: false`), and clear of the customer's other plans.
- * Every path that starts or moves a plan runs this one check.
- */
+/** Whether a plan can occupy [startDate, startDate + durationWeeks*7): not on a declared holiday (unless already placed) and clear of the customer's other plans. Every path that starts or moves a plan runs this one check. */
 export async function assertStartable(
   tx: Tx | typeof db,
   args: { userId: bigint | null; organizationId: string | null; startDate: string; durationWeeks: number; excludeOrderId?: bigint; holiday?: boolean },

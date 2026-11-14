@@ -7,7 +7,6 @@ import { EVENT_ENTITY, availableVariables, validateTemplateVars, type AppEvent }
 
 type Locale = "en" | "fr";
 
-/** Throw if `body` uses variables not valid for the event. */
 export function assertValidVars(event: AppEvent, body: string): void {
   const unknown = validateTemplateVars(event, body);
   if (unknown.length) throw new ValidationError(`Unknown variables: ${unknown.join(", ")}`);

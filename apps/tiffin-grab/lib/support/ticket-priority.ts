@@ -17,7 +17,6 @@ export const PRIORITY_LABEL: Record<TicketPriorityValue, string> = {
   urgent: "Critical",
 };
 
-/** Most urgent first — the order reporting and dropdowns present them in. */
 export const PRIORITY_ORDER: TicketPriorityValue[] = ["urgent", "high", "normal", "low"];
 
 export const PRIORITY_OPTIONS = PRIORITY_ORDER.map((value) => ({ value, label: PRIORITY_LABEL[value] }));

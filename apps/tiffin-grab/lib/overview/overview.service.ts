@@ -29,10 +29,8 @@ export type OverviewSeries = {
 const rate = (r: { ended: number; renewed: number }) => (r.ended > 0 ? ratePct(r.renewed, r.ended) : null);
 
 /**
- * Everything the tiles and the pace chart need. Revenue and orders come from the analytics daily
- * scorecard, scheduled stops from its deliveries query, active plans from `countOrders` (the
- * Analytics definition, with the date range opened up), renewal rate from the Orders page's
- * `getOrdersOverview`. `cache` shares one read between the tiles card and the pace card.
+ * Sourced from the Analytics daily scorecard, `countOrders` (date range opened up) and the Orders
+ * page's `getOrdersOverview`. `cache` shares one read between the tiles card and the pace card.
  */
 export const getOverviewSeries = cache(async (visible: Visible, today: string, now: number): Promise<OverviewSeries> => {
   const { timezone: tz } = await getAppSettings();
@@ -125,7 +123,6 @@ export async function getKitchenWeekDishes(monday: string): Promise<{ date: stri
   return sheets.map((sheet, i) => ({ date: dates[i]!, counts: countBy(sheet.labels) }));
 }
 
-/** First name for the Overview greeting ("Hi Vishwas"); null when the account has no name. */
 export async function staffFirstName(email: string): Promise<string | null> {
   const [row] = await db.select({ name: users.name }).from(users).where(eq(users.email, email)).limit(1);
   return row?.name?.trim().split(/\s+/)[0] || null;

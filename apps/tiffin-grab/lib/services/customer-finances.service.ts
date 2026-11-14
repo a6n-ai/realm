@@ -63,7 +63,7 @@ export type MoneyLedgerTx = {
   } | null;
 };
 
-/** Paginated subscription receipts for the signed-in customer (IDOR-gated). */
+/** IDOR-gated. */
 export async function myBillsPage(userId: bigint, page: PageRequest): Promise<Page<CustomerBill>> {
   const where = eq(orders.userId, userId);
   const [rows, [{ count }]] = await Promise.all([
@@ -162,7 +162,7 @@ export async function myBillsPage(userId: bigint, page: PageRequest): Promise<Pa
   };
 }
 
-/** Paginated money ledger (`ledger_entries`) for the signed-in customer (IDOR-gated). */
+/** IDOR-gated. */
 export async function myMoneyLedgerPage(
   userId: bigint,
   condition: Condition | undefined,

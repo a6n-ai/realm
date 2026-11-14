@@ -336,9 +336,7 @@ class MealRulesService extends SessionUpdatableService<typeof mealRules> {
       .from(mealRules)
       .innerJoin(plans, eq(plans.id, mealRules.planId))
       .orderBy(asc(plans.name), asc(mealRules.categoryKey));
-    // Legacy single-condition rows only. The Phase 2 admin builder reads the new
-    // header+conditions shape; until then this page keeps rendering exactly what
-    // it always did, and new-shape rules simply don't appear in it.
+    // Legacy single-condition rows only; new-shape rules don't appear in this page.
     return rows.flatMap((r) =>
       r.planId != null && r.categoryKey != null && r.condition != null && r.maxCount != null
         ? [{ ...r, planId: r.planId, categoryKey: r.categoryKey, condition: r.condition, maxCount: r.maxCount }]
@@ -374,8 +372,7 @@ class MealRulesService extends SessionUpdatableService<typeof mealRules> {
       .limit(1);
     // Writes BOTH shapes in one transaction: the legacy columns the current admin
     // grid still reads, and the scope+conditions the engine evaluates. Without the
-    // second half, a rule created from today's UI would save fine and then never
-    // be enforced. The legacy half goes away with the Phase 2 builder.
+    // second half, a rule would save fine and then never be enforced.
     return db.transaction(async (tx) => {
       const ruleId = existing[0]
         ? (await tx
@@ -445,8 +442,7 @@ class MealRulesService extends SessionUpdatableService<typeof mealRules> {
       .update(mealRules)
       .set({
         // actionValue is what the engine reads; maxCount is the legacy mirror the
-        // old admin grid still renders. Updating one without the other would let
-        // an admin raise the limit in the UI while enforcement kept the old one.
+        // admin grid renders. Updating one alone would show a raised limit while enforcement kept the old one.
         ...(patch.maxCount != null ? { maxCount: patch.maxCount, actionValue: patch.maxCount } : {}),
         ...(patch.enabled != null ? { enabled: patch.enabled } : {}),
       })

@@ -20,7 +20,6 @@ export async function listRuleTextsForOrder(
   const rules = await mealRulesService.listEnabledForOrder({ planId, mealSizeId });
   if (rules.length === 0) return [];
 
-  // Only look up names for rules that still need a sentence generated.
   const needsLabels = rules.some((r) => !r.description?.trim());
   let labels: RuleLabels = { category: {}, plan: {}, dish: {} };
   if (needsLabels) {

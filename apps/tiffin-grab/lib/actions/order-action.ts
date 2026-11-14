@@ -22,7 +22,6 @@ type Opts = OrderTarget & {
   guard?: Guard;
   orderPage?: string;
   reach?: Parameters<typeof revalidateOrder>[1];
-  /** Other pages to refresh on success, as in staffAction. */
   revalidate?: readonly RevalidateTarget[];
 };
 

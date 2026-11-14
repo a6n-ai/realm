@@ -179,11 +179,7 @@ export async function materializeDeliveries(tx: Tx, order: Order): Promise<numbe
   return rows.length;
 }
 
-/**
- * Every delivery row for an order (all statuses, originals and make-ups alike), for the admin
- * panel. Not customer-facing: it does not hide paused/skipped/
- * cancelled rows. Read-only: never reconciles.
- */
+/** Admin panel view: every row, all statuses, originals and make-ups. Does not hide paused/skipped/cancelled rows. */
 export async function listDeliveries(orderId: bigint): Promise<Delivery[]> {
   return db.select().from(deliveries).where(eq(deliveries.orderId, orderId)).orderBy(asc(deliveries.deliveryDate));
 }
@@ -203,8 +199,6 @@ function assertOriginal(row: Delivery): void {
   }
 }
 
-// Exported so category-swaps.service.ts can reuse this pre-lock/load shape rather
-// than duplicating it.
 export async function loadByPublicId(tx: Tx, publicId: string): Promise<Delivery> {
   const [row] = await tx.select().from(deliveries).where(eq(deliveries.publicId, publicId)).limit(1);
   if (!row) throw new ValidationError("Delivery not found");
@@ -219,10 +213,7 @@ export async function loadOrderIdByPublicId(tx: Tx, publicId: string): Promise<b
   return row.orderId;
 }
 
-/**
- * Marks a scheduled delivery as not delivered (a failed or never-confirmed drop). Customers can't
- * hold days any more; each tiffin on the row stays movable once with rescheduleDelivery.
- */
+/** Marks a scheduled delivery as not delivered (a failed or never-confirmed drop). */
 export async function skipDelivery(
   deliveryPublicId: string,
   actorId: bigint | null,
@@ -234,7 +225,6 @@ export async function skipDelivery(
   await db.transaction(async (tx) => {
     orderId = await loadOrderIdByPublicId(tx, deliveryPublicId);
     await lockOrder(tx, orderId);
-    // Re-read post-lock: a concurrent request may have mutated this row while we waited.
     const row = await loadByPublicId(tx, deliveryPublicId);
     assertOriginal(row);
     // The cutoff lock protects a customer from self-service-cancelling too late. It does
@@ -502,7 +492,6 @@ async function replaceExtras(tx: Tx, deliveryId: bigint, eatDates: string[]): Pr
   if (eatDates.length) await tx.insert(deliveryExtraTiffins).values(eatDates.map((eatDate) => ({ deliveryId, eatDate })));
 }
 
-/** Drops the swaps that apply to `eatDate`: that day no longer rides this delivery. */
 async function dropDeliverySwapsForDate(tx: Tx, deliveryId: bigint, tripDate: string, eatDate: string): Promise<void> {
   const rows = await tx.select({ id: deliveryCategorySwaps.id, forDate: deliveryCategorySwaps.forDate }).from(deliveryCategorySwaps).where(eq(deliveryCategorySwaps.deliveryId, deliveryId));
   const gone = rows.filter((r) => swapAppliesTo(r.forDate, tripDate, eatDate)).map((r) => r.id);
@@ -517,8 +506,7 @@ const ROUTE_RESET = {
 
 /**
  * A row whose tiffins all left (merged into another trip, or replaced by a make-up) still owns
- * its date under deliveries_order_date_unique but carries nothing, which used to block every
- * later move onto that day. A move landing there revives it as a fresh, empty scheduled trip.
+ * its date under deliveries_order_date_unique. A move landing there revives it as a fresh, empty trip.
  */
 async function reviveIfEmptied(tx: Tx, row: Delivery, cutoffAt: number): Promise<Delivery> {
   if (row.status === "scheduled") return row;
@@ -1156,7 +1144,6 @@ export async function setDeliveryAddress(
   const deliveryId = await db.transaction(async (tx) => {
     const orderId = await loadOrderIdByPublicId(tx, deliveryPublicId);
     await lockOrder(tx, orderId);
-    // Re-read post-lock: a concurrent request may have mutated this row while we waited.
     const row = await loadByPublicId(tx, deliveryPublicId);
     // NOTE: no assertOriginal — re-addressing a make-up is the one mutation make-ups permit.
     assertMutable(row);

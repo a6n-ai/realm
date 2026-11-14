@@ -4,9 +4,7 @@ import { deliveries } from "@/db/schema";
 import { getRoutes } from "./client";
 import { getOptimoRouteConfig } from "./config";
 
-// The half that makes the integration worth having: OptimoRoute plans the routes, and we
-// read its answer back so labels print in the order the van is loaded. Nothing here
-// decides an assignment — it only records one.
+// Nothing here decides an assignment: it only records the one OptimoRoute planned.
 
 export type PulledStop = {
   deliveryPublicId: string;
@@ -18,23 +16,15 @@ export type PulledStop = {
 
 export type PullResult = {
   date: string;
-  /** Stops matched to one of our deliveries and stored. */
   matched: number;
-  /** Deliveries that previously had a route but are no longer on one — cleared. */
+  /** Deliveries that had a route but are no longer on one, cleared. */
   cleared: number;
   /** OptimoRoute stops we could not match: orders created outside this app. */
   unknownOrderNos: string[];
   stops: PulledStop[];
 };
 
-/**
- * Display code for a driver. Config maps driverSerial → "D4"; otherwise the driver's name
- * is used as-is.
- *
- * Deliberately NOT derived from digits in the name, the way the Route Maker spreadsheet
- * does it: OptimoRoute auto-names nothing, so "Driver 4" is a hand-typed string. Rename
- * that driver and a name-derived code silently re-sorts every label.
- */
+/** Display code for a driver: config maps driverSerial to e.g. "D4", else the driver's name. Never derived from digits in the name (see config.ts). */
 export function driverCodeFor(
   codes: Record<string, string>,
   serial: string | null,

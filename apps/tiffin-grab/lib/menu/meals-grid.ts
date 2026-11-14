@@ -61,9 +61,7 @@ export async function buildMealsGrid(
   // from settings at read time.
   const { timezone } = settings;
 
-  // The plan still has to exist — categories and dish membership are both scoped to it —
-  // but nothing here needs its key or plan_type any more: one week now serves every plan,
-  // and what a subscriber is offered comes from membership alone.
+  // The plan must exist: categories and dish membership are scoped to it.
   const [planRow] = await db
     .select({ id: plans.id })
     .from(plans)

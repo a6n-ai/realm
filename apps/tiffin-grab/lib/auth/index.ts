@@ -236,7 +236,6 @@ export const auth = betterAuth({
     ...googleOneTapPlugins(),
     nextCookies(),
   ],
-  // Audit: log session deletion as logout.
   // databaseHooks.session.delete.after fires for all session deletes (sign-out,
   // revoke-on-password-reset, admin revocation). Querying publicId here costs one
   // extra SELECT per logout; acceptable for best-effort audit.
@@ -338,7 +337,6 @@ export const auth = betterAuth({
       },
     },
   },
-  // Audit: log login success and login_failed from sign-in endpoints.
   // hooks.after fires after the endpoint runs regardless of outcome.
   // ctx.context.newSession is set only on success; ctx.context.returned is an
   // APIError on failure. Phone number body field is `phoneNumber`, not `phone`.

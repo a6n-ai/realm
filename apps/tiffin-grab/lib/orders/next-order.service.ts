@@ -152,7 +152,6 @@ export async function nextOrder(
   return wrapped ?? null;
 }
 
-/** One order from the queue by its publicId, or null when it has no reason (or is out of scope). */
 export async function queueOrder(scope: OrderQueueScope, today: string, publicId: string): Promise<NextOrderRow | null> {
   if (isEmptyScope(scope)) return null;
   const [row] = await pick(scope, today, eq(orders.publicId, publicId), "asc", 1);
@@ -171,7 +170,6 @@ export async function upNextOrders(scope: OrderQueueScope, today: string, afterP
   return [...after, ...before];
 }
 
-/** How many orders in the scope have any reason to act. */
 export async function orderQueueCount(scope: OrderQueueScope, today: string): Promise<number> {
   if (isEmptyScope(scope)) return 0;
   const { rank } = ranking(today);

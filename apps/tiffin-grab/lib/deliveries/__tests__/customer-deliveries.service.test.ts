@@ -199,7 +199,7 @@ describe("customer-deliveries.service (integration)", () => {
     const aSecondOrder = await makeOrder(PHONE_A, "User A", 1);
     const userA = await userIdByPhone(PHONE_A);
 
-    await ordersService.cancel(aSecondOrder.publicId); // marks rows cancelled
+    await ordersService.cancel(aSecondOrder.publicId);
 
     const rows = await myDeliveries(userA, FROM, UNTIL);
     expect(rows.some((r) => r.orderPublicId === aSecondOrder.publicId)).toBe(false);

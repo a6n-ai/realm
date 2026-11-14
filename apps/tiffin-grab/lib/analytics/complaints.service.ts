@@ -42,14 +42,8 @@ export type ComplaintKpis = {
 };
 
 /**
- * Delivered tiffins in the filtered window — the denominator that makes
- * complaint volume comparable as the business grows.
- *
- * The predicate mirrors lib/deliveries/tiffin-counts.ts `deliveredTiffinCount`
- * (scheduled AND confirmed delivered), re-expressed in SQL
- * because analytics aggregates over far too many rows to load them into memory.
- * That file stays the canonical definition; complaints-rate.test.ts asserts the
- * two agree on the same fixtures, so they cannot drift unnoticed.
+ * Delivered tiffins in the filtered window: the complaint-rate denominator. SQL mirror of lib/deliveries/tiffin-counts.ts
+ * `deliveredTiffinCount` (analytics aggregates too many rows to load); complaints-rate.test.ts asserts the two agree.
  */
 async function deliveredTiffins(scope: AnalyticsScope): Promise<number> {
   const parts = [
@@ -79,7 +73,6 @@ async function deliveredTiffins(scope: AnalyticsScope): Promise<number> {
 
 export async function getComplaintKpis(scope: AnalyticsScope): Promise<ComplaintKpis> {
   const cond = where(scope);
-  // Counted in one pass: separate round trips would each re-run the same joins.
   const [[row], tiffins] = await Promise.all([
     db
     .select({
@@ -216,7 +209,6 @@ export async function getPriorityMix(scope: AnalyticsScope) {
   return PRIORITY_ORDER.map((p) => ({ value: p, n: counts.get(p) ?? 0 }));
 }
 
-/** The most common (category, sub-category) pairs — "top issues". */
 export async function getTopIssues(scope: AnalyticsScope, limit = 8) {
   const rows = await db
     .select({ category: tickets.category, subcategory: tickets.subcategory, n: intCount })
@@ -239,7 +231,6 @@ export async function getTopIssues(scope: AnalyticsScope, limit = 8) {
   }));
 }
 
-/** Customers who complained more than once in the window. */
 export async function getRepeatCustomers(scope: AnalyticsScope, limit = 8) {
   const rows = await db
     .select({
@@ -285,7 +276,6 @@ export async function getRepeatCustomers(scope: AnalyticsScope, limit = 8) {
   });
 }
 
-/** Plan and zone splits, each with an explicit unlinked bucket. */
 export async function getByPlan(scope: AnalyticsScope) {
   const rows = await db
     .select({ key: plans.key, name: plans.name, n: intCount })
@@ -326,7 +316,6 @@ export type NeedsAttention = {
   repeatCustomers: number;
 };
 
-/** The three "act on this now" counts, each linking to the tickets behind it. */
 export async function getNeedsAttention(scope: AnalyticsScope, now = Date.now()): Promise<NeedsAttention> {
   const cond = where(scope);
   const lastMessage = sql`(

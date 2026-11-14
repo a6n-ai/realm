@@ -13,7 +13,6 @@ const OPTIMOROUTE_KEY = "optimoroute" as const;
  * and a route planned without that runs late by mid-afternoon.
  */
 const optimoRouteDurationSchema = z.object({
-  /** Anything not matched below. */
   base: z.number().int().min(1).max(120).default(1),
   /** Cities that are slow to park in, lowercased. */
   slowCities: z.array(z.string()).default(["toronto"]),
@@ -84,7 +83,6 @@ export async function getOptimoRouteStatus(): Promise<OptimoRouteStatus> {
   return { installed: cfg.installed, sendLoad: cfg.sendLoad, hasApiKey: optimoRouteApiKey() != null, duration: cfg.duration };
 }
 
-/** Minutes for one stop, from the city + whether the drop is upstairs. */
 export function stopDuration(
   d: OptimoRouteDuration,
   input: { city: string | null; upstairs: boolean; extraTiffins?: number },

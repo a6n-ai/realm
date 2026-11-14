@@ -1,7 +1,7 @@
 /**
- * Phase 7.1 — End-to-end regression matrix for the shared swap engine.
+ * End-to-end regression matrix for the shared swap engine.
  * Pure composition tests: options path (computeSwapOption) must agree with
- * apply path (validateProposedSwap). No UI / architecture changes.
+ * apply path (validateProposedSwap).
  */
 import { describe, expect, it } from "vitest";
 import {

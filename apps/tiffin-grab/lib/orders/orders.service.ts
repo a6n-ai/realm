@@ -81,13 +81,7 @@ export type OrderListRow = {
 
 export type OrderSortColumn = "name" | "deployment" | "status" | "start" | "total" | "created" | "flagged";
 
-// Server-side unified filters (Condition) + offset pagination + unpaginated
-// total — mirrors inquiriesService.listForPipeline. Status, name, id, and
-// createdAt live on `orders`. Plan and meal-size tier resolve through a
-// subquery (`ordersListResolver`) so the count stays on the base table. The rows query joins
-// plans (inner, non-nullable FK — safe) and users (left, nullable
-// currentOwner — display-only), but the count runs on the base `orders` table
-// alone with the identical `where` so the nullable owner join can't inflate it.
+// The count runs on the base `orders` table alone with the identical `where`, so the nullable owner join can't inflate it.
 /** Staff actions that take an order public id: refuse an order outside the caller's organizations. */
 export async function assertOrderVisible(publicId: string, visible: Visible): Promise<void> {
   if (visible !== "all" && visible.length === 0) throw new NotFoundError("Order not found");
@@ -342,7 +336,6 @@ export async function listOrderActivities(orderId: bigint) {
   return rows;
 }
 
-/** Every order's activity for one customer (staff customer page), each row tagged with its order. */
 export async function listCustomerOrderActivities(userId: bigint) {
   return db
     .select({
@@ -366,13 +359,7 @@ export async function listCustomerOrderActivities(userId: bigint) {
     .orderBy(desc(orderActivities.createdAt));
 }
 
-// The order lifecycle is built on the shared commons abstractions: OrdersService
-// extends the updatable entity service (inheriting read/update with managed-column
-// stamping), and audit rows go through a BaseService create. A status change is a
-// guarded update + an activity create — both stamped consistently (update →
-// updatedBy/updatedAt, create → createdBy + public_id/created_at). Mirrors
-// inquiries.service: the entity update and the activity create are sequential
-// writes, since commons repositories each hold their own connection.
+// Entity update and activity create are sequential writes: commons repositories each hold their own connection.
 class OrdersService extends SessionUpdatableService<typeof orders> {
   private readonly activities = new SessionBaseService(
     new BaseRepository(db, orderActivities, orderActivities.publicId, orderActivities.id),
@@ -416,14 +403,10 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       throw new ValidationError(`Cannot activate an order that is ${order.status}`);
     }
 
-    // Status flip + delivery materialization + activity log in one tx: if
-    // materialization throws, the whole activation rolls back — the design
-    // forbids an "active" order with zero delivery rows. Bypasses the audited
-    // update()/transition() path for the same reason createOrder does (see its
-    // comment above): those helpers aren't tx-aware, so a raw in-tx write is
-    // the smaller change vs threading a tx through the shared service layer.
+    // Status flip + delivery materialization + activity log in one tx: if materialization throws, the whole
+    // activation rolls back. Bypasses update()/transition(): they aren't tx-aware, and an "active" order with zero delivery rows must never commit.
     await withOrderLock(order.id, async (tx) => {
-      // Waitlisted orders skipped the overlap guard at checkout (they held no days); now they will.
+      // Waitlisted orders skipped the overlap guard at checkout (they held no days); it runs on activation.
       await assertStartable(tx, { userId: order.userId, organizationId: order.organizationId, startDate: order.startDate, durationWeeks: order.durationWeeks, excludeOrderId: order.id, holiday: false });
       const [row] = await tx
         .update(orders)

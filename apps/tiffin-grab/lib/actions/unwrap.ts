@@ -6,7 +6,6 @@ import { promptReloadIfStale } from "@foundry/ui/stale-deploy";
  * Shared hooks like @foundry/address's useAddressBook expect a throw, so client callers
  * unwrap: a refusal becomes an Error with the real message; success drops the `ok` flag.
  */
-/** A refused action: the real message, plus the AppError status when the server sent one. */
 export class ActionError extends Error {
   constructor(message: string, readonly status?: number) {
     super(message);

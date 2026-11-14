@@ -69,7 +69,6 @@ export function toggleTrialPick(prev: readonly string[], day: string, sendDays: 
   return orderedTrialWeekdays(next).filter((d) => sendDays.includes(d));
 }
 
-/** First date on or after `fromIso` that falls on one of `days`. */
 export function nextTrialStart(fromIso: string, days: readonly string[]): string | null {
   const cursor = parseIsoDateUtc(fromIso);
   for (let i = 0; i < 7; i++) {

@@ -58,8 +58,6 @@ import { lockOrder } from "./order-lock";
 
 const log = createLogger("orders.service");
 
-// A transaction handle (or the base db) — payments + their ledger credit are
-// written inside the same tx as the order they settle.
 type PaymentStatusValue = (typeof payments.status.enumValues)[number];
 type PaymentMethodValue = (typeof payments.method.enumValues)[number];
 
@@ -140,7 +138,7 @@ export interface CreateOrderInput {
   // Customer-entered public coupon code. Re-resolved server-side here — never
   // trust a client-sent discount amount.
   couponCode?: string | null;
-  // Several typed codes; couponCode is kept for older callers and merged in.
+  // Several typed codes; couponCode is merged in.
   couponCodes?: string[] | null;
   // Staff-applied rep daily coupon: the code the actor owns plus the amount they
   // requested (clamped to the dual ceiling on the server). A requestedAmount that
@@ -202,8 +200,7 @@ export function assertOnePerson(input: Pick<CreateOrderInput, "selections">): vo
 
 // The single authoritative order-creation path: prices server-side, attaches the
 // order to the owner (provisioning a customer by phone when none is given), and
-// writes the order + simulated payment in one tx. Used by the public checkout
-// and the agent (convert) flow alike.
+// writes the order + simulated payment in one tx.
 //
 // The client speaks public_id: input.selections.mealSizeId is a meal size
 // public_id, and opts.actorId/ownerUserId are user public_ids. createOrder
@@ -341,33 +338,12 @@ export async function createOrder(
   const defaultOwnerId = input.currentOwner ?? (await defaultOwner(await resolveUserId(db, actorId), "order"));
 
   const txResult = await db.transaction(async (tx) => {
-    // Resolve the acting user and explicit owner public_ids to internal bigints.
     const createdBy = await resolveUserId(tx, actorId);
     const ownerId = await resolveUserId(tx, ownerUserId);
 
-    // A logged-in customer's order attaches to their own account; anonymous and
-    // agent orders resolve/provision the customer by phone OR email.
-    //
-    // Email is in this lookup, not just phone, because the overlap guard below
-    // is only as good as the identity it runs against. A returning customer who
-    // checks out logged-out and types a second number — a new phone, a typo, a
-    // partner's mobile — used to miss the phone match, fall through to
-    // provisioning, and die on the email-unique check with "That email is
-    // already in use": no overlap message, no way forward. Matching either
-    // channel resolves them to the account they already have, so the guard runs
-    // and they are told which date their current plan runs to.
-    //
-    // Both columns are uniquely indexed (users_email_unique, users_phone_unique)
-    // and both values are normalised above — email lowercased by emailSchema,
-    // phone to E.164 — so this cannot match on formatting variance alone.
-    //
-    // Every path that resolves an existing account (session owner, or a
-    // phone/email match below) is scoped to role="user" — a staff/admin
-    // account must never become an order's owner, whether by a signed-in
-    // staff session or a guest checkout that happens to share their phone/
-    // email. STAFF_ACCOUNT_MESSAGE is what a real person sees when that
-    // happens; provisionCustomerByPhone throws the same message for the
-    // guest-checkout collision case.
+    // Anonymous and agent orders resolve the customer by phone OR email: a returning customer who types a second
+    // number would otherwise miss the phone match and die on the email-unique check. Every account match is scoped
+    // to role="user": a staff/admin account must never own an order (STAFF_ACCOUNT_MESSAGE; provisionCustomerByPhone throws the same).
     if (ownerId) {
       const [ownerRow] = await tx.select({ role: users.role }).from(users).where(eq(users.id, ownerId)).limit(1);
       if (ownerRow && !isCustomerRole(ownerRow.role)) throw new ValidationError(STAFF_ACCOUNT_MESSAGE);
@@ -401,8 +377,6 @@ export async function createOrder(
     }
     if (!userId) throw new ValidationError("Could not resolve a customer for this order");
 
-    // The plan's main address: a picked saved address (ownership-checked), else the typed
-    // contact address saved to the customer's book (first one becomes their default).
     const addressScope = { userId, orgId };
     const savedAddress = input.addressPublicId
       ? await addressService.getRow(addressScope, input.addressPublicId, tx)

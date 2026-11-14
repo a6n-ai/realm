@@ -24,7 +24,7 @@ async function dispatch(n: StripeNormalized): Promise<string | null> {
   }
 }
 
-/** Runs a stored event through the handler. Used by the webhook and by staff "Reprocess". */
+/** Also used by staff "Reprocess". */
 export async function processStripeEvent(eventId: string): Promise<void> {
   const [row] = await db.select().from(stripeEvents).where(eq(stripeEvents.eventId, eventId));
   if (!row || row.processedAt) return;

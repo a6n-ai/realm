@@ -166,7 +166,6 @@ async function priceAddons(
   };
 }
 
-// Writes the add-ons onto the plan: order total/receipt/counts, the add-on rows, and the note.
 async function applyAddons(tx: Tx, order: Order, addons: ResolvedAddon[], openTiffins: number, pricing: MidPlanAddonPricing, actorId: bigint | null) {
   await tx.update(orders).set({
     total: newOrderTotal({ order, pricing }).toFixed(2),

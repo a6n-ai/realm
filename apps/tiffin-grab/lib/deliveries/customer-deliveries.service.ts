@@ -41,9 +41,7 @@ import { deliveredTiffinCount, scheduledTiffinCount, type DeliveryForCounts } fr
 import { mealSizeAllowedDays, mealSizeServesWeekends } from "./weekend-dish";
 import { isoToUtcDate, mondayOfIso } from "@foundry/commons/util/dates";
 
-// Staff (admin or member) may manage ANY customer's order/delivery; a plain customer may manage
-// only their own. Centralizes the "owner OR staff" rule so both the /me and /dashboard surfaces
-// share one authorization policy (feature-flagged refinements can layer on later).
+// Staff (admin or member) may manage ANY customer order/delivery; a plain customer only their own.
 async function callerIsStaff(): Promise<boolean> {
   const session = await getSession();
   return session != null && isStaffRole(session.user.role);
@@ -58,7 +56,6 @@ export async function assertCanManageOrder(orderPublicId: string): Promise<void>
   await assertOwnsOrder(userId, orderPublicId);
 }
 
-// Passes if the caller is staff, or owns the delivery's order.
 export async function assertCanManageDelivery(deliveryPublicId: string): Promise<void> {
   if (await callerIsStaff()) return;
   const userId = await currentUserId();
@@ -229,9 +226,6 @@ export async function myPrimarySubscription(userId: bigint): Promise<Subscriptio
   const pool = active.length > 0 ? active : all;
   if (pool.length === 1) return pool[0]!;
   const ids = pool.map((s) => s.publicId);
-  // Sequential plans are allowed, so the newest plan is often the one that has not started yet.
-  // The default is the plan that delivers next; only when nothing is left to deliver do we fall
-  // back to the newest (myActiveSubscriptions has no createdAt, hence the re-query).
   const { timezone } = await getAppSettings();
   const today = appTodayIso(timezone);
   const upcoming = await db
@@ -401,10 +395,8 @@ export async function myDeliveries(userId: bigint, from: string, until: string):
   }));
 }
 
-// Ownership guards: called by customer server actions BEFORE delegating to
-// shared admin mutations that have no ownership check of their own. Not-owned
-// and not-existent both throw the same NotFoundError — never a distinct
-// forbidden error, so there is no existence oracle for another user's data.
+// Ownership guards for customer server actions that delegate to admin mutations without their own check.
+// Not-owned and not-existent throw the same NotFoundError: no existence oracle.
 export async function assertOwnsDelivery(userId: bigint, deliveryPublicId: string): Promise<void> {
   const [row] = await db
     .select({ ownerId: orders.userId })
@@ -451,10 +443,6 @@ export type TiffinCounts = {
   mealDays?: DayOfWeek[] | null;
 };
 
-// Delivered/remaining tiffins for one subscription, plus the plan's last delivery date and
-// weekdays (the move sheet's range). Delivered is derived from the order's delivery rows via the
-// pure tiffin-counts helper.
-//
 // AUTH-FREE core: callers MUST have already gated (assertCanManageOrder for /me, requireStaff for
 // /dashboard). Use myTiffinCounts from customer code — it adds the ownership check.
 export async function orderTiffinCounts(orderPublicId: string): Promise<TiffinCounts> {
@@ -555,8 +543,6 @@ export async function makeupSourceIdsForOrder(orderPublicId: string): Promise<Ma
   return out;
 }
 
-// Pause budget for the customer's pause UI: limits (nullable = unlimited) and
-// current usage, so the panel can show "N of M pauses used" before submit.
 export async function myPausePanel(userId: bigint, orderPublicId: string) {
   await assertOwnsOrder(userId, orderPublicId); // IDOR gate — before the read
   const [row] = await db
@@ -727,8 +713,7 @@ export async function myDeliveryMeal(d: CustomerDelivery, person = 1): Promise<R
   const week = await menuService.getReleasedWeek(weekStart);
   if (!week) return { pending: true };
 
-  // delivery_date is a calendar date; explicit-UTC parse (the mandatory `Z`) is required to
-  // derive its weekday, or local-midnight parsing shifts the day (spec-6 bug).
+  // Explicit-UTC parse (the mandatory `Z`): local-midnight parsing shifts the weekday.
   const dayOfWeek = weekdayKey(isoToUtcDate(d.deliveryDate));
   return resolveDeliveryMeal({ id: order.id, planId: order.planId, mealSizeId: order.mealSizeId, categoryCounts: order.categoryCounts }, { id: week.id, weekStart: week.weekStart }, dayOfWeek, person, d.id);
 }
@@ -784,15 +769,11 @@ export type CalendarDay = {
   complimentaryNote?: string | null;
 };
 
-// Day-cell aggregator for the customer calendar (this week + next week). Composed entirely from
-// existing reads — myDeliveries for day membership/status/cutoff, resolveDeliveryMealsForWeek for
-// the resolved pick, and the week's own menu_items for the selectable options list. Never calls
-// reconcileMakeups (write-only, run from Server Components — see myPausePanel's sibling comment).
+// Day-cell aggregator for the customer calendar (this week + next week). Never calls reconcileMakeups
+// (write-only; this runs from Server Components).
 export async function myCalendar(userId: bigint, orderPublicId: string, range: { from: string; until: string }): Promise<CalendarDay[]> {
   await assertOwnsOrder(userId, orderPublicId); // IDOR gate — before any read
 
-  // Customer home renders this; reads below come in two parallel waves (order +
-  // rows, then everything keyed by them) rather than ~12 sequential round trips.
   const [[order], allRows] = await Promise.all([
     db
       .select({ id: orders.id, planId: orders.planId, mealSizeId: orders.mealSizeId, categoryCounts: orders.categoryCounts, persons: orders.persons, planType: plans.planType, planKey: plans.key })
@@ -809,7 +790,6 @@ export async function myCalendar(userId: bigint, orderPublicId: string, range: {
 
   // Only released weeks are ever shown: an unreleased next-week has no menu to resolve against,
   // so its delivery days are simply absent from the calendar rather than rendered blank.
-  // Uses menuService.getReleasedWeeks — same exact weekStart gate as Menu / myDeliveryMeal.
   const weekStarts = [...new Set(rows.map((r) => mondayOfIso(r.deliveryDate)))];
   const rowIds = rows.map((r) => r.id);
   // Merged-source rows carry no tiffins of their own — say where they went.
@@ -873,7 +853,7 @@ export async function myCalendar(userId: bigint, orderPublicId: string, range: {
     })),
   });
 
-  const loadWeek = weekLoader(); // memoizes the week promise, so concurrent days share one read
+  const loadWeek = weekLoader();
   const carriedFields = async (row: CustomerDelivery) => {
     const carried = await Promise.all(
       coveredDates(row)
@@ -890,8 +870,6 @@ export async function myCalendar(userId: bigint, orderPublicId: string, range: {
     return { carriedMeals };
   };
 
-  // Per-week caches: myDeliveries can return many days across the same released week, so batch
-  // the resolution and the day's menu items once per week instead of once per delivery row.
   const shownWeeks = [...new Map(rows.flatMap((r) => {
     const w = weekByStart.get(mondayOfIso(r.deliveryDate));
     return w ? [[w.id, w] as const] : [];
@@ -917,7 +895,6 @@ export async function myCalendar(userId: bigint, orderPublicId: string, range: {
     const week = weekByStart.get(mondayOfIso(row.deliveryDate));
     const carried = await carriedFields(row);
     if (!week) {
-      // Delivery is scheduled but the week's menu isn't released — still show the day tile.
       return {
         date: row.deliveryDate,
         status: row.status as CalendarDay["status"],
@@ -934,8 +911,7 @@ export async function myCalendar(userId: bigint, orderPublicId: string, range: {
     }
 
     const { resolved: weekResolved, items: weekItems } = byWeek.get(week.id)!;
-    // delivery_date is a calendar date; explicit-UTC parse (the mandatory `Z`) is required to
-    // derive its weekday, or local-midnight parsing shifts the day (spec-6 bug).
+    // Explicit-UTC parse (the mandatory `Z`): local-midnight parsing shifts the weekday.
     const dayOfWeek = weekdayKey(isoToUtcDate(row.deliveryDate));
     const meal = weekResolved.get(resolvedMealsWeekKey(dayOfWeek, 1)) ?? null;
 

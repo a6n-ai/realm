@@ -31,7 +31,6 @@ describe("listCustomersPage", () => {
 
     const scope = cLike("name", `${PREFIX}%`);
 
-    // Page slice: 2 rows, size 1 -> first page has 1 item but total reflects both.
     const firstPage = await listCustomersPage(scope, { page: 0, size: 1 });
     expect(firstPage.items.length).toBe(1);
     expect(firstPage.total).toBe(2);
@@ -42,7 +41,6 @@ describe("listCustomersPage", () => {
     expect(secondPage.items.length).toBe(1);
     expect(secondPage.items[0].publicId).not.toBe(firstPage.items[0].publicId);
 
-    // A condition that matches none of this scope's rows returns an empty page.
     const none = await listCustomersPage(cLike("name", `${PREFIX}Nope%`), { page: 0, size: 10 });
     expect(none.total).toBe(0);
     expect(none.items.length).toBe(0);

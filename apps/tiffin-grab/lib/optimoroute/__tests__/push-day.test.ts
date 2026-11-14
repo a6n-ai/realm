@@ -108,9 +108,7 @@ describe("OptimoRoute push (integration)", () => {
   });
   afterAll(reset);
 
-  // The bug this test exists for: routes used to be built from the label sheet, which
-  // returns nothing when the kitchen has not released the week. Addresses are known
-  // regardless, and a route that silently plans zero stops is worse than no route.
+  // Routes come from loadDayDeliveries, not the label sheet (empty when the kitchen has not released the week): a route that silently plans zero stops is worse than no route.
   it("plans stops even though no menu week is released", async () => {
     const planned = await buildPlannedOrders(DATE);
     expect(planned).toHaveLength(1);

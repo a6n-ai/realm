@@ -62,7 +62,6 @@ export function renewalStatusSql(paidPlansOnly = false) {
     else 'none' end`;
 }
 
-/** Orders in the organizations a session may see (`resolveSessionVisibleOrgIds`, lib/auth/visible-orgs). */
 
 /** Orders the badge reads as Payment review: same rule as `orderDisplayStatus`, over every payment row. */
 export function paymentReviewWhere() {

@@ -8,7 +8,6 @@ export function cardBrandLabel(brand: string | null): string {
   return BRANDS[key] ?? key.charAt(0).toUpperCase() + key.slice(1);
 }
 
-/** "Visa ••4242" for a card with known digits, otherwise the method's name. */
 export function paymentMethodLabel(p: { method: string; cardBrand: string | null; cardLast4: string | null }): string {
   if (p.method === "stripe" && p.cardLast4) return `${cardBrandLabel(p.cardBrand)} ••${p.cardLast4}`;
   return methodName(p.method, "customer");

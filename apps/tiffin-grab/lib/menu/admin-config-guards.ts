@@ -1,5 +1,5 @@
 /**
- * Pure Admin configuration guards (Phase 8). Deterministic blocking checks only —
+ * Pure Admin configuration guards. Deterministic blocking checks only —
  * no category-name hardcoding, no speculative warnings. Services throw ValidationError
  * with these messages; historical delivery data is never rewritten here.
  */

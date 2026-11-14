@@ -7,11 +7,8 @@ import { loadDayDeliveries } from "@/lib/menu/daily-labels.service";
 import { loadTripDetails, stopNotes } from "./trip-notes";
 import { effectiveAddress } from "@/lib/deliveries/row-state";
 
-// OptimoRoute exposes no driver-roster endpoint — the only place a driver's
-// serial/name pair exists is on a route it has already planned, which
-// pull.ts already writes into deliveries.routeDriverSerial/routeDriverName.
-// This reads that back as a picklist instead of keeping a separate table
-// that would just be a stale cache of the same information.
+// OptimoRoute exposes no driver-roster endpoint: a driver's serial/name pair only exists on a route it has already
+// planned (pull.ts stores it on deliveries), so it is read back rather than kept in a stale-cache table.
 export type KnownDriver = { driverSerial: string; driverName: string | null };
 
 export async function listKnownDrivers(): Promise<KnownDriver[]> {
@@ -44,7 +41,6 @@ export type DispatchRow = {
   /** Tiffins on this stop; a trip carrying several eating days is more than one per person. */
   tiffinUnits: number;
   coveredDates: string[];
-  /** "Covers Mon + Tue · 2 tiffins"; null on a plain single-day stop. */
   coverage: string | null;
   /** Same text the push sends: unit, driver note, coverage, per-day dishes. */
   notes: string;

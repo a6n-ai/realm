@@ -38,7 +38,6 @@ describe("Order Delivery Charges (Integration)", () => {
   afterAll(reset);
 
   it("persists deliveryCharge, deliveryTagId, deliveryStrategyIds, addressTagId and immutable pricingSnapshot", async () => {
-    // 1. Configure delivery rules
     await deliveryService.updateBaseDeliveryCharge(2); // Base = $2.00
     const spot = await deliveryService.saveDeliveryStrategyGroup({ name: "Apartment" });
     const home = await deliveryService.saveDeliveryStrategyGroup({ name: "Home" });
@@ -73,7 +72,6 @@ describe("Order Delivery Charges (Integration)", () => {
     const planKey = snap.plans[0].key;
     const mealSizePublicId = snap.mealSizes[0].publicId;
 
-    // 2. Create order with delivery selections
     const { publicId } = await createOrder({
       planKey,
       selections: {

@@ -19,7 +19,6 @@ async function respond(result: unknown, opts?: Opts): Promise<Response> {
   return json(result);
 }
 
-/** Admin-only route handler for the notification routes with no [id] segment. */
 export function adminRoute(fn: (req: Request) => Promise<unknown>, opts?: Opts) {
   return handler(async (req: Request): Promise<Response> => {
     await requireAdmin();

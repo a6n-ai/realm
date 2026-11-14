@@ -11,12 +11,12 @@ const PAYMENT_SETTLED = new Set<string>(PAID);
 const OVERLAY_ORDER = new Set(["active", "pending", "paused"]);
 
 /**
+/**
  * Shared admin + customer badge vocabulary:
  * Payment review → Rejected → Active → Completed (plus waitlisted/cancelled when those rows appear).
  *
- * DB `orders.status` can stay `active` while e-Transfer is unpaid so deliveries materialize
- * early; the UI must not look settled until money is verified. `paused` maps to Active —
- * a pause is day-level, not a plan tag.
+ * DB `orders.status` can stay `active` while e-Transfer is unpaid so deliveries materialize early; the badge must
+ * not look settled until money is verified. `paused` maps to Active: a pause is day-level, not a plan tag.
  */
 export function orderDisplayStatus(
   orderStatus: string,
@@ -78,7 +78,7 @@ export function canTakeAddonPayment(
   rows: readonly { status: string; addonRequest?: unknown; expiresAt?: number | null }[],
   now = Date.now(),
 ): string | null {
-  // An add-on link past its expiry can no longer be paid, so it neither blocks nor counts.
+  // An add-on link past its expiry can't be paid, so it neither blocks nor counts.
   const live = rows.filter((r) => !(r.addonRequest != null && r.expiresAt != null && r.expiresAt <= now));
   if (live.some((r) => r.addonRequest != null && (PAYMENT_REVIEW.has(r.status) || r.status === PAYMENT_REJECTED_STATUS))) {
     return "Regenerate or cancel the existing link first";

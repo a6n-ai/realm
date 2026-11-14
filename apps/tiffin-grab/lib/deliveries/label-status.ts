@@ -20,9 +20,8 @@ const GOING_OUT: ReadonlySet<string> = new Set([LABEL_STATUS.toBeDelivered, LABE
 export const isGoingOut = (d: { status: string }): boolean => GOING_OUT.has(d.status);
 
 /**
- * Scheduled and still before cutoff, with no driver confirmation, is waiting to go out.
- * After cutoff — or once OptimoRoute says success — the row counts as delivered while it
- * stays scheduled. A skipped day is "On hold" (staff or the customer held it; the tiffin went
+ * Scheduled with no driver confirmation is To be delivered before cutoff and Awaiting confirmation
+ * after it; only an OptimoRoute success (or admin) makes it Delivered. A skipped day is "On hold" (staff or the customer held it; the tiffin went
  * to their pool) unless OptimoRoute reported the drop failed — only then "Not delivered".
  * Paused, holiday and cancelled keep their own words.
  */

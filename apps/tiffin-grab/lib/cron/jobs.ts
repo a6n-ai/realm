@@ -107,7 +107,6 @@ export function nextCronRun(cron: string, now: number): number | null {
   return d.getTime();
 }
 
-/** "Daily 10:00 PM" / "Every hour at :00" in the app timezone, for display. */
 export function describeCron(cron: string | null, timezone: string, now: number): string {
   if (!cron) return "Not scheduled";
   const m = /^(\d{1,2}) (\*|\d{1,2}) \* \* \*$/.exec(cron.trim());

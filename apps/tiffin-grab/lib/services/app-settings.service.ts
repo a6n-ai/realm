@@ -275,8 +275,7 @@ export async function installedPlugins(): Promise<string[]> {
 }
 
 /**
- * Seed cash (on) + e-Transfer from Foundry's catalog. Drop the old card-style
- * "manual" rail — Stripe lands later as an online provider.
+ * Seed cash (on) + e-Transfer from Foundry's catalog.
  */
 export async function ensurePaymentCatalog(): Promise<PaymentConfig> {
   const cfg = await getPaymentConfig();
@@ -370,8 +369,7 @@ export async function setMaxWalletBalance(cap: number | null): Promise<void> {
 
 /**
  * Ceiling on the share of an order's PRE-TAX SUBTOTAL that coins may cover.
- * NULL = unlimited, which is the behaviour every install had before this
- * existed: coins were bounded only by the order's remaining balance.
+ * NULL = unlimited (coins bounded only by the order's remaining balance).
  * Read on the checkout path, so cached like the rest.
  */
 export async function getMaxCoinRedeemPctOfBalance(): Promise<number | null> {

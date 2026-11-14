@@ -78,7 +78,6 @@ class MealSizeService extends SoftDeleteService<typeof mealSizes> {
     const parentPatch: Record<string, unknown> = { ...rest };
     if (planId !== undefined) parentPatch.planId = await resolvePlanId(planId);
     // `components` is derived from the category labels, never hand-edited.
-    // Resolved below, once the label map is loaded.
 
     // Resolve plan for plan-scoped category checks (create requires planId; update may inherit).
     let resolvedPlanId: bigint | null = (parentPatch.planId as bigint | undefined) ?? null;

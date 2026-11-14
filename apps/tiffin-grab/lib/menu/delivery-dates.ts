@@ -15,7 +15,6 @@ export function subscriptionDeliveryDates(input: {
   const total = input.durationWeeks * input.deliveryDays.length;
   const out: DeliveryDate[] = [];
   const d = parseIsoDateUtc(input.startDate);
-  // Walk forward day-by-day, collecting matching weekdays until we have `total`.
   for (let guard = 0; out.length < total && guard < total * 7 + 400; guard++) {
     const dow = weekdayKey(d);
     const dateIso = utcIso(d);

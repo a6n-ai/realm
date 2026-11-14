@@ -276,10 +276,8 @@ describe("createOrder — coin redemption", () => {
   });
 
   // capRedemption rounds currency to 2dp AFTER recomputing coinsSpent, so a
-  // sub-cent rate yields coinsSpent > 0 with currencyValue === 0. The debit and
-  // the snapshot park used to be gated on coinsSpent while the discount line was
-  // gated on currencyValue — burning real coins for a 0.00 discount that never
-  // reduced orders.total.
+  // sub-cent rate yields coinsSpent > 0 with currencyValue === 0. Coins must not be
+  // burned for a 0.00 discount that never reduces orders.total.
   it("burns no coins when a sub-cent rate rounds the discount to 0.00", async () => {
     // Swap this test's rate row rather than shadowing it: activeRate picks the
     // latest by createdAt, and two inserts can land in the same millisecond.
@@ -447,10 +445,8 @@ describe("verifyPayment — settles deferred coin redemption", () => {
   });
 
   // Two deferred orders, one balance. Placing a second subscription before
-  // paying for the first is a supported flow. Coins used to be parked with no
-  // ledger row, so both quotes saw the full balance and the clash only surfaced
-  // at the second verification. A checkout hold is a real debit the balance
-  // counts, so the second order is refused up front instead.
+  // paying for the first is a supported flow. A checkout hold is a real debit the
+  // balance counts, so the second order is refused up front rather than at verification.
   it("cannot hold the same coins for two deferred orders", async () => {
     const owner = await seedUserWithCoins(10);
 

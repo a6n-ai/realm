@@ -424,8 +424,6 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
     const existing = await this.findOpenMatch(phone, email, undefined, whatsappPhone);
     if (existing) return fold(existing);
 
-    // Zone resolution depends only on the postal code, so run it alongside the
-    // source→owner chain instead of after it.
     const zoneIdP = this.resolveZoneId(rest.postalCode as string | undefined);
     const { sourceId, subSourceId } = await this.resolveSource(sourceKey, subSourceKey);
     const currentOwner = await this.resolveOwner(sourceId, sourceKey);
@@ -826,11 +824,8 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
     return ids.length;
   }
 
-  // The pipeline list: server-side unified filters (Condition) + offset
-  // pagination + unpaginated total. Named `listForPipeline` (not `list`) on
-  // purpose — the framework reserves `BaseService.list` for the generic
-  // raw-row paged API that @foundry/routes exposes, and a projected/joined shape
-  // can't override it. Tasks 7/8 copy this method, not the base `list`.
+  // Named `listForPipeline`, not `list`: the framework reserves `BaseService.list` for the generic
+  // raw-row paged API that @foundry/routes exposes, and a projected/joined shape can't override it.
   // No explicit return annotation: PipelineRow is inferred from it (below), so
   // annotating `Promise<Page<PipelineRow>>` would be a circular type reference.
   async listForPipeline(

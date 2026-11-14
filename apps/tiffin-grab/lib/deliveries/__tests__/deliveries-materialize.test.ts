@@ -98,8 +98,8 @@ describe("materializeDeliveries (integration)", () => {
     const o = await makeOrder({ durationWeeks: 2, persons: 3, frequencyKey: "5_day" });
     await db.delete(deliveries).where(eq(deliveries.orderId, o.id));
     const n = await db.transaction((tx) => materializeDeliveries(tx, o));
-    expect(n).toBe(10); // drops
-    expect(n * o.persons).toBe(o.tiffinCount); // 30 tiffins
+    expect(n).toBe(10);
+    expect(n * o.persons).toBe(o.tiffinCount);
   });
 
   it("is idempotent", async () => {

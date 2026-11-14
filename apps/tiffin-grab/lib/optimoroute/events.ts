@@ -104,7 +104,6 @@ export async function handleEvents(events: OptimoEvent[], deps: HandleDeps = rea
   return { applied, ignored };
 }
 
-/** One poll: lock, window check, drain the feed from the stored tag. */
 export async function pollOnce(): Promise<"locked" | "outside" | { applied: number; ignored: number }> {
   // Not released after a poll: the next tick of this process renews its own lease, others wait out the TTL.
   if (!(await acquireLease(LOCK_KEY, OWNER, LOCK_MS)) && !(await renewLease(LOCK_KEY, OWNER, LOCK_MS))) return "locked";

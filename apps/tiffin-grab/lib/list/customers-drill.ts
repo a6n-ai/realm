@@ -7,7 +7,6 @@
 
 export type CustomerTypeFilter = "none" | "ordered" | "new" | "repeat";
 
-/** Build `/dashboard/customers` with the date window and optional customerType. */
 export function customersListHref(
   sp: { from?: string; to?: string },
   opts: { customerType?: CustomerTypeFilter; from?: string; to?: string } = {},

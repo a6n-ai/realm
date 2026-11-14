@@ -1,10 +1,6 @@
 // Promoted from a scratch verification pass against Combination Meals.xlsx
-// (the business's real curated meal-composition rules). The curry/NonVeg-cap
-// scenarios that used to live here were dropped when 'curry' merged into
-// 'sabzi' (db/seed.sql) — direction is governed dynamically by
-// plans.restricted + category_swap_pairs now, not a per-category pick cap, so
-// there is nothing curry-specific left to assert. What's left: the
-// maxTuAmount-bounded salad/raita pair, and a plain sabzi<->daal swap.
+// (the business's real curated meal-composition rules): the maxTuAmount-bounded
+// salad/raita pair, and a plain sabzi<->daal swap.
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { eq, inArray } from "drizzle-orm";
 import { nextWeekday } from "@foundry/commons";

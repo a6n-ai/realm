@@ -40,7 +40,7 @@ export function autoTrackStatus(computed: RenewalStatus): TrackStatus | null {
   return null;
 }
 
-// Mirrors the SQL in Task 2: a later booking newer than the staff status overrides it.
+// Mirrors the SQL: a later booking newer than the staff status overrides it.
 export function effectiveTrackStatus(i: {
   staff: TrackStatus | null;
   staffSetAt: number | null;

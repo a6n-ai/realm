@@ -20,7 +20,7 @@ export type PackingItemLine = {
   name: string;
   /** Pack size label from formatTuHuman ("4 roti", "1 unit") or oz for weight. */
   portion: string;
-  /** Pack/container count (the old × multiplier). */
+  /** Pack/container count. */
   quantity: number;
   /** Stable pack order (category sort, then pick index). */
   sort: number;
@@ -172,7 +172,7 @@ export function labelLineTexts(lines: PackLine[]): { text: string; defaulted: bo
   }));
 }
 
-/** @deprecated Prefer formatItemCell; kept for summary-style portion-only joins. */
+/** Portion-only join for summary-style lists; prefer formatItemCell otherwise. */
 export function formatDishCell(portions: PortionQty[]): string {
   const parts = rollUpEqualPortions(
     portions.filter((p) => p.quantity > 0 && p.portion.trim()),

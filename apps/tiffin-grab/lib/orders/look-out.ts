@@ -80,7 +80,6 @@ export async function clearTicketLookOut(orderId: bigint): Promise<void> {
   if (cleared) await db.insert(orderActivities).values({ orderId, type: "note", note: "Look out for cleared: support ticket resolved" });
 }
 
-/** Flagged orders the caller can see, for the Orders tab badge. */
 export async function countLookOutOrders(visible: Visible): Promise<number> {
   if (visible !== "all" && visible.length === 0) return 0;
   const [{ count }] = await db

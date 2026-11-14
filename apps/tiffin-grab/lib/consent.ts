@@ -19,7 +19,6 @@ export function parseConsent(raw: string | null | undefined): Consent | null {
   }
 }
 
-/** Browser only: has the visitor accepted analytics and ads cookies? */
 export function hasAnalyticsConsent(): boolean {
   if (typeof document === "undefined") return false;
   const raw = document.cookie.split("; ").find((c) => c.startsWith(`${CONSENT_COOKIE}=`))?.slice(CONSENT_COOKIE.length + 1);

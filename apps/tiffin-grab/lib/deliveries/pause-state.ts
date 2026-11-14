@@ -39,8 +39,7 @@ export async function pauseRows(tx: Tx, ids: bigint[], now: number, holidayId: b
 }
 
 /**
- * orders.status = 'paused' means nothing since pausing became day-level (the range pause that set it
- * is unreachable), yet fulfilment needs `active`. Any order found in it goes back to active,
+ * orders.status = 'paused' means nothing now that pausing is day-level, yet fulfilment needs `active`. Any order found in it goes back to active,
  * unconditionally, with one activity. The caller holds the order's advisory lock; the update is
  * status-filtered, so running it again changes nothing and logs nothing.
  */

@@ -16,8 +16,7 @@ export type ActionResult<T extends Record<string, unknown> = Record<string, neve
       error: string;
       /**
        * Set when a meal rule refused the change, so the picker can highlight
-       * that rule in the list it already shows. Optional and additive — every
-       * existing caller keeps reading `error` alone.
+       * that rule in the list it already shows.
        */
       violatedRuleId?: string;
       /** The AppError's HTTP-style status, so a caller can branch on a conflict (409) without matching text. */

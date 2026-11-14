@@ -9,7 +9,6 @@ type PauseLimits = { maxPauses: number | null; maxPauseDaysTotal: number | null;
 type PauseUsage = { count: number; daysUsed: number };
 export type PausePanel = { limits: PauseLimits; usage: PauseUsage };
 
-/** Everything an action sheet needs beyond the trip itself. */
 export type PlanView = {
   orderId: string;
   sub: Subscription;

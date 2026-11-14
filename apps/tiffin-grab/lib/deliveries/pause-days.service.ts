@@ -94,7 +94,7 @@ export async function pauseDays(orderPublicId: string, dates: string[], actorId:
       hit.days.push(d);
     }
     if (picked.size === 0) throw new ValidationError("Cutoff has passed for those days");
-    // Every eating day of the trip picked: the whole truck stops, as it always has. Some of them: only those tiffins leave.
+    // Every eating day of the trip picked: the whole truck stops. Some of them: only those tiffins leave.
     const whole = [...picked.values()].filter((p) => p.days.length === eats.get(p.row.id)!.size);
     for (const p of picked.values()) {
       if (whole.includes(p)) continue;
@@ -102,7 +102,7 @@ export async function pauseDays(orderPublicId: string, dates: string[], actorId:
         for (let i = 0; i < eats.get(p.row.id)!.get(eat)!; i++) partial.push({ deliveryPublicId: p.row.publicId, eat });
       }
     }
-    // A whole trip spends its own date from the budget (as before); a single eating day spends that day.
+    // A whole trip spends its own date from the budget; a single eating day spends that day.
     const charged = [...whole.map((p) => p.row.deliveryDate), ...new Set(partial.map((t) => t.eat))];
     await assertDaysPauseAllowed(order.id, charged, tx);
 
@@ -328,7 +328,7 @@ export async function listPauseDays(orderId: bigint): Promise<PauseDay[]> {
   }).sort((a, b) => a.date.localeCompare(b.date));
 }
 
-// Never puts a paused day back on the route (resume() used to, which undid the hold). A paused day
+// Never puts a paused day back on the route (that would undo the hold). A paused day
 // past its cutoff becomes a hold. Then the old range-pause leftovers: an elapsed open window is
 // closed, and an order those pauses flipped to "paused" goes back to active (that status means
 // nothing now, so it does not wait for paused days to clear).

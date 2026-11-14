@@ -30,7 +30,6 @@ export async function validatedImageUpload(orig: File, thumb: File, tooBigMessag
   return { name: orig.name, thumbName: thumb.name, origBytes, origType, thumbBytes: prot.bytes, thumbType: prot.contentType };
 }
 
-/** Stores the secured original and thumbnail under `<folder>/<nanoid>/`. */
 export async function storeImageUpload(folder: string, c: ValidatedImage): Promise<{ path: string; thumbPath: string; name: string }> {
   const base = `${folder}/${nanoid()}`;
   const origDetail = await securedFilesService().create(`${base}/orig-${sanitizeFilename(c.name)}`, c.origBytes, { contentType: c.origType });

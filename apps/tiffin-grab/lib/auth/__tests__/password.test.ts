@@ -5,7 +5,7 @@ describe("password hashing", () => {
   it("hashes to a non-plaintext scrypt string", async () => {
     const hash = await hashPassword("Tiffin123!dev");
     expect(hash).not.toBe("Tiffin123!dev");
-    // scrypt is "<salt-hex>:<hash-hex>"; bcrypt's "$2a$…" is no longer supported.
+    // scrypt is "<salt-hex>:<hash-hex>".
     expect(hash).toMatch(/^[0-9a-f]+:[0-9a-f]+$/);
     expect(hash).not.toMatch(/^\$2[aby]\$/);
   });

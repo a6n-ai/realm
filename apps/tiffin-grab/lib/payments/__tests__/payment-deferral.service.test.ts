@@ -205,8 +205,8 @@ describe("createOrder payment deferral", () => {
     const [afterVerify] = await db.select().from(payments).where(eq(payments.id, pay!.id));
     expect(afterVerify!.status).toBe("paid");
     expect(afterVerify!.metaPurchaseSentAt).toBeTypeOf("number");
+// requireProof method rejects a reference-only claim.
 
-    // requireProof method rejects a reference-only claim.
     await setPaymentConfig({
       methods: [
         {

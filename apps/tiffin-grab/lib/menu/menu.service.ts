@@ -77,9 +77,8 @@ async function draftWeekId(weekPublicId: string): Promise<bigint> {
 /**
  * One row of the builder's working copy. `id` is the menu_item public id, or null for a
  * row the admin has added but not saved yet. There is deliberately no `position`: order is
- * the array order within each (day, slot) group, assigned server-side. The old per-click
- * addItem took a client-computed position, so two fast clicks both read the same stale
- * length and collided — with position derived at save time that race cannot be expressed.
+ * the array order within each (day, slot) group, assigned server-side, so two fast clicks
+ * cannot collide on a client-computed position.
  */
 export type DraftMenuItem = {
   id: string | null;
@@ -195,9 +194,6 @@ export const menuService = {
 
   /**
    * Persist a whole week's working copy in one transaction, diffing against what is stored.
-   * This replaces the per-click addItem/removeItem/reorderItems round trips the builder used
-   * to fire — those revalidated three paths and re-ran the page's whole query set on every
-   * single click.
    *
    * Idempotent: saving the same list twice is a no-op. Concurrency is guarded by
    * expectedUpdatedAt — the week row is stamped under the same predicate, so a second tab
@@ -304,8 +300,7 @@ export const menuService = {
       revalidatePublicSite();
     }
 
-    // Return the persisted list so the client can adopt the new rows' ids without a
-    // full page refresh — the refresh per click was the other half of the old cost.
+    // Return the persisted list so the client can adopt the new rows' ids without a full refresh.
     const [saved, freshWeek] = await Promise.all([this.weekWithItems(input.menuWeekId), db
       .select({ updatedAt: menuWeeks.updatedAt }).from(menuWeeks).where(eq(menuWeeks.id, week.id)).limit(1)]);
     const dishPublicIdById = new Map(dishRows.map((d) => [d.id, d.publicId]));
@@ -430,8 +425,7 @@ export const menuService = {
   /**
    * Customer picks this save would invalidate. A pick survives only while the dish it points
    * at is still on the menu for that exact day and category — otherwise resolveDeliveryMeal
-   * silently falls back to the day's default, which is how an amend used to change what
-   * somebody eats without anyone being told.
+   * silently falls back to the day's default, changing what somebody eats unannounced.
    */
   async amendImpact(input: { menuWeekId: string; items: DraftMenuItem[] }) {
     const [week] = await db.select({ id: menuWeeks.id }).from(menuWeeks).where(eq(menuWeeks.publicId, input.menuWeekId)).limit(1);
@@ -571,8 +565,7 @@ export const menuService = {
   async weekWithItems(weekPublicId: string) {
     const [week] = await db.select().from(menuWeeks).where(eq(menuWeeks.publicId, weekPublicId)).limit(1);
     if (!week) return { week: undefined, items: [] };
-    // Explicit projection with the category key aliased back to `slot`: storage is a foreign
-    // key now, but every caller above this line still works in keys.
+    // Category key aliased back to `slot`: callers work in keys, storage is a foreign key.
     const items = await db
       .select({
         publicId: menuItems.publicId,
@@ -608,14 +601,6 @@ export const menuService = {
       .where(and(inArray(menuWeeks.weekStart, weekStarts), eq(menuWeeks.status, "released")));
   },
 
-  /**
-   * `organizationId` is the URL-resolved org from proxy.ts (Task 3/4 —
-   * resolveRequestOrg). Additive alongside the existing `app_id`-scoped
-   * queries below: today's single-tenant deployment has exactly one
-   * organization row, so this is a no-op scoping check for now, not a
-   * behavior change. A resolved id that matches no organization fails
-   * closed (null), never falling through to the unscoped query.
-   */
   /**
    * How often customers chose each dish (by name) on menus from `sinceWeekStart` on. meal_selections rows exist
    * only for explicit picks, never defaults, so this is real preference. Feeds the customer menu's Popular badge.
@@ -678,8 +663,7 @@ export const menuService = {
         .innerJoin(plans, eq(plans.id, dishes.planId))
         .innerJoin(dishCategories, eq(dishCategories.id, menuItems.categoryId))
         .where(eq(menuItems.menuWeekId, weekId)).orderBy(asc(menuItems.position));
-      // One consolidated menu: every enabled category, and the tiffin poster theme —
-      // there is a single public poster now, not one per plan type.
+      // One consolidated menu: every enabled category, tiffin poster theme.
       const categories = await dishCategoriesService.enabledCategories();
       const cfg = (await getMealTypes()).tiffin;
       const items: PosterItem[] = rows.map((r) => ({

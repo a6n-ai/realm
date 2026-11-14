@@ -29,7 +29,7 @@ async function actor(): Promise<Actor | null> {
   return { publicId: s.user.id, userId, organizationId };
 }
 
-/** Counts one use of the facet filters in `query` on `path`. No-op without filters. */
+/** No-op without filters. */
 export async function recordFilterUse(path: string, query: string, fields: readonly string[]): Promise<void> {
   if (!PATH.test(path) || path.length > 120 || fields.length > 30 || !fields.every((f) => FIELD.test(f))) return;
   const a = await actor();

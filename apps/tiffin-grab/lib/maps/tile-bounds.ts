@@ -1,8 +1,6 @@
 /**
  * Validate a tile request against the real tile-pyramid bounds, not a digit
- * count. An earlier `\d{1,3}` capped coordinates at 999, so every tile above
- * zoom 9 returned 400 while a hand-picked 11/572/375 fit and made the route look
- * healthy — the map just rendered blank.
+ * count: a digit cap rejects valid tiles above zoom 9 and the map renders blank.
  *
  * Lives outside the route so it can be tested without invoking the handler.
  */

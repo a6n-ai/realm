@@ -311,7 +311,6 @@ export async function verifyPayment(
     );
   }
 
-  // Refreshes the customer's wallet/bills views.
   if (userPublicId) publishUserRefresh(userPublicId);
 
   if (taxCommit) {
@@ -563,7 +562,6 @@ export async function updatePaymentReference(
   });
 }
 
-// Serializable claim form context for activate / Finances UI.
 export type ClaimPaymentContext = {
   paymentPublicId: string;
   orderPublicId: string;

@@ -113,7 +113,7 @@ describe("rescheduleDelivery for eatingDays / MWF", () => {
     await db.update(orders).set({ eatingDays: ["mon", "tue", "wed", "fri", "sat", "sun"] }).where(eq(orders.id, order.id));
     const delivery = await firstDeliveryOf(order);
 
-    const tue = farFutureIso(2); // Tuesday
+    const tue = farFutureIso(2);
     const tueRes = await rescheduleDelivery(delivery.publicId, tue, null);
     expect(weekdayKey(parseIsoDateUtc(tueRes.carriedOn))).toBe("mon");
     expect(tueRes.carriedOn).toBe(carryTripDateIso(tue, ["mon", "wed", "fri"])!);

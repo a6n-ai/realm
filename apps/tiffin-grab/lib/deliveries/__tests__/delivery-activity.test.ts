@@ -52,7 +52,7 @@ async function makeOrder(phone: string, fullName: string) {
 async function userIdOf(order: { id: bigint }) {
   const [u] = await db.select({ id: users.id, publicId: users.publicId }).from(orders)
     .innerJoin(users, eq(orders.userId, users.id)).where(eq(orders.id, order.id));
-  return u; // { id, publicId }
+  return u;
 }
 
 describe("delivery activity audit (integration)", () => {

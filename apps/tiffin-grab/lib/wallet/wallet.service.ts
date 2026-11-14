@@ -41,10 +41,7 @@ const recordRedemptionDiscount: WalletDeps<BusinessEvent>["recordRedemptionDisco
     memo,
   }));
 
-// The original class-based wallet.service.ts folded balance/ledgerPage/award/
-// recentTransactions/earnSpendTotals/moneyValue/activeRate/redeem into the
-// shared @foundry/wallet package (createWalletService) — puchkaman reuses the
-// same factory. Only the tiffin-grab-specific piece (the wallet cap) is wired here.
+// Shared @foundry/wallet factory (puchkaman reuses it); only the wallet cap is tiffin-grab-specific.
 export const walletService = createWalletService<BusinessEvent>({
   db,
   tables: { walletLedger, eventPayout, coinRate },
@@ -56,10 +53,6 @@ export const walletService = createWalletService<BusinessEvent>({
   maxBalance: () => getMaxWalletBalance(),
 });
 
-// App-bound wrappers around the package's transaction-aware redemption
-// primitives — callers already inside a tx (createOrder) don't need to know
-// about walletLedger/orders/recordRedemptionDiscount wiring.
-//
 // No cap check on either: these SPEND coins, and spending can only move a
 // balance away from the ceiling.
 export async function lockAndQuoteCoinRedemption(
@@ -110,8 +103,6 @@ export async function settleCoinReservation(
   return settleReservation(tx, { ...args, walletLedger, orders, users });
 }
 
-// App-bound wrapper for the package's award-reversal primitive — refundOrder
-// (orders.service.ts) calls this to claw back order_activated coins.
 export async function reverseCoinAward(
   tx: Tx,
   args: { userId: bigint; eventType: BusinessEvent; source: { type: string; id: string } },
@@ -167,8 +158,7 @@ export type AwardableOrder = Pick<typeof orders.$inferSelect, "id" | "publicId" 
  * Credits a paid order's earn-back coins inside the caller's transaction, so
  * coins commit or roll back with the payment. Never throws for a business
  * reason: a cap or a missing coin value skips the award and leaves a note on
- * the order instead of blocking the payment. Same key as the old award, so
- * cancel/refund clawback (reverseCoinAward) is unchanged.
+ * the order instead of blocking the payment. The key is what cancel/refund clawback (reverseCoinAward) reverses.
  */
 export async function awardOrderCoins(
   tx: Tx,

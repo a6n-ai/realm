@@ -234,10 +234,7 @@ export async function placeHolidayExtras(tx: Tx, order: Order, sourceId: bigint,
   return dates;
 }
 
-/**
- * A schedule write under the order lock: lay the rows out (when `materialize`), then close any
- * declared holiday they land on. The caller holds the lock (withOrderLock / lockOrder).
- */
+/** Caller holds the order lock (withOrderLock / lockOrder). */
 export async function scheduleWrite(tx: Tx, order: Order, actorId: bigint | null, opts: { materialize?: boolean } = {}): Promise<HolidayApplied[]> {
   if (opts.materialize) await materializeDeliveries(tx, order);
   return applyHolidaysToOrder(tx, order, actorId);

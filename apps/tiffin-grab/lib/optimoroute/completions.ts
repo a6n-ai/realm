@@ -7,36 +7,24 @@ import { getCompletionDetails, getOrderDetails, getRoutes, type OptimoCompletion
 import { normalisePhone } from "./push";
 import { tripDetail } from "./trip-notes";
 
-// The half of the integration that turns a driver's real-world action into a real-world
-// tiffin count. Driven from OUR side (scheduled and skipped deliveries for the date), not
-// OptimoRoute's — the account is shared with another business (see push.ts), so looping
-// over OptimoRoute's stops instead would mean wading through someone else's data to find
-// ours, and would have nothing to say about a delivery OptimoRoute has no stop for at all.
+// Turns a driver's real-world action into a tiffin count. Driven from OUR side (scheduled and skipped deliveries
+// for the date): the OptimoRoute account is shared with another business (see push.ts), so looping over its stops
+// would mean wading through someone else's data and would miss a delivery with no stop at all.
 //
-// Status changes come only from what OptimoRoute says. The selection cutoff is the evening
-// before the delivery; it locks customer changes and is not proof the driver has finished.
-//
-//   "success" records confirmation. A skipped row is put back to scheduled, so a pull that
-//   ran before the driver closed the stop can be repaired. A day whose tiffins were already
-//   moved stays skipped — restoring it would count those tiffins twice.
-//
-//   "failed" marks a scheduled row not delivered via skipDelivery(). A row already skipped
-//   stays that way. Nothing is re-delivered automatically.
-//
+// Status changes come only from what OptimoRoute says. The selection cutoff locks customer changes but is not
+// proof the driver has finished.
+//   "success" records confirmation. A skipped row goes back to scheduled so an early pull can be repaired,
+//   except a day whose tiffins were already moved: restoring it would count them twice.
+//   "failed" marks a scheduled row not delivered via skipDelivery(); an already skipped row stays. Nothing is
+//   re-delivered automatically.
 //   Anything else (still open, or no completion data) leaves the row alone.
+//   No matching stop at all is not a miss: the route was never pushed (or push/match failed), an operational
+//   gap reported separately so it gets investigated.
+// Paused and cancelled rows are not loaded: a hold or a voided day is not revived from a route photo.
 //
-//   No matching OptimoRoute stop at all is not a miss. That means the route was never
-//   pushed (or push/match failed) — an operational gap, not evidence food didn't go out.
-//   Reported separately so it gets investigated.
-//
-// Paused and cancelled rows are not loaded. A hold or a voided day is not revived from a
-// route photo.
-//
-// Matching is phone-first, not orderNo-first, because today's real OptimoRoute account has
-// stops entered by the legacy spreadsheet process, keyed by customer name — not by anything
-// this app generates. Once this app is the only thing pushing (orderNo = our delivery's
-// publicId, see push.ts), the exact-publicId path below is what actually fires; the
-// phone fallback keeps working for the migration period without needing a second run.
+// Matching is phone-first because the account also holds stops from the legacy spreadsheet process, keyed by
+// customer name. Where orderNo = our delivery's publicId (see push.ts) the exact path fires; the phone fallback
+// covers the rest.
 
 export type CompletionOutcome = {
   deliveryPublicId: string;
@@ -46,7 +34,6 @@ export type CompletionOutcome = {
   /** What we did about it — "confirmed" for a success, "skipped" for an OptimoRoute failure. */
   action: "confirmed" | "skipped" | "skip_failed";
   skipError?: string;
-  /** Tiffins on the stop and the days they cover, so a failed multi-day trip reads as such. */
   tiffinUnits: number;
   coverage: string | null;
 };
@@ -68,11 +55,9 @@ export type PullCompletionsResult = {
    *  outcome. Left untouched (falls back to the time-based default), listed by name so
    *  staff know which customers to check rather than just a bare count. */
   unmatched: { deliveryPublicId: string; customerName: string }[];
-  /** Rows already settled (or not ours to change) — listed so a re-pull shows what is done. */
   settled: { deliveryPublicId: string; customerName: string; reason: string }[];
 };
 
-/** What this pull should do with one of our rows, given OptimoRoute's word for the matched stop. */
 export function completionAction(
   row: { status: "scheduled" | "paused" | "skipped" | "cancelled"; optimoCompletionStatus: string | null },
   optimoStatus: string | null,
@@ -87,7 +72,6 @@ export function completionAction(
   return "pending";
 }
 
-/** Plain words for a row the pull left as it was — shown so staff see it was looked at. */
 export function leaveReason(
   row: { status: "scheduled" | "paused" | "skipped" | "cancelled"; optimoCompletionStatus: string | null },
   moved: boolean,
@@ -128,7 +112,7 @@ export async function applyCompletion(
 
   if (action === "confirm" || action === "restore") {
     await db.update(deliveries).set({
-      // Back on the route: no longer closed, so the holiday tag goes too.
+      // Back on the route: the holiday tag goes too.
       ...(action === "restore" ? { status: "scheduled" as const, holidayId: null } : {}),
       optimoCompletionStatus: "success",
       optimoCompletedAt: completedAtMs,

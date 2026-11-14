@@ -37,7 +37,7 @@ async function resolveActingUserId(): Promise<bigint | null> {
   return sys?.id ?? null;
 }
 
-// DEVIATION FROM THE BRIEF: this does not call `auth.api.createOrganization`.
+// Does not call `auth.api.createOrganization`.
 //
 // Two real problems surfaced going through the org plugin's own endpoint:
 //   1. `parentOrganizationId` is `input: false` on the plugin (lib/auth/index.ts) —
@@ -55,7 +55,7 @@ async function resolveActingUserId(): Promise<bigint | null> {
 //      plugin's internal getOrgAdapter throws
 //      `BetterAuthError: The model "member" was not found in the schema object`
 //      the moment it tries to create the owner membership row. Fixing that is a
-//      change to the shared auth config, out of scope for this task.
+//      change to the shared auth config.
 //
 // So we do what seed-brand-org.ts already does for the brand org: write the
 // organization + owner member rows directly, after re-running the same depth guard

@@ -8,7 +8,6 @@ export function currencySymbol(currency: string): string {
     .find((p) => p.type === "currency")?.value ?? currency;
 }
 
-/** "20% off" when valuePct is set, else "$5 off" ("$2.50 off" for fractional amounts). */
 export function formatDiscount(c: { valuePct?: Num; valueAmount?: Num }, currency: string): string {
   if (c.valuePct != null) return `${Number(c.valuePct)}% off`;
   const amount = Number(c.valueAmount);

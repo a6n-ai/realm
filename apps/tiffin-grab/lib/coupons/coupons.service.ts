@@ -226,7 +226,6 @@ class CouponsService extends SessionUpdatableService<typeof coupons> {
       paymentMethodId: ctx.paymentMethodId,
     };
 
-    // (a) Gather auto-apply candidates that pass eligibility for this cart.
     const autoRows = await db
       .select()
       .from(coupons)
@@ -266,7 +265,6 @@ class CouponsService extends SessionUpdatableService<typeof coupons> {
       }
     }
 
-    // (b) Enumerate stacking-valid final sets.
     const stackables = candidates.filter((c) => c.coupon.stackable);
     const exclusives = candidates.filter((c) => !c.coupon.stackable);
     const sets: Candidate[][] = [];

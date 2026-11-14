@@ -4,7 +4,6 @@
 
 export type PublicPage = {
   path: string;
-  /** Short link text: nav, footer. */
   label: string;
   changeFrequency: "weekly" | "monthly" | "yearly";
   priority: number;

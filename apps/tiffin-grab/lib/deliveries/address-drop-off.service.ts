@@ -52,7 +52,6 @@ export async function resolveDropOff(value: DropOffValue | null | undefined, tx:
   return { tagId, strategyIds: ids.map((p) => rows.find((r) => r.publicId === p)!.id) };
 }
 
-/** Sets (or clears) the drop-off on one of the customer's own addresses. */
 export async function setAddressDropOff(
   scope: AddressScope,
   address: { publicId: string } | { id: bigint },
@@ -119,7 +118,6 @@ export async function dropOffTexts(rows: ResolvedDropOff[]): Promise<(string | n
   });
 }
 
-/** Address public id → its drop-off (addresses with none are left out). */
 export async function dropOffsFor(addressPublicIds: string[]): Promise<Record<string, DropOffValue>> {
   if (addressPublicIds.length === 0) return {};
   const rows = await db

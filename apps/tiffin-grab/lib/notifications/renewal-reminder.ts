@@ -69,7 +69,7 @@ async function candidates(lastTiffin: string): Promise<RenewalCandidate[]> {
   return rows.map((r) => ({ ...r, userId: r.userId!, lastTiffin }));
 }
 
-/** Daily: queue each reminder once per plan ending. Safe to rerun; the outbox dedupe key drops repeats. */
+/** Daily: queue each reminder once per plan ending. Safe to rerun: the outbox dedupe key drops repeats. */
 export async function sendRenewalReminders(now = Date.now()) {
   const today = zonedDateIso(now, (await getAppSettings()).timezone);
   const summary: Record<string, number> = {};

@@ -59,7 +59,6 @@ export const ACTIVITY_TYPE_VALUES = [
 
 export type ActivityTypeValue = (typeof ACTIVITY_TYPE_VALUES)[number];
 
-/** Short labels for the Action multi-filter (exact type, not category). */
 export const ACTIVITY_TYPE_LABELS: Record<ActivityTypeValue, string> = {
   created: "Order created",
   status_change: "Status change",

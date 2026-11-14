@@ -15,8 +15,7 @@ import { sendMetaCrmLeadCreated } from "./crm-lead";
 const log = createLogger("meta-leadgen-ingest");
 
 /**
- * Process a Meta leadgen webhook POST: verify signature, fetch each lead, upsert inquiry
- * with metaLeadId, fire CRM Lead CAPI. Always safe to retry (unique meta_lead_id + event_id).
+ * Meta leadgen webhook POST. Always safe to retry (unique meta_lead_id + event_id).
  */
 export async function ingestMetaLeadgenWebhook(
   rawBody: string,

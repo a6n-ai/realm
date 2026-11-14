@@ -69,7 +69,6 @@ export function parseComplaintFilters(sp: ComplaintSearchParams): ComplaintFilte
   };
 }
 
-/** Analytics pages read the shared scope; category/subcategory/status/priority arrive via `scope.extra`. */
 export function scopeToComplaintFilters(scope: AnalyticsScope): ComplaintFilters {
   return {
     from: scope.fromMs,
@@ -90,7 +89,6 @@ export function scopeToComplaintFilters(scope: AnalyticsScope): ComplaintFilters
  */
 export const ticketOrgWhere = (orgIds: AnalyticsScope["orgIds"]) => orgScope(orders.organizationId, orgIds);
 
-/** Serialise filters back into a querystring for a drill-through link. */
 export function complaintHref(base: string, filters: Partial<ComplaintFilters> & { [k: string]: unknown }): string {
   const qs = new URLSearchParams();
   const put = (key: string, value: string[] | undefined) => {
@@ -122,7 +120,6 @@ export const NO_STAFF_REPLY = sql`not exists (
 
 export const IS_NEW = and(eq(tickets.status, "open"), NO_STAFF_REPLY)!;
 
-/** Status values the UI offers, with New derived on top of the stored ones. */
 export const STATUS_OPTIONS = [
   { value: "new", label: "New" },
   ...TICKET_STATUS_OPTIONS,
@@ -137,7 +134,6 @@ function statusCondition(statuses: string[]): SQL | undefined {
   return parts.length === 1 ? parts[0] : or(...(parts as SQL[]));
 }
 
-/** Plan/zone come off the linked order; NOT_LINKED selects tickets without one. */
 function linkedCondition(values: string[], column: AnyPgColumn): SQL | undefined {
   if (values.length === 0) return undefined;
   const real = values.filter((v) => v !== NOT_LINKED);

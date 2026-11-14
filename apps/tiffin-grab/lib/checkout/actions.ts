@@ -240,11 +240,8 @@ async function placeSubscription(rawInput: ConfirmInput): Promise<ConfirmResult>
   // A malformed postal code is a typo to fix, not a lead for the waitlist.
   const input: CreateOrderInput = { ...rest, contact: { ...contact, postalCode: parseCanadianPostalCode(contact.postalCode) } };
 
-  // Serviceability is the source of truth here, not on the client: the checkout
-  // UI disables "Continue to payment" for a known out-of-zone postal, but that
-  // check is optional (a skipped/edited postal leaves it null). Enforce it server
-  // side so a non-serviceable checkout NEVER creates an order or takes payment —
-  // capture the lead as a waitlist inquiry instead.
+  // Enforced here, not only on the client (its check is optional): an out-of-zone checkout never
+  // creates an order or takes payment; it is captured as a waitlist inquiry instead.
   const orgId = await resolveRequestOrg();
   const { zones } = await loadCatalogSnapshot(orgId);
   const address = [input.contact.addressLine, input.contact.city, input.contact.postalCode].filter(Boolean).join(", ");
@@ -260,9 +257,7 @@ async function placeSubscription(rawInput: ConfirmInput): Promise<ConfirmResult>
 
   assertOnePerson(input);
   const session = await getSession();
-  // session.user.id is the acting user's public_id; createOrder resolves it to
-  // the internal bigint. A logged-in customer's checkout attaches to their own
-  // account; anonymous checkout provisions by phone.
+  // session.user.id is the public_id; createOrder resolves it to the internal bigint.
   const userId = session?.user?.id ?? null;
 
   // The client never sends lat/lng at all — a client could assert any

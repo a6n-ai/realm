@@ -122,9 +122,7 @@ describe("payment methods E2E lifecycle", () => {
   });
 
   it("full path: checkout → claim → reject → re-claim → verify (ledger+coupons once)", async () => {
-    // Re-enable after reset wiped config via beforeEach... wait, reset doesn't clear payment config
-    // except afterAll. beforeEach only clears users/orders. Config from beforeAll stays unless
-    // sharedCache was flushed — reset does evictAll, so re-set.
+    // reset evicts the shared cache, so re-enable the method.
     await setPaymentConfig({
       methods: [
         {

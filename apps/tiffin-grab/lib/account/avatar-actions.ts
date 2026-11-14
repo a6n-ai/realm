@@ -7,9 +7,7 @@ import { usersService } from "@/lib/services/users.service";
 import { sniffImageType, extFor, MAX_AVATAR_BYTES } from "@foundry/commons/util/image-sniff";
 import { ownAvatarKey } from "@/lib/images/avatar-key";
 
-// Avatars go through the shared file store (S3 in prod), like dish photos. They
-// used to be written into public/uploads/avatars on the container's disk, which
-// Next never serves after build and every deploy wipes.
+// Avatars go through the shared file store (S3 in prod): Next never serves public/uploads after build and every deploy wipes it.
 function forgetOld(url: string | null | undefined, userId: string) {
   const key = ownAvatarKey(url, userId);
   if (key) filesService().delete(key).catch(() => undefined);

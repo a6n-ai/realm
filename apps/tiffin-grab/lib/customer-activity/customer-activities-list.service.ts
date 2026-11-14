@@ -31,7 +31,6 @@ export type CustomerActivityListRow = {
   customerName: string;
   customerEmail: string;
   customerPublicId: string;
-  /** Display name for who made the change. */
   by: string;
   actorKind: CustomerActivityActorKind;
   href: string;

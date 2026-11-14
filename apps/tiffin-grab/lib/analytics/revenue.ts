@@ -30,7 +30,6 @@ export type PaymentStatusSlice = {
   amount: number;
 };
 
-/** Drop empty statuses and keep a stable order so the breakdown does not jump around. */
 export function presentPaymentStatuses(
   rows: { status: string; count: number; amount: number }[],
 ): PaymentStatusSlice[] {

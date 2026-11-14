@@ -3,7 +3,6 @@ import { tzOffsetMinutes } from "@foundry/commons";
 // Admin date-time fields are entered and shown in the app-settings timezone (pass useTimezone()), so the
 // stored instant is unambiguous whatever the admin's browser zone is.
 
-/** Short zone name for field labels, e.g. "EDT". */
 export function tzLabel(tz: string): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: tz, timeZoneName: "short" })
     .formatToParts(Date.now())

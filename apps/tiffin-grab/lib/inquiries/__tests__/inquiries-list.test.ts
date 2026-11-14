@@ -27,7 +27,6 @@ describe("inquiriesService.list (server-side filter + pagination)", () => {
     if (!src) throw new Error("no lead source seeded — cannot run inquiries-list test");
     sourceKey = src.key;
     sourceLabel = src.label;
-    // 2 converted + 1 lost, all tagged with RUN so the assertions stay scoped.
     await db.insert(inquiries).values([
       { fullName: `${RUN}_a`, phone: `${RUN}_1`, sourceId: src.id, stage: "converted" },
       { fullName: `${RUN}_b`, phone: `${RUN}_2`, sourceId: src.id, stage: "converted" },
@@ -47,7 +46,6 @@ describe("inquiriesService.list (server-side filter + pagination)", () => {
     expect(page.items.length).toBe(1);
     // Only the two RUN 'converted' rows match — total is the unpaginated count.
     expect(page.total).toBe(2);
-    // PipelineRow shape (joined + derived), not a raw base-table select.
     const row = page.items[0];
     expect(row.stage).toBe("converted");
     expect(row.fullName?.startsWith(RUN)).toBe(true);
