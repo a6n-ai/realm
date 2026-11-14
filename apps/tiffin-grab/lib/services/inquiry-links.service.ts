@@ -342,3 +342,19 @@ export async function inquiryOrderCard(orderId: bigint, visible: "all" | string[
     roundLabel: roundLabel(rank?.n ?? null),
   };
 }
+
+/** The order's inquiry, creating and linking one for its buyer when none exists, so a desk write is never dropped. */
+export async function ensureInquiryForOrder(orderId: bigint): Promise<InquiryRow | null> {
+  const found = await inquiryForOrder(orderId);
+  if (found) return found;
+  const o = await orderBuyer(orderId);
+  if (!o?.userId) return null;
+  await recordPurchase({
+    orderId,
+    userId: o.userId,
+    contact: { fullName: o.name ?? o.fullName, email: o.email, phone: o.phone },
+    kind: o.trialLength != null ? "trial" : "plan",
+    source: "website",
+  });
+  return inquiryForOrder(orderId);
+}

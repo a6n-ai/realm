@@ -5,7 +5,7 @@ import { effectiveTrackStatus, isClosedTrack, type TrackActivityType, type Track
 import { NotFoundError, ValidationError } from "@foundry/commons";
 import { and, desc, eq, gte, inArray, isNull, lt, or, sql, type SQL } from "drizzle-orm";
 import { assertFiniteFollowUp, type LostReason } from "../services/inquiries.service";
-import { inquiryForOrder, logReminderSent, mirrorRenewalActivity, openRenewal } from "../services/inquiry-links.service";
+import { ensureInquiryForOrder, logReminderSent, mirrorRenewalActivity } from "../services/inquiry-links.service";
 
 export const computedStatusSql = sql<RenewalStatus>`(case when ${orders.trialLength} is not null then ${renewalStatusSql(true)} else ${renewalStatusSql(false)} end)`;
 
@@ -102,7 +102,7 @@ export async function setTrackStatus(
   assertFiniteFollowUp(input.nextFollowUpAt);
   const order = await orderFor(orderPublicId);
   // A plan with no inquiry gets its round opened first, so the status has a row to live on.
-  if (!(await inquiryForOrder(order.id))) await openRenewal(order.id);
+  await ensureInquiryForOrder(order.id);
   const previous = await statusOf(orderPublicId);
   const closed = isClosedTrack(input.status);
   const nextFollowUpAt = closed ? null : input.nextFollowUpAt;
@@ -125,6 +125,7 @@ async function recordActivity(
   if (input.nextFollowUpAt != null && isClosedTrack(await statusOf(orderPublicId))) {
     throw new ValidationError("A closed plan cannot have a follow-up");
   }
+  await ensureInquiryForOrder(order.id);
   if (input.type === "reminder_sent") {
     await logReminderSent(order.id, input.reminderKey);
     return;

@@ -135,4 +135,15 @@ describe("renewal tracking mirrors onto the inquiry", () => {
     expect((await inqRow(trial.inquiryId)).renewalStatus).toBe("expected");
     expect((await inqRow(far.inquiryId)).renewalStatus).toBeNull();
   });
+
+  it("a note on an order whose buyer has no inquiry is kept (an inquiry is created for it)", async () => {
+    const p = await plan();
+    await db.delete(inquiryActivities).where(eq(inquiryActivities.inquiryId, p.inquiryId));
+    await db.delete(inquiries).where(eq(inquiries.id, p.inquiryId));
+    const { addTrackNote } = await import("../renewal-tracking.service");
+    await addTrackNote(p.publicId, "Called, no answer");
+    const notes = await db.select().from(inquiryActivities).where(and(eq(inquiryActivities.orderId, p.id), eq(inquiryActivities.type, "note")));
+    expect(notes.map((n) => n.note)).toEqual(["Called, no answer"]);
+  });
 });
+
