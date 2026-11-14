@@ -1,17 +1,17 @@
 import { orgScope, type Visible } from "@/lib/tenant/org-scope";
 import { pageOffset } from "@foundry/design-system/filters/parse-filter-state";
-import { and, asc, desc, eq, gte, ilike, inArray, isNotNull, isNull, like, lte, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, inArray, like, or, sql } from "drizzle-orm";
 import { UNPAID } from "@/lib/payments/status";
 import { paymentStatusIn, planPaymentSql } from "@/lib/payments/status-sql";
 import type { Page, PageRequest } from "@foundry/commons/util/pagination";
 import { db } from "@/db/client";
 import { deliveries, ledgerEntries, mealSizes, messageSuppression, notificationOutbox, orders, payments, plans, tickets, users, walletLedger } from "@/db/schema";
 import { unexpired } from "@foundry/wallet";
-import { renewalQueueFilter, type PlanType, type RenewalQueue, type RenewalRange, type RenewalsFilter, type TrackFilter } from "@/lib/renewals/filters";
+import { renewalQueueFilter, type PlanType, type RenewalQueue, type RenewalRange, type RenewalsFilter } from "@/lib/renewals/filters";
 import { UNASSIGNED_OWNER } from "@/lib/list/presets";
 import { lastTiffinSql, renewalStatusSql, type RenewalStatus } from "@/lib/orders/queries";
-import { addDaysIso, DAY_MS, daysBetween } from "@foundry/commons/util/dates";
-import { computedStatusSql, effectiveTrackStatusSql, followUpWhere, getTrackRows, laterBookedAtSql, latestTrackActivities, listTrackActivities, trackInquiry, type TrackActivity, type TrackRow } from "./renewal-tracking.service";
+import { DAY_MS, daysBetween } from "@foundry/commons/util/dates";
+import { getTrackRows, latestTrackActivities, listTrackActivities, type TrackActivity, type TrackRow } from "./renewal-tracking.service";
 import type { TrackStatus } from "@/lib/renewals/status";
 import type { LostReason } from "../inquiries/lost-reason";
 import { walletBalanceSql } from "@/lib/wallet/balance-sql";
@@ -58,92 +58,7 @@ export type RenewalCounts = { plans: number; renewed: number; renewedNotPaid: nu
 /** The app-timezone day bounds (epoch ms) for "today": the follow-up filters compare against them. */
 export type DayBounds = { dayStart: number; dayEnd: number };
 
-const typeWhere = (type: PlanType | null) =>
-  type === "trial" ? isNotNull(orders.trialLength) : type === "regular" ? isNull(orders.trialLength) : undefined;
 const running = sql`${orders.status} in ('active', 'paused')`;
-// A plan whose last tiffin has passed may still read active until the complete-plans job closes it.
-const runningOrDone = sql`${orders.status} in ('active', 'paused', 'completed')`;
-
-/** Running plans whose last tiffin is today through `days` out. */
-const endingWhere = (today: string, days: number) => and(running, sql`${lastTiffinSql} between ${today} and ${addDaysIso(today, days)}`);
-
-/** Plans whose last tiffin was in the last `days` days (over, renewed or not; Status narrows to the lapsed ones). */
-const endedWhere = (today: string, days: number) => and(runningOrDone, sql`${lastTiffinSql} between ${addDaysIso(today, -days)} and ${addDaysIso(today, -1)}`);
-
-/**
- * The top date range on its chosen date. Running = any delivery inside it: started by its end, last tiffin on or after its start.
- * Renewed = the next plan was booked inside it (on Trials, the next non-trial plan: the conversion date).
- */
-function rangeWhere(r: RenewalRange) {
-  if (r.by === "renewed") {
-    return and(sql`${laterBookedAtSql} is not null`, r.fromMs != null ? sql`${laterBookedAtSql} >= ${r.fromMs}` : undefined, r.toMs != null ? sql`${laterBookedAtSql} <= ${r.toMs}` : undefined);
-  }
-  if (r.by === "ordered") return and(r.fromMs != null ? gte(orders.createdAt, r.fromMs) : undefined, r.toMs != null ? lte(orders.createdAt, r.toMs) : undefined);
-  if (r.by === "running") return and(r.toIso ? sql`${orders.startDate} <= ${r.toIso}` : undefined, r.fromIso ? sql`${lastTiffinSql} >= ${r.fromIso}` : undefined);
-  return and(r.fromIso ? sql`${lastTiffinSql} >= ${r.fromIso}` : undefined, r.toIso ? sql`${lastTiffinSql} <= ${r.toIso}` : undefined);
-}
-
-/** Status filter: Not renewed and Lapsed are both "no later plan", split on whether the last tiffin has passed. */
-function statusWhere(f: RenewalsFilter, today: string) {
-  if (!f.status) return undefined;
-  const status = computedStatusSql;
-  if (f.status === "not_renewed") return and(sql`${status} = 'none'`, sql`${lastTiffinSql} >= ${today}`);
-  if (f.status === "lapsed") return and(sql`${status} = 'none'`, sql`${lastTiffinSql} < ${today}`);
-  if (f.status === "booked_unpaid") return sql`${status} in ('unpaid', 'waitlisted')`;
-  return sql`${status} = ${f.status}`;
-}
-
-/** Staff track status, where "new" is a plan with no effective status. */
-function trackWhere(track: readonly TrackFilter[] | null) {
-  if (!track) return undefined;
-  const statuses = track.filter((t): t is TrackStatus => t !== "new");
-  return or(
-    statuses.length ? sql`${effectiveTrackStatusSql} in (${sql.join(statuses.map((s) => sql`${s}`), sql`, `)})` : undefined,
-    track.includes("new") ? sql`${effectiveTrackStatusSql} is null` : undefined,
-  );
-}
-
-/** Every word must hit the name, order code or phone, in any order (same rule as the other list searches). */
-const searchWhere = (q: string) =>
-  and(...q.split(" ").filter(Boolean).map((w) => or(ilike(orders.fullName, `%${w}%`), ilike(orders.deploymentId, `%${w}%`), ilike(users.phone, `%${w}%`))));
-
-/** To renew: ending within 7 days or lapsed within 14, and nothing booked after (computed status none). */
-const renewWindowWhere = (today: string) => and(sql`${computedStatusSql} = 'none'`, or(endingWhere(today, 7), endedWhere(today, 14)));
-/**
- * Due / overdue / upcoming and To renew are their own lists: the top date range and the Ending / Ended windows do not narrow them.
- * "none" (no follow-up) is a plain filter on the range and windows, like any other.
- */
-export function renewalsWhere(visible: Visible, f: RenewalsFilter, today: string, range: RenewalRange, day: DayBounds) {
-  const dayView = f.followUp && f.followUp !== "none" ? f.followUp : null;
-  return and(
-    typeWhere(f.type),
-    orgScope(orders.organizationId, visible),
-    runningOrDone,
-    dayView
-      ? followUpWhere(dayView, day.dayStart, day.dayEnd)
-      : f.renewWindow
-        ? renewWindowWhere(today)
-        : and(
-            rangeWhere(range),
-            f.ending != null || f.ended != null
-              ? or(f.ending != null ? endingWhere(today, f.ending) : undefined, f.ended != null ? endedWhere(today, f.ended) : undefined)
-              : undefined,
-          ),
-    f.followUp === "none" ? followUpWhere("none", day.dayStart, day.dayEnd) : undefined,
-    statusWhere(f, today),
-    trackWhere(f.track),
-    f.owner ? ownerWhere(f.owner) : undefined,
-    f.q ? searchWhere(f.q) : undefined,
-  );
-}
-
-function ownerWhere(owner: string) {
-  return owner === UNASSIGNED_OWNER
-    ? isNull(orders.currentOwner)
-    // A scalar lookup the planner runs once, not an IN semi-join: inside the large renewal-status expressions the
-    // semi-join multiplied planning time (2-17 s in prod).
-    : sql`${orders.currentOwner} = (select ${users.id} from ${users} where ${users.publicId} = ${owner})`;
-}
 
 export const renewalSelect = {
   id: orders.id,
