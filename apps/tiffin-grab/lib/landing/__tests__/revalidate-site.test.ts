@@ -14,7 +14,7 @@ vi.mock("next/cache", () => ({ revalidatePath }));
 vi.mock("@/lib/cache", () => ({ sharedCache: () => ({ evictAll, set, get }) }));
 vi.mock("@/db/client", () => ({ db: {} }));
 vi.mock("@/lib/services/app-settings.service", () => ({ getAppSettings: async () => ({ timezone: "America/Toronto" }) }));
-vi.mock("@/lib/services/dish-categories.service", () => ({ dishCategoriesService: {} }));
+vi.mock("@/lib/menu/dish-categories.service", () => ({ dishCategoriesService: {} }));
 vi.mock("@/lib/custom-meal/pricing-rows", () => ({ loadPricingRows: vi.fn() }));
 vi.mock("@foundry/cloud/background", () => ({
   runInBackground: (fn: () => Promise<unknown>) => {

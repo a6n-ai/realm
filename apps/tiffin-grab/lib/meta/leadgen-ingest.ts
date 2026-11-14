@@ -8,7 +8,7 @@ import {
 import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { inquiries } from "@/db/schema";
-import { inquiriesService } from "@/lib/services/inquiries.service";
+import { inquiriesService } from "@/lib/inquiries/inquiries.service";
 import { metaPixel } from "@/lib/services/meta-pixel/config";
 import { sendMetaCrmLeadCreated } from "./crm-lead";
 

@@ -12,7 +12,7 @@ import { lastTiffinSql, renewalStatusSql, visibleOrgWhere, type RenewalStatus } 
 import { addDaysIso, DAY_MS, daysBetween } from "@foundry/commons/util/dates";
 import { computedStatusSql, effectiveTrackStatusSql, followUpWhere, getTrackRows, laterBookedAtSql, latestTrackActivities, listTrackActivities, type TrackActivity, type TrackRow } from "./renewal-tracking.service";
 import type { TrackStatus } from "@/lib/renewals/status";
-import type { LostReason } from "../services/inquiries.service";
+import type { LostReason } from "../inquiries/inquiries.service";
 import { walletBalanceSql } from "@/lib/wallet/balance-sql";
 
 export type RenewalRow = {

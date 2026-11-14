@@ -8,7 +8,7 @@ import { useAppCurrency } from "@/components/app-currency";
 import { formatDiscount } from "@/lib/format/currency";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@foundry/design-system/timezone-provider";
-import type { AvailableCoupon } from "@/lib/services/coupons.service";
+import type { AvailableCoupon } from "@/lib/coupons/coupons.service";
 
 // Discount pill text — distinct from the admin table's couponValue() (which reads
 // "20%"/"$5.00"): the customer pill reads as a benefit ("20% off"/"$5 off").

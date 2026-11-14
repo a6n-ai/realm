@@ -12,8 +12,8 @@ import { couponKind, type CouponConfig } from "@/db/schema/coupons";
 import type { DiscountPolicy } from "@/db/schema/types";
 import { planType } from "@/db/schema/catalog";
 import { currentUserId } from "@/lib/services/session-service";
-import { recordCouponGroupAction } from "@/lib/services/customer-groups.service";
-import { couponsService } from "@/lib/services/coupons.service";
+import { recordCouponGroupAction } from "@/lib/customer-groups/customer-groups.service";
+import { couponsService } from "@/lib/coupons/coupons.service";
 import { getDiscountPolicy, setDiscountPolicy } from "@/lib/services/app-settings.service";
 import { revalidatePublicSite } from "@/lib/landing/revalidate-site";
 

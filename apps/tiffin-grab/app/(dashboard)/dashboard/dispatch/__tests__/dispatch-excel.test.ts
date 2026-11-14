@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { DispatchRow } from "@/lib/services/optimoroute/drivers";
+import type { DispatchRow } from "@/lib/optimoroute/drivers";
 import { dispatchSheetAoA, sortDispatchRows } from "../dispatch-excel";
 
 function row(over: Partial<DispatchRow> & Pick<DispatchRow, "orderNo" | "customerName">): DispatchRow {

@@ -5,7 +5,7 @@ import { db } from "@/db/client";
 import { deliveries, orders } from "@/db/schema";
 import { ReviewBanner } from "@/components/customer/review-banner";
 import { getAppSettings, integrationsConfigReadStore } from "@/lib/services/app-settings.service";
-import { reviewNudgeStore } from "@/lib/services/review-nudge.service";
+import { reviewNudgeStore } from "@/lib/notifications/review-nudge.service";
 import { getSession } from "@/lib/auth/session";
 import { currentUserId } from "@/lib/services/session-service";
 import { markReviewNudgeDone } from "./review-nudge-actions";

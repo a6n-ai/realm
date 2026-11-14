@@ -1,8 +1,8 @@
 import { dishes, plans } from "@/db/schema";
 import { db } from "@/db/client";
 import { inArray } from "drizzle-orm";
-import { mealRulesService } from "@/lib/services/meal-rules.service";
-import { dishCategoriesService } from "@/lib/services/dish-categories.service";
+import { mealRulesService } from "@/lib/menu/meal-rules.service";
+import { dishCategoriesService } from "@/lib/menu/dish-categories.service";
 import { ruleText, type RuleLabels } from "./meal-rule-text";
 
 /**

@@ -4,7 +4,7 @@ import type { CategoryUnit } from "../lib/custom-meal/composition";
 import { db } from "./client";
 import { mealSizes, orderActivities, orders, users } from "./schema";
 import { loadCatalogSnapshot } from "../lib/catalog/load";
-import { loadCategoryUnits } from "../lib/services/custom-meal.service";
+import { loadCategoryUnits } from "../lib/custom-meal/custom-meal.service";
 import {
   applyOne, catalogKeyFor, dedupeByPhone, hasVegConflict, mapRow, mixedKindDuplicates, planSeed, remainingTiffins, wordpressPosition, type WpRow,
 } from "./seed-customers";

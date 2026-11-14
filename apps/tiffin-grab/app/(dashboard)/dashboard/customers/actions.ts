@@ -3,7 +3,7 @@
 import { createLogger } from "@foundry/commons/logger";
 import { getSession } from "@/lib/auth/session";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
-import { inquiriesService } from "@/lib/services/inquiries.service";
+import { inquiriesService } from "@/lib/inquiries/inquiries.service";
 import { createCustomer, customerInviteUrl, invitePendingCustomers, sendCustomerInvite } from "@/lib/services/customers.service";
 import { sendMenuReminderToCustomer } from "@/lib/notifications/menu-reminder";
 import type { ActionResult } from "@/lib/actions/action-result";

@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/catalog/load", () => ({ loadCatalogSnapshot: vi.fn() }));
 vi.mock("@/lib/services/app-settings.service", () => ({ getAppSettings: vi.fn() }));
-vi.mock("@/lib/services/trial-settings.service", () => ({ getTrialSettings: vi.fn() }));
+vi.mock("@/lib/trial/trial-settings.service", () => ({ getTrialSettings: vi.fn() }));
 
 import { buildFaq } from "../faq-list";
 import { llmsTxt, pricingMd } from "../llms-text";

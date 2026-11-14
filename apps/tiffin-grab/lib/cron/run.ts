@@ -22,7 +22,7 @@ type RunOptions = { date?: string; mode?: "push" | "pull"; actorId: bigint | nul
 /** What each runnable job does. Both the cron routes and Settings → Run now go through here. */
 const RUNNERS: Partial<Record<CronJobKey, (opts: RunOptions) => Promise<Summary>>> = {
   "pull-completions": async ({ date: only, actorId }) => {
-    const { pullCompletions } = await import("@/lib/services/optimoroute/completions");
+    const { pullCompletions } = await import("@/lib/optimoroute/completions");
     // Yesterday too: GitHub's schedule can fire hours late (a 22:00 run landed at 03:56), and
     // past local midnight "today" is the next, still-unrun day. Re-pulling yesterday is a no-op
     // for days already settled — pullCompletions only loads scheduled/skipped rows.
@@ -56,7 +56,7 @@ const RUNNERS: Partial<Record<CronJobKey, (opts: RunOptions) => Promise<Summary>
     return { ...pauses, ...(await completeFinishedOrders()) };
   },
   "optimoroute-sync": async ({ date, mode = "push" }): Promise<Summary> => {
-    const { runScheduledSync, syncDates } = await import("@/lib/services/optimoroute/sync");
+    const { runScheduledSync, syncDates } = await import("@/lib/optimoroute/sync");
     const { timezone } = await getAppSettings();
     const day = date ?? syncDates(appTodayIso(timezone), 1)[0]!;
     const r = await runScheduledSync({ mode, dates: [day] });

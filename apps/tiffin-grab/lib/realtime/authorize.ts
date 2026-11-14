@@ -2,7 +2,7 @@ import { isAdmin, isStaffRole } from "@/lib/roles";
 import { type RoleValue } from "@foundry/commons";
 import type { RealtimeRole } from "@foundry/realtime";
 import { getSession } from "@/lib/auth/session";
-import { ticketsService } from "@/lib/services/tickets.service";
+import { ticketsService } from "@/lib/support/tickets.service";
 import { PAYMENTS_INBOX, TICKETS_INBOX } from "./inbox";
 import { notifyChannel } from "./notify";
 

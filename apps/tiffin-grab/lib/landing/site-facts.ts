@@ -6,7 +6,7 @@ import { runsOf } from "@/lib/landing/areas";
 import { biggestDurationOff, deliveryIsFree, hourLabel, paidDropOff, lowestRate, trialLength, trialOffer } from "@/lib/landing/live-figures";
 import { effectivePrice } from "@/lib/pricing";
 import { getAppSettings } from "@/lib/services/app-settings.service";
-import { getTrialSettings } from "@/lib/services/trial-settings.service";
+import { getTrialSettings } from "@/lib/trial/trial-settings.service";
 
 export { CONTACT_EMAIL };
 const e = SUPPORT_E164;

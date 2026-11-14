@@ -1,7 +1,7 @@
 // Shared shape for the inquiries bulk-import feature: the mappable fields (shown as
 // selects in the column-mapping UI, and read the same way on the server) and the
 // sheet-value -> pipeline-stage mapping.
-import type { InquiryStage } from "@/lib/services/inquiries.service";
+import type { InquiryStage } from "@/lib/inquiries/inquiries.service";
 
 export type ImportFieldKey =
   | "date"

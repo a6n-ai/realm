@@ -7,7 +7,7 @@ import { currentUserId } from "@/lib/services/session-service";
 import { getSession } from "@/lib/auth/session";
 import { isStaffRole } from "@/lib/roles";
 import { googleSignInEnabled } from "@foundry/auth";
-import { couponsService } from "@/lib/services/coupons.service";
+import { couponsService } from "@/lib/coupons/coupons.service";
 import { SubscribeCouponsPreview } from "@/components/customer/subscribe/existing-subscriptions";
 import { initialSelections, newOrderHref, quoteCodes, quoteCoins, selectionsFromQuote, type QuoteParams } from "@/lib/wizard/selections";
 import { loadBuilderInputs, withFirstStart } from "@/lib/wizard/builder-inputs";
@@ -17,7 +17,7 @@ import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 import type { Metadata } from "next";
 import { pageMeta } from "@/lib/landing/meta";
 import { referCardPath } from "@/lib/referrals/share";
-import { findReferrerByCode } from "@/lib/services/referrals.service";
+import { findReferrerByCode } from "@/lib/referrals/referrals.service";
 import { loadReferralOffer } from "@/lib/referrals/offer";
 import { ReferralGift } from "@/components/customer/subscribe/referral-gift";
 

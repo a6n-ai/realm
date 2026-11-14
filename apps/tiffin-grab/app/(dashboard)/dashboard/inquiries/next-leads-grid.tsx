@@ -3,7 +3,7 @@ import { eq } from "@foundry/commons/model/condition";
 import { Button } from "@foundry/ui/button";
 import { displayName } from "@/lib/inquiries/display";
 import { isClosed } from "@/lib/inquiries/status";
-import type { PipelineRow } from "@/lib/services/inquiries.service";
+import type { PipelineRow } from "@/lib/inquiries/inquiries.service";
 import { ContactChips } from "@/components/dashboard/next-item/contact-chips";
 import { NextItemEmpty } from "@/components/dashboard/next-item/next-item-card";
 import { RecommendationGrid, type RecommendationOwner, type RecommendationItem } from "@/components/dashboard/next-item/recommendation-grid";

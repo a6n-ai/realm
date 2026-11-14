@@ -67,7 +67,7 @@ import { Check, ChevronRight, Coins, Info, Lock, MapPin, Plus, Tag, X } from "lu
 import { StatusBanner, toneClasses } from "@/components/checkout/status-banner";
 import { discountLine } from "@/components/customer/home/coupons-section";
 import { ReferralGift } from "@/components/customer/subscribe/referral-gift";
-import type { AvailableCoupon } from "@/lib/services/coupons.service";
+import type { AvailableCoupon } from "@/lib/coupons/coupons.service";
 
 const TITLES = { 0: "Renew your plan.", 1: "Where should we deliver?", 2: "How would you like to pay?" } as const;
 const H = "text-muted-foreground text-footnote font-semibold tracking-[0.02em]";

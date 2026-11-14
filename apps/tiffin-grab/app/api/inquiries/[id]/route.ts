@@ -1,6 +1,6 @@
 import { createResourceRoute } from "@foundry/routes";
 import { requireStaff } from "@/lib/auth/guards";
-import { inquiriesService } from "@/lib/services/inquiries.service";
+import { inquiriesService } from "@/lib/inquiries/inquiries.service";
 
 // Read-only over REST. Mutations (stage changes, notes, convert) must go through
 // the service / server actions so the activity timeline and guards are applied —

@@ -9,7 +9,7 @@ import { Badge } from "@/components/reui/badge";
 import { TableCell } from "@foundry/ui/table";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@foundry/design-system/timezone-provider";
-import type { ReferralListRow } from "@/lib/services/referrals.service";
+import type { ReferralListRow } from "@/lib/referrals/referrals.service";
 import { REFERRAL_STATUS } from "@/lib/referrals/status";
 
 type ReferralColumn = "referrer" | "friend" | "status" | "friendCoins" | "referrerCoins" | "order" | "note" | "time";

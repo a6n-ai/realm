@@ -8,7 +8,7 @@ import { loadOrderFilterOptions, loadOwnerOptions } from "@/lib/list/facet-optio
 import { after } from "next/server";
 import { expireUnpaidStripeOrders } from "@/lib/orders/unpaid-checkouts";
 import { getAppSettings } from "@/lib/services/app-settings.service";
-import { listActiveLeadSources } from "@/lib/services/lead-sources.service";
+import { listActiveLeadSources } from "@/lib/inquiries/lead-sources.service";
 import { countMigratedWaiting, listOrdersPage } from "@/lib/orders/orders.service";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import { countLookOutOrders } from "@/lib/orders/look-out";
@@ -16,7 +16,7 @@ import { countFreeTiffinOrders, type FreeTiffinRange, countPaymentReviewOrders }
 import { redirect } from "next/navigation";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { orderFormCatalog } from "@/app/(dashboard)/dashboard/_order/order-form-catalog";
-import { dishCategoriesService } from "@/lib/services/dish-categories.service";
+import { dishCategoriesService } from "@/lib/menu/dish-categories.service";
 import { parseSort } from "@foundry/design-system/list-sort";
 import { Skeleton } from "@foundry/ui/skeleton";
 import {

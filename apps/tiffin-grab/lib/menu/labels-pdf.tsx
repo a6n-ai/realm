@@ -1,5 +1,5 @@
 import { Document, Page, renderToBuffer, StyleSheet, Text, View } from "@react-pdf/renderer";
-import type { DailyLabelSheet, DeliveryLabel } from "@/lib/services/daily-labels.service";
+import type { DailyLabelSheet, DeliveryLabel } from "@/lib/menu/daily-labels.service";
 import { labelLineTexts } from "@/lib/menu/packing-requirement";
 
 // 2 x 5 on A4. Deliberately not a named Avery template: nobody has stated the stock yet, so

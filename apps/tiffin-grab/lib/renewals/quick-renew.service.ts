@@ -11,7 +11,7 @@ import type { QuickRenewData } from "@/lib/renewals/quick-renew-types";
 import { stripeMethodAvailable } from "@/lib/payments/stripe";
 import { getPaymentConfig } from "../services/app-settings.service";
 import { addressService } from "../services/addresses.service";
-import { dropOffsFor } from "../services/address-drop-off.service";
+import { dropOffsFor } from "../deliveries/address-drop-off.service";
 import { checkoutHolidayDates } from "../deliveries/holidays.service";
 import { earliestNewPlanStart, lastRunningTiffinDate } from "../orders/order-window";
 import { appToday, earliestPlanStart, planStartDays } from "../orders/start-date";

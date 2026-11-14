@@ -7,7 +7,7 @@ vi.mock("@/lib/catalog/load", () => ({ invalidateCatalogSnapshot: vi.fn() }));
 
 const release = vi.fn();
 const markReady = vi.fn();
-vi.mock("@/lib/services/menu.service", () => ({
+vi.mock("@/lib/menu/menu.service", () => ({
   menuService: {
     release: (...args: unknown[]) => release(...args),
     markReady: (...args: unknown[]) => markReady(...args),
@@ -19,7 +19,7 @@ vi.mock("@/lib/services/menu.service", () => ({
     copyWeek: vi.fn(),
   },
 }));
-vi.mock("@/lib/services/dishes.service", () => ({
+vi.mock("@/lib/menu/dishes.service", () => ({
   dishesService: { create: vi.fn() },
 }));
 

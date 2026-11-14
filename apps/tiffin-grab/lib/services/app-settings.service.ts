@@ -21,7 +21,7 @@ import { couponKind } from "@/db/schema/coupons";
 import type { DiscountPolicy } from "@/db/schema/types";
 import { SUPPORT_HOURS_DEFAULT, parseSupportHours, type SupportHours } from "@/lib/support/support-hours";
 import { eventCategory } from "@/lib/notifications/events";
-import type { LeadAssignmentConfig, Strategy } from "./assignment";
+import type { LeadAssignmentConfig, Strategy } from "../staff/assignment";
 import { SessionUpdatableService } from "./session-service";
 
 const ASSIGNMENT_DEFAULT: LeadAssignmentConfig = { strategy: "round_robin", perSource: {}, cursor: {} };

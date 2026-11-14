@@ -11,7 +11,7 @@ import { ValidationError } from "@foundry/commons";
 import { db } from "@/db/client";
 import { deliveries, orderActivities, orders, plans } from "@/db/schema";
 import { getAppSettings } from "@/lib/services/app-settings.service";
-import { pullCompletions } from "@/lib/services/optimoroute/completions";
+import { pullCompletions } from "@/lib/optimoroute/completions";
 import { rescheduleDelivery } from "@/lib/deliveries/deliveries.service";
 import { missedWhere } from "@/lib/orders/missed-where";
 

@@ -6,7 +6,7 @@ import { parseFilterState, type FacetDef } from "@/components/ds";
 import { db } from "@/db/client";
 import { coupons, customerGroups } from "@/db/schema";
 import { Alert, AlertDescription } from "@/components/reui/alert";
-import { findCustomerGroup } from "@/lib/services/customer-groups.service";
+import { findCustomerGroup } from "@/lib/customer-groups/customer-groups.service";
 import { getPaymentConfig } from "@/lib/services/app-settings.service";
 import { parseSort, type SortState } from "@foundry/design-system/list-sort";
 import { epochBoundsWhere, withDefaultMonth } from "@/lib/list/default-month";

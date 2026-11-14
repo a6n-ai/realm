@@ -6,7 +6,7 @@ vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
 const { db } = await import("@/db/client");
 const { dishCategories, plans } = await import("@/db/schema");
-const { dishCategoriesService } = await import("@/lib/services/dish-categories.service");
+const { dishCategoriesService } = await import("@/lib/menu/dish-categories.service");
 
 // Test-owned keys that do not collide with the seed's real categories, so this
 // suite never wipes the shared seed other live-DB suites depend on.

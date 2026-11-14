@@ -2,7 +2,7 @@ import { readJson } from "@foundry/commons/util/http";
 import { z } from "zod";
 import { handler, json, problem } from "@foundry/routes";
 import { sendCampaign } from "@relay/engine";
-import { staleGroupsForCampaign } from "@/lib/services/customer-groups.service";
+import { staleGroupsForCampaign } from "@/lib/customer-groups/customer-groups.service";
 import { requireAdmin } from "@/lib/auth/guards";
 import { campaignConfig } from "@/lib/notifications/campaign-config";
 import { signalOutbox } from "@/lib/notifications/outbox-signal";

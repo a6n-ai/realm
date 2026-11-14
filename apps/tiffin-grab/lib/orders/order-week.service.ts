@@ -1,7 +1,7 @@
 import { toClientCatalog } from "@/lib/catalog/types";
 import { dropOffCatalog } from "@/lib/catalog/drop-off";
 import { addressService } from "@/lib/services/addresses.service";
-import { dropOffsFor } from "../services/address-drop-off.service";
+import { dropOffsFor } from "../deliveries/address-drop-off.service";
 import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 import { zonedDateIso } from "@foundry/commons";
 import { buildPlanContext, toCalendarInputs, type PlanView } from "@/lib/deliveries/view/adapter";
@@ -21,7 +21,7 @@ import {
   myTiffinCounts,
   type Subscription,
 } from "@/lib/deliveries/customer-deliveries.service";
-import { dishCategoriesService } from "@/lib/services/dish-categories.service";
+import { dishCategoriesService } from "@/lib/menu/dish-categories.service";
 import { holidayNamesForUser } from "@/lib/deliveries/holidays.service";
 import { addDaysIso, mondayOfIso } from "@foundry/commons/util/dates";
 

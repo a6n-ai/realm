@@ -3,8 +3,8 @@ import { eq } from "drizzle-orm";
 import { nextWeekday, ValidationError } from "@foundry/commons";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
-vi.mock("@/lib/services/optimoroute/client", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/services/optimoroute/client")>();
+vi.mock("@/lib/optimoroute/client", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/optimoroute/client")>();
   return { ...actual, deleteOrder: vi.fn(async () => undefined) };
 });
 
@@ -14,7 +14,7 @@ const { deliveries, ledgerEntries, orderActivities, orders, payments } = await i
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { createOrder } = await import("../../orders/create-order");
 const { adminSetDeliveryStatus } = await import("../deliveries.service");
-const { deleteOrder } = await import("@/lib/services/optimoroute/client");
+const { deleteOrder } = await import("@/lib/optimoroute/client");
 
 async function reset() {
   await db.delete(deliveries);

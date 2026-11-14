@@ -4,10 +4,10 @@ import { CalendarDaysIcon, CheckIcon, CircleAlertIcon, CreditCardIcon, LifeBuoyI
 import { Button } from "@foundry/ui/button";
 import { ChartCard } from "@/components/analytics/chart-card";
 import { Badge } from "@/components/reui/badge";
-import { getOptimoRouteStatus } from "@/lib/services/optimoroute/config";
-import { nextRoutePushStatus } from "@/lib/services/optimoroute/push-status";
-import { getTodayCounts, listReviewPayments } from "@/lib/services/today.service";
-import { menuService } from "@/lib/services/menu.service";
+import { getOptimoRouteStatus } from "@/lib/optimoroute/config";
+import { nextRoutePushStatus } from "@/lib/optimoroute/push-status";
+import { getTodayCounts, listReviewPayments } from "@/lib/today/today.service";
+import { menuService } from "@/lib/menu/menu.service";
 import { PushDayButton } from "./push-day-button";
 import { VerifyPaymentButton } from "./verify-payment-button";
 import { addDaysIso, mondayOfIso } from "@foundry/commons/util/dates";

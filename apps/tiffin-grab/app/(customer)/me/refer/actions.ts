@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { currentUserId } from "@/lib/services/session-service";
-import { attachReferral, type AttachResult } from "@/lib/services/referrals.service";
+import { attachReferral, type AttachResult } from "@/lib/referrals/referrals.service";
 
 const MESSAGE: Record<Exclude<AttachResult, "attached">, string> = {
   unknown_code: "That code isn't valid. Check it with your friend.",

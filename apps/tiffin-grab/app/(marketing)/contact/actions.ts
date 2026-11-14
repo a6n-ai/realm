@@ -3,7 +3,7 @@
 import { ValidationError, phoneSchema, emailSchema } from "@foundry/commons";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { matchZone } from "@/lib/catalog/postal";
-import { inquiriesService } from "@/lib/services/inquiries.service";
+import { inquiriesService } from "@/lib/inquiries/inquiries.service";
 import { trackConversion } from "@/lib/services/tracking";
 
 export interface ContactInput {

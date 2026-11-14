@@ -11,8 +11,8 @@ import { Separator } from "@foundry/ui/separator";
 import { Switch } from "@foundry/ui/switch";
 import { Tabs, TabsList, TabsTrigger } from "@foundry/ui/tabs";
 import { Alert, AlertDescription } from "@/components/reui/alert";
-import type { OwnerEntity, Strategy } from "@/lib/services/assignment";
-import { poolSummary, sharePct } from "@/lib/services/owner-summary";
+import type { OwnerEntity, Strategy } from "@/lib/staff/assignment";
+import { poolSummary, sharePct } from "@/lib/staff/owner-summary";
 import { unwrapAction } from "@/lib/actions/unwrap";
 import { saveEntityStrategy, saveMembership, saveStrategy } from "./actions";
 

@@ -38,7 +38,7 @@ import { SessionBaseService, SessionUpdatableService } from "../services/session
 import type { SortState } from "@foundry/design-system/list-sort";
 import { buildBoundedDeliveryRows, tripsFor } from "@/lib/orders/bounded-deliveries";
 import { cancelDeliveries, dropVoidRows } from "../deliveries/deliveries.service";
-import { removeStopsBestEffort } from "../services/optimoroute/stops";
+import { removeStopsBestEffort } from "../optimoroute/stops";
 import { applyHolidaysToOrder } from "../deliveries/holiday-apply";
 import { scheduleWrite } from "../services/schedule-write";
 import { assertStartable } from "./order-window";
@@ -50,8 +50,8 @@ import {
   reverseCoinAward,
   awardOrderCoins,
 } from "../wallet/wallet.service";
-import { awardReferral, reverseReferral } from "../services/referrals.service";
-import { assertReassignAllowed, resolveAssignableOwner } from "../services/reassign";
+import { awardReferral, reverseReferral } from "../referrals/referrals.service";
+import { assertReassignAllowed, resolveAssignableOwner } from "../staff/reassign";
 import { eatingDaysError, orderDeliveryDays, planDaysError, planDeliveryDays, planWeek, type DayOfWeek } from "@/lib/menu/delivery-days";
 import { mealSizeAllowedDays, mealSizeServesWeekends } from "../deliveries/weekend-dish";
 import { getAppSettings } from "../services/app-settings.service";
@@ -294,7 +294,7 @@ export async function readOrder(publicId: string, visible: "all" | string[]): Pr
 
   // Lazy import avoids pulling storage/mint into every orders.service caller path
   // that doesn't need proof hrefs (createOrder tests, etc.).
-  const { proofView } = await import("../services/ticket-attachments");
+  const { proofView } = await import("../support/ticket-attachments");
   const enriched: OrderPaymentDetail[] = await Promise.all(
     pays.map(async (p) => {
       const proof = p.proof ?? null;

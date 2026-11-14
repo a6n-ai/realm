@@ -2,7 +2,7 @@
 
 import type { ActionResult } from "@/lib/actions/action-result";
 import { staffAction } from "@/lib/actions/staff-action";
-import { setTrialSettings } from "@/lib/services/trial-settings.service";
+import { setTrialSettings } from "@/lib/trial/trial-settings.service";
 import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 
 export async function saveTrialSettings(input: { frequencyKey: string | null; maxDays: number | null }): Promise<ActionResult> {

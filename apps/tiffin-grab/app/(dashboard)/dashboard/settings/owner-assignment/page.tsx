@@ -7,10 +7,10 @@ import { Skeleton } from "@foundry/ui/skeleton";
 import { db } from "@/db/client";
 import { leadSources, users } from "@/db/schema";
 import { getLeadAssignment } from "@/lib/services/app-settings.service";
-import { listConfig } from "@/lib/services/owner-pool.service";
+import { listConfig } from "@/lib/staff/owner-pool.service";
 import { PageHeader } from "@/components/ds";
 import { OwnerAssignmentForm, type TabState, type TabStates } from "./form";
-import type { OwnerEntity } from "@/lib/services/assignment";
+import type { OwnerEntity } from "@/lib/staff/assignment";
 
 type SearchParams = Promise<Record<string, string | undefined>>;
 

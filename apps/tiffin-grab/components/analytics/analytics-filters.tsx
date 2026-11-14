@@ -10,7 +10,7 @@ import { SectionDateRange } from "@/components/filters/section-date-range";
 import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
 import { pruneSubcategories } from "./subcategory-prune";
 import { franchiseFacets } from "./franchise-facet";
-import type { AnalyticsFilterOptions } from "@/lib/services/analytics/shared-filter-params";
+import type { AnalyticsFilterOptions } from "@/lib/analytics/shared-filter-params";
 
 const KEEP = new Set(["from", "to", "month", "view"]);
 

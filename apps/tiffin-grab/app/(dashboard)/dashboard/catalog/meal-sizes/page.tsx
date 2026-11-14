@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { UtensilsIcon } from "lucide-react";
 import { PageHeader, PageShell, SectionCard } from "@/components/ds";
 import { requireAdmin } from "@/lib/auth/guards";
-import { getTrialSettings } from "@/lib/services/trial-settings.service";
+import { getTrialSettings } from "@/lib/trial/trial-settings.service";
 import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { orderDeliveryDays, type DayOfWeek } from "@/lib/menu/delivery-days";

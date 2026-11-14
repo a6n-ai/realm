@@ -1,12 +1,12 @@
 "use server";
 
 import { ValidationError } from "@foundry/commons";
-import { menuService, type DraftMenuItem } from "@/lib/services/menu.service";
-import { dishesService } from "@/lib/services/dishes.service";
+import { menuService, type DraftMenuItem } from "@/lib/menu/menu.service";
+import { dishesService } from "@/lib/menu/dishes.service";
 import type { ActionResult } from "@/lib/actions/action-result";
 import { staffAction } from "@/lib/actions/staff-action";
 import { sendMenuReminderForWeek } from "@/lib/notifications/menu-reminder";
-import { menuSidesService, type DaySideValue, type SideRole } from "@/lib/services/menu-sides.service";
+import { menuSidesService, type DaySideValue, type SideRole } from "@/lib/menu/menu-sides.service";
 import type { DayOfWeek } from "@/lib/menu/delivery-days";
 import { revalidatePublicSite } from "@/lib/landing/revalidate-site";
 

@@ -11,9 +11,9 @@ import { slotTone, TONE_COLOR } from "@/components/analytics/chart-math";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { Card, CardContent } from "@foundry/ui/card";
 import { Badge } from "@/components/reui/badge";
-import { getEmployeeRollup } from "@/lib/services/analytics/employees.service";
+import { getEmployeeRollup } from "@/lib/analytics/employees.service";
 import { EmployeeRollupTable } from "./rollup-table";
-import { DATE_BASIS_LABEL } from "@/lib/services/analytics/metrics/scope";
+import { DATE_BASIS_LABEL } from "@/lib/analytics/metrics/scope";
 import { type AnalyticsScope } from "@/lib/analytics/scope-types";
 import { getMoneyFormatter } from "@/lib/services/app-settings.service";
 

@@ -35,7 +35,7 @@ import { addressService } from "../lib/services/addresses.service";
 import type { OrderPricingSnapshot } from "../lib/pricing/types";
 import { parseCustomMealName } from "../lib/custom-meal/parse-wp";
 import { compositionName, mealPlanKey, normalizeItems, type CategoryUnit, type CustomMealItem } from "../lib/custom-meal/composition";
-import { findOrCreateCustomMealSize, loadCategoryUnits } from "../lib/services/custom-meal.service";
+import { findOrCreateCustomMealSize, loadCategoryUnits } from "../lib/custom-meal/custom-meal.service";
 import { addDaysIso, isWeekendDay } from "@foundry/commons/util/dates";
 import { wordpressDeploymentId } from "../lib/orders/wordpress-import";
 import { wordpressImportSql } from "../lib/orders/wordpress-import-sql";

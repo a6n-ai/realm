@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { buildUnsubscribeUrl } from "@relay/engine";
 import { appEvent } from "@/db/schema";
 import { HIDDEN_EVENTS } from "@/lib/notifications/events";
-import { listTemplates, sampleMap } from "@/lib/services/notification-template.service";
+import { listTemplates, sampleMap } from "@/lib/notifications/notification-template.service";
 import { availableVariables, type AppEvent } from "@/lib/notifications/event-entities";
 import { campaignConfig } from "@/lib/notifications/campaign-config";
 import { TemplateEditor, TemplateEditorSkeleton } from "@relay/engine/ui/template-editor";

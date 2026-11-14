@@ -13,7 +13,7 @@ import {
 import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@foundry/design-system/timezone-provider";
 import type { SortState } from "@foundry/design-system/list-sort";
-import type { QueueRow, QueueSortColumn } from "@/lib/services/tickets.service";
+import type { QueueRow, QueueSortColumn } from "@/lib/support/tickets.service";
 import { TicketStatusBadge, PriorityBadge, categoryLabel } from "./ticket-badges";
 import { STATUS_OPTIONS } from "@/lib/support/ticket-status";
 

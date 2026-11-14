@@ -1,6 +1,6 @@
 import { Badge } from "@/components/reui/badge";
 import { formatEpoch } from "@/lib/format/datetime";
-import type { PipelineRow } from "@/lib/services/inquiries.service";
+import type { PipelineRow } from "@/lib/inquiries/inquiries.service";
 
 /** Minutes, hours, then days: the card's relative times read the same at a glance. */
 export function ago(ms: number, now: number): string {

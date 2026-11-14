@@ -1,5 +1,5 @@
 import { comingWeekStartIso, thisWeekStartIso } from "@/lib/menu/delivery-dates";
-import { menuService } from "@/lib/services/menu.service";
+import { menuService } from "@/lib/menu/menu.service";
 
 export type BrowsePublishedWeek = Awaited<ReturnType<typeof menuService.getPublishedWeek>>;
 export type WeekScope = "this" | "next";

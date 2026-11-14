@@ -3,7 +3,7 @@ import { TruckIcon } from "lucide-react";
 import { requireStaff } from "@/lib/auth/guards";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { zonedDateIso } from "@foundry/commons";
-import { buildDispatchRows, listKnownDrivers } from "@/lib/services/optimoroute/drivers";
+import { buildDispatchRows, listKnownDrivers } from "@/lib/optimoroute/drivers";
 import { PageShell, PageHeader, SectionCard } from "@/components/ds";
 import { DayHeader } from "../day-header";
 import { DispatchTabs } from "../dispatch-tabs";

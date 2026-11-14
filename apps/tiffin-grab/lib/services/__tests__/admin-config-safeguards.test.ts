@@ -16,9 +16,9 @@ const mockGetSession = vi.fn();
 vi.mock("@/lib/auth/session", () => ({ getSession: () => mockGetSession() }));
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
-const { dishCategoriesService } = await import("../dish-categories.service");
-const { mealRulesService } = await import("../meal-rules.service");
-const { mealSizeService } = await import("../catalog.service");
+const { dishCategoriesService } = await import("../../menu/dish-categories.service");
+const { mealRulesService } = await import("../../menu/meal-rules.service");
+const { mealSizeService } = await import("../../catalog/catalog.service");
 
 const PREFIX = "zz-p8-";
 const USER_EMAIL = "zz-p8-user@example.test";

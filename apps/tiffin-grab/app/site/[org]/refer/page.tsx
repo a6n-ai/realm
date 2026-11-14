@@ -10,7 +10,7 @@ import { loadLandingPromos } from "@/lib/landing/promos";
 import { buildWeekBoard } from "@/lib/landing/week-board";
 import { loadReferralOffer } from "@/lib/referrals/offer";
 import { getAppSettings } from "@/lib/services/app-settings.service";
-import { menuService } from "@/lib/services/menu.service";
+import { menuService } from "@/lib/menu/menu.service";
 import { siteOrgId } from "@/lib/tenant/site-org";
 import "@/components/landing/styles/refer.css";
 

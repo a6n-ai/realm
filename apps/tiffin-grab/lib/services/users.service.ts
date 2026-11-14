@@ -202,7 +202,7 @@ class UsersService extends SessionUpdatableService<typeof users> {
     if (!u) return;
     try {
       // Lazy: customer-groups.service pulls app-settings, which imports back through session-service.
-      const { syncGroupsForUser } = await import("./customer-groups.service");
+      const { syncGroupsForUser } = await import("../customer-groups/customer-groups.service");
       await syncGroupsForUser(u.id);
     } catch (e) {
       // The preference already saved; the next sync catches up.

@@ -1,7 +1,7 @@
 import { handler } from "@foundry/routes";
 import { requireAdmin } from "@/lib/auth/guards";
 import { renderEmailTemplate } from "@relay/email";
-import { sampleVars } from "@/lib/services/notification-template.service";
+import { sampleVars } from "@/lib/notifications/notification-template.service";
 
 /** Render a template (with sample data) to email HTML for the editor iframe. */
 export const POST = handler(async (req: Request): Promise<Response> => {

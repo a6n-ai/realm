@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { reviewNudgeStore } from "@/lib/services/review-nudge.service";
+import { reviewNudgeStore } from "@/lib/notifications/review-nudge.service";
 import { getSession } from "@/lib/auth/session";
 
 export async function markReviewNudgeDone(): Promise<void> {

@@ -2,7 +2,7 @@ import type { PluginCategory, PluginMeta } from "@foundry/commons/plugin";
 import { PAYMENTS_PLUGIN } from "@foundry/payments/plugin";
 import { CLOVER_PLUGIN_META } from "@foundry/clover/plugin";
 import { GOOGLE_REVIEWS_PLUGIN_META } from "@foundry/google-reviews/plugin";
-import { OPTIMOROUTE_PLUGIN_META } from "./services/optimoroute/plugin";
+import { OPTIMOROUTE_PLUGIN_META } from "./optimoroute/plugin";
 import { META_PIXEL_PLUGIN_META } from "@foundry/meta-pixel/plugin";
 import { GA_PLUGIN_META } from "@foundry/google-analytics/plugin";
 

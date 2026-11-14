@@ -8,7 +8,7 @@ import { getSession } from "@/lib/auth/session";
 import { quoteQuery } from "@/lib/wizard/selections";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { getAppSettings } from "@/lib/services/app-settings.service";
-import { dishCategoriesService } from "@/lib/services/dish-categories.service";
+import { dishCategoriesService } from "@/lib/menu/dish-categories.service";
 import { assertOrderVisible } from "@/lib/orders/orders.service";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import { findRenewableOrder, readOrderPrefill } from "@/lib/orders/order-prefill.service";

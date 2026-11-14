@@ -23,7 +23,7 @@ import {
   mealSizes,
   plans,
 } from "@/db/schema";
-import { dishCategoriesService } from "@/lib/services/dish-categories.service";
+import { dishCategoriesService } from "@/lib/menu/dish-categories.service";
 import { formatTuHuman } from "@/lib/menu/format-tu";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { WAIVER_KINDS, type CatalogSnapshot, type WaiverKind } from "./types";

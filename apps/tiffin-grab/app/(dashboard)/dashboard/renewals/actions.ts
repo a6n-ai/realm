@@ -3,7 +3,7 @@
 import { z } from "zod";
 import { sendRenewalReminderNow } from "@/lib/notifications/renewal-reminder";
 import { addTrackNote, logTrackActivity, setTrackStatus } from "@/lib/renewals/renewal-tracking.service";
-import type { LostReason } from "@/lib/services/inquiries.service";
+import type { LostReason } from "@/lib/inquiries/inquiries.service";
 import { LOST_REASON_OPTIONS, TRACK_STATUSES, type TrackStatus } from "@/lib/renewals/status";
 import type { ActionResult } from "@/lib/actions/action-result";
 import { parseInput, type Guard } from "@/lib/actions/staff-action";

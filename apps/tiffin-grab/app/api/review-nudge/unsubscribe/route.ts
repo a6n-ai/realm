@@ -1,5 +1,5 @@
 import { handleReviewUnsubscribe } from "@foundry/google-reviews";
-import { reviewNudgeStore } from "@/lib/services/review-nudge.service";
+import { reviewNudgeStore } from "@/lib/notifications/review-nudge.service";
 import { authSecret } from "@/lib/runtime/env";
 
 // Unauthenticated by design — the guest email inbox is the only "session" this

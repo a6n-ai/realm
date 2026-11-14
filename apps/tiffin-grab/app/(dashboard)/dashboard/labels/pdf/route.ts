@@ -1,6 +1,6 @@
 import { parseIsoDate } from "@/lib/dates/iso-date";
 import { requireStaff } from "@/lib/auth/guards";
-import { dailyLabelSheet } from "@/lib/services/daily-labels.service";
+import { dailyLabelSheet } from "@/lib/menu/daily-labels.service";
 import { renderDailyLabelsPdf } from "@/lib/menu/labels-pdf";
 import { unreleasedWeekMessage } from "@/lib/menu/unreleased-week";
 

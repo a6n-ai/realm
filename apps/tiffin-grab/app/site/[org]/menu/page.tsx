@@ -15,7 +15,7 @@ import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { lowestRate } from "@/lib/landing/live-figures";
 import { buildWeekBoard, dateOf } from "@/lib/landing/week-board";
 import { getAppSettings } from "@/lib/services/app-settings.service";
-import { menuService } from "@/lib/services/menu.service";
+import { menuService } from "@/lib/menu/menu.service";
 import { siteOrgId } from "@/lib/tenant/site-org";
 import { pageMeta } from "@/lib/landing/meta";
 import { breadcrumbJsonLd, jsonLdScript, menuJsonLd } from "@/lib/landing/business-jsonld";

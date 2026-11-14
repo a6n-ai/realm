@@ -2,7 +2,7 @@ import { loadMealSizeItems } from "@/lib/menu/meal-size-items";
 import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { orders } from "@/db/schema";
-import { dishCategoriesService } from "@/lib/services/dish-categories.service";
+import { dishCategoriesService } from "@/lib/menu/dish-categories.service";
 import type { CalendarDay } from "@/lib/deliveries/customer-deliveries.service";
 import { isCountCategory, type TuCategory } from "./format-tu";
 import { addonItemsForOrder } from "./order-addon-items";

@@ -2,7 +2,7 @@
 // alone (ignores for_date), so a carried day would inherit its sibling's swaps. We fold only
 // the swaps that belong to the day into categoryCounts and pass deliveryId null instead.
 import { weekdayKey, parseIsoDateUtc } from "@foundry/commons";
-import { menuService } from "@/lib/services/menu.service";
+import { menuService } from "@/lib/menu/menu.service";
 import { type DayOfWeek } from "@/lib/menu/delivery-days";
 import { resolveDeliveryMeal, type MealResolveCache, type ResolvedCategory } from "@/lib/menu/resolve-delivery-meal";
 import { applySwapsToCounts, type SwapRow } from "@/lib/menu/swap-rules";

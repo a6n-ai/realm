@@ -10,7 +10,7 @@ vi.mock("@relay/engine", () => ({
   scheduleCampaign: async (_d: unknown, _id: string, at: number | null) => ({ scheduledAt: at }),
   zonedLocalToEpoch: () => 4_000_000,
 }));
-vi.mock("@/lib/services/customer-groups.service", () => ({ staleGroupsForCampaign: async () => [] }));
+vi.mock("@/lib/customer-groups/customer-groups.service", () => ({ staleGroupsForCampaign: async () => [] }));
 vi.mock("@/lib/auth/guards", () => ({ requireAdmin: async () => {} }));
 vi.mock("@/db/client", () => ({ db: {} }));
 vi.mock("@/lib/notifications/tables", () => ({ notificationTables: {}, usersRef: {} }));

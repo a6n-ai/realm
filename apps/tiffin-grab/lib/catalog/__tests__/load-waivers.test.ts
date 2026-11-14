@@ -2,7 +2,7 @@ import { afterAll, describe, expect, it } from "vitest";
 import { like } from "drizzle-orm";
 import { db } from "@/db/client";
 import { discounts } from "@/db/schema";
-import { discountService } from "@/lib/services/catalog.service";
+import { discountService } from "@/lib/catalog/catalog.service";
 import { loadCatalogSnapshot } from "../load";
 
 const cleanup = () => db.delete(discounts).where(like(discounts.key, "zz-waiver-%"));

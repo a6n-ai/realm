@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("@/lib/services/coupons.service", () => ({ couponsService: {} }));
-vi.mock("@/lib/services/promotions.service", () => ({ promotionsService: {} }));
+vi.mock("@/lib/coupons/coupons.service", () => ({ couponsService: {} }));
+vi.mock("@/lib/promotions/promotions.service", () => ({ promotionsService: {} }));
 vi.mock("@/lib/promotions/live", () => ({ hasPlacement: () => false }));
 
 const { ownImagePath } = await import("@/lib/landing/promos");

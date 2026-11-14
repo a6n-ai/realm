@@ -6,7 +6,7 @@ import { z } from "zod";
 import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { orderActivities, orders } from "@/db/schema";
-import { inquiriesService } from "@/lib/services/inquiries.service";
+import { inquiriesService } from "@/lib/inquiries/inquiries.service";
 import { ordersService } from "@/lib/orders/orders.service";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import type { CreateOrderInput } from "@/lib/orders/create-order";

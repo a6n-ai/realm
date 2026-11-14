@@ -10,7 +10,7 @@ import { NOTE_AMOUNT_MISMATCH, NOTE_CANCELLED_ORDER, NOTE_CC_NO_SURCHARGE, NOTE_
 import { parseSort, type SortState } from "@foundry/design-system/list-sort";
 import { epochBoundsWhere, epochBoundsWhereSql, withListDates } from "@/lib/list/default-month";
 import { UNASSIGNED_OWNER } from "@/lib/list/presets";
-import { proofView } from "@/lib/services/ticket-attachments";
+import { proofView } from "@/lib/support/ticket-attachments";
 import {
   PAYMENT_METHOD_OPTIONS,
   PAYMENT_SORT_KEYS,

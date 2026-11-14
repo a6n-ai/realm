@@ -3,7 +3,7 @@ import { handler, json, problem } from "@foundry/routes";
 import { saveEmailTemplateSchema } from "@relay/engine";
 import { requireAdmin } from "@/lib/auth/guards";
 import type { AppEvent } from "@/lib/notifications/event-entities";
-import { listTemplates, saveTemplateEmail, upsertTemplate, type UpsertInput } from "@/lib/services/notification-template.service";
+import { listTemplates, saveTemplateEmail, upsertTemplate, type UpsertInput } from "@/lib/notifications/notification-template.service";
 
 export const GET = handler(async (): Promise<Response> => {
   await requireAdmin();

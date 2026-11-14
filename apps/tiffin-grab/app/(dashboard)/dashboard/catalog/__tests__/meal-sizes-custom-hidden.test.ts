@@ -8,8 +8,8 @@ vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
 const { RESOURCE_HOOKS } = await import("@/lib/catalog/resource-hooks");
 const catalogListScope = (resource: string) => RESOURCE_HOOKS[resource]?.scope;
-const { mealSizeService } = await import("@/lib/services/catalog.service");
-const { findOrCreateCustomMealSize } = await import("@/lib/services/custom-meal.service");
+const { mealSizeService } = await import("@/lib/catalog/catalog.service");
+const { findOrCreateCustomMealSize } = await import("@/lib/custom-meal/custom-meal.service");
 
 let custom: { id: bigint; publicId: string };
 

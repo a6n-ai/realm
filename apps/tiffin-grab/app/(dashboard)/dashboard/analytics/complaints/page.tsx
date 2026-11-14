@@ -18,9 +18,9 @@ import {
   complaintHref,
   scopeToComplaintFilters,
   type ComplaintFilters,
-} from "@/lib/services/analytics/complaint-filters";
+} from "@/lib/analytics/complaint-filters";
 import { scopeOrAlert } from "@/components/analytics/franchise-unavailable";
-import { DATE_BASIS_LABEL } from "@/lib/services/analytics/metrics/scope";
+import { DATE_BASIS_LABEL } from "@/lib/analytics/metrics/scope";
 import { type AnalyticsScope } from "@/lib/analytics/scope-types";
 import {
   getByCategory,
@@ -33,7 +33,7 @@ import {
   getPriorityMix,
   getRepeatCustomers,
   getStatusMix,
-} from "@/lib/services/analytics/complaints.service";
+} from "@/lib/analytics/complaints.service";
 import { OPEN_STATUSES } from "@/lib/support/ticket-status";
 
 const TICKETS = "/dashboard/tickets";

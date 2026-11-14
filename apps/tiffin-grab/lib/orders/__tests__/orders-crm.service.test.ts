@@ -17,7 +17,7 @@ const { setOrderLookOut, lookOutForTicket, clearTicketLookOut, countLookOutOrder
 const { ordersListWhere, countPaymentReviewOrders, countFreeTiffinOrders, laterOrderSql, laterPaidOrderSql, renewalStatusSql } = await import("@/lib/orders/queries");
 const { refundOrder } = await import("@/lib/payments/verification");
 const { clearLookOutOnEnd } = await import("@/lib/orders/look-out");
-const { ticketsService } = await import("../../services/tickets.service");
+const { ticketsService } = await import("../../support/tickets.service");
 const { eq: cEq } = await import("@foundry/commons/model/condition");
 const { organization, member } = await import("@/db/schema");
 const schema = await import("@/db/schema");

@@ -2,11 +2,11 @@ import { notFound } from "next/navigation";
 import { MegaphoneIcon } from "lucide-react";
 import { NotFoundError } from "@foundry/commons";
 import { PageHeader } from "@/components/ds";
-import { couponsService } from "@/lib/services/coupons.service";
+import { couponsService } from "@/lib/coupons/coupons.service";
 import { couponHeadline } from "@/lib/landing/promos";
 import { promoCardHtml } from "@/lib/landing/promo-card-html";
 import { getAppSettings } from "@/lib/services/app-settings.service";
-import { promotionsService, type Promotion } from "@/lib/services/promotions.service";
+import { promotionsService, type Promotion } from "@/lib/promotions/promotions.service";
 import { PromotionForm } from "../promotion-form";
 
 export default async function PromotionPage({ params }: { params: Promise<{ id: string }> }) {

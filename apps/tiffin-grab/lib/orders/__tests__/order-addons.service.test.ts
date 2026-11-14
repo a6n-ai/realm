@@ -61,7 +61,7 @@ async function runningOrder() {
 
 async function anAddon() {
   const addon = mealSizeAddons(await loadCatalogSnapshot())[0];
-  if (!addon) throw new Error("Test DB has no add-on a plan offers; seed one (see lib/services/__tests__/catalog-soft-delete.test.ts)");
+  if (!addon) throw new Error("Test DB has no add-on a plan offers; seed one (see lib/catalog/__tests__/catalog-soft-delete.test.ts)");
   return addon;
 }
 

@@ -5,7 +5,7 @@ import type { AddressInput, SavedAddress } from "@foundry/address";
 import { AuthError } from "@foundry/commons";
 import { getSession } from "@/lib/auth/session";
 import { addressScopeFor, addressService } from "@/lib/services/addresses.service";
-import { resolveDropOff, setAddressDropOff } from "@/lib/services/address-drop-off.service";
+import { resolveDropOff, setAddressDropOff } from "@/lib/deliveries/address-drop-off.service";
 import type { DropOffValue } from "@/lib/catalog/drop-off";
 import { assertAddressServiceable } from "@/lib/catalog/zone-match";
 import { runAction, type ActionResult } from "@/lib/actions/action-result";

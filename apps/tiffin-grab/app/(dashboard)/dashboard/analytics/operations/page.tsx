@@ -11,9 +11,9 @@ import {
   getDeliveryStatusMix,
   getOperationsStats,
   getRouteLoadByDriver,
-} from "@/lib/services/analytics/operations.service";
+} from "@/lib/analytics/operations.service";
 import { scopeOrAlert } from "@/components/analytics/franchise-unavailable";
-import { DATE_BASIS_LABEL } from "@/lib/services/analytics/metrics/scope";
+import { DATE_BASIS_LABEL } from "@/lib/analytics/metrics/scope";
 import { type AnalyticsScope } from "@/lib/analytics/scope-types";
 import { isoDateInZone } from "@foundry/commons/util/dates";
 

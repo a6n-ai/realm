@@ -14,7 +14,7 @@ import {
   UtensilsCrossedIcon,
 } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@foundry/ui/tabs";
-import { ANALYTICS_FILTER_PARAMS } from "@/lib/services/analytics/shared-filter-params";
+import { ANALYTICS_FILTER_PARAMS } from "@/lib/analytics/shared-filter-params";
 
 const SUBTABS = [
   { label: "Overview", href: "/dashboard/analytics/overview", icon: LayoutDashboardIcon },

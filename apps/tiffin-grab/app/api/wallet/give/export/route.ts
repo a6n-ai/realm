@@ -4,7 +4,7 @@ import { requireAdmin } from "@/lib/auth/guards";
 import { epochRange, withListDates } from "@/lib/list/default-month";
 import { parseSort } from "@foundry/design-system/list-sort";
 import { getAppSettings } from "@/lib/services/app-settings.service";
-import { giveHistoryCsv, type GiveSortColumn } from "@/lib/services/customer-groups.service";
+import { giveHistoryCsv, type GiveSortColumn } from "@/lib/customer-groups/customer-groups.service";
 
 /** Grant history CSV with the same date/search/facet filters as Wallet → Give coins. */
 export const GET = handler(async (req: Request): Promise<Response> => {

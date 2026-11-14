@@ -1,0 +1,292 @@
+import { ONGOING } from "@/lib/orders/status";
+import { orderStatusIn } from "@/lib/orders/status-sql";
+import { ValidationError, cutoffMsFor } from "@foundry/commons";
+import { UpdatableRepository } from "@foundry/database";
+import { and, eq, or } from "drizzle-orm";
+import type { PgTable } from "drizzle-orm/pg-core";
+import type { z } from "zod";
+import { db } from "@/db/client";
+import { addons, deliveryFrequencies, deliveryStrategies, deliveryZones, discounts, durationPackages, mealSizeItems, mealSizes, orders, plans } from "@/db/schema";
+import { categoryCountsFromItems } from "@/lib/menu/pick-size";
+import { RESOURCES, slug } from "@/lib/catalog/resource-config";
+import {
+  emptyActiveCompositionMessage,
+  maxTuBelowBaseMessage,
+  unknownPlanCategoryMessage,
+} from "@/lib/menu/admin-config-guards";
+import { getAppSettings } from "../services/app-settings.service";
+import { dishCategoriesService } from "../menu/dish-categories.service";
+import { SessionUpdatableService } from "../services/session-service";
+import { parsePatch } from "../services/parse-patch";
+
+// "Delete" retires the row (active=false) so historical orders that reference
+// it stay valid; the wizard loader filters these out, the admin editor shows them.
+class SoftDeleteService<TTable extends PgTable> extends SessionUpdatableService<TTable> {
+  async delete(id: string): Promise<number> {
+    await this.update(id, { active: false });
+    return 1;
+  }
+}
+
+// Validates every write against the resource's zod schema before it reaches the
+// repository, so any caller (action, seed, future API) is held to the same shape.
+class CatalogService<TTable extends PgTable> extends SoftDeleteService<TTable> {
+  constructor(repo: UpdatableRepository<TTable>, private schema: z.ZodObject<z.ZodRawShape>) {
+    super(repo);
+  }
+  async create(values: Record<string, unknown>) {
+    return super.create(this.schema.parse(values));
+  }
+  async update(id: string, patch: Record<string, unknown>) {
+    return super.update(id, parsePatch(this.schema, patch));
+  }
+}
+
+type CompositionItem = {
+  name: string;
+  category: string;
+  planId: string;
+  tuAmount: string;
+  maxTuAmount: string | null;
+  role?: "main" | "side_1" | "side_2";
+};
+
+// A meal size owns a `meal_size_items` composition and belongs to exactly one
+// plan. The generic CatalogService can't express either: the plan dropdown works
+// in publicId space (resolved to plans.id on write, mirroring menu.service), and
+// the items are a second table that must be full-replaced atomically. This
+// subclass keeps SoftDeleteService's retire/restore and the base session audit
+// stamping on the parent `meal_sizes` row.
+class MealSizeService extends SoftDeleteService<typeof mealSizes> {
+  private schema = RESOURCES["meal-sizes"].schema;
+
+  async create(values: Record<string, unknown>) {
+    return this.persist(null, this.schema.parse(values), true);
+  }
+
+  async update(id: string, patch: Record<string, unknown>) {
+    return this.persist(id, parsePatch(this.schema, patch), false);
+  }
+
+  private async persist(id: string | null, parsed: Record<string, unknown>, isCreate: boolean) {
+    const { items, planId, ...rest } = parsed as {
+      items?: CompositionItem[];
+      planId?: string;
+      active?: boolean;
+    } & Record<string, unknown>;
+
+    const parentPatch: Record<string, unknown> = { ...rest };
+    if (planId !== undefined) parentPatch.planId = await resolvePlanId(planId);
+    // `components` is derived from the category labels, never hand-edited.
+    // Resolved below, once the label map is loaded.
+
+    // Resolve plan for plan-scoped category checks (create requires planId; update may inherit).
+    let resolvedPlanId: bigint | null = (parentPatch.planId as bigint | undefined) ?? null;
+    let currentlyActive = true;
+    let mealSizeInternalId: bigint | null = null;
+    if (id) {
+      const [existing] = await db
+        .select({ id: mealSizes.id, planId: mealSizes.planId, active: mealSizes.active, custom: mealSizes.custom })
+        .from(mealSizes)
+        .where(eq(mealSizes.publicId, id))
+        .limit(1);
+      if (existing?.custom) throw new ValidationError("Custom meal sizes are managed by the backend, not Meal Sizes.");
+      mealSizeInternalId = existing?.id ?? null;
+      if (resolvedPlanId == null) resolvedPlanId = existing?.planId ?? null;
+      currentlyActive = existing?.active ?? true;
+    }
+    const willBeActive = parentPatch.active !== undefined ? Boolean(parentPatch.active) : currentlyActive;
+
+    // Validate every category soft-ref BEFORE any write, so a bad row rejects the
+    // whole save (create/update + item replace) rather than half-applying it.
+    // Each item picks its OWN plan, independent of the meal size's own planId —
+    // that's a filter/default only, never enforced against the item rows.
+    let rows: (typeof mealSizeItems.$inferInsert)[] | undefined;
+    if (items !== undefined) {
+      if (items.length === 0 && willBeActive) {
+        throw new ValidationError(emptyActiveCompositionMessage());
+      }
+
+      const maxTuErr = maxTuBelowBaseMessage(items);
+      if (maxTuErr) throw new ValidationError(maxTuErr);
+
+      const resolved = await resolveCompositionRows(items);
+      parentPatch.components = resolved.components;
+      rows = resolved.rows;
+    } else if (willBeActive && mealSizeInternalId != null && !currentlyActive) {
+      // Restore / re-activate without re-sending items: still refuse an empty composition.
+      const existingItems = await db
+        .select({ id: mealSizeItems.id })
+        .from(mealSizeItems)
+        .where(eq(mealSizeItems.mealSizeId, mealSizeInternalId))
+        .limit(1);
+      if (existingItems.length === 0) throw new ValidationError(emptyActiveCompositionMessage());
+    }
+
+    // Parent upsert through the base path preserves createdBy/updatedBy stamping
+    // and the audit-trail write.
+    const parent = isCreate ? await super.create(parentPatch) : await super.update(id as string, parentPatch);
+    const mealSizeId = (parent as { id: bigint }).id;
+
+    if (rows !== undefined) {
+      const itemRows = rows;
+      const newCategoryCounts = categoryCountsFromItems(itemRows);
+      const newMealSlots = Object.keys(newCategoryCounts);
+
+      await db.transaction(async (tx) => {
+        await tx.delete(mealSizeItems).where(eq(mealSizeItems.mealSizeId, mealSizeId));
+        if (itemRows.length) await tx.insert(mealSizeItems).values(itemRows.map((r) => ({ ...r, mealSizeId })));
+
+        // Option A: Active subscriptions dynamically reflect the current admin composition.
+        // Sync active, paused, and pending subscriptions to the updated category counts and slots.
+        await tx
+          .update(orders)
+          .set({
+            categoryCounts: newCategoryCounts,
+            mealSlots: newMealSlots,
+            updatedAt: Date.now(),
+          })
+          .where(
+            and(
+              eq(orders.mealSizeId, mealSizeId),
+              orderStatusIn(ONGOING),
+            ),
+          );
+      });
+    }
+    return parent;
+  }
+
+}
+
+async function resolvePlanId(value: string): Promise<bigint> {
+  const [row] = await db
+    .select({ id: plans.id })
+    .from(plans)
+    .where(or(eq(plans.publicId, value), eq(plans.key, value)))
+    .limit(1);
+  if (!row) throw new ValidationError(`Unknown plan: ${value}`);
+  return row.id;
+}
+
+/**
+ * Meal-size item rows, shared by Catalog meal sizes and admin custom meals. Each row names its own
+ * plan (publicId or key), independent of the meal size's plan, and its category must be on that
+ * plan (Catalog → Dish categories). Returns the insert rows (mealSizeId still 0n) and components.
+ */
+export async function resolveCompositionRows(
+  items: { category: string; planId: string; tuAmount: string; maxTuAmount?: string | null; role?: "main" | "side_1" | "side_2" }[],
+): Promise<{ components: string[]; rows: (typeof mealSizeItems.$inferInsert)[] }> {
+  const itemPlanIds = await Promise.all(items.map((i) => resolvePlanId(i.planId)));
+  const catsByPlan = new Map(
+    await Promise.all([...new Set(itemPlanIds)].map(async (pid) => [pid, await dishCategoriesService.forPlan(pid)] as const)),
+  );
+  const rows = items.map((item, index) => {
+    const label = catsByPlan.get(itemPlanIds[index])?.find((c) => c.key === item.category)?.label;
+    if (!label) throw new ValidationError(unknownPlanCategoryMessage(item.category));
+    return {
+      mealSizeId: 0n, // placeholder; set once the parent id is known
+      name: label,
+      category: item.category,
+      planId: itemPlanIds[index],
+      label,
+      tuAmount: item.tuAmount,
+      maxTuAmount: item.maxTuAmount ?? null,
+      sortOrder: index,
+      role: item.role ?? "main",
+    };
+  });
+  return { components: rows.map((r) => r.label), rows };
+}
+
+const DISCOUNT_TARGETS = {
+  delivery: { table: deliveryFrequencies, label: "delivery frequency" },
+  duration: { table: durationPackages, label: "duration package" },
+  meal_size: { table: mealSizes, label: "meal size" },
+  waiver_strategy: { table: deliveryStrategies, label: "delivery strategy" },
+} as const;
+
+// Discounts store dates as epoch ms and the target as a bigint soft ref, while the form
+// works in yyyy-mm-dd and target publicIds — this resolves both and checks target vs kind.
+class DiscountService extends SoftDeleteService<typeof discounts> {
+  private schema = RESOURCES.discounts.schema;
+
+  async create(values: Record<string, unknown>) {
+    const parsed = this.schema.parse(values) as Record<string, unknown>;
+    parsed.key = await this.uniqueKey((parsed.key as string | undefined) || slug(String(parsed.name)) || "discount");
+    return super.create(await this.toRow(parsed, parsed.kind as string));
+  }
+
+  async update(id: string, patch: Record<string, unknown>) {
+    const parsed = parsePatch(this.schema, patch);
+    delete parsed.key; // immutable after create, like every keyed resource
+    const kind = (parsed.kind as string | undefined) ?? (parsed.targetId !== undefined ? ((await this.read(id)) as { kind: string }).kind : undefined);
+    return super.update(id, await this.toRow(parsed, kind));
+  }
+
+  private async uniqueKey(base: string) {
+    for (let n = 1; ; n++) {
+      const candidate = n === 1 ? base : `${base}-${n}`;
+      const [hit] = await db.select({ id: discounts.id }).from(discounts).where(eq(discounts.key, candidate)).limit(1);
+      if (!hit) return candidate;
+    }
+  }
+
+  private async toRow(parsed: Record<string, unknown>, kind: string | undefined) {
+    const out: Record<string, unknown> = { ...parsed };
+    if (parsed.targetId !== undefined) {
+      if (parsed.targetId === null) out.targetId = null;
+      else {
+        const { table, label } = DISCOUNT_TARGETS[kind as keyof typeof DISCOUNT_TARGETS] ?? DISCOUNT_TARGETS.delivery;
+        const [row] = await db.select({ id: table.id }).from(table).where(eq(table.publicId, parsed.targetId as string)).limit(1);
+        if (!row) throw new ValidationError(`Target does not match a ${label}`);
+        out.targetId = row.id;
+      }
+    }
+    // Flat $ only means something as a meal size's list price; the additive engine reads percent alone.
+    if (parsed.amount != null && kind !== undefined && kind !== "meal_size") throw new ValidationError("A flat $ amount is only for meal-size discounts");
+    if (parsed.amount != null && Number(parsed.percent ?? 0) > 0) throw new ValidationError("Use a percent or a flat $ amount, not both");
+    if (kind?.startsWith("waiver_")) {
+      // Waivers are always-on or date-windowed; only a strategy waiver names a target.
+      if (parsed.minWeeks != null) throw new ValidationError("Waivers don't use a minimum plan length");
+      if (kind === "waiver_strategy" && parsed.targetId === null) throw new ValidationError("Pick the strategy whose fee is waived");
+      if (kind !== "waiver_strategy" && parsed.targetId) throw new ValidationError("This waiver doesn't take a target");
+      if (parsed.percent !== undefined && Number(parsed.percent) <= 0) throw new ValidationError("Waive more than 0%");
+    }
+    const { timezone } = await getAppSettings();
+    if (parsed.startsAt !== undefined) out.startsAt = parsed.startsAt ? cutoffMsFor(parsed.startsAt as string, 0, timezone) : null;
+    // Inclusive end date: last minute of that local day.
+    if (parsed.endsAt !== undefined) out.endsAt = parsed.endsAt ? cutoffMsFor(parsed.endsAt as string, 23, timezone) + 3_599_999 : null;
+    if (typeof out.startsAt === "number" && typeof out.endsAt === "number" && out.endsAt < out.startsAt) {
+      throw new ValidationError("End date cannot be before start date");
+    }
+    return out;
+  }
+}
+
+export const planService = new CatalogService(new UpdatableRepository(db, plans, plans.publicId, plans.id), RESOURCES.plans.schema);
+export const mealSizeService = new MealSizeService(new UpdatableRepository(db, mealSizes, mealSizes.publicId, mealSizes.id));
+// The form picks the dish plan by publicId; the row stores plans.id.
+class AddonService extends SoftDeleteService<typeof addons> {
+  async create(values: Record<string, unknown>) {
+    return super.create(await this.withPlanId(RESOURCES.addons.schema.parse(values)));
+  }
+  async update(id: string, patch: Record<string, unknown>) {
+    return super.update(id, await this.withPlanId(parsePatch(RESOURCES.addons.schema, patch)));
+  }
+  private async withPlanId(parsed: Record<string, unknown>) {
+    const out = { ...parsed };
+    if (parsed.planId !== undefined) out.planId = parsed.planId == null ? null : await resolvePlanId(parsed.planId as string);
+    if (Array.isArray(parsed.fallbackPlanIds)) {
+      const ids = await Promise.all((parsed.fallbackPlanIds as string[]).map(resolvePlanId));
+      // Order is the priority; the primary plan and repeats add nothing.
+      out.fallbackPlanIds = ids.filter((id, i) => id !== out.planId && ids.indexOf(id) === i);
+    }
+    return out;
+  }
+}
+
+export const addonService = new AddonService(new UpdatableRepository(db, addons, addons.publicId, addons.id));
+export const deliveryFrequencyService = new CatalogService(new UpdatableRepository(db, deliveryFrequencies, deliveryFrequencies.publicId, deliveryFrequencies.id), RESOURCES["delivery-frequencies"].schema);
+export const durationPackageService = new CatalogService(new UpdatableRepository(db, durationPackages, durationPackages.publicId, durationPackages.id), RESOURCES["duration-packages"].schema);
+export const discountService = new DiscountService(new UpdatableRepository(db, discounts, discounts.publicId, discounts.id));

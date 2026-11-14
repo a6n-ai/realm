@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { Alert, AlertDescription, AlertTitle } from "@/components/reui/alert";
 import { getSession } from "@/lib/auth/session";
-import { NoFranchiseAccessError, resolveAnalyticsScope, type ScopeSearchParams } from "@/lib/services/analytics/metrics/scope";
+import { NoFranchiseAccessError, resolveAnalyticsScope, type ScopeSearchParams } from "@/lib/analytics/metrics/scope";
 import { type AnalyticsScope } from "@/lib/analytics/scope-types";
 
 export function FranchiseUnavailable({ href }: { href: string }) {

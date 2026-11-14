@@ -247,7 +247,7 @@ export const auth = betterAuth({
       update: {
         after: async (u) => {
           try {
-            const { syncGroupsForUser } = await import("@/lib/services/customer-groups.service");
+            const { syncGroupsForUser } = await import("@/lib/customer-groups/customer-groups.service");
             await syncGroupsForUser(BigInt(u.id));
           } catch (e) {
             log.error({ err: e }, "group list sync after user update failed");
@@ -309,7 +309,7 @@ export const auth = betterAuth({
         after: async (sess, ctx) => {
           try {
             // Lazy: referrals.service -> app-settings -> session-service -> this module.
-            const { attachOnSignIn } = await import("@/lib/services/referrals.service");
+            const { attachOnSignIn } = await import("@/lib/referrals/referrals.service");
             await attachOnSignIn(BigInt(sess.userId as string), ctx?.headers ?? ctx?.request?.headers);
           } catch (err) {
             log.error({ err }, "referral attach failed");

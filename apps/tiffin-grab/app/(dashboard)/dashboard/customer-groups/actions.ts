@@ -22,7 +22,7 @@ import {
   groupMembersCsv,
   removeGroupMember,
   searchCustomerGroups,
-} from "@/lib/services/customer-groups.service";
+} from "@/lib/customer-groups/customer-groups.service";
 import { listPayoutCandidates, type PayoutCandidate, type PayoutCandidateFilters } from "@/lib/services/customer-payouts.service";
 import { walletBalanceSql } from "@/lib/wallet/balance-sql";
 

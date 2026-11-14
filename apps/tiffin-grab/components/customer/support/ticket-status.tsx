@@ -6,7 +6,7 @@ import { useState, useTransition } from "react";
 import { Button, Card, Textarea } from "@/components/customer/kit";
 import { cn, FONT, FOCUS } from "@/components/customer/kit/cn";
 import { rateTicket } from "@/app/(customer)/me/support/actions";
-import type { TicketStatus } from "@/lib/services/tickets.service";
+import type { TicketStatus } from "@/lib/support/tickets.service";
 
 const BANNER: Record<TicketStatus, { icon: typeof Clock; title: string; body: string; tone: string }> = {
   open: { icon: Clock, title: "We got your message", body: "Our team will reply here soon.", tone: "bg-muted" },

@@ -8,7 +8,7 @@ import { Skeleton } from "@foundry/ui/skeleton";
 import { StatCards, type StatCardItem } from "@/components/dashboard/stat-cards";
 import { formatEpoch } from "@/lib/format/datetime";
 import { getAppSettings } from "@/lib/services/app-settings.service";
-import { getCustomerGroup, groupStats, listGroupActions } from "@/lib/services/customer-groups.service";
+import { getCustomerGroup, groupStats, listGroupActions } from "@/lib/customer-groups/customer-groups.service";
 import { GroupView } from "./group-view";
 
 export default function CustomerGroupPage({ params }: { params: Promise<{ id: string }> }) {

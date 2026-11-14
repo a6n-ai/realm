@@ -6,7 +6,7 @@ import { IconTile, Pill, Skeleton } from "@/components/customer/kit";
 import { cn, FONT } from "@/components/customer/kit/cn";
 import { ChatMessageList, useMessageComposer, type ChatMessage, type ChatUi } from "@foundry/design-system";
 import { categoryLabel, subcategoryLabel } from "@/lib/support/ticket-taxonomy";
-import type { TicketStatus } from "@/lib/services/tickets.service";
+import type { TicketStatus } from "@/lib/support/tickets.service";
 import { replyTicket } from "@/app/(customer)/me/support/actions";
 import { STATUS_LABEL, STATUS_TONE } from "./parts";
 import { ChatComposer } from "@/components/support/chat-composer";

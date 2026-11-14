@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { KitchenPackingSheet } from "@/lib/services/kitchen-packing-sheet.service";
+import type { KitchenPackingSheet } from "@/lib/menu/kitchen-packing-sheet.service";
 import { kitchenSummaryAoA, packingSheetAoA } from "../kitchen-packing-excel";
 
 const sheet: KitchenPackingSheet = {

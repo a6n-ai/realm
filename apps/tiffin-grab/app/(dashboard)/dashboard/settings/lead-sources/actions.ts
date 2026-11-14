@@ -6,7 +6,7 @@ import { staffAction } from "@/lib/actions/staff-action";
 import type { ActionResult } from "@/lib/actions/action-result";
 import { db } from "@/db/client";
 import { leadSources } from "@/db/schema";
-import { leadSourceService, leadSubsourceService } from "@/lib/services/lead-sources.service";
+import { leadSourceService, leadSubsourceService } from "@/lib/inquiries/lead-sources.service";
 
 const OPTS = { guard: "admin", revalidate: ["/dashboard/settings/lead-sources"] } as const;
 

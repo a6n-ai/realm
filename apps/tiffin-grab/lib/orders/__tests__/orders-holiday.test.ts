@@ -2,11 +2,11 @@ import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vites
 import { asc, eq, inArray, like, sql } from "drizzle-orm";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
-vi.mock("@/lib/services/optimoroute/client", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/services/optimoroute/client")>();
+vi.mock("@/lib/optimoroute/client", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/optimoroute/client")>();
   return { ...actual, deleteOrder: vi.fn(async () => undefined) };
 });
-vi.mock("@/lib/services/optimoroute/push", () => ({ pushOneDelivery: vi.fn(async () => undefined) }));
+vi.mock("@/lib/optimoroute/push", () => ({ pushOneDelivery: vi.fn(async () => undefined) }));
 
 const { db } = await import("@/db/client");
 const { deliveries, holidays, ledgerEntries, orders, organization, payments, subscriptionPauses, users } = await import("@/db/schema");
@@ -18,7 +18,7 @@ const { releasePausedDaysDetailed } = await import("../../deliveries/pause-days.
 const { getPauseUsage } = await import("../../deliveries/pause-limits.service");
 const { adminSetDeliveryStatus } = await import("../../deliveries/deliveries.service");
 const { makeTripOrder, resetTrips } = await import("../../services/__tests__/trip-fixture");
-const { deleteOrder } = await import("@/lib/services/optimoroute/client");
+const { deleteOrder } = await import("@/lib/optimoroute/client");
 
 const DEP = "SUB-HOLORDER01";
 const WC_DEP = "wc-holord01";

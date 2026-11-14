@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { zonedDateIso } from "@foundry/commons";
 import { CalendarIcon } from "lucide-react";
 import { requireAdmin } from "@/lib/auth/guards";
-import { menuService } from "@/lib/services/menu.service";
+import { menuService } from "@/lib/menu/menu.service";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { PageHeader, PageShell, SectionCard } from "@/components/ds";
 import { MenuWeekRow, MenuWeekRowsSkeleton } from "./menu-history-card";

@@ -16,7 +16,7 @@ import { orderTemplateVars } from "@/lib/notifications/events";
 import { notificationTables } from "@/lib/notifications/tables";
 import { getAppSettings } from "../services/app-settings.service";
 import { getBrandOrgId } from "../services/organizations.service";
-import { removeStopsBestEffort, type OptimoSyncedRow } from "../services/optimoroute/stops";
+import { removeStopsBestEffort, type OptimoSyncedRow } from "../optimoroute/stops";
 import { applyHolidaysToOrder, placeHolidayExtras, undoHolidayForOrder, type HolidayApplied, type HolidayUndone } from "./holiday-apply";
 import { HOLIDAY_DISMISSED, HOLIDAY_DISMISSED_NOTE } from "./pause-state";
 import { isRealDate } from "@foundry/commons/util/dates";

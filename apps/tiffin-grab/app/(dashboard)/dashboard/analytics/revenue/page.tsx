@@ -12,8 +12,8 @@ import { AnalyticsStatCards, AnalyticsStatCardsSkeleton, type AnalyticsStatCardI
 import { ManualRefresh } from "@/components/analytics/manual-refresh";
 import { scopeOrAlert } from "@/components/analytics/franchise-unavailable";
 import { paymentsHref } from "@/lib/analytics/drill";
-import { getRevenueReport } from "@/lib/services/analytics/revenue.service";
-import { DATE_BASIS_LABEL } from "@/lib/services/analytics/metrics/scope";
+import { getRevenueReport } from "@/lib/analytics/revenue.service";
+import { DATE_BASIS_LABEL } from "@/lib/analytics/metrics/scope";
 import { type AnalyticsScope } from "@/lib/analytics/scope-types";
 import { slotTone, topWithOther, type Tone } from "@/components/analytics/chart-math";
 import { ChartBoundary } from "@/components/analytics/chart-boundary";

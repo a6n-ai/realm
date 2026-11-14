@@ -8,8 +8,8 @@ import { Button } from "@foundry/ui/button";
 import { Badge } from "@foundry/ui/badge";
 import { ListCard, ListCardRow } from "./list-card";
 import { pullRoutesAction, pushDayAction, pushUnassignedAction } from "./actions";
-import type { PushResult } from "@/lib/services/optimoroute/push";
-import type { PullResult } from "@/lib/services/optimoroute/pull";
+import type { PushResult } from "@/lib/optimoroute/push";
+import type { PullResult } from "@/lib/optimoroute/pull";
 
 export function PushControl({
   date,

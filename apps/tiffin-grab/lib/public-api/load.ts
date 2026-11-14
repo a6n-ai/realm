@@ -7,7 +7,7 @@ import { buildWeekBoard } from "@/lib/landing/week-board";
 import { foldPicks, popularSince } from "@/lib/menu/customer-week";
 import { loadReferralOffer } from "@/lib/referrals/offer";
 import { getAppSettings } from "@/lib/services/app-settings.service";
-import { menuService } from "@/lib/services/menu.service";
+import { menuService } from "@/lib/menu/menu.service";
 import { contactBody, deliveryBody, faqBody, menuBody, plansBody, promotionsBody, referralBody } from "@/lib/public-api/data";
 import { deliveryCheck } from "@/lib/public-api/postal";
 import { publicOrigin } from "@/lib/routing/apex";

@@ -4,7 +4,7 @@ import { EmptyState, SectionCard } from "@/components/ds";
 import { Badge } from "@/components/reui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@foundry/ui/table";
 import { formatEpoch } from "@/lib/format/datetime";
-import { getReferralInfo } from "@/lib/services/referrals.service";
+import { getReferralInfo } from "@/lib/referrals/referrals.service";
 import { REFERRAL_STATUS } from "@/lib/referrals/status";
 import { loadCustomer, loadViewer } from "../data";
 

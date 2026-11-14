@@ -7,8 +7,8 @@ import { ValidationError } from "@foundry/commons";
 import { db } from "@/db/client";
 import { orders } from "@/db/schema";
 import { currentUserId } from "@/lib/services/session-service";
-import { ticketsService, type TicketCategory } from "@/lib/services/tickets.service";
-import { uploadAttachments } from "@/lib/services/ticket-attachments";
+import { ticketsService, type TicketCategory } from "@/lib/support/tickets.service";
+import { uploadAttachments } from "@/lib/support/ticket-attachments";
 import { isTicketCategory, isValidPair } from "@/lib/support/ticket-taxonomy";
 import { runAction, type ActionResult } from "@/lib/actions/action-result";
 

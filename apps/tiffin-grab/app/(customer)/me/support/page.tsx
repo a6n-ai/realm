@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth/session";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { usersService } from "@/lib/services/users.service";
-import { ticketsService } from "@/lib/services/tickets.service";
+import { ticketsService } from "@/lib/support/tickets.service";
 import { getCustomerDashboard } from "@/lib/services/customers.service";
 import { PageHeader } from "@/components/customer/kit";
 import { NewTicketControl } from "@/components/customer/support/new-ticket-control";

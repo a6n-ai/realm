@@ -3,9 +3,9 @@ import { formatDiscount } from "@/lib/format/currency";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import type { CatalogSnapshot } from "@/lib/catalog/types";
 import { promoSavings } from "@/lib/landing/savings";
-import { couponsService, type AvailableCoupon } from "@/lib/services/coupons.service";
+import { couponsService, type AvailableCoupon } from "@/lib/coupons/coupons.service";
 import { hasPlacement } from "@/lib/promotions/live";
-import { promotionsService, type Promotion } from "@/lib/services/promotions.service";
+import { promotionsService, type Promotion } from "@/lib/promotions/promotions.service";
 
 import type { LandingPromo, LandingPromos } from "@/lib/landing/promo-types";
 

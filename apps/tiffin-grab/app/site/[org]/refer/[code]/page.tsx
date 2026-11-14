@@ -7,7 +7,7 @@ import { loadLandingPromos } from "@/lib/landing/promos";
 import { loadReferralOffer } from "@/lib/referrals/offer";
 import { isReferralCodeShape, normalizeReferralCode } from "@/lib/referrals/cookie";
 import { referCardPath } from "@/lib/referrals/share";
-import { findReferrerByCode } from "@/lib/services/referrals.service";
+import { findReferrerByCode } from "@/lib/referrals/referrals.service";
 import { siteOrgId } from "@/lib/tenant/site-org";
 import "@/components/landing/styles/refer.css";
 

@@ -2,7 +2,7 @@ import { referHeadline } from "@/lib/referrals/headline";
 import { buildFaq, type FaqGroup } from "@/lib/landing/faq-list";
 import { loadSiteFacts } from "@/lib/landing/site-facts";
 import { loadReferralOffer } from "@/lib/referrals/offer";
-import { listPublicFaqs } from "@/lib/services/faqs.service";
+import { listPublicFaqs } from "@/lib/landing/faqs.service";
 
 /** The FAQ as /faq shows it: an admin-saved list wins, else the list built from live data. */
 export async function loadFaqGroups(orgId: string | null): Promise<FaqGroup[]> {

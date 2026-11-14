@@ -15,10 +15,10 @@ import {
   ticketsService,
   type TicketPriority,
   type TicketStatus,
-} from "@/lib/services/tickets.service";
-import { listAssignableStaff } from "@/lib/services/assignable-staff";
-import { canReassign } from "@/lib/services/reassign";
-import { withAttachmentViews } from "@/lib/services/ticket-attachments";
+} from "@/lib/support/tickets.service";
+import { listAssignableStaff } from "@/lib/staff/assignable-staff";
+import { canReassign } from "@/lib/staff/reassign";
+import { withAttachmentViews } from "@/lib/support/ticket-attachments";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { PageShell, PageHeader, SectionCard } from "@/components/ds";
 import { TicketStatusBadge } from "../ticket-badges";

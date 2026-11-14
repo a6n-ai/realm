@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { notificationOutbox } from "@/db/schema";
 import { AnalyticsStatCards, AnalyticsStatCardsSkeleton, type AnalyticsStatCardItem } from "@/components/dashboard/stat-cards";
-import { getChannelCounts, getNotificationBuckets, getStatusCounts } from "@/lib/services/analytics/notifications.service";
+import { getChannelCounts, getNotificationBuckets, getStatusCounts } from "@/lib/analytics/notifications.service";
 import { epochBoundsWhere, withDefaultMonth } from "@/lib/list/default-month";
 import { notificationLogsHref } from "@/lib/notifications/outcome";
 import { ChartCard } from "@/components/analytics/chart-card";

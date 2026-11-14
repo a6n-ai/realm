@@ -7,7 +7,7 @@ import { replaceOlderUnpaidCheckouts } from "./unpaid-checkouts";
 import { and, eq, sql } from "drizzle-orm";
 import { db, type Tx } from "@/db/client";
 import { startPaidStripeOrder } from "@/lib/payments/verification";
-import { defaultOwner } from "../services/default-owner";
+import { defaultOwner } from "../staff/default-owner";
 import { getBrandOrgId } from "../services/organizations.service";
 import { priceWithTax } from "@/lib/tax/checkout-taxes";
 import {
@@ -31,13 +31,13 @@ import { countsWithAddons, orderAddonValues } from "@/lib/menu/order-addon-items
 import { findZone } from "@/lib/catalog/zone-match";
 import { parseCanadianPostalCode } from "@/lib/catalog/postal";
 import { addressService } from "../services/addresses.service";
-import { resolveDropOff, setAddressDropOff } from "../services/address-drop-off.service";
+import { resolveDropOff, setAddressDropOff } from "../deliveries/address-drop-off.service";
 import { priceSubscription, type OrderPricingSnapshot, type PricingLine, type PricingSelections } from "@/lib/pricing";
 import { buildPricingCatalog } from "@/lib/pricing/build-catalog";
 import { quoteTrial } from "@/lib/trial/quote";
 import { round2 } from "@foundry/commons/util/money";
 import { postCatalogSubtotal } from "@/lib/pricing/discounts";
-import { couponsService } from "../services/coupons.service";
+import { couponsService } from "../coupons/coupons.service";
 import { enqueueNotification } from "@/lib/notifications/enqueue";
 import { orderTemplateVars } from "@/lib/notifications/events";
 import { applyHolidaysToOrder } from "../deliveries/holiday-apply";
@@ -54,12 +54,12 @@ import {
   reserveCoinRedemption,
   awardOrderCoins,
 } from "../wallet/wallet.service";
-import { awardReferral } from "../services/referrals.service";
+import { awardReferral } from "../referrals/referrals.service";
 import { eatingDaysError, orderDeliveryDays, planDaysError, type DayOfWeek } from "@/lib/menu/delivery-days";
 import { getAppSettings, getMaxCoinPctOfSubtotal, getMaxCoinRedeemPctOfBalance, getPaymentConfig } from "../services/app-settings.service";
 import { coinLimits, quoteCoinCap } from "@/lib/pricing/coin-cap";
 import { loadMealCostFloor } from "@/lib/pricing/meal-cost";
-import { applyDiscountLane } from "@/lib/services/discount-lane";
+import { applyDiscountLane } from "@/lib/coupons/discount-lane";
 import { isProduction } from "@/lib/runtime/env";
 import { lockOrder } from "./order-lock";
 

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const pollOnce = vi.hoisted(() => vi.fn());
 // "/" keeps this mock path from matching vitest.config TOUCHES_DB: the poller is mocked, nothing reaches a DB.
-vi.mock("@/lib/services/optimoroute/events", () => ({ pollOnce }));
+vi.mock("@/lib/optimoroute/events", () => ({ pollOnce }));
 
 import { POST } from "./route";
 

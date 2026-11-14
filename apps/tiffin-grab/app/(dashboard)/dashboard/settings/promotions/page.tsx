@@ -7,7 +7,7 @@ import { Badge } from "@/components/reui/badge";
 import { formatEpoch } from "@/lib/format/datetime";
 import { promotionStatus, type PromotionStatus } from "@/lib/promotions/live";
 import { getAppSettings } from "@/lib/services/app-settings.service";
-import { promotionsService } from "@/lib/services/promotions.service";
+import { promotionsService } from "@/lib/promotions/promotions.service";
 import { PromotionRowActions } from "./promotion-row-actions";
 import { requestNow } from "@/lib/dates/request-now";
 

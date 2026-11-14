@@ -6,7 +6,7 @@ import { Badge } from "@/components/reui/badge";
 import { zonedRangeMs } from "@/lib/dates/epoch-window";
 import { ordersListHref } from "@/lib/list/orders-drill";
 import { delta, type Delta } from "@/lib/overview/delta";
-import { getOverviewSeries } from "@/lib/services/overview.service";
+import { getOverviewSeries } from "@/lib/overview/overview.service";
 
 type Metric = { label: string; icon: LucideIcon; value: string; delta: Delta; vs: string; spark: number[] | null; href?: string };
 

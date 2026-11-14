@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { analyticsHref } from "@/lib/services/analytics/shared-filter-params";
+import { analyticsHref } from "@/lib/analytics/shared-filter-params";
 import { currentMonthEpochRange } from "@/lib/dates/epoch-window";
 import { isoDateInZone } from "@foundry/commons/util/dates";
 

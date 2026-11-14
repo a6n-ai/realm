@@ -6,7 +6,7 @@ import { staffAction } from "@/lib/actions/staff-action";
 import { currentUserId } from "@/lib/services/session-service";
 import { userIdByPublicId } from "@/lib/identity/user-ids";
 import { walletService } from "@/lib/wallet/wallet.service";
-import { staffAttachReferral } from "@/lib/services/referrals.service";
+import { staffAttachReferral } from "@/lib/referrals/referrals.service";
 
 export async function adjustCustomerCoinsAction(
   customerPublicId: string,

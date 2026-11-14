@@ -1,5 +1,5 @@
 import type { FacetDef } from "@/components/ds";
-import type { OrderFacetField } from "@/lib/services/analytics/metrics/orders";
+import type { OrderFacetField } from "@/lib/analytics/metrics/orders";
 import { ORDER_STATUS_PILLS } from "@/lib/orders/status-pills";
 import { UNASSIGNED_OWNER } from "@/lib/list/presets";
 

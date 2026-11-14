@@ -7,8 +7,8 @@ import {
   ticketsService,
   type TicketPriority,
   type TicketStatus,
-} from "@/lib/services/tickets.service";
-import { uploadAttachments } from "@/lib/services/ticket-attachments";
+} from "@/lib/support/tickets.service";
+import { uploadAttachments } from "@/lib/support/ticket-attachments";
 import type { TicketCategoryValue } from "@/lib/support/ticket-taxonomy";
 
 const ticketOpts = (ticketId: string, extra: readonly string[] = []) =>

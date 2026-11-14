@@ -6,7 +6,7 @@ import { stripeMethodAvailable } from "@/lib/payments/stripe";
 import { settleStaleOnView } from "@/lib/payments/payment-stripe";
 import { getAppSettings, getCoinEarnPct } from "@/lib/services/app-settings.service";
 import { myBillsPage, myCouponsPage, myCouponTotals, myMoneyLedgerPage } from "@/lib/services/customer-finances.service";
-import { couponsService } from "@/lib/services/coupons.service";
+import { couponsService } from "@/lib/coupons/coupons.service";
 import { walletService } from "@/lib/wallet/wallet.service";
 import { parseFilterState } from "@/components/ds";
 import { PageHeader } from "@/components/customer/kit";

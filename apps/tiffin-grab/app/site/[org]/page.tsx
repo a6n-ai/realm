@@ -20,12 +20,12 @@ import { buildWeekBoard } from "@/lib/landing/week-board";
 import { loadLandingPromos } from "@/lib/landing/promos";
 import { pageMeta } from "@/lib/landing/meta";
 import { deliveryIsFree, hourLabel, lowestRate, trialOffer } from "@/lib/landing/live-figures";
-import { getTrialSettings } from "@/lib/services/trial-settings.service";
+import { getTrialSettings } from "@/lib/trial/trial-settings.service";
 import { businessJsonLd, jsonLdScript } from "@/lib/landing/business-jsonld";
 import { publicOrigin } from "@/lib/routing/apex";
 import { getReviewsSummary } from "@foundry/google-reviews";
 import { getAppSettings, integrationsConfigReadStore } from "@/lib/services/app-settings.service";
-import { menuService } from "@/lib/services/menu.service";
+import { menuService } from "@/lib/menu/menu.service";
 import { loadReferralOffer } from "@/lib/referrals/offer";
 import "@/components/landing/styles/home.css";
 // Stock photos of dishes on our menu (Pixabay licence) until the kitchen's own shots arrive.

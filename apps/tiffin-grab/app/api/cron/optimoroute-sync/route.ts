@@ -1,5 +1,5 @@
 import { withCronAuth } from "@/lib/cron/auth";
-import { clampDays, parseMode, runScheduledSync } from "@/lib/services/optimoroute/sync";
+import { clampDays, parseMode, runScheduledSync } from "@/lib/optimoroute/sync";
 
 // Scheduler-agnostic protected route (withCronAuth), request-time only.
 //

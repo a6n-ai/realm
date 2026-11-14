@@ -22,7 +22,7 @@ import {
   SUB_STATUSES, groupFor, isClosed, isOpenPickable, statusLabel,
   type StatusGroup, type SubStatus,
 } from "@/lib/inquiries/status";
-import type { LostReason } from "@/lib/services/inquiries.service";
+import type { LostReason } from "@/lib/inquiries/inquiries.service";
 import { addNote, logActivity, updateStatus } from "../actions";
 import { unwrapAction } from "@/lib/actions/unwrap";
 import { useTimezone } from "@foundry/design-system/timezone-provider";

@@ -18,7 +18,7 @@ import type {
   CustomerActivityActorKind,
   CustomerActivityListRow,
   CustomerActivitySortColumn,
-} from "@/lib/services/customer-activities-list.service";
+} from "@/lib/customer-activity/customer-activities-list.service";
 
 const COLUMNS: readonly Column<CustomerActivitySortColumn | "customer" | "activity" | "details" | "by">[] =
   [

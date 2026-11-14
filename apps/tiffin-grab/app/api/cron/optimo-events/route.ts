@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 export const POST = withCronAuth(async () => {
   try {
-    const { pollOnce } = await import("@/lib/services/optimoroute/events");
+    const { pollOnce } = await import("@/lib/optimoroute/events");
     return Response.json({ ok: true, result: await pollOnce() });
   } catch (err) {
     return Response.json({ ok: false, error: err instanceof Error ? err.message : String(err) }, { status: 500 });

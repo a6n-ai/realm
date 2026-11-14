@@ -5,14 +5,14 @@ vi.mock("@/lib/auth/session", () => ({
   getSession: async () => (session.user ? { user: session.user } : null),
 }));
 
-vi.mock("@/lib/services/tickets.service", () => ({
+vi.mock("@/lib/support/tickets.service", () => ({
   ticketsService: {
     assertReadable: vi.fn(async () => undefined),
   },
 }));
 
 const { authorizeChannel } = await import("../authorize");
-const { ticketsService } = await import("@/lib/services/tickets.service");
+const { ticketsService } = await import("@/lib/support/tickets.service");
 const assertReadable = vi.mocked(ticketsService.assertReadable);
 
 describe("authorizeChannel", () => {

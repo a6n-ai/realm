@@ -1,7 +1,7 @@
 import { round2 } from "@foundry/commons/util/money";
 /**
  * Pure revenue helpers: status/method labels, chart grain and discount lines.
- * Revenue totals themselves come from SQL (lib/services/analytics/metrics/money.ts).
+ * Revenue totals themselves come from SQL (lib/analytics/metrics/money.ts).
  * Discount lines come from each order's pricing snapshot (catalog, coupon, coins), scaled to the
  * share of the order a payment covers and capped at the list price.
  */

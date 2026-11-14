@@ -9,7 +9,7 @@ import { createLogger } from "@foundry/commons/logger";
 import { and, asc, desc, eq, getTableColumns, gt, gte, inArray, isNotNull, isNull, lte, not, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, orderActivities, orders, subscriptionPauses } from "@/db/schema";
-import { removeStopsBestEffort, restoreStopsBestEffort, type OptimoSyncedRow } from "../services/optimoroute/stops";
+import { removeStopsBestEffort, restoreStopsBestEffort, type OptimoSyncedRow } from "../optimoroute/stops";
 import { applyHolidaysToOrder } from "./holiday-apply";
 import { assertDaysPauseAllowed, getPauseLimits, getPauseUsage } from "./pause-limits.service";
 import { autoMovePausedOn, moveLapsedPausesToEnd, movePausedTiffinsToEnd } from "./pause-auto-move";

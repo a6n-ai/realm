@@ -1,7 +1,7 @@
 import { readBody } from "@foundry/commons/util/http";
 import { handler, json, problem } from "@foundry/routes";
 import { scheduleCampaign, zonedLocalToEpoch } from "@relay/engine";
-import { staleGroupsForCampaign } from "@/lib/services/customer-groups.service";
+import { staleGroupsForCampaign } from "@/lib/customer-groups/customer-groups.service";
 import { requireAdmin } from "@/lib/auth/guards";
 import { campaignConfig } from "@/lib/notifications/campaign-config";
 import { scheduleCampaignWake } from "@/lib/runtime/workflow-wake";

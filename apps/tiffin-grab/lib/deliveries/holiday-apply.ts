@@ -10,7 +10,7 @@ import { humanDate } from "@/lib/deliveries/view";
 import { getAppSettings } from "../services/app-settings.service";
 import type { Tx } from "@/db/client";
 import { loadPlanDays } from "./deliveries.service";
-import type { OptimoSyncedRow } from "../services/optimoroute/stops";
+import type { OptimoSyncedRow } from "../optimoroute/stops";
 import { upcomingHolidays, type HolidayDay } from "./holiday-dates";
 import { otherPlanDays } from "../orders/order-window";
 import { HOLIDAY_DISMISSED, pauseRows } from "./pause-state";

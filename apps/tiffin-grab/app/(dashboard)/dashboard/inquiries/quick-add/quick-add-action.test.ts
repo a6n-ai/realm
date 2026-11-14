@@ -8,7 +8,7 @@ vi.mock("@/lib/auth/guards", () => ({ requireStaff: async () => undefined }));
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
 const { quickAddInquiries } = await import("../actions");
-const { inquiriesService } = await import("@/lib/services/inquiries.service");
+const { inquiriesService } = await import("@/lib/inquiries/inquiries.service");
 
 async function reset() {
   await db.delete(inquiryActivities);

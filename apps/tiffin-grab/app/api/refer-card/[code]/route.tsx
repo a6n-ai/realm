@@ -3,7 +3,7 @@ import { referCardAssets } from "@/lib/referrals/card-assets";
 import { isReferralCodeShape, normalizeReferralCode } from "@/lib/referrals/cookie";
 import { friendOfferParts } from "@/lib/referrals/share";
 import { getAppSettings, getReferralSettings } from "@/lib/services/app-settings.service";
-import { findReferrerByCode } from "@/lib/services/referrals.service";
+import { findReferrerByCode } from "@/lib/referrals/referrals.service";
 import { walletService } from "@/lib/wallet/wallet.service";
 import { siteOrigin } from "@/lib/runtime/env";
 

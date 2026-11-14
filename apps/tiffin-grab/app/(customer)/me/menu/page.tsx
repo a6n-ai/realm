@@ -5,7 +5,7 @@ import { zonedDateIso } from "@foundry/commons";
 import { currentUserId } from "@/lib/services/session-service";
 import { browsePublishedWeek, type WeekScope } from "@/lib/menu/browse-published-week";
 import { buildCustomerWeek, dietLegend, foldPicks, initialDay, planOf, popularSince, weekEnd } from "@/lib/menu/customer-week";
-import { menuService } from "@/lib/services/menu.service";
+import { menuService } from "@/lib/menu/menu.service";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { myDeliveries } from "@/lib/deliveries/customer-deliveries.service";
 import { EmptyState, PageHeader } from "@/components/customer/kit";

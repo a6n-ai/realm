@@ -10,8 +10,8 @@ import { assertCanManageDelivery, assertCanManageOrder, assertOrderUnlocked } fr
 import { setDeliveryAddress, clearDeliveryAddress, rescheduleDelivery } from "@/lib/deliveries/deliveries.service";
 import { listPauseDays, pauseDays, releasePausedDaysDetailed, type PauseDay, type ReclosedDay } from "@/lib/deliveries/pause-days.service";
 import { autoMovePausedOn, setAutoMovePaused } from "@/lib/deliveries/pause-auto-move";
-import { applyDeliverySwap, removeDeliverySwap } from "@/lib/services/category-swaps.service";
-import { listValidSwapOptionsForDelivery } from "@/lib/services/swap-options.service";
+import { applyDeliverySwap, removeDeliverySwap } from "@/lib/menu/category-swaps.service";
+import { listValidSwapOptionsForDelivery } from "@/lib/menu/swap-options.service";
 import type { SwapOption } from "@/lib/menu/meal-validation";
 import { eq } from "drizzle-orm";
 import { db } from "@/db/client";

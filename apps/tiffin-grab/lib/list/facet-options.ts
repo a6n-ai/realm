@@ -2,7 +2,7 @@ import { db } from "@/db/client";
 import { deliveryFrequencies, deliveryZones, leadSources, leadSubsources, mealSizes, organization, plans } from "@/db/schema";
 import { and, eq, inArray } from "drizzle-orm";
 import type { Option } from "@foundry/design-system";
-import { listAssignableStaff } from "@/lib/services/assignable-staff";
+import { listAssignableStaff } from "@/lib/staff/assignable-staff";
 
 // Owner facet: readable public ids in the URL, resolved to internal ids by the
 // service's subquery resolver. Scoped to assignable staff (the only users who

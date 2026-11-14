@@ -14,7 +14,7 @@ import { addOrderAddons, cancelAddonPayment, quoteOrderAddons, regenerateAddonPa
 import { uploadPaymentProof } from "@/lib/payments/payment-proof";
 import { cancelOrderAndOpenPayments } from "@/lib/orders/unpaid-checkouts";
 import { adminSetDeliveryStatus, grantComplimentaryTiffin, isAdminDeliveryStatus, redeliverTrip } from "@/lib/deliveries/deliveries.service";
-import { pushOneDelivery, removeOneDelivery } from "@/lib/services/optimoroute/push";
+import { pushOneDelivery, removeOneDelivery } from "@/lib/optimoroute/push";
 import { ActionResult } from "@/lib/actions/action-result";
 import { orderAction } from "@/lib/actions/order-action";
 import { DayOfWeek } from "@/lib/menu/delivery-days";

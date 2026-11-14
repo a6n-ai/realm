@@ -7,7 +7,7 @@ vi.mock("@foundry/places", async (orig) => ({ ...(await orig<object>()), resolve
 // OptimoRoute is never called from tests: each pulled day answers from `optimoSays`.
 const optimoSays = new Map<string, { date: string; action: "confirmed" | "skipped" }>();
 const pulledDays: string[] = [];
-vi.mock("@/lib/services/optimoroute/completions", () => ({
+vi.mock("@/lib/optimoroute/completions", () => ({
   pullCompletions: async (date: string) => {
     pulledDays.push(date);
     const outcomes = [...optimoSays].filter(([, o]) => o.date === date)

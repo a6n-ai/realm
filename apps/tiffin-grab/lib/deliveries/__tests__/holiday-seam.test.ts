@@ -2,11 +2,11 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq, like } from "drizzle-orm";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
-vi.mock("@/lib/services/optimoroute/client", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/services/optimoroute/client")>();
+vi.mock("@/lib/optimoroute/client", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/optimoroute/client")>();
   return { ...actual, deleteOrder: vi.fn(async () => undefined) };
 });
-vi.mock("@/lib/services/optimoroute/push", () => ({ pushOneDelivery: vi.fn(async () => undefined) }));
+vi.mock("@/lib/optimoroute/push", () => ({ pushOneDelivery: vi.fn(async () => undefined) }));
 
 const { db } = await import("@/db/client");
 const { deliveries, holidays, orders, organization, subscriptionPauses } = await import("@/db/schema");
@@ -17,8 +17,8 @@ const { getPauseUsage } = await import("../pause-limits.service");
 const { adminSetDeliveryStatus, maybeComplete, rescheduleDelivery } = await import("../deliveries.service");
 const { makeupSourceIdsForOrder, myActiveSubscriptions, myAgendaDots, myDeliveries } = await import("../customer-deliveries.service");
 const { makeTripOrder, resetTrips } = await import("../../services/__tests__/trip-fixture");
-const { applyCompletion } = await import("../../services/optimoroute/completions");
-const { loadDayDeliveries } = await import("../../services/daily-labels.service");
+const { applyCompletion } = await import("../../optimoroute/completions");
+const { loadDayDeliveries } = await import("../../menu/daily-labels.service");
 
 const DEP = "SUB-HOLSEAM001";
 const PFX = "tholseam";

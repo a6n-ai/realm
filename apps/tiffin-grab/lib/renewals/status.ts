@@ -1,5 +1,5 @@
 import type { RenewalStatus } from "@/lib/orders/queries";
-import type { LostReason } from "@/lib/services/inquiries.service";
+import type { LostReason } from "@/lib/inquiries/inquiries.service";
 
 export const TRACK_STATUSES = ["renewed", "unresponsive", "not_renewed", "expected", "follow_up", "pending_payment"] as const;
 export type TrackStatus = (typeof TRACK_STATUSES)[number];

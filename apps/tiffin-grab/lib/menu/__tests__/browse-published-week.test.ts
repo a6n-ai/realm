@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { comingWeekStartIso, thisWeekStartIso } from "../delivery-dates";
 
-vi.mock("@/lib/services/menu.service", () => ({
+vi.mock("@/lib/menu/menu.service", () => ({
   menuService: { getPublishedWeek: vi.fn() },
 }));
 
-const { menuService } = await import("@/lib/services/menu.service");
+const { menuService } = await import("@/lib/menu/menu.service");
 const { browsePublishedWeek } = await import("../browse-published-week");
 
 const TZ = "America/Toronto";

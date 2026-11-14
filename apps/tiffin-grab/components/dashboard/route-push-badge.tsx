@@ -3,8 +3,8 @@ import { zonedDateIso } from "@foundry/commons";
 import { Badge } from "@/components/reui/badge";
 import { humanDate } from "@/lib/deliveries/view";
 import { getAppSettings } from "@/lib/services/app-settings.service";
-import { getOptimoRouteStatus } from "@/lib/services/optimoroute/config";
-import { nextRoutePushStatus } from "@/lib/services/optimoroute/push-status";
+import { getOptimoRouteStatus } from "@/lib/optimoroute/config";
+import { nextRoutePushStatus } from "@/lib/optimoroute/push-status";
 import { requestNow } from "@/lib/dates/request-now";
 
 /** Top-bar note: has the next delivery day gone to OptimoRoute? Links to Dispatch. */
