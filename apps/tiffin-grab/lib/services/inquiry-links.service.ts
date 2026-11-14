@@ -1,6 +1,6 @@
 // Links inquiries to the customer and order of each sales round. createOrder calls recordPurchase
 // after its transaction commits, so this module may import only inquiry-core (see its header).
-import { and, asc, desc, eq, gte, inArray, isNotNull, ne, notExists, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNotNull, lt, ne, notExists, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { inquiries, inquiryActivities, orders, users } from "@/db/schema";
 import { stageFor } from "@/lib/inquiries/status";
@@ -64,7 +64,26 @@ export async function recordPurchase(p: PurchaseInput): Promise<{ inquiryPublicI
     .limit(1);
   if (done) return { inquiryPublicId: inq.publicId, round: done.type === "converted" ? "first" : "renewal" };
 
-  if (inq.currentOrderId == null) {
+  // Same rule as the round rank: the first sale is the customer's earliest order that was not cancelled, so an
+  // abandoned checkout replaced by a real one (replaceOlderUnpaidCheckouts) does not turn the sale into a renewal.
+  const [me] = await db.select({ createdAt: orders.createdAt }).from(orders).where(eq(orders.id, p.orderId)).limit(1);
+  const [earlier] = await db
+    .select({ id: orders.id })
+    .from(orders)
+    .where(and(eq(orders.userId, p.userId), ne(orders.id, p.orderId), ne(orders.status, "cancelled"), lt(orders.createdAt, me?.createdAt ?? Date.now())))
+    .limit(1);
+  const isFirst = !earlier;
+
+  // An order older than the one the row already points at (a missed link the reconcile found) is history only.
+  if (inq.currentOrderId != null && inq.currentOrderId !== p.orderId) {
+    const [cur] = await db.select({ createdAt: orders.createdAt, status: orders.status }).from(orders).where(eq(orders.id, inq.currentOrderId)).limit(1);
+    if (cur && cur.status !== "cancelled" && me && me.createdAt < cur.createdAt) {
+      await addActivity({ inquiryId: inq.id, type: isFirst ? "converted" : "renewed", orderId: p.orderId });
+      return { inquiryPublicId: inq.publicId, round: isFirst ? "first" : "renewal" };
+    }
+  }
+
+  if (isFirst) {
     const subStatus = p.kind === "trial" ? "took_trial" : "took_plan";
     const { patch } = await fillEmpty(inq, { fullName: p.contact.fullName, email: p.contact.email, phone: p.contact.phone });
     await inquiryRows.update(inq.publicId, {
@@ -87,7 +106,10 @@ export async function recordPurchase(p: PurchaseInput): Promise<{ inquiryPublicI
     return { inquiryPublicId: inq.publicId, round: "first" };
   }
 
+  // A row that never saw this customer's first sale is still a lead: buying closes it.
+  const closesLead = inq.stage !== "converted" ? { subStatus: p.kind === "trial" ? ("took_trial" as const) : ("took_plan" as const), stage: "converted" as const, nextFollowUpAt: null } : {};
   await inquiryRows.update(inq.publicId, {
+    ...closesLead,
     customerId: p.userId,
     currentOrderId: p.orderId,
     renewalStatus: null,
@@ -152,10 +174,16 @@ export async function reconcileOrders(sinceMs: number): Promise<{ linked: number
       .orderBy(desc(orders.createdAt))
       .limit(1);
     const tookSale = inq.subStatus === "took_plan" || inq.subStatus === "took_trial";
-    await inquiryRows.update(inq.publicId, prev
-      ? { currentOrderId: prev.id }
-      : { currentOrderId: null, ...(tookSale ? { subStatus: null, stage: stageFor(null) } : {}) });
-    repointed++;
+    try {
+      await inquiryRows.update(inq.publicId, prev
+        ? { currentOrderId: prev.id }
+        : { currentOrderId: null, ...(tookSale ? { subStatus: null, stage: stageFor(null) } : {}) });
+      repointed++;
+    } catch {
+      // Reopening can hit an open-row unique index (a pre-merge duplicate); just drop the pointer.
+      await inquiryRows.update(inq.publicId, { currentOrderId: prev?.id ?? null });
+      repointed++;
+    }
   }
   return { linked, repointed };
 }
@@ -178,7 +206,9 @@ export async function inquiryForOrder(orderId: bigint): Promise<InquiryRow | nul
   if (!o?.userId) return null;
   const [byCustomer] = await db.select().from(inquiries).where(eq(inquiries.customerId, o.userId)).orderBy(desc(inquiries.updatedAt)).limit(1);
   if (byCustomer) return byCustomer;
-  return (await findMatch(o.phone, o.email)).match;
+  const { match } = await findMatch(o.phone, o.email);
+  // A shared phone or email must not hand one customer's order to another customer's inquiry.
+  return match && (match.customerId == null || match.customerId === o.userId) ? match : null;
 }
 
 /** Daily, as an order nears its end: open its renewal round once (auto `expected`). Skips once a later plan exists. */

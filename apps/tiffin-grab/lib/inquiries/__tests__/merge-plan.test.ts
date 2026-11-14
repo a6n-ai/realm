@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fillPlan, groupInquiries, pickWinner, type MergeRow } from "../merge-plan";
+import { fillPlan, groupConflict, groupInquiries, pickWinner, type MergeRow } from "../merge-plan";
 
 let id = 0n;
 const r = (o: Partial<MergeRow>): MergeRow => ({
@@ -45,5 +45,13 @@ describe("fillPlan", () => {
     const newer = r({ postalCode: "M4C 1A1", email: "held@x.co", latestActivityAt: 9 } as Partial<MergeRow>);
     const plan = fillPlan(winner, [older, newer], new Set(["held@x.co"]));
     expect(plan).toEqual({ postalCode: "M4C 1A1" });
+  });
+});
+
+describe("groupConflict", () => {
+  it("refuses to merge rows linked to different customers or Meta leads", () => {
+    expect(groupConflict([r({ customerId: 1n }), r({ customerId: 2n })])).toBe("different customers");
+    expect(groupConflict([r({ metaLeadId: "111111111111111" }), r({ metaLeadId: "222222222222222" })])).toBe("different Meta leads");
+    expect(groupConflict([r({ customerId: 1n }), r({ customerId: null })])).toBeNull();
   });
 });

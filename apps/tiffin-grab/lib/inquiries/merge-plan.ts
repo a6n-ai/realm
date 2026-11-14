@@ -44,6 +44,14 @@ export function groupInquiries(rows: MergeRow[]): MergeRow[][] {
   return [...groups.values()].filter((g) => g.length > 1);
 }
 
+/** Why a group must not be merged automatically: rows tied to different customers or Meta leads are different people. */
+export function groupConflict(group: MergeRow[]): string | null {
+  const distinct = (k: string) => new Set(group.map((r) => r[k]).filter((v) => v != null).map(String)).size;
+  if (distinct("customerId") > 1) return "different customers";
+  if (distinct("metaLeadId") > 1) return "different Meta leads";
+  return null;
+}
+
 /** Open before closed, then stage rank, then latest activity, then newest row. */
 export function pickWinner(group: MergeRow[]): MergeRow {
   return [...group].sort(

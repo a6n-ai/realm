@@ -105,4 +105,16 @@ describe("createOrFold match branches", () => {
     const reinqCount = await db.select().from(inquiryActivities).where(and(eq(inquiryActivities.inquiryId, open.id), eq(inquiryActivities.type, "reinquiry")));
     expect(reinqCount).toHaveLength(1);
   });
+
+  it("review: does not reopen a lost row whose other identifier an open row holds", async () => {
+    const email = testEmail();
+    const open = await insertTestInquiry({ email, fullName: "Open twin" });
+    const lost = await insertTestInquiry({ phone: "+16475551209", email, stage: "lost", subStatus: "lost" });
+    const r = await inquiriesService.createOrFold({ phone: "+16475551209", sourceKey: "website" });
+    expect(r.outcome).toBe("folded");
+    expect((await row(lost.id)).stage).toBe("lost");
+    const conflicts = (await acts(lost.id)).filter((a) => a.type === "match_conflict");
+    expect(conflicts[0]?.details).toMatchObject({ conflictWith: open.publicId });
+  });
 });
+

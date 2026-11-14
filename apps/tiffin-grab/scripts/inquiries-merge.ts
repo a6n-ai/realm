@@ -12,7 +12,7 @@ import { db } from "../db/client";
 import { isLocalDb } from "../db/is-local-db";
 import { inquiries, inquiryActivities, leadSources, orders, renewalActivities, renewals, users } from "../db/schema";
 import { databaseUrl } from "../lib/runtime/env";
-import { fillPlan, groupInquiries, pickWinner, type MergeRow } from "../lib/inquiries/merge-plan";
+import { fillPlan, groupConflict, groupInquiries, pickWinner, type MergeRow } from "../lib/inquiries/merge-plan";
 
 const args = new Set(process.argv.slice(2));
 const APPLY = args.has("--apply");
@@ -42,6 +42,12 @@ async function stepMerge() {
   const inGroup = new Map<bigint, number>();
   groups.forEach((g, i) => g.forEach((r) => inGroup.set(r.id, i)));
   for (const [i, group] of groups.entries()) {
+    // Rows tied to different customers or Meta leads are different people sharing a contact (a household).
+    const conflict = groupConflict(group);
+    if (conflict) {
+      csv("merge", i + 1, "", group.map((r) => r.publicId).join(" "), `skipped: ${conflict}`);
+      continue;
+    }
     const winner = pickWinner(group);
     const losers = group.filter((r) => r.id !== winner.id);
     // Identifiers held by rows outside this group must not be copied onto the winner.
@@ -84,7 +90,12 @@ async function stepCreate() {
   csv("step", "customer", "email", "first_order_at");
   const [web] = await db.select({ id: leadSources.id }).from(leadSources).where(eq(leadSources.key, "website"));
   const buyers = await db
-    .select({ id: users.id, name: users.name, email: users.email, phone: users.phone, firstAt: sql<number>`min(${orders.createdAt})` })
+    .select({
+      id: users.id, name: users.name, email: users.email, phone: users.phone, firstAt: sql<number>`min(${orders.createdAt})`,
+      // The first order's org and owner, so the new row is visible to that franchise and has an owner.
+      orgId: sql<string | null>`(array_agg(${orders.organizationId} order by ${orders.createdAt}))[1]`,
+      ownerId: sql<string | null>`(array_agg(${orders.currentOwner} order by ${orders.createdAt}))[1]`,
+    })
     .from(users)
     .innerJoin(orders, eq(orders.userId, users.id))
     .where(eq(users.isSystem, false))
@@ -106,7 +117,10 @@ async function stepCreate() {
     if (!APPLY) continue;
     const [inq] = await db
       .insert(inquiries)
-      .values({ fullName: b.name ?? b.email, email: b.email, phone: b.phone, sourceId: web.id, customerId: b.id, stage: "new", createdAt: Number(b.firstAt) })
+      .values({
+        fullName: b.name ?? b.email, email: b.email, phone: b.phone, sourceId: web.id, customerId: b.id, stage: "new", createdAt: Number(b.firstAt),
+        organizationId: b.orgId, currentOwner: b.ownerId != null ? BigInt(b.ownerId) : null,
+      })
       .returning({ id: inquiries.id });
     await db.insert(inquiryActivities).values({ inquiryId: inq.id, type: "created", toStage: "new", details: { origin: "backfill", source: "website" }, createdAt: Number(b.firstAt) });
   }

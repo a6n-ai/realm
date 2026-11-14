@@ -156,5 +156,46 @@ describe("inquiry-links", () => {
     expect(card).toMatchObject({ publicId: inq.publicId, stage: "converted", roundLabel: "First sale" });
     expect(await links.inquiryOrderCard(o.id, ["org_other"])).toBeNull();
   });
+
+  it("review: inquiryForOrder never borrows another customer's inquiry by contact", async () => {
+    const shared = "+16475551320";
+    // users.phone is unique: the shared number lives on A's inquiry, and is B's login phone.
+    const a = await insertTestUser();
+    const b = await insertTestUser({ phone: shared });
+    const aInq = await insertTestInquiry({ phone: shared, customerId: a.id });
+    const bOrder = await insertTestOrder(b.id);
+    expect(await links.inquiryForOrder(bOrder.id)).toBeNull();
+    expect((await row(aInq.id)).currentOrderId).toBeNull();
+  });
+
+  it("review: a first sale after a cancelled checkout is still a first sale", async () => {
+    const { u, contact } = await buyer("+16475551321");
+    const inq = await insertTestInquiry({ phone: contact.phone });
+    const abandoned = await insertTestOrder(u.id);
+    await links.recordPurchase({ orderId: abandoned.id, userId: u.id, contact, kind: "plan", source: "website" });
+    await db.update(orders).set({ status: "cancelled" }).where(eq(orders.id, abandoned.id));
+    const real = await insertTestOrder(u.id, { startDate: "2035-02-01" });
+    const r = await links.recordPurchase({ orderId: real.id, userId: u.id, contact, kind: "plan", source: "website" });
+    expect(r?.round).toBe("first");
+    expect(await actsOf(inq.id, "renewed")).toHaveLength(0);
+    expect((await row(inq.id)).currentOrderId).toBe(real.id);
+  });
+
+  it("review: linking an older missed order never moves the pointer back", async () => {
+    const { u, contact } = await buyer("+16475551322");
+    const inq = await insertTestInquiry({ phone: contact.phone });
+    const older = await insertTestOrder(u.id, { createdAt: 1_000 });
+    const newer = await insertTestOrder(u.id, { startDate: "2035-02-01", createdAt: 2_000 });
+    await links.recordPurchase({ orderId: newer.id, userId: u.id, contact, kind: "plan", source: "website" });
+    await db.update(inquiries).set({ renewalStatus: "follow_up" }).where(eq(inquiries.id, inq.id));
+    await links.recordPurchase({ orderId: older.id, userId: u.id, contact, kind: "plan", source: "website" });
+    const after = await row(inq.id);
+    expect(after.currentOrderId).toBe(newer.id);
+    expect(after.renewalStatus).toBe("follow_up");
+    expect(after.stage).toBe("converted");
+    // By rank the older order is the sale and the newer one the renewal, whatever order they were linked in.
+    expect((await actsOf(inq.id, "converted")).map((a) => a.orderId)).toEqual([older.id]);
+    expect((await actsOf(inq.id, "renewed")).map((a) => a.orderId)).toEqual([newer.id]);
+  });
 });
 

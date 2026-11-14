@@ -320,7 +320,13 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
 
     const fold = async (existing: typeof inquiries.$inferSelect, conflictWith: typeof inquiries.$inferSelect | null) => {
       let current = existing;
-      const reopen = existing.stage === "lost" && !(await this.hasLivePlan(existing));
+      // Reopening needs the row's identifiers free among open rows (open-row unique indexes); a pre-merge
+      // open twin keeps the lead and this contact is flagged for staff instead.
+      const openTwin = existing.stage === "lost"
+        ? await findOpenMatch(existing.phone, existing.email, existing.id, existing.whatsappPhone)
+        : null;
+      if (openTwin) conflictWith = conflictWith ?? openTwin;
+      const reopen = existing.stage === "lost" && !openTwin && !(await this.hasLivePlan(existing));
       if (reopen) {
         current = await this.update(existing.publicId, { subStatus: null, stage: stageFor(null), lostReason: null, nextFollowUpAt: null });
         await addActivity({

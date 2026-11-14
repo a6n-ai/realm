@@ -9,9 +9,12 @@ import { formatDateOnly } from "@/lib/format/datetime";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { lastTiffinSql, laterOrderSql } from "@/lib/orders/queries";
 import { enqueueNotification } from "./enqueue";
+import { createLogger } from "@foundry/commons/logger";
 import { logReminderSent, openRenewal, reconcileOrders } from "@/lib/services/inquiry-links.service";
 import { orderTemplateVars } from "./events";
 import { addDaysIso, daysBetween } from "@foundry/commons/util/dates";
+
+const log = createLogger("renewal-reminder");
 
 /** Days before the last tiffin that a reminder goes out. */
 export const RENEWAL_REMINDER_DAYS = [5, 1] as const;
@@ -86,7 +89,13 @@ export async function openRenewalsDue(today: string): Promise<number> {
       sql`${lastTiffinSql} between ${today} and ${addDaysIso(today, RENEWAL_ROUND_DAYS)}`,
     ));
   let opened = 0;
-  for (const r of rows) if ((await openRenewal(r.id)) === "opened") opened++;
+  for (const r of rows) {
+    try {
+      if ((await openRenewal(r.id)) === "opened") opened++;
+    } catch (err) {
+      log.warn({ err, orderId: String(r.id) }, "open renewal round failed");
+    }
+  }
   return opened;
 }
 
@@ -94,10 +103,15 @@ export async function openRenewalsDue(today: string): Promise<number> {
 export async function sendRenewalReminders(now = Date.now()) {
   const today = zonedDateIso(now, (await getAppSettings()).timezone);
   const summary: Record<string, number> = {};
+  // Inquiry bookkeeping must never stop the customer emails below.
   summary.roundsOpened = await openRenewalsDue(today);
-  const repaired = await reconcileOrders(now - 2 * 86_400_000);
-  summary.inquiriesLinked = repaired.linked;
-  summary.inquiriesRepointed = repaired.repointed;
+  try {
+    const repaired = await reconcileOrders(now - 2 * 86_400_000);
+    summary.inquiriesLinked = repaired.linked;
+    summary.inquiriesRepointed = repaired.repointed;
+  } catch (err) {
+    log.warn({ err }, "inquiry reconcile failed");
+  }
   for (const daysLeft of RENEWAL_REMINDER_DAYS) {
     const plans = await candidates(addDaysIso(today, daysLeft));
     for (const c of plans) {
@@ -113,7 +127,7 @@ export async function sendRenewalReminders(now = Date.now()) {
           dedupeKey: m.dedupeKey,
         }),
       );
-      await logReminderSent(c.orderId, m.dedupeKey);
+      await logReminderSent(c.orderId, m.dedupeKey).catch((err) => log.warn({ err, orderId: String(c.orderId) }, "reminder activity failed"));
     }
     summary[`days${daysLeft}`] = plans.length;
   }
