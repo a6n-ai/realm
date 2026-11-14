@@ -1,11 +1,11 @@
 import { isCustomerRole } from "@/lib/auth/roles";
 import { ratePct } from "@/lib/money";
-import { and, inArray, isNotNull, sql, type SQL } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, or, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db/client";
-import { couponRedemptions, coupons, inquiries, orderActivities, orders, tickets, users } from "@/db/schema";
+import { couponRedemptions, coupons, inquiries, inquiryActivities, orderActivities, orders, tickets, users } from "@/db/schema";
 import { leadWhere as scopedLeadWhere } from "./leads.service";
-import { laterOrderSql } from "@/lib/orders/queries";
 import { revenueBy } from "./metrics/money";
+import { activityScopeWhere, renewalsDueSql, renewedSql } from "./round-metrics";
 import { dateWhere, facetsWhere, ordersScope, type AnalyticsScope, intCount, noOrgs, orgWhere } from "./metrics/scope";
 
 export type EmployeeRow = {
@@ -58,7 +58,7 @@ function couponScope(scope: AnalyticsScope): SQL | undefined {
 export async function getEmployeeRollup(scope: AnalyticsScope): Promise<EmployeeRollup> {
   if (noOrgs(scope)) return { rows: [], unassignedRevenue: 0 };
   const window = { fromMs: scope.fromMs, toMs: scope.toMs };
-  const [leadRows, ticketRows, couponRows, staff, ownedRows, revenueRows, actionRows] = await Promise.all([
+  const [leadRows, ticketRows, couponRows, staff, ownedRows, renewalRows, revenueRows, actionRows] = await Promise.all([
     db
       .select({
         owner: inquiries.currentOwner,
@@ -100,11 +100,21 @@ export async function getEmployeeRollup(scope: AnalyticsScope): Promise<Employee
       .select({
         owner: orders.currentOwner,
         n: intCount,
-        renewed: sql<number>`cast(count(*) filter (where ${laterOrderSql}) as int)`,
       })
       .from(orders)
       .where(and(isNotNull(orders.currentOwner), dateWhere(orders.createdAt, window), ordersScope(scope)))
       .groupBy(orders.currentOwner),
+    // Renewal rate counts the inquiries the owner holds: renewed ÷ renewals due, by activity date.
+    db
+      .select({
+        owner: inquiries.currentOwner,
+        due: sql<number>`cast(count(*) filter (where ${renewalsDueSql}) as int)`,
+        renewed: sql<number>`cast(count(*) filter (where ${renewedSql}) as int)`,
+      })
+      .from(inquiryActivities)
+      .innerJoin(inquiries, eq(inquiries.id, inquiryActivities.inquiryId))
+      .where(and(isNotNull(inquiries.currentOwner), or(renewalsDueSql, renewedSql), activityScopeWhere(scope)))
+      .groupBy(inquiries.currentOwner),
     revenueBy(scope, "owner"),
     db
       .select({ actor: orderActivities.createdBy, n: intCount })
@@ -166,7 +176,11 @@ export async function getEmployeeRollup(scope: AnalyticsScope): Promise<Employee
     if (!r.owner) continue;
     const row = ensure(r.owner);
     row.ordersOwned = r.n;
-    row.renewalRatePct = r.n > 0 ? ratePct(r.renewed, r.n) : null;
+  }
+  for (const r of renewalRows) {
+    if (!r.owner) continue;
+    const row = ensure(r.owner);
+    row.renewalRatePct = r.due > 0 ? ratePct(r.renewed, r.due) : null;
   }
   let unassignedRevenue = 0;
   for (const r of revenueRows) {

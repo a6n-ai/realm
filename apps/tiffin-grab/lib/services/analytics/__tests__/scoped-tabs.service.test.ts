@@ -6,7 +6,7 @@ vi.mock("@/lib/auth/session", () => ({ getSession: async () => null }));
 
 const { db } = await import("@/db/client");
 const {
-  couponRedemptions, coupons, deliveries, deliveryFrequencies, inquiries, leadSources, mealSizes, notificationOutbox,
+  couponRedemptions, coupons, deliveries, deliveryFrequencies, inquiries, inquiryActivities, leadSources, mealSizes, notificationOutbox,
   orderActivities, orders, organization, plans, tickets, users,
 } = await import("@/db/schema");
 const { buildAnalyticsScope } = await import("../metrics/scope");
@@ -100,6 +100,12 @@ describe("franchise-scoped analytics tabs (integration)", () => {
         .values({ fullName: `Lead ${k}`, phone: `+1647555${String(8000 + k)}`, sourceId: source!.id, organizationId: org, stage, currentOwner: staffId })
         .returning({ id: inquiries.id });
       inquiryIds.push(i!.id);
+      // Leads and their outcomes are counted from activities, as the write path records them.
+      await db.insert(inquiryActivities).values([
+        { inquiryId: i!.id, type: "created", details: { origin: "lead" } },
+        ...(stage === "converted" ? [{ inquiryId: i!.id, type: "converted" as const }] : []),
+        ...(stage === "lost" ? [{ inquiryId: i!.id, type: "stage_change" as const, toStage: "lost" as const }] : []),
+      ]);
     };
     await mk(orgA, "new");
     await mk(orgA, "converted");
@@ -213,7 +219,7 @@ describe("franchise-scoped analytics tabs (integration)", () => {
     ]);
     const mine = async (orgIds: "all" | string[]) =>
       (await getEmployeeRollup(scopeFor(orgIds))).rows.find((r) => r.userId === String(staffId));
-    expect(await mine([orgA])).toMatchObject({ ordersOwned: 1, actions: 2, renewalRatePct: 0 });
+    expect(await mine([orgA])).toMatchObject({ ordersOwned: 1, actions: 2, renewalRatePct: null });
     expect(await mine([orgB])).toMatchObject({ ordersOwned: 1, actions: 1 });
     expect((await mine("all"))?.ordersOwned).toBeGreaterThanOrEqual(2);
   });

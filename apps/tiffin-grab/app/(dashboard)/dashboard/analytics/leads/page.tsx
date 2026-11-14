@@ -6,7 +6,7 @@ import { ChartCard } from "@/components/analytics/chart-card";
 import { ChartSkeleton } from "@/components/analytics/skeletons";
 import { BreakdownList } from "@/components/analytics/breakdown-list";
 import { AnalyticsStatCards, AnalyticsStatCardsSkeleton, StatFootnote } from "@/components/dashboard/stat-cards";
-import { BreakdownBarChart, FunnelChart, SankeyChart } from "@/components/analytics/charts";
+import { FunnelChart, SankeyChart } from "@/components/analytics/charts";
 import type { Tone } from "@/components/analytics/chart-math";
 import { buildSourceFlow } from "@/lib/analytics/source-flow";
 import { reachedStages } from "@/lib/analytics/lead-funnel";
@@ -15,6 +15,7 @@ import {
   getLeadStats,
   getLeadsByStage,
   getLostReasonBreakdown,
+  getRenewalsByRound,
   getSourcePerformance,
 } from "@/lib/services/analytics/leads.service";
 import { DATE_BASIS_LABEL, type AnalyticsScope } from "@/lib/services/analytics/metrics/scope";
@@ -51,12 +52,17 @@ export default async function LeadsAnalyticsPage({ searchParams }: { searchParam
             <SourceTable scope={scope} />
           </Suspense>
         </ChartCard>
-        <ChartCard title="Lost reasons" subtitle="Among leads marked lost">
+        <ChartCard title="Lost reasons" subtitle="Leads marked lost, and renewals not renewed">
           <Suspense fallback={<ChartSkeleton />}>
             <LostReasonChart scope={scope} />
           </Suspense>
         </ChartCard>
       </div>
+      <ChartCard title="Renewals by round" subtitle="Renewals due and renewed in each round" info="Round 1 is the first sale; round N is renewal N-1. Round 4 counts every round from 4 on.">
+        <Suspense fallback={<ChartSkeleton />}>
+          <RenewalRoundsList scope={scope} />
+        </Suspense>
+      </ChartCard>
     </div>
   );
 }
@@ -83,6 +89,14 @@ async function StatsData({ scope }: { scope: AnalyticsScope }) {
           tone: s.lost > 0 ? "warn" : undefined,
           badge: "Lost",
           badgeTone: s.lost > 0 ? "warn" : "neutral",
+        },
+        {
+          label: "Direct buyers",
+          value: s.direct,
+          hint: `Bought a plan without a lead · ${DATE_BASIS_LABEL.leads}`,
+          href: inquiriesHref(scope, {}),
+          badge: "Direct",
+          badgeTone: "brand",
         },
         {
           label: "Conversion rate",
@@ -140,7 +154,33 @@ async function ConversionChart({ scope }: { scope: AnalyticsScope }) {
 
 async function LostReasonChart({ scope }: { scope: AnalyticsScope }) {
   const rows = await getLostReasonBreakdown(scope);
-  return <BreakdownBarChart data={rows} xKey="reason" yKey="n" label="Leads lost" />;
+  const of = (kind: "lead" | "renewal") => rows.filter((r) => r.kind === kind).map((r) => ({ label: r.reason, n: r.n }));
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-2">
+        <p className="text-muted-foreground text-xs font-medium">Leads</p>
+        <BreakdownList rows={of("lead")} emptyLabel="No leads marked lost in range." />
+      </div>
+      <div className="flex flex-col gap-2">
+        <p className="text-muted-foreground text-xs font-medium">Renewals</p>
+        <BreakdownList rows={of("renewal")} emptyLabel="No renewals not renewed in range." />
+      </div>
+    </div>
+  );
+}
+
+async function RenewalRoundsList({ scope }: { scope: AnalyticsScope }) {
+  const rows = await getRenewalsByRound(scope);
+  return (
+    <BreakdownList
+      rows={rows.map((r) => ({
+        label: r.round === 1 ? "Round 1 (first sale)" : r.round === 4 ? "Round 4 or later" : `Round ${r.round} (renewal ${r.round - 1})`,
+        n: r.due,
+        meta: r.due > 0 ? `${r.renewed} renewed · ${r.ratePct}%` : undefined,
+      }))}
+      emptyLabel="No renewals due in range."
+    />
+  );
 }
 
 async function SourceTable({ scope }: { scope: AnalyticsScope }) {
