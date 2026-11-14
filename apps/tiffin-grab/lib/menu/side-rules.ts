@@ -51,19 +51,6 @@ export function sideOptions(rule: SideRule | undefined, dayItems: SideItem[], pl
   return dayItems.filter((i) => i.slot === rule.sourceCategory && planDishIds.has(i.dishId));
 }
 
-/**
- * The default dish for a side pick, or undefined to keep the normal default. A source
- * category with nothing servable on that day falls back too, so a side box is never empty.
- */
-export function sideDefault(
-  rule: SideRule | undefined,
-  dayItems: SideItem[],
-  planDishIds: Set<bigint>,
-): SideItem | undefined {
-  const options = sideOptions(rule, dayItems, planDishIds);
-  return options.find((i) => i.isDefault) ?? options[0];
-}
-
 /** Standing rules, then each day's overrides on top, for one menu week. */
 export async function loadSideRules(weekId: bigint): Promise<Map<DayOfWeek | "*", SideRules>> {
   const cat = alias(dishCategories, "side_cat");

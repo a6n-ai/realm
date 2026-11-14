@@ -1,4 +1,4 @@
-import { orgScope, type Visible } from "@/lib/tenant/org-scope";
+import { noVisibleOrgs, orgScope, type Visible } from "@/lib/tenant/org-scope";
 import { and, asc, eq, isNull, or } from "drizzle-orm";
 import { UpdatableRepository } from "@foundry/database";
 import { db } from "@/db/client";
@@ -58,7 +58,7 @@ export async function listAllFaqs(visible: Visible): Promise<Faq[]> {
   const rows = await db
     .select()
     .from(publicFaqs)
-    .where(visible === "all" ? undefined : visible.length ? or(isNull(publicFaqs.organizationId), orgScope(publicFaqs.organizationId, visible)) : orgScope(publicFaqs.organizationId, visible))
+    .where(visible === "all" || noVisibleOrgs(visible) ? orgScope(publicFaqs.organizationId, visible) : or(isNull(publicFaqs.organizationId), orgScope(publicFaqs.organizationId, visible)))
     .orderBy(asc(publicFaqs.sortOrder));
   return rows.map(rowToFaq);
 }

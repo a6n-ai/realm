@@ -1,8 +1,7 @@
 import { DAY_MS } from "@foundry/commons/util/dates";
-import { pageOffset } from "@foundry/design-system/filters/parse-filter-state";
+import { pageOffset, parseFilterState } from "@foundry/design-system/filters/parse-filter-state";
 import { eq, ilike, inArray, or, sql, and, type SQL } from "drizzle-orm";
 import { pageOrder } from "@foundry/database";
-import { parseFilterState } from "@/components/ds";
 import { db } from "@/db/client";
 import { ledgerEntries, notificationOutbox, orderActivities, orders, payments, stripeEvents, users } from "@/db/schema";
 import type { SendState } from "@/lib/notifications/send-state";

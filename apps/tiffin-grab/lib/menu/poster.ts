@@ -1,7 +1,6 @@
-import { WEEK_DAYS, type DayOfWeek } from "../deliveries/schedule/delivery-days";
+import type { DayOfWeek } from "../deliveries/schedule/delivery-days";
 import type { FileDetail } from "@foundry/storage/model";
 import type { MealSlot } from "./meal-types";
-import { isoToUtcDate } from "@foundry/commons/util/dates";
 
 export type PosterItem = {
   dayOfWeek: DayOfWeek;
@@ -86,18 +85,4 @@ export function buildPosterColumns(slots: MealSlot[], items: PosterItem[]): Rend
     label: col.label,
     groups: groupsForColumn(slots, items, col, "flat-placeholder"),
   }));
-}
-
-/** Admin list + customer home: one column per weekday, empty days as no groups. */
-export function buildHomeMenuColumns(slots: MealSlot[], items: PosterItem[]): RenderedColumn[] {
-  return HOME_MENU_DAY_COLUMNS.map((col) => ({
-    label: col.label,
-    groups: groupsForColumn(slots, items, col, "omit"),
-  }));
-}
-
-/** `weekStart` and other date-only ISO strings are UTC calendar dates. */
-export function isoToDayOfWeek(iso: string): DayOfWeek {
-  const jsDay = isoToUtcDate(iso).getUTCDay();
-  return WEEK_DAYS[(jsDay + 6) % 7];
 }

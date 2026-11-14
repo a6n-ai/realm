@@ -1,3 +1,4 @@
+import { noVisibleOrgs } from "@/lib/tenant/org-scope";
 "use server";
 
 import { ValidationError } from "@foundry/commons";
@@ -66,7 +67,7 @@ export async function estimatePrefill(orderPublicId: string): Promise<ActionResu
 export async function renewPrefill(customerPublicId: string): Promise<ActionResult<OrderPrefill & { deploymentId: string }>> {
   return staffAction({ guard: { order: ["read"] } }, async () => {
     const visible = await resolveSessionVisibleOrgIds(await getSession());
-    if (visible !== "all" && visible.length === 0) throw new ValidationError("This customer has no earlier plan you can see");
+    if (noVisibleOrgs(visible)) throw new ValidationError("This customer has no earlier plan you can see");
     const last = await findRenewableOrder(customerPublicId, visible);
     if (!last) throw new ValidationError("This customer has no earlier plan to renew");
     return { ...(await prefillFromOrder(last.publicId)), deploymentId: last.deploymentId };

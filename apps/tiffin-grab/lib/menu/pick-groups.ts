@@ -70,17 +70,6 @@ export function groupPickCells(
   return groups;
 }
 
-/** How many picks the customer has explicitly changed (or non-default server picks). */
-export function selectedProgress(group: PickCategoryGroup, picked: Record<string, string>): number {
-  if (!group.selectable) return group.chooseCount;
-  let n = 0;
-  for (const c of group.cells) {
-    const key = cellKey(c);
-    if (picked[key] != null || !c.isDefaulted) n += 1;
-  }
-  return n;
-}
-
 export type MealSummaryLine = {
   categoryLabel: string;
   /** Dish names and/or natural portions for display. */
@@ -132,38 +121,6 @@ export function buildMealSummary(
     if (lines.length) out.push({ categoryLabel: g.label, lines });
   }
   return out;
-}
-
-/**
- * Which composition-row cell receives a dish tap. Prefer an untouched default
- * pick; otherwise replace the last pick that isn't already this dish.
- * Never merges pickIndexes — each cell stays a separate composition row.
- */
-export function resolveDishTap(
-  group: PickCategoryGroup,
-  dishId: string,
-  picked: Record<string, string>,
-): { cell: GridCell; dishId: string } | null {
-  if (!group.selectable || group.cells.length === 0) return null;
-  const cells = group.cells.filter((c) => c.selectable && !c.locked);
-  if (cells.length === 0) return null;
-
-  const untouchedDefault = cells.find((c) => picked[cellKey(c)] == null && c.isDefaulted);
-  if (untouchedDefault) return { cell: untouchedDefault, dishId };
-
-  const replaceOther = [...cells].reverse().find((c) => effectiveDishId(c, picked) !== dishId);
-  if (replaceOther) return { cell: replaceOther, dishId };
-
-  return null;
-}
-
-/** Portion blurb for the category header (e.g. "12oz + 8oz"). */
-export function portionHeaderHint(portions: (string | null)[]): string | null {
-  const alive = portions.filter((p): p is string => Boolean(p && p.trim()));
-  if (alive.length === 0) return null;
-  const unique = [...new Set(alive)];
-  if (unique.length === 1) return unique[0]!;
-  return alive.join(" + ");
 }
 
 export type AnchoredSwap = {

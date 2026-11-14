@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { round2 } from "@foundry/commons/util/money";
 import { and, eq, inArray } from "drizzle-orm";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
@@ -9,10 +10,11 @@ const { deliveries, dishCategories, dishes, deliveryFrequencies, mealSelections,
   await import("@/db/schema");
 const { buildAnalyticsScope } = await import("../metrics/scope");
 const { revenueBy, revenueTotals } = await import("../metrics/money");
-const { getPaidByTierAndDiet, getPaidByMealType, getPaidByTier, getProductStats, getTopDishes, getSizeSales, getAddonSales, getProductSales, tiffinsBySize, getPickers } =
+const { getPaidByTierAndDiet, getPaidByTier, getProductStats, getTopDishes, getSizeSales, getAddonSales, getProductSales, tiffinsBySize, getPickers } =
   await import("../products.service");
 const { getDeliveryStatusMix } = await import("../operations.service");
-const { buildSizeTreemap, treemapTotal } = await import("@/lib/analytics/size-treemap");
+const { buildSizeTreemap } = await import("@/lib/analytics/size-treemap");
+const treemapTotal = (groups: ReturnType<typeof buildSizeTreemap>) => round2(groups.reduce((s, g) => s + g.children.reduce((t, c) => t + c.value, 0), 0));
 const { isoDateInZone } = await import("@foundry/commons/util/dates");
 
 const TZ = "America/Toronto";
@@ -95,20 +97,18 @@ describe("products analytics", () => {
     await makeOrder({ planIdx: 0, paid: "113.00", deploymentId: "PRD-A" });
     await makeOrder({ planIdx: 1, paid: "56.50", deploymentId: "PRD-B" });
 
-    const [net, planBuckets, planRows, byTier, byMeal] = await Promise.all([
+    const [net, planBuckets, planRows, byTier] = await Promise.all([
       revenueTotals(payScope),
       revenueBy(payScope, "plan"),
       db.select({ key: plans.key, name: plans.name }).from(plans),
       getPaidByTier(payScope),
-      getPaidByMealType(payScope),
     ]);
     const sum = (rows: { paid: number }[]) => Math.round(rows.reduce((s, r) => s + r.paid, 0) * 100) / 100;
     expect(net.net).toBe(150); // 100 + 50, ex tax
     const planNames = new Map(planRows.map((p) => [p.key, p.name]));
     const byPlan = planBuckets.map((b) => ({ plan: planNames.get(b.key) ?? b.key, paid: b.net }));
     expect(sum(byPlan)).toBe(net.net);
-    // Both fixture orders use one catalog meal size, so the two size splits carry all of it too.
-    expect(sum(byMeal)).toBe(net.net);
+    // Both fixture orders use one catalog meal size, so the tier split carries all of it too.
     expect(sum(byTier)).toBe(net.net);
     const salesTotal = Math.round((await getSizeSales(payScope)).reduce((t, r) => t + r.revenue, 0) * 100) / 100;
     expect(sum(byTier)).toBe(salesTotal);

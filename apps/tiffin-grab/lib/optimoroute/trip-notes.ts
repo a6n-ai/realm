@@ -5,7 +5,7 @@ import { deliveryCategorySwaps } from "@/db/schema";
 import { coveredDates } from "@/lib/deliveries/schedule/coverage";
 import { loadExtraDates } from "@/lib/deliveries/delivery-extras";
 import { resolveTripDay, swapsForDay, weekLoader } from "@/lib/menu/trip-meals";
-import type { DayDeliveryRow } from "@/lib/menu/daily-labels.service";
+import type { DayDeliveryRow } from "@/lib/deliveries/day-deliveries";
 import { DAY_NAMES } from "@foundry/commons/util/dates";
 
 const dayName = (iso: string) => DAY_NAMES[parseIsoDateUtc(iso).getUTCDay()]!;

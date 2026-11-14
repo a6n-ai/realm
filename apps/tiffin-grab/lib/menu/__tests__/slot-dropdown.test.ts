@@ -4,7 +4,6 @@ import type { SwapCategory } from "../swap-rules";
 import {
   buildSlotDropdownOptions,
   dishOptionValue,
-  hasOutgoingSwapOptions,
   liveSwapOptions,
   parseSlotOptionValue,
   swapOptionValue,
@@ -166,11 +165,6 @@ describe("slot-dropdown", () => {
     expect(ruled.map((o) => !!o.disabled)).toEqual([false, true]);
   });
 
-  it("hasOutgoingSwapOptions follows admin pairs for any from-category", () => {
-    expect(hasOutgoingSwapOptions("sabzi", [sabziDaal])).toBe(true);
-    expect(hasOutgoingSwapOptions("roti", [sabziDaal])).toBe(false);
-    expect(hasOutgoingSwapOptions("sabzi", [{ ...sabziDaal, available: false, validBundles: [] }])).toBe(false);
-  });
 });
 
 describe("buildSlotDropdownOptions: Muskan's side row (2026-10-08)", () => {

@@ -14,6 +14,12 @@ export const userIdByPublicId = cache(async (publicId: string): Promise<bigint |
   return row?.id ?? null;
 });
 
+/** The user's email by public id, or null. */
+export async function emailByPublicId(publicId: string): Promise<string | null> {
+  const [row] = await db.select({ email: users.email }).from(users).where(eq(users.publicId, publicId));
+  return row?.email ?? null;
+}
+
 /** The internal id for a public id, or a ValidationError("User not found"). */
 export async function requireUserId(publicId: string): Promise<bigint> {
   const id = await userIdByPublicId(publicId);

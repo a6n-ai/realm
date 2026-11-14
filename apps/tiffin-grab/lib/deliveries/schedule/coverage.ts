@@ -61,14 +61,6 @@ export function mergeBlockReason(target: Map<string, number>, incoming: Map<stri
   return null;
 }
 
-/** Only rows with explicit coverage are checked; legacy rows carry weekend bundles that predate covers_dates. */
-export function assertCoverageUnits(d: { coversDates: string[] | null; tiffinUnits: number }, persons: number, extraCount = 0): void {
-  const days = (d.coversDates?.length ?? 0) + extraCount;
-  if (d.coversDates && d.tiffinUnits !== days * persons) {
-    throw new Error(`Trip carries ${d.tiffinUnits} tiffins but covers ${days} days x ${persons} persons`);
-  }
-}
-
 
 /** A swap with NULL for_date belongs to the trip's own date. */
 export function swapAppliesTo(swapForDate: string | null, tripDate: string, eatingDate: string): boolean {

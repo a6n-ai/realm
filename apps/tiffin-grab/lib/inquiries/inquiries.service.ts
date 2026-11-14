@@ -1,5 +1,5 @@
 import { activeStaffWhere } from "@/lib/staff/staff-roster";
-import { orgScope, type Visible } from "@/lib/tenant/org-scope";
+import { orgScope, type Visible, noVisibleOrgs } from "@/lib/tenant/org-scope";
 import { parseEmail, parsePhone } from "@/lib/services/contact";
 import { isUniqueViolation } from "@/lib/db/errors";
 import { LIVE } from "@/lib/orders/status";
@@ -130,7 +130,7 @@ const newWhere = (visible: Visible) =>
 export async function assertInquiriesVisible(publicIds: readonly string[], visible: Visible): Promise<void> {
   const ids = [...new Set(publicIds)];
   if (ids.length === 0) return;
-  if (visible !== "all" && visible.length === 0) throw new NotFoundError("Inquiry not found");
+  if (noVisibleOrgs(visible)) throw new NotFoundError("Inquiry not found");
   const rows = await db
     .select({ id: inquiries.id })
     .from(inquiries)
@@ -999,7 +999,7 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
    * `visible` scopes by inquiries.organizationId: a row with no organization counts only for "all".
    */
   async listNew(visible: Visible, limit: number) {
-    if (visible !== "all" && visible.length === 0) return [];
+    if (noVisibleOrgs(visible)) return [];
     return db
       .select({ publicId: inquiries.publicId, fullName: inquiries.fullName, phone: inquiries.phone, source: sql<string>`coalesce(${leadSources.label}, 'No source')`, createdAt: inquiries.createdAt })
       .from(inquiries)
@@ -1011,7 +1011,7 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
   }
 
   async countNew(visible: Visible): Promise<number> {
-    if (visible !== "all" && visible.length === 0) return 0;
+    if (noVisibleOrgs(visible)) return 0;
     const [{ count }] = await db.select({ count: sql<number>`cast(count(*) as int)` }).from(inquiries).where(newWhere(visible));
     return count;
   }

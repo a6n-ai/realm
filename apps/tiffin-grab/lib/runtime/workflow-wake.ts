@@ -1,8 +1,6 @@
-import { getCloudflareContext } from "@opennextjs/cloudflare";
+import { cfEnv } from "./cf-env";
 import { createWake } from "../../cloudflare/wake.js";
 import { isWorkers } from "@foundry/commons/runtime/platform";
-
-type Workflow = { create(o: { id: string; params: { at: number } }): Promise<unknown> };
 
 // A wake is never closer than a minute: ids are minute-rounded, and an id already used by an instance that
 // finished would swallow a nearer one ("already exists") and nothing would fire.
@@ -12,8 +10,7 @@ async function wake(binding: "CAMPAIGN_WAKE" | "SITE_REFRESH_WAKE", prefix: stri
   if (!isWorkers()) return;
   const at = Math.max(requestedAt, Date.now() + MIN_LEAD_MS);
   try {
-    const env = getCloudflareContext().env as unknown as Record<string, Workflow>;
-    await createWake(env[binding], prefix, at);
+    await createWake(cfEnv()[binding], prefix, at);
   } catch (err) {
     console.error(`${prefix} wake failed`, err);
   }

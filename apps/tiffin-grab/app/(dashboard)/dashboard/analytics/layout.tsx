@@ -1,4 +1,4 @@
-import type { Visible } from "@/lib/tenant/org-scope";
+import { type Visible, noVisibleOrgs } from "@/lib/tenant/org-scope";
 import { Suspense, type ReactNode } from "react";
 import { requireAdmin } from "@/lib/auth/guards";
 import { Skeleton } from "@foundry/ui/skeleton";
@@ -54,7 +54,7 @@ function complaintFacets(tickets: AnalyticsFilterOptions["tickets"]): FacetDef[]
 export default async function AnalyticsLayout({ children }: { children: ReactNode }) {
   await requireAdmin();
   const visible = await resolveSessionVisibleOrgIds(await getSession());
-  const noAccess = visible !== "all" && visible.length === 0;
+  const noAccess = noVisibleOrgs(visible);
 
   return (
     <PageShell>

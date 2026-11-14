@@ -1,4 +1,4 @@
-import { orgScope, type Visible } from "@/lib/tenant/org-scope";
+import { orgScope, sees, type Visible } from "@/lib/tenant/org-scope";
 import { DAY_MS } from "@foundry/commons/util/dates";
 import { pageOffset } from "@foundry/design-system/filters/parse-filter-state";
 import { isStaffRole } from "@/lib/roles";
@@ -85,7 +85,7 @@ async function ticketOrgId(orderId: bigint | undefined): Promise<string | null> 
 async function assertStaffSees(ticket: { organizationId: string | null }): Promise<void> {
   const visible = await resolveSessionVisibleOrgIds(await getSession());
   if (visible === "all") return;
-  if (ticket.organizationId == null || !visible.includes(ticket.organizationId)) throw new NotFoundError("Ticket not found");
+  if (ticket.organizationId == null || !sees(visible, ticket.organizationId)) throw new NotFoundError("Ticket not found");
 }
 
 const ticketVars = (code: string, subject: string) => ({ ticket: { subject, code } });

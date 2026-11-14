@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { driverNote } from "@/lib/menu/daily-labels.service";
+import { driverNote } from "@/lib/deliveries/day-deliveries";
 import { stopNotes } from "../trip-notes";
 
 describe("driver note", () => {

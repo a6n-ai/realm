@@ -153,13 +153,6 @@ export function firstBlockedStep(catalog: ClientCatalogSnapshot, s: WizardSelect
   return null;
 }
 
-// Validates against the live catalog rather than a hardcoded plan list — a
-// plan set only ever grows (admin adds a diet/plan), so any fixed union here
-// would go stale the moment a new one is added.
-function asPlanKey(catalog: ClientCatalogSnapshot, key: string | null | undefined): WizardSelections["planKey"] {
-  return catalog.plans.find((p) => p.key === key)?.key ?? null;
-}
-
 export const initialSelections: WizardSelections = {
   planKey: null,
   mealSizeId: "",
@@ -174,47 +167,6 @@ export const initialSelections: WizardSelections = {
   startDate: "",
   addonSelections: [],
 };
-
-/** Prefill the renew stepper from the customer's most recent order. Start date stays empty. */
-export function selectionsFromPriorOrder(
-  catalog: ClientCatalogSnapshot,
-  prior: {
-    planKey: string;
-    mealSizePublicId?: string | null;
-    persons: number;
-    includeSaturday: boolean;
-    includeSunday: boolean;
-    durationWeeks: number;
-    frequencyKey: string;
-    eatingDays?: string[] | null;
-  } | null,
-): WizardSelections {
-  if (!prior) return initialSelections;
-  const planKey = asPlanKey(catalog, prior.planKey);
-  const plan = catalog.plans.find((p) => p.key === planKey);
-  const mealSizeId =
-    prior.mealSizePublicId &&
-    listableMealSizes(catalog.mealSizes).some((m) => m.publicId === prior.mealSizePublicId && m.planKey === planKey)
-      ? prior.mealSizePublicId
-      : "";
-  return {
-    planKey,
-    mealSizeId,
-    // Not carried over from the prior order: the controls for these are gone, so
-    // restoring 2 persons or a Saturday would silently change the quote with
-    // nothing on screen to explain it, and no way for the customer to undo it.
-    frequencyKey: "",
-    eatingDays: (prior.eatingDays as DayOfWeek[] | null | undefined) ?? DEFAULT_EATING_DAYS,
-    persons: FIXED_PERSONS,
-    mealSlots: plan?.offeredSlots ?? [],
-    includeSaturday: false,
-    includeSunday: false,
-    durationWeeks: prior.durationWeeks > 0 ? prior.durationWeeks : 1,
-    startDate: "",
-    // Not carried over, same reasoning as frequencyKey/persons above — re-picked fresh.
-    addonSelections: [],
-  };
-}
 
 /**
  * A staff estimate link (`/subscribe?p=veg&m=msz_x&f=5_day&w=4&c=EXTRA5`): the picks a sales rep quoted,

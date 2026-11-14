@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  carryTripDateIso,
-  formatEatDayCarryPreview,
-  previewEatDayCarry,
-} from "../carry-trip";
+import { carryTripDateIso } from "../carry-trip";
 import type { DayOfWeek } from "../delivery-days";
 
 const MWF: DayOfWeek[] = ["mon", "wed", "fri"];
@@ -41,22 +37,5 @@ describe("carryTripDateIso", () => {
   it("returns null for empty frequency or bad ISO", () => {
     expect(carryTripDateIso("2026-09-22", [])).toBeNull();
     expect(carryTripDateIso("not-a-date", MWF)).toBeNull();
-  });
-});
-
-describe("previewEatDayCarry / formatEatDayCarryPreview", () => {
-  it("marks snapped vs on-pattern and formats copy", () => {
-    const tue = previewEatDayCarry("2026-09-22", MWF)!;
-    expect(tue.snapped).toBe(true);
-    expect(tue.carriedOn).toBe("2026-09-21");
-    expect(formatEatDayCarryPreview(tue)).toBe("Tue 22 → delivered with your Mon 21 delivery");
-
-    const mon = previewEatDayCarry("2026-09-21", MWF)!;
-    expect(mon.snapped).toBe(false);
-    expect(formatEatDayCarryPreview(mon)).toBe("Mon 21 is a delivery day — food arrives that day");
-
-    expect(
-      formatEatDayCarryPreview(tue, { targetAlreadyHasTrip: true, targetUnitsAfter: 2 }),
-    ).toContain("will then carry 2 days");
   });
 });

@@ -7,7 +7,7 @@ export type Agenda = Record<string, AgendaDot[]>;
 
 export const weekDays = (monday: string) => Array.from({ length: 7 }, (_, i) => addDaysIso(monday, i));
 
-const ISO = /^\d{4}-\d{2}-\d{2}$/;
+export const ISO = /^\d{4}-\d{2}-\d{2}$/;
 /** ?week must be a real date; it snaps to that week's Monday. Anything else is ignored. */
 export function parseWeekParam(p: string | undefined): string | null {
   if (!p || !ISO.test(p) || Number.isNaN(isoToUtcDate(p).getTime())) return null;

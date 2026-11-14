@@ -4,27 +4,6 @@ import { isWeekendDay } from "@foundry/commons/util/dates";
 export { WEEK_DAYS, MON_FRI, type DayOfWeek } from "@/db/schema/enums";
 const MWF: DayOfWeek[] = ["mon", "wed", "fri"];
 
-/** For a weekday set with fewer than 7 selected days, how many tiffins each
- * delivery day carries: itself plus every non-selected day up to (not
- * including) the next selected day, cyclic across the week boundary. Sum
- * across one full cycle always equals `weekdays.length` (a tiffin for every
- * calendar day, delivered on the nearest selected day at/after it). */
-export function clubbedQuantities(weekdays: DayOfWeek[]): Record<DayOfWeek, number> {
-  const result = {} as Record<DayOfWeek, number>;
-  if (weekdays.length === 0) return result;
-  const selected = new Set(weekdays);
-  for (const day of weekdays) {
-    let qty = 1;
-    let idx = (WEEK_DAYS.indexOf(day) + 1) % 7;
-    while (!selected.has(WEEK_DAYS[idx])) {
-      qty += 1;
-      idx = (idx + 1) % 7;
-    }
-    result[day] = qty;
-  }
-  return result;
-}
-
 /** One week's delivery trips: every eating day rides the nearest delivery day at
  * or before it, and delivery days with nothing to carry are dropped. Returns
  * null when an eating day falls before the week's first delivery day (nothing

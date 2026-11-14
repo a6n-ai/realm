@@ -10,7 +10,7 @@ import { cn } from "@/components/kit/cn";
 import { trackMeta } from "@foundry/meta-pixel/client";
 import { gtagEvent } from "@foundry/google-analytics/client";
 import { CardPay, CardPayProvider, ExpressPay, PaidSwitch, type PaidInfo, type ReceiptView } from "@/components/payments/card-pay";
-import { markPaid } from "@/lib/payments/paid-flag";
+import { markPaid } from "@/lib/wizard/paid-flag";
 import { PaidPage } from "@/components/payments/paid-page";
 import { PaymentMethodCards } from "@/components/checkout/payment-method-cards";
 import type { CardCheckoutContext } from "@/lib/payments/card-checkout-context";

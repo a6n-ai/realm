@@ -1,6 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { eq, inArray } from "drizzle-orm";
-import { ValidationError } from "@foundry/commons";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
@@ -8,14 +7,11 @@ const { db } = await import("@/db/client");
 const { coupons, couponRedemptions, customerGroupActions, customerGroupMembers, customerGroups, ledgerEntries, orders, users } =
   await import("@/db/schema");
 const { couponsService } = await import("../coupons.service");
-const { applyGroupCoupon } = await import("../../customer-groups/customer-groups.service");
 
 const MSG = "This code isn't available for your account";
 let member: bigint;
 let outsider: bigint;
 let groupId: bigint;
-let groupPublic: string;
-let otherGroupPublic: string;
 let gc: typeof coupons.$inferSelect;
 const couponIds: bigint[] = [];
 const groupIds: bigint[] = [];
@@ -43,8 +39,6 @@ beforeAll(async () => {
     .returning();
   groupIds.push(...gs.map((g) => g.id));
   groupId = gs[0].id;
-  groupPublic = gs[0].publicId;
-  otherGroupPublic = gs[1].publicId;
   await db.insert(customerGroupMembers).values({ groupId, userId: member });
   gc = await mk("CGC-GROUP", { customerGroupId: groupId });
 });
@@ -112,26 +106,5 @@ describe("group-only coupons", () => {
     expect(await codes(member)).toContain("CGC-GROUP");
     expect(await codes(outsider)).not.toContain("CGC-GROUP");
     expect(await codes(null)).not.toContain("CGC-GROUP");
-  });
-});
-
-describe("applyGroupCoupon", () => {
-  it("rejects inactive, autoApply and another group's coupon; sets and records otherwise", async () => {
-    const inactive = await mk("CGC-OFF", { active: false });
-    const auto = await mk("CGC-AUTO", { autoApply: true });
-    const free = await mk("CGC-FREE");
-    const rep = await mk("CGC-REP", { kind: "rep_code" });
-    await expect(applyGroupCoupon(groupPublic, rep.publicId, null)).rejects.toBeInstanceOf(ValidationError);
-    await expect(applyGroupCoupon(groupPublic, inactive.publicId, null)).rejects.toBeInstanceOf(ValidationError);
-    await expect(applyGroupCoupon(groupPublic, auto.publicId, null)).rejects.toBeInstanceOf(ValidationError);
-    await expect(applyGroupCoupon(otherGroupPublic, gc.publicId, null)).rejects.toBeInstanceOf(ValidationError);
-
-    await applyGroupCoupon(groupPublic, free.publicId, member);
-    const [row] = await db.select().from(coupons).where(eq(coupons.id, free.id));
-    expect(row.customerGroupId).toBe(groupId);
-    const [a] = await db.select().from(customerGroupActions).where(eq(customerGroupActions.groupId, groupId));
-    expect(a.kind).toBe("discount");
-    expect(a.params).toEqual({ couponCode: "CGC-FREE" });
-    expect(a.createdBy).toBe(member);
   });
 });

@@ -23,5 +23,3 @@ export function buildSizeTreemap(rows: SizeSale[], metric: SizeMetric, planOrder
     }))
     .filter((g) => g.children.length > 0);
 }
-
-export const treemapTotal = (groups: TreemapGroup[]) => round2(groups.reduce((s, g) => s + g.children.reduce((t, c) => t + c.value, 0), 0));

@@ -1,4 +1,4 @@
-import { orgScope, type Visible } from "@/lib/tenant/org-scope";
+import { orgScope, type Visible, noVisibleOrgs } from "@/lib/tenant/org-scope";
 import { paymentMethodLabel } from "@/lib/payments/method-label";
 import { cache } from "react";
 import { displayName } from "@/lib/inquiries/display";
@@ -21,7 +21,7 @@ import type { RenewalsFilter } from "@/lib/renewals/filters";
 import { OVERVIEW_KINDS, TODAY_LIMIT, type TodayItem, type TodayKind } from "@/lib/today/types";
 import { formatDateOnly } from "@/lib/format/datetime";
 
-const empty = (visible: Visible) => visible !== "all" && visible.length === 0;
+const empty = noVisibleOrgs;
 
 /**
  * True when the user sees every franchise that exists. Day deliveries and the route push are not

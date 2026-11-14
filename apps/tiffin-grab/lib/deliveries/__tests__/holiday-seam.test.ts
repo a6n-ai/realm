@@ -18,7 +18,7 @@ const { adminSetDeliveryStatus, maybeComplete, rescheduleDelivery } = await impo
 const { makeupSourceIdsForOrder, myActiveSubscriptions, myAgendaDots, myDeliveries } = await import("../customer-deliveries.service");
 const { makeTripOrder, resetTrips } = await import("../../services/__tests__/trip-fixture");
 const { applyCompletion } = await import("../../optimoroute/completions");
-const { loadDayDeliveries } = await import("../../menu/daily-labels.service");
+const { loadDayDeliveries } = await import("../day-deliveries");
 
 const DEP = "SUB-HOLSEAM001";
 const PFX = "tholseam";

@@ -38,10 +38,6 @@ export function formatEpoch(ms: number, opts: FormatEpochOpts): string {
   }).format(ms);
 }
 
-export function formatDeliveryTime(ms: number, timezone: string): string {
-  return formatEpoch(ms, { timeZone: timezone, mode: "datetime", withZone: true });
-}
-
 const DATE_ONLY_PRESETS = {
   long: { year: "numeric", month: "short", day: "numeric" },
   short: { month: "short", day: "numeric" },

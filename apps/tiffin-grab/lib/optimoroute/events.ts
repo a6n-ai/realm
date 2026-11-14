@@ -5,7 +5,7 @@ import { db } from "@/db/client";
 import { deliveries } from "@/db/schema";
 import { acquireLease, readLeaseValue, renewLease, writeLeaseValue } from "@/lib/runtime/lease";
 import { getAppSettings } from "@/lib/settings";
-import { loadDayDeliveries, type DayDeliveryRow } from "@/lib/menu/daily-labels.service";
+import { loadDayDeliveries, type DayDeliveryRow } from "@/lib/deliveries/day-deliveries";
 import { getCompletionDetails, getEvents, OptimoRouteError, type OptimoCompletionDetail, type OptimoEvent } from "./client";
 import { applyCompletion, movedSourceIds, tiffinsMoved, type ApplyResult } from "./completions";
 import { getOptimoRouteConfig } from "./config";

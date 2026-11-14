@@ -26,6 +26,11 @@ const menuWeeksEntity = new SessionUpdatableService(new UpdatableRepository(db, 
 const menuItemsEntity = new SessionBaseService(new BaseRepository(db, menuItems, menuItems.publicId, menuItems.id));
 
 const publishedCache = sharedCache("published-week");
+
+async function evictPublishedCache() {
+  await publishedCache.evictAll();
+  revalidatePublicSite();
+}
 // Pick counts move slowly (weekly picks over 12 weeks); an hour stale is fine and spares the aggregate.
 const pickCountCache = sharedCache("dish-pick-counts", 3_600_000);
 
@@ -297,8 +302,7 @@ export const menuService = {
 
     // An amend changed a live menu, so the public poster's cached copy is now wrong.
     if (input.amend) {
-      await publishedCache.evictAll();
-      revalidatePublicSite();
+      await evictPublishedCache();
     }
 
     // Return the persisted list so the client can adopt the new rows' ids without a full refresh.
@@ -482,16 +486,12 @@ export const menuService = {
 
     await menuWeeksEntity.update(weekPublicId, { status: "released", releasedAt: Date.now() });
     await announceRelease(weekPublicId, week.weekStart);
-    await publishedCache.evictAll();
-    revalidatePublicSite();
+    await evictPublishedCache();
   },
 
   // getPublishedWeek caches slots + theme per plan; callers that change either
   // (slot edits, meal-type theme) must evict so the public poster isn't stale.
-  async evictPublishedCache() {
-    await publishedCache.evictAll();
-    revalidatePublicSite();
-  },
+  evictPublishedCache,
 
   async listWeeks() {
     const rows = await db

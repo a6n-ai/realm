@@ -25,7 +25,7 @@ vi.mock("@foundry/design-system/timezone-provider", () => ({
   useTimezone: () => "America/Toronto",
 }));
 
-vi.mock("@/lib/wallet/customer-actions", () => ({
+vi.mock("@/lib/payments/customer-actions", () => ({
   loadClaimPaymentContext: vi.fn(),
   claimPaymentAction: vi.fn(),
 }));

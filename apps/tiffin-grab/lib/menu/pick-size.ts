@@ -27,14 +27,6 @@ export function categoryCountsFromItems(items: { category: string }[]): Record<s
   return counts;
 }
 
-/** e.g. "12oz" or "4 roti", or null when the catalog line carries no TU amount. */
-export function formatPortion(tuAmount: string | null, category: TuCategory | null): string | null {
-  if (tuAmount == null || category == null) return null;
-  const n = Number(tuAmount);
-  if (!Number.isFinite(n)) return null;
-  return formatTuHuman(category, n);
-}
-
 /**
  * pickIndex (1-based) → portion string, per category.
  *

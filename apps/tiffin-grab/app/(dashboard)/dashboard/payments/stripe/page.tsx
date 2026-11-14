@@ -39,8 +39,7 @@ async function StripeData({ searchParams }: { searchParams: SearchParams }) {
     stripeRuntime(),
   ]);
   // Lazy status check on view (no cron): settle card payments the webhook may have missed.
-  const unsettled = rows.filter((p) => p.status === "awaiting_payment" && p.providerRef);
-  if (unsettled.length) after(() => settleStaleOnView(unsettled));
+  after(() => settleStaleOnView(rows));
   return (
     <StripeTable
       rows={rows}

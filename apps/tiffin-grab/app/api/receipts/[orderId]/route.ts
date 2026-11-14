@@ -4,10 +4,7 @@ import { getSession } from "@/lib/auth/session";
 import { loadReceipt } from "@/lib/billing/receipt";
 import { renderReceiptPdf } from "@/lib/billing/receipt-pdf";
 import { verifyReceiptSignature } from "@/lib/billing/receipt-link";
-import { assertOwnsOrder } from "@/lib/deliveries/customer-deliveries.service";
-import { assertOrderVisible } from "@/lib/orders/orders.service";
-import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
-import { currentUserId } from "@/lib/services/session-service";
+import { loadOrderOwnership, ownsOrder, staffSeesOrder } from "@/lib/account/order-access";
 
 // A signed link (the emailed attachment) opens without a session. Otherwise staff see orders in
 // their own organizations only (the PDF carries name, address and payment references), and a
@@ -19,13 +16,10 @@ export async function GET(request: Request, { params }: { params: Promise<{ orde
     try {
       const session = await getSession();
       if (!session) return new Response("Not found", { status: 404 });
-      if (isStaffRole(session.user.role)) {
-        await assertOrderVisible(orderId, await resolveSessionVisibleOrgIds(session));
-      } else {
-        const userId = await currentUserId();
-        if (userId == null) return new Response("Not found", { status: 404 });
-        await assertOwnsOrder(userId, orderId);
-      }
+      const order = await loadOrderOwnership(orderId);
+      if (!order) throw new NotFoundError("Order not found");
+      const allowed = isStaffRole(session.user.role) ? await staffSeesOrder(session, order) : await ownsOrder(order);
+      if (!allowed) throw new NotFoundError("Order not found");
     } catch (e) {
       if (e instanceof NotFoundError) return new Response("Not found", { status: 404 });
       throw e;

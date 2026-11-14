@@ -1,6 +1,5 @@
-import { getCloudflareContext } from "@opennextjs/cloudflare";
-import type { R2BucketLike } from "@foundry/storage";
 import { createStorageFromEnv } from "@foundry/storage/from-env";
+import { cfEnv } from "@/lib/runtime/cf-env";
 import { db } from "@/db/client";
 import { filesPublicBaseUrl, isProduction } from "@/lib/runtime/env";
 
@@ -9,7 +8,7 @@ const storage = createStorageFromEnv({
   filesPublicBaseUrl,
   isProduction,
   signedBaseUrl: "https://files.tiffingrab.ca",
-  getR2Binding: () => (getCloudflareContext().env as unknown as { FILES?: R2BucketLike }).FILES,
+  getR2Binding: () => cfEnv().FILES,
 });
 
 export const { makeStorage, filesService, securedFilesService, filesAccess, filesSecuredAccess } = storage;

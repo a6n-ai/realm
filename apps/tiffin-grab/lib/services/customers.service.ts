@@ -1,4 +1,5 @@
 import type { SendState } from "@/lib/notifications/send-state";
+import { inviteAlreadySent, lastInviteState } from "@/lib/notifications/invite-state";
 import { resolveUserId } from "@/lib/identity/user-ids";
 import { parseCustomerContact, requireEmail } from "@/lib/services/contact";
 import { inOrderStatuses, RUNNING } from "@/lib/orders/status";
@@ -175,8 +176,7 @@ const pendingInvite = and(
   eq(users.emailVerified, false),
   isNotNull(users.email),
   sql`not exists (select 1 from ${messageSuppression} s where s.address = ${users.email} and s.channel = 'email' and s.scope = 'all')`,
-  sql`not exists (select 1 from ${notificationOutbox} o where o.event = 'customer_invitation' and o.channel = 'email'
-    and o.recipient_email = ${users.email} and o.status <> 'failed')`,
+  sql`not ${inviteAlreadySent(users.email)}`,
 );
 
 export async function countPendingInvites(): Promise<number> {
@@ -380,9 +380,7 @@ export async function listCustomersPage(
         // Correlated, but only for the page's rows (25ish). The invite row carries
         // only an address (no account id on it), hence the email match.
         // ponytail: unindexed recipient_email scan per row; add an index if the outbox grows large.
-        lastInvite: sql<SendState | null>`(select ${sendStateJson} from ${notificationOutbox} o
-          where o.event = 'customer_invitation' and o.channel = 'email' and o.recipient_email = ${users.email}
-          order by o.created_at desc limit 1)`,
+        lastInvite: sql<SendState | null>`${lastInviteState(users.email, sendStateJson)}`,
         lastReminder: sql<SendState | null>`(select ${sendStateJson} from ${notificationOutbox} o
           join ${campaign} c on c.id = o.campaign_id and c.system_key = ${MENU_REMINDER_KEY}
           where o.channel = 'email' and o.recipient_id = ${users.id}

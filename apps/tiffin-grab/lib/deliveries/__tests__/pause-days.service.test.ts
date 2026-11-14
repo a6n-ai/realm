@@ -45,7 +45,7 @@ const { isOrderFullyPaused } = await import("../pause-state");
 const { setAutoMovePaused } = await import("../pause-auto-move");
 const { getPauseUsage } = await import("../pause-limits.service");
 const { rescheduleDelivery, adminSetDeliveryStatus } = await import("../deliveries.service");
-const { loadDayDeliveries } = await import("../../menu/daily-labels.service");
+const { loadDayDeliveries } = await import("../day-deliveries");
 const { myActiveSubscriptions, myDeliveries } = await import("../customer-deliveries.service");
 const { runCronJob } = await import("@/lib/cron/run");
 

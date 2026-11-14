@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { categoryCountsFromItems, formatPortion, portionForPick, portionsByCategory, sumTuForPicks } from "../pick-size";
+import { categoryCountsFromItems, portionForPick, portionsByCategory, sumTuForPicks } from "../pick-size";
 import type { TuCategory } from "@/lib/menu/format-tu";
 
 const WEIGHT: TuCategory = { tuUnitType: "weight", tuUnitSize: 8, tuUnitLabel: "oz" };
@@ -12,20 +12,6 @@ const cats = new Map<string, TuCategory>([
 ]);
 
 const item = (category: string, tuAmount: string | null, sortOrder = 0) => ({ category, tuAmount, sortOrder });
-
-describe("formatPortion", () => {
-  it("converts TU into the category's natural unit", () => {
-    expect(formatPortion("1.00", WEIGHT)).toBe("8oz");
-    expect(formatPortion("1.50", WEIGHT)).toBe("12oz");
-    expect(formatPortion("0.25", ROTI)).toBe("1 roti");
-  });
-
-  it("is null when the catalog line or category carries no TU", () => {
-    expect(formatPortion(null, WEIGHT)).toBeNull();
-    expect(formatPortion("1.00", null)).toBeNull();
-    expect(formatPortion("not-a-number", WEIGHT)).toBeNull();
-  });
-});
 
 describe("portionsByCategory", () => {
   it("gives one slot per row", () => {

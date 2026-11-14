@@ -9,7 +9,7 @@ vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 const cfgRef = { sendLoad: false };
 vi.mock("../config", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../config")>();
-  return { ...actual, getOptimoRouteConfig: async () => ({ ...actual.DEFAULT_OPTIMOROUTE_CONFIG, sendLoad: cfgRef.sendLoad }) };
+  return { ...actual, getOptimoRouteConfig: async () => ({ ...actual.optimoRouteSlice.parse({}), sendLoad: cfgRef.sendLoad }) };
 });
 
 const { buildPlannedOrders } = await import("../push");

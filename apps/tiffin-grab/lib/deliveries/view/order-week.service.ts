@@ -1,7 +1,7 @@
 import { toClientCatalog } from "@/lib/catalog/types";
 import { dropOffCatalog } from "@/lib/catalog/drop-off";
 import { addressService } from "@/lib/services/addresses.service";
-import { dropOffsFor } from "../deliveries/address-drop-off.service";
+import { dropOffsFor } from "@/lib/deliveries/address-drop-off.service";
 import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 import { zonedDateIso } from "@foundry/commons";
 import { buildPlanContext, toCalendarInputs, type PlanView } from "@/lib/deliveries/view/adapter";

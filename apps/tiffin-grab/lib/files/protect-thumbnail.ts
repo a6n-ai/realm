@@ -1,16 +1,6 @@
 import { isWorkers } from "@foundry/commons/runtime/platform";
 import { ValidationError } from "@foundry/commons";
 
-type Images = {
-  input(stream: ReadableStream): {
-    transform(o: { blur: number }): {
-      draw(overlay: unknown, o: { opacity: number; repeat: boolean }): {
-        output(o: { format: "image/webp" }): Promise<{ response(): Response }>;
-      };
-    };
-  };
-};
-
 const WATERMARK_URL = "https://assets.local/watermark/tiffingrab-watermark.png";
 
 // Blur + tiled watermark so a thumbnail never exposes readable amounts or references.
@@ -22,11 +12,8 @@ export async function protectThumbnail(
 ): Promise<{ bytes: Uint8Array; contentType: string }> {
   if (!isWorkers()) return { bytes, contentType };
   try {
-    const { getCloudflareContext } = await import("@opennextjs/cloudflare");
-    const env = getCloudflareContext().env as unknown as {
-      IMAGES: Images & { input(stream: ReadableStream): unknown };
-      ASSETS: { fetch(r: Request): Promise<Response> };
-    };
+    const { cfEnv } = await import("@/lib/runtime/cf-env");
+    const env = cfEnv();
     const wm = await env.ASSETS.fetch(new Request(WATERMARK_URL));
     if (!wm.ok || !wm.body) throw new Error(`watermark asset ${wm.status}`);
     const out = await env.IMAGES.input(new Response(bytes as BodyInit).body!)

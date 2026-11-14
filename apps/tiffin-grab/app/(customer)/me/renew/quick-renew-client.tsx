@@ -7,7 +7,7 @@ import { Checkout } from "@/components/checkout/checkout";
 import { RenewPlanStep } from "@/components/renew/renew-plan-step";
 import { useQuickRenew } from "@/components/renew/use-quick-renew";
 import type { QuickRenewData } from "@/lib/renewals/quick-renew-types";
-import type { CheckoutProps } from "@/components/checkout/load-checkout-props";
+import type { CheckoutProps } from "@/lib/checkout/load-props";
 
 /**
  * Quick renew on one page: Plan is Checkout's step 0, so Plan → Delivery → Payment slide in place with

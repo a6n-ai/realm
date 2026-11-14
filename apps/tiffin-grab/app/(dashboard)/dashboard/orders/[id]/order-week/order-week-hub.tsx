@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { pauseMyDays, releaseMyDays } from "@/lib/deliveries/customer-actions";
 import { actionAvailability, humanDate, type Trip, type TripAction } from "@/lib/deliveries/view";
 import { dayNote, deliveryLine, eatingRowsInWeek, isAddressRow, moveNotes, weekdayShort, type EatingRow } from "@/lib/deliveries/view/eating";
-import type { OrderWeek } from "@/lib/orders/order-week.service";
+import type { OrderWeek } from "@/lib/deliveries/view/order-week.service";
 import { dedupeDishes, MealTiles, mealCategories, moveChips, rowMeta, splitMealAddons, tiffins } from "@/components/customer/deliveries/trip-parts";
 import { OrderStatusBadge } from "@/components/ds/index";
 import { boxStatus, OrderMonthCalendar } from "./order-month-calendar";

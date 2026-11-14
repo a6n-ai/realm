@@ -3,6 +3,7 @@ import { type OtpType } from "@foundry/auth";
 import { db } from "@/db/client";
 import { session as sessionTable } from "@/db/schema";
 import { enqueueNotification } from "@/lib/notifications/enqueue";
+import { CUSTOMER_INVITATION_EVENT } from "@/lib/notifications/invite-state";
 import { linkCapture } from "./link-capture";
 import { sealCode } from "./magic-code";
 import { allowOtpTo } from "./otp-throttle";
@@ -121,7 +122,7 @@ export async function sendInviteLinkEmail(email: string, url: string, metadata: 
   if (meta?.kind === "customer_invite") {
     await db.transaction((tx) =>
       enqueueNotification(tx, {
-        event: "customer_invitation",
+        event: CUSTOMER_INVITATION_EVENT,
         recipientEmail: email,
         title: `Welcome to ${BRAND_NAME}`,
         // Used only if the customer_invitation template row is missing (templates
@@ -130,7 +131,7 @@ export async function sendInviteLinkEmail(email: string, url: string, metadata: 
         data: { url },
         channels: ["email"],
         kind: "transactional",
-        dedupeKey: `customer_invitation:${email.toLowerCase()}:${url}`,
+        dedupeKey: `${CUSTOMER_INVITATION_EVENT}:${email.toLowerCase()}:${url}`,
       }),
     );
     return;

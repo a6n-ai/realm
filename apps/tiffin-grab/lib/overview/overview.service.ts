@@ -1,4 +1,4 @@
-import { orgScope, type Visible } from "@/lib/tenant/org-scope";
+import { orgScope, type Visible, noVisibleOrgs } from "@/lib/tenant/org-scope";
 import { ratePct } from "@/lib/money";
 import "server-only";
 import { cache } from "react";
@@ -89,7 +89,7 @@ export async function getDriverLanes(date: string): Promise<DriverLane[]> {
 
 /** Scheduled tiffins (sum of tiffin_units) per meal plan (Pure Vegetarian, Non-Veg…) for the week starting `monday` and the week before. */
 export async function getKitchenWeek(visible: Visible, monday: string): Promise<KitchenWeekRow[]> {
-  if (visible !== "all" && visible.length === 0) return [];
+  if (noVisibleOrgs(visible)) return [];
   const rows = await db
     .select({
       mealSize: plans.name,

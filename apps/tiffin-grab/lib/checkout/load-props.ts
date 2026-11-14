@@ -13,13 +13,19 @@ import { resolveProvince } from "@/lib/tax/canada";
 import { myRenewalWindow } from "@/lib/deliveries/customer-deliveries.service";
 import { pendingFriendGift } from "@/lib/referrals/referrals.service";
 import { loadReferralOffer } from "@/lib/referrals/offer";
-import type { Checkout } from "./checkout";
+import type { Checkout } from "@/components/checkout/checkout";
+import { getSession } from "@/lib/auth/session";
+import { currentUserId } from "@/lib/services/session-service";
 import { isProduction } from "@/lib/runtime/env";
 
 export type CheckoutProps = Omit<ComponentProps<typeof Checkout>, "plan" | "closeHref">;
 
 /** Everything Checkout needs for a signed-in customer; null when prod has no payment rail enabled (checkout can't take an order). */
-export async function loadCheckoutProps(userId: bigint, sessionUserId: string, orgId: string | null): Promise<CheckoutProps | null> {
+export async function loadCheckoutProps(orgId: string | null): Promise<CheckoutProps | null> {
+  const session = await getSession();
+  const userId = await currentUserId();
+  if (!session?.user || userId == null) throw new Error("loadCheckoutProps needs a signed-in customer");
+  const sessionUserId = session.user.id;
   // Pre-fill from the account. Name and email come back read-only and are re-taken from the
   // session server-side; phone and address are editable for this order only.
   const [{ defaultCountry }, snapshot, contact, savedAddresses, coupons, { lastTiffin }, pendingGift, offer] = await Promise.all([

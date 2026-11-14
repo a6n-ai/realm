@@ -30,7 +30,7 @@ import { CardPay, CardPayProvider, ExpressPay, PaidSwitch, useWarmStripe, type P
 import { EtransferDialog } from "@/components/payments/etransfer-dialog";
 import { PaidPage } from "@/components/payments/paid-page";
 import { ReceiptPrinter, type Receipt } from "@/components/payments/receipt-printer";
-import { isPaid, markPaid, useBounceAfterPaid } from "@/lib/payments/paid-flag";
+import { isPaid, markPaid, useBounceAfterPaid } from "@/lib/wizard/paid-flag";
 import { receiptLines } from "@/lib/payments/receipt-lines";
 import { PaymentMethodCards } from "./payment-method-cards";
 import { updateSavedAddress } from "@/lib/account/address-actions";

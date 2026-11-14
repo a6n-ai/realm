@@ -140,8 +140,7 @@ async function OrderDetail({
   ]);
 
   // Lazy status check on view (no cron): settle card payments the webhook may have missed.
-  const unsettledCards = order.payments.filter((p) => p.method === "stripe" && p.status === "awaiting_payment" && p.providerRef);
-  if (unsettledCards.length) after(() => settleStaleOnView(unsettledCards));
+  after(() => settleStaleOnView(order.payments));
   after(() => expireUnpaidStripeOrders({ orderId: order.id }));
   const role = session?.user.role ?? "";
 

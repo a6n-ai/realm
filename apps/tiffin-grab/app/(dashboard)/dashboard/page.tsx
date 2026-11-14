@@ -1,4 +1,4 @@
-import type { Visible } from "@/lib/tenant/org-scope";
+import { type Visible, noVisibleOrgs } from "@/lib/tenant/org-scope";
 import { isAdmin } from "@/lib/roles";
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
@@ -61,7 +61,7 @@ async function DashboardData({ searchParams }: { searchParams: SearchParams }) {
   const seesAll = await coversAllOrgs(visible);
   const weekStart = parseWeekParam(week) ?? mondayOfIso(today);
 
-  if (visible !== "all" && visible.length === 0) {
+  if (noVisibleOrgs(visible)) {
     return (
       <PageShell>
         <PageHeader icon={LayoutDashboardIcon} title={greeting} subtitle={`${todayLabel} · What is waiting on us today.`} />

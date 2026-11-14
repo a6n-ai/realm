@@ -172,16 +172,6 @@ export function labelLineTexts(lines: PackLine[]): { text: string; defaulted: bo
   }));
 }
 
-/** Portion-only join for summary-style lists; prefer formatItemCell otherwise. */
-export function formatDishCell(portions: PortionQty[]): string {
-  const parts = rollUpEqualPortions(
-    portions.filter((p) => p.quantity > 0 && p.portion.trim()),
-  )
-    .sort((a, b) => a.portion.localeCompare(b.portion))
-    .map((p) => formatPackingRequirement(p.portion, p.quantity));
-  return parts.length > 0 ? parts.join("; ") : "—";
-}
-
 /** Merge pick counts keyed by dish → portion label (Kitchen Summary). */
 export function addDishPortion(
   into: Map<string, Map<string, number>>,

@@ -3,7 +3,7 @@ import { db } from "@/db/client";
 import { deliveries, orders, payments, users } from "@/db/schema";
 import { PENDING } from "@/lib/payments/status";
 import { paymentStatusIn } from "@/lib/payments/status-sql";
-import { loadDayDeliveries } from "@/lib/menu/daily-labels.service";
+import { loadDayDeliveries } from "@/lib/deliveries/day-deliveries";
 import { loadTripDetails, stopNotes } from "./trip-notes";
 import { effectiveAddress } from "@/lib/deliveries/row-state";
 

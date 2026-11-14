@@ -1,7 +1,7 @@
 import { eq, inArray, or } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, orderActivities } from "@/db/schema";
-import { loadDayDeliveries, type DayDeliveryRow } from "@/lib/menu/daily-labels.service";
+import { loadDayDeliveries, type DayDeliveryRow } from "@/lib/deliveries/day-deliveries";
 import { skipDelivery } from "@/lib/deliveries/deliveries.service";
 import { getCompletionDetails, getOrderDetails, getRoutes, type OptimoCompletionDetail, type OptimoStop } from "./client";
 import { normalisePhone } from "./push";

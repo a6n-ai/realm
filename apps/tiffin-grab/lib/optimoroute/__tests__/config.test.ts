@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
-  DEFAULT_OPTIMOROUTE_CONFIG,
   looksUpstairs,
   optimoRouteApiKey,
-  parseOptimoRouteConfig,
+  optimoRouteSlice,
   stopDuration,
 } from "../config";
 
-const D = DEFAULT_OPTIMOROUTE_CONFIG.duration;
+const parseOptimoRouteConfig = optimoRouteSlice.parse;
+const D = parseOptimoRouteConfig({}).duration;
 
 describe("stopDuration", () => {
   // These four numbers are operational knowledge carried over from the Route Maker sheet:

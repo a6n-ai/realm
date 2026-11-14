@@ -1,6 +1,6 @@
 import { DELIVERY_TONE } from "@/components/analytics/status-tones";
 import { LABEL_STATUS as S } from "@/lib/deliveries/label-status";
-import type { DayDeliveryStatusRow } from "@/lib/menu/daily-labels.service";
+import type { DayDeliveryStatusRow } from "@/lib/deliveries/day-deliveries";
 
 type Group = keyof typeof DELIVERY_TONE;
 

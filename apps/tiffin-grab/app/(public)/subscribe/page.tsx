@@ -4,10 +4,8 @@ import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { REFERRAL_COOKIE, isReferralCodeShape, normalizeReferralCode } from "@/lib/referrals/cookie";
 import { Wizard } from "@/components/wizard/wizard";
-import { currentUserId } from "@/lib/services/session-service";
+import { customerFunnelUserId } from "@/lib/account/funnel-entry";
 import { googleClientId } from "@/lib/runtime/env";
-import { getSession } from "@/lib/auth/session";
-import { isStaffRole } from "@/lib/roles";
 import { googleSignInEnabled } from "@foundry/auth";
 import { couponsService } from "@/lib/coupons/coupons.service";
 import { SubscribeCouponsPreview } from "@/components/wizard/existing-subscriptions";
@@ -53,13 +51,10 @@ export const viewport: Viewport = {
 
 export default async function SubscribePage({ searchParams }: { searchParams: Promise<{ error?: string; ref?: string } & QuoteParams> }) {
   const params = await searchParams;
-  const session = await getSession();
-  if (session?.user && isStaffRole(session.user.role)) redirect("/dashboard");
-
   // Signed out: build and price the plan first; the wizard asks for the email only at "Continue to
   // checkout", then opens /checkout signed in (every order still has an owner who can pay and upload proof).
   // Signed in: the same wizard on /me/renew, with the customer's own prefill and current-plan hints.
-  const userId = await currentUserId();
+  const userId = await customerFunnelUserId();
   // A staff estimate link carries the quoted plan; it rides along to the stepper.
   if (userId != null) redirect(newOrderHref(params));
 

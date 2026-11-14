@@ -1,4 +1,4 @@
-import { orgScope, type Visible } from "@/lib/tenant/org-scope";
+import { orgScope, type Visible, noVisibleOrgs } from "@/lib/tenant/org-scope";
 import "server-only";
 import { and, gte, inArray, lte, sql, type SQL } from "drizzle-orm";
 import type { AnyColumn } from "drizzle-orm";
@@ -72,7 +72,7 @@ export async function resolveAnalyticsScope(
   session: Parameters<typeof resolveSessionVisibleOrgIds>[0],
 ): Promise<AnalyticsScope> {
   const [{ timezone }, visible] = await Promise.all([getAppSettings(), resolveSessionVisibleOrgIds(session)]);
-  if (visible !== "all" && visible.length === 0) throw new NoFranchiseAccessError("no_visible_orgs");
+  if (noVisibleOrgs(visible)) throw new NoFranchiseAccessError("no_visible_orgs");
   const scope = buildAnalyticsScope(sp, visible, timezone);
   if (Array.isArray(scope.orgIds) && scope.orgIds.length === 0) throw new NoFranchiseAccessError("org_not_visible");
   return scope;

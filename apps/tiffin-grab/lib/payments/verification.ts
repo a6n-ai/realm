@@ -12,7 +12,7 @@ import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { inStatuses, PAID, SETTLEABLE, UNPAID } from "@/lib/payments/status";
 import { paymentStatusIn } from "@/lib/payments/status-sql";
 import { db, type Tx } from "@/db/client";
-import { coupons, deliveryFrequencies, ledgerEntries, orderActivities, orders, payments, plans, users, type PaymentProof } from "@/db/schema";
+import { coupons, deliveryFrequencies, ledgerEntries, orderActivities, orders, payments, users, type PaymentProof } from "@/db/schema";
 import { sendMetaOrderSubmitted } from "@/lib/meta/order-submitted";
 import { sendMetaPurchaseOnce } from "@/lib/meta/purchase";
 import { runInBackground } from "@foundry/cloud/background";
@@ -24,23 +24,17 @@ import { enqueueOrderNotice } from "@/lib/notifications/order-notice";
 import { receiptAttachments } from "@/lib/billing/receipt-link";
 import { shiftMissedDeliveries } from "@/lib/deliveries/deliveries.service";
 import { removeStopsBestEffort, type OptimoSyncedRow } from "@/lib/optimoroute/stops";
-import { scheduleWrite } from "@/lib/deliveries/holiday-apply";
-import { upcomingHolidays } from "@/lib/deliveries/holiday-dates";
-import { paidStartDate } from "@/lib/orders/paid-start";
 import { ledgerService } from "@/lib/payments/ledger.service";
-import { assertStartable } from "@/lib/orders/order-window";
-import { appToday } from "@/lib/orders/start-date";
 import { commitCoinRedemption, settleCoinReservation, recollectLapsedCoins, reverseCoinRedemption, reverseCoinAward, awardOrderCoins } from "@/lib/wallet/wallet.service";
 import { awardReferral, reverseReferral } from "@/lib/referrals/referrals.service";
 import { getAppSettings } from "@/lib/settings";
 import { getPaymentConfig } from "@/lib/payments/payment-config";
 import { publishPaymentsInbox, publishUserRefresh } from "@/lib/realtime/publish-inbox";
-import { utcIso } from "@foundry/commons/util/dates";
 import { lockUser } from "@/lib/identity/lock-user";
 import { lockOrder } from "@/lib/orders/order-lock";
-import { ENDED, inOrderStatuses } from "@/lib/orders/status";
 
 const log = createLogger("payments.verification");
+import { startPaidStripeOrder } from "@/lib/orders/start-paid-order";
 
 
 /** Receipt extras for payment_approved: card fee, taxes (Stripe Tax lines included), the card used and the total charged. */
@@ -77,61 +71,6 @@ export function paymentTemplateVars(
     customerName: customerName || "there",
     method: paymentMethodLabel(pay.method, "full"),
   };
-}
-
-async function flagPaidNotStarted(tx: Tx, order: typeof orders.$inferSelect, note: string, actorId: bigint | null) {
-  await tx.insert(orderActivities).values({ orderId: order.id, type: "note", note, createdBy: actorId });
-  await enqueueStaffNotification(tx, {
-    organizationId: order.organizationId,
-    title: "Card payment needs attention",
-    body: `${note} · order ${order.deploymentId}`,
-    href: `/dashboard/orders/${order.publicId}`,
-    dedupeKey: `paid_not_started:${order.publicId}`,
-  });
-}
-
-// A pending Stripe order starts when its payment settles. Pending orders reserve no days, so
-// the overlap guard runs here with the final dates. A start that can't happen leaves the
-// order pending with a note: the money is already in, staff resolve it.
-export async function startPaidStripeOrder(tx: Tx, order: typeof orders.$inferSelect, actorId: bigint | null): Promise<{ started: boolean; reason?: string }> {
-  await lockOrder(tx, order.id);
-  const [current] = await tx.select({ status: orders.status }).from(orders).where(eq(orders.id, order.id)).for("update").limit(1);
-  // Staff cancelled it after settle's outside check: the money is in, nobody else will flag it.
-  if (current && inOrderStatuses(ENDED, current.status)) {
-    await flagPaidNotStarted(tx, order, `Paid on a ${current.status} order — refund needed`, actorId);
-    return { started: false, reason: `order is ${current.status}` };
-  }
-  if (current?.status !== "pending") return { started: false, reason: `order is ${current?.status ?? "missing"}` };
-
-  const { timezone, cutoffHour } = await getAppSettings();
-  const todayBase = appToday(timezone, cutoffHour);
-  const closed = new Set((await upcomingHolidays(tx, order.organizationId, utcIso(todayBase))).keys());
-  const [plan] = await tx.select({ allowedStartDays: plans.allowedStartDays }).from(plans).where(eq(plans.id, order.planId)).limit(1);
-  const startDate = paidStartDate({
-    chosen: order.startDate,
-    allowedStartDays: plan?.allowedStartDays ?? [],
-    trialSendDays: order.trialLength != null ? (order.trialWeekdays ?? []) : null,
-    todayBase,
-    closed,
-  });
-  try {
-    await assertStartable(tx, { userId: order.userId!, organizationId: order.organizationId, startDate, durationWeeks: order.durationWeeks, excludeOrderId: order.id, holiday: false });
-  } catch (e) {
-    if (!(e instanceof ValidationError)) throw e;
-    await flagPaidNotStarted(tx, order, `Paid, but could not start: ${e.message}`, actorId);
-    return { started: false, reason: e.message };
-  }
-  const [row] = await tx.update(orders).set({ status: "active", startDate, updatedBy: actorId }).where(eq(orders.id, order.id)).returning();
-  await tx.insert(orderActivities).values({
-    orderId: order.id,
-    type: "activated",
-    fromStatus: "pending",
-    toStatus: "active",
-    note: startDate === order.startDate ? null : `Start moved to ${startDate}`,
-    createdBy: actorId,
-  });
-  await scheduleWrite(tx, row!, actorId, { materialize: true });
-  return { started: true };
 }
 
 // Staff settles a real-method payment: credits the ledger, redeems any deferred

@@ -252,9 +252,3 @@ export function tierOrder(a: string, b: string) {
   };
   return rank(a) - rank(b);
 }
-
-export async function getPaidByMealType(scope: AnalyticsScope): Promise<PaidMealTypeRow[]> {
-  return (await paidByMealSize(scope))
-    .map(({ size, bucket }) => ({ mealType: size.name, key: size.key, plan: size.plan, payments: bucket.payments, paid: bucket.net }))
-    .sort((a, b) => b.paid - a.paid);
-}

@@ -18,7 +18,7 @@ import { formatEpoch, formatDateOnly } from "@/lib/format/datetime";
 import { useTimezone } from "@foundry/design-system/timezone-provider";
 import type { CustomerBill } from "@/lib/services/customer-finances.service";
 import type { ClaimPaymentContext } from "@/lib/payments/verification";
-import { emailReceiptAction, loadClaimPaymentContext } from "@/lib/wallet/customer-actions";
+import { emailReceiptAction, loadClaimPaymentContext } from "@/lib/payments/customer-actions";
 import { ClaimPayment } from "./claim-payment";
 import { cardBrandLabel } from "@/lib/billing/payment-labels";
 import { GroupHeader, QuietPagination, groupByMonth } from "./finance-kit";

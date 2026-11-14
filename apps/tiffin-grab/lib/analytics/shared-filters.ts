@@ -1,4 +1,4 @@
-import { orgScope, type Visible } from "@/lib/tenant/org-scope";
+import { orgScope, type Visible, noVisibleOrgs } from "@/lib/tenant/org-scope";
 import { and, asc, eq, exists } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveryZones, mealSizes, orders, organization, plans, tickets } from "@/db/schema";
@@ -26,7 +26,7 @@ export async function getAnalyticsFilterOptions(
       .innerJoin(plans, eq(mealSizes.planId, plans.id))
       .where(and(eq(mealSizes.active, true), eq(mealSizes.custom, false), hasOrder(orders.mealSizeId, mealSizes.id)))
       .orderBy(asc(mealSizes.name)),
-    visibleOrgIds !== "all" && visibleOrgIds.length === 0
+    noVisibleOrgs(visibleOrgIds)
       ? Promise.resolve([])
       : db
           .selectDistinct({ value: deliveryZones.name, label: deliveryZones.name })
@@ -39,7 +39,7 @@ export async function getAnalyticsFilterOptions(
             ),
           )
           .orderBy(asc(deliveryZones.name)),
-    visibleOrgIds !== "all" && visibleOrgIds.length === 0
+    noVisibleOrgs(visibleOrgIds)
       ? Promise.resolve([])
       : db
           .select({ value: organization.id, label: organization.name })

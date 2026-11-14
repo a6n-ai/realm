@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { assertCoverageUnits, coveredDates, mergeCoverage, tripCoverage } from "../coverage";
+import { coveredDates, mergeCoverage, tripCoverage } from "../coverage";
 
 describe("coverage", () => {
   it("maps carried days to dates (Mon 2026-09-21)", () => {
@@ -17,11 +17,6 @@ describe("coverage", () => {
   it("mergeCoverage unions and sorts", () => {
     expect(mergeCoverage(["2026-09-23", "2026-09-24"], ["2026-09-21", "2026-09-22", "2026-09-23"]))
       .toEqual(["2026-09-21", "2026-09-22", "2026-09-23", "2026-09-24"]);
-  });
-  it("assertCoverageUnits enforces units == days x persons", () => {
-    expect(() => assertCoverageUnits({ coversDates: ["a", "b"], tiffinUnits: 4 }, 2)).not.toThrow();
-    expect(() => assertCoverageUnits({ coversDates: ["a", "b"], tiffinUnits: 3 }, 2)).toThrow();
-    expect(() => assertCoverageUnits({ coversDates: null, tiffinUnits: 3 }, 2)).not.toThrow();
   });
 });
 

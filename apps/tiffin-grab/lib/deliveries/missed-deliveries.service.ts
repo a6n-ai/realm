@@ -5,7 +5,7 @@
 // stop never sent to OptimoRoute, or one sent with no completion back. An OptimoRoute `failed`
 // already turns the row into a hold with its tiffin in the pool, so it is not listed here.
 // A row a free tiffin was given for is settled and drops off.
-import type { Visible } from "@/lib/tenant/org-scope";
+import { type Visible, noVisibleOrgs } from "@/lib/tenant/org-scope";
 import { appTodayIso } from "@/lib/dates/today";
 import { and, asc, desc, eq, isNull, lt, ne, or, sql } from "drizzle-orm";
 import { ValidationError } from "@foundry/commons";
@@ -35,7 +35,7 @@ async function appToday(): Promise<string> {
 }
 
 export async function countMissedDeliveries(visible: Visible): Promise<number> {
-  if (visible !== "all" && visible.length === 0) return 0;
+  if (noVisibleOrgs(visible)) return 0;
   const [{ count }] = await db
     .select({ count: sql<number>`cast(count(*) as int)` })
     .from(deliveries)
@@ -45,7 +45,7 @@ export async function countMissedDeliveries(visible: Visible): Promise<number> {
 }
 
 export async function listMissedDeliveries(visible: Visible): Promise<MissedDeliveryRow[]> {
-  if (visible !== "all" && visible.length === 0) return [];
+  if (noVisibleOrgs(visible)) return [];
   const rows = await db
     .select({
       deliveryPublicId: deliveries.publicId,

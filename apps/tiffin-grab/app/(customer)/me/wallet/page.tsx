@@ -106,10 +106,8 @@ async function BillsPanel({ userId, searchParams }: { userId: bigint; searchPara
   const bills = await myBillsPage(userId, page);
   const cardAvailable = await stripeMethodAvailable();
   // Lazy status check on view (no cron): settle card payments the webhook may have missed.
-  const unsettled = bills.items
-    .flatMap((b) => b.payments)
-    .filter((p) => p.method === "stripe" && p.status === "awaiting_payment" && p.providerRef);
-  if (unsettled.length) after(() => settleStaleOnView(unsettled));
+  const payments = bills.items.flatMap((b) => b.payments);
+  after(() => settleStaleOnView(payments));
   return (
     <BillsList
       items={bills.items}

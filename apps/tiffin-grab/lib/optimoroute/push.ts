@@ -2,7 +2,7 @@ import { ValidationError } from "@foundry/commons";
 import { and, desc, eq, inArray, ilike } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, orderActivities, orders, users } from "@/db/schema";
-import { loadDayDeliveries } from "@/lib/menu/daily-labels.service";
+import { loadDayDeliveries } from "@/lib/deliveries/day-deliveries";
 import { effectiveAddress } from "@/lib/deliveries/row-state";
 import { getOptimoRouteConfig, looksUpstairs, stopDuration } from "./config";
 import { loadTripDetails, stopNotes } from "./trip-notes";

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { KvTier, type KvLike } from "./kv-tier";
+import { KvTier } from "./kv-tier";
+import type { KvLike } from "@/lib/runtime/cf-env";
 
 function fakeKv(): KvLike & { store: Map<string, string>; ttls: Map<string, number | undefined> } {
   const store = new Map<string, string>();

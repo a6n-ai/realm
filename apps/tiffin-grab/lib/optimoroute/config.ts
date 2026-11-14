@@ -51,13 +51,10 @@ const optimoRouteConfigSchema = z.object({
 });
 export type OptimoRouteConfig = z.infer<typeof optimoRouteConfigSchema>;
 
-export const DEFAULT_OPTIMOROUTE_CONFIG: OptimoRouteConfig = optimoRouteConfigSchema.parse({});
-
 export const optimoRouteSlice = integrationSlice(OPTIMOROUTE_KEY, optimoRouteConfigSchema, {
   store: integrationsConfigStore,
   readStore: integrationsConfigReadStore,
 });
-export const parseOptimoRouteConfig = optimoRouteSlice.parse;
 export const getOptimoRouteConfig = optimoRouteSlice.get;
 export const updateOptimoRouteConfig = optimoRouteSlice.update;
 

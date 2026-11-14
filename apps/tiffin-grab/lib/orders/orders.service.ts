@@ -15,7 +15,7 @@ import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { orderPaymentStatuses, paidStatusOf } from "@/lib/payments/order-payments";
 import { clearLookOutOnEnd } from "@/lib/orders/look-out";
 import { db } from "@/db/client";
-import { startPaidStripeOrder } from "@/lib/payments/verification";
+import { startPaidStripeOrder } from "@/lib/orders/start-paid-order";
 import { ordersListWhere, type OrdersListOpts } from "@/lib/orders/queries";
 import {
   deliveries,

@@ -3,10 +3,6 @@ import { formatTuHuman } from "../format-tu";
 import {
   buildMealSummary,
   groupPickCells,
-  portionHeaderHint,
-  resolveDishTap,
-  selectedProgress,
-  cellKey,
 } from "../pick-groups";
 import type { GridCell } from "../grid-types";
 
@@ -46,7 +42,6 @@ describe("groupPickCells", () => {
     expect(groups[0]!.chooseCount).toBe(2);
     expect(groups[0]!.cells.map((c) => c.pickIndex)).toEqual([1, 2]);
     expect(groups[0]!.portions).toEqual(["12oz", "8oz"]);
-    expect(portionHeaderHint(groups[0]!.portions)).toBe("12oz + 8oz");
   });
 
   it("shows Choose 3 when there are three sabzi picks", () => {
@@ -84,22 +79,6 @@ describe("natural quantity display", () => {
     const label = formatTuHuman({ tuUnitType: "count", tuUnitSize: 4, tuUnitLabel: "roti" }, 1.5);
     expect(label).toBe("6 roti");
     expect(label).not.toMatch(/TU/i);
-  });
-});
-
-describe("resolveDishTap / selectedProgress", () => {
-  it("fills the first default pick, then the second", () => {
-    const group = groupPickCells(
-      [cell({ slot: "sabzi", pickIndex: 1 }), cell({ slot: "sabzi", pickIndex: 2 })],
-      [{ key: "sabzi", label: "Sabzi", selectable: true, sortOrder: 0 }],
-    )[0]!;
-    expect(selectedProgress(group, {})).toBe(0);
-    const first = resolveDishTap(group, "d-chicken", {});
-    expect(first?.cell.pickIndex).toBe(1);
-    const picked = { [cellKey(first!.cell)]: "d-chicken" };
-    expect(selectedProgress(group, picked)).toBe(1);
-    const second = resolveDishTap(group, "d-bhindi", picked);
-    expect(second?.cell.pickIndex).toBe(2);
   });
 });
 

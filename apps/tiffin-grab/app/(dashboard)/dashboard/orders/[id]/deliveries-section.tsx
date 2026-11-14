@@ -4,7 +4,7 @@ import { isAdmin } from "@/lib/roles";
 import { eq } from "drizzle-orm";
 import { getSession } from "@/lib/auth/session";
 import type { OrderDetail } from "@/lib/orders/orders.service";
-import { loadOrderWeek, type OrderWeek } from "@/lib/orders/order-week.service";
+import { loadOrderWeek, type OrderWeek } from "@/lib/deliveries/view/order-week.service";
 import { OrderWeekHub } from "@/app/(dashboard)/dashboard/orders/[id]/order-week/order-week-hub";
 import type { OptimoRouteRow } from "./optimoroute-panel";
 import type { Subscription } from "@/lib/deliveries/customer-deliveries.service";
