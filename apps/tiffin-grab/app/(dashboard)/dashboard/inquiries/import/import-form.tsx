@@ -15,6 +15,7 @@ type ImportResult = {
   totalRows: number;
   created: number;
   matched: number;
+  reopened: number;
   errors: { row: number; message: string }[];
   warnings: { row: number; message: string }[];
 };
@@ -248,6 +249,11 @@ export function ImportForm({ sources }: { sources: { key: string; label: string 
             <span className="text-sky-600 dark:text-sky-400">
               <strong>{result.matched}</strong> matched existing
             </span>
+            {result.reopened > 0 && (
+              <span className="text-sky-600 dark:text-sky-400">
+                <strong>{result.reopened}</strong> reopened
+              </span>
+            )}
             <span className="text-destructive flex items-center gap-1">
               <strong>{result.errors.length}</strong> errors
               <Button

@@ -2,10 +2,8 @@ import { eq } from "drizzle-orm";
 import { handler, problem } from "@foundry/routes";
 import { phoneSchema, emailSchema, ValidationError } from "@foundry/commons";
 import { db } from "@/db/client";
-import { inquiries, leadSources, leadSubsources } from "@/db/schema";
+import { leadSources, leadSubsources } from "@/db/schema";
 import { requireStaff } from "@/lib/auth/guards";
-import { getSession } from "@/lib/auth/session";
-import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { inquiriesService } from "@/lib/services/inquiries.service";
 import { STAGE_MAP, type ImportMapping } from "@/app/(dashboard)/dashboard/inquiries/import/inquiry-import-columns";
@@ -36,12 +34,11 @@ function parseDate(v: unknown): number | null {
 }
 
 type RowResult =
-  | { row: number; outcome: "created" | "matched"; publicId: string; warnings: string[] }
+  | { row: number; outcome: "created" | "matched" | "reopened"; publicId: string; warnings: string[] }
   | { row: number; outcome: "error"; message: string };
 
 export const POST = handler(async (request: Request): Promise<Response> => {
   await requireStaff();
-  const visible = await resolveSessionVisibleOrgIds(await getSession());
 
   const form = await request.formData();
   const file = form.get("file");
@@ -95,7 +92,7 @@ export const POST = handler(async (request: Request): Promise<Response> => {
 
   const results: RowResult[] = [];
 
-  // Sequential, not parallel: resolveForSource's dedup relies on a read-then-write
+  // Sequential, not parallel: createOrFold's dedup relies on a read-then-write
   // check per (phone, source) pair — the same reason the pipeline's own create path
   // isn't batched. A large sheet just takes longer, not less correct.
   for (let i = 0; i < rows.length; i++) {
@@ -154,34 +151,30 @@ export const POST = handler(async (request: Request): Promise<Response> => {
           .filter(Boolean)
           .join("\n") || undefined;
 
-      // Same person (phone or email) with an open lead: the row folds into it as a re-inquiry.
-      const existingOpen = await inquiriesService.findOpenMatch(phone ?? null, email, undefined, whatsappPhone);
-
-      const publicId = await inquiriesService.resolveForSource({
+      // Same person (phone, WhatsApp or email, any stage) folds into their row; a lost one reopens.
+      const { inquiry, outcome } = await inquiriesService.createOrFold({
+        fullName: rawFullName || undefined,
         phone,
         whatsappPhone,
+        ...(email ? { email } : {}),
         sourceKey,
-        contact: { fullName: rawFullName || undefined, email },
-        interest: { subSourceKey, notes },
-        visible,
+        subSourceKey,
+        notes,
+        // Managed field: createOrFold applies it after insert, only for a new row — the sanctioned
+        // bypass of stripManaged so imported history keeps its original date.
+        createdAt: dateMs,
       });
-
-      const isNew = !existingOpen;
-      if (isNew) {
-        // resolveForSource/create always stamp createdAt as "now" (a managed field,
-        // stripped from client input) — for a bulk historical import that's wrong,
-        // so backdate it directly once, only for rows that just created a fresh row.
-        await db.update(inquiries).set({ createdAt: dateMs }).where(eq(inquiries.publicId, publicId));
-      }
+      const publicId = inquiry.publicId;
 
       const rawStage = cell(row, mapping.stage);
       const normalizedStage = rawStage.toLowerCase().trim();
       const mappedStage = normalizedStage ? STAGE_MAP[normalizedStage] : undefined;
       if (rawStage && !mappedStage) warnings.push(`Unrecognized stage "${rawStage}" — left as New`);
-      const currentStage = existingOpen?.stage ?? "new";
+      const currentStage = inquiry.stage;
       const targetStage = mappedStage ?? "new";
       // An open lead cannot go back to New and conversion happens via convert, so neither is applied here.
-      if (targetStage !== currentStage && targetStage !== "new" && targetStage !== "converted") {
+      // A folded row keeps the stage staff already gave it.
+      if (outcome !== "folded" && targetStage !== currentStage && targetStage !== "new" && targetStage !== "converted") {
         if (targetStage === "lost") {
           try {
             await inquiriesService.markLost(publicId, "other", notes);
@@ -202,7 +195,7 @@ export const POST = handler(async (request: Request): Promise<Response> => {
         });
       }
 
-      results.push({ row: excelRow, outcome: isNew ? "created" : "matched", publicId, warnings });
+      results.push({ row: excelRow, outcome: outcome === "folded" ? "matched" : outcome, publicId, warnings });
     } catch (e) {
       const message = e instanceof Error ? e.message : "Unknown error";
       results.push({ row: excelRow, outcome: "error", message });
@@ -211,6 +204,7 @@ export const POST = handler(async (request: Request): Promise<Response> => {
 
   const created = results.filter((r) => r.outcome === "created").length;
   const matched = results.filter((r) => r.outcome === "matched").length;
+  const reopened = results.filter((r) => r.outcome === "reopened").length;
   const errors = results.filter((r) => r.outcome === "error") as Extract<RowResult, { outcome: "error" }>[];
   const warnings = results.flatMap((r) =>
     r.outcome !== "error" && r.warnings.length ? r.warnings.map((w) => ({ row: r.row, message: w })) : [],
@@ -220,6 +214,7 @@ export const POST = handler(async (request: Request): Promise<Response> => {
     totalRows: rows.length,
     created,
     matched,
+    reopened,
     errors,
     warnings,
   });
