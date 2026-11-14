@@ -17,7 +17,7 @@ import {
 import { cn } from "@foundry/ui/cn";
 import { FollowUpPicker, type FollowUpValue } from "@/components/dashboard/pipeline/follow-up-picker";
 import { ReasonDialog } from "@/components/dashboard/pipeline/reason-dialog";
-import { TonePill } from "@/components/dashboard/pipeline/status-tile";
+import { StatusTileButton, TonePill } from "@/components/dashboard/pipeline/status-tile";
 import {
   SUB_STATUSES, groupFor, isClosed, isOpenPickable, statusLabel,
   type StatusGroup, type SubStatus,
@@ -184,6 +184,59 @@ function useStatusPick(inquiryId: string, subStatus: SubStatus | null) {
     </>
   );
   return { pick, pending, openLost: () => setLostOpen(true), lostDialog };
+}
+
+/** Detail page: every status visible as tiles, current one highlighted; one click saves. */
+export function StatusBoard({ inquiryId, subStatus }: { inquiryId: string; subStatus: SubStatus | null }) {
+  const { pick, pending, openLost, lostDialog } = useStatusPick(inquiryId, subStatus);
+  const took = subStatus === "took_plan" || subStatus === "took_trial";
+  const closed = isClosed(subStatus);
+  const groups: { label: string; items: { sub: SubStatus | null; label?: string; onClick: () => void }[] }[] = took
+    ? []
+    : closed
+      ? [{ label: "Reopen", items: [{ sub: null, label: "Reopen as New", onClick: () => pick(null) }] }]
+      : [
+          ...MENU_GROUPS.map(({ group, label }) => ({
+            label,
+            items: SUB_STATUSES.filter((s) => isOpenPickable(s) && groupFor(s) === group)
+              .map((s) => ({ sub: s, onClick: () => pick(s) })),
+          })),
+          {
+            label: "Close lead",
+            items: [
+              { sub: "undeliverable" as const, onClick: () => pick("undeliverable") },
+              { sub: "lost" as const, label: "Lost", onClick: openLost },
+            ],
+          },
+        ];
+  if (took) return <StatusPill subStatus={subStatus} />;
+  return (
+    <div className="flex flex-wrap gap-x-6 gap-y-3">
+      {groups.map((g) => (
+        <div key={g.label} className="flex flex-col gap-1.5">
+          <span className="text-muted-foreground text-xs font-medium">{g.label}</span>
+          <div className="flex gap-1">
+            {g.items.map(({ sub, label, onClick }) => {
+              const { icon, text, tile } = look(sub);
+              return (
+                <StatusTileButton
+                  key={sub ?? "new"}
+                  icon={icon}
+                  text={text}
+                  tile={tile}
+                  label={label ?? statusLabel(sub)}
+                  current={sub === subStatus}
+                  disabled={pending}
+                  onClick={onClick}
+                />
+              );
+            })}
+          </div>
+        </div>
+      ))}
+      {lostDialog}
+    </div>
+  );
 }
 
 export function StatusMenu({ inquiryId, subStatus }: { inquiryId: string; subStatus: SubStatus | null }) {

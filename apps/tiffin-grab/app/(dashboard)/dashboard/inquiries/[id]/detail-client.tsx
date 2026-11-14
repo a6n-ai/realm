@@ -21,7 +21,7 @@ import { isClosed, type SubStatus } from "@/lib/inquiries/status";
 import { clearFollowUp, logActivity } from "../actions";
 import { unwrapAction } from "@/lib/actions/unwrap";
 import type { ActionResult } from "@/lib/actions/action-result";
-import { NoteDialog, StatusMenu, type NoteKind } from "../_leads/status-dialog";
+import { NoteDialog, StatusBoard, StatusMenu, type NoteKind } from "../_leads/status-dialog";
 import { InlineComposer } from "../_leads/composer";
 import { ContactChips, whatsappHref } from "@/components/dashboard/next-item/contact-chips";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@foundry/ui/collapsible";
@@ -273,6 +273,16 @@ export function InquiryDetailClient({
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start lg:gap-6">
         <div className="flex min-w-0 flex-col gap-4">
+          {took ? null : (
+            <Card>
+              <CardHeader>
+                <CardTitle>Status</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <StatusBoard inquiryId={inquiryId} subStatus={subStatus} />
+              </CardContent>
+            </Card>
+          )}
           {terminal ? null : (
             <NextStepCard
               nextFollowUpAt={nextFollowUpAt}

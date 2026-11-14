@@ -9,7 +9,7 @@ vi.mock("next/link", () => ({ default: ({ children }: { children: ReactNode }) =
 vi.mock("sonner", () => ({ toast: { success: () => undefined, error: () => undefined } }));
 vi.mock("@foundry/design-system/timezone-provider", () => ({ useTimezone: () => "UTC" }));
 vi.mock("../actions", () => ({ clearFollowUp: async () => ({ ok: true }), logActivity: async () => ({ ok: true }) }));
-vi.mock("../_leads/status-dialog", () => ({ NoteDialog: () => null, StatusMenu: () => null }));
+vi.mock("../_leads/status-dialog", () => ({ NoteDialog: () => null, StatusBoard: () => null, StatusMenu: () => null }));
 vi.mock("../_leads/composer", () => ({ InlineComposer: () => null }));
 vi.mock("@/components/dashboard/next-item/contact-chips", () => ({ ContactChips: () => null, whatsappHref: () => undefined }));
 vi.mock("@/components/dashboard/app-breadcrumbs", () => ({ BreadcrumbLabel: () => null }));
