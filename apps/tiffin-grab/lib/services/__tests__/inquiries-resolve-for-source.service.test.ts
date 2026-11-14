@@ -110,12 +110,20 @@ describe("inquiriesService.createOrFold — one open lead per person", () => {
     expect(out.inquiry.publicId).toBe(byEmail.publicId);
   });
 
-  it("a lost lead does not absorb a new inquiry", async () => {
+  it("a lost lead is reopened by a new inquiry from the same person", async () => {
     const phone = "+16475554130";
     const first = await inquiriesService.create({ fullName: "L", phone, sourceKey: "facebook", email: testEmail() });
     await inquiriesService.markLost(first.publicId, "other");
     const out = await inquiriesService.createOrFold({ fullName: "L", phone, sourceKey: "facebook", email: testEmail() });
-    expect(out.folded).toBe(false);
-    expect(out.inquiry.publicId).not.toBe(first.publicId);
+    expect(out.outcome).toBe("reopened");
+    expect(out.inquiry.publicId).toBe(first.publicId);
+  });
+
+  it("email wins over an older phone match at the same stage", async () => {
+    const email = testEmail();
+    const byEmail = await inquiriesService.create({ fullName: "ByEmail", phone: "+16475554131", sourceKey: "facebook", email });
+    await inquiriesService.create({ fullName: "ByPhone", phone: "+16475554132", sourceKey: "facebook", email: testEmail() });
+    const out = await inquiriesService.createOrFold({ fullName: "X", phone: "+16475554132", sourceKey: "manual", email });
+    expect(out.inquiry.publicId).toBe(byEmail.publicId);
   });
 });

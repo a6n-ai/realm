@@ -85,7 +85,15 @@ export async function findMatch(
     .from(inquiries)
     .where(and(match, excludeId != null ? ne(inquiries.id, excludeId) : undefined));
   if (!rows.length) return { match: null, conflictWith: null };
-  rows.sort((a, b) => stageRank(b.row.stage) - stageRank(a.row.stage) || Number(b.latest) - Number(a.latest) || b.row.createdAt - a.row.createdAt);
+  // Email is the login identity, so at equal stage it beats a phone match.
+  const byEmail = (r: InquiryRow) => (email && r.email?.toLowerCase() === email.toLowerCase() ? 1 : 0);
+  rows.sort(
+    (a, b) =>
+      stageRank(b.row.stage) - stageRank(a.row.stage) ||
+      byEmail(b.row) - byEmail(a.row) ||
+      Number(b.latest) - Number(a.latest) ||
+      b.row.createdAt - a.row.createdAt,
+  );
   const [first, ...rest] = rows.map((r) => r.row);
   return { match: first, conflictWith: rest[0] ?? null };
 }

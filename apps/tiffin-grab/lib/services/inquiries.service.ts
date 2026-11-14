@@ -19,7 +19,9 @@ import { assertServiceable } from "@/lib/catalog/zone-match";
 import { parseCanadianPostalCode } from "@/lib/catalog/postal";
 import { sendMetaCrmLeadCreated, sendMetaCrmLeadStatus, sendMetaCrmQualifiedLead } from "@/lib/meta/crm-lead";
 import { SessionUpdatableService } from "./session-service";
-import { addActivity, findOpenMatch, nextLeadNumber, notifyOwner, resolveOwner, resolveSource, resolveZoneId } from "./inquiry-core";
+import { FILLABLE_FIELDS, addActivity, fillEmpty, findMatch, findOpenMatch, nextLeadNumber, notifyOwner, resolveOwner, resolveSource, resolveZoneId } from "./inquiry-core";
+
+export type FoldOutcome = "created" | "folded" | "reopened";
 import { assertOnePerson, createOrder, type CreateOrderInput } from "../orders/create-order";
 import { getBrandOrgId } from "./organizations.service";
 import { assertReassignAllowed, resolveAssignableOwner } from "./reassign";
@@ -226,17 +228,17 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
     return findOpenMatch(phone, email, excludeId, whatsappPhone);
   }
 
-  /** A repeat contact from the same person: log it on their open inquiry instead of a new row. */
+  /** A repeat contact from the same person: log it on their row instead of a new one. */
   private async logReinquiry(
     inq: typeof inquiries.$inferSelect,
-    v: { phone: string | null; email: string | null; sourceKey: string; subSourceKey?: string; notes?: unknown },
+    v: { phone: string | null; email: string | null; sourceKey: string; subSourceKey?: string; notes?: unknown; details?: Record<string, unknown> },
   ) {
     const [src] = await db.select({ label: leadSources.label }).from(leadSources).where(eq(leadSources.key, v.sourceKey)).limit(1);
     const parts = [`Re-inquiry via ${src?.label ?? v.sourceKey}${v.subSourceKey ? ` (${v.subSourceKey})` : ""}`];
     if (v.phone && (inq.phone ?? "").toLowerCase() !== v.phone.toLowerCase()) parts.push(`phone ${v.phone}`);
     if (v.email && (inq.email ?? "").toLowerCase() !== v.email.toLowerCase()) parts.push(`email ${v.email}`);
     const message = typeof v.notes === "string" && v.notes.trim() ? `\n${v.notes.trim()}` : "";
-    await addActivity({ inquiryId: inq.id, type: "reinquiry", note: parts.join(" · ") + message });
+    return addActivity({ inquiryId: inq.id, type: "reinquiry", note: parts.join(" · ") + message, details: v.details ?? null });
   }
 
   private followUp(inq: typeof inquiries.$inferSelect, at: number | null | undefined) {
@@ -251,30 +253,55 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
     }));
   }
 
-  /** Creates the inquiry, or folds it into the person's open one (see findOpenMatch). */
-  async createOrFold(values: Record<string, unknown>): Promise<{ inquiry: typeof inquiries.$inferSelect; folded: boolean }> {
+  /** True when the person behind this row has a running plan (by customer link, else by contact). */
+  private async hasLivePlan(inq: typeof inquiries.$inferSelect): Promise<boolean> {
+    const live = inArray(orders.status, ["active", "paused"]);
+    if (inq.customerId != null) {
+      const [o] = await db.select({ id: orders.id }).from(orders).where(and(eq(orders.userId, inq.customerId), live)).limit(1);
+      return !!o;
+    }
+    const who = [
+      inq.email ? eq(sql`lower(${users.email})`, inq.email.toLowerCase()) : undefined,
+      inq.phone ? eq(users.phone, inq.phone) : undefined,
+    ].filter((p): p is SQL => !!p);
+    if (!who.length) return false;
+    const [o] = await db.select({ id: orders.id }).from(orders).innerJoin(users, eq(users.id, orders.userId)).where(and(or(...who), live)).limit(1);
+    return !!o;
+  }
+
+  /**
+   * Creates the inquiry, or folds a repeat contact into the person's row (any stage, see findMatch).
+   * A lost row reopens unless the person has a running plan; a converted row never reopens — they are a
+   * customer, and their next order is a renewal round.
+   */
+  async createOrFold(values: Record<string, unknown>): Promise<{ inquiry: typeof inquiries.$inferSelect; folded: boolean; outcome: FoldOutcome }> {
     const clean = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : null);
     let fullName = clean(values.fullName);
-    // WhatsApp-only contact: that number is their phone (keeps the open-phone unique index and dedup working).
+    // WhatsApp-only contact: that number is their phone (keeps the phone unique index and dedup working).
     const rawPhone = clean(values.phone) ?? clean(values.whatsappPhone);
     const rawWhatsapp = clean(values.phone) ? clean(values.whatsappPhone) : null;
     const rawEmail = clean(values.email);
     if (!fullName && !rawPhone) throw new ValidationError("Enter a name or phone number");
-    let phone: string | null = null;
-    if (rawPhone) {
-      phone = parsePhone(rawPhone);
-    }
+    const phone = rawPhone ? parsePhone(rawPhone) : null;
     const whatsappPhone = rawWhatsapp ? parsePhone(rawWhatsapp) : null;
-    let email: string | null = null;
-    if (rawEmail) {
-      email = parseEmail(rawEmail);
-    }
+    const email = rawEmail ? parseEmail(rawEmail) : null;
 
-    const { sourceKey, subSourceKey, subStatus: rawSub, whatsappPhone: _wa, metaLeadId: rawMetaLeadId, ...rest } = values as {
+    const {
+      sourceKey,
+      subSourceKey,
+      subStatus: rawSub,
+      whatsappPhone: _wa,
+      metaLeadId: rawMetaLeadId,
+      details: rawDetails,
+      createdAt: rawCreatedAt,
+      ...rest
+    } = values as {
       sourceKey: string;
       subSourceKey?: string;
       subStatus?: unknown;
       metaLeadId?: unknown;
+      details?: Record<string, unknown>;
+      createdAt?: unknown;
       [k: string]: unknown;
     };
     const subStatus = (rawSub ?? null) as SubStatus | null;
@@ -288,25 +315,58 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
     if (rawMetaLeadId != null && rawMetaLeadId !== "" && !metaLeadId) {
       throw new ValidationError("Meta lead id must be the 15–17 digit Instant Forms lead id");
     }
-    const fold = async (existing: typeof inquiries.$inferSelect) => {
-      await this.logReinquiry(existing, { phone, email, sourceKey, subSourceKey, notes: rest.notes });
-      // Attach Instant Forms lead_id when a re-inquiry carries one and the open lead lacks it.
-      if (metaLeadId && !existing.metaLeadId) {
-        const updated = await this.update(existing.publicId, { metaLeadId });
-        sendMetaCrmLeadCreated({
-          publicId: updated.publicId,
-          metaLeadId: updated.metaLeadId,
-          email: updated.email,
-          phone: updated.phone,
-          fullName: updated.fullName,
+    const sourceDetails = { source: sourceKey, ...(subSourceKey ? { subSource: subSourceKey } : {}), ...(rawDetails ?? {}) };
+
+    const fold = async (existing: typeof inquiries.$inferSelect, conflictWith: typeof inquiries.$inferSelect | null) => {
+      let current = existing;
+      const reopen = existing.stage === "lost" && !(await this.hasLivePlan(existing));
+      if (reopen) {
+        current = await this.update(existing.publicId, { subStatus: null, stage: stageFor(null), lostReason: null, nextFollowUpAt: null });
+        await addActivity({
+          inquiryId: existing.id,
+          type: "stage_change",
+          fromStage: existing.stage,
+          toStage: current.stage,
+          fromSubStatus: existing.subStatus,
+          toSubStatus: null,
         });
-        return { inquiry: updated, folded: true };
+        if (existing.metaLeadId) sendMetaCrmLeadStatus(existing, null);
       }
-      return { inquiry: existing, folded: true };
+
+      const incoming: Partial<typeof inquiries.$inferSelect> = { fullName, phone, whatsappPhone, email };
+      for (const f of FILLABLE_FIELDS) if (f in rest) (incoming as Record<string, unknown>)[f] = rest[f];
+      const { patch, skipped } = await fillEmpty(current, incoming);
+      if (patch.postalCode && current.zoneId == null) {
+        const zoneId = await resolveZoneId(patch.postalCode);
+        if (zoneId != null) patch.zoneId = zoneId;
+      }
+      if (metaLeadId && !current.metaLeadId) patch.metaLeadId = metaLeadId;
+      if (Object.keys(patch).length) current = await this.update(current.publicId, patch);
+      if (patch.metaLeadId) {
+        sendMetaCrmLeadCreated({ publicId: current.publicId, metaLeadId: current.metaLeadId, email: current.email, phone: current.phone, fullName: current.fullName });
+      }
+      if (conflictWith || skipped.length) {
+        await addActivity({
+          inquiryId: current.id,
+          type: "match_conflict",
+          note: "This contact also matches another inquiry. Check whether they are the same person.",
+          details: { ...(conflictWith ? { conflictWith: conflictWith.publicId } : {}), ...(skipped.length ? { skipped } : {}) },
+        });
+      }
+      const reinquiry = await this.logReinquiry(current, { phone, email, sourceKey, subSourceKey, notes: rest.notes, details: { ...sourceDetails, ...(reopen ? { reopened: true } : {}) } });
+      const target = current;
+      await db.transaction((tx) => notifyOwner(tx, target, {
+        event: "inquiry_reinquiry",
+        title: "Re-inquiry",
+        body: `${target.fullName ?? "A lead"} reached out again.`,
+        data: { inquiry: { customerName: target.fullName ?? "" } },
+        dedupeKey: `inquiry_reinquiry:${target.publicId}:${reinquiry.publicId}`,
+      }));
+      return { inquiry: current, folded: true, outcome: (reopen ? "reopened" : "folded") as FoldOutcome };
     };
 
-    const existing = await this.findOpenMatch(phone, email, undefined, whatsappPhone);
-    if (existing) return fold(existing);
+    const { match, conflictWith } = await findMatch(phone, email, undefined, whatsappPhone);
+    if (match) return fold(match, conflictWith);
 
     // Zone resolution depends only on the postal code, so run it alongside the
     // source→owner chain instead of after it.
@@ -342,20 +402,23 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
         organizationId,
       });
     } catch (e) {
-      // Partial unique indexes inquiries_open_{phone,email}_unique: a concurrent
-      // insert for the same person won the race — fold into it (the dedup rule,
-      // enforced at the DB).
+      // Unique contact indexes: a concurrent insert for the same person won the race — fold into it.
       if (isOpenLeadConflict(e)) {
         const winner = await this.findOpenMatch(phone, email, undefined, whatsappPhone);
-        if (winner) return fold(winner);
+        if (winner) return fold(winner, null);
       }
       throw e;
+    }
+    // Imported history keeps its original date; createdAt is a managed field, so set it after insert.
+    if (typeof rawCreatedAt === "number") {
+      [inq] = await db.update(inquiries).set({ createdAt: rawCreatedAt }).where(eq(inquiries.id, inq.id)).returning();
     }
     await addActivity({
       inquiryId: inq.id,
       type: "created",
       toStage: inq.stage,
       toSubStatus: subStatus,
+      details: { origin: "lead", ...sourceDetails },
     });
     if (inq.metaLeadId) {
       sendMetaCrmLeadCreated({
@@ -373,7 +436,7 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
       data: { inquiry: { customerName: inq.fullName ?? "" } },
       dedupeKey: `inquiry_created:${inq.publicId}`,
     }));
-    return { inquiry: inq, folded: false };
+    return { inquiry: inq, folded: false, outcome: "created" };
   }
 
   async create(values: Record<string, unknown>) {
@@ -693,10 +756,15 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
   async reassign(publicId: string, ownerId: string): Promise<void> {
     await assertReassignAllowed();
     const owner = await resolveAssignableOwner(ownerId);
-    await this.update(publicId, { currentOwner: owner.id });
-    // ponytail: inquiry_activity_type enum has no "reassigned" value and this is a
-    // shared-schema file other agents are touching in parallel — skip the timeline
-    // entry rather than widen the enum here.
+    await this.reassignOne(publicId, owner.id, ownerId);
+  }
+
+  private async reassignOne(publicId: string, ownerId: bigint, ownerPublicId: string) {
+    const before = await this.read(publicId);
+    if (before.currentOwner === ownerId) return;
+    const [prev] = before.currentOwner != null ? await db.select({ publicId: users.publicId }).from(users).where(eq(users.id, before.currentOwner)).limit(1) : [];
+    await this.update(publicId, { currentOwner: ownerId });
+    await addActivity({ inquiryId: before.id, type: "reassigned", details: { from: prev?.publicId ?? null, to: ownerPublicId } });
   }
 
   /** Bulk reassign from the list selection. Per-row update keeps audit stamping from the session. */
@@ -706,7 +774,7 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
     if (ids.length === 0) return 0;
     if (ids.length > 200) throw new ValidationError("Reassign at most 200 inquiries at a time");
     const owner = await resolveAssignableOwner(ownerId);
-    for (const id of ids) await this.update(id, { currentOwner: owner.id });
+    for (const id of ids) await this.reassignOne(id, owner.id, ownerId);
     return ids.length;
   }
 

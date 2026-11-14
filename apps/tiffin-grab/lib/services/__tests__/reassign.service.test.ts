@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { eq, inArray } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
-import { inquiries, notificationOutbox, users } from "@/db/schema";
+import { inquiries, inquiryActivities, notificationOutbox, users } from "@/db/schema";
 import { ForbiddenError, ValidationError } from "@foundry/commons";
 
 const session: { user: { id: string; role: string } | null } = { user: null };
@@ -77,6 +77,15 @@ describe("inquiriesService.reassign", () => {
     await inquiriesService.reassign(inquiryPublicId, goodOwner.publicId);
     const [row] = await db.select().from(inquiries).where(eq(inquiries.publicId, inquiryPublicId));
     expect(row.currentOwner).toBe(goodOwner.id);
+  });
+
+  it("reassign writes a reassigned activity with from and to owners", async () => {
+    actAs(caller, "admin");
+    await inquiriesService.reassign(inquiryPublicId, caller.publicId);
+    await inquiriesService.reassign(inquiryPublicId, goodOwner.publicId);
+    const [row] = await db.select().from(inquiries).where(eq(inquiries.publicId, inquiryPublicId));
+    const acts = await db.select().from(inquiryActivities).where(and(eq(inquiryActivities.inquiryId, row.id), eq(inquiryActivities.type, "reassigned")));
+    expect(acts.at(-1)?.details).toEqual({ from: caller.publicId, to: goodOwner.publicId });
   });
 
   it("reassignMany moves every selected inquiry to the new owner", async () => {

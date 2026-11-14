@@ -28,6 +28,7 @@ vi.mock("@/lib/auth/guards", () => ({ requireStaff: async () => ({}) }));
 vi.mock("@/lib/auth/visible-orgs", () => ({ resolveSessionVisibleOrgIds: async () => "all" }));
 vi.mock("next/cache", () => ({ revalidatePath: () => {} }));
 
+const { insertTestInquiry } = await import("./helpers/inquiry-fixtures");
 const { inquiriesService } = await import("../inquiries.service");
 const { bulkSetStatus } = await import("@/app/(dashboard)/dashboard/inquiries/actions");
 
@@ -180,7 +181,8 @@ describe("inquiriesService.setStatus", () => {
   it("reopening a lost lead is refused while another open lead has its phone", async () => {
     const old = await mk();
     await inquiriesService.setStatus(old.publicId, { subStatus: "lost", lostReason: "asked_to_stop" });
-    const fresh = await inquiriesService.create({ fullName: "Again", phone: old.phone, sourceKey: "manual" });
+    // A pre-merge duplicate: createOrFold would now reopen `old`, so insert the second row directly.
+    const fresh = await insertTestInquiry({ fullName: "Again", phone: old.phone });
     await expect(inquiriesService.setStatus(old.publicId, { subStatus: null })).rejects.toThrow(fresh.publicId);
     expect((await row(old.id)).stage).toBe("lost");
   });
