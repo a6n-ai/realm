@@ -28,6 +28,7 @@ import { LABEL_STATUS } from "@/lib/deliveries/label-status";
 import { nextOpenPlanDay } from "@/lib/deliveries/next-open-day";
 import { assertDayOutsideOtherPlans, otherPlanDays } from "../orders/order-window";
 import { holidayForOrderDate } from "./holiday-dates";
+import { assertPlanEditable } from "./plan-editable";
 import { orderPaymentStatuses } from "@/lib/payments/order-payments";
 import { complimentaryBlocker } from "@/lib/orders/display-status";
 import { clearLookOutOnEnd } from "@/lib/orders/look-out";
@@ -302,10 +303,7 @@ export async function adminSetDeliveryStatus(
       .where(or(eq(deliveries.makeupForDeliveryId, row.id), eq(deliveries.holidayExtraForDeliveryId, row.id))).limit(1);
     if (moved) throw new ValidationError("This delivery's tiffins were moved. Change the day they moved to.");
 
-    const [order] = await tx.select({ status: orders.status }).from(orders).where(eq(orders.id, orderId)).limit(1);
-    if (!order || order.status === "cancelled" || order.status === "completed") {
-      throw new ValidationError("This subscription can no longer be changed");
-    }
+    const order = await assertPlanEditable(tx, orderId, "This subscription can no longer be changed");
 
     // Nothing goes back onto a day the kitchen is closed.
     if (status === "upcoming" && row.status !== "scheduled") {
@@ -852,10 +850,7 @@ export async function rescheduleDelivery(
       throw new ValidationError(`This tiffin is on hold. Release it to a new day after midnight, once ${humanDate(row.deliveryDate)}'s deliveries are reconciled.`);
     }
 
-    const [order] = await tx.select().from(orders).where(eq(orders.id, orderId)).limit(1);
-    if (!order || order.status === "cancelled" || order.status === "completed") {
-      throw new ValidationError("This subscription can no longer be rescheduled");
-    }
+    const order = await assertPlanEditable(tx, orderId, "This subscription can no longer be rescheduled");
 
     const [freq] = await tx.select({ key: deliveryFrequencies.key, weekdays: deliveryFrequencies.weekdays }).from(deliveryFrequencies)
       .where(eq(deliveryFrequencies.id, order.frequencyId)).limit(1);
@@ -999,10 +994,7 @@ export async function redeliverTrip(
     const row = await loadByPublicId(tx, deliveryPublicId);
     if (row.status !== "scheduled") throw new ValidationError(`Cannot re-deliver a ${row.status} delivery`);
 
-    const [order] = await tx.select().from(orders).where(eq(orders.id, orderId)).limit(1);
-    if (!order || order.status === "cancelled" || order.status === "completed") {
-      throw new ValidationError("This subscription can no longer be re-delivered");
-    }
+    const order = await assertPlanEditable(tx, orderId, "This subscription can no longer be re-delivered");
     const { timezone, cutoffHour } = await getAppSettings();
     const today = appTodayIso(timezone);
 

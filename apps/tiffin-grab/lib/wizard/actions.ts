@@ -3,25 +3,21 @@
 import { isCustomerRole } from "@/lib/roles";
 import { round2 } from "@foundry/commons/util/money";
 import { eq } from "drizzle-orm";
-import { capRedemption } from "@foundry/wallet";
 import { findMethod } from "@foundry/payments";
 import { emailSchema, ValidationError } from "@foundry/commons";
-import { planDaysError, type DayOfWeek } from "@/lib/menu/delivery-days";
 import { findZone } from "@/lib/catalog/zone-match";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
-import { buildPricingCatalog } from "@/lib/pricing/build-catalog";
-import { postCatalogSubtotal } from "@/lib/pricing/discounts";
 import { loadMealCostFloor } from "@/lib/pricing/meal-cost";
-import { priceSubscription, type PricingResult, type PricingSelections } from "@/lib/pricing";
-import { quoteTrial } from "@/lib/trial/quote";
+import { type PricingResult, type PricingSelections } from "@/lib/pricing";
 import { applyDiscountLane } from "@/lib/coupons/discount-lane";
 import { userIdByPublicId } from "@/lib/identity/user-ids";
-import { getAppSettings, getCoinEarnPct, getMaxCoinPctOfSubtotal, getMaxCoinRedeemPctOfBalance, getMaxWalletBalance, getPaymentConfig } from "@/lib/services/app-settings.service";
+import { getCoinEarnPct, getMaxWalletBalance, getPaymentConfig } from "@/lib/services/app-settings.service";
 import { coinsUnderCap, earnCoins } from "@/lib/wallet/earn-coins";
-import { coinCapMessage, coinLimits, quoteCoinCap } from "@/lib/pricing/coin-cap";
+import { coinCapMessage } from "@/lib/pricing/coin-cap";
 import { priceWithTax } from "@/lib/tax/checkout-taxes";
 import { walletService } from "@/lib/wallet/wallet.service";
+import { coinQuote, loadCoinConfig, priceCart } from "@/lib/orders/quote";
 import { provisionCustomerByEmail } from "@/lib/services/customers.service";
 import { findReferrerByCode } from "@/lib/referrals/referrals.service";
 import { REFERRAL_COOKIE, normalizeReferralCode, setReferralCookie } from "@/lib/referrals/cookie";
@@ -119,27 +115,7 @@ async function quote(
   // franchise-scoped meal size/coupon the client priced against could resolve
   // to a different (or missing) row here and disagree on the total.
   const snapshot = await loadCatalogSnapshot(orgId !== undefined ? orgId : await resolveRequestOrg());
-  const trialMeal = snapshot.mealSizes.find((m) => m.publicId === selections.mealSizeId);
-  const trial = trialMeal?.trial ? await quoteTrial(snapshot, selections) : null;
-  // Same day rules as createOrder, so the preview never prices a plan checkout would refuse.
-  if (trialMeal) {
-    const freqKey = trial ? trial.frequencyKey : selections.frequencyKey;
-    const freq = snapshot.frequencies.find((f) => f.key === freqKey);
-    const daysErr = planDaysError({
-      eatingDays: (trial ? trial.eatingDays : selections.eatingDays ?? []) as DayOfWeek[],
-      includeSaturday: !trial && selections.includeSaturday,
-      includeSunday: !trial && selections.includeSunday,
-      frequencyWeekdays: freq ? ((freq.weekdays ?? null) as DayOfWeek[] | null) : undefined,
-      servesWeekends: trialMeal.servesWeekends,
-      allowed: trialMeal.allowedDays,
-      trial: trial != null,
-    });
-    if (daysErr) throw new ValidationError(daysErr);
-  }
-  const catalog = trial ? trial.catalog : buildPricingCatalog(snapshot, selections);
-  const pricedSelections = trial ? trial.pricingSelections : selections;
-  const base = priceSubscription(pricedSelections, catalog);
-  const postCatalog = postCatalogSubtotal(base.subtotal, base.adjustments);
+  const { catalog, pricedSelections, base, postCatalog } = await priceCart(snapshot, selections);
 
   const paymentCfg = await getPaymentConfig();
   const paymentMethods = await checkoutPaymentMethods(paymentCfg);
@@ -192,12 +168,12 @@ async function quote(
     coinBalance = await walletService.balance(userId);
     const priorDiscount = lines.reduce((sum, l) => sum + l.amount, 0);
     const remaining = Math.max(0, round2(postCatalog - priorDiscount));
-    const { currency } = await getAppSettings();
-    const [activeRate, maxPct, maxRedeemPctOfBalance] = await Promise.all([walletService.activeRate(currency), getMaxCoinPctOfSubtotal(), getMaxCoinRedeemPctOfBalance()]);
-    rate = activeRate;
+    const cq = coinQuote(await loadCoinConfig(), { balance: coinBalance, postCatalog, remaining });
+    const { maxPct, maxRedeemPctOfBalance } = cq;
+    rate = cq.rate;
     // Same cap createOrder enforces (admin % of the pre-tax subtotal, bounded by
     // what is left after coupons), so the limit shown is the limit applied.
-    const quote = quoteCoinCap({ subtotal: postCatalog, remaining, balance: coinBalance, rate, maxPct, maxRedeemPctOfBalance });
+    const quote = cq.cap;
     coinCap = { maxCoins: quote.maxCoins, maxPct, message: coinCapMessage(quote, { balance: coinBalance, maxPct, maxRedeemPctOfBalance }) };
 
     if (coins && coins > 0) {
@@ -212,8 +188,7 @@ async function quote(
         // quote would show more coins than createOrder spends (it refuses over that limit).
         coinsError = `You can use up to ${maxRedeemPctOfBalance}% of your coins at once — up to ${quote.maxCoins} coins on this order.`;
       } else if (remaining > 0) {
-        const { pctCap } = coinLimits({ subtotal: postCatalog, balance: coinBalance, maxPct, maxRedeemPctOfBalance });
-        const redemption = capRedemption(coins, rate, Math.min(remaining, pctCap));
+        const redemption = cq.redeem(coins);
         if (redemption.currencyValue > 0) {
           coinsSpent = redemption.coinsSpent;
           coinsValue = redemption.currencyValue;

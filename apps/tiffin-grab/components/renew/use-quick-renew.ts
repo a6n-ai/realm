@@ -1,11 +1,11 @@
 import { GENERIC_CLIENT_ERROR } from "@foundry/commons/util/client-error";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { nextWeekday, parseIsoDateUtc, weekdayKey } from "@foundry/commons";
-import { reprice } from "@/lib/wizard/actions";
+import { useReprice } from "@/lib/wizard/use-reprice";
 import { dropOffCatalog, validDropOff } from "@/lib/catalog/drop-off";
 import { offeredAddons, type WizardSelections } from "@/lib/wizard/selections";
 import { formatDateOnly } from "@/lib/format/datetime";
-import { appToday, firstStartOnOrAfter, planStartDays } from "@/lib/orders/start-date";
+import { appToday, planStartDays, startWindow } from "@/lib/orders/start-date";
 import type { PricingResult } from "@/lib/pricing";
 import type { QuickRenewData } from "@/lib/renewals/quick-renew-types";
 import { utcIso } from "@foundry/commons/util/dates";
@@ -33,25 +33,26 @@ export function useQuickRenew({ catalog, initial, minStartDate, lastTiffin, holi
   const allowed = planStartDays(plan?.allowedStartDays, freq?.weekdays);
   const today = appToday(catalog.timezone, catalog.cutoffHour);
   const tomorrow = utcIso(nextWeekday(today));
-  const minDate = minStartDate && minStartDate > tomorrow ? minStartDate : tomorrow;
   const closed = useMemo(() => new Set(holidayDates), [holidayDates]);
-  const earliest = firstStartOnOrAfter(minDate, allowed, closed);
+  const { minDate, earliest } = startWindow(tomorrow, minStartDate, allowed, closed);
   const address = savedAddresses.find((a) => a.publicId === addressId) ?? null;
   const addons = offeredAddons(catalog, sel);
   const addonCount = (sel.addonSelections ?? []).reduce((n, a) => n + a.qty, 0);
 
-  useEffect(() => {
-    let active = true;
-    // Marks the in-flight reprice; the last result stays on screen meanwhile.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setPrice((p) => ({ ...p, loading: true, error: null }));
-    // The saved address's drop-off fee is part of what checkout charges, so the quote must carry it or the total jumps on the pay step.
-    const drop = validDropOff(dropOffCatalog(catalog.deliveryCharges, catalog.waivers), address ? addressDropOffs[address.publicId] : null);
-    reprice({ ...sel, deliveryTagId: drop.tagId, deliveryStrategyIds: drop.strategyIds }, undefined, sel.planKey ?? undefined, defaultPaymentMethodId, undefined, address?.postalCode, address?.addressLine, address?.city, organizationId)
-      .then((r) => { if (active) setPrice({ result: "error" in r ? null : r.pricing, error: "error" in r ? r.error : null, loading: false }); })
-      .catch(() => { if (active) setPrice({ result: null, error: "Couldn't load the price.", loading: false }); });
-    return () => { active = false; };
-  }, [sel, address, retry, catalog, addressDropOffs, organizationId, defaultPaymentMethodId]);
+  useReprice(
+    () => {
+      // The saved address's drop-off fee is part of what checkout charges, so the quote must carry it or the total jumps on the pay step.
+      const drop = validDropOff(dropOffCatalog(catalog.deliveryCharges, catalog.waivers), address ? addressDropOffs[address.publicId] : null);
+      return [{ ...sel, deliveryTagId: drop.tagId, deliveryStrategyIds: drop.strategyIds }, undefined, sel.planKey ?? undefined, defaultPaymentMethodId, undefined, address?.postalCode, address?.addressLine, address?.city, organizationId];
+    },
+    {
+      // Marks the in-flight reprice; the last result stays on screen meanwhile.
+      onStart: () => setPrice((p) => ({ ...p, loading: true, error: null })),
+      onResult: (r) => setPrice({ result: "error" in r ? null : r.pricing, error: "error" in r ? r.error : null, loading: false }),
+      onError: () => setPrice({ result: null, error: "Couldn't load the price.", loading: false }),
+    },
+    [sel, address, retry, catalog, addressDropOffs, organizationId, defaultPaymentMethodId],
+  );
 
   const dayDisabledReason = (iso: string): string | undefined =>
     iso < minDate ? "Before the earliest available date"

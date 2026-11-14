@@ -9,7 +9,8 @@ import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 import { toClientCatalog } from "@/lib/catalog/types";
 import { myRenewalWindow, mySubscriptionsSummary } from "@/lib/deliveries/customer-deliveries.service";
 import { checkoutHolidayDates } from "@/lib/deliveries/holidays.service";
-import { appToday, earliestPlanStart, planStartDays } from "@/lib/orders/start-date";
+import { appToday } from "@/lib/orders/start-date";
+import { withFirstStart } from "@/lib/wizard/builder-inputs";
 import { PageShell } from "@/components/ds";
 import { RenewCheckout } from "./quick-renew-client";
 import { CheckoutUnavailable } from "@/components/checkout/checkout-unavailable";
@@ -97,10 +98,7 @@ export default async function RenewPlanPage({ searchParams }: { searchParams: Pr
   // A staff estimate link wins over the last order: it is what the customer just agreed to.
   const quoted = selectionsFromQuote(client, params);
   const base = quoted ?? prior;
-  const basePlan = client.plans.find((p) => p.key === base.planKey);
-  const initial = basePlan
-    ? { ...base, startDate: earliestPlanStart(today, planStartDays(basePlan.allowedStartDays, client.frequencies.find((f) => f.key === base.frequencyKey)?.weekdays), earliestStartDate, new Set(holidayDates)) }
-    : base;
+  const initial = withFirstStart(client, base, today, earliestStartDate, holidayDates);
   const live = subs.filter((s) => LIVE.has(s.status));
   const currentRow =
     live.find((s) => s.status === "active") ??

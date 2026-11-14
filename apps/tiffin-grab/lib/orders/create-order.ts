@@ -46,7 +46,6 @@ import { assertStartable } from "./order-window";
 import { matchCustomerAccounts, provisionCustomerByPhone, STAFF_ACCOUNT_MESSAGE } from "../services/customers.service";
 import { appToday, validateStartDate } from "./start-date";
 import {
-  walletService,
   lockAndQuoteCoinRedemption,
   balanceInTx,
   commitCoinRedemption,
@@ -55,8 +54,8 @@ import {
 } from "../wallet/wallet.service";
 import { awardReferral } from "../referrals/referrals.service";
 import { eatingDaysError, orderDeliveryDays, planDaysError, type DayOfWeek } from "@/lib/menu/delivery-days";
-import { getAppSettings, getMaxCoinPctOfSubtotal, getMaxCoinRedeemPctOfBalance, getPaymentConfig } from "../services/app-settings.service";
-import { coinLimits, quoteCoinCap } from "@/lib/pricing/coin-cap";
+import { getAppSettings, getPaymentConfig } from "../services/app-settings.service";
+import { coinQuote, loadCoinConfig } from "./quote";
 import { loadMealCostFloor } from "@/lib/pricing/meal-cost";
 import { applyDiscountLane } from "@/lib/coupons/discount-lane";
 import { isProduction } from "@/lib/runtime/env";
@@ -497,25 +496,22 @@ export async function createOrder(
       const priorDiscount = adjustments.reduce((sum, a) => sum + a.amount, 0);
       const remaining = Math.max(0, round2(postCatalog - priorDiscount));
       if (remaining > 0) {
-        const rate = await walletService.activeRate(currency);
         // Admin limit on the share of the PRE-TAX subtotal coins may cover
         // (NULL = unlimited). Bounded by `remaining` too, so coins can never
         // take the order below zero. capRedemption clamps rather than rejects:
         // asking for more coins than the cap allows spends only what the cap buys.
-        const maxPct = await getMaxCoinPctOfSubtotal();
+        const cfg = await loadCoinConfig(currency);
 
         // The share-of-balance limit is drawn from the balance, so read it under the same user row lock
         // lockAndQuoteCoinRedemption takes: unlocked, two concurrent orders could each draw the limit from
         // one balance and together spend past it.
         await tx.execute(sql`SELECT id FROM ${users} WHERE id = ${userId} FOR UPDATE`);
         const walletBalance = await balanceInTx(tx, userId);
-        const maxRedeemPct = await getMaxCoinRedeemPctOfBalance();
-        const { pctCap, walletPctCap } = coinLimits({ subtotal: postCatalog, balance: walletBalance, maxPct, maxRedeemPctOfBalance: maxRedeemPct });
+        const { rate, maxRedeemPctOfBalance: maxRedeemPct, pctCap, walletPctCap, cap: quote } = coinQuote(cfg, { balance: walletBalance, postCatalog, remaining });
         // Same rule as the checkout quote: refuse only when the share-of-balance limit is what binds. A
         // count over it that the order wouldn't use anyway (it needs fewer coins) still clamps below;
         // checkout sends back the number the customer typed. When it does bind here but the quote
         // passed, the balance moved since the price was shown, and spending fewer would charge more.
-        const quote = quoteCoinCap({ subtotal: postCatalog, remaining, balance: walletBalance, rate, maxPct, maxRedeemPctOfBalance: maxRedeemPct });
         if (input.coins > quote.maxCoins && quote.limitedBy === "wallet_pct") {
           throw new ValidationError(
             `You can use up to ${maxRedeemPct}% of the coins at once, ${quote.maxCoins} on this order. Check the price again.`,

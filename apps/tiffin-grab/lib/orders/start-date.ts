@@ -55,9 +55,13 @@ export function earliestPlanStart(
   minStartDate: string | null = null,
   closed: ReadonlySet<string> = new Set(),
 ): string {
-  const tomorrow = utcIso(nextWeekday(today));
-  const from = minStartDate && minStartDate > tomorrow ? minStartDate : tomorrow;
-  return firstStartOnOrAfter(from, allowedStartDays, closed);
+  return startWindow(utcIso(nextWeekday(today)), minStartDate, allowedStartDays, closed).earliest;
+}
+
+/** The earliest date a start may be picked (`tomorrow`, or a later `minStartDate`) and the first day on/after it the plan starts on. */
+export function startWindow(tomorrow: string, minStartDate: string | null | undefined, allowedStartDays: readonly string[], closed: ReadonlySet<string>) {
+  const minDate = minStartDate && minStartDate > tomorrow ? minStartDate : tomorrow;
+  return { minDate, earliest: firstStartOnOrAfter(minDate, allowedStartDays, closed) };
 }
 
 /**

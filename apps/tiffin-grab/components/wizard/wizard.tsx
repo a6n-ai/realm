@@ -11,7 +11,7 @@ import { formatDateOnly } from "@/lib/format/datetime";
 import { PlanSummary } from "./plan-summary";
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
 import type { PricingResult } from "@/lib/pricing";
-import { reprice } from "@/lib/wizard/actions";
+import { useReprice } from "@/lib/wizard/use-reprice";
 import { useBounceAfterPaid } from "@/lib/payments/paid-flag";
 import { BottomBar, Button, Sheet, buttonClass } from "@/components/kit";
 import { AddonsPanel } from "./addons-panel";
@@ -147,22 +147,24 @@ export function Wizard({
 
   const set = (patch: Partial<WizardSelections>) => setSelections((s) => ({ ...s, ...patch }));
 
-  useEffect(() => {
-    // Clearing the stale invoice when no meal is chosen; intentional effect-driven reset.
-     
-    // No frequency until the Schedule step: pricing would throw "Invalid frequency" (a 500) on every Bundle pick.
-    const trialPick = trial != null && selectionIsTrial(catalog, selections);
-    if (!selections.mealSizeId || (trialPick ? selections.trialDays == null || !selections.startDate : !selections.frequencyKey)) { setTimeout(() => setResult(null), 0); return; }
-    let active = true;
-    reprice(selections, undefined, selections.planKey ?? undefined)
-      .then((r) => {
-        if (!active) return;
+  useReprice(
+    () => {
+      // No frequency until the Schedule step: pricing would throw "Invalid frequency" (a 500) on every Bundle pick.
+      const trialPick = trial != null && selectionIsTrial(catalog, selections);
+      if (!selections.mealSizeId || (trialPick ? selections.trialDays == null || !selections.startDate : !selections.frequencyKey)) return null;
+      return [selections, undefined, selections.planKey ?? undefined];
+    },
+    {
+      // Clearing the stale invoice when no meal is chosen; intentional effect-driven reset.
+      onSkip: () => { setTimeout(() => setResult(null), 0); },
+      onResult: (r) => {
         setResult("error" in r ? null : r.pricing);
         setNewOnlyCodes("error" in r ? [] : r.appliedCoupons.filter((c) => c.newCustomersOnly).map((c) => c.code));
-      })
-      .catch(() => { if (active) setResult(null); });
-    return () => { active = false; };
-  }, [selections, trial, catalog]);
+      },
+      onError: () => setResult(null),
+    },
+    [selections, trial, catalog],
+  );
 
   const blocked = step === 0 ? nextBlockedReason(0, catalog, selections) ?? nextBlockedReason(1, catalog, selections) : nextBlockedReason(step, catalog, selections);
   // Once a meal is picked, the bar says what's picked, so nobody scrolls back up to check.
