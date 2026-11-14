@@ -17,6 +17,8 @@ export const PUBLIC_API = [
   "/api/cron",
   "/api/webhooks",
   "/api/unsubscribe",
+  // Signed review-request link; the HMAC token is the auth (see the route).
+  "/api/review-nudge/unsubscribe",
   "/api/receipts",
   "/api/refer-card",
   "/api/analytics",

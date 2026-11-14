@@ -22,8 +22,6 @@ const SESSION_GATED: Record<string, string> = {
   "/api/map/sprites/[file]": "map assets",
   "/api/map/style": "map style",
   "/api/map/tiles/[z]/[x]/[y]": "map tiles",
-  // Documented "unauthenticated by design" (signed token) but not in PUBLIC_API, so a signed-out click gets the proxy 401.
-  "/api/review-nudge/unsubscribe": "HMAC token; proxy still requires a session cookie",
 };
 
 function routes(dir: string, base = ""): { path: string; file: string }[] {
