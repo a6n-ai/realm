@@ -1,11 +1,11 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { eq, inArray } from "drizzle-orm";
+import { eq, inArray, or } from "drizzle-orm";
 import { nextWeekday } from "@foundry/commons";
 import { dayRange } from "@foundry/commons/util/dates";
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 vi.mock("@foundry/places", async (orig) => ({ ...(await orig<object>()), resolveAndPersist: async () => null }));
 const { db } = await import("@/db/client");
-const { deliveries, ledgerEntries, orderActivities, orders, payments, renewalActivities, renewals, users } = await import("@/db/schema");
+const { deliveries, inquiries, inquiryActivities, ledgerEntries, orderActivities, orders, payments, users } = await import("@/db/schema");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { createOrder } = await import("../../orders/create-order");
 const { setTrackStatus } = await import("../renewal-tracking.service");
@@ -22,8 +22,9 @@ const cleanup = async () => {
   if (created.length === 0) return;
   const ids = created.map((o) => o.id);
   const userIds = created.map((o) => o.userId).filter((id): id is bigint => id != null);
-  await db.delete(renewalActivities).where(inArray(renewalActivities.renewalId, db.select({ id: renewals.id }).from(renewals).where(inArray(renewals.orderId, ids))));
-  await db.delete(renewals).where(inArray(renewals.orderId, ids));
+  const linked = db.select({ id: inquiries.id }).from(inquiries).where(or(inArray(inquiries.currentOrderId, ids), userIds.length ? inArray(inquiries.customerId, userIds) : undefined));
+  await db.delete(inquiryActivities).where(inArray(inquiryActivities.inquiryId, linked));
+  await db.delete(inquiries).where(inArray(inquiries.id, linked));
   await db.delete(deliveries).where(inArray(deliveries.orderId, ids));
   await db.delete(orderActivities).where(inArray(orderActivities.orderId, ids));
   await db.delete(ledgerEntries).where(inArray(ledgerEntries.orderId, ids));

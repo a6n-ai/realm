@@ -271,8 +271,8 @@ type RenewalTrackStatus = NonNullable<InquiryRow["renewalStatus"]>;
 type LostReasonValue = NonNullable<InquiryRow["renewalLostReason"]>;
 
 /**
- * Phase 3 dual write: a Renewals-desk write also lands on the person's inquiry. The renewal columns change
- * only for the inquiry's current order; any order gets the activity on its round.
+ * A Renewals-desk write lands on the person's inquiry. The renewal columns change only for the inquiry's
+ * current order; any order gets the activity on its round.
  */
 export async function mirrorRenewalActivity(orderId: bigint, m: RenewalMirror): Promise<void> {
   const inq = await inquiryForOrder(orderId);
@@ -280,9 +280,8 @@ export async function mirrorRenewalActivity(orderId: bigint, m: RenewalMirror): 
   if (inq.currentOrderId === orderId) {
     const patch: Partial<InquiryRow> = {};
     if (m.status) {
-      // "renewed" is never stored: orders decide it (laterOrderSql).
       Object.assign(patch, {
-        renewalStatus: m.status.to === "renewed" ? null : m.status.to,
+        renewalStatus: m.status.to,
         renewalStatusSource: "staff",
         renewalStatusSetAt: Date.now(),
         renewalLostReason: m.status.lostReason,

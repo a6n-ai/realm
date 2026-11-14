@@ -4,13 +4,13 @@ import { UNPAID } from "@/lib/payments/status";
 import { paymentStatusIn } from "@/lib/payments/status-sql";
 import type { Page, PageRequest } from "@foundry/commons/util/pagination";
 import { db } from "@/db/client";
-import { deliveries, ledgerEntries, mealSizes, messageSuppression, notificationOutbox, orders, payments, plans, renewals as renewalRecords, tickets, users, walletLedger } from "@/db/schema";
+import { deliveries, ledgerEntries, mealSizes, messageSuppression, notificationOutbox, orders, payments, plans, tickets, users, walletLedger } from "@/db/schema";
 import { unexpired } from "@foundry/wallet";
 import { renewalQueueFilter, type DateBy, type PlanType, type RenewalsFilter, type TrackFilter } from "@/lib/renewals/filters";
 import { UNASSIGNED_OWNER } from "@/lib/list/presets";
 import { lastTiffinSql, renewalStatusSql, visibleOrgWhere, type RenewalStatus } from "@/lib/orders/queries";
 import { addDaysIso, DAY_MS, daysBetween } from "@foundry/commons/util/dates";
-import { computedStatusSql, effectiveTrackStatusSql, followUpWhere, getTrackRows, laterBookedAtSql, latestTrackActivities, listTrackActivities, type TrackActivity, type TrackRow } from "./renewal-tracking.service";
+import { computedStatusSql, effectiveTrackStatusSql, followUpWhere, getTrackRows, laterBookedAtSql, latestTrackActivities, listTrackActivities, trackInquiry, type TrackActivity, type TrackRow } from "./renewal-tracking.service";
 import type { TrackStatus } from "@/lib/renewals/status";
 import type { LostReason } from "../services/inquiries.service";
 import { walletBalanceSql } from "@/lib/wallet/balance-sql";
@@ -222,7 +222,7 @@ export async function listRenewals(
       .innerJoin(plans, eq(orders.planId, plans.id))
       .innerJoin(mealSizes, eq(orders.mealSizeId, mealSizes.id))
       .leftJoin(users, eq(orders.userId, users.id))
-      .leftJoin(renewalRecords, eq(renewalRecords.orderId, orders.id))
+      .leftJoinLateral(trackInquiry, sql`true`)
       .where(where)
       // Upcoming endings first, soonest on top; then lapsed plans, most recent first.
       .orderBy(asc(sql`${lastTiffinSql} < ${today}`), asc(sql`case when ${lastTiffinSql} >= ${today} then ${lastTiffinSql} end`), desc(lastTiffinSql), asc(orders.id))
@@ -232,7 +232,7 @@ export async function listRenewals(
       .select({ count: sql<number>`cast(count(*) as int)` })
       .from(orders)
       .leftJoin(users, eq(orders.userId, users.id))
-      .leftJoin(renewalRecords, eq(renewalRecords.orderId, orders.id))
+      .leftJoinLateral(trackInquiry, sql`true`)
       .where(where),
   ]);
 
@@ -249,7 +249,7 @@ export async function listRenewalsForExport(visible: "all" | string[], f: Renewa
     .innerJoin(plans, eq(orders.planId, plans.id))
     .innerJoin(mealSizes, eq(orders.mealSizeId, mealSizes.id))
     .leftJoin(users, eq(orders.userId, users.id))
-    .leftJoin(renewalRecords, eq(renewalRecords.orderId, orders.id))
+    .leftJoinLateral(trackInquiry, sql`true`)
     .where(where)
     .orderBy(asc(sql`${lastTiffinSql} < ${today}`), asc(sql`case when ${lastTiffinSql} >= ${today} then ${lastTiffinSql} end`), desc(lastTiffinSql), asc(orders.id));
   return hydrateRenewalRows(rows);
@@ -282,7 +282,7 @@ export async function countTrackQueues(visible: "all" | string[], filter: Renewa
       .select({ count: sql<number>`cast(count(*) as int)` })
       .from(orders)
       .leftJoin(users, eq(orders.userId, users.id))
-      .leftJoin(renewalRecords, eq(renewalRecords.orderId, orders.id))
+      .leftJoinLateral(trackInquiry, sql`true`)
       .where(renewalsWhere(visible, f, today, range, day))
       .then(([r]) => r.count);
   const [renew, due, overdue, upcoming, open, closed] = await Promise.all([

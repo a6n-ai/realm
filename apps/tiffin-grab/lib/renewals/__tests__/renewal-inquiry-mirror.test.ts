@@ -5,18 +5,17 @@ vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
 const { db } = await import("@/db/client");
 const { deleteNonSystemUsers, ensureSystemUser } = await import("@/db/test-helpers");
-const { orders, payments, orderActivities, ledgerEntries, users, walletLedger, notificationOutbox, renewals, renewalActivities, inquiries, inquiryActivities } = await import("@/db/schema");
+const { orders, payments, orderActivities, ledgerEntries, users, walletLedger, notificationOutbox, renewals, inquiries, inquiryActivities } = await import("@/db/schema");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { nextWeekday } = await import("@foundry/commons");
 const { createOrder } = await import("../../orders/create-order");
-const { logTrackActivity, setTrackStatus } = await import("../renewal-tracking.service");
+const { getTrackRows, logTrackActivity, setTrackStatus } = await import("../renewal-tracking.service");
 const { openRenewal, logReminderSent } = await import("@/lib/services/inquiry-links.service");
 const { openRenewalsDue } = await import("@/lib/notifications/renewal-reminder");
 const { deliveries } = await import("@/db/schema");
 const { addDaysIso } = await import("@foundry/commons/util/dates");
 
 async function reset() {
-  await db.delete(renewalActivities);
   await db.delete(renewals);
   await db.delete(inquiryActivities);
   await db.delete(inquiries);
@@ -57,10 +56,10 @@ describe("renewal tracking mirrors onto the inquiry", () => {
   });
   afterAll(reset);
 
-  it("a staff status on the current order dual-writes columns and a stage_change", async () => {
+  it("a staff status on the current order sets the inquiry's renewal columns and a stage_change", async () => {
     const p = await plan();
     await setTrackStatus(p.publicId, { status: "follow_up", nextFollowUpAt: Date.now() + 86_400_000 });
-    expect(await db.select().from(renewals).where(eq(renewals.orderId, p.id))).toHaveLength(1);
+    expect(await db.$count(renewals)).toBe(0);
     const after = await inqRow(p.inquiryId);
     expect(after).toMatchObject({ renewalStatus: "follow_up", renewalStatusSource: "staff" });
     expect(after.renewalStatusSetAt).not.toBeNull();
@@ -78,6 +77,13 @@ describe("renewal tracking mirrors onto the inquiry", () => {
     expect((await inqRow(first.inquiryId)).renewalStatus).toBeNull();
     const [sc] = await actsOf(first.inquiryId, "stage_change");
     expect(sc).toMatchObject({ orderId: first.id, lostReason: "price" });
+  });
+
+  it("a status on an order that is not the current one shows only the auto status on the desk", async () => {
+    const first = await plan();
+    await plan(first.email, 21);
+    await setTrackStatus(first.publicId, { status: "follow_up" });
+    expect((await getTrackRows([first.publicId])).get(first.publicId)).toMatchObject({ status: "renewed", source: "auto" });
   });
 
   it("a call note mirrors as an inquiry activity on that order's round", async () => {

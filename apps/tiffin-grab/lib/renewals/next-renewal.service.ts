@@ -1,10 +1,10 @@
 // The Inquiries Renewals view's recommendations: which open plans staff should act on next, in one ranking.
 import { eq, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db/client";
-import { mealSizes, orders, plans, users, renewals as renewalRecords } from "@/db/schema";
+import { mealSizes, orders, plans, users } from "@/db/schema";
 import { lastTiffinSql } from "@/lib/orders/queries";
 import { OPEN_TRACKS, type RenewalsFilter } from "@/lib/renewals/filters";
-import { followUpWhere, computedStatusSql } from "./renewal-tracking.service";
+import { followUpWhere, computedStatusSql, trackInquiry } from "./renewal-tracking.service";
 import { hydrateRenewalRows, renewalSelect, renewalsWhere, type DayBounds, type RenewalRange, type RenewalRow } from "./renewals.service";
 
 export type RenewalReason = "overdue" | "due" | "renew";
@@ -33,8 +33,8 @@ function ranked(scope: RenewalQueueScope, today: string, day: DayBounds) {
   const when = (f: Partial<RenewalsFilter>): SQL => renewalsWhere(scope.visible, queueFilter(scope, f), today, NO_RANGE, day) ?? sql`true`;
   const lastDate = sql`(extract(epoch from cast(${lastTiffinSql} as date)) * 1000)`;
   const branches = [
-    { when: when({ followUp: "overdue" }), rank: 0, signal: renewalRecords.nextFollowUpAt },
-    { when: when({ followUp: "due" }), rank: 1, signal: renewalRecords.nextFollowUpAt },
+    { when: when({ followUp: "overdue" }), rank: 0, signal: trackInquiry.followUpAt },
+    { when: when({ followUp: "due" }), rank: 1, signal: trackInquiry.followUpAt },
     { when: sql`${when({ renewWindow: true })} and ${lastTiffinSql} >= ${today}`, rank: 2, signal: lastDate },
     { when: sql`${when({ renewWindow: true })} and ${lastTiffinSql} < ${today}`, rank: 3, signal: lastDate },
   ];
@@ -60,7 +60,7 @@ export async function recommendedRenewals(
     .innerJoin(plans, eq(orders.planId, plans.id))
     .innerJoin(mealSizes, eq(orders.mealSizeId, mealSizes.id))
     .leftJoin(users, eq(orders.userId, users.id))
-    .leftJoin(renewalRecords, eq(renewalRecords.orderId, orders.id))
+    .leftJoinLateral(trackInquiry, sql`true`)
     .where(r.eligible)
     .orderBy(...r.order.map((p) => sql`${p} asc`))
     .limit(limit);

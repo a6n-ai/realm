@@ -1,17 +1,11 @@
 import { db } from "@/db/client";
-import { renewalActivities, renewals, orders, users } from "@/db/schema";
-import { isUniqueViolation } from "@/lib/db/errors";
+import { inquiries, inquiryActivities, orders, users } from "@/db/schema";
 import { laterBookedAtFor, laterBookedAtLatestFor, renewalStatusSql, type RenewalStatus } from "@/lib/orders/queries";
-import { effectiveTrackStatus, isClosedTrack, type TrackStatus } from "@/lib/renewals/status";
+import { effectiveTrackStatus, isClosedTrack, type TrackActivityType, type TrackStatus } from "@/lib/renewals/status";
 import { NotFoundError, ValidationError } from "@foundry/commons";
-import { BaseRepository, UpdatableRepository } from "@foundry/database";
-import { and, desc, eq, gte, inArray, isNull, lt, sql, type SQL } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNull, lt, or, sql, type SQL } from "drizzle-orm";
 import { assertFiniteFollowUp, type LostReason } from "../services/inquiries.service";
-import { SessionBaseService, SessionUpdatableService } from "../services/session-service";
-import { logReminderSent, mirrorRenewalActivity, type RenewalMirror } from "../services/inquiry-links.service";
-import { createLogger } from "@foundry/commons/logger";
-
-const log = createLogger("renewal-tracking");
+import { inquiryForOrder, logReminderSent, mirrorRenewalActivity, openRenewal } from "../services/inquiry-links.service";
 
 export const computedStatusSql = sql<RenewalStatus>`(case when ${orders.trialLength} is not null then ${renewalStatusSql(true)} else ${renewalStatusSql(false)} end)`;
 
@@ -19,18 +13,33 @@ export const laterBookedAtSql = sql<number | null>`(case when ${orders.trialLeng
 
 const laterBookedAtLatestSql = sql<number | null>`(case when ${orders.trialLength} is not null then ${laterBookedAtLatestFor(true)} else ${laterBookedAtLatestFor(false)} end)`;
 
+/** The inquiry that tracks an order: the one whose current order it is. Join it with `leftJoinLateral(trackInquiry, sql\`true\`)`. */
+export const trackInquiry = db
+  .select({
+    status: inquiries.renewalStatus,
+    setAt: inquiries.renewalStatusSetAt,
+    source: inquiries.renewalStatusSource,
+    followUpAt: inquiries.renewalFollowUpAt,
+    lostReason: inquiries.renewalLostReason,
+  })
+  .from(inquiries)
+  .where(eq(inquiries.currentOrderId, orders.id))
+  .orderBy(inquiries.id)
+  .limit(1)
+  .as("ir");
+
 const autoSql = sql`(case when ${computedStatusSql} = 'renewed' then 'renewed' when ${computedStatusSql} in ('unpaid', 'waitlisted') then 'pending_payment' else null end)`;
 
 // Same rule as effectiveTrackStatus in lib/renewals/status.ts; keep the two in step.
 export const effectiveTrackStatusSql = sql<TrackStatus | null>`(case
-  when ${autoSql} is not null and (${renewals.statusSetAt} is null or (${laterBookedAtLatestSql} is not null and ${laterBookedAtLatestSql} > ${renewals.statusSetAt})) then ${autoSql}
-  else cast(${renewals.status} as text) end)`;
+  when ${autoSql} is not null and (${trackInquiry.source} = 'auto' or ${trackInquiry.setAt} is null or (${laterBookedAtLatestSql} is not null and ${laterBookedAtLatestSql} > ${trackInquiry.setAt})) then ${autoSql}
+  else cast(${trackInquiry.status} as text) end)`;
 
-// Needs `renewals` left-joined on renewals.order_id = orders.id. Closed rows never show a follow-up.
+// Needs trackInquiry joined. Closed rows never show a follow-up.
 const openTrackSql = sql`(${effectiveTrackStatusSql} is null or ${effectiveTrackStatusSql} not in ('renewed', 'not_renewed'))`;
 
 export function followUpWhere(kind: "due" | "overdue" | "upcoming" | "none", dayStart: number, dayEnd: number): SQL {
-  const at = renewals.nextFollowUpAt;
+  const at = trackInquiry.followUpAt;
   const when =
     kind === "due" ? and(gte(at, dayStart), lt(at, dayEnd))
     : kind === "overdue" ? lt(at, dayStart)
@@ -48,11 +57,9 @@ export type TrackRow = {
   laterBookedAt: number | null;
 };
 
-export type RenewalActivityType = (typeof renewalActivities.type.enumValues)[number];
-
 export type TrackActivity = {
   publicId: string;
-  type: RenewalActivityType;
+  type: TrackActivityType;
   note: string | null;
   outcome: string | null;
   fromStatus: TrackStatus | null;
@@ -62,40 +69,25 @@ export type TrackActivity = {
   actor: { label: string; kind: "system" | "staff" };
 };
 
-// Audit fields stamp from the session in the base layer, so no actor argument.
-const renewalsService = new SessionUpdatableService(new UpdatableRepository(db, renewals, renewals.publicId, renewals.id));
-const renewalActivitiesService = new SessionBaseService(
-  new BaseRepository(db, renewalActivities, renewalActivities.publicId, renewalActivities.id),
-);
+type InquiryActivityType = (typeof inquiryActivities.type.enumValues)[number];
 
-type RenewalRow = typeof renewals.$inferSelect;
+// Other inquiry activity types (created, converted, ...) are not track activities.
+const TRACK_TYPES: InquiryActivityType[] = ["note", "call", "whatsapp", "email", "callback", "reminder_sent"];
+const isStatusChange = sql`(${inquiryActivities.type} = 'stage_change' and ${inquiryActivities.details} -> 'renewalStatusTo' is not null)`;
+const trackActivityWhere = or(inArray(inquiryActivities.type, TRACK_TYPES), isStatusChange);
+
+function trackType(type: InquiryActivityType): TrackActivityType {
+  return type === "stage_change" ? "status_change" : (type as TrackActivityType);
+}
 
 async function orderFor(orderPublicId: string) {
   const [o] = await db
-    .select({ id: orders.id, organizationId: orders.organizationId })
+    .select({ id: orders.id })
     .from(orders)
     .where(eq(orders.publicId, orderPublicId))
     .limit(1);
   if (!o) throw new NotFoundError(`Not found: ${orderPublicId}`);
   return o;
-}
-
-async function renewalFor(orderId: bigint): Promise<RenewalRow | undefined> {
-  const [r] = await db.select().from(renewals).where(eq(renewals.orderId, orderId)).limit(1);
-  return r;
-}
-
-// An untouched plan has no renewals row; the first write creates it.
-async function ensureRenewal(orderPublicId: string): Promise<RenewalRow> {
-  const order = await orderFor(orderPublicId);
-  const existing = await renewalFor(order.id);
-  if (existing) return existing;
-  try {
-    return await renewalsService.create({ orderId: order.id, organizationId: order.organizationId });
-  } catch (e) {
-    if (!isUniqueViolation(e)) throw e;
-    return (await renewalFor(order.id))!;
-  }
 }
 
 async function statusOf(orderPublicId: string): Promise<TrackStatus | null> {
@@ -108,60 +100,41 @@ export async function setTrackStatus(
 ): Promise<{ previous: TrackStatus | null }> {
   if (input.status === "not_renewed" && !input.lostReason) throw new ValidationError("A reason is required to mark a plan not renewed");
   assertFiniteFollowUp(input.nextFollowUpAt);
-  const renewal = await ensureRenewal(orderPublicId);
+  const order = await orderFor(orderPublicId);
+  // A plan with no inquiry gets its round opened first, so the status has a row to live on.
+  if (!(await inquiryForOrder(order.id))) await openRenewal(order.id);
   const previous = await statusOf(orderPublicId);
   const closed = isClosedTrack(input.status);
-  const nextFollowUpAt = closed ? null : input.nextFollowUpAt === undefined ? renewal.nextFollowUpAt : input.nextFollowUpAt;
+  const nextFollowUpAt = closed ? null : input.nextFollowUpAt;
   const lostReason = input.status === "not_renewed" ? (input.lostReason ?? null) : null;
-
-  await renewalsService.update(renewal.publicId, { status: input.status, lostReason, statusSetAt: Date.now(), nextFollowUpAt });
-  await renewalActivitiesService.create({
-    renewalId: renewal.id,
-    organizationId: renewal.organizationId,
+  await mirrorRenewalActivity(order.id, {
     type: "status_change",
-    fromStatus: previous,
-    toStatus: input.status,
     note: input.note?.trim() || null,
     nextFollowUpAt,
+    status: { from: previous, to: input.status, lostReason },
   });
-  await mirror(renewal.orderId, { type: "status_change", note: input.note?.trim() || null, nextFollowUpAt, status: { from: previous, to: input.status, lostReason } });
   return { previous };
 }
 
 async function recordActivity(
   orderPublicId: string,
-  input: { type: RenewalActivityType; note?: string; outcome?: string; nextFollowUpAt?: number; reminderKey?: string },
+  input: { type: TrackActivityType; note?: string; outcome?: string; nextFollowUpAt?: number; reminderKey?: string },
 ) {
   assertFiniteFollowUp(input.nextFollowUpAt);
-  const renewal = await ensureRenewal(orderPublicId);
+  const order = await orderFor(orderPublicId);
   if (input.nextFollowUpAt != null && isClosedTrack(await statusOf(orderPublicId))) {
     throw new ValidationError("A closed plan cannot have a follow-up");
   }
-  await renewalActivitiesService.create({
-    renewalId: renewal.id,
-    organizationId: renewal.organizationId,
-    type: input.type,
-    note: input.note ?? null,
-    outcome: input.outcome ?? null,
-    nextFollowUpAt: input.nextFollowUpAt ?? null,
-  });
-  if (input.nextFollowUpAt != null) await renewalsService.update(renewal.publicId, { nextFollowUpAt: input.nextFollowUpAt });
-  await mirror(renewal.orderId, {
+  if (input.type === "reminder_sent") {
+    await logReminderSent(order.id, input.reminderKey);
+    return;
+  }
+  await mirrorRenewalActivity(order.id, {
     type: input.type,
     note: input.note ?? null,
     outcome: input.outcome ?? null,
     ...(input.nextFollowUpAt != null ? { nextFollowUpAt: input.nextFollowUpAt } : {}),
-  }, input.type === "reminder_sent" ? input.reminderKey : undefined);
-}
-
-// Phase 3 dual write onto the inquiry; the desk still reads renewals, so a failed mirror must not fail the desk write.
-async function mirror(orderId: bigint, m: RenewalMirror, reminderKey?: string) {
-  try {
-    if (m.type === "reminder_sent") await logReminderSent(orderId, reminderKey);
-    else await mirrorRenewalActivity(orderId, m);
-  } catch (err) {
-    log.warn({ err, orderId: String(orderId) }, "renewal inquiry mirror failed");
-  }
+  });
 }
 
 export function addTrackNote(orderPublicId: string, note: string, nextFollowUpAt?: number): Promise<void> {
@@ -181,27 +154,36 @@ export async function listTrackActivities(orderPublicIds: string[]): Promise<Map
   const rows = await db
     .select({
       orderPublicId: orders.publicId,
-      publicId: renewalActivities.publicId,
-      type: renewalActivities.type,
-      note: renewalActivities.note,
-      outcome: renewalActivities.outcome,
-      fromStatus: renewalActivities.fromStatus,
-      toStatus: renewalActivities.toStatus,
-      nextFollowUpAt: renewalActivities.nextFollowUpAt,
-      createdAt: renewalActivities.createdAt,
-      createdBy: renewalActivities.createdBy,
+      publicId: inquiryActivities.publicId,
+      type: inquiryActivities.type,
+      note: inquiryActivities.note,
+      outcome: inquiryActivities.outcome,
+      details: inquiryActivities.details,
+      nextFollowUpAt: inquiryActivities.nextFollowUpAt,
+      createdAt: inquiryActivities.createdAt,
+      createdBy: inquiryActivities.createdBy,
       actorName: users.name,
       actorEmail: users.email,
     })
-    .from(renewalActivities)
-    .innerJoin(renewals, eq(renewals.id, renewalActivities.renewalId))
-    .innerJoin(orders, eq(orders.id, renewals.orderId))
-    .leftJoin(users, eq(users.id, renewalActivities.createdBy))
-    .where(inArray(orders.publicId, orderPublicIds))
-    .orderBy(desc(renewalActivities.createdAt));
-  for (const { orderPublicId, createdBy, actorName, actorEmail, ...a } of rows) {
+    .from(inquiryActivities)
+    .innerJoin(orders, eq(orders.id, inquiryActivities.orderId))
+    .leftJoin(users, eq(users.id, inquiryActivities.createdBy))
+    .where(and(inArray(orders.publicId, orderPublicIds), trackActivityWhere))
+    .orderBy(desc(inquiryActivities.createdAt));
+  for (const { orderPublicId, publicId, type, note, outcome, details, nextFollowUpAt, createdAt, createdBy, actorName, actorEmail } of rows) {
+    const d = (details ?? {}) as { renewalStatusFrom?: TrackStatus | null; renewalStatusTo?: TrackStatus | null };
     const list = out.get(orderPublicId) ?? [];
-    list.push({ ...a, actor: { label: actorName ?? actorEmail ?? "System", kind: createdBy == null ? "system" : "staff" } });
+    list.push({
+      publicId,
+      type: trackType(type),
+      note,
+      outcome,
+      fromStatus: type === "stage_change" ? (d.renewalStatusFrom ?? null) : null,
+      toStatus: type === "stage_change" ? (d.renewalStatusTo ?? null) : null,
+      nextFollowUpAt,
+      createdAt,
+      actor: { label: actorName ?? actorEmail ?? "System", kind: createdBy == null ? "system" : "staff" },
+    });
     out.set(orderPublicId, list);
   }
   return out;
@@ -210,27 +192,27 @@ export async function listTrackActivities(orderPublicIds: string[]): Promise<Map
 const LATEST_CHUNK = 1000;
 
 /** Newest activity per order, skipping bare status changes. Chunked to keep the IN list small on big exports. */
-export async function latestTrackActivities(orderPublicIds: string[]): Promise<Map<string, { type: RenewalActivityType; note: string | null; at: number }>> {
-  const out = new Map<string, { type: RenewalActivityType; note: string | null; at: number }>();
+export async function latestTrackActivities(orderPublicIds: string[]): Promise<Map<string, { type: TrackActivityType; note: string | null; at: number }>> {
+  const out = new Map<string, { type: TrackActivityType; note: string | null; at: number }>();
   for (let i = 0; i < orderPublicIds.length; i += LATEST_CHUNK) {
     const rows = await db
       .selectDistinctOn([orders.publicId], {
         orderPublicId: orders.publicId,
-        type: renewalActivities.type,
-        note: renewalActivities.note,
-        at: renewalActivities.createdAt,
+        type: inquiryActivities.type,
+        note: inquiryActivities.note,
+        at: inquiryActivities.createdAt,
       })
-      .from(renewalActivities)
-      .innerJoin(renewals, eq(renewals.id, renewalActivities.renewalId))
-      .innerJoin(orders, eq(orders.id, renewals.orderId))
+      .from(inquiryActivities)
+      .innerJoin(orders, eq(orders.id, inquiryActivities.orderId))
       .where(
         and(
           inArray(orders.publicId, orderPublicIds.slice(i, i + LATEST_CHUNK)),
-          sql`not (${renewalActivities.type} = 'status_change' and (${renewalActivities.note} is null or ${renewalActivities.note} = ''))`,
+          trackActivityWhere,
+          sql`not (${isStatusChange} and (${inquiryActivities.note} is null or ${inquiryActivities.note} = ''))`,
         ),
       )
-      .orderBy(orders.publicId, desc(renewalActivities.createdAt), desc(renewalActivities.id));
-    for (const { orderPublicId, ...a } of rows) out.set(orderPublicId, a);
+      .orderBy(orders.publicId, desc(inquiryActivities.createdAt), desc(inquiryActivities.id));
+    for (const { orderPublicId, type, note, at } of rows) out.set(orderPublicId, { type: trackType(type), note, at });
   }
   return out;
 }
@@ -244,16 +226,17 @@ export async function getTrackRows(orderPublicIds: string[]): Promise<Map<string
       status: effectiveTrackStatusSql,
       computed: computedStatusSql,
       laterBookedAt: laterBookedAtLatestSql,
-      staff: renewals.status,
-      staffSetAt: renewals.statusSetAt,
-      lostReason: renewals.lostReason,
-      nextFollowUpAt: renewals.nextFollowUpAt,
+      staff: trackInquiry.status,
+      staffSource: trackInquiry.source,
+      staffSetAt: trackInquiry.setAt,
+      lostReason: trackInquiry.lostReason,
+      nextFollowUpAt: trackInquiry.followUpAt,
     })
     .from(orders)
-    .leftJoin(renewals, eq(renewals.orderId, orders.id))
+    .leftJoinLateral(trackInquiry, sql`true`)
     .where(inArray(orders.publicId, orderPublicIds));
   for (const r of rows) {
-    const { source } = effectiveTrackStatus({ staff: r.staff, staffSetAt: r.staffSetAt, computed: r.computed, laterBookedAt: r.laterBookedAt });
+    const { source } = effectiveTrackStatus({ staff: r.staff, staffSetAt: r.staffSetAt, staffSource: r.staffSource, computed: r.computed, laterBookedAt: r.laterBookedAt });
     out.set(r.orderPublicId, {
       status: r.status,
       source,

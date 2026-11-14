@@ -5,16 +5,16 @@ vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
 const { db } = await import("@/db/client");
 const { deleteNonSystemUsers } = await import("@/db/test-helpers");
-const { orders, payments, orderActivities, ledgerEntries, users, walletLedger, deliveries, notifications, notificationOutbox, renewals, renewalActivities } = await import("@/db/schema");
+const { orders, payments, orderActivities, ledgerEntries, users, walletLedger, deliveries, notifications, notificationOutbox, inquiries, inquiryActivities } = await import("@/db/schema");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { nextWeekday } = await import("@foundry/commons");
 const { createOrder } = await import("../../orders/create-order");
-const { addTrackNote, followUpWhere, getTrackRows, latestTrackActivities, listTrackActivities, logTrackActivity, setTrackStatus } = await import("../renewal-tracking.service");
+const { addTrackNote, followUpWhere, getTrackRows, latestTrackActivities, listTrackActivities, logTrackActivity, setTrackStatus, trackInquiry } = await import("../renewal-tracking.service");
 const { addDaysIso: addDays } = await import("@foundry/commons/util/dates");
 
 async function reset() {
-  await db.delete(renewalActivities);
-  await db.delete(renewals);
+  await db.delete(inquiryActivities);
+  await db.delete(inquiries);
   await db.delete(walletLedger);
   await db.delete(ledgerEntries);
   await db.delete(orderActivities);
@@ -60,22 +60,23 @@ async function laterPlan(first: { id: bigint; userId: bigint }, set: Partial<typ
 }
 
 const rowOf = async (publicId: string) => (await getTrackRows([publicId])).get(publicId);
+const inquiryOf = async (orderId: bigint) => (await db.select().from(inquiries).where(eq(inquiries.currentOrderId, orderId)))[0];
 
 describe("renewal tracking (integration)", () => {
   beforeEach(reset);
   afterAll(reset);
 
-  it("untouched plan has no row and status New", async () => {
+  it("untouched plan has no staff status and status New", async () => {
     const p = await plan();
     expect((await rowOf(p.publicId))?.status).toBeNull();
-    expect(await db.select().from(renewals)).toEqual([]);
+    expect((await inquiryOf(p.id)).renewalStatus).toBeNull();
   });
 
-  it("note on untouched plan creates the row with null status", async () => {
+  it("note on a plan writes an inquiry activity and leaves the status null", async () => {
     const p = await plan();
     await addTrackNote(p.publicId, "Left a voicemail", undefined);
     expect((await rowOf(p.publicId))?.status).toBeNull();
-    expect(await db.select().from(renewals)).toHaveLength(1);
+    expect((await inquiryOf(p.id)).renewalStatus).toBeNull();
     const acts = (await listTrackActivities([p.publicId])).get(p.publicId) ?? [];
     expect(acts.map((a) => [a.type, a.note])).toEqual([["note", "Left a voicemail"]]);
     expect(acts[0].actor.kind).toBe("system");
@@ -94,10 +95,10 @@ describe("renewal tracking (integration)", () => {
     const { previous } = await setTrackStatus(p.publicId, { status: "renewed" });
     expect(previous).toBe("follow_up");
     expect((await rowOf(p.publicId))).toMatchObject({ status: "renewed", source: "staff", nextFollowUpAt: null });
-    const [r] = await db.select().from(renewals).where(eq(renewals.orderId, p.id));
-    expect(r.nextFollowUpAt).toBeNull();
-    const statusChanges = await db.select().from(renewalActivities).where(eq(renewalActivities.type, "status_change"));
-    expect(statusChanges.map((a) => [a.fromStatus, a.toStatus]).sort()).toEqual([[null, "follow_up"], ["follow_up", "renewed"]]);
+    expect((await inquiryOf(p.id)).renewalFollowUpAt).toBeNull();
+    const statusChanges = await db.select().from(inquiryActivities).where(eq(inquiryActivities.type, "stage_change"));
+    const details = statusChanges.map((a) => a.details as { renewalStatusFrom: string | null; renewalStatusTo: string });
+    expect(details.map((d) => [d.renewalStatusFrom, d.renewalStatusTo]).sort()).toEqual([[null, "follow_up"], ["follow_up", "renewed"]]);
   });
 
   it("closed plan rejects a follow-up note", async () => {
@@ -150,9 +151,9 @@ describe("renewal tracking (integration)", () => {
     await setTrackStatus(p.publicId, { status: "follow_up" });
     expect(await rowOf(p.publicId)).toMatchObject({ status: "follow_up", source: "staff" });
 
-    const [r] = await db.select({ at: renewals.statusSetAt }).from(renewals).where(eq(renewals.orderId, p.id));
+    const setAt = (await inquiryOf(p.id)).renewalStatusSetAt;
     const next = await laterPlan(p, { status: "active" });
-    await db.update(orders).set({ createdAt: Number(r.at) + 1000 }).where(eq(orders.id, next.id));
+    await db.update(orders).set({ createdAt: Number(setAt) + 1000 }).where(eq(orders.id, next.id));
     expect(await rowOf(p.publicId)).toMatchObject({ status: "renewed", source: "auto" });
   });
 
@@ -174,7 +175,7 @@ describe("renewal tracking (integration)", () => {
       const rows = await db
         .select({ publicId: orders.publicId })
         .from(orders)
-        .leftJoin(renewals, eq(renewals.orderId, orders.id))
+        .leftJoinLateral(trackInquiry, sql`true`)
         .where(followUpWhere(kind, dayStart, dayEnd));
       return rows.map((r) => r.publicId);
     };
