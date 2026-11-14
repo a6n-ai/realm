@@ -42,7 +42,10 @@ export function OrderOverview({
   categoryLabels,
   startAction,
   eatingAction,
+  inquiryCard,
 }: {
+  /** The order's inquiry card (streamed). */
+  inquiryCard?: ReactNode;
   /** Edit control beside the eating days while they can still change. */
   eatingAction?: ReactNode;
   /** Edit control beside the start date while the plan hasn't started. */
@@ -164,6 +167,8 @@ export function OrderOverview({
             <DetailRow label="Updated">{formatEpoch(order.updatedAt, { mode: "datetime", timeZone: timezone })}</DetailRow>
           </dl>
         </SectionCard>
+
+        {inquiryCard}
       </div>
 
       <SectionCard title="Pricing" subtitle="Snapshot taken at checkout. Totals are computed server-side.">

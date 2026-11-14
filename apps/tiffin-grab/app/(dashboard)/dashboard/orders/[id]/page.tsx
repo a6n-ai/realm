@@ -51,6 +51,7 @@ import { payLink } from "@/lib/payments/stripe";
 import { receiptPath } from "@/lib/billing/receipt-link";
 import { PaymentsPanel } from "./payments-panel";
 import { OrderOverview } from "./order-summary-panel";
+import { OrderInquiryCard, OrderInquiryCardSkeleton } from "./order-inquiry-card";
 import { OrderTabs } from "./order-tabs";
 import { ActivateCancelControls } from "./activate-cancel-controls";
 import { AddAddonsControl } from "./add-addons-control";
@@ -493,6 +494,11 @@ async function OrderDetail({
               categoryLabels={categoryLabels}
               startAction={startAction}
               eatingAction={eatingAction}
+              inquiryCard={
+                <Suspense fallback={<OrderInquiryCardSkeleton />}>
+                  <OrderInquiryCard orderId={order.id} orderPublicId={order.publicId} timezone={settings.timezone} />
+                </Suspense>
+              }
             />
           ),
           deliveries: (

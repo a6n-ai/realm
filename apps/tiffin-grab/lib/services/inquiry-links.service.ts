@@ -4,6 +4,7 @@ import { and, asc, desc, eq, gte, inArray, isNotNull, ne, notExists, sql } from 
 import { db } from "@/db/client";
 import { inquiries, inquiryActivities, orders, users } from "@/db/schema";
 import { stageFor } from "@/lib/inquiries/status";
+import { roundLabel } from "@/lib/inquiries/display";
 import { laterOrderSql } from "@/lib/orders/queries";
 import { addActivity, fillEmpty, findMatch, inquiryRows, resolveOwner, resolveSource, type InquiryRow } from "./inquiry-core";
 import { getBrandOrgId } from "./organizations.service";
@@ -270,4 +271,45 @@ export async function mirrorRenewalActivity(orderId: bigint, m: RenewalMirror): 
     lostReason: m.status?.lostReason ?? null,
     details: m.status ? { renewalStatusFrom: m.status.from, renewalStatusTo: m.status.to } : null,
   });
+}
+
+export type InquiryOrderCard = {
+  publicId: string;
+  fullName: string | null;
+  ownerName: string | null;
+  stage: InquiryRow["stage"];
+  renewalStatus: InquiryRow["renewalStatus"];
+  nextFollowUpAt: number | null;
+  roundLabel: string;
+};
+
+/** The order page's inquiry summary. An inquiry outside the caller's visible orgs reads as none. */
+export async function inquiryOrderCard(orderId: bigint, visible: "all" | string[]): Promise<InquiryOrderCard | null> {
+  let inq = (await db.select().from(inquiries).where(eq(inquiries.currentOrderId, orderId)).limit(1))[0];
+  if (!inq) {
+    const [viaActivity] = await db
+      .select({ inq: inquiries })
+      .from(inquiryActivities)
+      .innerJoin(inquiries, eq(inquiries.id, inquiryActivities.inquiryId))
+      .where(eq(inquiryActivities.orderId, orderId))
+      .limit(1);
+    inq = viaActivity?.inq;
+  }
+  if (!inq) return null;
+  if (visible !== "all" && (inq.organizationId == null || !visible.includes(inq.organizationId))) return null;
+  const [owner] = inq.currentOwner != null ? await db.select({ name: users.name }).from(users).where(eq(users.id, inq.currentOwner)).limit(1) : [];
+  const [rank] = await db
+    .select({ n: sql<number>`(select count(*)::int from orders o2 where o2.user_id = ${orders.userId} and o2.created_at <= ${orders.createdAt})` })
+    .from(orders)
+    .where(eq(orders.id, orderId))
+    .limit(1);
+  return {
+    publicId: inq.publicId,
+    fullName: inq.fullName,
+    ownerName: owner?.name ?? null,
+    stage: inq.stage,
+    renewalStatus: inq.renewalStatus,
+    nextFollowUpAt: inq.renewalFollowUpAt ?? inq.nextFollowUpAt,
+    roundLabel: roundLabel(rank?.n ?? null),
+  };
 }

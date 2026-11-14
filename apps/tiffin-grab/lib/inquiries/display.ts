@@ -13,3 +13,8 @@ export function planLabelFor(plans: { key: string; name: string }[], value: stri
     value
   );
 }
+
+/** Rank of an order among the customer's orders (1 = first). Null means the first-sale round too. */
+export function roundLabel(rank: number | null): string {
+  return rank == null || rank <= 1 ? "First sale" : `Renewal ${rank - 1}`;
+}

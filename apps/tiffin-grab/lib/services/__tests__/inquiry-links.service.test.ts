@@ -146,4 +146,15 @@ describe("inquiry-links", () => {
     await links.reconcileOrders(0);
     expect(await row(inq.id)).toMatchObject({ currentOrderId: null, subStatus: null, stage: "new" });
   });
+
+  it("inquiryOrderCard finds the order's inquiry and hides one outside the visible orgs", async () => {
+    const { u, contact } = await buyer("+16475551311");
+    const inq = await insertTestInquiry({ phone: contact.phone, organizationId: null });
+    const o = await insertTestOrder(u.id);
+    await links.recordPurchase({ orderId: o.id, userId: u.id, contact, kind: "plan", source: "website" });
+    const card = await links.inquiryOrderCard(o.id, "all");
+    expect(card).toMatchObject({ publicId: inq.publicId, stage: "converted", roundLabel: "First sale" });
+    expect(await links.inquiryOrderCard(o.id, ["org_other"])).toBeNull();
+  });
 });
+

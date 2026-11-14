@@ -118,7 +118,7 @@ async function InquiryDetail({ params }: { params: Promise<{ id: string }> }) {
 
   // Status changes from the old stage model (no sub-status recorded) are noise now; notes, calls and the rest stay.
   const timeline: TimelineActivity[] = activities
-    .filter((a) => a.type !== "stage_change" || a.fromSubStatus != null || a.toSubStatus != null)
+    .filter((a) => a.type !== "stage_change" || a.fromSubStatus != null || a.toSubStatus != null || a.orderId != null)
     .map((a) => ({
     publicId: a.publicId,
     type: a.type,
@@ -132,6 +132,8 @@ async function InquiryDetail({ params }: { params: Promise<{ id: string }> }) {
     toSubStatus: a.toSubStatus,
     createdAt: a.createdAt,
     actor: describeActivityActor(a),
+    orderRank: a.orderRank,
+    details: (a.details as Record<string, unknown> | null) ?? null,
   }));
 
   return (

@@ -967,9 +967,13 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
         actorName: users.name,
         actorEmail: users.email,
         actorRole: users.role,
+        orderPublicId: orders.publicId,
+        // Rank by placement among the customer's orders, cancelled included, so a round's number never shifts.
+        orderRank: sql<number | null>`(case when ${orders.id} is null then null else (select count(*)::int from orders o2 where o2.user_id = ${orders.userId} and o2.created_at <= ${orders.createdAt}) end)`,
       })
       .from(inquiryActivities)
       .leftJoin(users, eq(users.id, inquiryActivities.createdBy))
+      .leftJoin(orders, eq(orders.id, inquiryActivities.orderId))
       .where(eq(inquiryActivities.inquiryId, inq.id))
       .orderBy(desc(inquiryActivities.createdAt));
   }
