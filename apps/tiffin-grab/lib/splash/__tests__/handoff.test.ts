@@ -27,12 +27,17 @@ describe("splash hand-off", () => {
 
   it("the head script marks <html> only when the flag is up", () => {
     const run = (cookie: string) => {
-      const attrs: Record<string, string> = {};
-      const doc = { cookie, documentElement: { setAttribute: (k: string, v: string) => (attrs[k] = v) } };
+      const attrs: Record<string, string> = {}, preloads: string[] = [];
+      const doc = {
+        cookie,
+        documentElement: { setAttribute: (k: string, v: string) => (attrs[k] = v), classList: { contains: () => false } },
+        createElement: () => ({}) as { href?: string },
+        head: { appendChild: (l: { href?: string }) => preloads.push(l.href ?? "") },
+      };
       new Function("document", "sessionStorage", splashInitScript)(doc, { getItem: () => null });
-      return attrs["data-splash"];
+      return { splash: attrs["data-splash"], preloads };
     };
-    expect(run(`a=1; ${SPLASH_FLAG}=1`)).toBe("arrive");
-    expect(run("a=1")).toBeUndefined();
+    expect(run(`a=1; ${SPLASH_FLAG}=1`)).toEqual({ splash: "arrive", preloads: [] });
+    expect(run("a=1")).toEqual({ splash: undefined, preloads: [] });
   });
 });

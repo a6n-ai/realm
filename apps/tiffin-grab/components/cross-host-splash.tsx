@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { apexServes } from "@/lib/routing/apex";
 import { BrandWordmark } from "@/components/brand-logo";
 import { apexOf, clearSplashFlag, raiseSplashFlag } from "@/lib/splash/handoff";
-import { startOrb } from "@/lib/splash/orb";
+import { ThinkingOrb } from "@/components/thinking-orb";
 
 // The site is two hosts: public pages on tiffingrab.ca, the app on app.tiffingrab.ca, and inside one
 // host the public and app areas ship separate CSS builds, so moving between them is a full page load.
@@ -34,7 +34,6 @@ const FADE_MS = 320;
 
 export function CrossHostSplash() {
   const [phase, setPhase] = useState<Phase>(false);
-  const canvasRef = useRef<HTMLCanvasElement>(null), wordRef = useRef<HTMLSpanElement>(null);
   const baseRef = useRef<HTMLDivElement>(null), silkRef = useRef<HTMLDivElement>(null), rootRef = useRef<HTMLDivElement>(null);
 
   // the page being opened: the <head> script already showed the splash on its first paint
@@ -66,11 +65,11 @@ export function CrossHostSplash() {
     return () => { removeEventListener("click", onClick); removeEventListener(SPLASH_EVENT, raise); removeEventListener("pageshow", onShow); };
   }, []);
 
-  // while it shows: run the orb and the shader background; take it down when the page is ready
+  // while it shows: mount the shader background (the orb is CSS and already turning); take it down
+  // when the page is ready
   useEffect(() => {
-    if (!phase || !canvasRef.current || !wordRef.current) return;
+    if (!phase) return;
     const html = document.documentElement, reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const stopOrb = startOrb(canvasRef.current, wordRef.current, reduce);
     let alive = true, disposeBg: (() => void) | undefined;
     const timers: ReturnType<typeof setTimeout>[] = [];
     const hide = () => {
@@ -91,17 +90,14 @@ export function CrossHostSplash() {
       if (document.readyState === "complete") ready(); else addEventListener("load", ready, { once: true });
       timers.push(setTimeout(hide, 5000));
     }
-    return () => { alive = false; stopOrb(); disposeBg?.(); timers.forEach(clearTimeout); rootRef.current?.removeAttribute("data-shader"); };
+    return () => { alive = false; disposeBg?.(); timers.forEach(clearTimeout); rootRef.current?.removeAttribute("data-shader"); };
   }, [phase]);
 
   return (
     <div ref={rootRef} className="tg-splash" role="status" aria-live="polite" aria-label={phase ? "Loading TiffinGrab" : undefined} aria-hidden={!phase}>
       <div className="tg-splash__aurora" aria-hidden><i /><i /><i /><i /><i /></div>
       <div className="tg-splash__shader" aria-hidden><div ref={baseRef} /><div ref={silkRef} className="tg-splash__silk" /></div>
-      <div className="tg-splash__orb" aria-hidden>
-        <canvas ref={canvasRef} />
-        <span ref={wordRef} className="tg-splash__step" />
-      </div>
+      <div className="tg-splash__orb"><ThinkingOrb size={140} steps /></div>
       <div className="tg-splash__brand" aria-hidden>
         {/* a plain img: the mark must be there on the first paint, before any script runs */}
         {/* eslint-disable-next-line @next/next/no-img-element */}

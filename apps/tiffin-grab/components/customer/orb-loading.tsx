@@ -1,49 +1,24 @@
-"use client";
+import { ThinkingOrb } from "@/components/thinking-orb";
 
-import { useEffect, useRef, useState } from "react";
-import { startOrb } from "@/lib/splash/orb";
-
-// The customer app's loading screen: the splash's thinking orb, small and plain (it only turns, no
-// icons or words), on the page's own background. It sits in each /me route's loading.tsx, so it stays until the page
-// has streamed in; OrbNavOverlay covers the moment before that boundary appears.
-
-function OrbBody() {
-  const canvas = useRef<HTMLCanvasElement>(null);
-  useEffect(() => {
-    if (!canvas.current) return;
-    return startOrb(canvas.current, null, matchMedia("(prefers-reduced-motion: reduce)").matches, { morph: false, dots: 220 });
-  }, []);
-  return (
-    <div className="tg-orbload__orb">
-      <canvas ref={canvas} />
-    </div>
-  );
-}
+// The customer app's loading screen: a small thinking orb (pure CSS, components/thinking-orb.tsx) on the
+// page's own background. It sits in each /me route's loading.tsx, so it stays until the page has
+// streamed in; OrbNavOverlay covers the moment before that boundary appears.
 
 /** Full-height orb, for a route's loading.tsx. */
 export function OrbLoading() {
   return (
-    <div className="tg-orbload" role="status" aria-live="polite" aria-label="Loading">
-      <OrbBody />
+    <div className="tg-orbload" role="status" aria-label="Loading">
+      <ThinkingOrb size={72} small />
     </div>
   );
 }
 
-/** Covers an in-app navigation that is still waiting on the server (NavPending marks it data-nav="orb").
- *  It only appears after a short delay (CSS), so a quick navigation never flashes it. */
+/** Covers an in-app navigation still waiting on the server. Always rendered, hidden; NavPending's
+ *  html[data-nav="orb"] shows it after 250 ms (globals.css), so a quick navigation never flashes it. */
 export function OrbNavOverlay() {
-  const [on, setOn] = useState(false);
-  useEffect(() => {
-    const html = document.documentElement, sync = () => setOn(html.dataset.nav === "orb");
-    sync();
-    const mo = new MutationObserver(sync);
-    mo.observe(html, { attributes: true, attributeFilter: ["data-nav"] });
-    return () => mo.disconnect();
-  }, []);
-  if (!on) return null;
   return (
-    <div className="tg-orbload tg-orbload--overlay" role="status" aria-live="polite" aria-label="Loading">
-      <OrbBody />
+    <div className="tg-orbload tg-orbload--overlay" aria-hidden>
+      <ThinkingOrb size={72} small />
     </div>
   );
 }

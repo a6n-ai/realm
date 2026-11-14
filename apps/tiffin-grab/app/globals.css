@@ -248,9 +248,7 @@ html[data-splash]:not([data-splash="out"]) { overflow: hidden; }
 .tg-splash__shader { opacity: 0; transition: opacity 600ms var(--ease-soft); }
 .tg-splash[data-shader] .tg-splash__shader { opacity: 1; }
 .tg-splash__silk { opacity: 0.55; mix-blend-mode: soft-light; }
-.tg-splash__orb { position: relative; z-index: 1; width: min(320px, 74vw); aspect-ratio: 4 / 3; }
-.tg-splash__orb canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
-.tg-splash__step { position: absolute; left: 0; right: 0; bottom: 5%; text-align: center; font-size: clamp(22px, 6vw, 30px); font-weight: 600; letter-spacing: -0.01em; line-height: 1; opacity: 0; }
+.tg-splash__orb { position: relative; z-index: 1; }
 .tg-splash__brand { position: absolute; z-index: 1; left: 0; right: 0; bottom: max(36px, calc(env(safe-area-inset-bottom) + 24px)); display: flex; align-items: center; justify-content: center; gap: 10px; }
 .tg-splash__mark { width: clamp(30px, 4.6vmin, 38px); height: auto; }
 .tg-splash__word { font-size: clamp(20px, 3.2vmin, 26px); }
@@ -258,11 +256,36 @@ html[data-splash]:not([data-splash="out"]) { overflow: hidden; }
 .tg-orbload { --tg-s1: #72A94B; --tg-s2: #F6A934; --tg-s3: #FB801C; --tg-s4: #185936; --tg-orb-ink: #185936;
   display: grid; place-items: center; min-height: min(70dvh, 560px); padding: 24px 16px; }
 :root.dark .tg-orbload { --tg-s1: #9CC654; --tg-s3: #FF9843; --tg-s4: #6FCF97; --tg-orb-ink: #9CC654; }
-.tg-orbload__orb { position: relative; width: 72px; aspect-ratio: 1; }
-.tg-orbload__orb canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
 /* over a page still waiting on the server: appears only after 250 ms, so quick hops never flash it */
-.tg-orbload--overlay { position: fixed; inset: 0; z-index: 900; min-height: 0; background: color-mix(in oklch, var(--background) 88%, transparent);
+.tg-orbload--overlay { display: none; position: fixed; inset: 0; z-index: 900; min-height: 0; background: color-mix(in oklch, var(--background) 88%, transparent);
   -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); animation: tg-splash-in 220ms var(--ease-soft) 250ms both; }
+html[data-nav="orb"] .tg-orbload--overlay { display: grid; }
+
+/* THE THINKING ORB (components/thinking-orb.tsx): real CSS 3D. Each dot sits on the sphere; the globe
+   spins with one transform animation on the compositor, so it turns from the first paint and through a
+   busy page load. A dot's front face is the ink; its back face (seen through on the far side) is dimmer. */
+.tg-orb-wrap { display: inline-flex; flex-direction: column; align-items: center; gap: 18px; }
+.tg-orb { --ink: var(--tg-orb-ink, #185936); --band: var(--tg-s3, #FB801C); --dot: max(2.2px, calc(var(--orb) / 36));
+  position: relative; display: block; width: var(--orb); height: var(--orb); perspective: calc(var(--orb) * 4); }
+.tg-orb--sm { --dot: max(2.4px, calc(var(--orb) / 22)); }
+.tg-orb__tilt { position: absolute; inset: 0; transform-style: preserve-3d; transform: rotateX(-22deg) rotateZ(8deg); }
+.tg-orb__globe { position: absolute; inset: 0; transform-style: preserve-3d; animation: tg-orb-spin 9s linear infinite; will-change: transform; }
+.tg-orb__globe > i { position: absolute; left: 50%; top: 50%; width: var(--dot); height: var(--dot); margin: calc(var(--dot) / -2); transform-style: preserve-3d; }
+.tg-orb__globe > i::before, .tg-orb__globe > i::after { content: ""; position: absolute; inset: 0; border-radius: 50%; -webkit-backface-visibility: hidden; backface-visibility: hidden; background: var(--ink); }
+.tg-orb__globe > i::after { transform: rotateY(180deg); opacity: 0.28; }
+.tg-orb__globe > i[data-band]::before, .tg-orb__globe > i[data-band]::after { background: var(--band); }
+@keyframes tg-orb-spin { to { transform: rotateY(360deg); } }
+.tg-orb__steps { position: relative; display: block; width: 9ch; height: 1.2em; font-size: clamp(18px, 4.6vw, 22px); font-weight: 600; letter-spacing: -0.01em; text-align: center; }
+.tg-orb__steps > span { position: absolute; inset: 0; opacity: 0; animation: tg-orb-step 8s var(--ease-soft) infinite; }
+.tg-orb__steps > span:nth-child(1) { color: var(--tg-s1); }
+.tg-orb__steps > span:nth-child(2) { color: var(--tg-s2); animation-delay: 2s; }
+.tg-orb__steps > span:nth-child(3) { color: var(--tg-s3); animation-delay: 4s; }
+.tg-orb__steps > span:nth-child(4) { color: var(--tg-s4); animation-delay: 6s; }
+@keyframes tg-orb-step { 0% { opacity: 0; transform: translateY(5px); } 5%, 20% { opacity: 1; transform: none; } 25%, 100% { opacity: 0; transform: translateY(-5px); } }
+@media (prefers-reduced-motion: reduce) {
+  .tg-orb__steps > span, .tg-orb__globe { animation: none; }
+  .tg-orb__steps > span:nth-child(1) { opacity: 1; }
+}
 @keyframes tg-splash-in { from { opacity: 0; } }
 @keyframes tg-splash-drift { 0% { transform: translate3d(0, 0, 0) scale(1); } 50% { transform: translate3d(7vmax, 4vmax, 0) scale(1.12); } 100% { transform: translate3d(-4vmax, 8vmax, 0) scale(0.94); } }
 @media (prefers-reduced-motion: reduce) {
