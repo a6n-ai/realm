@@ -32,3 +32,8 @@ paths = [
   '''^AGENTS\.md$''',
   '''(^|/)packages/clover/README\.md$''',
 ]
+
+[[allowlists]]
+description = "Browser storage key names (dotted tg.* / tiffin.* ids such as tg.renewals.plans.columns.v1), not credentials"
+targetRules = ["generic-api-key"]
+regexes = ['''^(tg|tiffin)(\.[A-Za-z0-9-]+)+$''']
