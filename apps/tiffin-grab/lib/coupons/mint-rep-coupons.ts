@@ -1,6 +1,5 @@
-import { STAFF_ROLES } from "@/lib/roles";
+import { activeStaffWhere } from "@/lib/staff/staff-roster";
 import { tzOffsetMinutes, zonedDateIso } from "@foundry/commons";
-import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import { users } from "@/db/schema";
 import { getDiscountPolicy } from "../services/app-settings.service";
@@ -39,7 +38,7 @@ export async function mintRepCoupons(now: number = Date.now()): Promise<MintSumm
   const reps = await db
     .select({ id: users.id, publicId: users.publicId })
     .from(users)
-    .where(and(inArray(users.role, STAFF_ROLES), eq(users.isSystem, false)));
+    .where(activeStaffWhere());
 
   let minted = 0;
   let skipped = 0;

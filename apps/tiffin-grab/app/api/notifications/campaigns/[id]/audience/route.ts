@@ -1,17 +1,11 @@
 import { readJson } from "@foundry/commons/util/http";
-import { handler, json, problem } from "@foundry/routes";
+import { problem } from "@foundry/routes";
 import { updateCampaignAudience, updateCampaignAudienceSchema } from "@relay/engine";
-import { requireAdmin } from "@/lib/auth/guards";
+import { adminIdRoute } from "@/lib/notifications/admin-route";
 import { campaignDeps } from "@/lib/notifications/deps";
 
-export const POST = handler(
-  async (req: Request, ctx: { params: Promise<{ id: string }> }): Promise<Response> => {
-    await requireAdmin();
-    const { id } = await ctx.params;
-    const parsed = await readJson(req, updateCampaignAudienceSchema);
-    if (!parsed.success) return problem(400, parsed.error.issues[0]?.message ?? "Invalid request");
-    const result = await updateCampaignAudience(campaignDeps, id, parsed.data.audience);
-    if ("error" in result) return problem(result.status, result.error);
-    return json(result);
-  },
-);
+export const POST = adminIdRoute(async (req, id) => {
+  const parsed = await readJson(req, updateCampaignAudienceSchema);
+  if (!parsed.success) return problem(400, parsed.error.issues[0]?.message ?? "Invalid request");
+  return updateCampaignAudience(campaignDeps, id, parsed.data.audience);
+});

@@ -1,4 +1,5 @@
 // The Orders page "Next order" card: which open order staff should act on next, in one ranking.
+import type { Visible } from "@/lib/tenant/org-scope";
 import { ONGOING } from "@/lib/orders/status";
 import { orderStatusIn } from "@/lib/orders/status-sql";
 import { ordersListWhere } from "@/lib/orders/queries";
@@ -18,7 +19,7 @@ export type NextOrderReason = "verify" | "overdue" | "missed" | "flagged" | "pen
 const REASON_BY_RANK: Record<number, NextOrderReason> = { 0: "verify", 1: "overdue", 2: "missed", 3: "flagged", 4: "pending" };
 const NO_REASON = 5;
 
-export type OrderQueueScope = { visible: "all" | string[]; condition?: Condition };
+export type OrderQueueScope = { visible: Visible; condition?: Condition };
 
 export type NextOrderRow = {
   publicId: string;

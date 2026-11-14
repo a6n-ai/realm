@@ -1,12 +1,12 @@
-import { STAFF_ROLES } from "@/lib/roles";
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { activeStaffWhere } from "@/lib/staff/staff-roster";
+import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { users } from "@/db/schema";
 import { getLeadAssignment, setLeadAssignment } from "../services/app-settings.service";
 import { pickAssignee } from "./assignment";
 import { poolFor } from "./owner-pool.service";
 
-const staffWhere = and(eq(users.isSystem, false), eq(users.status, "active"), inArray(users.role, STAFF_ROLES));
+const staffWhere = activeStaffWhere();
 
 export async function isActiveStaff(userId: bigint): Promise<boolean> {
   const [u] = await db.select({ id: users.id }).from(users).where(and(eq(users.id, userId), staffWhere)).limit(1);

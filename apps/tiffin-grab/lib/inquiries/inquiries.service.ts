@@ -1,9 +1,10 @@
+import { activeStaffWhere } from "@/lib/staff/staff-roster";
+import { orgScope, type Visible } from "@/lib/tenant/org-scope";
 import { parseEmail, parsePhone } from "@/lib/services/contact";
 import { isUniqueViolation } from "@/lib/db/errors";
 import { LIVE } from "@/lib/orders/status";
 import { orderStatusIn } from "@/lib/orders/status-sql";
 import { pageOffset } from "@foundry/design-system/filters/parse-filter-state";
-import { STAFF_ROLES } from "@/lib/roles";
 import { BaseRepository, UpdatableRepository, conditionToSql, columnResolver, pageOrder } from "@foundry/database";
 import { NotFoundError, ValidationError, phoneSchema, emailSchema } from "@foundry/commons";
 import type { Condition, FilterCondition } from "@foundry/commons/model/condition";
@@ -118,22 +119,22 @@ type ActivityType =
   | "quote_sent" | "sample_sent" | "payment_link_sent" | "visit" | "callback";
 type LostReason = (typeof inquiries.lostReason.enumValues)[number];
 
-const newWhere = (visible: "all" | string[]) =>
-  and(eq(inquiries.stage, "new"), visible === "all" ? undefined : inArray(inquiries.organizationId, visible));
+const newWhere = (visible: Visible) =>
+  and(eq(inquiries.stage, "new"), orgScope(inquiries.organizationId, visible));
 
 /**
  * Every inquiry in `publicIds` must sit in one of the viewer's organizations, the same rule as
  * assertOrderVisible: a row with no organization counts only for "all". One miss fails the whole call,
  * and a hidden lead reads as not found so ids from another franchise are not confirmed to exist.
  */
-export async function assertInquiriesVisible(publicIds: readonly string[], visible: "all" | string[]): Promise<void> {
+export async function assertInquiriesVisible(publicIds: readonly string[], visible: Visible): Promise<void> {
   const ids = [...new Set(publicIds)];
   if (ids.length === 0) return;
   if (visible !== "all" && visible.length === 0) throw new NotFoundError("Inquiry not found");
   const rows = await db
     .select({ id: inquiries.id })
     .from(inquiries)
-    .where(and(inArray(inquiries.publicId, ids), visible === "all" ? undefined : inArray(inquiries.organizationId, visible)));
+    .where(and(inArray(inquiries.publicId, ids), orgScope(inquiries.organizationId, visible)));
   if (rows.length !== ids.length) throw new NotFoundError("Inquiry not found");
 }
 
@@ -268,7 +269,7 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
   }
 
   private staffWhere() {
-    return and(eq(users.isSystem, false), eq(users.status, "active"), inArray(users.role, STAFF_ROLES));
+    return activeStaffWhere();
   }
 
   private async isActiveStaff(userId: bigint): Promise<boolean> {
@@ -1002,7 +1003,7 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
    * Inquiries still in stage `new` (nobody has contacted them), oldest first, across all dates.
    * `visible` scopes by inquiries.organizationId: a row with no organization counts only for "all".
    */
-  async listNew(visible: "all" | string[], limit: number) {
+  async listNew(visible: Visible, limit: number) {
     if (visible !== "all" && visible.length === 0) return [];
     return db
       .select({ publicId: inquiries.publicId, fullName: inquiries.fullName, phone: inquiries.phone, source: sql<string>`coalesce(${leadSources.label}, 'No source')`, createdAt: inquiries.createdAt })
@@ -1014,7 +1015,7 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
       .limit(limit);
   }
 
-  async countNew(visible: "all" | string[]): Promise<number> {
+  async countNew(visible: Visible): Promise<number> {
     if (visible !== "all" && visible.length === 0) return 0;
     const [{ count }] = await db.select({ count: sql<number>`cast(count(*) as int)` }).from(inquiries).where(newWhere(visible));
     return count;
@@ -1083,7 +1084,7 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
     };
     pickedId?: string;
     /** The caller's visible orgs; a picked inquiry outside them reads as not found. */
-    visible: "all" | string[];
+    visible: Visible;
   }): Promise<string> {
     if (input.pickedId) {
       await assertInquiriesVisible([input.pickedId], input.visible);

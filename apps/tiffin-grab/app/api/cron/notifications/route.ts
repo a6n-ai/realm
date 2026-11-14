@@ -1,9 +1,6 @@
-import { withCronAuth } from "@/lib/cron/auth";
+import { cronRoutes } from "@/lib/cron/route";
 import { runNotificationsCron } from "@/lib/cron/notifications";
 
 export const dynamic = "force-dynamic";
 
-const handle = withCronAuth(runNotificationsCron);
-
-export const GET = handle;
-export const POST = handle;
+export const { GET, POST } = cronRoutes(runNotificationsCron);

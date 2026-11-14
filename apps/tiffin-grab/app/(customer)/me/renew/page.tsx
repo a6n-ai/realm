@@ -1,4 +1,4 @@
-import { redirect } from "next/navigation";
+import { requireCustomerIdOrRedirect } from "@/lib/account/customer";
 import { desc, eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveryFrequencies, orders, plans } from "@/db/schema";
@@ -7,7 +7,6 @@ import { getTrialSettings } from "@/lib/trial/trial-settings.service";
 import { popularMealSizesByPlan } from "@/lib/catalog/popular-meal-sizes.service";
 import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 import { toClientCatalog } from "@/lib/catalog/types";
-import { currentUserId } from "@/lib/services/session-service";
 import { myRenewalWindow, mySubscriptionsSummary } from "@/lib/deliveries/customer-deliveries.service";
 import { checkoutHolidayDates } from "@/lib/deliveries/holidays.service";
 import { appToday, earliestPlanStart, planStartDays } from "@/lib/orders/start-date";
@@ -27,8 +26,7 @@ import { utcIso } from "@foundry/commons/util/dates";
 const LIVE = new Set(["active", "upcoming", "paused", "waitlisted", "pending"]);
 
 export default async function RenewPlanPage({ searchParams }: { searchParams: Promise<QuoteParams & { full?: string }> }) {
-  const userId = await currentUserId();
-  if (userId == null) redirect("/login");
+  const userId = await requireCustomerIdOrRedirect();
   const params = await searchParams;
   const quoteParams = Boolean(params.p);
   const full = params.full === "1";

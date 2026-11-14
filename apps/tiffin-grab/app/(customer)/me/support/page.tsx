@@ -1,6 +1,5 @@
+import { requireCustomerSession } from "@/lib/account/customer";
 import { Suspense } from "react";
-import { redirect } from "next/navigation";
-import { getSession } from "@/lib/auth/session";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { usersService } from "@/lib/services/users.service";
 import { ticketsService } from "@/lib/support/tickets.service";
@@ -34,8 +33,7 @@ export default function SupportPage({ searchParams }: { searchParams: SearchPara
 }
 
 async function SupportHeader({ searchParams }: { searchParams: SearchParams }) {
-  const session = await getSession();
-  if (!session?.user) redirect("/login");
+  const session = await requireCustomerSession();
 
   const { orderId } = await searchParams;
   const dashboard = await getCustomerDashboard(session.user.id);
@@ -65,8 +63,7 @@ async function SupportHeader({ searchParams }: { searchParams: SearchParams }) {
 }
 
 async function TicketsData() {
-  const session = await getSession();
-  if (!session?.user) redirect("/login");
+  const session = await requireCustomerSession();
 
   const [{ timezone }, user] = await Promise.all([
     getAppSettings(),

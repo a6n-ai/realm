@@ -1,5 +1,5 @@
-import { withCronAuth } from "@/lib/cron/auth";
-import { clampDays, parseMode, runScheduledSync } from "@/lib/optimoroute/sync";
+import { cronJobRoute } from "@/lib/cron/route";
+import { clampDays, parseMode } from "@/lib/optimoroute/sync";
 
 // Scheduler-agnostic protected route (withCronAuth), request-time only.
 //
@@ -13,20 +13,12 @@ import { clampDays, parseMode, runScheduledSync } from "@/lib/optimoroute/sync";
 //
 // Two lines rather than mode=both: routes are planned by a human in OptimoRoute between
 // the two, so pulling immediately after a push would read an empty plan.
+// Recorded in cron_runs via runCronJob; a missing OPTIMOROUTE_API_KEY is a failed run (500).
 export const dynamic = "force-dynamic";
 
-const handle = withCronAuth(async (request) => {
-  const params = new URL(request.url).searchParams;
-  const summary = await runScheduledSync({
-    mode: parseMode(params.get("mode")),
-    daysAhead: clampDays(params.get("days")),
-  });
-
-  // A run that reached no dates because the plugin is off is fine; one that could not run
-  // because the key is missing is a misconfiguration worth alerting on.
-  const status = summary.skipped === "OPTIMOROUTE_API_KEY not set" ? 503 : 200;
-  return Response.json(summary, { status });
+export const { GET, POST } = cronJobRoute("optimoroute-sync", {
+  input: (request) => {
+    const params = new URL(request.url).searchParams;
+    return { mode: parseMode(params.get("mode")), days: clampDays(params.get("days")) };
+  },
 });
-
-export const GET = handle;
-export const POST = handle;

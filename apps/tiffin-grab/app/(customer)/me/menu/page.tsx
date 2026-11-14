@@ -1,8 +1,7 @@
+import { requireCustomerIdOrRedirect } from "@/lib/account/customer";
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { UtensilsCrossed } from "lucide-react";
 import { zonedDateIso } from "@foundry/commons";
-import { currentUserId } from "@/lib/services/session-service";
 import { browsePublishedWeek, type WeekScope } from "@/lib/menu/browse-published-week";
 import { buildCustomerWeek, dietLegend, foldPicks, initialDay, planOf, popularSince, weekEnd } from "@/lib/menu/customer-week";
 import { menuService } from "@/lib/menu/menu.service";
@@ -16,8 +15,7 @@ import { WeeklyMenu } from "@/components/customer/meals/weekly-menu";
 import { requestNow } from "@/lib/dates/request-now";
 
 export default async function MenuPage({ searchParams }: { searchParams: Promise<{ week?: string }> }) {
-  const userId = await currentUserId();
-  if (userId == null) redirect("/login");
+  const userId = await requireCustomerIdOrRedirect();
 
   const { timezone } = await getAppSettings();
   const now = requestNow();

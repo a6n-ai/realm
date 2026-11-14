@@ -1,5 +1,6 @@
-import { STAFF_ROLES, isAdmin } from "@/lib/roles";
-import { and, eq, inArray } from "drizzle-orm";
+import { activeStaffWhere } from "@/lib/staff/staff-roster";
+import { isAdmin } from "@/lib/roles";
+import { and, eq } from "drizzle-orm";
 import { ForbiddenError, ValidationError } from "@foundry/commons";
 import { db } from "@/db/client";
 import { users } from "@/db/schema";
@@ -24,11 +25,7 @@ export async function resolveAssignableOwner(
     .select({ id: users.id, name: users.name })
     .from(users)
     .where(
-      and(
-        eq(users.publicId, ownerPublicId),
-        eq(users.isSystem, false),
-        inArray(users.role, STAFF_ROLES),
-      ),
+      and(eq(users.publicId, ownerPublicId), activeStaffWhere()),
     )
     .limit(1);
   if (!owner) throw new ValidationError("Unknown or ineligible owner");

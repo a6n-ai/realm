@@ -1,3 +1,4 @@
+import type { Visible } from "@/lib/tenant/org-scope";
 import Link from "next/link";
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 import { Button } from "@foundry/ui/button";
@@ -13,7 +14,7 @@ const md = (iso: string) => formatDateOnly(iso, { mode: "short" });
  * The week at a glance for the kitchen: tiffins per meal plan, and (all-scope users) containers per
  * dish category from the label sheet. Week arrows move both tabs.
  */
-export async function KitchenWeekCard({ visible, monday, thisMonday, today, seesAll }: { visible: "all" | string[]; monday: string; thisMonday: string; today: string; seesAll: boolean }) {
+export async function KitchenWeekCard({ visible, monday, thisMonday, today, seesAll }: { visible: Visible; monday: string; thisMonday: string; today: string; seesAll: boolean }) {
   const [plans, dishes] = await Promise.all([getKitchenWeek(visible, monday), seesAll ? getKitchenWeekDishes(monday) : Promise.resolve(null)]);
   const href = (m: string) => (m === thisMonday ? "/dashboard#kitchen-week" : `/dashboard?week=${m}#kitchen-week`);
   const arrows = (

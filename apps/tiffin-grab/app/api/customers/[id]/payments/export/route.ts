@@ -1,3 +1,4 @@
+import { xlsxResponse } from "@/lib/files/export-response";
 import { eq } from "drizzle-orm";
 import { NotFoundError } from "@foundry/commons";
 import { handler } from "@foundry/routes";
@@ -38,15 +39,6 @@ export const GET = handler(async (request: Request, { params }: { params: Promis
     "Paid at": when(r.capturedAt),
   }));
 
-  const XLSX = await import("xlsx");
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(records, { header: HEADERS }), "Payments");
-  const buffer = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" }) as Buffer;
   const who = (user.email ?? id).replace(/[^a-z0-9]+/gi, "-");
-  return new Response(new Uint8Array(buffer), {
-    headers: {
-      "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "Content-Disposition": `attachment; filename="payments-${who}-${appTodayIso(timezone)}.xlsx"`,
-    },
-  });
+  return xlsxResponse(`payments-${who}-${appTodayIso(timezone)}.xlsx`, { name: "Payments", headers: HEADERS, records });
 });

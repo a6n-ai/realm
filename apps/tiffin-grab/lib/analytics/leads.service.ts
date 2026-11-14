@@ -1,8 +1,9 @@
+import { orgScope } from "@/lib/tenant/org-scope";
 import { ratePct } from "@/lib/money";
 import { and, eq, inArray, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveryZones, inquiries, leadSources, mealSizes } from "@/db/schema";
-import { dateWhere, intCount, orgWhere } from "./metrics/scope";
+import { dateWhere, intCount } from "./metrics/scope";
 import { type AnalyticsScope } from "@/lib/analytics/scope-types";
 
 export type LeadStats = { total: number; converted: number; lost: number; conversionRatePct: number };
@@ -15,7 +16,7 @@ export type LeadStats = { total: number; converted: number; lost: number; conver
 export function leadWhere(scope: AnalyticsScope): SQL | undefined {
   const parts: (SQL | undefined)[] = [
     dateWhere(inquiries.createdAt, { fromMs: scope.fromMs, toMs: scope.toMs }),
-    orgWhere(inquiries.organizationId, scope.orgIds),
+    orgScope(inquiries.organizationId, scope.orgIds),
   ];
   if (scope.plans.length) parts.push(inArray(inquiries.planInterest, scope.plans));
   // Interest stores meal size publicId; shared filters use meal size keys.

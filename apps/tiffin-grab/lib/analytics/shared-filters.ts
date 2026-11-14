@@ -1,4 +1,5 @@
-import { and, asc, eq, exists, inArray } from "drizzle-orm";
+import { orgScope, type Visible } from "@/lib/tenant/org-scope";
+import { and, asc, eq, exists } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveryZones, mealSizes, orders, organization, plans, tickets } from "@/db/schema";
 import { ticketOrgWhere } from "./complaint-filters";
@@ -7,7 +8,7 @@ import type { AnalyticsFilterOptions } from "./shared-filter-params";
 
 /** `visibleOrgIds` limits the franchise list (the session's visible set). */
 export async function getAnalyticsFilterOptions(
-  visibleOrgIds: "all" | string[],
+  visibleOrgIds: Visible,
 ): Promise<AnalyticsFilterOptions> {
   const hasNoOrgs = noOrgs({ orgIds: visibleOrgIds });
   const orderOrg = ticketOrgWhere(visibleOrgIds);
@@ -34,7 +35,7 @@ export async function getAnalyticsFilterOptions(
             and(
               eq(deliveryZones.active, true),
               hasOrder(orders.zoneId, deliveryZones.id),
-              visibleOrgIds === "all" ? undefined : inArray(deliveryZones.organizationId, visibleOrgIds),
+              orgScope(deliveryZones.organizationId, visibleOrgIds),
             ),
           )
           .orderBy(asc(deliveryZones.name)),
@@ -43,7 +44,7 @@ export async function getAnalyticsFilterOptions(
       : db
           .select({ value: organization.id, label: organization.name })
           .from(organization)
-          .where(visibleOrgIds === "all" ? undefined : inArray(organization.id, visibleOrgIds))
+          .where(orgScope(organization.id, visibleOrgIds))
           .orderBy(asc(organization.name)),
     hasNoOrgs
       ? Promise.resolve([])

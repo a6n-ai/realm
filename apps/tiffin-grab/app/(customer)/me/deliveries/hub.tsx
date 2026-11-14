@@ -1,10 +1,10 @@
+import { requireCustomerIdOrRedirect } from "@/lib/account/customer";
 import { toClientCatalog } from "@/lib/catalog/types";
 import { dropOffCatalog } from "@/lib/catalog/drop-off";
 import { Suspense } from "react";
 import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { users } from "@/db/schema";
-import { redirect } from "next/navigation";
 import { after } from "next/server";
 import { expireUnpaidStripeOrders } from "@/lib/orders/unpaid-checkouts";
 import { zonedDateIso } from "@foundry/commons";
@@ -18,7 +18,6 @@ import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { categoryPortionSlotsForMealSize, categoryPortionsForMealSize } from "@/lib/catalog/category-portions";
 import { portionsAfterSwaps } from "@/lib/menu/eating-day-portions";
 import { getAppSettings } from "@/lib/services/app-settings.service";
-import { currentUserId } from "@/lib/services/session-service";
 import { addressService } from "@/lib/services/addresses.service";
 import { dropOffsFor } from "@/lib/deliveries/address-drop-off.service";
 import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
@@ -55,8 +54,7 @@ export function DeliveriesHub({ searchParams }: { searchParams: SearchParams }) 
 }
 
 async function MyDeliveriesData({ searchParams }: { searchParams: SearchParams }) {
-  const userId = await currentUserId();
-  if (userId == null) redirect("/login");
+  const userId = await requireCustomerIdOrRedirect();
   after(() => expireUnpaidStripeOrders({ userId }));
 
   const { week: weekParam, sub: subParam, trip: tripParam, action: actionParam } = await searchParams;

@@ -5,6 +5,7 @@
 // stop never sent to OptimoRoute, or one sent with no completion back. An OptimoRoute `failed`
 // already turns the row into a hold with its tiffin in the pool, so it is not listed here.
 // A row a free tiffin was given for is settled and drops off.
+import type { Visible } from "@/lib/tenant/org-scope";
 import { appTodayIso } from "@/lib/dates/today";
 import { and, asc, desc, eq, isNull, lt, ne, or, sql } from "drizzle-orm";
 import { ValidationError } from "@foundry/commons";
@@ -33,7 +34,7 @@ async function appToday(): Promise<string> {
   return appTodayIso((await getAppSettings()).timezone);
 }
 
-export async function countMissedDeliveries(visible: "all" | string[]): Promise<number> {
+export async function countMissedDeliveries(visible: Visible): Promise<number> {
   if (visible !== "all" && visible.length === 0) return 0;
   const [{ count }] = await db
     .select({ count: sql<number>`cast(count(*) as int)` })
@@ -43,7 +44,7 @@ export async function countMissedDeliveries(visible: "all" | string[]): Promise<
   return count;
 }
 
-export async function listMissedDeliveries(visible: "all" | string[]): Promise<MissedDeliveryRow[]> {
+export async function listMissedDeliveries(visible: Visible): Promise<MissedDeliveryRow[]> {
   if (visible !== "all" && visible.length === 0) return [];
   const rows = await db
     .select({
@@ -73,7 +74,7 @@ export type MissedReconcileResult = { days: number; delivered: number; notDelive
  * pool. Matching is by our order number, then phone, so stops typed into OptimoRoute by hand
  * are found too. Days are pulled one at a time; each pull reads the whole day's routes.
  */
-export async function reconcileMissedDeliveries(visible: "all" | string[], actorId: bigint | null): Promise<MissedReconcileResult> {
+export async function reconcileMissedDeliveries(visible: Visible, actorId: bigint | null): Promise<MissedReconcileResult> {
   const missed = await listMissedDeliveries(visible);
   const ids = new Set(missed.map((r) => r.deliveryPublicId));
   const dates = [...new Set(missed.map((r) => r.deliveryDate))].sort();

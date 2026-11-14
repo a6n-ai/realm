@@ -5,16 +5,12 @@ import { AppError, NotFoundError } from "@foundry/commons";
 import { eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import { menuWeeks, orders } from "@/db/schema";
-import { currentUserId } from "@/lib/services/session-service";
+import { requireCustomerId } from "@/lib/account/customer";
 import { assertCanManageOrder, assertOrderUnlocked } from "@/lib/deliveries/customer-deliveries.service";
 import { selectionsService } from "@/lib/menu/selections.service";
 import { runAction, type ActionResult } from "@/lib/actions/action-result";
 
-async function me(): Promise<bigint> {
-  const id = await currentUserId();
-  if (id == null) throw new NotFoundError("Not signed in");
-  return id;
-}
+const me = () => requireCustomerId(new NotFoundError("Not signed in"));
 
 export type PickItem = {
   menuWeekId: string;

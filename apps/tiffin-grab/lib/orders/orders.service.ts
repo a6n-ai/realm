@@ -1,3 +1,4 @@
+import { orgScope, type Visible } from "@/lib/tenant/org-scope";
 import { parseIsoDate } from "@/lib/dates/iso-date";
 import { appTodayIso } from "@/lib/dates/today";
 import { isCutoffPassed } from "@/lib/dates/cutoff";
@@ -89,24 +90,24 @@ export type OrderSortColumn = "name" | "deployment" | "status" | "start" | "tota
 // currentOwner — display-only), but the count runs on the base `orders` table
 // alone with the identical `where` so the nullable owner join can't inflate it.
 /** Staff actions that take an order public id: refuse an order outside the caller's organizations. */
-export async function assertOrderVisible(publicId: string, visible: "all" | string[]): Promise<void> {
+export async function assertOrderVisible(publicId: string, visible: Visible): Promise<void> {
   if (visible !== "all" && visible.length === 0) throw new NotFoundError("Order not found");
   const [row] = await db.select({ id: orders.id }).from(orders)
-    .where(and(eq(orders.publicId, publicId), visible === "all" ? undefined : inArray(orders.organizationId, visible)))
+    .where(and(eq(orders.publicId, publicId), orgScope(orders.organizationId, visible)))
     .limit(1);
   if (!row) throw new NotFoundError("Order not found");
 }
 
 // Actions that take a delivery or payment id resolve the order from that row, never from an
 // order id the client sent alongside it.
-export async function assertDeliveryVisible(deliveryPublicId: string, visible: "all" | string[]): Promise<void> {
+export async function assertDeliveryVisible(deliveryPublicId: string, visible: Visible): Promise<void> {
   const [row] = await db.select({ publicId: orders.publicId }).from(deliveries)
     .innerJoin(orders, eq(orders.id, deliveries.orderId)).where(eq(deliveries.publicId, deliveryPublicId)).limit(1);
   if (!row) throw new NotFoundError("Order not found");
   await assertOrderVisible(row.publicId, visible);
 }
 
-export async function assertPaymentVisible(paymentPublicId: string, visible: "all" | string[]): Promise<void> {
+export async function assertPaymentVisible(paymentPublicId: string, visible: Visible): Promise<void> {
   const [row] = await db.select({ publicId: orders.publicId }).from(payments)
     .innerJoin(orders, eq(orders.id, payments.orderId)).where(eq(payments.publicId, paymentPublicId)).limit(1);
   if (!row) throw new NotFoundError("Order not found");
@@ -117,7 +118,7 @@ export async function listOrdersPage(
   condition: Condition | undefined,
   page: PageRequest,
   sort: SortState<OrderSortColumn> = { column: "created", dir: "desc" },
-  visible: "all" | string[],
+  visible: Visible,
   opts: OrdersListOpts = {},
 ): Promise<Page<OrderListRow>> {
   const where = ordersListWhere(condition, visible, opts);
@@ -239,7 +240,7 @@ export type OrderDetail = typeof orders.$inferSelect & {
 // publicId is unguessable but not a permission — direct-link/URL access must not
 // bypass membership scoping. Out-of-scope orders fail exactly like nonexistent ones
 // (NotFoundError) so a caller can't distinguish "not visible" from "doesn't exist".
-export async function readOrder(publicId: string, visible: "all" | string[]): Promise<OrderDetail> {
+export async function readOrder(publicId: string, visible: Visible): Promise<OrderDetail> {
   const [row] = await db
     .select({
       order: orders,
@@ -257,7 +258,7 @@ export async function readOrder(publicId: string, visible: "all" | string[]): Pr
     .where(
       and(
         eq(orders.publicId, publicId),
-        visible === "all" ? undefined : inArray(orders.organizationId, visible),
+        orgScope(orders.organizationId, visible),
       ),
     )
     .limit(1);

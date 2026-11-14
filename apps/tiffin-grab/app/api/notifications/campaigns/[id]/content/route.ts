@@ -1,8 +1,8 @@
 import { readJson } from "@foundry/commons/util/http";
 import { z } from "zod";
-import { handler, json, problem } from "@foundry/routes";
+import { problem } from "@foundry/routes";
 import { setCampaignContent, setCampaignContentSchema } from "@relay/engine";
-import { requireAdmin } from "@/lib/auth/guards";
+import { adminIdRoute } from "@/lib/notifications/admin-route";
 import { campaignDeps } from "@/lib/notifications/deps";
 
 // The shared schema only validates channel/locale as bare strings; enforce the
@@ -13,14 +13,8 @@ const schema = setCampaignContentSchema.extend({
   locale: z.enum(["en", "fr"]),
 });
 
-export const POST = handler(
-  async (req: Request, ctx: { params: Promise<{ id: string }> }): Promise<Response> => {
-    await requireAdmin();
-    const { id } = await ctx.params;
-    const parsed = await readJson(req, schema);
-    if (!parsed.success) return problem(400, parsed.error.issues[0]?.message ?? "Invalid request");
-    const result = await setCampaignContent(campaignDeps, id, parsed.data);
-    if ("error" in result) return problem(result.status, result.error);
-    return json(result);
-  },
-);
+export const POST = adminIdRoute(async (req, id) => {
+  const parsed = await readJson(req, schema);
+  if (!parsed.success) return problem(400, parsed.error.issues[0]?.message ?? "Invalid request");
+  return setCampaignContent(campaignDeps, id, parsed.data);
+});

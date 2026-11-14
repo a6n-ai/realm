@@ -1,3 +1,4 @@
+import type { Visible } from "@/lib/tenant/org-scope";
 import { Suspense, type ReactNode } from "react";
 import { requireAdmin } from "@/lib/auth/guards";
 import { Skeleton } from "@foundry/ui/skeleton";
@@ -81,7 +82,7 @@ export default async function AnalyticsLayout({ children }: { children: ReactNod
   );
 }
 
-async function SharedFilters({ visible }: { visible: "all" | string[] }) {
+async function SharedFilters({ visible }: { visible: Visible }) {
   const options = await getAnalyticsFilterOptions(visible);
   return (
     <AnalyticsFilters

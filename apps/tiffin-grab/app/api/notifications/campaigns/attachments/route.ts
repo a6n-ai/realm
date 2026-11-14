@@ -1,8 +1,7 @@
-import { nanoid } from "nanoid";
-import { handler, problem } from "@foundry/routes";
-import { requireAdmin } from "@/lib/auth/guards";
+import { problem } from "@foundry/routes";
 import { filesService } from "@/lib/files";
-import { sanitizeFilename } from "@/app/api/files/upload/validate";
+import { MAX_ATTACHMENT_BYTES, uploadKey } from "@/lib/files/upload";
+import { adminRoute } from "@/lib/notifications/admin-route";
 
 // Deliberately separate from /api/files/upload's image-only allowlist — a
 // campaign attachment is admin-only and reasonably needs PDFs/docs/sheets,
@@ -21,19 +20,16 @@ const ALLOWED_TYPES = new Set([
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   "application/zip",
 ]);
-const MAX_BYTES = 10 * 1024 * 1024;
 
-export const POST = handler(async (request: Request): Promise<Response> => {
-  await requireAdmin();
-
+export const POST = adminRoute(async (request) => {
   const form = await request.formData();
   const file = form.get("file");
   if (!(file instanceof File)) return problem(400, "No file provided");
   if (!ALLOWED_TYPES.has(file.type)) return problem(400, "That file type isn't allowed as an attachment");
-  if (file.size > MAX_BYTES) return problem(400, "Attachment must be 10MB or smaller");
+  if (file.size > MAX_ATTACHMENT_BYTES) return problem(400, "Attachment must be 10MB or smaller");
 
-  const key = `campaign-attachments/${nanoid()}/${sanitizeFilename(file.name)}`;
+  const key = uploadKey("campaign-attachments", file.name);
   const bytes = new Uint8Array(await file.arrayBuffer());
   const detail = await filesService().create(key, bytes, { contentType: file.type });
-  return Response.json(detail, { status: 200 });
+  return detail;
 });

@@ -1,5 +1,5 @@
-import { STAFF_ROLES } from "@/lib/roles";
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { activeStaffWhere } from "@/lib/staff/staff-roster";
+import { asc } from "drizzle-orm";
 import { db } from "@/db/client";
 import { users } from "@/db/schema";
 
@@ -7,7 +7,7 @@ export async function listAssignableStaff(): Promise<{ publicId: string; name: s
   const rows = await db
     .select({ publicId: users.publicId, name: users.name })
     .from(users)
-    .where(and(inArray(users.role, STAFF_ROLES), eq(users.isSystem, false)))
+    .where(activeStaffWhere())
     .orderBy(asc(users.name));
 
   return rows.map((r) => ({ publicId: r.publicId, name: r.name ?? "Staff" }));

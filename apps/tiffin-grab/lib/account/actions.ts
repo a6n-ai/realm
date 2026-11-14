@@ -1,18 +1,19 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-import { AuthError, ValidationError } from "@foundry/commons";
-import { getSession } from "@/lib/auth/session";
+import { runAction, type ActionResult } from "@/lib/actions/action-result";
+import { requireCustomer } from "@/lib/account/customer";
+import { revalidateAccount } from "@/lib/account/revalidate";
 import { usersService } from "@/lib/services/users.service";
 
 // Phone only. Your own email changes through the OTP change-email flow
 // (Security), which proves both the old and the new address — accepting email
 // here let any signed-in session swap the login identity with no code at all.
-export async function updateMyContact(input: { phone: string }) {
-  const session = await getSession();
-  if (!session?.user?.id) throw new AuthError();
-  await usersService.updateContact(session.user.id, { phone: input.phone });
-  revalidatePath("/dashboard/account");
+export async function updateMyContact(input: { phone: string }): Promise<ActionResult> {
+  return runAction(async () => {
+    const user = await requireCustomer();
+    await usersService.updateContact(user.id, { phone: input.phone });
+    revalidateAccount();
+  });
 }
 
 export async function updateMyPreferences(input: {
@@ -21,43 +22,41 @@ export async function updateMyPreferences(input: {
   deliveryNotes?: string;
   notifyEmail?: boolean;
   notifySms?: boolean;
-}) {
-  const session = await getSession();
-  if (!session?.user?.id) throw new AuthError();
-  await usersService.updatePreferences(session.user.id, input);
-  revalidatePath("/dashboard/account");
+}): Promise<ActionResult> {
+  return runAction(async () => {
+    const user = await requireCustomer();
+    await usersService.updatePreferences(user.id, input);
+    revalidateAccount();
+  });
 }
 
-export async function updateMyProfile(input: { name?: string; username?: string }) {
-  const session = await getSession();
-  if (!session?.user?.id) throw new AuthError();
-  await usersService.updateProfile(session.user.id, input);
-  revalidatePath("/dashboard/account");
-  return { ok: true };
+export async function updateMyProfile(input: { name?: string; username?: string }): Promise<ActionResult> {
+  return runAction(async () => {
+    const user = await requireCustomer();
+    await usersService.updateProfile(user.id, input);
+    revalidateAccount();
+  });
 }
+
+// PinForm reads { ok, message }: a refusal reaches it as a message, never a throw.
+const pinResult = (r: ActionResult): { ok: boolean; message?: string } => ("error" in r ? { ok: false, message: r.error } : { ok: true });
 
 export async function setMyPin(currentPassword: string, newPin: string): Promise<{ ok: boolean; message?: string }> {
-  const session = await getSession();
-  if (!session?.user?.id) throw new AuthError();
-  try {
-    await usersService.setPin(session.user.id, currentPassword, newPin);
-    revalidatePath("/dashboard/account");
-    return { ok: true };
-  } catch (e) {
-    if (e instanceof ValidationError) return { ok: false, message: e.message };
-    throw e;
-  }
+  return pinResult(
+    await runAction(async () => {
+      const user = await requireCustomer();
+      await usersService.setPin(user.id, currentPassword, newPin);
+      revalidateAccount();
+    }),
+  );
 }
 
 export async function removeMyPin(currentPassword: string): Promise<{ ok: boolean; message?: string }> {
-  const session = await getSession();
-  if (!session?.user?.id) throw new AuthError();
-  try {
-    await usersService.removePin(session.user.id, currentPassword);
-    revalidatePath("/dashboard/account");
-    return { ok: true };
-  } catch (e) {
-    if (e instanceof ValidationError) return { ok: false, message: e.message };
-    throw e;
-  }
+  return pinResult(
+    await runAction(async () => {
+      const user = await requireCustomer();
+      await usersService.removePin(user.id, currentPassword);
+      revalidateAccount();
+    }),
+  );
 }

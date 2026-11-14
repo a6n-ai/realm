@@ -1,3 +1,4 @@
+import { orgScope, type Visible } from "@/lib/tenant/org-scope";
 import { paymentMethodLabel } from "@/lib/payments/method-label";
 import { cache } from "react";
 import { displayName } from "@/lib/inquiries/display";
@@ -13,14 +14,13 @@ import { getAppSettings } from "@/lib/services/app-settings.service";
 import { countMissedDeliveries, listMissedDeliveries } from "@/lib/deliveries/missed-deliveries.service";
 import { inquiriesService } from "@/lib/inquiries/inquiries.service";
 import { listOrdersPage } from "@/lib/orders/orders.service";
-import { countPaymentReviewOrders, paymentReviewWhere, visibleOrgWhere } from "@/lib/orders/queries";
+import { countPaymentReviewOrders, paymentReviewWhere } from "@/lib/orders/queries";
 import { listRenewals } from "@/lib/renewals/renewals.service";
 import { ticketsService } from "@/lib/support/tickets.service";
 import type { RenewalsFilter } from "@/lib/renewals/filters";
 import { OVERVIEW_KINDS, TODAY_KINDS, TODAY_LIMIT, type TodayItem, type TodayKind } from "@/lib/today/types";
 import { formatDateOnly } from "@/lib/format/datetime";
 
-type Visible = "all" | string[];
 const empty = (visible: Visible) => visible !== "all" && visible.length === 0;
 
 /**
@@ -58,7 +58,7 @@ export function rankTodayItems(items: TodayItem[]): TodayItem[] {
 const PAYMENT_STATUS_LABEL: Record<string, string> = { pending_verification: "claimed, to verify", awaiting_payment: "awaiting payment" };
 
 const reviewPaymentWhere = (visible: Visible) =>
-  and(paymentReviewWhere(), isNull(payments.addonRequest), paymentStatusIn(PENDING), visibleOrgWhere(visible));
+  and(paymentReviewWhere(), isNull(payments.addonRequest), paymentStatusIn(PENDING), orgScope(orders.organizationId, visible));
 
 export async function countReviewPayments(visible: Visible): Promise<number> {
   if (empty(visible)) return 0;

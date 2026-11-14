@@ -1,3 +1,4 @@
+import { orgScope, type Visible } from "@/lib/tenant/org-scope";
 import "server-only";
 import { and, gte, inArray, lte, sql, type SQL } from "drizzle-orm";
 import type { AnyColumn } from "drizzle-orm";
@@ -26,7 +27,7 @@ export const DATE_BASIS_LABEL = {
 } as const;
 
 /** Visible orgs narrowed by the `org` URL value. A value outside the visible set yields [] (never widens). */
-export function intersectOrgs(visible: "all" | string[], requested: string[]): "all" | string[] {
+export function intersectOrgs(visible: Visible, requested: string[]): Visible {
   if (requested.length === 0) return visible;
   if (visible === "all") return requested;
   return requested.filter((id) => visible.includes(id));
@@ -35,7 +36,7 @@ export function intersectOrgs(visible: "all" | string[], requested: string[]): "
 /** Pure scope builder; `resolveAnalyticsScope` supplies the session-derived inputs. */
 export function buildAnalyticsScope(
   sp: ScopeSearchParams,
-  visible: "all" | string[],
+  visible: Visible,
   tz: string,
   now = Date.now(),
 ): AnalyticsScope {
@@ -102,12 +103,6 @@ export const intCount = sql<number>`cast(count(*) as int)`;
 
 export const noOrgs = (scope: Pick<AnalyticsScope, "orgIds">) => scope.orgIds !== "all" && scope.orgIds.length === 0;
 
-/** Rows limited to the visible orgs through `col`; `[]` matches nothing, "all" adds no filter. */
-export function orgWhere(col: AnyColumn, orgIds: AnalyticsScope["orgIds"]): SQL | undefined {
-  if (orgIds === "all") return undefined;
-  return orgIds.length === 0 ? sql`false` : inArray(col, orgIds);
-}
-
 /** Orders minus cancelled ones nobody paid for: those never ran. */
 export const ranOrders = sql`not (${orders.status} = 'cancelled' and not exists (
   select 1 from ${payments} where ${payments.orderId} = ${orders.id} and ${inArray(payments.status, [...PAID])}
@@ -115,7 +110,7 @@ export const ranOrders = sql`not (${orders.status} = 'cancelled' and not exists 
 
 /** Org (via the order's own organization_id) plus plan / meal size / zone. `[]` orgs matches nothing. */
 export function ordersScope(scope: Pick<AnalyticsScope, "orgIds"> & Facets): SQL | undefined {
-  return and(orgWhere(orders.organizationId, scope.orgIds), facetsWhere(scope));
+  return and(orgScope(orders.organizationId, scope.orgIds), facetsWhere(scope));
 }
 
 type Window = { fromMs?: number; toMs?: number };

@@ -1,9 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { requireCustomer } from "@/lib/account/customer";
+import { revalidateAccount } from "@/lib/account/revalidate";
 import type { AddressInput, SavedAddress } from "@foundry/address";
-import { AuthError } from "@foundry/commons";
-import { getSession } from "@/lib/auth/session";
 import { addressScopeFor, addressService } from "@/lib/services/addresses.service";
 import { resolveDropOff, setAddressDropOff } from "@/lib/deliveries/address-drop-off.service";
 import type { DropOffValue } from "@/lib/catalog/drop-off";
@@ -14,13 +14,12 @@ import { runAction, type ActionResult } from "@/lib/actions/action-result";
 // server-action errors, and "that address is outside every zone" must reach the customer.
 
 async function scope() {
-  const session = await getSession();
-  if (!session?.user?.id) throw new AuthError();
-  return addressScopeFor(session.user.id);
+  const user = await requireCustomer();
+  return addressScopeFor(user.id);
 }
 
 function refresh() {
-  revalidatePath("/me/account");
+  revalidateAccount();
   revalidatePath("/me", "layout");
 }
 

@@ -1,7 +1,6 @@
+import { requireCustomerIdOrRedirect } from "@/lib/account/customer";
 import { Suspense } from "react";
 import { after } from "next/server";
-import { redirect } from "next/navigation";
-import { currentUserId } from "@/lib/services/session-service";
 import { stripeMethodAvailable } from "@/lib/payments/stripe";
 import { settleStaleOnView } from "@/lib/payments/payment-stripe";
 import { getAppSettings, getCoinEarnPct } from "@/lib/services/app-settings.service";
@@ -28,8 +27,7 @@ import { requestNow } from "@/lib/dates/request-now";
 type SearchParams = Promise<Record<string, string | undefined>>;
 
 export default async function MyWalletPage({ searchParams }: { searchParams: SearchParams }) {
-  const userId = await currentUserId();
-  if (userId == null) redirect("/login");
+  const userId = await requireCustomerIdOrRedirect();
 
   const sp = await searchParams;
   const tab = parseFinancesTab(sp.tab);

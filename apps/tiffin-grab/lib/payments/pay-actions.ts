@@ -1,10 +1,8 @@
 "use server";
 
 import { getSession } from "@/lib/auth/session";
+import { ownsPayment, requireCustomer } from "@/lib/account/customer";
 import { runAction, type ActionResult } from "@/lib/actions/action-result";
-import { and, eq } from "drizzle-orm";
-import { db } from "@/db/client";
-import { orders, payments, users } from "@/db/schema";
 import { abandonCardAttempt, chargedReceipt, payByCard, settleStripePayment, type CardReceipt, type CardSource, type PayByCardResult } from "@/lib/payments/payment-stripe";
 import { appBaseUrl } from "@/lib/payments/stripe";
 import { customerSessionSecret } from "@/lib/payments/card-checkout-context";
@@ -16,12 +14,11 @@ export async function submitCardPayment(
   acceptSurcharge: boolean,
 ): Promise<ActionResult<PayByCardResult>> {
   return runAction(async () => {
-    const session = await getSession();
-    if (!session?.user) throw new Error("Sign in to pay");
-    return withCustomerPayLock(session.user.id, () =>
+    const user = await requireCustomer(new Error("Sign in to pay"));
+    return withCustomerPayLock(user.id, () =>
       payByCard({
         paymentPublicId: paymentId,
-        userPublicId: session.user.id,
+        userPublicId: user.id,
         source,
         acceptSurcharge,
         returnUrl: `${appBaseUrl()}/me/pay/${paymentId}?return=1`,
@@ -34,14 +31,7 @@ export async function confirmReturn(paymentId: string): Promise<ActionResult<{ p
   return runAction(async () => {
     const session = await getSession();
     if (!session?.user) return { paid: false };
-    const [owned] = await db
-      .select({ id: payments.id })
-      .from(payments)
-      .innerJoin(orders, eq(orders.id, payments.orderId))
-      .innerJoin(users, eq(users.id, orders.userId))
-      .where(and(eq(payments.publicId, paymentId), eq(users.publicId, session.user.id)))
-      .limit(1);
-    if (!owned) return { paid: false };
+    if (!(await ownsPayment(paymentId, session.user.id))) return { paid: false };
     const outcome = await settleStripePayment({ paymentRef: paymentId }, "return");
     const paid = outcome === "paid" || outcome === "already_paid";
     return paid ? { paid, receipt: (await chargedReceipt(paymentId)) ?? undefined } : { paid };
@@ -50,9 +40,8 @@ export async function confirmReturn(paymentId: string): Promise<ActionResult<{ p
 
 export async function abandonCard(paymentId: string): Promise<ActionResult> {
   return runAction(async () => {
-    const session = await getSession();
-    if (!session?.user) throw new Error("Not signed in");
-    await abandonCardAttempt(paymentId, session.user.id);
+    const user = await requireCustomer(new Error("Not signed in"));
+    await abandonCardAttempt(paymentId, user.id);
   });
 }
 

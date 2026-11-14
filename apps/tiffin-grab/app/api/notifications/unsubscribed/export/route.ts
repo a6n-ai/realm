@@ -1,11 +1,11 @@
+import { csvResponse } from "@/lib/files/export-response";
 import { csvCell } from "@/lib/csv-cell";
-import { handler, problem } from "@foundry/routes";
-import { requireAdmin } from "@/lib/auth/guards";
+import { problem } from "@foundry/routes";
+import { adminRoute } from "@/lib/notifications/admin-route";
 import { loadSuppressedAddresses } from "@/lib/notifications/logs-query";
 
 /** The Unsubscribed table as CSV, with the same filters as the page. */
-export const GET = handler(async (req: Request): Promise<Response> => {
-  await requireAdmin();
+export const GET = adminRoute(async (req) => {
   const sp = Object.fromEntries(new URL(req.url).searchParams);
   const lines = [["address", "channel", "reason", "scope", "source", "campaign", "date"].join(",")];
   // ponytail: pages through the table query, capped at 200 pages; stream if the list outgrows that.
@@ -20,7 +20,5 @@ export const GET = handler(async (req: Request): Promise<Response> => {
     // A do-not-mail list that is silently short is worse than no file.
     if (rows.length === 0 || page === 199) return problem(500, "The list is too large to export here. Narrow the filters and try again.");
   }
-  return new Response(lines.join("\n"), {
-    headers: { "content-type": "text/csv; charset=utf-8", "content-disposition": 'attachment; filename="unsubscribed.csv"' },
-  });
+  return csvResponse("unsubscribed.csv", lines.join("\n"));
 });

@@ -1,3 +1,4 @@
+import type { Visible } from "@/lib/tenant/org-scope";
 import { eq } from "drizzle-orm";
 import { resolveVisibleOrgIds } from "@foundry/auth";
 import { db } from "@/db/client";
@@ -8,7 +9,7 @@ import { userIdByPublicId } from "@/lib/identity/user-ids";
 // scoped to their `member` rows. [] means "show nothing", never an unscoped query.
 export async function resolveSessionVisibleOrgIds(
   session: { user: { id: string; platformRole?: string | null } } | null,
-): Promise<"all" | string[]> {
+): Promise<Visible> {
   if (!session) return [];
   const userId = await userIdByPublicId(session.user.id);
   if (!userId) return [];

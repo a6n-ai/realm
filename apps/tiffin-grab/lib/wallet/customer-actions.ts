@@ -7,6 +7,7 @@ import { claimPayment, getClaimPaymentContext, type ClaimPaymentContext } from "
 import { uploadPaymentProof } from "@/lib/payments/payment-proof";
 import { assertCanManageOrder, assertOwnsOrder } from "@/lib/deliveries/customer-deliveries.service";
 import { currentUserId } from "@/lib/services/session-service";
+import { requireCustomerId } from "@/lib/account/customer";
 import { runAction, type ActionResult } from "@/lib/actions/action-result";
 import { emailOrderReceipt } from "@/lib/billing/email-receipt";
 
@@ -42,8 +43,7 @@ export async function loadClaimPaymentContext(paymentPublicId: string): Promise<
 
 export async function emailReceiptAction(orderPublicId: string): Promise<ActionResult> {
   return runAction(async () => {
-    const userId = await currentUserId();
-    if (userId == null) throw new NotFoundError("Order not found");
+    const userId = await requireCustomerId(new NotFoundError("Order not found"));
     await assertOwnsOrder(userId, orderPublicId);
     await emailOrderReceipt(orderPublicId);
   });

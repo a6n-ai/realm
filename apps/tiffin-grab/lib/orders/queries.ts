@@ -1,3 +1,4 @@
+import { orgScope, type Visible } from "@/lib/tenant/org-scope";
 import { ONGOING } from "@/lib/orders/status";
 import { orderStatusIn } from "@/lib/orders/status-sql";
 import type { Condition, FilterCondition } from "@foundry/commons/model/condition";
@@ -62,7 +63,6 @@ export function renewalStatusSql(paidPlansOnly = false) {
 }
 
 /** Orders in the organizations a session may see (`resolveSessionVisibleOrgIds`, lib/auth/visible-orgs). */
-export const visibleOrgWhere = (visible: "all" | string[]) => (visible === "all" ? undefined : inArray(orders.organizationId, visible));
 
 /** Orders the badge reads as Payment review: same rule as `orderDisplayStatus`, over every payment row. */
 export function paymentReviewWhere() {
@@ -72,18 +72,18 @@ export function paymentReviewWhere() {
   );
 }
 
-async function countVisibleOrders(where: SQL | undefined, visible: "all" | string[]): Promise<number> {
+async function countVisibleOrders(where: SQL | undefined, visible: Visible): Promise<number> {
   if (visible !== "all" && visible.length === 0) return 0;
   const [{ count }] = await db
     .select({ count: sql<number>`cast(count(*) as int)` })
     .from(orders)
-    .where(and(where, visible === "all" ? undefined : inArray(orders.organizationId, visible)));
+    .where(and(where, orgScope(orders.organizationId, visible)));
   return count;
 }
 
 
 /** Orders waiting on a payment claim or staff verification, for the Payment review tab badge. */
-export const countPaymentReviewOrders = (visible: "all" | string[]) => countVisibleOrders(paymentReviewWhere(), visible);
+export const countPaymentReviewOrders = (visible: Visible) => countVisibleOrders(paymentReviewWhere(), visible);
 
 /** ISO dates (app timezone), both inclusive. */
 export type FreeTiffinRange = { from: string; to: string };
@@ -102,7 +102,7 @@ export const freeTiffinsWhere = (range?: FreeTiffinRange) =>
       : undefined,
   );
 /** Free-tiffin orders, optionally only those created inside an epoch-ms window (the list's date picker). */
-export const countFreeTiffinOrders = (visible: "all" | string[], created?: { from?: string; to?: string }) =>
+export const countFreeTiffinOrders = (visible: Visible, created?: { from?: string; to?: string }) =>
   countVisibleOrders(and(freeTiffinsWhere(), created ? epochBoundsWhere(orders.createdAt, created) : undefined), visible);
 
 function filterValues(f: FilterCondition): string[] {
@@ -198,7 +198,7 @@ const cancelledInRangeWhere = (range: { from: number; to: number }) =>
   )`;
 
 // Shared by the Orders listing and its count. `visible` is and-ed last, so no facet can widen the scope.
-export function ordersListWhere(condition: Condition | undefined, visible: "all" | string[], opts: OrdersListOpts = {}) {
+export function ordersListWhere(condition: Condition | undefined, visible: Visible, opts: OrdersListOpts = {}) {
   return and(
     conditionToSql(condition, ordersListResolver()),
     opts.lookOutOnly ? isNotNull(orders.lookOutAt) : undefined,
@@ -206,6 +206,6 @@ export function ordersListWhere(condition: Condition | undefined, visible: "all"
     opts.paymentReview ? paymentReviewWhere() : undefined,
     opts.missedAsOf ? hasMissedDeliveries(opts.missedAsOf) : undefined,
     opts.cancelledInRange ? cancelledInRangeWhere(opts.cancelledInRange) : undefined,
-    visible === "all" ? undefined : inArray(orders.organizationId, visible),
+    orgScope(orders.organizationId, visible),
   );
 }

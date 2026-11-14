@@ -1,7 +1,6 @@
+import { requireCustomerSession } from "@/lib/account/customer";
 import { parseIsoDate } from "@/lib/dates/iso-date";
 import { Suspense } from "react";
-import { redirect } from "next/navigation";
-import { getSession } from "@/lib/auth/session";
 import { getCustomerDashboard } from "@/lib/services/customers.service";
 import { PageHeader } from "@/components/kit";
 import { BackLink } from "@/components/customer/support/parts";
@@ -28,8 +27,7 @@ export default function NewTicketPage({ searchParams }: { searchParams: SearchPa
 }
 
 async function TicketFormData({ searchParams }: { searchParams: SearchParams }) {
-  const session = await getSession();
-  if (!session?.user) redirect("/login");
+  const session = await requireCustomerSession();
 
   const { orderId, date } = await searchParams;
   const dashboard = await getCustomerDashboard(session.user.id);

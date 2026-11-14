@@ -1,3 +1,4 @@
+import type { Visible } from "@/lib/tenant/org-scope";
 import Link from "next/link";
 import { ActivityIcon, PackageIcon, RefreshCwIcon, UtensilsCrossedIcon, type LucideIcon } from "lucide-react";
 import { Card, CardContent } from "@foundry/ui/card";
@@ -13,7 +14,7 @@ type Metric = { label: string; icon: LucideIcon; value: string; delta: Delta; vs
 const sum = (xs: number[]) => xs.reduce((s, x) => s + x, 0);
 
 /** The four headline tiles, each its own card. No revenue on the Overview; it lives in Analytics. */
-export async function GlanceCard({ visible, today, now, timeZone }: { visible: "all" | string[]; today: string; now: number; timeZone: string }) {
+export async function GlanceCard({ visible, today, now, timeZone }: { visible: Visible; today: string; now: number; timeZone: string }) {
   const s = await getOverviewSeries(visible, today, now);
   const d = s.days;
   const last7 = (f: (x: (typeof d)[number]) => number) => [sum(d.slice(7).map(f)), sum(d.slice(0, 7).map(f))] as const;

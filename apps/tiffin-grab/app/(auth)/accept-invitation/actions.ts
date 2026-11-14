@@ -1,5 +1,6 @@
 "use server";
 import { auth } from "@/lib/auth";
+import { acceptInvitationOrSignOut } from "@/lib/auth/accept-invitation";
 import { headers } from "next/headers";
 
 // headers() throws outside a live request (e.g. a unit test calling this
@@ -33,12 +34,8 @@ export async function acceptInvitationAction(input: {
   const cookiePairs = signInResult.headers.getSetCookie().map((cookie) => cookie.split(";")[0]);
   if (cookiePairs.length > 0) sessionHeaders.set("cookie", cookiePairs.join("; "));
   // The OTP is consumed by now, so a bad/expired invitation must not reuse the
-  // "Invalid or expired code" copy — retrying the code can't help. Sign back out
-  // so the invitee isn't left holding a session for an org they never joined.
-  try {
-    await auth.api.acceptInvitation({ body: { invitationId: input.invitationId }, headers: sessionHeaders });
-  } catch {
-    await auth.api.signOut({ headers: sessionHeaders }).catch(() => {});
+  // "Invalid or expired code" copy: retrying the code can't help.
+  if (!(await acceptInvitationOrSignOut(input.invitationId, sessionHeaders))) {
     return { ok: false, error: "This invitation is no longer valid. Contact your admin for a new one." };
   }
   return { ok: true };

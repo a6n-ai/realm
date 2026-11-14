@@ -1,3 +1,4 @@
+import { orgScope, type Visible } from "@/lib/tenant/org-scope";
 import { DAY_MS } from "@foundry/commons/util/dates";
 import { pageOffset } from "@foundry/design-system/filters/parse-filter-state";
 import { isStaffRole } from "@/lib/roles";
@@ -68,11 +69,8 @@ export function computeOverdue(status: string, lastMessageAt: number | null, now
   return lastMessageAt < now - OVERDUE_MS;
 }
 
-type Visible = "all" | string[];
-
 // Same rule as assertOrderVisible: a ticket with no organization counts only for "all".
-const visibleWhere = (visible: Visible): SQL | undefined =>
-  visible === "all" ? undefined : visible.length ? inArray(tickets.organizationId, visible) : sql`false`;
+const visibleWhere = (visible: Visible): SQL | undefined => orgScope(tickets.organizationId, visible);
 
 // A ticket belongs to its order's franchise; one with no order belongs to the brand org (as inquiries do).
 async function ticketOrgId(orderId: bigint | undefined): Promise<string | null> {

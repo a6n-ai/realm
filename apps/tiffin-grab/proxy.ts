@@ -6,6 +6,7 @@ import { SESSION_COOKIES } from "./lib/auth/cookie-prefix";
 import { syncSessionHint } from "./lib/auth/session-hint";
 import probePath from "./lib/routing/probe-path.json";
 import publicPages from "./lib/routing/public-pages.json";
+import { isPublicApi } from "./lib/routing/public-api";
 import { AREA_PAGE, apexServes, appServes, skipsOrgResolution } from "./lib/routing/apex";
 import { MD_PAGES, wantsMarkdown } from "@/lib/landing/markdown-negotiation";
 import { isReferralCodeShape, normalizeReferralCode, setReferralCookie } from "./lib/referrals/cookie";
@@ -17,19 +18,6 @@ import { appUrlOr, isTest } from "@/lib/runtime/env";
 // for the session check; the authoritative `getSession` role checks live in
 // the dashboard layout and pages.
 // Better Auth session cookie names: see lib/auth/cookie-prefix.ts.
-
-// /api is private by default. Only these prefixes are reachable without a
-// session cookie: Better Auth's own handler, cron (self-auths via CRON_SECRET
-// bearer inside the route), and the SES feedback webhook (self-auths by
-// verifying the SNS message signature). Add a prefix here to make it public.
-// /api/unsubscribe: the HMAC token is the auth, and Gmail/Yahoo POST to it
-// (List-Unsubscribe one-click) with no cookie — a 401 there breaks unsubscribe.
-// /api/receipts: the email queue fetches the PDF with no cookie; the route checks the
-// signed link, or the session owner/staff when there is no signature.
-// /api/refer-card: the referral promo image; link-preview crawlers fetch it with no cookie.
-// /api/analytics: the GA bootstrap script, loaded on every page including signed-out ones.
-const PUBLIC_API = ["/api/auth", "/api/captcha", "/api/cron", "/api/webhooks", "/api/unsubscribe", "/api/receipts", "/api/refer-card", "/api/analytics", "/api/meta/events", "/api/health", "/api/public"];
-// /api/public: the read-only public JSON API (lib/public-api); it only republishes what the public pages show.
 
 // Vuln scanners (.env, .git, next.config, IDE mcp files, …). 404 before org resolution / Next.
 // The pattern lives in lib/routing/probe-path.json, which cloudflare/worker.js also imports.
@@ -200,8 +188,8 @@ async function route(request: NextRequest): Promise<NextResponse> {
     // Preflight carries no cookies — answer before the session gate.
     if (request.method === "OPTIONS") return new NextResponse(null, { status: 204, headers: cors });
 
-    const isPublic = PUBLIC_API.some((p) => pathname === p || pathname.startsWith(`${p}/`));
-    if (!isPublic && !hasSession) {
+    // Which prefixes skip this gate, and why, lives in lib/routing/public-api.ts.
+    if (!isPublicApi(pathname) && !hasSession) {
       const res = unauthorized();
       cors.forEach((v, k) => res.headers.set(k, v));
       return res;

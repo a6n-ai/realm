@@ -12,7 +12,7 @@ const suggestSchema = z.object({ query: z.string().trim().min(1) });
 const SUGGEST_LIMIT = 60;
 const SUGGEST_WINDOW_MS = 60_000;
 
-// Public (unauthenticated), cheapest Places bucket. Never an error status —
+// Session-only (/api/address is not in PUBLIC_API, so the proxy 401s signed-out callers), cheapest Places bucket. Never an error status —
 // a throttled or empty result both degrade to an empty dropdown, not a toast.
 export const POST = handler(async (request: Request): Promise<Response> => {
   const ip = clientIp(request) ?? "unknown";

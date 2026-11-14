@@ -1,7 +1,8 @@
+import { orgScope, type Visible } from "@/lib/tenant/org-scope";
 import { ratePct } from "@/lib/money";
 import "server-only";
 import { cache } from "react";
-import { and, eq, gt, gte, inArray, isNotNull, isNull, lte, sql } from "drizzle-orm";
+import { and, eq, gt, gte, isNotNull, isNull, lte, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, orders, plans, users } from "@/db/schema";
 import { countBy, dailyLabelSheet, type KitchenCount } from "@/lib/menu/daily-labels.service";
@@ -15,7 +16,6 @@ import { getAppSettings } from "../services/app-settings.service";
 import { dayStartMs } from "../today/today.service";
 import { addDaysIso, DAY_MS } from "@foundry/commons/util/dates";
 
-type Visible = "all" | string[];
 
 export type OverviewDay = { date: string; revenue: number; orders: number; tiffins: number };
 export type OverviewSeries = {
@@ -107,7 +107,7 @@ export async function getKitchenWeek(visible: Visible, monday: string): Promise<
         isNull(deliveries.mergedIntoDeliveryId),
         gte(deliveries.deliveryDate, addDaysIso(monday, -7)),
         lte(deliveries.deliveryDate, addDaysIso(monday, 6)),
-        visible === "all" ? undefined : inArray(orders.organizationId, visible),
+        orgScope(orders.organizationId, visible),
       ),
     )
     .groupBy(plans.name, deliveries.deliveryDate);

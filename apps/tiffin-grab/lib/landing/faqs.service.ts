@@ -1,4 +1,5 @@
-import { and, asc, eq, inArray, isNull, or } from "drizzle-orm";
+import { orgScope, type Visible } from "@/lib/tenant/org-scope";
+import { and, asc, eq, isNull, or } from "drizzle-orm";
 import { UpdatableRepository } from "@foundry/database";
 import { db } from "@/db/client";
 import { publicFaqs } from "@/db/schema";
@@ -53,11 +54,11 @@ async function loadPublicFaqs(orgId: string | null): Promise<Faq[]> {
  * member orgs. Brand-shared rows (organizationId null) are always visible —
  * they're the fallback every org's public page reads when it has no override.
  */
-export async function listAllFaqs(visible: "all" | string[]): Promise<Faq[]> {
+export async function listAllFaqs(visible: Visible): Promise<Faq[]> {
   const rows = await db
     .select()
     .from(publicFaqs)
-    .where(visible === "all" ? undefined : or(isNull(publicFaqs.organizationId), inArray(publicFaqs.organizationId, visible)))
+    .where(visible === "all" ? undefined : visible.length ? or(isNull(publicFaqs.organizationId), orgScope(publicFaqs.organizationId, visible)) : orgScope(publicFaqs.organizationId, visible))
     .orderBy(asc(publicFaqs.sortOrder));
   return rows.map(rowToFaq);
 }

@@ -1,5 +1,4 @@
-import { withCronAuth } from "@/lib/cron/auth";
-import { runCronJob } from "@/lib/cron/run";
+import { cronJobRoute } from "@/lib/cron/route";
 
 // Nightly, right after pull-completions: closes every active plan that is over (no delivery
 // left from today on, no missed day still waiting for a make-up). Same fail-closed bearer
@@ -7,10 +6,4 @@ import { runCronJob } from "@/lib/cron/run";
 // Recorded in cron_runs (Settings → Scheduled jobs) via runCronJob.
 export const dynamic = "force-dynamic";
 
-const handle = withCronAuth(async () => {
-  const result = await runCronJob("complete-plans", "schedule");
-  return Response.json(result, { status: result.ok ? 200 : 500 });
-});
-
-export const GET = handle;
-export const POST = handle;
+export const { GET, POST } = cronJobRoute("complete-plans");

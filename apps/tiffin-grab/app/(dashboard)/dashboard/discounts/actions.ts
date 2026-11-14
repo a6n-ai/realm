@@ -1,7 +1,7 @@
 "use server";
 
-import { STAFF_ROLES } from "@/lib/roles";
-import { and, eq, inArray } from "drizzle-orm";
+import { activeStaffWhere } from "@/lib/staff/staff-roster";
+import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { ValidationError } from "@foundry/commons";
 import { parseInput, staffAction } from "@/lib/actions/staff-action";
@@ -211,7 +211,7 @@ export async function setRepCeiling(
     const [rep] = await db
       .select({ id: users.id })
       .from(users)
-      .where(and(eq(users.publicId, repPublicId), inArray(users.role, STAFF_ROLES), eq(users.isSystem, false)))
+      .where(and(eq(users.publicId, repPublicId), activeStaffWhere()))
       .limit(1);
     if (!rep) throw new ValidationError("Unknown staff member");
 

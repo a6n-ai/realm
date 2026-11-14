@@ -1,3 +1,4 @@
+import type { Visible } from "@/lib/tenant/org-scope";
 import Link from "next/link";
 import { inStatuses, PENDING } from "@/lib/payments/status";
 import { CalendarDaysIcon, CheckIcon, CircleAlertIcon, CreditCardIcon, LifeBuoyIcon, RefreshCwIcon, RouteIcon, type LucideIcon } from "lucide-react";
@@ -25,7 +26,7 @@ const go = (href: string, text: string) => (
   </Button>
 );
 
-export async function NeedsActionCard({ visible, today, seesAll, isAdmin }: { visible: "all" | string[]; today: string; seesAll: boolean; isAdmin: boolean }) {
+export async function NeedsActionCard({ visible, today, seesAll, isAdmin }: { visible: Visible; today: string; seesAll: boolean; isAdmin: boolean }) {
   const [c, [oldest]] = await Promise.all([getTodayCounts(visible, today), listReviewPayments(visible, 1)]);
   // Quick action: verify the oldest payment in place (same rule as the queue's Verify); the rest via the pill filter.
   const canVerifyOldest = oldest != null && oldest.method !== "stripe" && (inStatuses(PENDING, oldest.status));

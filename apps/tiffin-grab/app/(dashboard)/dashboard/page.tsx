@@ -1,3 +1,4 @@
+import type { Visible } from "@/lib/tenant/org-scope";
 import { isAdmin } from "@/lib/roles";
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
@@ -143,7 +144,7 @@ const QUEUE_SKELETON_COLUMNS = [
   { key: "action", label: "Action", align: "right" },
 ] as const;
 
-async function TodayQueueSection({ visible, today, now, activeType }: { visible: "all" | string[]; today: string; now: number; activeType: TodayKind | null }) {
+async function TodayQueueSection({ visible, today, now, activeType }: { visible: Visible; today: string; now: number; activeType: TodayKind | null }) {
   const [counts, queue] = await Promise.all([
     getTodayCounts(visible, today),
     getTodayQueue(visible, now, activeType ? [activeType] : undefined),

@@ -1,3 +1,4 @@
+import { orgScope } from "@/lib/tenant/org-scope";
 import { isCustomerRole } from "@/lib/roles";
 import { ratePct } from "@/lib/money";
 import { and, inArray, isNotNull, sql, type SQL } from "drizzle-orm";
@@ -6,7 +7,7 @@ import { couponRedemptions, coupons, inquiries, orderActivities, orders, tickets
 import { leadWhere as scopedLeadWhere } from "./leads.service";
 import { laterOrderSql } from "@/lib/orders/queries";
 import { revenueBy } from "./metrics/money";
-import { dateWhere, facetsWhere, ordersScope, intCount, noOrgs, orgWhere } from "./metrics/scope";
+import { dateWhere, facetsWhere, ordersScope, intCount, noOrgs } from "./metrics/scope";
 import { type AnalyticsScope } from "@/lib/analytics/scope-types";
 
 export type EmployeeRow = {
@@ -41,7 +42,7 @@ function ticketScope(scope: AnalyticsScope): SQL | undefined {
 // no plan / size / zone, so a facet keeps the coupons redeemed on an in-scope order.
 function couponScope(scope: AnalyticsScope): SQL | undefined {
   const parts: SQL[] = [];
-  const org = orgWhere(coupons.organizationId, scope.orgIds);
+  const org = orgScope(coupons.organizationId, scope.orgIds);
   if (org) parts.push(org);
   const facets = facetsWhere(scope);
   if (facets) {

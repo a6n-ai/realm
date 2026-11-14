@@ -1,7 +1,10 @@
+import type { Visible } from "@/lib/tenant/org-scope";
+
+
 export type AnalyticsScope = {
-  orgIds: "all" | string[];
+  orgIds: Visible;
   /** Every franchise the viewer may see; drill links omit `org` when the scope already covers all of them. */
-  visible: "all" | string[];
+  visible: Visible;
   fromMs: number;
   toMs: number;
   tz: string;

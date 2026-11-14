@@ -1,3 +1,4 @@
+import { orgScope, type Visible } from "@/lib/tenant/org-scope";
 import { pageOffset } from "@foundry/design-system/filters/parse-filter-state";
 import { and, asc, desc, eq, gte, ilike, inArray, isNotNull, isNull, like, lte, or, sql } from "drizzle-orm";
 import { UNPAID } from "@/lib/payments/status";
@@ -8,7 +9,7 @@ import { deliveries, ledgerEntries, mealSizes, messageSuppression, notificationO
 import { unexpired } from "@foundry/wallet";
 import { renewalQueueFilter, type DateBy, type PlanType, type RenewalRange, type RenewalsFilter, type TrackFilter } from "@/lib/renewals/filters";
 import { UNASSIGNED_OWNER } from "@/lib/list/presets";
-import { lastTiffinSql, renewalStatusSql, visibleOrgWhere, type RenewalStatus } from "@/lib/orders/queries";
+import { lastTiffinSql, renewalStatusSql, type RenewalStatus } from "@/lib/orders/queries";
 import { addDaysIso, DAY_MS, daysBetween } from "@foundry/commons/util/dates";
 import { computedStatusSql, effectiveTrackStatusSql, followUpWhere, getTrackRows, laterBookedAtSql, latestTrackActivities, listTrackActivities, type TrackActivity, type TrackRow } from "./renewal-tracking.service";
 import type { TrackStatus } from "@/lib/renewals/status";
@@ -108,11 +109,11 @@ const renewWindowWhere = (today: string) => and(sql`${computedStatusSql} = 'none
  * Due / overdue / upcoming and To renew are their own lists: the top date range and the Ending / Ended windows do not narrow them.
  * "none" (no follow-up) is a plain filter on the range and windows, like any other.
  */
-export function renewalsWhere(visible: "all" | string[], f: RenewalsFilter, today: string, range: RenewalRange, day: DayBounds) {
+export function renewalsWhere(visible: Visible, f: RenewalsFilter, today: string, range: RenewalRange, day: DayBounds) {
   const dayView = f.followUp && f.followUp !== "none" ? f.followUp : null;
   return and(
     typeWhere(f.type),
-    visibleOrgWhere(visible),
+    orgScope(orders.organizationId, visible),
     runningOrDone,
     dayView
       ? followUpWhere(dayView, day.dayStart, day.dayEnd)
@@ -202,7 +203,7 @@ export async function hydrateRenewalRows(
 
 /** Plans that ran (running or finished) in the top date range, narrowed by the optional Ending / Ended windows, Status and search. */
 export async function listRenewals(
-  visible: "all" | string[],
+  visible: Visible,
   f: RenewalsFilter,
   today: string,
   page: PageRequest,
@@ -237,7 +238,7 @@ export async function listRenewals(
 }
 
 /** Full (unpaginated) matching set for the Excel export — same filters as the on-screen list. */
-export async function listRenewalsForExport(visible: "all" | string[], f: RenewalsFilter, today: string, range: RenewalRange, day: DayBounds): Promise<RenewalRow[]> {
+export async function listRenewalsForExport(visible: Visible, f: RenewalsFilter, today: string, range: RenewalRange, day: DayBounds): Promise<RenewalRow[]> {
   if (visible !== "all" && visible.length === 0) return [];
   const where = renewalsWhere(visible, f, today, range, day);
   const rows = await db
@@ -253,7 +254,7 @@ export async function listRenewalsForExport(visible: "all" | string[], f: Renewa
 }
 
 /** The five cards: plans in the top date range, split by where their renewal stands. */
-export async function countRenewals(visible: "all" | string[], type: PlanType | null, today: string, range: RenewalRange): Promise<RenewalCounts> {
+export async function countRenewals(visible: Visible, type: PlanType | null, today: string, range: RenewalRange): Promise<RenewalCounts> {
   if (visible !== "all" && visible.length === 0) return { plans: 0, renewed: 0, renewedNotPaid: 0, notRenewed: 0, lapsed: 0 };
   const status = computedStatusSql;
   const [r] = await db
@@ -265,13 +266,13 @@ export async function countRenewals(visible: "all" | string[], type: PlanType | 
       lapsed: sql<number>`cast(count(*) filter (where ${status} = 'none' and ${lastTiffinSql} < ${today}) as int)`,
     })
     .from(orders)
-    .where(and(typeWhere(type), visibleOrgWhere(visible), runningOrDone, rangeWhere(range)));
+    .where(and(typeWhere(type), orgScope(orders.organizationId, visible), runningOrDone, rangeWhere(range)));
   return r;
 }
 
 export type TrackQueueCounts = { renew: number; due: number; overdue: number; upcoming: number; open: number; closed: number };
 /** The Inquiries Renewals queues: the follow-up lists ignore the top range (as listRenewals does), Open and Closed use it. */
-export async function countTrackQueues(visible: "all" | string[], filter: RenewalsFilter, today: string, range: RenewalRange, day: DayBounds): Promise<TrackQueueCounts> {
+export async function countTrackQueues(visible: Visible, filter: RenewalsFilter, today: string, range: RenewalRange, day: DayBounds): Promise<TrackQueueCounts> {
   if (visible !== "all" && visible.length === 0) return { renew: 0, due: 0, overdue: 0, upcoming: 0, open: 0, closed: 0 };
   const base = { ...filter, type: null, ending: null, ended: null, status: null, renewed: null };
   const countWhere = (f: RenewalsFilter) =>
@@ -315,7 +316,7 @@ export type RenewedCustomerRow = {
 
 type RenewedCustomersOpts = { renewedWithin: number | null; q: string; from?: number | null; to?: number | null; now?: number };
 
-function renewedCustomersGrouped(visible: "all" | string[], opts: RenewedCustomersOpts) {
+function renewedCustomersGrouped(visible: Visible, opts: RenewedCustomersOpts) {
   const renewals = sql<number>`cast(count(*) filter (where ${notCancelled} and ${isRenewalSql}) as int)`;
   const lastRenewedAt = sql<number>`max(${orders.createdAt}) filter (where ${notCancelled} and ${isRenewalSql})`;
   const since = opts.renewedWithin != null ? (opts.now ?? Date.now()) - opts.renewedWithin * DAY_MS : null;
@@ -331,7 +332,7 @@ function renewedCustomersGrouped(visible: "all" | string[], opts: RenewedCustome
     })
     .from(orders)
     .innerJoin(users, eq(orders.userId, users.id))
-    .where(and(visibleOrgWhere(visible), opts.q ? and(...opts.q.split(" ").map((w) => or(ilike(users.name, `%${w}%`), ilike(users.phone, `%${w}%`), ilike(users.email, `%${w}%`)))) : undefined))
+    .where(and(orgScope(orders.organizationId, visible), opts.q ? and(...opts.q.split(" ").map((w) => or(ilike(users.name, `%${w}%`), ilike(users.phone, `%${w}%`), ilike(users.email, `%${w}%`)))) : undefined))
     .groupBy(users.id)
     .having(and(
       sql`${renewals} > 0`,
@@ -343,7 +344,7 @@ function renewedCustomersGrouped(visible: "all" | string[], opts: RenewedCustome
 }
 
 async function hydrateRenewedCustomers(
-  visible: "all" | string[],
+  visible: Visible,
   rows: { userId: bigint; customerPublicId: string; customerName: string; phone: string | null; plans: number; renewals: number; lastRenewedAt: number }[],
 ): Promise<RenewedCustomerRow[]> {
   const userIds = rows.map((r) => r.userId);
@@ -353,7 +354,7 @@ async function hydrateRenewedCustomers(
           .select({ userId: orders.userId, mealSize: mealSizes.name, lastTiffin: sql<string | null>`${lastTiffinSql}` })
           .from(orders)
           .innerJoin(mealSizes, eq(orders.mealSizeId, mealSizes.id))
-          .where(and(inArray(orders.userId, userIds), running, visibleOrgWhere(visible)))
+          .where(and(inArray(orders.userId, userIds), running, orgScope(orders.organizationId, visible)))
           .orderBy(desc(orders.startDate))
       : Promise.resolve([]),
     renewalMoney(rows.map((r) => ({ id: r.userId, userId: r.userId }))),
@@ -375,7 +376,7 @@ async function hydrateRenewedCustomers(
 
 /** Every customer with at least one renewal, newest renewal first; `renewedWithin` keeps those who renewed in the last N days. */
 export async function listRenewedCustomers(
-  visible: "all" | string[],
+  visible: Visible,
   /** `from`/`to`: epoch-ms bounds on the last renewal's order date (the date facet). */
   opts: RenewedCustomersOpts,
   page: PageRequest,
@@ -392,7 +393,7 @@ export async function listRenewedCustomers(
 }
 
 /** Full (unpaginated) matching set for the Excel export — same filters as the on-screen list. */
-export async function listRenewedCustomersForExport(visible: "all" | string[], opts: RenewedCustomersOpts): Promise<RenewedCustomerRow[]> {
+export async function listRenewedCustomersForExport(visible: Visible, opts: RenewedCustomersOpts): Promise<RenewedCustomerRow[]> {
   if (visible !== "all" && visible.length === 0) return [];
   const grouped = renewedCustomersGrouped(visible, opts);
   const rows = await db.select().from(grouped).orderBy(desc(grouped.lastRenewedAt), asc(grouped.userId));
@@ -482,7 +483,7 @@ export function reminderDelivery(status: string, deliveredAt: number | null, sen
 }
 
 /** Everything about one customer's renewals, limited to plans in the staff member's organizations; null when none are visible. */
-export async function getCustomerRenewal(visible: "all" | string[], customerPublicId: string): Promise<CustomerRenewal | null> {
+export async function getCustomerRenewal(visible: Visible, customerPublicId: string): Promise<CustomerRenewal | null> {
   if (visible !== "all" && visible.length === 0) return null;
   const [user] = await db
     .select({ id: users.id, publicId: users.publicId, name: users.name, phone: users.phone, email: users.email })
@@ -507,7 +508,7 @@ export async function getCustomerRenewal(visible: "all" | string[], customerPubl
     })
     .from(orders)
     .innerJoin(mealSizes, eq(orders.mealSizeId, mealSizes.id))
-    .where(and(eq(orders.userId, user.id), notCancelled, visibleOrgWhere(visible)))
+    .where(and(eq(orders.userId, user.id), notCancelled, orgScope(orders.organizationId, visible)))
     .orderBy(asc(orders.startDate), asc(orders.id));
   if (rows.length === 0) return null;
 

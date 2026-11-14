@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
-import { handler, problem } from "@foundry/routes";
+import { problem } from "@foundry/routes";
 import { appendUnsubscribeFooter, buildUnsubscribeUrl } from "@relay/engine";
-import { requireAdmin } from "@/lib/auth/guards";
+import { adminRoute } from "@/lib/notifications/admin-route";
 import { db } from "@/db/client";
 import { users } from "@/db/schema";
 import { getSession } from "@/lib/auth/session";
@@ -14,8 +14,7 @@ import { campaignConfig } from "@/lib/notifications/campaign-config";
  * (EmailTemplateBuilder); `marketing` (campaigns) sends it the way a real
  * campaign goes out: campaign From address plus the CASL footer.
  */
-export const POST = handler(async (req: Request): Promise<Response> => {
-  await requireAdmin();
+export const POST = adminRoute(async (req) => {
   const { subject, html, text, to, marketing } = await req.json();
 
   const publicId = (await getSession())?.user?.id;
@@ -52,5 +51,5 @@ export const POST = handler(async (req: Request): Promise<Response> => {
     html: stamped.html,
     text: stamped.text,
   });
-  return Response.json({ sent: true, footerIncluded: !!config });
+  return { sent: true, footerIncluded: !!config };
 });

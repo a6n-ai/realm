@@ -1,3 +1,4 @@
+import type { Visible } from "@/lib/tenant/org-scope";
 import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, orderActivities, orders } from "@/db/schema";
@@ -214,7 +215,7 @@ export function assembleLedger(input: {
  * `visible` limits the board to the viewer's franchises: their deliveries, and OptimoRoute stops that
  * name one of them. Stops naming no delivery of ours ("Not ours") show only to a viewer who sees every franchise.
  */
-export async function buildDayLedger(date: string, today: string, visible: "all" | string[]): Promise<DayLedger> {
+export async function buildDayLedger(date: string, today: string, visible: Visible): Promise<DayLedger> {
   const sees = (org: string | null) => visible === "all" || (org != null && visible.includes(org));
   const dayRows = (await loadDayDeliveries(date, STATUS_DAY_STATUSES)).filter((r) => sees(r.order.organizationId));
   const ids = dayRows.map((r) => r.delivery.id);

@@ -10,14 +10,18 @@ import { zonedDateIso } from "@foundry/commons";
 import { db } from "@/db/client";
 import { cronRuns, users } from "@/db/schema";
 import { getAppSettings } from "@/lib/services/app-settings.service";
-import type { CronJobKey } from "./jobs";
+import type { SyncMode } from "@/lib/optimoroute/sync";
+import { CRON_JOBS, type CronJobKey } from "./jobs";
 
 const log = createLogger("cron");
 
 type Summary = Record<string, number | string | null>;
 
 /** `date` (YYYY-MM-DD) narrows a date-scoped job to that one day; only Run now passes it. */
-type RunOptions = { date?: string; mode?: "push" | "pull"; actorId: bigint | null };
+type RunOptions = RunInput & { actorId: bigint | null };
+
+/** `days` is the cron route's look-ahead (today + 1..days); `date` wins when both are set. */
+export type RunInput = { date?: string; mode?: SyncMode; days?: number };
 
 /** What each runnable job does. Both the cron routes and Settings → Run now go through here. */
 const RUNNERS: Partial<Record<CronJobKey, (opts: RunOptions) => Promise<Summary>>> = {
@@ -55,17 +59,26 @@ const RUNNERS: Partial<Record<CronJobKey, (opts: RunOptions) => Promise<Summary>
     }
     return { ...pauses, ...(await completeFinishedOrders()) };
   },
-  "optimoroute-sync": async ({ date, mode = "push" }): Promise<Summary> => {
+  "optimoroute-sync": async ({ date, mode = "push", days = 1 }): Promise<Summary> => {
     const { runScheduledSync, syncDates } = await import("@/lib/optimoroute/sync");
     const { timezone } = await getAppSettings();
-    const day = date ?? syncDates(appTodayIso(timezone), 1)[0]!;
-    const r = await runScheduledSync({ mode, dates: [day] });
+    const dates = date ? [date] : syncDates(appTodayIso(timezone), days);
+    const r = await runScheduledSync({ mode, dates });
     if (!r.ran) throw new Error(`Not run: ${r.skipped}`);
-    const d = r.days[0]!;
-    if (d.error) throw new Error(d.error);
-    return d.push
-      ? { mode, date: day, pushed: d.push.pushed, failed: d.push.failed, stale: d.push.staleCount }
-      : { mode, date: day, matched: d.pull?.matched ?? 0, cleared: d.pull?.cleared ?? 0 };
+    const errors = r.days.filter((d) => d.error);
+    // One bad date must not hide the rest: fail only when every date failed.
+    if (errors.length === r.days.length) throw new Error(errors[0]!.error);
+    const total = (pick: (d: (typeof r.days)[number]) => number | undefined) => r.days.reduce((n, d) => n + (pick(d) ?? 0), 0);
+    return {
+      mode,
+      dates: dates.join(", "),
+      pushed: total((d) => d.push?.pushed),
+      failed: total((d) => d.push?.failed),
+      stale: total((d) => d.push?.staleCount),
+      matched: total((d) => d.pull?.matched),
+      cleared: total((d) => d.pull?.cleared),
+      errors: errors.length,
+    };
   },
   "renewal-reminders": async () => {
     const { sendRenewalReminders } = await import("@/lib/notifications/renewal-reminder");
@@ -80,6 +93,14 @@ const RUNNERS: Partial<Record<CronJobKey, (opts: RunOptions) => Promise<Summary>
     const r = await runSiteRefresh();
     return { revalidated: r.revalidated ? "yes" : "no", followUp: r.followUp ? "yes" : "no", nextAt: r.nextAt };
   },
+  "review-nudge": async () => {
+    const { runReviewNudges } = await import("@/lib/notifications/review-nudge-job");
+    return runReviewNudges();
+  },
+  "mint-rep-coupons": async () => {
+    const { mintRepCoupons } = await import("@/lib/coupons/mint-rep-coupons");
+    return { ...(await mintRepCoupons()) };
+  },
   notifications: async () => {
     const { drainPending, materializeDue } = await import("@/lib/notifications/drain");
     const materialized = await materializeDue();
@@ -89,7 +110,8 @@ const RUNNERS: Partial<Record<CronJobKey, (opts: RunOptions) => Promise<Summary>
 };
 
 export function isRunnable(job: string): job is CronJobKey {
-  return job in RUNNERS;
+  // review-nudge and mint-rep-coupons run on a schedule only: no Run now.
+  return job in RUNNERS && !!CRON_JOBS.find((j) => j.key === job)?.runnable;
 }
 
 /** Runs a job and records it in cron_runs. Never throws: the result says ok or not. */
@@ -97,7 +119,7 @@ export async function runCronJob(
   job: CronJobKey,
   trigger: "schedule" | "manual",
   actorId: bigint | null = null,
-  input: { date?: string; mode?: "push" | "pull" } = {},
+  input: RunInput = {},
 ) {
   const runner = RUNNERS[job];
   if (!runner) return { ok: false as const, error: `${job} can't be run here` };

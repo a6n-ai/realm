@@ -12,6 +12,7 @@ import {
 } from "@foundry/ui/form";
 import { Input } from "@foundry/ui/input";
 import { updateMyProfile } from "@/lib/account/actions";
+import { unwrapAction } from "@/lib/actions/unwrap";
 
 const profileFormSchema = z.object({
   name: z.string().max(120, "Name is too long"),
@@ -33,7 +34,7 @@ export function ProfileForm({ name, username }: { name: string; username: string
 
   async function onSubmit(values: ProfileFormValues) {
     try {
-      await updateMyProfile({ name: values.name, username: values.username });
+      await unwrapAction(updateMyProfile({ name: values.name, username: values.username }));
       toast.success("Profile updated.");
       form.reset(values);
       router.refresh();

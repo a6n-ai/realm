@@ -1,3 +1,4 @@
+import { orgScope, type Visible } from "@/lib/tenant/org-scope";
 import { ONGOING, RUNNING, RUNNING_OR_DONE } from "@/lib/orders/status";
 import { orderStatusIn } from "@/lib/orders/status-sql";
 import { zonedDateIso } from "@foundry/commons";
@@ -7,7 +8,7 @@ import { deliveries, orderActivities, orders, payments } from "@/db/schema";
 import { getAppSettings } from "../services/app-settings.service";
 import { PENDING } from "@/lib/payments/status";
 import { paymentStatusIn } from "@/lib/payments/status-sql";
-import { freeTiffinsWhere, lastTiffinSql, laterOrderSql, paymentReviewWhere, visibleOrgWhere, type FreeTiffinRange } from "@/lib/orders/queries";
+import { freeTiffinsWhere, lastTiffinSql, laterOrderSql, paymentReviewWhere, type FreeTiffinRange } from "@/lib/orders/queries";
 import { addDaysIso, DAY_MS } from "@foundry/commons/util/dates";
 import { requestNow } from "@/lib/dates/request-now";
 import { BOOKED, STARTING_SOON } from "@/lib/orders/status";
@@ -26,11 +27,11 @@ const n = (v: unknown) => Number(v ?? 0);
  * Header cards for the Orders page. Period figures cover [from, to] (epoch ms, inclusive) and
  * compare against the same-length window just before it; "now" figures ignore the range.
  */
-export async function getOrdersOverview(range: { from: number; to: number }, visible: "all" | string[]): Promise<OrdersOverview> {
+export async function getOrdersOverview(range: { from: number; to: number }, visible: Visible): Promise<OrdersOverview> {
   const { timezone } = await getAppSettings();
   const len = range.to - range.from + 1;
   const prev = { from: range.from - len, to: range.from - 1 };
-  const inOrgs: SQL | undefined = visible === "all" ? undefined : inArray(orders.organizationId, visible.length ? visible : ["-"]);
+  const inOrgs: SQL | undefined = orgScope(orders.organizationId, visible);
   const between = (col: SQL | AnyColumn, r: { from: number; to: number }) => sql`${col} between ${r.from} and ${r.to}`;
 
   const today = zonedDateIso(requestNow(), timezone);
@@ -111,12 +112,12 @@ export async function getOrdersOverview(range: { from: number; to: number }, vis
 // Same threshold as the Payments page overdue queue (lib/payments/payments-list.service.ts OVERDUE_DAYS).
 export const OVERDUE_DAYS = 3;
 
-const hidden = (visible: "all" | string[]) => visible !== "all" && visible.length === 0;
+const hidden = (visible: Visible) => visible !== "all" && visible.length === 0;
 
 export type LookOutStats = { flagged: number; running: number; unpaid: number; inRange: number };
 
 /** Look out for cards: the flagged set ignores dates, only the last card follows the range (epoch ms). */
-export async function getLookOutStats(visible: "all" | string[], range: { from: number; to: number }): Promise<LookOutStats> {
+export async function getLookOutStats(visible: Visible, range: { from: number; to: number }): Promise<LookOutStats> {
   if (hidden(visible)) return { flagged: 0, running: 0, unpaid: 0, inRange: 0 };
   const [r] = await db
     .select({
@@ -126,14 +127,14 @@ export async function getLookOutStats(visible: "all" | string[], range: { from: 
       inRange: sql<number>`cast(count(*) filter (where ${orders.lookOutAt} between ${range.from} and ${range.to}) as int)`,
     })
     .from(orders)
-    .where(and(isNotNull(orders.lookOutAt), visibleOrgWhere(visible)));
+    .where(and(isNotNull(orders.lookOutAt), orgScope(orders.organizationId, visible)));
   return r ?? { flagged: 0, running: 0, unpaid: 0, inRange: 0 };
 }
 
 export type PaymentReviewStats = { owed: number; needsReview: number; overdue: number };
 
 /** Payment review cards: same rows as the tab (review-status payments on open orders), all dates. */
-export async function getPaymentReviewStats(visible: "all" | string[]): Promise<PaymentReviewStats> {
+export async function getPaymentReviewStats(visible: Visible): Promise<PaymentReviewStats> {
   if (hidden(visible)) return { owed: 0, needsReview: 0, overdue: 0 };
   const overdueBefore = requestNow() - OVERDUE_DAYS * DAY_MS;
   const [r] = await db
@@ -148,7 +149,7 @@ export async function getPaymentReviewStats(visible: "all" | string[]): Promise<
       orderStatusIn(ONGOING),
       isNull(payments.addonRequest),
       paymentStatusIn(PENDING),
-      visibleOrgWhere(visible),
+      orgScope(orders.organizationId, visible),
     ));
   return { owed: n(r?.owed), needsReview: n(r?.needsReview), overdue: n(r?.overdue) };
 }
@@ -156,7 +157,7 @@ export async function getPaymentReviewStats(visible: "all" | string[]): Promise<
 export type FreeTiffinStats = { delivered: number; toDeliver: number };
 
 /** Free tiffin cards: delivered follows the range (already capped at today); to-deliver is every later scheduled one. */
-export async function getFreeTiffinStats(visible: "all" | string[], range: FreeTiffinRange, today: string): Promise<FreeTiffinStats> {
+export async function getFreeTiffinStats(visible: Visible, range: FreeTiffinRange, today: string): Promise<FreeTiffinStats> {
   if (hidden(visible)) return { delivered: 0, toDeliver: 0 };
   const [r] = await db
     .select({
@@ -165,6 +166,6 @@ export async function getFreeTiffinStats(visible: "all" | string[], range: FreeT
     })
     .from(deliveries)
     .innerJoin(orders, sql`${orders.id} = ${deliveries.orderId}`)
-    .where(and(freeTiffinsWhere(), isNotNull(deliveries.complimentaryNote), sql`${deliveries.status} = 'scheduled'`, visibleOrgWhere(visible)));
+    .where(and(freeTiffinsWhere(), isNotNull(deliveries.complimentaryNote), sql`${deliveries.status} = 'scheduled'`, orgScope(orders.organizationId, visible)));
   return { delivered: n(r?.delivered), toDeliver: n(r?.toDeliver) };
 }

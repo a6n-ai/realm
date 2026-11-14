@@ -1,3 +1,4 @@
+import { orgScope, type Visible } from "@/lib/tenant/org-scope";
 import { MOVED_AWAY } from "@/lib/deliveries/row-state";
 import { appTodayIso } from "@/lib/dates/today";
 import { isCutoffPassed } from "@/lib/dates/cutoff";
@@ -26,7 +27,6 @@ const log = createLogger("holidays.service");
 const sources = alias(deliveries, "holiday_sources");
 const NAME_MAX = 60;
 
-type Visible = "all" | string[];
 type Holiday = typeof holidays.$inferSelect;
 type Order = typeof orders.$inferSelect;
 
@@ -62,7 +62,7 @@ async function assertOrgVisible(organizationId: string, visible: Visible): Promi
   if (!found) throw new NotFoundError("Organization not found");
 }
 
-const scope = (visible: Visible) => (visible === "all" ? undefined : inArray(holidays.organizationId, visible));
+const scope = (visible: Visible) => (orgScope(holidays.organizationId, visible));
 const sees = (visible: Visible) => visible === "all" || visible.length > 0;
 
 async function today(): Promise<string> {
@@ -422,7 +422,7 @@ export async function listNeedsPlacing(visible: Visible): Promise<NeedsPlacingRo
 export async function listDeclarableOrganizations(visible: Visible): Promise<{ id: string; name: string }[]> {
   if (!sees(visible)) return [];
   return db.select({ id: organization.id, name: organization.name }).from(organization)
-    .where(visible === "all" ? undefined : inArray(organization.id, visible))
+    .where(orgScope(organization.id, visible))
     .orderBy(sql`${organization.parentOrganizationId} is not null`, asc(organization.name));
 }
 

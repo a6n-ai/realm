@@ -1,5 +1,6 @@
+import { activeStaffWhere } from "@/lib/staff/staff-roster";
 import { Suspense } from "react";
-import { and, eq, ne } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { UsersIcon } from "lucide-react";
 import { Card } from "@foundry/ui/card";
 import { Separator } from "@foundry/ui/separator";
@@ -85,7 +86,7 @@ async function OwnerAssignmentData({ searchParams }: { searchParams: SearchParam
     db
       .select({ userId: users.id, publicId: users.publicId, name: users.name })
       .from(users)
-      .where(and(ne(users.role, "user"), eq(users.isSystem, false))),
+      .where(activeStaffWhere()),
     listConfig("inquiry"),
     listConfig("order"),
     listConfig("ticket"),

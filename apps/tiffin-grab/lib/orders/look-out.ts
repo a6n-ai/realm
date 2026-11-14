@@ -1,4 +1,5 @@
-import { and, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
+import { orgScope, type Visible } from "@/lib/tenant/org-scope";
+import { and, eq, isNotNull, isNull, sql } from "drizzle-orm";
 import { NotFoundError, ValidationError } from "@foundry/commons";
 import { db, type Tx } from "@/db/client";
 import { orderActivities, orders, tickets } from "@/db/schema";
@@ -80,11 +81,11 @@ export async function clearTicketLookOut(orderId: bigint): Promise<void> {
 }
 
 /** Flagged orders the caller can see, for the Orders tab badge. */
-export async function countLookOutOrders(visible: "all" | string[]): Promise<number> {
+export async function countLookOutOrders(visible: Visible): Promise<number> {
   if (visible !== "all" && visible.length === 0) return 0;
   const [{ count }] = await db
     .select({ count: sql<number>`cast(count(*) as int)` })
     .from(orders)
-    .where(and(isNotNull(orders.lookOutAt), visible === "all" ? undefined : inArray(orders.organizationId, visible)));
+    .where(and(isNotNull(orders.lookOutAt), orgScope(orders.organizationId, visible)));
   return count;
 }

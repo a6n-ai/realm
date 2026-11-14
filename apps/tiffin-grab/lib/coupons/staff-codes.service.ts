@@ -1,9 +1,9 @@
+import { activeStaffWhere } from "@/lib/staff/staff-roster";
 import { and, eq, exists, ilike, inArray, or, sql, type SQL } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { pageOrder } from "@foundry/database";
 import { db } from "@/db/client";
 import { couponRedemptions, coupons, orders, users } from "@/db/schema";
-import { STAFF_ROLES } from "@/lib/roles";
 import { couponExpiredSql, couponLiveSql } from "@/lib/coupons/status-sql";
 import { epochBoundsWhere } from "@/lib/list/default-month";
 import type { SortState } from "@foundry/design-system/list-sort";
@@ -41,7 +41,7 @@ export async function listCodeIssuers() {
   return db
     .select({ publicId: users.publicId, name: users.name, email: users.email })
     .from(users)
-    .where(and(inArray(users.role, STAFF_ROLES), eq(users.isSystem, false)))
+    .where(activeStaffWhere())
     .orderBy(users.name);
 }
 
