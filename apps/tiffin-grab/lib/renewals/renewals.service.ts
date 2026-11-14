@@ -137,7 +137,9 @@ export function renewalsWhere(visible: Visible, f: RenewalsFilter, today: string
 function ownerWhere(owner: string) {
   return owner === UNASSIGNED_OWNER
     ? isNull(orders.currentOwner)
-    : inArray(orders.currentOwner, db.select({ id: users.id }).from(users).where(eq(users.publicId, owner)));
+    // A scalar lookup the planner runs once, not an IN semi-join: inside the large renewal-status expressions the
+    // semi-join multiplied planning time (2-17 s in prod).
+    : sql`${orders.currentOwner} = (select ${users.id} from ${users} where ${users.publicId} = ${owner})`;
 }
 
 export const renewalSelect = {
