@@ -274,7 +274,14 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
    * A lost row reopens unless the person has a running plan; a converted row never reopens — they are a
    * customer, and their next order is a renewal round.
    */
-  async createOrFold(values: Record<string, unknown>): Promise<{ inquiry: typeof inquiries.$inferSelect; folded: boolean; outcome: FoldOutcome }> {
+  /**
+   * `values` may come straight from a client (REST, server actions); `opts` is server-only — the import's
+   * historical date and source details — so a caller can never back-date a lead or forge activity details.
+   */
+  async createOrFold(
+    values: Record<string, unknown>,
+    opts: { createdAt?: number; details?: Record<string, unknown> } = {},
+  ): Promise<{ inquiry: typeof inquiries.$inferSelect; folded: boolean; outcome: FoldOutcome }> {
     const clean = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : null);
     let fullName = clean(values.fullName);
     // WhatsApp-only contact: that number is their phone (keeps the phone unique index and dedup working).
@@ -293,8 +300,9 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
       subStatus: rawSub,
       whatsappPhone: _wa,
       metaLeadId: rawMetaLeadId,
-      details: rawDetails,
-      createdAt: rawCreatedAt,
+      // Stripped and ignored: only `opts` may set these.
+      details: _clientDetails,
+      createdAt: _clientCreatedAt,
       ...rest
     } = values as {
       sourceKey: string;
@@ -316,7 +324,8 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
     if (rawMetaLeadId != null && rawMetaLeadId !== "" && !metaLeadId) {
       throw new ValidationError("Meta lead id must be the 15–17 digit Instant Forms lead id");
     }
-    const sourceDetails = { source: sourceKey, ...(subSourceKey ? { subSource: subSourceKey } : {}), ...(rawDetails ?? {}) };
+    const sourceDetails = { source: sourceKey, ...(subSourceKey ? { subSource: subSourceKey } : {}), ...(opts.details ?? {}) };
+    const rawCreatedAt = opts.createdAt;
 
     const fold = async (existing: typeof inquiries.$inferSelect, conflictWith: typeof inquiries.$inferSelect | null) => {
       let current = existing;

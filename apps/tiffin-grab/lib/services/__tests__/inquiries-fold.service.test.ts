@@ -99,7 +99,7 @@ describe("createOrFold match branches", () => {
 
   it("stores details on the reinquiry activity, never on the row", async () => {
     const open = await insertTestInquiry({ phone: "+16475551208" });
-    await inquiriesService.createOrFold({ phone: "+16475551208", sourceKey: "website", details: { source: "waitlist" } });
+    await inquiriesService.createOrFold({ phone: "+16475551208", sourceKey: "website" }, { details: { source: "waitlist" } });
     const [reinq] = (await acts(open.id)).filter((a) => a.type === "reinquiry");
     expect(reinq.details).toMatchObject({ source: "waitlist" });
     const reinqCount = await db.select().from(inquiryActivities).where(and(eq(inquiryActivities.inquiryId, open.id), eq(inquiryActivities.type, "reinquiry")));
@@ -115,6 +115,16 @@ describe("createOrFold match branches", () => {
     expect((await row(lost.id)).stage).toBe("lost");
     const conflicts = (await acts(lost.id)).filter((a) => a.type === "match_conflict");
     expect(conflicts[0]?.details).toMatchObject({ conflictWith: open.publicId });
+  });
+
+  it("review: createdAt and details in client values are ignored; only trusted opts set them", async () => {
+    const r = await inquiriesService.createOrFold({ phone: "+16475551230", fullName: "Client", sourceKey: "website", createdAt: 5, details: { origin: "backfill" } });
+    expect((await row(r.inquiry.id)).createdAt).not.toBe(5);
+    const [created] = await acts(r.inquiry.id);
+    expect(created.details).toMatchObject({ origin: "lead" });
+    const t = await inquiriesService.createOrFold({ phone: "+16475551231", fullName: "Import", sourceKey: "website" }, { createdAt: 7, details: { source: "waitlist" } });
+    expect((await row(t.inquiry.id)).createdAt).toBe(7);
+    expect((await acts(t.inquiry.id))[0].details).toMatchObject({ source: "waitlist" });
   });
 });
 

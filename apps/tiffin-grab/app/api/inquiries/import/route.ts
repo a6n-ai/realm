@@ -162,8 +162,7 @@ export const POST = handler(async (request: Request): Promise<Response> => {
         notes,
         // Managed field: createOrFold applies it after insert, only for a new row — the sanctioned
         // bypass of stripManaged so imported history keeps its original date.
-        createdAt: dateMs,
-      });
+      }, { createdAt: dateMs });
       const publicId = inquiry.publicId;
 
       const rawStage = cell(row, mapping.stage);

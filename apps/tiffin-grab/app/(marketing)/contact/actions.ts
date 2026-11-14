@@ -53,8 +53,7 @@ export async function createWebsiteInquiry(input: ContactInput, opts?: { details
     sourceKey: "website",
     postalCode: input.postalCode?.trim() || undefined,
     notes: input.message?.trim() || null,
-    details: { source: opts?.detailsSource ?? "website" },
-  });
+  }, { details: { source: opts?.detailsSource ?? "website" } });
   // A repeat contact is the same lead: a second Lead event would double-count it at Meta and Google.
   if (outcome === "folded") return { ok: true, waitlisted };
 
