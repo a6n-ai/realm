@@ -6,7 +6,7 @@ import { ValidationError } from "@foundry/commons";
 import { db } from "@/db/client";
 import { dishCategories, dishes, mealSizeItems, mealSizes, menuDaySides, menuSideDefaults, menuWeeks } from "@/db/schema";
 import { currentUserId } from "@/lib/services/session-service";
-import type { DayOfWeek } from "@/lib/menu/delivery-days";
+import type { DayOfWeek } from "@/lib/deliveries/schedule/delivery-days";
 import type { MealItemRole } from "@/lib/menu/side-rules";
 
 export type SideRole = Exclude<MealItemRole, "main">;

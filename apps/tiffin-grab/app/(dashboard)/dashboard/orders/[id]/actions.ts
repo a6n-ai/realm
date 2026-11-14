@@ -17,7 +17,7 @@ import { adminSetDeliveryStatus, grantComplimentaryTiffin, isAdminDeliveryStatus
 import { pushOneDelivery, removeOneDelivery } from "@/lib/optimoroute/push";
 import { ActionResult } from "@/lib/actions/action-result";
 import { orderAction } from "@/lib/actions/order-action";
-import { DayOfWeek } from "@/lib/menu/delivery-days";
+import { DayOfWeek } from "@/lib/deliveries/schedule/delivery-days";
 
 // Staff of one organization must not act on another's order: every action goes through
 // assertOrderAccess / orderAction, which check the order (or the order behind the delivery or

@@ -1,5 +1,5 @@
 import { MEAL_ITEM_ROLES, MEAL_TIERS, PLAN_TYPES } from "@/db/schema/enums";
-import { WEEK_DAYS } from "@/lib/menu/delivery-days";
+import { WEEK_DAYS } from "@/lib/deliveries/schedule/delivery-days";
 import { z } from "zod";
 import { CATEGORY_ICONS, CATEGORY_ICON_LABELS } from "@/lib/catalog/category-icons";
 import { DAY_NAME } from "@/lib/dates/weekdays";

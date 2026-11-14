@@ -4,7 +4,7 @@ import { useFormatMoney } from "@/components/app-currency";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, Calculator, Hand } from "lucide-react";
-import { planWeek, type DayOfWeek, MON_FRI } from "@/lib/menu/delivery-days";
+import { planWeek, type DayOfWeek, MON_FRI } from "@/lib/deliveries/schedule/delivery-days";
 import { consentMoment } from "@/components/consent/cookie-consent";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
 import { round2 } from "@foundry/commons/util/money";

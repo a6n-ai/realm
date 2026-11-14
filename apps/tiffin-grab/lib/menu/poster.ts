@@ -1,4 +1,4 @@
-import { WEEK_DAYS, type DayOfWeek } from "./delivery-days";
+import { WEEK_DAYS, type DayOfWeek } from "../deliveries/schedule/delivery-days";
 import type { FileDetail } from "@foundry/storage/model";
 import type { MealSlot } from "./meal-types";
 import { isoToUtcDate } from "@foundry/commons/util/dates";

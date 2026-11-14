@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { carryTripDateIso } from "@/lib/menu/carry-trip";
+import { carryTripDateIso } from "@/lib/deliveries/schedule/carry-trip";
 
 vi.mock("@/db/client", () => ({ db: {} }));
 const { nextEndOfPlanDate } = await import("../pause-auto-move");

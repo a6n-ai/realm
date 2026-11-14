@@ -1,4 +1,4 @@
-import { WEEK_DAYS, type DayOfWeek } from "@/lib/menu/delivery-days";
+import { WEEK_DAYS, type DayOfWeek } from "@/lib/deliveries/schedule/delivery-days";
 import { addDaysIso, isoToUtcDate, mondayIndex, mondayOfIso } from "@foundry/commons/util/dates";
 import { deliveryTripState, type DeliveryStatus } from "@/lib/deliveries/status";
 

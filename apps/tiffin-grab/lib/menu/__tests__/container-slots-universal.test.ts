@@ -3,7 +3,7 @@ import { isContainerCategory, type TuCategory } from "../format-tu";
 import { portionsByCategory, portionForPick, sumTuForPicks } from "../pick-size";
 import { groupPickCells, buildMealSummary, type PickCategoryMeta } from "../pick-groups";
 import { applySwapsToCounts, type SwapRow } from "../swap-rules";
-import { swapAppliesTo } from "../coverage";
+import { swapAppliesTo } from "../../deliveries/schedule/coverage";
 import type { GridCell } from "../grid-types";
 import { labelLineTexts } from "../packing-requirement";
 

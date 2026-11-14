@@ -4,7 +4,7 @@ import { mealSizeAddons, type CatalogSnapshot } from "@/lib/catalog/types";
 import type { PricingCatalog, PricingSelections } from "@/lib/pricing";
 import { applicableRules } from "@/lib/pricing/discounts";
 import { effectivePrice } from "@/lib/pricing/meal-size-discount";
-import { orderDeliveryDays, planWeek, type DayOfWeek } from "@/lib/menu/delivery-days";
+import { orderDeliveryDays, planWeek, type DayOfWeek } from "@/lib/deliveries/schedule/delivery-days";
 
 export const MIN_PERSONS = 1;
 export const MAX_PERSONS = 5;

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { comingWeekStartIso, thisWeekStartIso } from "../delivery-dates";
+import { comingWeekStartIso, thisWeekStartIso } from "../../deliveries/schedule/delivery-dates";
 
 vi.mock("@/lib/menu/menu.service", () => ({
   menuService: { getPublishedWeek: vi.fn() },

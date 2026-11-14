@@ -51,7 +51,7 @@ import {
 } from "../wallet/wallet.service";
 import { awardReferral, reverseReferral } from "../referrals/referrals.service";
 import { assertReassignAllowed, resolveAssignableOwner } from "../staff/reassign";
-import { eatingDaysError, orderDeliveryDays, planDaysError, planDeliveryDays, planWeek, type DayOfWeek } from "@/lib/menu/delivery-days";
+import { eatingDaysError, orderDeliveryDays, planDaysError, planDeliveryDays, planWeek, type DayOfWeek } from "@/lib/deliveries/schedule/delivery-days";
 import { mealSizeAllowedDays, mealSizeServesWeekends } from "../deliveries/weekend-dish";
 import { getAppSettings } from "../services/app-settings.service";
 import { lockOrder, withOrderLock } from "./order-lock";

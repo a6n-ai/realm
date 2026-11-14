@@ -11,10 +11,10 @@ const { deliveries, ledgerEntries, orders, payments, users } = await import("@/d
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { createOrder } = await import("../../orders/create-order");
 const { rescheduleDelivery } = await import("../deliveries.service");
-const { coveredDates } = await import("@/lib/menu/coverage");
-const { carryTripDateIso } = await import("@/lib/menu/carry-trip");
+const { coveredDates } = await import("@/lib/deliveries/schedule/coverage");
+const { carryTripDateIso } = await import("@/lib/deliveries/schedule/carry-trip");
 const { allowWeekendMeals } = await import("../../services/__tests__/trip-fixture");
-import type { DayOfWeek } from "@/lib/menu/delivery-days";
+import type { DayOfWeek } from "@/lib/deliveries/schedule/delivery-days";
 
 const createdOrderIds: bigint[] = [];
 const createdUserIds: bigint[] = [];

@@ -10,7 +10,7 @@ import { Button } from "@foundry/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@foundry/ui/dropdown-menu";
 import { cn } from "@foundry/ui/cn";
 import { Badge } from "@/components/reui/badge";
-import { WEEK_DAYS, type DayOfWeek } from "@/lib/menu/delivery-days";
+import { WEEK_DAYS, type DayOfWeek } from "@/lib/deliveries/schedule/delivery-days";
 import { DAY_NAME } from "@/lib/dates/weekdays";
 
 export type GridRow = { key: string; id: string | null; dayOfWeek: DayOfWeek; slot: string; dishId: string; isDefault: boolean };

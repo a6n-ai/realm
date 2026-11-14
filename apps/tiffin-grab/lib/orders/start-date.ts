@@ -1,5 +1,5 @@
 import { isCutoffPassed } from "@/lib/dates/cutoff";
-import { MON_FRI } from "@/lib/menu/delivery-days";
+import { MON_FRI } from "@/lib/deliveries/schedule/delivery-days";
 import { cutoffMsFor, isWeekend, parseIsoDateUtc, weekdayKey, nextWeekday, ValidationError, zonedDateIso } from "@foundry/commons";
 import { utcIso } from "@foundry/commons/util/dates";
 

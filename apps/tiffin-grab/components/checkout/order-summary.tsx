@@ -1,5 +1,5 @@
 import { useFormatMoney } from "@/components/app-currency";
-import { WEEK_DAYS } from "@/lib/menu/delivery-days";
+import { WEEK_DAYS } from "@/lib/deliveries/schedule/delivery-days";
 import type { ReactNode } from "react";
 import Link from "next/link";
 import type { PricingResult } from "@/lib/pricing";

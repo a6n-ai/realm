@@ -25,7 +25,7 @@ import { deliveries, orderActivities, orders, users } from "./schema";
 import { invalidateCatalogSnapshot, loadCatalogSnapshot } from "../lib/catalog/load";
 import { findZone } from "../lib/catalog/zone-match";
 import { categoryCountsFromItems } from "../lib/menu/pick-size";
-import type { DayOfWeek } from "../lib/menu/delivery-days";
+import type { DayOfWeek } from "../lib/deliveries/schedule/delivery-days";
 import { nextTripDate, tripsFor } from "../lib/orders/bounded-deliveries";
 import { matchZone, parseCanadianPostalCode } from "../lib/catalog/postal";
 import { getAppSettings } from "../lib/services/app-settings.service";

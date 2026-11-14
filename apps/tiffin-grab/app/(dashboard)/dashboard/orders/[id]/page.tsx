@@ -44,7 +44,7 @@ import Link from "next/link";
 import { humanDate } from "@/lib/deliveries/view";
 import { formatEpoch } from "@/lib/format/datetime";
 import { projectedEndDate, tripsFor } from "@/lib/orders/bounded-deliveries";
-import { dayAllowed, orderDeliveryDays, planDeliveryDays, type DayOfWeek } from "@/lib/menu/delivery-days";
+import { dayAllowed, orderDeliveryDays, planDeliveryDays, type DayOfWeek } from "@/lib/deliveries/schedule/delivery-days";
 import type { OrderPricingSnapshot } from "@/lib/pricing/types";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { payLink } from "@/lib/payments/stripe";

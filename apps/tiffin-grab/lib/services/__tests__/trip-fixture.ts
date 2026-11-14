@@ -2,7 +2,7 @@ import { eq, inArray, like } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, deliveryCategorySwaps, dishCategories, notificationOutbox, orderActivities, orders, payments, users } from "@/db/schema";
 import { invalidateCatalogSnapshot, loadCatalogSnapshot } from "@/lib/catalog/load";
-import type { DayOfWeek } from "@/lib/menu/delivery-days";
+import type { DayOfWeek } from "@/lib/deliveries/schedule/delivery-days";
 import { materializeDeliveries } from "../../deliveries/deliveries.service";
 
 /**

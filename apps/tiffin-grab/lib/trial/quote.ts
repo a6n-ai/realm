@@ -1,4 +1,4 @@
-import { onlyOnMessage, type DayOfWeek } from "@/lib/menu/delivery-days";
+import { onlyOnMessage, type DayOfWeek } from "@/lib/deliveries/schedule/delivery-days";
 import { APP_DEFAULTS } from "@/db/schema/app-defaults";
 import { parseIsoDateUtc, ValidationError, weekdayKey } from "@foundry/commons";
 import type { CatalogSnapshot } from "@/lib/catalog/types";

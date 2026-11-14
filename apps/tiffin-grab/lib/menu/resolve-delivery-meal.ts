@@ -10,9 +10,9 @@ import { allowedDishIdsForMealSize, exclusiveDishIdsForPlan } from "@/lib/menu/d
 import { defaultMenuItem, keepDefaultsWithinRules, maxTuPickIndex } from "@/lib/menu/default-pick";
 import { mealRulesService } from "@/lib/menu/meal-rules.service";
 import type { MealRule } from "@/lib/menu/meal-rule-types";
-import type { DayOfWeek } from "@/lib/menu/delivery-days";
+import type { DayOfWeek } from "@/lib/deliveries/schedule/delivery-days";
 import { applySwapsToCounts, type SwapRow } from "@/lib/menu/swap-rules";
-import { swapAppliesTo } from "@/lib/menu/coverage";
+import { swapAppliesTo } from "@/lib/deliveries/schedule/coverage";
 import { carryingTrips } from "@/lib/menu/trip-lookup";
 import { isContainerCategory } from "@/lib/menu/format-tu";
 import { itemsForRow, rowPlanIds, rowPlansAfterSwaps, type RowPlans } from "@/lib/menu/row-plans";

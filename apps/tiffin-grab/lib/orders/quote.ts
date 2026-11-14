@@ -1,6 +1,6 @@
 import { ValidationError } from "@foundry/commons";
 import { capRedemption } from "@foundry/wallet";
-import { planDaysError, type DayOfWeek } from "@/lib/menu/delivery-days";
+import { planDaysError, type DayOfWeek } from "@/lib/deliveries/schedule/delivery-days";
 import type { CatalogSnapshot } from "@/lib/catalog/types";
 import { buildPricingCatalog } from "@/lib/pricing/build-catalog";
 import { postCatalogSubtotal } from "@/lib/pricing/discounts";

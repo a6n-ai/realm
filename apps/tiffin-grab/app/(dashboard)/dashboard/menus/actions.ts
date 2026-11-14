@@ -7,7 +7,7 @@ import type { ActionResult } from "@/lib/actions/action-result";
 import { staffAction } from "@/lib/actions/staff-action";
 import { sendMenuReminderForWeek } from "@/lib/notifications/menu-reminder";
 import { menuSidesService, type DaySideValue, type SideRole } from "@/lib/menu/menu-sides.service";
-import type { DayOfWeek } from "@/lib/menu/delivery-days";
+import type { DayOfWeek } from "@/lib/deliveries/schedule/delivery-days";
 import { revalidatePublicSite } from "@/lib/landing/revalidate-site";
 
 // Draft edits are invisible to the public site — only a release changes what is served.

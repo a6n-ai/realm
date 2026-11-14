@@ -1,5 +1,5 @@
 import type { FileDetail } from "@foundry/storage/model";
-import type { DayOfWeek } from "./delivery-days";
+import type { DayOfWeek } from "../deliveries/schedule/delivery-days";
 
 export type GridCell = {
   day: DayOfWeek;

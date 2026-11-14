@@ -17,7 +17,7 @@ import { categoryCountsFromItems, portionsByCategory, type PortionSwap } from "@
 import { foldProvisionalCells, previewPortions, type PreviewBase } from "@/lib/menu/pick-preview";
 import { loadCompositionContext } from "@/lib/menu/swap-options.service";
 import type { TuCategory } from "@/lib/menu/format-tu";
-import { swapAppliesTo } from "@/lib/menu/coverage";
+import { swapAppliesTo } from "@/lib/deliveries/schedule/coverage";
 import { carryingTrips } from "@/lib/menu/trip-lookup";
 import { addonItemsForOrder } from "@/lib/menu/order-addon-items";
 import { rolesByCategory, type MealItemRole } from "@/lib/menu/side-rules";

@@ -5,7 +5,7 @@ import { requireAdmin } from "@/lib/auth/guards";
 import { getTrialSettings } from "@/lib/trial/trial-settings.service";
 import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
-import { orderDeliveryDays, type DayOfWeek } from "@/lib/menu/delivery-days";
+import { orderDeliveryDays, type DayOfWeek } from "@/lib/deliveries/schedule/delivery-days";
 import { CatalogData, type SearchParams } from "../catalog-data";
 import { ResourceEditorSkeleton } from "../[resource]/resource-editor";
 import { GroupedResourceTabs } from "../grouped-resource-tabs";

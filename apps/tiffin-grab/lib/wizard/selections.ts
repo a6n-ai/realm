@@ -1,7 +1,7 @@
 import { effectivePrice, type PricingSelections } from "@/lib/pricing";
 import { APP_DEFAULTS } from "@/db/schema/app-defaults";
 import { listableMealSizes, mealSizeAddons, type CatalogAddon, type ClientCatalogSnapshot } from "@/lib/catalog/types";
-import { eatingDaysError, frequencyFits, MON_FRI, planDaysError, WEEK_DAYS, type DayOfWeek } from "@/lib/menu/delivery-days";
+import { eatingDaysError, frequencyFits, MON_FRI, planDaysError, WEEK_DAYS, type DayOfWeek } from "@/lib/deliveries/schedule/delivery-days";
 import { dropOffCatalog, validDropOff } from "@/lib/catalog/drop-off";
 
 export interface WizardSelections extends PricingSelections {

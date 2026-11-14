@@ -21,7 +21,7 @@ import { and, asc, eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveryCategorySwaps, orderActivities, orders } from "@/db/schema";
 import { firstBrokenSwap, validateProposedSwap } from "@/lib/menu/meal-validation";
-import { coveredDates, swapAppliesTo } from "@/lib/menu/coverage";
+import { coveredDates, swapAppliesTo } from "@/lib/deliveries/schedule/coverage";
 import { assertMutable, loadByPublicId, loadOrderIdByPublicId } from "../deliveries/deliveries.service";
 import { dishCategoriesService } from "./dish-categories.service";
 import { loadCompositionContext } from "./swap-options.service";

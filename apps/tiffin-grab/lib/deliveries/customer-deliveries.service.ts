@@ -13,10 +13,10 @@ import { orderPaymentStatuses } from "@/lib/payments/order-payments";
 import { deliveries, deliveryCategorySwaps, deliveryFrequencies, deliveryMoves, dishCategories, dishes, holidays, mealSizes, menuItems, orderActivities, orders, payments, plans } from "@/db/schema";
 import { loadSubscriptionAddons, type SubscriptionAddon } from "@/lib/menu/order-addon-items";
 import { resolveTripDay, weekLoader } from "@/lib/menu/trip-meals";
-import { coveredDates, formatCoversLabel, swapAppliesTo } from "@/lib/menu/coverage";
+import { coveredDates, formatCoversLabel, swapAppliesTo } from "@/lib/deliveries/schedule/coverage";
 import type { ExchangeOverride } from "@/lib/menu/swap-rules";
 import { handedOnIds } from "@/lib/deliveries/row-state";
-import { planDeliveryDays, type DayOfWeek } from "@/lib/menu/delivery-days";
+import { planDeliveryDays, type DayOfWeek } from "@/lib/deliveries/schedule/delivery-days";
 import {
   resolveDeliveryMeal,
   resolveDeliveryMealsForWeek,

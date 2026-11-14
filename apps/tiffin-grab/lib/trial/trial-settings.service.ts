@@ -3,7 +3,7 @@ import { UpdatableRepository } from "@foundry/database";
 import { ValidationError } from "@foundry/commons";
 import { db } from "@/db/client";
 import { deliveryFrequencies, trialSettings } from "@/db/schema";
-import { orderDeliveryDays, type DayOfWeek } from "@/lib/menu/delivery-days";
+import { orderDeliveryDays, type DayOfWeek } from "@/lib/deliveries/schedule/delivery-days";
 import { assertTrialMax, type TrialSettings } from "@/lib/trial/schedule";
 import { SessionUpdatableService } from "../services/session-service";
 

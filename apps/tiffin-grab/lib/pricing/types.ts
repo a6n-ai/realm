@@ -1,5 +1,5 @@
 import type { ComputedTaxLine } from "@foundry/payments";
-import type { DayOfWeek } from "../menu/delivery-days";
+import type { DayOfWeek } from "../deliveries/schedule/delivery-days";
 import type { DeliveryChargeCalculationResult, DeliveryChargeItemLike } from "@foundry/delivery";
 import type { WaiverKind } from "@/lib/catalog/types";
 

@@ -1,4 +1,4 @@
-import { WEEK_DAYS } from "@/lib/menu/delivery-days";
+import { WEEK_DAYS } from "@/lib/deliveries/schedule/delivery-days";
 import { pageOffset } from "@foundry/design-system/filters/parse-filter-state";
 import { notFound } from "next/navigation";
 import { and, asc, eq, getTableColumns, sql, type Column as DrizzleColumn } from "drizzle-orm";

@@ -1,5 +1,5 @@
 import { getMoneyFormatter } from "@/lib/services/app-settings.service";
-import { WEEK_DAYS } from "@/lib/menu/delivery-days";
+import { WEEK_DAYS } from "@/lib/deliveries/schedule/delivery-days";
 import Image, { type StaticImageData } from "next/image";
 import Link from "next/link";
 import { FaqAccordion } from "@/components/landing/faq-accordion";

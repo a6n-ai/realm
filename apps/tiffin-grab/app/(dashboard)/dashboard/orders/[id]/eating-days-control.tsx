@@ -6,7 +6,7 @@ import { Button } from "@foundry/ui/button";
 import { cn } from "@foundry/ui/cn";
 import { ResponsiveDialog } from "@/components/ds";
 import { unwrapAction } from "@/lib/actions/unwrap";
-import { NO_WEEKEND_DISH, allowedDaysError, dayAllowed, eatingDaysError, onlyOnMessage, planWeek, type DayOfWeek, WEEK_DAYS } from "@/lib/menu/delivery-days";
+import { NO_WEEKEND_DISH, allowedDaysError, dayAllowed, eatingDaysError, onlyOnMessage, planWeek, type DayOfWeek, WEEK_DAYS } from "@/lib/deliveries/schedule/delivery-days";
 import { changeEatingDaysAction } from "./actions";
 import { isWeekendDay } from "@foundry/commons/util/dates";
 

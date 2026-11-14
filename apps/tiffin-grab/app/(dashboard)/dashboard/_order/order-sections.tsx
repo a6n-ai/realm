@@ -25,7 +25,7 @@ import { DeliveryAreaNote } from "@/components/address/delivery-area";
 import { ScheduleCard } from "@/components/wizard/schedule-card";
 import { discountLine } from "@/components/customer/home/coupons-section";
 import { dropOffSummary } from "@/lib/catalog/drop-off";
-import { allowedDaysError, dayAllowed, eatingDaysError, onlyOnMessage, type DayOfWeek, WEEK_DAYS } from "@/lib/menu/delivery-days";
+import { allowedDaysError, dayAllowed, eatingDaysError, onlyOnMessage, type DayOfWeek, WEEK_DAYS } from "@/lib/deliveries/schedule/delivery-days";
 import { toggleTrialPick } from "@/lib/trial/schedule";
 import type { CheckoutPaymentMethod } from "@/lib/wizard/actions";
 import type { useOrderDraft } from "./use-order-draft";

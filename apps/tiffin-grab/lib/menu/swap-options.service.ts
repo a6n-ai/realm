@@ -12,7 +12,7 @@ import {
   type MealSizeItemRow,
   type SwapOption,
 } from "@/lib/menu/meal-validation";
-import { swapAppliesTo } from "@/lib/menu/coverage";
+import { swapAppliesTo } from "@/lib/deliveries/schedule/coverage";
 import { categoryCountsFromItems } from "@/lib/menu/pick-size";
 import { addonItemsForOrder, countsWithoutAddons } from "@/lib/menu/order-addon-items";
 import type { SwapRow } from "@/lib/menu/swap-rules";

@@ -13,7 +13,7 @@ import {
   plans,
   users,
 } from "@/db/schema";
-import { coveredDates, occurrenceDates } from "@/lib/menu/coverage";
+import { coveredDates, occurrenceDates } from "@/lib/deliveries/schedule/coverage";
 import { extraTiffinLabelAt, loadExtraDates, loadMovesIn } from "@/lib/deliveries/delivery-extras";
 import { fulfillmentReadyOrder } from "@/lib/orders/fulfillment";
 import { resolveTripDay, swapsForDay, weekLoader } from "@/lib/menu/trip-meals";

@@ -1,5 +1,5 @@
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
-import { frequencyFits, planWeek, type DayOfWeek } from "@/lib/menu/delivery-days";
+import { frequencyFits, planWeek, type DayOfWeek } from "@/lib/deliveries/schedule/delivery-days";
 import { rankDeals, type RankedDeal } from "@foundry/discounts";
 import type { PricingSelections } from "./types";
 

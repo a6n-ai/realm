@@ -15,7 +15,7 @@ import { dishCategories, dishes, mealSelections, mealSizeItems, mealSizes, menuI
 import { requireCategoryIds } from "@/lib/menu/category-ids";
 import { getAppSettings, getMealTypes } from "../services/app-settings.service";
 import { dishCategoriesService } from "./dish-categories.service";
-import type { DayOfWeek } from "@/lib/menu/delivery-days";
+import type { DayOfWeek } from "@/lib/deliveries/schedule/delivery-days";
 import type { PosterItem } from "@/lib/menu/poster";
 import { SessionBaseService, SessionUpdatableService } from "../services/session-service";
 import { revalidatePublicSite } from "@/lib/landing/revalidate-site";

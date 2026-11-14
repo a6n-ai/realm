@@ -9,7 +9,7 @@ import { MealSizeItems } from "../meal-size-items";
 import { mealOffPct } from "../best-deal-state";
 import { MealSizePrice } from "../meal-size-price";
 import { CurrentPlanHint, type CurrentPlanSummary } from "../current-plan-hint";
-import { dayAllowed, frequencyFits, onlyOnMessage, type DayOfWeek } from "@/lib/menu/delivery-days";
+import { dayAllowed, frequencyFits, onlyOnMessage, type DayOfWeek } from "@/lib/deliveries/schedule/delivery-days";
 import { effectivePrice } from "@/lib/pricing";
 
 const TIERS: ClientMealSizeView["tier"][] = ["budget", "medium", "premium"];

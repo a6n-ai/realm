@@ -14,7 +14,7 @@ import { applyHolidaysToOrder } from "./holiday-apply";
 import { assertDaysPauseAllowed, getPauseLimits, getPauseUsage } from "./pause-limits.service";
 import { autoMovePausedOn, moveLapsedPausesToEnd, movePausedTiffinsToEnd } from "./pause-auto-move";
 import { loadExtraDates } from "./delivery-extras";
-import { dateCounts } from "@/lib/menu/coverage";
+import { dateCounts } from "@/lib/deliveries/schedule/coverage";
 import type { Reader } from "./pause-state";
 import { CUSTOMER_PAUSED, isCustomerPaused, isLapsedPause, lapsePausedRows, lapsedPauseDates, pauseRows, releasePausedRows, retireLegacyPaused } from "./pause-state";
 import { lockOrder, withOrderLock } from "../orders/order-lock";

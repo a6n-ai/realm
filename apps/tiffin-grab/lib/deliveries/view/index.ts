@@ -1,8 +1,8 @@
 import { isCutoffPassed } from "@/lib/dates/cutoff";
-import type { DayOfWeek } from "@/lib/menu/delivery-days";
+import type { DayOfWeek } from "@/lib/deliveries/schedule/delivery-days";
 import type { DropOffValue } from "@/lib/catalog/drop-off";
 import { cutoffMsFor, parseIsoDateUtc, zonedDateIso } from "@foundry/commons";
-import { coveredDates, formatCoversLabel } from "@/lib/menu/coverage";
+import { coveredDates, formatCoversLabel } from "@/lib/deliveries/schedule/coverage";
 
 export type TripStatus = "upcoming" | "delivered" | "unconfirmed" | "paused" | "rescheduled" | "combined-into" | "locked" | "cutoff-passed" | "failed" | "holiday";
 export type TripAction = "pick" | "swap" | "move" | "address";

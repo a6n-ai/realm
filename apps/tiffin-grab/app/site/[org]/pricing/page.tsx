@@ -1,5 +1,5 @@
 import { BRAND_NAME } from "@/lib/brand";
-import { MON_FRI, WEEK_DAYS } from "@/lib/menu/delivery-days";
+import { MON_FRI, WEEK_DAYS } from "@/lib/deliveries/schedule/delivery-days";
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { LandingReviews } from "@/components/landing/landing-reviews";
@@ -9,7 +9,7 @@ import { PageIntro, dashless } from "@/components/landing/public-shell";
 import { ArrowRight, ChevronDown } from "lucide-react";
 import { MealParts } from "@/components/landing/meal-parts";
 import { PriceMath, type MathFrequency, type MathLength, type MathPlan } from "@/components/landing/price-math";
-import type { DayOfWeek } from "@/lib/menu/delivery-days";
+import type { DayOfWeek } from "@/lib/deliveries/schedule/delivery-days";
 import { makeCategoryLook } from "@/components/kit/category-look";
 import { isComingSoon, publicPlans } from "@/lib/landing/plan-options";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";

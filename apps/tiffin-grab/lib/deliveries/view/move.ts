@@ -1,8 +1,8 @@
 import { isCutoffPassed } from "@/lib/dates/cutoff";
 import { cutoffMsFor, parseIsoDateUtc, weekdayKey } from "@foundry/commons";
-import { countsToCoverage, dateCounts, mergeBlockReason, mergeCoverage, shiftTiffin, tiffinTotal } from "@/lib/menu/coverage";
-import { carryTripDateIso } from "@/lib/menu/carry-trip";
-import { NO_WEEKEND_DISH, dayAllowed, onlyOnMessage, type DayOfWeek } from "@/lib/menu/delivery-days";
+import { countsToCoverage, dateCounts, mergeBlockReason, mergeCoverage, shiftTiffin, tiffinTotal } from "@/lib/deliveries/schedule/coverage";
+import { carryTripDateIso } from "@/lib/deliveries/schedule/carry-trip";
+import { NO_WEEKEND_DISH, dayAllowed, onlyOnMessage, type DayOfWeek } from "@/lib/deliveries/schedule/delivery-days";
 import { planDaysAfter } from "@/lib/deliveries/next-open-day";
 import { humanDate, type CalendarDayInput, type PlanContext, type Trip } from "./index";
 import { daysBetween, utcIso } from "@foundry/commons/util/dates";

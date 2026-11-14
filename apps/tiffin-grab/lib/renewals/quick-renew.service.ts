@@ -5,7 +5,7 @@ import { db } from "@/db/client";
 import { deliveries, deliveryFrequencies, mealSizes, orders, payments, plans } from "@/db/schema";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { toClientCatalog } from "@/lib/catalog/types";
-import type { DayOfWeek } from "@/lib/menu/delivery-days";
+import type { DayOfWeek } from "@/lib/deliveries/schedule/delivery-days";
 import { renewSelections } from "@/lib/renewals/renew-selections";
 import type { QuickRenewData } from "@/lib/renewals/quick-renew-types";
 import { stripeMethodAvailable } from "@/lib/payments/stripe";

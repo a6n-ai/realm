@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectSepa
 import { Badge } from "@/components/reui/badge";
 import { Button } from "@foundry/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@foundry/ui/dialog";
-import type { DayOfWeek } from "@/lib/menu/delivery-days";
+import type { DayOfWeek } from "@/lib/deliveries/schedule/delivery-days";
 import { DAY_NAME } from "@/lib/dates/weekdays";
 import { sanitizeClientError } from "@foundry/commons/util/client-error";
 import type { DaySide, DaySideValue, SideRole, SideSlot } from "@/lib/menu/menu-sides.service";

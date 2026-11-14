@@ -7,7 +7,7 @@ import { eq } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
 import { dishCategories, dishes, menuDaySides, menuSideDefaults } from "@/db/schema";
-import type { DayOfWeek } from "@/lib/menu/delivery-days";
+import type { DayOfWeek } from "@/lib/deliveries/schedule/delivery-days";
 import { foldSwaps, type SwapRow } from "@/lib/menu/swap-rules";
 
 export type { MealItemRole };

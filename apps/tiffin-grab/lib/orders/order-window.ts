@@ -1,5 +1,5 @@
 import { HOLDS_DAY } from "@/lib/deliveries/row-state";
-import { coveredDates } from "@/lib/menu/coverage";
+import { coveredDates } from "@/lib/deliveries/schedule/coverage";
 import { ONGOING, RUNNING } from "@/lib/orders/status";
 import { orderStatusIn } from "@/lib/orders/status-sql";
 import { parseIsoDateUtc, ValidationError } from "@foundry/commons";

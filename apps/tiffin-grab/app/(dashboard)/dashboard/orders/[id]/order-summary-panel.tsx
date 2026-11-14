@@ -5,7 +5,7 @@ import { SectionCard } from "@/components/ds";
 import { OrderPricingBreakdown } from "@/app/(dashboard)/dashboard/_order/order-pricing-breakdown";
 import { formatEpoch } from "@/lib/format/datetime";
 import type { OrderPricingSnapshot } from "@/lib/pricing/types";
-import { planDeliveryDays, planWeek, type DayOfWeek } from "@/lib/menu/delivery-days";
+import { planDeliveryDays, planWeek, type DayOfWeek } from "@/lib/deliveries/schedule/delivery-days";
 import type { OrderDetail } from "@/lib/orders/orders.service";
 
 function isPricingSnapshot(value: unknown): value is OrderPricingSnapshot {

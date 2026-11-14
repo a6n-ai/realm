@@ -1,5 +1,5 @@
 import { BRAND_NAME } from "@/lib/brand";
-import { WEEK_DAYS } from "@/lib/menu/delivery-days";
+import { WEEK_DAYS } from "@/lib/deliveries/schedule/delivery-days";
 import { siteOrgId } from "@/lib/tenant/site-org";
 import type { Metadata } from "next";
 import { Suspense } from "react";

@@ -1,6 +1,6 @@
-import { orderDeliveryDays, planWeek, type DayOfWeek } from "@/lib/menu/delivery-days";
-import { subscriptionDeliveryDates } from "@/lib/menu/delivery-dates";
-import { tripCoverage } from "@/lib/menu/coverage";
+import { orderDeliveryDays, planWeek, type DayOfWeek } from "@/lib/deliveries/schedule/delivery-days";
+import { subscriptionDeliveryDates } from "@/lib/deliveries/schedule/delivery-dates";
+import { tripCoverage } from "@/lib/deliveries/schedule/coverage";
 import { addDaysIso } from "@foundry/commons/util/dates";
 
 // A plan migrated from WordPress carries a remaining balance (e.g. 17 tiffins) that

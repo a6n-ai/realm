@@ -1,4 +1,4 @@
-import type { DayOfWeek } from "@/lib/menu/delivery-days";
+import type { DayOfWeek } from "@/lib/deliveries/schedule/delivery-days";
 
 export interface MealSizeView {
   id: bigint;
@@ -30,7 +30,7 @@ export interface MealSizeView {
   // Holds a category flagged as a weekend dish; without one, Sat/Sun can't be eating days.
   servesWeekends: boolean;
   // Days this size can be eaten and delivered on (meal_sizes.allowed_days); unset/null/[] = every day.
-  // Optional so hand-built views (custom meals, fixtures) need not set it. See lib/menu/delivery-days.ts.
+  // Optional so hand-built views (custom meals, fixtures) need not set it. See lib/deliveries/schedule/delivery-days.ts.
   allowedDays?: DayOfWeek[] | null;
 }
 

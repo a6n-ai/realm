@@ -1,5 +1,5 @@
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
-import type { DayOfWeek } from "@/lib/menu/delivery-days";
+import type { DayOfWeek } from "@/lib/deliveries/schedule/delivery-days";
 import { DEFAULT_EATING_DAYS, FIXED_PERSONS, firstBlockedStep, reconcileSelections, type WizardSelections } from "@/lib/wizard/selections";
 import { isWeekendDay } from "@foundry/commons/util/dates";
 

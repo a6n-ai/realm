@@ -2,7 +2,7 @@ import { asc, inArray } from "drizzle-orm";
 import { parseIsoDateUtc } from "@foundry/commons";
 import { db } from "@/db/client";
 import { deliveryCategorySwaps } from "@/db/schema";
-import { coveredDates } from "@/lib/menu/coverage";
+import { coveredDates } from "@/lib/deliveries/schedule/coverage";
 import { loadExtraDates } from "@/lib/deliveries/delivery-extras";
 import { resolveTripDay, swapsForDay, weekLoader } from "@/lib/menu/trip-meals";
 import type { DayDeliveryRow } from "@/lib/menu/daily-labels.service";

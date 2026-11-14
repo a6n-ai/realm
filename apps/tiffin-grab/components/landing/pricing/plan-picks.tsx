@@ -1,5 +1,5 @@
 import { getMoneyFormatter } from "@/lib/services/app-settings.service";
-import { MON_FRI } from "@/lib/menu/delivery-days";
+import { MON_FRI } from "@/lib/deliveries/schedule/delivery-days";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { MealParts } from "@/components/landing/meal-parts";

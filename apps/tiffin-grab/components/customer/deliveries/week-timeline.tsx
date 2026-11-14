@@ -1,5 +1,5 @@
 "use client";
-import { WEEK_DAYS } from "@/lib/menu/delivery-days";
+import { WEEK_DAYS } from "@/lib/deliveries/schedule/delivery-days";
 import { ChevronLeft, ChevronRight, Info, Truck } from "lucide-react";
 import { Popover } from "radix-ui";
 import { STATUS_COLOR, STATUS_LABEL, type DeliveryStatus } from "@/lib/deliveries/status";

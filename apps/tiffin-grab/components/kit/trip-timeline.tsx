@@ -1,9 +1,9 @@
-import { WEEK_DAYS } from "@/lib/menu/delivery-days";
+import { WEEK_DAYS } from "@/lib/deliveries/schedule/delivery-days";
 import { AnimatePresence, useReducedMotion } from "motion/react";
 import * as m from "motion/react-m";
 import { Truck } from "lucide-react";
 import type { ReactNode } from "react";
-import type { DayOfWeek } from "@/lib/menu/delivery-days";
+import type { DayOfWeek } from "@/lib/deliveries/schedule/delivery-days";
 import { formatDateOnly } from "@/lib/format/datetime";
 import { addDaysIso } from "@foundry/commons/util/dates";
 
