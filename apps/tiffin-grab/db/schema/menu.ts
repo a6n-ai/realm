@@ -136,12 +136,8 @@ export const menuWeekStatus = pgEnum("menu_week_status", ["draft", "ready", "rel
 export const dayOfWeek = pgEnum("day_of_week", WEEK_DAYS);
 
 /**
- * One menu week per week_start, for every plan.
- *
- * plan_type used to split this table, which made it the last surviving second answer to
- * "who may be served this dish" — dishes and categories had already moved to explicit
- * membership (dishPlans, categoryPlans). The readers disagreed as a result. Now a week is
- * simply the week, and membership alone decides what each subscriber is offered.
+ * One menu week per week_start, for every plan. Membership (dishPlans, categoryPlans)
+ * alone decides what each subscriber is offered.
  */
 export const menuWeeks = pgTable(
   "menu_weeks",

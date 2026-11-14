@@ -20,8 +20,8 @@ const CLOSED = new Set<Trip["status"]>(["delivered", "unconfirmed", "cutoff-pass
 const MENU_NOT_RELEASED: Availability = { ok: false, why: "Menu not released yet.", sub: "" };
 
 /**
- * Rail + mobile bar for a trip. Swap is embedded in Edit meal (pick sheet), so
- * it is no longer a separate customer action — `canSwap` is ignored for listing.
+ * Rail + mobile bar for a trip. Swap lives in Edit meal (pick sheet), not
+ * as a separate action: `canSwap` is ignored for listing.
  * `locked`: payment unconfirmed, so the plan is read-only: no actions at all.
  */
 export function actionModel(trip: Trip, now: number, ctx: PlanContext, opts: { canSwap?: boolean; menuOut?: boolean; locked?: boolean; isDeliveryDay?: boolean; movedTo?: string; trial?: boolean } = {}) {

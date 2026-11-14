@@ -34,7 +34,6 @@ export const POST = handler(async (req: Request): Promise<Response> => {
     return problem(403, "Unexpected topic");
   }
 
-  // Confirm the subscription on first handshake (signature already verified).
   if (msg.Type === "SubscriptionConfirmation" && msg.SubscribeURL) {
     await fetch(msg.SubscribeURL);
     log.info("SNS subscription confirmed");

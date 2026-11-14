@@ -30,10 +30,8 @@ const KEY_POINTS: KeyPoint[] = [
   { text: "Refrigerate meals within 2 hours and eat them within 24 hours.", section: 7 },
 ];
 
-// The area list comes from the live delivery zones (same source as /locations),
-// so the policy never drifts from where we actually deliver.
-
 export default async function DeliveryPolicyPage() {
+  // Live delivery zones (same source as /locations), so the policy never drifts from where we deliver.
   const { zones } = await loadCatalogSnapshot();
   const areas = zones.filter((z) => z.active).map((z) => z.name).sort((a, b) => a.localeCompare(b));
   return (

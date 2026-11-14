@@ -4,7 +4,6 @@ import { problem } from "@foundry/routes";
 import { adminRoute } from "@/lib/notifications/admin-route";
 import { loadSuppressedAddresses } from "@/lib/notifications/logs-query";
 
-/** The Unsubscribed table as CSV, with the same filters as the page. */
 export const GET = adminRoute(async (req) => {
   const sp = Object.fromEntries(new URL(req.url).searchParams);
   const lines = [["address", "channel", "reason", "scope", "source", "campaign", "date"].join(",")];

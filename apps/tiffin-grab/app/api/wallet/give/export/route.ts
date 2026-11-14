@@ -7,7 +7,6 @@ import { parseSort } from "@foundry/design-system/list-sort";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { giveHistoryCsv, type GiveSortColumn } from "@/lib/customer-groups/customer-groups.service";
 
-/** Grant history CSV with the same date/search/facet filters as Wallet → Give coins. */
 export const GET = handler(async (req: Request): Promise<Response> => {
   await requireAdmin();
   const sp = await withListDates(Object.fromEntries(new URL(req.url).searchParams));

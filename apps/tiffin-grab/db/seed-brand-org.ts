@@ -1,6 +1,6 @@
 /**
  * One-off, idempotent seed: creates tiffin-grab's single brand-level organization
- * and backfills every existing orders row to it. Run once, after the Task 4/5
+ * and backfills every existing orders row to it. Run once, after the organization
  * migrations are applied, before any franchise-level org is created. Mirrors
  * db/seed-admin.ts's shape.
  *

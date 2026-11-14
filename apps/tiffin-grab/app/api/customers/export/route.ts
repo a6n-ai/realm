@@ -11,7 +11,7 @@ const HEADERS = ["Name", "Email", "Phone", "Total paid", "Free tiffins", "Cancel
 // shortcut: one query capped at 10k customers; page through listCustomersPage if the book outgrows it.
 const MAX_ROWS = 10_000;
 
-/** The Customers listing as .xlsx, with the filters and sort open on the page (all pages, not just the visible one). */
+/** All pages, not just the visible one. */
 export const GET = handler(async (request: Request): Promise<Response> => {
   await requireStaff();
   const [{ sort, condition, custom }, { timezone }] = await Promise.all([

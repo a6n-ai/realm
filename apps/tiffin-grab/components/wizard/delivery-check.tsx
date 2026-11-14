@@ -24,7 +24,7 @@ export function DeliveryCheck({ onlyWhenChecked = false }: { onlyWhenChecked?: b
   useEffect(() => {
     try {
       const saved = JSON.parse(wizardSession.postalRaw() ?? "null") as Served | null;
-      // Read once on mount: sessionStorage is only readable on the client.
+      // sessionStorage is client-only.
       // eslint-disable-next-line react-hooks/set-state-in-effect
       if (saved?.postal && saved.area) setState({ status: "served", ...saved });
     } catch { /* unreadable: ask again */ }

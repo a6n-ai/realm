@@ -9,8 +9,7 @@ export function toneClasses(tone: keyof typeof TONES) {
   return TONES[tone];
 }
 
-/** Inline success/warning callout for checkout — centralizes the emerald/amber
- * classes that were previously copy-pasted at each call site. */
+/** Inline success/warning callout for checkout. */
 export function StatusBanner({
   tone,
   icon,

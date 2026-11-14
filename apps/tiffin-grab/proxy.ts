@@ -144,9 +144,7 @@ async function route(request: NextRequest): Promise<NextResponse> {
   const onApi = pathname.startsWith("/api");
   const resolutionExempt = skipsOrgResolution(pathname);
 
-  // Set on the forwarded request when a URL-segment/default org resolves, so
-  // NextResponse.next() below can carry it through via the `request.headers`
-  // forwarding mechanism (Task 4 reads it on the Node side).
+  // NextResponse.next() carries this to the Node side via `request.headers` forwarding.
   let resolvedOrgId: string | undefined;
 
   if (!resolutionExempt) {
