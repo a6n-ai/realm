@@ -1,4 +1,5 @@
 import { ChevronDownIcon, PlusIcon } from "lucide-react";
+import { useFormatMoney } from "@/components/app-currency";
 import type { CatalogAddon } from "@/lib/catalog/types";
 import { IconTile, Stepper } from "@/components/kit";
 import { makeCategoryLook } from "@/components/kit/category-look";
@@ -28,6 +29,7 @@ export function AddonsPanel({
   bare?: boolean;
   className?: string;
 }) {
+  const money = useFormatMoney();
   const picked = selections.addonSelections ?? [];
   const qtyFor = (key: string) => picked.find((s) => s.key === key)?.qty ?? 0;
   const setQty = (key: string, qty: number) => {
@@ -54,7 +56,7 @@ export function AddonsPanel({
                 {addon.name}
                 {addon.portion ? <span className="text-muted-foreground font-normal"> · {addon.portion}</span> : null}
               </span>
-              <span className="nums text-muted-foreground text-footnote">+${addon.pricePerTiffin.toFixed(2)} per tiffin</span>
+              <span className="nums text-muted-foreground text-footnote">+{money(addon.pricePerTiffin)} per tiffin</span>
             </div>
             {active ? (
               <Stepper label={addon.name} value={qty} min={0} max={addon.maxQty} onChange={(n) => setQty(addon.key, n)} />
@@ -79,7 +81,7 @@ export function AddonsPanel({
       {/* The running total rides at the top of the drawer as a glass capsule, so it stays in view while you scroll. */}
       {bare && addedCount > 0 && (
         <p role="status" className="c-liquid sticky top-0 z-[1] mx-auto w-fit rounded-full border px-4 py-1.5 text-footnote font-semibold tabular-nums">
-          {addedCount} add-on{addedCount === 1 ? "" : "s"} · +${addedPerTiffin.toFixed(2)} per tiffin
+          {addedCount} add-on{addedCount === 1 ? "" : "s"} · +{money(addedPerTiffin)} per tiffin
         </p>
       )}
       {[...groups].map(([category, items]) => {
@@ -92,7 +94,7 @@ export function AddonsPanel({
               <IconTile tint={tint}><Icon /></IconTile>
               <span className="min-w-0 flex-1 text-subhead font-semibold">{categoryLabels?.[category] ?? category}</span>
               <span className="text-muted-foreground flex items-center gap-2 text-footnote">
-                {count > 0 ? <span className="nums text-primary font-medium">{count} added · +${total.toFixed(2)}/tiffin</span> : `${items.length} option${items.length === 1 ? "" : "s"}`}
+                {count > 0 ? <span className="nums text-primary font-medium">{count} added · +{money(total)}/tiffin</span> : `${items.length} option${items.length === 1 ? "" : "s"}`}
                 <ChevronDownIcon aria-hidden className="size-4 transition-transform group-open:rotate-180 motion-reduce:transition-none" />
               </span>
             </summary>

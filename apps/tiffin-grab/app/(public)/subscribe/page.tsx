@@ -5,6 +5,7 @@ import { cookies } from "next/headers";
 import { REFERRAL_COOKIE, isReferralCodeShape, normalizeReferralCode } from "@/lib/referrals/cookie";
 import { Wizard } from "@/components/wizard/wizard";
 import { currentUserId } from "@/lib/services/session-service";
+import { googleClientId } from "@/lib/runtime/env";
 import { getSession } from "@/lib/auth/session";
 import { isStaffRole } from "@/lib/roles";
 import { googleSignInEnabled } from "@foundry/auth";
@@ -73,7 +74,7 @@ export default async function SubscribePage({ searchParams }: { searchParams: Pr
   const linkRef = normalizeReferralCode(params.ref ?? "");
   const referralCode = isReferralCodeShape(linkRef) ? linkRef : (jar.get(REFERRAL_COOKIE)?.value ?? "");
   // A share link's gift, said here so it never looks lost between the friend page and payment.
-  const [referrer, offer] = referralCode ? await Promise.all([findReferrerByCode(referralCode), loadReferralOffer().catch(() => null)]) : [null, null];
+  const [referrer, offer] = referralCode ? await Promise.all([findReferrerByCode(referralCode), loadReferralOffer()]) : [null, null];
   const gift = referrer && offer?.friend ? { from: referrer.firstName, figure: offer.friend.big } : null;
 
   return (
@@ -93,7 +94,7 @@ export default async function SubscribePage({ searchParams }: { searchParams: Pr
         trial={trial}
         trust={trust}
         intro={gift || coupons.length ? <>{gift ? <ReferralGift from={gift.from} figure={gift.figure} /> : null}<SubscribeCouponsPreview coupons={coupons} /></> : undefined}
-        signIn={{ googleClientId: googleSignInEnabled() ? process.env.GOOGLE_CLIENT_ID! : null, oauthError: error ?? null, referralCode }}
+        signIn={{ googleClientId: googleSignInEnabled() ? googleClientId() : null, oauthError: error ?? null, referralCode }}
       />
     </main>
     </>

@@ -4,7 +4,7 @@ import { siteOrgId } from "@/lib/tenant/site-org";
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { preload } from "react-dom";
-import { HeroRating, LandingReviews } from "@/components/landing/landing-reviews";
+import { HeroRating, LandingReviews, summaryOrNull } from "@/components/landing/landing-reviews";
 import { FAQS } from "@/components/landing/faqs";
 import { DeliverySection } from "@/components/landing/delivery-section";
 import { isComingSoon, publicPlans } from "@/lib/landing/plan-options";
@@ -15,7 +15,6 @@ import { Bento, Faq, Flex, Hero, MenuRail, OfferBand, ReferBand, Story } from "@
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { listableMealSizes } from "@/lib/catalog/types";
 import { formatDateOnly } from "@/lib/format/datetime";
-import { dateTimeFormat } from "@foundry/commons/util/intl-format";
 import { foldPicks, popularSince } from "@/lib/menu/customer-week";
 import { buildWeekBoard } from "@/lib/landing/week-board";
 import { loadLandingPromos } from "@/lib/landing/promos";
@@ -24,8 +23,7 @@ import { deliveryIsFree, hourLabel, lowestRate, trialOffer } from "@/lib/landing
 import { getTrialSettings } from "@/lib/trial/trial-settings.service";
 import { businessJsonLd, jsonLdScript } from "@/lib/landing/business-jsonld";
 import { publicOrigin } from "@/lib/routing/apex";
-import { getReviewsSummary } from "@foundry/google-reviews";
-import { getAppSettings, integrationsConfigReadStore } from "@/lib/services/app-settings.service";
+import { getAppSettings } from "@/lib/services/app-settings.service";
 import { menuService } from "@/lib/menu/menu.service";
 import { loadReferralOffer } from "@/lib/referrals/offer";
 import "@/components/landing/styles/home.css";
@@ -34,6 +32,7 @@ import homeThali from "@/public/landing/stock/dish-home-thali.jpg";
 import paneerPhoto from "@/public/landing/stock/dish-paneer-butter-masala.jpg";
 import spreadPhoto from "@/public/landing/stock/dish-spread.jpg";
 import { addDaysIso } from "@foundry/commons/util/dates";
+import { hourOfDay } from "@/components/kit/date-formats";
 
 export async function generateMetadata(): Promise<Metadata> {
   const catalog = await loadCatalogSnapshot();
@@ -55,7 +54,7 @@ function weekRange(weekStart: string) {
 
 // Google's rating streams in like the hero line, so the schema waits in Suspense instead of holding the page.
 async function BusinessSchema({ catalog, currency }: { catalog: Awaited<ReturnType<typeof loadCatalogSnapshot>>; currency: string }) {
-  const s = await getReviewsSummary(integrationsConfigReadStore).catch(() => null);
+  const s = await summaryOrNull();
   const rating = s ? { rating: s.rating, total: s.total, url: s.attributionUrl || undefined } : null;
   return <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdScript(businessJsonLd(catalog, publicOrigin(), { currency, rating })) }} />;
 }
@@ -65,7 +64,7 @@ export default async function LandingPage({ params }: { params: Promise<{ org: s
   // The hero poster is the phone LCP: fetch the right WebP from the head, ahead of CSS and scripts.
   preload("/landing/stock/hero-poster-mobile.webp", { as: "image", type: "image/webp", media: "(max-width: 767px)", fetchPriority: "high" });
   preload("/landing/stock/hero-poster.webp", { as: "image", type: "image/webp", media: "(min-width: 768px)", fetchPriority: "high" });
-  const [pub, catalog, { timezone, currency }, promos, referral, trialSettings] = await Promise.all([menuService.getPublishedWeek(), loadCatalogSnapshot(), getAppSettings(), loadLandingPromos(), loadReferralOffer().catch(() => null), getTrialSettings(orgId)]);
+  const [pub, catalog, { timezone, currency }, promos, referral, trialSettings] = await Promise.all([menuService.getPublishedWeek(), loadCatalogSnapshot(), getAppSettings(), loadLandingPromos(), loadReferralOffer(), getTrialSettings(orgId)]);
 
   const plans = publicPlans(catalog.plans);
   const firstPlan = plans.find((p) => !isComingSoon(p.key));
@@ -84,7 +83,7 @@ export default async function LandingPage({ params }: { params: Promise<{ org: s
   const cutoff = catalog.cutoffHour != null ? hourLabel(catalog.cutoffHour) : null;
   // The demos say "Changes until Mon 11:00 PM": the real cutoff, never a hard-coded hour.
   const cutoffTime = catalog.cutoffHour != null
-    ? dateTimeFormat("en-CA", { hour: "numeric", minute: "2-digit", timeZone: "UTC" }).format(Date.UTC(2026, 0, 1, catalog.cutoffHour)).replace(/\./g, "").toUpperCase()
+    ? hourOfDay(catalog.cutoffHour).replace(/\./g, "").toUpperCase()
     : null;
   const board = pub ? buildWeekBoard(pub, timezone, await menuService.dishPickCounts(popularSince(pub.weekStart)).then(foldPicks)) : { days: [], rows: [], weekend: null };
   const todayDay = board.days.find((d) => d.today) ?? board.days[0] ?? null;

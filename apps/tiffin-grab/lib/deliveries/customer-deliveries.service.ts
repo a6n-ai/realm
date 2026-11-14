@@ -1,7 +1,7 @@
 import { appTodayIso } from "@/lib/dates/today";
 import { isCutoffPassed } from "@/lib/dates/cutoff";
 import { cutoffPassedSql } from "@/lib/dates/cutoff-sql";
-import { RUNNING } from "@/lib/orders/status";
+import { ENDED, RUNNING, UNSTARTED } from "@/lib/orders/status";
 import { orderStatusIn } from "@/lib/orders/status-sql";
 import { loadExtraDates } from "@/lib/deliveries/delivery-extras";
 import { isWordpressImport } from "@/lib/orders/wordpress-import";
@@ -577,7 +577,7 @@ export async function myWaitlistedSubscriptions(userId: bigint, now = Date.now()
     .innerJoin(plans, eq(orders.planId, plans.id))
     .innerJoin(mealSizes, eq(orders.mealSizeId, mealSizes.id))
     .innerJoin(deliveryFrequencies, eq(orders.frequencyId, deliveryFrequencies.id))
-    .where(and(eq(orders.userId, userId), inArray(orders.status, ["waitlisted", "pending"])));
+    .where(and(eq(orders.userId, userId), inArray(orders.status, [...UNSTARTED])));
   const pays = rows.length
     ? await db
         .select({ orderId: payments.orderId, publicId: payments.publicId, expiresAt: payments.expiresAt })
@@ -618,7 +618,7 @@ export async function myEndedPlan(userId: bigint): Promise<EndedPlan | null> {
     .from(orders)
     .innerJoin(plans, eq(orders.planId, plans.id))
     .innerJoin(mealSizes, eq(orders.mealSizeId, mealSizes.id))
-    .where(and(eq(orders.userId, userId), inArray(orders.status, ["completed", "cancelled"])))
+    .where(and(eq(orders.userId, userId), inArray(orders.status, [...ENDED])))
     .orderBy(desc(orders.updatedAt))
     .limit(5);
   for (const o of candidates) {

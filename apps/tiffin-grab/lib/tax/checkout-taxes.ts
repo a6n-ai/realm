@@ -65,6 +65,10 @@ export async function stripeTaxFor(
   }
 }
 
+/** Stripe Tax's own line amounts as order tax lines (cents to dollars). */
+export const taxLinesFromQuote = (quote: TaxQuote) =>
+  quote.lines.map((l) => ({ name: l.label, ratePct: l.ratePct, amount: l.amountCents / 100 }));
+
 /**
  * The one pricing+tax entry point for preview, createOrder, renewal requote and
  * admin inquiry orders. Stripe Tax when enabled; otherwise (or on any failure)
@@ -91,7 +95,7 @@ export async function priceWithTax(args: {
   }, { cache: args.cache });
 
   if (quote) {
-    const taxLines = quote.lines.map((l) => ({ name: l.label, ratePct: l.ratePct, amount: l.amountCents / 100 }));
+    const taxLines = taxLinesFromQuote(quote);
     return {
       pricing: { ...preTax, taxLines, taxTotal: quote.taxCents / 100, total: quote.totalCents / 100 },
       taxProvince: province,

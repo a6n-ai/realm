@@ -1,11 +1,11 @@
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { loadFaqGroups } from "@/lib/landing/faq-data";
-import { loadLandingPromos } from "@/lib/landing/promos";
+import { buildLandingPromos } from "@/lib/landing/promos";
 import { publicApiCache } from "@/lib/landing/revalidate-site";
 import { loadSiteFacts } from "@/lib/landing/site-facts";
 import { buildWeekBoard } from "@/lib/landing/week-board";
 import { foldPicks, popularSince } from "@/lib/menu/customer-week";
-import { loadReferralOffer } from "@/lib/referrals/offer";
+import { buildReferralOffer } from "@/lib/referrals/offer";
 import { getAppSettings } from "@/lib/services/app-settings.service";
 import { menuService } from "@/lib/menu/menu.service";
 import { contactBody, deliveryBody, faqBody, menuBody, plansBody, promotionsBody, referralBody } from "@/lib/public-api/data";
@@ -30,14 +30,14 @@ export const loadPublic = {
     const orgId = await resolveRequestOrg();
     return deliveryCheck((await loadCatalogSnapshot(orgId)).zones, postal, orgId);
   },
-  promotions: cached("promotions", async () => promotionsBody(await loadLandingPromos(), publicOrigin())),
+  promotions: cached("promotions", async () => promotionsBody(await buildLandingPromos(), publicOrigin())),
   // The brand's published week, as /menu shows it.
   menu: cached("menu", async () => {
     const [pub, { timezone }] = await Promise.all([menuService.getPublishedWeek(undefined, null), getAppSettings()]);
     const board = pub ? buildWeekBoard(pub, timezone, await menuService.dishPickCounts(popularSince(pub.weekStart)).then(foldPicks)) : { days: [], rows: [], weekend: null };
     return menuBody(pub?.weekStart ?? null, board, publicOrigin());
   }),
-  referral: cached("referral", async () => referralBody(await loadReferralOffer(), publicOrigin())),
+  referral: cached("referral", async () => referralBody(await buildReferralOffer(), publicOrigin())),
   faq: cached("faq", async () => faqBody(await loadFaqGroups(null), publicOrigin())),
   contact: async () => contactBody(publicOrigin()),
 };

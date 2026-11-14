@@ -14,7 +14,7 @@ const resolveSchema = z.object({
 const RESOLVE_LIMIT = 20;
 const RESOLVE_WINDOW_MS = 60_000;
 
-// Public (unauthenticated), always 200 — a throttled or empty result both
+// Session-only (/api/address is not in PUBLIC_API, so the proxy 401s signed-out callers), always 200 — a throttled or empty result both
 // degrade to "no coordinates yet", never a toast. Preview-only: nothing this
 // route returns is ever persisted (checkout re-resolves server-side at the
 // actual write point), so it uses the cheap non-persist bucket, not

@@ -3,6 +3,7 @@ import { and, eq, gt, inArray, isNull, ne, sql, type SQL } from "drizzle-orm";
 import { enabledMethods } from "@foundry/payments";
 import { db } from "@/db/client";
 import { deliveries, deliveryFrequencies, mealSizes, orders, payments, plans } from "@/db/schema";
+import { UNSTARTED } from "@/lib/orders/status";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { toClientCatalog } from "@/lib/catalog/types";
 import type { DayOfWeek } from "@/lib/deliveries/schedule/delivery-days";
@@ -123,7 +124,7 @@ async function queryUnpaidRenewal(userId: bigint, extra: (SQL | undefined)[]): P
       payPublicId: sql<string | null>`(select ${payments.publicId} from ${payments} where ${payments.orderId} = ${orders.id} and ${payments.method} = 'stripe' and ${payments.status} = 'awaiting_payment' and ${payments.addonRequest} is null order by ${payments.id} desc limit 1)`,
     })
     .from(orders)
-    .where(and(eq(orders.userId, userId), inArray(orders.status, ["pending", "waitlisted"]), ...extra))
+    .where(and(eq(orders.userId, userId), inArray(orders.status, [...UNSTARTED]), ...extra))
     .limit(1);
   return row ?? null;
 }

@@ -27,7 +27,7 @@ const welcome = { code: "WELCOME10", valuePct: null, valueAmount: "25.00", minSu
 
 describe("promoSavings", () => {
   it("claims less than the weakest 8-week plan at the typical price, with checkout's own lines", () => {
-    const s = promoSavings(snapshot, welcome)!;
+    const s = promoSavings(snapshot, welcome, "CAD")!;
     // $12.80 x 24 MWF tiffins = $307.20; 5% + 10% = $46.08; + $25 = $71.08 (Mon to Fri saves $76.20).
     expect(s.total).toBe(71.08);
     expect(s.headline).toBe("Save over $70");
@@ -44,12 +44,12 @@ describe("promoSavings", () => {
   it("leaves the coupon out when the plan is under its minimum after discounts", () => {
     const small = { ...snapshot, mealSizes: [size(1, 8)] };
     // $8 x 24 = $192, 15% off = $163.20 < $200.
-    expect(promoSavings(small, welcome)!.lines.map((l) => l.label)).not.toContain("Code WELCOME10");
+    expect(promoSavings(small, welcome, "CAD")!.lines.map((l) => l.label)).not.toContain("Code WELCOME10");
   });
 
   it("never rounds up to a figure the plan does not reach", () => {
     const even = { ...snapshot, mealSizes: [size(1, 12.5)], discounts: [off("w8", "duration", "dur_8", 10)] };
     // $12.50 x 24 = $300 MWF: $30 + $25 = $55 exactly, so "over $50", not "over $55".
-    expect(promoSavings(even, welcome)!.headline).toBe("Save over $50");
+    expect(promoSavings(even, welcome, "CAD")!.headline).toBe("Save over $50");
   });
 });

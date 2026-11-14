@@ -150,6 +150,7 @@ export function DropOffPicker({
 
 /** Live delivery offers, and a nudge when the same set has a cheaper drop-off than the one picked. */
 function DropOffTips({ catalog, value, onChange, disabled }: { catalog: DropOffCatalog; value: DropOffValue; onChange: (value: DropOffValue) => void; disabled: boolean }) {
+  const money = useFormatMoney();
   const cheaper = cheaperDropOff(catalog, value);
   if (catalog.offers.length === 0 && !cheaper) return null;
   return (
@@ -167,7 +168,7 @@ function DropOffTips({ catalog, value, onChange, disabled }: { catalog: DropOffC
         <div className="flex items-center gap-2 rounded-2xl bg-primary/10 py-1.5 pr-1.5 pl-3">
           <p className="min-w-0 flex-1 text-footnote leading-snug text-pretty">
             <span className="font-semibold">{cheaper.alt.name}</span>
-            <span className="text-muted-foreground"> saves ${cheaper.saves.toFixed(2)}{cheaper.perDelivery ? " per delivery" : ""} on {cheaper.picked.name}</span>
+            <span className="text-muted-foreground"> saves {money(cheaper.saves)}{cheaper.perDelivery ? " per delivery" : ""} on {cheaper.picked.name}</span>
           </p>
           <button
             type="button"

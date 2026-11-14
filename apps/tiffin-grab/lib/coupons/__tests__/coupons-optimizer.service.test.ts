@@ -119,7 +119,7 @@ describe("couponsService.resolveBestCoupons (optimizer)", () => {
 
     const best = await couponsService.resolveBestCoupons({ subtotal: 100, manualCodes: ["man-a10", "MAN-B5", "MAN-A10", "NOPE"] });
     expect(best.redemptions.map((r) => r.coupon.code).sort()).toEqual(["MAN-A10", "MAN-B5"]);
-    expect(best.manualErrors).toEqual([{ code: "NOPE", error: "Invalid coupon code" }]);
+    expect(best.manualErrors).toEqual([{ code: "NOPE", error: "Invalid coupon code", errorCode: "invalid_code" }]);
     expect(best.notApplied).toEqual([]);
   });
 

@@ -8,10 +8,10 @@ import { TicketPercentIcon } from "lucide-react";
 import { OrderStatusBadge } from "@/components/ds";
 import { Badge } from "@foundry/ui/badge";
 import { Reveal } from "@/components/motion";
+import { LIVE_DISPLAY, inOrderStatuses } from "@/lib/orders/status";
 import type { SubSummary } from "@/lib/deliveries/customer-deliveries.service";
 import type { AvailableCoupon } from "@/lib/coupons/coupons.service";
 
-export const CURRENT = new Set(["active", "payment_review", "pending", "waitlisted"]);
 
 function discountLine(c: AvailableCoupon, currency: string): string {
   switch (c.kind) {
@@ -63,8 +63,8 @@ function Group({ title, subs }: { title: string; subs: SubSummary[] }) {
 
 export function ExistingSubscriptions({ subs }: { subs: SubSummary[] }) {
   if (subs.length === 0) return null;
-  const current = subs.filter((s) => CURRENT.has(s.status));
-  const past = subs.filter((s) => !CURRENT.has(s.status));
+  const current = subs.filter((s) => inOrderStatuses(LIVE_DISPLAY, s.status));
+  const past = subs.filter((s) => !inOrderStatuses(LIVE_DISPLAY, s.status));
   return (
     <div className="space-y-4">
       {current.length > 0 && <Group title="Current plan" subs={current} />}

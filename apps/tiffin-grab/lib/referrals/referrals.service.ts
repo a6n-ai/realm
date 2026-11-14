@@ -1,24 +1,21 @@
 import { isUniqueViolation } from "@/lib/db/errors";
 import type { ReferralStatus } from "@/db/schema/enums";
 import { pageOffset } from "@foundry/design-system/filters/parse-filter-state";
+import { lockUser, lockUsers } from "@/lib/identity/lock-user";
 import { isCustomerRole } from "@/lib/roles";
-import { CAPTURED } from "@/lib/payments/status";
-import { paymentStatusIn } from "@/lib/payments/status-sql";
-import { wordpressImportSql } from "@/lib/orders/wordpress-import-sql";
-import { hasPaidOrder } from "@/lib/orders/paid-history";
+import { hasPaidOrder, paidOrders } from "@/lib/orders/paid-history";
 import { isWordpressImport } from "@/lib/orders/wordpress-import";
 import { randomInt } from "node:crypto";
 import { and, desc, eq, ilike, inArray, isNull, ne, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { ValidationError } from "@foundry/commons";
 import { db, type Tx } from "@/db/client";
-import { orderActivities, orders, payments, referrals, users, walletLedger } from "@/db/schema";
+import { orderActivities, orders, referrals, users } from "@/db/schema";
 import type { OrderPricingSnapshot } from "@/lib/pricing";
 import { referralCoins } from "@/lib/referrals/reward";
-import { coinsUnderCap } from "@/lib/wallet/earn-coins";
 import { earnsOrderCoins } from "@/lib/wallet/earns-coins";
-import { getAppSettings, getMaxWalletBalance, getReferralSettings, type ReferralSettings } from "../services/app-settings.service";
-import { balanceInTx, reverseCoinAward, walletService, type AwardableOrder } from "../wallet/wallet.service";
+import { getAppSettings, getReferralSettings, type ReferralSettings } from "../services/app-settings.service";
+import { creditCoins, reverseCoinAward, walletService, type AwardableOrder } from "../wallet/wallet.service";
 import { normalizeReferralCode, readReferralCookie } from "@/lib/referrals/cookie";
 
 // No 0/O, 1/I/L: codes get read out loud and typed from screenshots.
@@ -96,7 +93,7 @@ export async function attachOnSignIn(userId: bigint, headers: Headers | null | u
 export async function attachReferral(userId: bigint, rawCode: string): Promise<AttachResult> {
   const referrer = await findReferrerByCode(rawCode);
   return db.transaction(async (tx) => {
-    await tx.execute(sql`SELECT id FROM ${users} WHERE id = ${userId} FOR UPDATE`);
+    await lockUser(tx, userId);
     const [me] = await tx.select({ role: users.role, referredBy: users.referredByUserId, verified: users.emailVerified }).from(users).where(eq(users.id, userId)).limit(1);
     if (!me) return "not_eligible";
     if (me.referredBy != null) return "already";
@@ -131,7 +128,7 @@ export type StaffAttachResult =
 export async function staffAttachReferral(customerId: bigint, rawCode: string, actorId: bigint | null): Promise<StaffAttachResult> {
   const referrer = await findReferrerByCode(rawCode);
   return db.transaction(async (tx) => {
-    await tx.execute(sql`SELECT id FROM ${users} WHERE id = ${customerId} FOR UPDATE`);
+    await lockUser(tx, customerId);
     const [me] = await tx.select({ role: users.role, referredBy: users.referredByUserId }).from(users).where(eq(users.id, customerId)).limit(1);
     if (!me || !isCustomerRole(me.role)) return { result: "not_eligible" as const };
     if (me.referredBy != null) return { result: "already" as const };
@@ -140,12 +137,7 @@ export async function staffAttachReferral(customerId: bigint, rawCode: string, a
     const [back] = await tx.select({ by: users.referredByUserId }).from(users).where(eq(users.id, referrer.id)).limit(1);
     if (back?.by === customerId) return { result: "not_eligible" as const };
 
-    const history = await tx
-      .select({ order: orders, payStatus: payments.status })
-      .from(orders)
-      .leftJoin(payments, eq(payments.orderId, orders.id))
-      .where(and(eq(orders.userId, customerId), or(paymentStatusIn(CAPTURED), wordpressImportSql)))
-      .orderBy(orders.createdAt);
+    const history = await paidOrders(tx, customerId);
     const first = history[0];
     if (history.length > 1 || (first && isWordpressImport(first.order))) return { result: "repeat_customer" as const };
     // A refunded first order can't qualify, and a later one would be their second.
@@ -182,7 +174,7 @@ export async function awardReferral(
   if (!ref || ref.status !== "joined") return none;
 
   const pair = [ref.referrerUserId, ref.referredUserId].sort((a, b) => (a < b ? -1 : 1));
-  await tx.execute(sql`SELECT id FROM ${users} WHERE id IN (${pair[0]}, ${pair[1]}) ORDER BY id FOR UPDATE`);
+  await lockUsers(tx, pair);
   // Re-read under the lock: a concurrent verify/activate may have taken it.
   const [locked] = await tx.select().from(referrals).where(eq(referrals.id, ref.id)).for("update").limit(1);
   if (locked.status !== "joined") return none;
@@ -222,16 +214,10 @@ export async function awardReferral(
   }
   const taxTotal = (order.pricingSnapshot as OrderPricingSnapshot).taxTotal ?? 0;
   const amount = (value: number) => referralCoins({ mode: s.mode, value, total: Number(order.total), taxTotal, valuePerCoin: rate });
-  const walletCap = await getMaxWalletBalance();
   const credit = async (userId: bigint, coins: number, eventType: Side, memo: string): Promise<number> => {
     if (coins <= 0) return 0;
-    if (coinsUnderCap({ coins, balance: await balanceInTx(tx, userId), cap: walletCap }) === 0) return 0;
-    const res = await tx
-      .insert(walletLedger)
-      .values({ userId, direction: "credit", eventType, sourceType: "referral", sourceId: ref.publicId, coins, memo })
-      .onConflictDoNothing({ target: [walletLedger.sourceType, walletLedger.sourceId, walletLedger.eventType] })
-      .returning({ id: walletLedger.id });
-    return res.length > 0 ? coins : 0;
+    const res = await creditCoins(tx, { userId, coins, eventType, sourceType: "referral", sourceId: ref.publicId, memo });
+    return res === "credited" ? coins : 0;
   };
 
   let skip: string | null = null;

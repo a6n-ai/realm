@@ -1,4 +1,4 @@
-import { round2 } from "@foundry/commons/util/money";
+import { formatMoney, round2 } from "@foundry/commons/util/money";
 import { listableMealSizes, type CatalogSnapshot } from "@/lib/catalog/types";
 import { buildPricingCatalog } from "@/lib/pricing/build-catalog";
 import { postCatalogSubtotal } from "@/lib/pricing/discounts";
@@ -7,8 +7,6 @@ import { effectivePrice } from "@/lib/pricing/meal-size-discount";
 import type { PromoSavings } from "@/lib/landing/promo-types";
 
 type CouponLike = { code: string; valuePct: string | null; valueAmount: string | null; minSubtotal: string | null };
-
-const money = (n: number) => `$${Number.isInteger(n) ? n : n.toFixed(2)}`;
 
 // "3 Days/Wk Alternate (MWF)" reads as "Mon, Wed, Fri" on a receipt line.
 const DAY = { mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun" } as Record<string, string>;
@@ -55,7 +53,7 @@ function quote(snapshot: CatalogSnapshot, mealSizeId: string, frequencyKey: stri
  * checkout gives. "Save over $X" holds for the typical (median) meal size on EVERY schedule at
  * the shortest plan of `minWeeks` or more; the receipt shows that weakest case.
  */
-export function promoSavings(snapshot: CatalogSnapshot, coupon: CouponLike | null, minWeeks = 8): PromoSavings | null {
+export function promoSavings(snapshot: CatalogSnapshot, coupon: CouponLike | null, currency: string, minWeeks = 8): PromoSavings | null {
   const sizes = listableMealSizes(snapshot.mealSizes).filter((m) => !m.trial && m.priceable)
     .sort((a, b) => effectivePrice(a.basePrice, a) - effectivePrice(b.basePrice, b));
   const weeks = snapshot.durations.map((d) => d.weeks).filter((w) => w >= minWeeks).sort((a, b) => a - b)[0];
@@ -77,10 +75,10 @@ export function promoSavings(snapshot: CatalogSnapshot, coupon: CouponLike | nul
   // Strictly under the real figure, rounded to $5, so "over" is always true.
   const floor = Math.ceil(weakest.saving / 5) * 5 - 5;
   return {
-    headline: `Save over ${money(floor)}`,
+    headline: `Save over ${formatMoney(floor, currency, { whole: true })}`,
     condition: `on ${weeks}+ week plans`,
     example: `${weakest.weeks} weeks, ${weakest.frequency}`,
-    subtotalLabel: `${weakest.tiffins} tiffins × ${money(weakest.perTiffin)}`,
+    subtotalLabel: `${weakest.tiffins} tiffins × ${formatMoney(weakest.perTiffin, currency)}`,
     subtotal: round2(weakest.tiffins * weakest.perTiffin),
     lines: weakest.lines,
     total: weakest.saving,

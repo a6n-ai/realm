@@ -2,8 +2,9 @@ import { ValidationError } from "@foundry/commons";
 import { eq } from "drizzle-orm";
 import type { Tx } from "@/db/client";
 import { orders } from "@/db/schema";
+import { ENDED, inOrderStatuses } from "@/lib/orders/status";
 
-export const isPlanClosed = (order: { status: string } | undefined) => !order || order.status === "cancelled" || order.status === "completed";
+export const isPlanClosed = (order: { status: string } | undefined) => !order || inOrderStatuses(ENDED, order.status);
 
 /** Loads the order and refuses when it is missing, cancelled or completed; each caller passes its own message. */
 export async function assertPlanEditable(tx: Tx, orderId: bigint, message: string) {

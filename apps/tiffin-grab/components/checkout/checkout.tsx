@@ -45,12 +45,7 @@ import { asWizardOrigin, originHref, parsePlanSteps, wizardSession } from "@/lib
 import { firstBlockedStep, mealNote, pickedAddons, reconcileSelections, type WizardOrigin, type WizardSelections } from "@/lib/wizard/selections";
 
 function isPlanRenewalCheckout(lastTiffin: string | null): boolean {
-  if (lastTiffin) return true;
-  try {
-    return wizardSession.origin() === "renew";
-  } catch {
-    return false;
-  }
+  return Boolean(lastTiffin) || wizardSession.origin() === "renew";
 }
 import { OrderSummary, startLabel } from "@/components/checkout/order-summary";
 import { SubscribeChrome } from "@/components/wizard/subscribe-chrome";
@@ -67,7 +62,7 @@ import { Check, ChevronRight, Coins, Info, Lock, MapPin, Plus, Tag, X } from "lu
 import { StatusBanner, toneClasses } from "@/components/checkout/status-banner";
 import { discountLine } from "@/components/customer/home/coupons-section";
 import { ReferralGift } from "@/components/wizard/referral-gift";
-import type { AvailableCoupon } from "@/lib/coupons/coupons.service";
+import type { AvailableCoupon, CouponErrorCode } from "@/lib/coupons/coupons.service";
 
 const TITLES = { 0: "Renew your plan.", 1: "Where should we deliver?", 2: "How would you like to pay?" } as const;
 const H = "text-muted-foreground text-footnote font-semibold tracking-[0.02em]";
@@ -105,12 +100,7 @@ type AddressDraft = Pick<Contact, "addressLine" | "addressUnit" | "city" | "post
 const EMPTY_ADDRESS: AddressDraft = { addressLine: "", addressUnit: "", city: "", postalCode: "", deliveryInstructions: "" };
 /** A new address starts with the postal code the visitor already checked on the builder. */
 function newAddress(): AddressDraft {
-  try {
-    const checked = JSON.parse(wizardSession.postalRaw() ?? "null") as { postal?: string } | null;
-    return { ...EMPTY_ADDRESS, postalCode: checked?.postal ?? "" };
-  } catch {
-    return { ...EMPTY_ADDRESS };
-  }
+  return { ...EMPTY_ADDRESS, postalCode: wizardSession.postal()?.postal ?? "" };
 }
 const addressOf = (c: Contact): AddressDraft => ({
   addressLine: c.addressLine,
@@ -132,9 +122,9 @@ function addressFields(a: SavedAddress): Partial<Contact> {
   };
 }
 
-function formatChargeHint(item: { chargeType: "none" | "fixed" | "percent"; chargeValue: number }) {
+function formatChargeHint(item: { chargeType: "none" | "fixed" | "percent"; chargeValue: number }, money: (n: number) => string) {
   if (item.chargeType === "none" || item.chargeValue === 0) return "Free";
-  if (item.chargeType === "fixed") return `+$${item.chargeValue.toFixed(2)}`;
+  if (item.chargeType === "fixed") return `+${money(item.chargeValue)}`;
   if (item.chargeType === "percent") return `+${item.chargeValue}%`;
   return "";
 }
@@ -278,7 +268,7 @@ export function Checkout({
   // Typed codes that landed in the price; several can stack, each removable on its own.
   const [appliedCodes, setAppliedCodes] = useState<string[]>([]);
   const [applied, setApplied] = useState<AppliedCoupon[]>([]);
-  const [couponState, setCouponState] = useState<{ status: "idle" | "checking" | "applied" | "error"; message?: string }>({ status: "idle" });
+  const [couponState, setCouponState] = useState<{ status: "idle" | "checking" | "applied" | "error"; message?: string; errorCode?: CouponErrorCode }>({ status: "idle" });
   const [coinsInput, setCoinsInput] = useState("");
   const [appliedCoins, setAppliedCoins] = useState(0);
   const [coinsApplied, setCoinsApplied] = useState<{ coins: number; amount: number } | null>(null);
@@ -485,7 +475,6 @@ export function Checkout({
     // Coins the customer agreed to on the estimate: tried with the first price, dropped if refused.
     refreshPrice(s, quoted, null, quotedCoins || undefined).then(
       async (r) => {
-        wizardSession.clearPriceReload();
         let coins = quotedCoins;
         if (coins) {
           wizardSession.clearQuoteCoins();
@@ -510,15 +499,8 @@ export function Checkout({
           : { status: "applied", message: `${kept.join(", ")} ${kept.length > 1 ? "are" : "is"} applied` });
       },
       (err) => {
-        if (err instanceof UnpriceableCart) { wizardSession.clearPriceReload(); setResult(null); return; }
-        // A tab left open across a deploy calls Server Action ids the new build no longer
-        // has; deploymentId only catches that on navigation. One reload picks up the new
-        // build (the plan is in sessionStorage); a second failure is real and shows Retry.
-        if (!wizardSession.priceReloaded()) {
-          wizardSession.markPriceReload();
-          window.location.reload();
-          return;
-        }
+        if (err instanceof UnpriceableCart) { setResult(null); return; }
+        // A tab left open across a deploy fails here too; StaleDeployReloader already prompts for the reload.
         setResult(null);
         setPriceFailed(true);
       },
@@ -621,14 +603,15 @@ export function Checkout({
     setCouponState({ status: "checking" });
     const tried = [...appliedCodes, code];
     const r = await refreshPrice(selections, tried, methodId, appliedCoins || undefined);
-    const error = r.couponErrors ? r.couponErrors.find((e) => e.code === code)?.error : r.couponError;
+    const refusal = r.couponErrors ? r.couponErrors.find((e) => e.code === code) : r.couponError ? { error: r.couponError, errorCode: r.couponErrorCode } : undefined;
+    const error = refusal?.error;
     // A refused code, or one a better combination beat, is not kept: price again without it
     // so the total on screen is what the order will charge.
     const left = r.couponsNotApplied?.find((n) => n.code.toUpperCase() === code)?.reason;
     const inSet = r.appliedCoupons.some((c) => c.code.toUpperCase() === code);
     if (error || !inSet) {
       await refreshPrice(selections, appliedCodes, methodId, appliedCoins || undefined);
-      setCouponState(error ? { status: "error", message: error } : { status: "applied", message: left ?? "A better discount is already applied" });
+      setCouponState(error ? { status: "error", message: error, errorCode: refusal?.errorCode } : { status: "applied", message: left ?? "A better discount is already applied" });
       return;
     }
     setAppliedCodes(tried);
@@ -934,7 +917,7 @@ export function Checkout({
               return (
                 <PillToggle key={tag.id} role="radio" aria-checked={on} on={on} onClick={() => handleAddressTagSelect(tag.id)} className="h-10 flex-none gap-1.5 px-4 text-[14px] sm:text-[14px]">
                   {tag.name}
-                  <span className="text-caption font-medium opacity-75">{formatChargeHint(tag)}</span>
+                  <span className="text-caption font-medium opacity-75">{formatChargeHint(tag, money)}</span>
                 </PillToggle>
               );
             })}
@@ -1435,7 +1418,7 @@ function OrderGlance({ title, baseline, meta, address, total, saved, onOpen }: {
   );
 }
 
-type ApplyState = { status: "idle" | "checking" | "applied" | "error"; message?: string };
+type ApplyState = { status: "idle" | "checking" | "applied" | "error"; message?: string; errorCode?: CouponErrorCode };
 
 function RowIcon({ tone = "muted", children }: { tone?: "muted" | "wash" | "save"; children: ReactNode }) {
   const toneCls = tone === "save" ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-400"
@@ -1470,12 +1453,12 @@ function CouponEntry({ value, onChange, onApply, state, reveal, suggestions, onP
     lastCount.current = appliedCount;
   }, [appliedCount]);
   const typed = value.trim().toUpperCase();
-  const gated = state.status === "error" && state.message === "This coupon is not valid for the selected payment method"
+  const gated = state.status === "error" && state.errorCode === "payment_method"
     ? suggestions.find((c) => c.code.toUpperCase() === typed && c.allowedPaymentMethods.length > 0)
     : undefined;
   const gatedMethod = gated?.allowedPaymentMethods[0];
   const errorMessage = state.status === "error"
-    ? state.message === "Invalid coupon code" && suggestions.length > 0 ? `${state.message}. Check the spelling, or pick one below.` : state.message
+    ? state.errorCode === "invalid_code" && suggestions.length > 0 ? `${state.message}. Check the spelling, or pick one below.` : state.message
     : undefined;
   return (
     <div>

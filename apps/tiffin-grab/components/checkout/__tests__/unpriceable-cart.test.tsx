@@ -40,7 +40,6 @@ describe("checkout with a cart the server can't price", () => {
 
     expect(await screen.findByText("Invalid duration")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Retry" })).toBeNull();
-    expect(sessionStorage.getItem("tiffin.checkout.price-reload")).toBeNull();
     fireEvent.click(screen.getAllByRole("button", { name: "Back" }).find((b) => b.className.includes("!shrink-0"))!);
     expect(mockRouter.push).toHaveBeenCalledWith("/subscribe", expect.anything());
   });

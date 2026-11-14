@@ -7,12 +7,11 @@ import { validatePostal } from "@/lib/wizard/actions";
 import { parseWindow } from "@/lib/landing/areas";
 import { normalizePostal } from "@/lib/catalog/postal";
 import { CONTACT_EMAIL } from "@/lib/brand";
-import { wizardSession } from "@/lib/wizard/session";
+import { wizardSession, type CheckedPostal as Served } from "@/lib/wizard/session";
 
 // "Check your area" (do we deliver to you?) near the top of the builder, answered before the visitor puts in any effort. A served
 // postal code is kept for the tab (checkout's new-address form starts with it) and shows as one line from then on.
 // Checkout still asks for the full address and checks the zone itself.
-type Served = { postal: string; area: string; window: string | null };
 type State = { status: "idle" } | { status: "checking" } | ({ status: "served" } & Served) | { status: "unserved" } | { status: "invalid" };
 
 const pretty = (p: string) => (p.length === 6 ? `${p.slice(0, 3)} ${p.slice(3)}` : p);
@@ -22,12 +21,10 @@ export function DeliveryCheck({ onlyWhenChecked = false }: { onlyWhenChecked?: b
   const [state, setState] = useState<State>({ status: "idle" });
 
   useEffect(() => {
-    try {
-      const saved = JSON.parse(wizardSession.postalRaw() ?? "null") as Served | null;
-      // sessionStorage is client-only.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      if (saved?.postal && saved.area) setState({ status: "served", ...saved });
-    } catch { /* unreadable: ask again */ }
+    const saved = wizardSession.postal();
+    // sessionStorage is client-only.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (saved?.postal && saved.area) setState({ status: "served", postal: saved.postal, area: saved.area, window: saved.window ?? null });
   }, []);
 
   async function check() {
@@ -39,7 +36,7 @@ export function DeliveryCheck({ onlyWhenChecked = false }: { onlyWhenChecked?: b
       if (!r.served || !r.zone) return setState({ status: "unserved" });
       const w = parseWindow(r.zone.slotWindow);
       const served: Served = { postal: pretty(code), area: r.zone.name, window: w ? `${w.from} to ${w.to}` : null };
-      try { wizardSession.savePostal(served); } catch { /* storage unavailable */ }
+      wizardSession.savePostal(served);
       setState({ status: "served", ...served });
     } catch {
       setState({ status: "idle" });
@@ -57,7 +54,7 @@ export function DeliveryCheck({ onlyWhenChecked = false }: { onlyWhenChecked?: b
             type="button"
             className="px-2 py-1 font-semibold text-primary underline-offset-4 hover:underline"
             onClick={() => {
-              try { wizardSession.clearPostal(); } catch { /* storage unavailable */ }
+              wizardSession.clearPostal();
               setPostal(state.postal);
               setState({ status: "idle" });
             }}

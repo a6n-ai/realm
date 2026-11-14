@@ -4,7 +4,7 @@ import { formatMoney, generateCode, ValidationError } from "@foundry/commons";
 import { createLogger } from "@foundry/commons/logger";
 import { enabledMethods, findMethod } from "@foundry/payments";
 import { replaceOlderUnpaidCheckouts } from "./unpaid-checkouts";
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db, type Tx } from "@/db/client";
 import { defaultOwner } from "../staff/default-owner";
 import { getBrandOrgId } from "../services/organizations.service";
@@ -54,6 +54,7 @@ import { coinQuote, loadCoinConfig } from "./quote";
 import { loadMealCostFloor } from "@/lib/pricing/meal-cost";
 import { applyDiscountLane } from "@/lib/coupons/discount-lane";
 import { isProduction } from "@/lib/runtime/env";
+import { lockUser } from "@/lib/identity/lock-user";
 import { lockOrder } from "./order-lock";
 
 const log = createLogger("orders.service");
@@ -474,7 +475,7 @@ export async function createOrder(
         // The share-of-balance limit is drawn from the balance, so read it under the same user row lock
         // lockAndQuoteCoinRedemption takes: unlocked, two concurrent orders could each draw the limit from
         // one balance and together spend past it.
-        await tx.execute(sql`SELECT id FROM ${users} WHERE id = ${userId} FOR UPDATE`);
+        await lockUser(tx, userId);
         const walletBalance = await balanceInTx(tx, userId);
         const { rate, maxRedeemPctOfBalance: maxRedeemPct, pctCap, walletPctCap, cap: quote } = coinQuote(cfg, { balance: walletBalance, postCatalog, remaining });
         // Same rule as the checkout quote: refuse only when the share-of-balance limit is what binds. A

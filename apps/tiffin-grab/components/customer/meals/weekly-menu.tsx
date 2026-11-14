@@ -12,11 +12,9 @@ import { useTimezone } from "@foundry/design-system/timezone-provider";
 import { makeCategoryLook } from "../../kit/category-look";
 import type { MenuDay, MyDay } from "@/lib/menu/customer-week";
 import { isoToUtcDate } from "@foundry/commons/util/dates";
+import { MONTH_DAY_LONG, WEEKDAY_LONG, WEEKDAY_SHORT } from "@/components/kit/date-formats";
 
 const at = (iso: string) => isoToUtcDate(iso);
-const WEEKDAY = new Intl.DateTimeFormat("en-CA", { weekday: "long", timeZone: "UTC" });
-const SHORT = new Intl.DateTimeFormat("en-CA", { weekday: "short", timeZone: "UTC" });
-const DATE = new Intl.DateTimeFormat("en-CA", { month: "long", day: "numeric", timeZone: "UTC" });
 
 const DOT: Partial<Record<NonNullable<MyDay>, DeliveryStatus>> = { delivered: "delivered", paused: "paused", hold: "hold" };
 
@@ -88,7 +86,7 @@ function WeekBar({ days, value, today, onChange }: { days: MenuDay[]; value: num
               }}
               type="button"
               aria-pressed={on}
-              aria-label={`${WEEKDAY.format(at(d.date))}, ${DATE.format(at(d.date))}${d.date === today ? ", today" : ""}${delivery ? ", your delivery" : status ? `, ${MINE[d.mine!].label}` : ""}`}
+              aria-label={`${WEEKDAY_LONG.format(at(d.date))}, ${MONTH_DAY_LONG.format(at(d.date))}${d.date === today ? ", today" : ""}${delivery ? ", your delivery" : status ? `, ${MINE[d.mine!].label}` : ""}`}
               tabIndex={on ? 0 : -1}
               onClick={() => onChange(i)}
               className={cn(
@@ -97,7 +95,7 @@ function WeekBar({ days, value, today, onChange }: { days: MenuDay[]; value: num
                 on ? "text-[var(--primary-foreground,#fff)]" : d.date === today ? "text-[var(--primary-text,var(--primary))]" : "text-foreground",
               )}
             >
-              <span aria-hidden className={cn("text-xs font-semibold", !on && "opacity-70")}>{SHORT.format(at(d.date)).slice(0, 3)}</span>
+              <span aria-hidden className={cn("text-xs font-semibold", !on && "opacity-70")}>{WEEKDAY_SHORT.format(at(d.date)).slice(0, 3)}</span>
               <b aria-hidden className="text-body leading-none tabular-nums">{at(d.date).getUTCDate()}</b>
               <span aria-hidden className="flex h-1.5 items-center">
                 {delivery ? <span className={cn("size-1.5 rounded-full", on ? "bg-current" : "bg-primary")} /> : status ? <StatusDot decorative status={status} className="size-1.5" /> : null}
@@ -140,19 +138,19 @@ function PopularWeek({ days, today, onPick }: { days: MenuDay[]; today: string; 
             <button
               type="button"
               onClick={() => onPick(r.date)}
-              aria-label={`${r.name}, on ${r.dates.map((d) => WEEKDAY.format(at(d))).join(", ")}${r.yours.length ? ", in your delivery" : ""}. Show ${WEEKDAY.format(at(r.date))}`}
+              aria-label={`${r.name}, on ${r.dates.map((d) => WEEKDAY_LONG.format(at(d))).join(", ")}${r.yours.length ? ", in your delivery" : ""}. Show ${WEEKDAY_LONG.format(at(r.date))}`}
               className={cn(
                 FOCUS,
                 "c-liquid flex w-full flex-col items-start gap-3 rounded-[26px] p-4 text-left [touch-action:manipulation] transition-transform duration-150 ease-soft active:scale-[.96] motion-reduce:transition-none motion-reduce:active:scale-100",
               )}
             >
-              <span className="c-label tabular-nums">{r.dates.map((d) => (d === today ? "Today" : SHORT.format(at(d)).slice(0, 3))).join(" · ")}</span>
+              <span className="c-label tabular-nums">{r.dates.map((d) => (d === today ? "Today" : WEEKDAY_SHORT.format(at(d)).slice(0, 3))).join(" · ")}</span>
               <span className="flex min-w-0 items-start gap-2.5">
                 <span className="mt-1"><DietMark color={r.color} /></span>
                 <span className="line-clamp-2 text-body font-semibold leading-snug tracking-[-0.01em]">{r.name}</span>
               </span>
               <span className="mt-auto flex w-full flex-wrap items-center justify-between gap-2">
-                <span className="c-caption tabular-nums">{r.dates.length === 1 ? DATE.format(at(r.date)) : `${r.dates.length} days this week`}</span>
+                <span className="c-caption tabular-nums">{r.dates.length === 1 ? MONTH_DAY_LONG.format(at(r.date)) : `${r.dates.length} days this week`}</span>
                 {r.yours.length > 0 && <Pill tone="brand" size="sm">Your delivery</Pill>}
               </span>
             </button>
@@ -214,9 +212,9 @@ export function WeeklyMenu({ days: full, plan, legend, initial, today }: { days:
         <div className="overflow-x-clip">
           <div ref={swipe.ref} {...swipe.bind} className="flex flex-col gap-5 [touch-action:pan-y]">
             <header className="flex flex-col gap-1 px-1">
-              <p className="c-label">{DATE.format(at(current.date))}</p>
+              <p className="c-label">{MONTH_DAY_LONG.format(at(current.date))}</p>
               <div className="flex flex-wrap items-center gap-2">
-                <h2 className="text-title-1 font-bold leading-tight tracking-[-0.03em]">{WEEKDAY.format(at(current.date))}</h2>
+                <h2 className="text-title-1 font-bold leading-tight tracking-[-0.03em]">{WEEKDAY_LONG.format(at(current.date))}</h2>
                 {current.date === today && <Pill tone="brand" size="sm">Today</Pill>}
               </div>
               {!mine && <p className="c-caption">No delivery this day</p>}

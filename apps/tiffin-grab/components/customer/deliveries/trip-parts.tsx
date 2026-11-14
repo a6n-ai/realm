@@ -6,14 +6,14 @@ import { cn, FONT, FOCUS } from "@/components/kit/cn";
 import { humanDate, isPastPause, type Trip } from "@/lib/deliveries/view";
 import { dayNote, deliveryLine, isDone, moveNotes, weekdayShort, type EatingRow } from "@/lib/deliveries/view/eating";
 import { dateTimeFormat } from "@foundry/commons/util/intl-format";
+import { WEEKDAY_SHORT } from "@/components/kit/date-formats";
 import type { PlanView } from "@/lib/deliveries/view/adapter";
 import type { SubscriptionAddon } from "@/lib/menu/order-addon-items";
 import { isoToUtcDate } from "@foundry/commons/util/dates";
 
-const WD = dateTimeFormat("en-CA", { weekday: "short", timeZone: "UTC" });
 const d = (iso: string) => isoToUtcDate(iso);
 export const dayNum = (iso: string) => d(iso).getUTCDate();
-export const weekday = (iso: string) => WD.format(d(iso));
+export const weekday = (iso: string) => WEEKDAY_SHORT.format(d(iso));
 
 export function statusMeta(t: Trip): { label: string; tone: Tone; dot: DeliveryStatus | null } {
   const m = (label: string, dot: DeliveryStatus, tone: Tone = STATUS_TONE[dot]) => ({ label, tone, dot });

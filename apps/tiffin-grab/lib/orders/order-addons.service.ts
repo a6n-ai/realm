@@ -18,7 +18,7 @@ import { resolveAddonSelections, type ResolvedAddon } from "@/lib/pricing/build-
 import { addAddonsToSnapshot, type MidPlanAddonPricing } from "@/lib/pricing/mid-plan-addons";
 import type { OrderPricingSnapshot } from "@/lib/pricing/types";
 import { publishUserRefresh } from "@/lib/realtime/publish-inbox";
-import { resolveCheckoutTaxes, stripeTaxFor } from "@/lib/tax/checkout-taxes";
+import { resolveCheckoutTaxes, stripeTaxFor, taxLinesFromQuote } from "@/lib/tax/checkout-taxes";
 import { getAppSettings, getPaymentConfig } from "../services/app-settings.service";
 import { chargedCents, refundStripePayment, tryChargeLock } from "../payments/stripe-charge";
 import { cancelOpenIntent } from "../payments/stripe-expiry";
@@ -151,7 +151,7 @@ async function priceAddons(
         source: "stripe",
         calculationId: quote.calculationId,
         taxableCents,
-        taxes: quote.lines.map((l) => ({ name: l.label, ratePct: l.ratePct, amount: l.amountCents / 100 })),
+        taxes: taxLinesFromQuote(quote),
       };
     }
   }

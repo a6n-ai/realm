@@ -1,6 +1,7 @@
 "use server";
 
 import { isCustomerRole } from "@/lib/roles";
+import type { CouponErrorCode } from "@/lib/coupons/coupons.service";
 import { round2 } from "@foundry/commons/util/money";
 import { eq } from "drizzle-orm";
 import { findMethod } from "@foundry/payments";
@@ -51,8 +52,9 @@ export interface RepriceResult {
   pricing: PricingResult;
   appliedCoupons: AppliedCoupon[];
   couponError?: string;
+  couponErrorCode?: CouponErrorCode;
   // Per typed code: why it was refused, or why a valid one was left out of the best set.
-  couponErrors?: { code: string; error: string }[];
+  couponErrors?: { code: string; error: string; errorCode?: CouponErrorCode }[];
   couponsNotApplied?: { code: string; reason: string }[];
   paymentMethods: CheckoutPaymentMethod[];
   // Signed-out checkout has no wallet to spend from — null tells the UI to hide
@@ -227,6 +229,7 @@ async function quote(
     pricing,
     appliedCoupons,
     couponError: best.manualError,
+    couponErrorCode: best.manualErrorCode,
     couponErrors: best.manualErrors,
     couponsNotApplied: best.notApplied,
     paymentMethods,

@@ -108,7 +108,7 @@ function enforceCostFloor(
   if (dropped.length === 0 && !hadRep) return result;
 
   const lines: PricingLine[] = keep.map((a) => ({ label: `${a.coupon.name} (${a.coupon.code})`, amount: a.amount }));
-  const manualErrors = [
+  const manualErrors: typeof result.best.manualErrors = [
     ...result.best.manualErrors,
     ...dropped.map((d) => ({ code: d.coupon.code, error: BELOW_COST_ERROR })),
   ];
@@ -122,6 +122,7 @@ function enforceCostFloor(
       lines,
       redemptions: keep,
       manualError: manualErrors[0]?.error ?? result.best.manualError,
+      manualErrorCode: manualErrors[0]?.errorCode,
       manualErrors,
     },
     lines,

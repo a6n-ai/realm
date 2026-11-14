@@ -23,8 +23,7 @@ import { Wizard } from "@/components/wizard/wizard";
 import { quoteCodes, quoteCoins, selectionsFromPriorOrder, selectionsFromQuote, type QuoteParams } from "@/lib/wizard/selections";
 import type { CurrentPlanSummary } from "@/components/wizard/current-plan-hint";
 import { utcIso } from "@foundry/commons/util/dates";
-
-const LIVE = new Set(["active", "upcoming", "paused", "waitlisted", "pending"]);
+import { LIVE, inOrderStatuses } from "@/lib/orders/status";
 
 export default async function RenewPlanPage({ searchParams }: { searchParams: Promise<QuoteParams & { full?: string }> }) {
   const userId = await requireCustomerIdOrRedirect();
@@ -99,7 +98,7 @@ export default async function RenewPlanPage({ searchParams }: { searchParams: Pr
   const quoted = selectionsFromQuote(client, params);
   const base = quoted ?? prior;
   const initial = withFirstStart(client, base, today, earliestStartDate, holidayDates);
-  const live = subs.filter((s) => LIVE.has(s.status));
+  const live = subs.filter((s) => inOrderStatuses(LIVE, s.status));
   const currentRow =
     live.find((s) => s.status === "active") ??
     live.find((s) => s.status === "paused") ??

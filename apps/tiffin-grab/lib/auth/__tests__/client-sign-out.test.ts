@@ -12,6 +12,9 @@ describe("signOut", () => {
     sessionStorage.setItem("tiffin.wizard", "{}");
     sessionStorage.setItem("tiffin.wizard.step", "3");
     sessionStorage.setItem("tiffin.wizard.origin", "renew");
+    sessionStorage.setItem("tiffin.wizard.postal", "{}");
+    sessionStorage.setItem("tiffin.quote.codes", "[\"SAVE10\"]");
+    sessionStorage.setItem("tiffin.quote.coins", "40");
     sessionStorage.setItem("other.key", "kept");
 
     await signOut();

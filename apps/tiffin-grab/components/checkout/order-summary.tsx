@@ -5,13 +5,14 @@ import Link from "next/link";
 import type { PricingResult } from "@/lib/pricing";
 import type { WizardSelections } from "@/lib/wizard/selections";
 import { Divider, Pill } from "@/components/kit";
+import { DATE_SHORT } from "@/components/kit/date-formats";
 
 const DAY_LABEL: Record<string, string> = { mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun" };
 
 export function startLabel(iso: string) {
   const [y, m, d] = iso.split("-").map(Number);
   if (!y || !m || !d) return null;
-  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString("en-CA", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });
+  return DATE_SHORT.format(Date.UTC(y, m - 1, d));
 }
 
 

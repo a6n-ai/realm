@@ -10,7 +10,7 @@ import { isPublicApi } from "./lib/routing/public-api";
 import { AREA_PAGE, apexServes, appServes, skipsOrgResolution } from "./lib/routing/apex";
 import { MD_PAGES, wantsMarkdown } from "@/lib/landing/markdown-negotiation";
 import { isReferralCodeShape, normalizeReferralCode, setReferralCookie } from "./lib/referrals/cookie";
-import { appUrlOr, isTest } from "@/lib/runtime/env";
+import { appUrlOr, corsOrigins, isTest } from "@/lib/runtime/env";
 
 // Proxy defaults to the Node.js runtime as of Next 16 (setting `export const
 // runtime` here throws — the option isn't available for proxy files), so a
@@ -25,7 +25,7 @@ const PROBE_PATH = new RegExp(probePath.source, probePath.flags);
 
 // Cross-origin allowlist, comma-separated env. Empty = same-origin only
 // (browsers block cross-origin by default — this stays locked until set).
-const CORS_ORIGINS = (process.env.CORS_ORIGINS ?? "")
+const CORS_ORIGINS = (corsOrigins() ?? "")
   .split(",")
   .map((s) => s.trim())
   .filter(Boolean);
@@ -74,9 +74,13 @@ const SITE_PAGES = new Set([...publicPages, "/menu/weekly", "/plans"]);
 // A referral friend page, /refer/<code>: personalised, so never in public-pages.json (edge cache).
 // Any one segment goes through: the page falls back to the general refer content for a mistyped
 // or unknown code, which beats a 404 for someone who typed a friend's code by hand.
-function siteFriendPath(pathname: string): string | null {
+function friendCode(pathname: string): string {
   const m = /^\/refer\/([^/]+)$/.exec(pathname);
-  const code = m ? normalizeReferralCode(m[1]!).replace(/[^A-Z0-9]/g, "") : "";
+  return m ? normalizeReferralCode(m[1]!).replace(/[^A-Z0-9]/g, "") : "";
+}
+
+function siteFriendPath(pathname: string): string | null {
+  const code = friendCode(pathname);
   return code ? `/refer/${code}` : null;
 }
 
@@ -127,7 +131,7 @@ export async function proxy(request: NextRequest) {
   syncSessionHint(request, res);
   // A share link: remember the code until the friend signs in (attached there).
   // ...or the friend page itself (/refer/<code>): its header and footer links carry no ?ref=.
-  const ref = normalizeReferralCode(request.nextUrl.searchParams.get("ref") ?? /^\/refer\/([^/]+)$/.exec(pathname)?.[1] ?? "");
+  const ref = normalizeReferralCode(request.nextUrl.searchParams.get("ref") ?? friendCode(pathname));
   if (isReferralCodeShape(ref)) setReferralCookie(res.cookies, ref);
   return res;
 }

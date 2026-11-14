@@ -22,7 +22,7 @@ import { areaSlug } from "@/lib/landing/areas";
 // The public site has one look whatever the visitor's theme: .tg-light-root pins the cream
 // tokens and chosen bands opt into dark green with .dark (the toggle lives in /me and the dashboard).
 export async function PublicShell({ children }: { children: ReactNode }) {
-  const [offer, promos] = await Promise.all([loadReferralOffer().catch(() => null), loadLandingPromos().catch(() => null)]);
+  const [offer, promos] = await Promise.all([loadReferralOffer(), loadLandingPromos()]);
   const sticker = promos?.sticker ?? null;
   // The dock's promotion face: the computed saving when there is one, else the promo's own badge.
   const dockPromo = sticker ? { text: sticker.savings?.headline ?? sticker.badge ?? sticker.title, code: sticker.code, href: sticker.href } : null;

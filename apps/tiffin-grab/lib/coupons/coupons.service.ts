@@ -61,11 +61,23 @@ const GROUP_ONLY_ERROR = "This code isn't available for your account";
 // that were rejected carry their reason in manualErrors (manualError is the first),
 // so the caller can surface each inline without failing the whole resolution. A
 // typed code that is valid but lost to a better combination lands in notApplied.
+/** Stable identity of an error a UI branches on; the message is for display only. */
+export type CouponErrorCode = "invalid_code" | "payment_method";
+
+export class CouponError extends ValidationError {
+  constructor(message: string, readonly errorCode?: CouponErrorCode) {
+    super(message);
+  }
+}
+
+type Rejection = { message: string; errorCode?: CouponErrorCode };
+
 export interface BestCouponsResult {
   lines: PricingLine[];
   redemptions: { coupon: Coupon; amount: number }[];
   manualError?: string;
-  manualErrors: { code: string; error: string }[];
+  manualErrorCode?: CouponErrorCode;
+  manualErrors: { code: string; error: string; errorCode?: CouponErrorCode }[];
   notApplied: { code: string; reason: string }[];
 }
 
@@ -201,7 +213,7 @@ class CouponsService extends SessionUpdatableService<typeof coupons> {
   async validatePublicCode(code: string, ctx: PublicCodeContext): Promise<PricingLine> {
     const coupon = await this.loadByCode(code);
     const err = await this.publicEligibilityError(coupon, ctx);
-    if (err) throw new ValidationError(err);
+    if (err) throw new CouponError(err.message, err.errorCode);
     return this.resolveDiscount(coupon, ctx);
   }
 
@@ -242,7 +254,7 @@ class CouponsService extends SessionUpdatableService<typeof coupons> {
     // Plus the typed codes (need not be autoApply). A failure is reported per code
     // rather than thrown, so the rest still resolve. A staff code stays out of the
     // optimizer: it goes on top of whatever set wins, and only one rides an order.
-    const manualErrors: { code: string; error: string }[] = [];
+    const manualErrors: { code: string; error: string; errorCode?: CouponErrorCode }[] = [];
     const typed: Coupon[] = [];
     let staffCode: Coupon | null = null;
     for (const code of normalizeCodes([ctx.manualCode], ctx.manualCodes)) {
@@ -250,7 +262,7 @@ class CouponsService extends SessionUpdatableService<typeof coupons> {
         const coupon = await this.loadByCode(code);
         const err = await this.publicEligibilityError(coupon, pubCtx);
         if (err) {
-          manualErrors.push({ code, error: err });
+          manualErrors.push({ code, error: err.message, ...(err.errorCode && { errorCode: err.errorCode }) });
         } else if (coupon.kind === "rep_code") {
           if (staffCode) manualErrors.push({ code, error: "Only one staff code per order" });
           else staffCode = coupon;
@@ -261,7 +273,7 @@ class CouponsService extends SessionUpdatableService<typeof coupons> {
           }
         }
       } catch (e) {
-        manualErrors.push({ code, error: e instanceof Error ? e.message : "Invalid coupon code" });
+        manualErrors.push({ code, error: e instanceof Error ? e.message : "Invalid coupon code", ...(e instanceof CouponError && e.errorCode && { errorCode: e.errorCode }) });
       }
     }
 
@@ -318,7 +330,7 @@ class CouponsService extends SessionUpdatableService<typeof coupons> {
         reason: won.length ? `Can't be combined with ${won.join(", ")}, which saves more` : "Gives no discount on this order",
       }));
 
-    return { lines: best.lines, redemptions: best.redemptions, manualError: manualErrors[0]?.error, manualErrors, notApplied };
+    return { lines: best.lines, redemptions: best.redemptions, manualError: manualErrors[0]?.error, manualErrorCode: manualErrors[0]?.errorCode, manualErrors, notApplied };
   }
 
   // Staff: validate the actor's OWN rep_daily coupon and clamp to the dual ceiling.
@@ -583,38 +595,40 @@ class CouponsService extends SessionUpdatableService<typeof coupons> {
       .from(coupons)
       .where(sql`upper(${coupons.code}) = ${code.trim().toUpperCase()}`)
       .limit(1);
-    if (!coupon || !coupon.active) throw new ValidationError("Invalid coupon code");
+    if (!coupon || !coupon.active) throw new CouponError("Invalid coupon code", "invalid_code");
     return coupon;
   }
 
   // Non-throwing eligibility for a customer-facing (non-rep) coupon. Returns the
   // rejection reason, or null when the coupon is valid for this cart. Shared by
   // validatePublicCode (which throws) and resolveBestCoupons (which skips).
-  private async publicEligibilityError(coupon: Coupon, ctx: PublicCodeContext): Promise<string | null> {
-    if (coupon.kind === "rep_daily") return "This code cannot be used here";
+  private async publicEligibilityError(coupon: Coupon, ctx: PublicCodeContext): Promise<Rejection | null> {
+    const no = (message: string, errorCode?: CouponErrorCode): Rejection => ({ message, errorCode });
+    if (coupon.kind === "rep_daily") return no("This code cannot be used here");
     // The order's customer, never the staff actor placing it.
-    if (await this.groupAccessError(db, coupon, ctx.userId)) return GROUP_ONLY_ERROR;
-    if (coupon.kind === "rep_code" && !(await this.issuerStillAllowed(coupon))) return "This code is no longer valid";
+    if (await this.groupAccessError(db, coupon, ctx.userId)) return no(GROUP_ONLY_ERROR);
+    if (coupon.kind === "rep_code" && !(await this.issuerStillAllowed(coupon))) return no("This code is no longer valid");
     const w = this.windowError(coupon);
-    if (w) return w;
+    if (w) return no(w);
     if (coupon.minSubtotal != null && ctx.subtotal < num(coupon.minSubtotal)) {
       // Say how far off the plan is, not just "not met": a longer plan or more days gets there.
       const short = num(coupon.minSubtotal) - ctx.subtotal;
-      return `Add $${short.toFixed(2)} more to use this code (plans of $${num(coupon.minSubtotal).toFixed(2)} or more). More weeks or days gets you there.`;
+      return no(`Add $${short.toFixed(2)} more to use this code (plans of $${num(coupon.minSubtotal).toFixed(2)} or more). More weeks or days gets you there.`);
     }
     if (coupon.planTypes.length && (!ctx.planType || !coupon.planTypes.includes(ctx.planType))) {
-      return "This coupon is not valid for the selected plan";
+      return no("This coupon is not valid for the selected plan");
     }
     if (
       coupon.allowedPaymentMethods.length &&
       (!ctx.paymentMethodId || !coupon.allowedPaymentMethods.includes(ctx.paymentMethodId))
     ) {
-      return "This coupon is not valid for the selected payment method";
+      return no("This coupon is not valid for the selected payment method", "payment_method");
     }
     if (coupon.maxRedemptions != null && coupon.redemptionCount >= coupon.maxRedemptions) {
-      return "This coupon has been fully redeemed";
+      return no("This coupon has been fully redeemed");
     }
-    return ctx.userId != null ? this.userEligibilityError(coupon, ctx.userId) : null;
+    const user = ctx.userId != null ? await this.userEligibilityError(coupon, ctx.userId) : null;
+    return user ? no(user) : null;
   }
 
   // A group-only coupon is usable by that group's members and nobody else (no user = no).

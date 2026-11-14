@@ -30,7 +30,7 @@ export async function loadCheckoutProps(userId: bigint, sessionUserId: string, o
     couponsService.listAvailable(userId),
     myRenewalWindow(userId),
     pendingFriendGift(userId).catch(() => null),
-    loadReferralOffer().catch(() => null),
+    loadReferralOffer(),
   ]);
   const referralGift = pendingGift && offer?.friend ? { from: pendingGift.from, figure: offer.friend.big } : null;
   const catalog = toClientCatalog(snapshot);

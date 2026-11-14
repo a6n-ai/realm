@@ -2,7 +2,7 @@ import { orgScope, type Visible } from "@/lib/tenant/org-scope";
 import { MOVED_AWAY } from "@/lib/deliveries/row-state";
 import { appTodayIso } from "@/lib/dates/today";
 import { isCutoffPassed } from "@/lib/dates/cutoff";
-import { ONGOING, RUNNING } from "@/lib/orders/status";
+import { ENDED, ONGOING, RUNNING, inOrderStatuses } from "@/lib/orders/status";
 import { orderStatusIn } from "@/lib/orders/status-sql";
 import { NotFoundError, ValidationError, cutoffMsFor } from "@foundry/commons";
 import { createLogger } from "@foundry/commons/logger";
@@ -343,7 +343,7 @@ export function holidayOutcome(r: {
   if (r.mergedDate) return { kind: "moved", date: r.mergedDate, merged: true };
   if (r.dismissed) return { kind: "dismissed" };
   if (r.status === "scheduled") return { kind: "back_on" };
-  if (r.status === "cancelled" || r.orderStatus === "cancelled" || r.orderStatus === "completed" || r.tiffinUnits === 0) return { kind: "cancelled" };
+  if (r.status === "cancelled" || inOrderStatuses(ENDED, r.orderStatus) || r.tiffinUnits === 0) return { kind: "cancelled" };
   return { kind: "needs_placing", trial: r.trial };
 }
 

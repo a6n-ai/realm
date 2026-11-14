@@ -2,6 +2,7 @@ import { handler, problem } from "@foundry/routes";
 import { createLogger } from "@foundry/commons/logger";
 import { verifySnsMessage, type SnsMessage } from "@/lib/notifications/sns-verify";
 import { processSesEvent } from "./process-event";
+import { sesFeedbackTopicArn } from "@/lib/runtime/env";
 
 const log = createLogger("ses-webhook");
 
@@ -24,7 +25,7 @@ export const POST = handler(async (req: Request): Promise<Response> => {
   }
 
   // Defense in depth: only act on our own topic.
-  const expected = process.env.SES_FEEDBACK_TOPIC_ARN;
+  const expected = sesFeedbackTopicArn();
   if (!expected) {
     log.error("SES_FEEDBACK_TOPIC_ARN is not set; refusing SNS message");
     return problem(403, "Topic not configured");

@@ -31,6 +31,9 @@ export const notifyReplyTo = () => process.env.NOTIFY_REPLY_TO ?? CONTACT_EMAIL;
 // under it so a burst cannot trigger throttling, which damages sender reputation.
 export const notifySendRate = () => Number(process.env.NOTIFY_SEND_RATE ?? 8);
 export const unsubscribeSecret = () => process.env.UNSUBSCRIBE_SECRET;
+export const googleClientId = () => process.env.GOOGLE_CLIENT_ID ?? null;
+export const sesFeedbackTopicArn = () => process.env.SES_FEEDBACK_TOPIC_ARN;
+export const corsOrigins = () => process.env.CORS_ORIGINS;
 export const notifyFrom = () => ({
   email: process.env.NOTIFY_FROM_EMAIL ?? "noreply@tiffingrab.ca",
   name: process.env.NOTIFY_FROM_NAME ?? BRAND_NAME,

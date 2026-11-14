@@ -46,7 +46,7 @@ export default async function FriendPage({ params }: { params: Params }) {
   const { code, referrer, offer } = await load(raw);
   // Unknown or inactive code, or the friend side is off: the general page, never an error.
   if (!referrer || !offer.friend) return <ReferContent offer={offer} />;
-  const sticker = (await loadLandingPromos().catch(() => null))?.sticker;
+  const sticker = (await loadLandingPromos())?.sticker;
   const promo = sticker?.code && sticker.savings ? { code: sticker.code, savings: sticker.savings } : null;
   return <FriendWelcome code={code} firstName={referrer.firstName} friend={offer.friend} promo={promo} />;
 }

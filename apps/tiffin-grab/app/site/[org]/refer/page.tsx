@@ -31,7 +31,7 @@ async function loadExtras(organizationId: string | null): Promise<ReferExtras> {
   const [pub, settings, catalog, promos] = await Promise.all([    menuService.getPublishedWeek(undefined, organizationId).catch(() => null),
     getAppSettings(),
     loadCatalogSnapshot(organizationId).catch(() => null),
-    loadLandingPromos().catch(() => null),
+    loadLandingPromos(),
   ]);
   const rate = catalog ? lowestRate(catalog) : null;
   const days = pub ? buildWeekBoard(pub, settings.timezone).days : [];

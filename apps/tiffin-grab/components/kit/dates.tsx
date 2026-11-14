@@ -3,13 +3,12 @@
 import { Truck } from "lucide-react";
 import { useRef, useState, type KeyboardEvent } from "react";
 import { cn, FONT, FOCUS, SPRING } from "./cn";
+import { DATE_LONG, WEEKDAY_SHORT } from "./date-formats";
 import { Reason } from "./notice";
 import { StatusDot, StatusRing } from "./status";
 import { STATUS_LABEL, type DeliveryStatus } from "@/lib/deliveries/status";
 import { addDaysIso, isoToUtcDate, mondayIndex } from "@foundry/commons/util/dates";
 
-const WD = new Intl.DateTimeFormat("en-CA", { weekday: "short", timeZone: "UTC" });
-const LONG = new Intl.DateTimeFormat("en-CA", { weekday: "long", month: "long", day: "numeric", timeZone: "UTC" });
 
 interface DateCellProps {
   date: string;
@@ -30,7 +29,7 @@ interface DateCellProps {
 
 export function DateCell({ date, selected, disabledReason, status, onSelect, onDisabledTap, tabIndex, compact, delivery, className, onKeyDown, buttonRef }: DateCellProps) {
   const d = isoToUtcDate(date);
-  const label = LONG.format(d) + (delivery ? ", delivery day" : "") + (status ? `, ${STATUS_LABEL[status]}` : "") + (disabledReason ? `, unavailable: ${disabledReason}` : "");
+  const label = DATE_LONG.format(d) + (delivery ? ", delivery day" : "") + (status ? `, ${STATUS_LABEL[status]}` : "") + (disabledReason ? `, unavailable: ${disabledReason}` : "");
   return (
     <button
       ref={buttonRef}
@@ -54,7 +53,7 @@ export function DateCell({ date, selected, disabledReason, status, onSelect, onD
         className,
       )}
     >
-      {!compact && <span aria-hidden>{WD.format(d)}</span>}
+      {!compact && <span aria-hidden>{WEEKDAY_SHORT.format(d)}</span>}
       <StatusRing status={status === "delivered" ? "delivered" : undefined} className={compact ? "size-8" : undefined}>
         <b aria-hidden className="text-body tabular-nums">{d.getUTCDate()}</b>
       </StatusRing>

@@ -2,6 +2,7 @@ import { BRAND_NAME } from "@/lib/brand";
 import { Suspense } from "react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { googleClientId } from "@/lib/runtime/env";
 import { getSession } from "@/lib/auth/session";
 import { isLocked } from "@/lib/auth/lock";
 import { roleLanding } from "@/lib/auth/landing";
@@ -31,7 +32,7 @@ export default async function LoginPage() {
     <Suspense>
       <AuthForm
         canUsePin={canUsePin}
-        googleClientId={googleSignInEnabled() ? process.env.GOOGLE_CLIENT_ID! : null}
+        googleClientId={googleSignInEnabled() ? googleClientId() : null}
         lastUser={lastUser}
       />
       <p className="mt-6 text-center text-sm text-pretty text-muted-foreground">

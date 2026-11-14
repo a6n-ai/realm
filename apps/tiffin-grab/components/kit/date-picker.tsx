@@ -10,6 +10,7 @@ import { Sheet } from "./sheet";
 import { Segmented } from "./tabs";
 import { cn, FONT } from "./cn";
 import { useSwipePages } from "./use-swipe-pages";
+import { MONTH_SHORT, MONTH_YEAR_LONG } from "./date-formats";
 import { isoToUtcDate } from "@foundry/commons/util/dates";
 
 const monthOf = (iso: string) => iso.slice(0, 7);
@@ -30,8 +31,7 @@ function useWide() {
   }, []);
   return wide;
 }
-const TITLE = new Intl.DateTimeFormat("en-CA", { month: "long", year: "numeric", timeZone: "UTC" });
-const MONTHS = Array.from({ length: 12 }, (_, i) => new Intl.DateTimeFormat("en-CA", { month: "short", timeZone: "UTC" }).format(new Date(Date.UTC(2000, i, 1))));
+const MONTHS = Array.from({ length: 12 }, (_, i) => MONTH_SHORT.format(new Date(Date.UTC(2000, i, 1))));
 
 interface DatePickerProps {
   id: string;
@@ -106,7 +106,7 @@ export function DatePicker({ id, label, hint, value, onChange, format, min, max,
             onClick={() => setJump(!jump)}
             className="flex min-h-11 items-center gap-1 rounded-full px-3 text-subhead font-semibold transition-colors hover:bg-muted"
           >
-            {TITLE.format(isoToUtcDate(`${month}-01`))}
+            {MONTH_YEAR_LONG.format(isoToUtcDate(`${month}-01`))}
             <ChevronDown aria-hidden className={cn("size-4 text-muted-foreground transition-transform duration-200", jump && "rotate-180")} />
           </button>
           <IconButton

@@ -35,7 +35,9 @@ import { awardReferral, reverseReferral } from "@/lib/referrals/referrals.servic
 import { getAppSettings, getPaymentConfig } from "@/lib/services/app-settings.service";
 import { publishPaymentsInbox, publishUserRefresh } from "@/lib/realtime/publish-inbox";
 import { utcIso } from "@foundry/commons/util/dates";
+import { lockUser } from "@/lib/identity/lock-user";
 import { lockOrder } from "@/lib/orders/order-lock";
+import { ENDED, inOrderStatuses } from "@/lib/orders/status";
 
 const log = createLogger("payments.verification");
 
@@ -94,7 +96,7 @@ export async function startPaidStripeOrder(tx: Tx, order: typeof orders.$inferSe
   await lockOrder(tx, order.id);
   const [current] = await tx.select({ status: orders.status }).from(orders).where(eq(orders.id, order.id)).for("update").limit(1);
   // Staff cancelled it after settle's outside check: the money is in, nobody else will flag it.
-  if (current?.status === "cancelled" || current?.status === "completed") {
+  if (current && inOrderStatuses(ENDED, current.status)) {
     await flagPaidNotStarted(tx, order, `Paid on a ${current.status} order — refund needed`, actorId);
     return { started: false, reason: `order is ${current.status}` };
   }
@@ -158,7 +160,7 @@ export async function verifyPayment(
     let [order] = await tx.select().from(orders).where(eq(orders.id, pay.orderId)).limit(1);
     if (!order?.userId) throw new NotFoundError("Order not found");
     const orderUserId = order.userId;
-    await tx.execute(sql`SELECT id FROM ${users} WHERE id = ${orderUserId} FOR UPDATE`);
+    await lockUser(tx, orderUserId);
 
     const actorInternalId = await resolveUserId(tx, opts.actorId);
 

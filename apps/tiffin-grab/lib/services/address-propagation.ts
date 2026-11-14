@@ -3,6 +3,7 @@ import { and, eq, inArray, isNull, notInArray, sql, type SQL } from "drizzle-orm
 import { ValidationError } from "@foundry/commons";
 import type { AddressHooks, AddressSnapshot, AddressTx } from "@foundry/address";
 import { deliveries, orderActivities, orders, users } from "@/db/schema";
+import { ENDED } from "@/lib/orders/status";
 import { currentUserId } from "@/lib/services/session-service";
 import { findZone } from "@/lib/catalog/zone-match";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
@@ -73,7 +74,7 @@ async function retarget(tx: AddressTx, fromAddressId: bigint, toAddressId: bigin
   const planOrders = await tx
     .select({ id: orders.id, orgId: orders.organizationId })
     .from(orders)
-    .where(and(eq(orders.addressId, fromAddressId), notInArray(orders.status, ["completed", "cancelled"])));
+    .where(and(eq(orders.addressId, fromAddressId), notInArray(orders.status, [...ENDED])));
   const inheritingFromPlan = planOrders.length
     ? await editable(tx, and(inArray(deliveries.orderId, planOrders.map((o) => o.id)), isNull(deliveries.addressLine)))
     : [];
