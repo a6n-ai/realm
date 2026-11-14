@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const pollOnce = vi.hoisted(() => vi.fn());
-// "/" keeps this mock path from matching vitest.config TOUCHES_DB: the poller is mocked, nothing reaches a DB.
-vi.mock("@/lib/optimoroute/events", () => ({ pollOnce }));
+const runCronJob = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/cron/run", () => ({ runCronJob }));
 
 import { POST } from "./route";
 
@@ -11,6 +11,14 @@ const req = (auth?: string) =>
 
 beforeEach(() => {
   pollOnce.mockReset();
+  runCronJob.mockReset();
+  runCronJob.mockImplementation(async () => {
+    try {
+      return { ok: true, summary: await pollOnce() };
+    } catch (err) {
+      return { ok: false, error: String(err) };
+    }
+  });
   vi.stubEnv("CRON_SECRET", "s3cret");
 });
 
@@ -33,6 +41,7 @@ describe("optimo-events cron", () => {
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ ok: true, result: { applied: 2, ignored: 1 } });
     expect(pollOnce).toHaveBeenCalledTimes(1);
+    expect(runCronJob).toHaveBeenCalledWith("optimo-events", "schedule");
   });
 
   it("500s when the poll throws", async () => {

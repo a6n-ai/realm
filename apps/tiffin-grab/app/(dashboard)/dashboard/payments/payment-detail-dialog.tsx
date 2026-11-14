@@ -1,5 +1,6 @@
 "use client";
 
+import { cardBrandLabel } from "@/lib/billing/payment-labels";
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { ExternalLinkIcon } from "lucide-react";
@@ -60,7 +61,7 @@ export function PaymentDetailDialog({
             </Field>
             {payment.method === "stripe" && (
               <>
-                <Field label="Card">{payment.cardLast4 ? `${payment.cardBrand ?? "card"} ••${payment.cardLast4}` : "-"}</Field>
+                <Field label="Card">{payment.cardLast4 ? `${cardBrandLabel(payment.cardBrand)} ••${payment.cardLast4}` : "-"}</Field>
                 {Number(payment.surchargeAmount) > 0 && <Field label="Surcharge">{formatMoney(Number(payment.surchargeAmount))}</Field>}
                 {payment.taxSource && <Field label="Tax source">{payment.taxSource}</Field>}
                 {payment.providerRef && <Field label="Stripe"><span className="break-all font-mono text-xs">{payment.providerRef}</span></Field>}

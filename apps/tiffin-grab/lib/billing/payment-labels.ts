@@ -5,7 +5,7 @@ const BRANDS: Record<string, string> = { visa: "Visa", mastercard: "Mastercard",
 export function cardBrandLabel(brand: string | null): string {
   if (!brand) return "Card";
   const key = brand.toLowerCase();
-  return BRANDS[key] ?? key.charAt(0).toUpperCase() + key.slice(1);
+  return BRANDS[key] ?? key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 export function paymentMethodLabel(p: { method: string; cardBrand: string | null; cardLast4: string | null }): string {

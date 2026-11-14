@@ -1,3 +1,4 @@
+import { cardBrandLabel } from "@/lib/billing/payment-labels";
 import { formatMoney } from "@foundry/commons";
 import { paymentMethodLabel } from "@/lib/payments/method-label";
 import type { payments } from "@/db/schema";
@@ -10,7 +11,7 @@ export function receiptVars(
   const isCard = pay.method === "stripe";
   const fee = isCard ? Number(pay.surchargeAmount) : 0;
   const total = isCard ? formatMoney(Number(pay.amount) + fee) : "";
-  const brand = pay.cardBrand ? pay.cardBrand.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "Card";
+  const brand = cardBrandLabel(pay.cardBrand);
   const parts = [
     ...taxLines.map((t) => `${t.name} ${t.ratePct}%: ${formatMoney(t.amount)}`),
     fee > 0 ? `Card fee ${formatMoney(fee)}` : null,

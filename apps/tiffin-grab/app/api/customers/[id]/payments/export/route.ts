@@ -1,3 +1,4 @@
+import { cardBrandLabel } from "@/lib/billing/payment-labels";
 import { xlsxResponse } from "@/lib/files/export-response";
 import { eq } from "drizzle-orm";
 import { NotFoundError } from "@foundry/commons";
@@ -35,7 +36,7 @@ export const GET = handler(async (request: Request, { params }: { params: Promis
     Status: paymentStatusLabel(r.status),
     Amount: Number(r.amount),
     Reference: r.reference ?? "",
-    Card: r.cardLast4 ? `${r.cardBrand ?? "Card"} •••• ${r.cardLast4}` : "",
+    Card: r.cardLast4 ? `${cardBrandLabel(r.cardBrand)} •••• ${r.cardLast4}` : "",
     "Paid at": when(r.capturedAt),
   }));
 

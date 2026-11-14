@@ -101,6 +101,11 @@ const RUNNERS: Partial<Record<CronJobKey, (opts: RunOptions) => Promise<Summary>
     const { mintRepCoupons } = await import("@/lib/coupons/mint-rep-coupons");
     return { ...(await mintRepCoupons()) };
   },
+  "optimo-events": async () => {
+    const { pollOnce } = await import("@/lib/optimoroute/events");
+    const r = await pollOnce();
+    return typeof r === "string" ? { skipped: r } : r;
+  },
   notifications: async () => {
     const { drainPending, materializeDue } = await import("@/lib/notifications/drain");
     const materialized = await materializeDue();
@@ -110,7 +115,7 @@ const RUNNERS: Partial<Record<CronJobKey, (opts: RunOptions) => Promise<Summary>
 };
 
 export function isRunnable(job: string): job is CronJobKey {
-  // review-nudge and mint-rep-coupons run on a schedule only: no Run now.
+  // review-nudge, mint-rep-coupons and optimo-events run on a schedule only: no Run now.
   return job in RUNNERS && !!CRON_JOBS.find((j) => j.key === job)?.runnable;
 }
 

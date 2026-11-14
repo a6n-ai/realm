@@ -2,7 +2,7 @@ import { isAdmin, isCustomerRole } from "@/lib/roles";
 import "@/app/styles/app.css";
 import { redirect } from "next/navigation";
 import { Suspense, type ReactNode } from "react";
-import { NotFoundError, zonedDateIso } from "@foundry/commons";
+import { zonedDateIso } from "@foundry/commons";
 import { CrmShell } from "@foundry/crm";
 import { getSession } from "@/lib/auth/session";
 import { isLocked } from "@/lib/auth/lock";
@@ -12,6 +12,7 @@ import { getMemberOrganizations } from "@/lib/services/organizations.service";
 import { couponsService, type RepCouponToday } from "@/lib/coupons/coupons.service";
 import { repAllowanceFor } from "@/lib/coupons/rep-allowance";
 import { usersService } from "@/lib/services/users.service";
+import { requireActiveUser } from "@/lib/account/current-user";
 import { newActivity } from "@/lib/services/section-seen.service";
 import { getFeed } from "@/lib/notifications/feed";
 import { mintRealtimeTokens } from "@/lib/realtime/mint";
@@ -71,21 +72,9 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   // and it also makes post-login push("/dashboard") land customers on /me.
   if (isCustomerRole(session.user.role)) redirect("/me");
 
-  // One read covers PIN state + the header avatar (name/image). A session can
-  // outlive its user row (e.g. dev DB reseeded) — treat that as expired.
-  let user;
-  try {
-    user = await timed("user", usersService.read(session.user.id));
-  } catch (err) {
-    if (err instanceof NotFoundError) redirect("/login");
-    throw err;
-  }
-  // Re-check status on the read path. session.create.before only gates a session
-  // being CREATED, so an account suspended mid-session would otherwise keep full
-  // CRM access until the 30-day session expired. usersService.setStatus revokes
-  // sessions too; this is the belt to that braces, covering any other path that
-  // flips status. Mirrors puchkaman's dashboard layout.
-  if ((user as { status?: string }).status !== "active") redirect("/login?suspended=1");
+  // One read covers PIN state + the header avatar (name/image). Status is re-checked on the read
+  // path: session.create.before only gates a session being CREATED.
+  const user = await requireActiveUser(session.user.id, (id) => timed("user", usersService.read(id)));
 
   // First-login gate: an account still on its issued default password must set
   // its own before it can reach anything under /dashboard (customers and staff

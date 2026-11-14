@@ -2,10 +2,9 @@ import { isCustomerRole } from "@/lib/roles";
 import "@/app/styles/app.css";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
-import { NotFoundError } from "@foundry/commons";
 import { getSession } from "@/lib/auth/session";
 import { getAppSettings } from "@/lib/settings";
-import { usersService } from "@/lib/services/users.service";
+import { requireActiveUser } from "@/lib/account/current-user";
 import { walletService } from "@/lib/wallet/wallet.service";
 import { ticketsService } from "@/lib/support/tickets.service";
 import { CustomerShell } from "@/components/customer/shell/customer-shell";
@@ -28,17 +27,7 @@ export default async function CustomerLayout({ children }: { children: ReactNode
   if (!session?.user) redirect("/login");
   if (!isCustomerRole(session.user.role)) redirect("/dashboard");
 
-  let user;
-  try {
-    user = await usersService.read(session.user.id);
-  } catch (err) {
-    if (err instanceof NotFoundError) redirect("/login");
-    throw err;
-  }
-
-  // Same read-path status re-check as the staff shell: a suspension must end the
-  // session already in flight, not only block the next sign-in.
-  if ((user as { status?: string }).status !== "active") redirect("/login?suspended=1");
+  const user = await requireActiveUser(session.user.id);
 
   const notify = notifyChannel(user.publicId);
   const [{ timezone, cutoffHour, currency }, coinBalance, staffReplies, realtimeTokens] = await Promise.all([

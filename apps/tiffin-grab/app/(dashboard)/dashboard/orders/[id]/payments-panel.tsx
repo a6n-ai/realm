@@ -1,5 +1,6 @@
 "use client";
 
+import { cardBrandLabel } from "@/lib/billing/payment-labels";
 import { MethodName } from "@/components/payments/stripe-mark";
 import { paymentMethodLabel } from "@/lib/payments/method-label";
 import type { ReactNode } from "react";
@@ -402,7 +403,7 @@ function PaymentRow({
 
       {isCard && (
         <div className="space-y-1 border-t pt-2">
-          <MetaRow label="Card">{payment.cardLast4 ? `${payment.cardBrand ?? "card"} ••${payment.cardLast4}` : "-"}</MetaRow>
+          <MetaRow label="Card">{payment.cardLast4 ? `${cardBrandLabel(payment.cardBrand)} ••${payment.cardLast4}` : "-"}</MetaRow>
           {Number(payment.surchargeAmount) > 0 && (
             <MetaRow label="Card surcharge">{formatMoney(Number(payment.surchargeAmount), currency)}</MetaRow>
           )}

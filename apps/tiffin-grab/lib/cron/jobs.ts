@@ -5,7 +5,7 @@ import { dateTimeFormat } from "@foundry/commons/util/intl-format";
 // `cron` mirrors .github/workflows/cron-tiffin-grab.yml (GitHub's schedule can't be read from
 // the app); change both together. Times are UTC, as GitHub runs them.
 
-export type CronJobKey = "pull-completions" | "complete-plans" | "notifications" | "campaign-wake" | "site-refresh" | "optimoroute-sync" | "review-nudge" | "mint-rep-coupons" | "renewal-reminders";
+export type CronJobKey = "pull-completions" | "complete-plans" | "notifications" | "campaign-wake" | "site-refresh" | "optimoroute-sync" | "review-nudge" | "mint-rep-coupons" | "renewal-reminders" | "optimo-events";
 
 export type CronJob = {
   key: CronJobKey;
@@ -70,6 +70,13 @@ export const CRON_JOBS: CronJob[] = [
     description: "Emails customers whose weekly plan's last tiffin is 5 days or 1 day away, with a one-tap link to renew. Skips anyone who already has a later plan. Each reminder goes once per plan ending.",
     cron: "0 13 * * *",
     runnable: true,
+  },
+  {
+    key: "optimo-events",
+    name: "OptimoRoute event poll",
+    description: "The OptimoPoller Durable Object polls OptimoRoute's event feed every 30 s inside the delivery window and applies completions.",
+    cron: null,
+    runnable: false,
   },
   {
     key: "review-nudge",
