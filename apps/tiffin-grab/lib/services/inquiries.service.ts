@@ -3,8 +3,7 @@ import { isUniqueViolation } from "@/lib/db/errors";
 import { LIVE } from "@/lib/orders/status";
 import { orderStatusIn } from "@/lib/orders/status-sql";
 import { pageOffset } from "@foundry/design-system/filters/parse-filter-state";
-import { STAFF_ROLES } from "@/lib/auth/roles";
-import { BaseRepository, UpdatableRepository, conditionToSql, columnResolver, pageOrder } from "@foundry/database";
+import { UpdatableRepository, conditionToSql, columnResolver, pageOrder } from "@foundry/database";
 import { NotFoundError, ValidationError, phoneSchema, emailSchema } from "@foundry/commons";
 import type { Condition, FilterCondition } from "@foundry/commons/model/condition";
 import type { PageRequest } from "@foundry/commons/util/pagination";
@@ -14,18 +13,15 @@ import { alias } from "drizzle-orm/pg-core";
 import { db, type Tx } from "@/db/client";
 import { enqueueNotification, enqueueStaffNotification } from "@/lib/notifications/enqueue";
 import { enqueueOrderNotice } from "@/lib/notifications/order-notice";
-import { deliveryZones, inquiries, inquiryActivities, leadCounters, leadSources, leadSubsources, orders, users } from "@/db/schema";
+import { deliveryZones, inquiries, inquiryActivities, leadSources, leadSubsources, orders, users } from "@/db/schema";
 import { getSession } from "@/lib/auth/session";
-import { loadCatalogSnapshot } from "@/lib/catalog/load";
-import { assertServiceable, findZone } from "@/lib/catalog/zone-match";
+import { assertServiceable } from "@/lib/catalog/zone-match";
 import { parseCanadianPostalCode } from "@/lib/catalog/postal";
 import { sendMetaCrmLeadCreated, sendMetaCrmLeadStatus, sendMetaCrmQualifiedLead } from "@/lib/meta/crm-lead";
-import { SessionBaseService, SessionUpdatableService } from "./session-service";
+import { SessionUpdatableService } from "./session-service";
+import { addActivity, findOpenMatch, nextLeadNumber, notifyOwner, resolveOwner, resolveSource, resolveZoneId } from "./inquiry-core";
 import { assertOnePerson, createOrder, type CreateOrderInput } from "../orders/create-order";
 import { getBrandOrgId } from "./organizations.service";
-import { getLeadAssignment, setLeadAssignment } from "./app-settings.service";
-import { pickAssignee, strategyFor } from "./assignment";
-import { poolFor } from "./owner-pool.service";
 import { assertReassignAllowed, resolveAssignableOwner } from "./reassign";
 import type { SortState } from "@foundry/design-system/list-sort";
 import { generatedLeadName, isQuickAdd, looksGeneratedName } from "@/lib/inquiries/quick-add";
@@ -225,104 +221,9 @@ function inquiriesResolver() {
 const isOpenLeadConflict = (e: unknown) => isUniqueViolation(e, /^inquiries_open_(phone|email)_unique$/);
 
 class InquiriesService extends SessionUpdatableService<typeof inquiries> {
-  private async resolveSource(sourceKey: string, subSourceKey?: string) {
-    const [src] = await db
-      .select({ id: leadSources.id, isInbound: leadSources.isInbound })
-      .from(leadSources)
-      .where(eq(leadSources.key, sourceKey))
-      .limit(1);
-    if (!src) throw new ValidationError(`Unknown lead source: ${sourceKey}`);
-    let subSourceId: bigint | null = null;
-    if (subSourceKey) {
-      const [sub] = await db
-        .select({ id: leadSubsources.id })
-        .from(leadSubsources)
-        .where(eq(leadSubsources.key, subSourceKey))
-        .limit(1);
-      subSourceId = sub?.id ?? null;
-    }
-    return { sourceId: src.id, subSourceId, isInbound: src.isInbound };
-  }
-
-  // Owners are always staff. A staff member adding a lead owns it; anything else
-  // (website form, a signed-in customer subscribing) is assigned from the pool —
-  // per-source, then default, then every active staff member.
-  private async resolveOwner(sourceId: bigint, sourceKey: string): Promise<bigint> {
-    const actor = await this.currentUserId();
-    if (actor && (await this.isActiveStaff(actor))) return actor;
-    const cfg = await getLeadAssignment();
-    // "creator" has no staff creator to fall back on here, so it rotates instead.
-    const strat = strategyFor(cfg, sourceKey) === "percentage" ? "percentage" : "round_robin";
-    const sourcePool = await poolFor("inquiry", sourceId);
-    const configured = sourcePool.length ? sourcePool : await poolFor("inquiry");
-    const pool = configured.length ? configured : await this.activeStaffPool();
-    if (!pool.length) return this.systemUserId();
-
-    const roll = await this.rollFor();
-    const { chosen, cursorPublicId } = pickAssignee(strat, pool, cfg, sourceKey, roll);
-    if (!chosen) return this.systemUserId();
-    if (strat === "round_robin" && cursorPublicId) {
-      await setLeadAssignment({ ...cfg, cursor: { ...cfg.cursor, [sourceKey]: cursorPublicId } });
-    }
-    return chosen.id;
-  }
-
-  private staffWhere() {
-    return and(eq(users.isSystem, false), eq(users.status, "active"), inArray(users.role, STAFF_ROLES));
-  }
-
-  private async isActiveStaff(userId: bigint): Promise<boolean> {
-    const [u] = await db.select({ id: users.id }).from(users).where(and(eq(users.id, userId), this.staffWhere())).limit(1);
-    return !!u;
-  }
-
-  private async activeStaffPool() {
-    return db.select({ id: users.id, publicId: users.publicId, weight: sql<number>`1` }).from(users).where(this.staffWhere());
-  }
-
-  private async systemUserId(): Promise<bigint> {
-    const [sys] = await db.select({ id: users.id }).from(users).where(eq(users.isSystem, true)).limit(1);
-    if (!sys) throw new Error("system user not seeded");
-    return sys.id;
-  }
-
-  private async rollFor(): Promise<number> {
-    // percentage strategy only; derive from current epoch ms fractional — adequate for weighting
-    return (Date.now() % 1000) / 1000;
-  }
-
-  private async resolveZoneId(postalCode?: string): Promise<bigint | null> {
-    if (!postalCode) return null;
-    const { zones } = await loadCatalogSnapshot();
-    return (await findZone(zones, { postalCode }))?.id ?? null;
-  }
-
-  /**
-   * One open inquiry per person: a phone OR email match on an open (not
-   * converted/lost) inquiry is the same person. Email wins when phone and email
-   * point at different inquiries — email is the login identity. Newest first.
-   */
-  async findOpenMatch(
-    phone: string | null,
-    email?: string | null,
-    excludeId?: bigint,
-    whatsappPhone?: string | null,
-  ): Promise<typeof inquiries.$inferSelect | null> {
-    // A number matches either stored number: people often enquire from WhatsApp on a different phone.
-    const numbers = [...new Set([phone, whatsappPhone].filter((n): n is string => !!n).map((n) => n.toLowerCase()))];
-    const parts = [
-      ...numbers.flatMap((n) => [eq(sql`lower(${inquiries.phone})`, n), eq(sql`lower(${inquiries.whatsappPhone})`, n)]),
-      email ? eq(sql`lower(${inquiries.email})`, email.toLowerCase()) : undefined,
-    ].filter((p): p is SQL => !!p);
-    if (!parts.length) return null;
-    const match = or(...parts)!;
-    const rows = await db
-      .select()
-      .from(inquiries)
-      .where(and(match, notInArray(inquiries.stage, ["converted", "lost"]), excludeId != null ? ne(inquiries.id, excludeId) : undefined))
-      .orderBy(desc(inquiries.createdAt));
-    const byEmail = email ? rows.find((r) => r.email?.toLowerCase() === email.toLowerCase()) : undefined;
-    return byEmail ?? rows[0] ?? null;
+  /** See inquiry-core `findOpenMatch`. Kept as a method for the import route and existing callers. */
+  findOpenMatch(phone: string | null, email?: string | null, excludeId?: bigint, whatsappPhone?: string | null) {
+    return findOpenMatch(phone, email, excludeId, whatsappPhone);
   }
 
   /** A repeat contact from the same person: log it on their open inquiry instead of a new row. */
@@ -335,29 +236,13 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
     if (v.phone && (inq.phone ?? "").toLowerCase() !== v.phone.toLowerCase()) parts.push(`phone ${v.phone}`);
     if (v.email && (inq.email ?? "").toLowerCase() !== v.email.toLowerCase()) parts.push(`email ${v.email}`);
     const message = typeof v.notes === "string" && v.notes.trim() ? `\n${v.notes.trim()}` : "";
-    await inquiryActivitiesService.create({ inquiryId: inq.id, type: "reinquiry", note: parts.join(" · ") + message });
-  }
-
-  /** Next never-resetting "Lead <n>" number for the org. Atomic; a failed insert just skips a number. */
-  private async nextLeadNumber(organizationId: string | null): Promise<number> {
-    const [row] = await db
-      .insert(leadCounters)
-      .values({ orgKey: organizationId ?? "", lastNumber: 1 })
-      .onConflictDoUpdate({ target: leadCounters.orgKey, set: { lastNumber: sql`${leadCounters.lastNumber} + 1` } })
-      .returning({ n: leadCounters.lastNumber });
-    return row.n;
-  }
-
-  /** In-app note to the lead's owner, or to the franchise's staff when nobody owns it. Keyed so a retry adds nothing. */
-  private notifyOwner(tx: Tx, inq: typeof inquiries.$inferSelect, n: { event: "inquiry_created" | "inquiry_follow_up" | "inquiry_converted"; title: string; body: string; data?: Record<string, unknown>; dedupeKey: string }) {
-    const note = { ...n, channels: ["in_app" as const], href: `/dashboard/inquiries/${inq.publicId}` };
-    return inq.currentOwner != null ? enqueueNotification(tx, { ...note, recipientId: inq.currentOwner }) : enqueueStaffNotification(tx, { ...note, organizationId: inq.organizationId });
+    await addActivity({ inquiryId: inq.id, type: "reinquiry", note: parts.join(" · ") + message });
   }
 
   private followUp(inq: typeof inquiries.$inferSelect, at: number | null | undefined) {
     if (at == null) return;
     const date = new Date(at).toISOString().slice(0, 10);
-    return db.transaction((tx) => this.notifyOwner(tx, inq, {
+    return db.transaction((tx) => notifyOwner(tx, inq, {
       event: "inquiry_follow_up",
       title: "Follow-up scheduled",
       body: `Follow up with ${inq.fullName ?? "this lead"} on ${date}.`,
@@ -425,15 +310,15 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
 
     // Zone resolution depends only on the postal code, so run it alongside the
     // source→owner chain instead of after it.
-    const zoneIdP = this.resolveZoneId(rest.postalCode as string | undefined);
-    const { sourceId, subSourceId } = await this.resolveSource(sourceKey, subSourceKey);
-    const currentOwner = await this.resolveOwner(sourceId, sourceKey);
+    const zoneIdP = resolveZoneId(rest.postalCode as string | undefined);
+    const { sourceId, subSourceId } = await resolveSource(sourceKey, subSourceKey);
+    const currentOwner = await resolveOwner(sourceId, sourceKey, await this.currentUserId());
     const zoneId = await zoneIdP;
     // Stamped like orders (getBrandOrgId): left null, the lead drops out of every org-scoped analytics view.
     const organizationId = await getBrandOrgId(db);
     let leadNumber: number | null = null;
     if (!fullName) {
-      leadNumber = await this.nextLeadNumber(organizationId);
+      leadNumber = await nextLeadNumber(organizationId);
       fullName = generatedLeadName(leadNumber);
     }
 
@@ -466,7 +351,7 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
       }
       throw e;
     }
-    await inquiryActivitiesService.create({
+    await addActivity({
       inquiryId: inq.id,
       type: "created",
       toStage: inq.stage,
@@ -481,7 +366,7 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
         fullName: inq.fullName,
       });
     }
-    await db.transaction((tx) => this.notifyOwner(tx, inq, {
+    await db.transaction((tx) => notifyOwner(tx, inq, {
       event: "inquiry_created",
       title: "New inquiry",
       body: `${inq.fullName ?? "A new lead"} just came in.`,
@@ -547,7 +432,7 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
     if (!fullName) {
       if (isQuickAdd(inq)) fullName = inq.fullName;
       else if (phone) {
-        leadNumber = await this.nextLeadNumber(inq.organizationId);
+        leadNumber = await nextLeadNumber(inq.organizationId);
         fullName = generatedLeadName(leadNumber);
       } else throw new ValidationError("Enter a name or phone number");
     }
@@ -576,14 +461,14 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
       }
       throw e;
     }
-    await inquiryActivitiesService.create({ inquiryId: inq.id, type: "note", note: changes.join(" · ") });
+    await addActivity({ inquiryId: inq.id, type: "note", note: changes.join(" · ") });
     return this.read(publicId);
   }
 
   async addNote(publicId: string, note: string, nextFollowUpAt?: number) {
     assertFiniteFollowUp(nextFollowUpAt);
     const inq = await this.read(publicId);
-    await inquiryActivitiesService.create({
+    await addActivity({
       inquiryId: inq.id,
       type: "note",
       note,
@@ -604,7 +489,7 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
     if (input.nextFollowUpAt != null && (inq.stage === "converted" || isClosed(inq.subStatus as SubStatus | null))) {
       throw new ValidationError("A closed lead cannot have a follow-up");
     }
-    await inquiryActivitiesService.create({
+    await addActivity({
       inquiryId: inq.id,
       type: input.type,
       note: input.note ?? null,
@@ -624,7 +509,7 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
     if (inq.stage === "converted") throw new ValidationError("A converted inquiry cannot change its follow-up");
     if (inq.nextFollowUpAt == null) throw new ValidationError("No follow-up is scheduled");
     await this.update(publicId, { nextFollowUpAt: null });
-    await inquiryActivitiesService.create({
+    await addActivity({
       inquiryId: inq.id,
       type: "callback",
       note: "Follow-up done",
@@ -661,7 +546,7 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
     const stage = stageFor(to);
 
     await this.update(publicId, { subStatus: to, stage, lostReason, nextFollowUpAt });
-    await inquiryActivitiesService.create({
+    await addActivity({
       inquiryId: current.id,
       type: "stage_change",
       fromStage: current.stage,
@@ -768,7 +653,7 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
       nextFollowUpAt: null,
       convertedOrderId: order.id,
     });
-    await inquiryActivitiesService.create({
+    await addActivity({
       inquiryId: inq.id,
       type: "converted",
       fromStage: inq.stage,
@@ -785,7 +670,7 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
       fullName: orderInput.contact.fullName.trim(),
     });
     await db.transaction(async (tx) => {
-      await this.notifyOwner(tx, inq, {
+      await notifyOwner(tx, inq, {
         event: "inquiry_converted",
         title: "Inquiry converted",
         body: `${orderInput.contact.fullName.trim()} is now a customer: order ${result.deploymentId}.`,
@@ -1107,8 +992,5 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
 const repo = new UpdatableRepository(db, inquiries, inquiries.publicId, inquiries.id);
 export const inquiriesService = new InquiriesService(repo);
 
-const inquiryActivitiesService = new SessionBaseService(
-  new BaseRepository(db, inquiryActivities, inquiryActivities.publicId, inquiryActivities.id),
-);
 export type PipelineRow = Awaited<ReturnType<InquiriesService["listForPipeline"]>>["items"][number];
 export type { Stage as InquiryStage, ActivityType, LostReason };
