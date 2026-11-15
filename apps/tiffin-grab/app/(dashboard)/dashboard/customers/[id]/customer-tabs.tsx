@@ -2,13 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ActivityIcon, CoinsIcon, CreditCardIcon, GiftIcon, LayoutDashboardIcon, MapPinIcon, PackageIcon, RefreshCwIcon } from "lucide-react";
+import { ActivityIcon, CoinsIcon, GiftIcon, LayoutDashboardIcon, MapPinIcon, PackageIcon, RefreshCwIcon } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@foundry/ui/tabs";
 
 const TABS = [
   { seg: "", label: "Overview", icon: LayoutDashboardIcon },
-  { seg: "/orders", label: "Orders", icon: PackageIcon },
-  { seg: "/payments", label: "Payments", icon: CreditCardIcon },
+  { seg: "/orders", label: "Orders & payments", icon: PackageIcon },
   { seg: "/renewals", label: "Renewals", icon: RefreshCwIcon },
   { seg: "/referrals", label: "Referrals", icon: GiftIcon },
   { seg: "/wallet", label: "Wallet", icon: CoinsIcon },

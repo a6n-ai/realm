@@ -8,6 +8,7 @@ import { DataTable, SearchInput, OrderStatusBadge, type Column } from "@/compone
 import { orderDisplayStatus } from "@/lib/orders/display-status";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
 import { TableCell } from "@foundry/ui/table";
+import { cn } from "@foundry/ui/cn";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@foundry/design-system/timezone-provider";
 import type { getCustomerOrders } from "@/lib/services/customers.service";
@@ -17,12 +18,20 @@ type CustomerOrderRow = Awaited<ReturnType<typeof getCustomerOrders>>[number];
 // Same DataTable + column shape as the standalone /dashboard/orders table (see
 // orders-list.tsx) — this is a read-only, unpaginated slice scoped to one customer,
 // so it drops the Owner/reassign column that table has (no owner data on this view).
-export const CUSTOMER_ORDERS_COLUMNS: readonly Column<"name" | "status" | "start" | "total" | "created">[] = [
+type Key = "name" | "status" | "start" | "total" | "paid" | "due" | "created";
+export const CUSTOMER_ORDERS_COLUMNS: readonly Column<Key>[] = [
   { key: "name", label: "Plan", sortable: false, width: "w-72" },
   { key: "status", label: "Status" },
   { key: "start", label: "Start", align: "right" },
   { key: "total", label: "Total", align: "right" },
   { key: "created", label: "Created", align: "right" },
+];
+// Paid and Due only reach the page for finance:read (getCustomerOrders leaves them null otherwise).
+const WITH_PAYMENTS: readonly Column<Key>[] = [
+  ...CUSTOMER_ORDERS_COLUMNS.slice(0, 4),
+  { key: "paid", label: "Paid", align: "right" },
+  { key: "due", label: "Due", align: "right" },
+  CUSTOMER_ORDERS_COLUMNS[4]!,
 ];
 
 // Local state, not DataTable's URL-bound `search` prop — this page mounts two
@@ -33,6 +42,7 @@ export function CustomerOrdersTable({ orders }: { orders: CustomerOrderRow[] }) 
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("all");
 
+  const showPayments = orders.some((o) => o.paid != null);
   const statuses = useMemo(() => [...new Set(orders.map((o) => o.status))], [orders]);
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
@@ -46,7 +56,7 @@ export function CustomerOrdersTable({ orders }: { orders: CustomerOrderRow[] }) 
   return (
     <DataTable
       pagination="client"
-      columns={CUSTOMER_ORDERS_COLUMNS}
+      columns={showPayments ? WITH_PAYMENTS : CUSTOMER_ORDERS_COLUMNS}
       rows={filtered}
       rowKey={(o) => o.publicId}
       // The short deployment ID sits under the plan name, not in its own column; idHref keeps rows clickable.
@@ -89,6 +99,14 @@ export function CustomerOrdersTable({ orders }: { orders: CustomerOrderRow[] }) 
           </TableCell>
           <TableCell className="text-right tabular-nums">{o.startDate}</TableCell>
           <TableCell className="text-right tabular-nums">{fmt(Number(o.total))}</TableCell>
+          {showPayments ? (
+            <>
+              <TableCell className="text-right tabular-nums">{fmt(o.paid ?? 0)}</TableCell>
+              <TableCell className={cn("text-right tabular-nums", (o.due ?? 0) > 0 ? "text-destructive font-medium" : "text-muted-foreground")}>
+                {o.due == null ? "—" : fmt(o.due)}
+              </TableCell>
+            </>
+          ) : null}
           <TableCell className="text-right tabular-nums">
             {formatEpoch(o.createdAt, { mode: "date", timeZone: tz })}
           </TableCell>

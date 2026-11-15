@@ -22,12 +22,11 @@ import { loadCustomer, loadCustomerOrders, loadCustomerSpend, loadViewer } from 
 // One customer, split into tabs (each its own URL) instead of one long page. The header,
 // stats and tab bar stay put while a tab loads.
 export default async function CustomerLayout({ children, params }: { children: React.ReactNode; params: Promise<{ id: string }> }) {
-  const [{ id }, { canWallet, canOrder, canFinance }] = await Promise.all([params, loadViewer()]);
+  const [{ id }, { canWallet, canOrder }] = await Promise.all([params, loadViewer()]);
   // A tab the viewer can't open is not offered; its route still checks the permission itself.
   const hiddenTabs = [
     ...(canWallet ? [] : ["/wallet"]),
     ...(canOrder ? [] : ["/orders", "/renewals"]),
-    ...(canFinance ? [] : ["/payments"]),
   ];
   return (
     <PageShell>

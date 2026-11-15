@@ -246,6 +246,8 @@ export type CustomerRow = {
   phone: string | null;
   latestStatus: string | null;
   latestOrderAt: number | null;
+  /** All orders the customer placed, cancelled included. */
+  orderCount: number;
   /** Sum of settled payments (PAID) across all their orders, as a numeric string. Null without finance:read. */
   totalPaid: string | null;
   /** Complimentary tiffins staff gave across all orders. */
@@ -375,6 +377,7 @@ export async function listCustomersPage(
         phone: users.phone,
         latestStatus: sql<string | null>`(array_agg(${orders.status} order by ${orders.createdAt} desc))[1]`,
         latestOrderAt,
+        orderCount: sql<number>`cast(count(${orders.id}) as int)`,
         totalPaid: opts.withPayments ? totalPaid : sql<null>`null`,
         freeTiffins,
         cancelledOrders,
@@ -652,8 +655,29 @@ export async function getCustomerOrders(userId: bigint, { withPayments }: { with
     .innerJoin(plans, eq(orders.planId, plans.id))
     .where(eq(orders.userId, userId))
     .orderBy(desc(orders.createdAt));
-  const statusByOrder = withPayments ? await planPaymentStatuses(orderRows.map((o) => o.id)) : new Map<string, string>();
-  return orderRows.map((o) => ({ ...o, paymentStatus: statusByOrder.get(o.id.toString()) ?? null }));
+  const ids = orderRows.map((o) => o.id);
+  const [statusByOrder, paidByOrder] = withPayments
+    ? await Promise.all([planPaymentStatuses(ids), paidPerOrder(ids)])
+    : [new Map<string, string>(), new Map<string, number>()];
+  // paid/due are finance data: null without withPayments. Same "settled" rule as the list's Total paid.
+  return orderRows.map((o) => {
+    const paid = withPayments ? (paidByOrder.get(o.id.toString()) ?? 0) : null;
+    const due = paid == null || o.status === "cancelled" ? null : Math.max(0, Math.round((Number(o.total) - paid) * 100) / 100);
+    return { ...o, paymentStatus: statusByOrder.get(o.id.toString()) ?? null, paid, due };
+  });
+}
+
+/** Settled (PAID) payment amounts per order, add-on payments included. */
+async function paidPerOrder(orderIds: bigint[]) {
+  const out = new Map<string, number>();
+  if (!orderIds.length) return out;
+  const rows = await db
+    .select({ orderId: payments.orderId, paid: sql<string>`coalesce(sum(${payments.amount}), 0)` })
+    .from(payments)
+    .where(and(inArray(payments.orderId, orderIds), inArray(payments.status, [...PAID])))
+    .groupBy(payments.orderId);
+  for (const r of rows) out.set(r.orderId.toString(), Number(r.paid));
+  return out;
 }
 
 /** Newest plan-payment status per order; add-on requests are not the plan's payment. */

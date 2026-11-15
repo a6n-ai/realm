@@ -9,6 +9,7 @@ const row: CustomerRow = {
   phone: "+16475550100",
   latestStatus: "active",
   latestOrderAt: null,
+  orderCount: 0,
   totalPaid: "120.00",
   freeTiffins: 1,
   cancelledOrders: 0,

@@ -7,7 +7,10 @@ import { upcomingAddressChanges } from "@/lib/services/customers.service";
 import { CustomerOrdersTable } from "../customer-orders-table";
 import { loadCustomer, loadCustomerOrders, loadViewer } from "../data";
 import { requestNow } from "@/lib/dates/request-now";
-import { requirePagePermission } from "@/lib/auth/guards";
+import { can, requirePagePermission } from "@/lib/auth/guards";
+import { Suspense } from "react";
+import { Skeleton } from "@foundry/ui/skeleton";
+import { PaymentSummaryCards, PaymentsSection } from "../payments-section";
 
 
 // Imported WordPress lines already end in city + postal code; don't print them twice.
@@ -23,7 +26,7 @@ export default async function CustomerOrdersPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ status?: string }>;
+  searchParams: Promise<Record<string, string | undefined>>;
 }) {
   await requirePagePermission({ order: ["read"] });
   const { id } = await params;
@@ -32,9 +35,15 @@ export default async function CustomerOrdersPage({
   const orders = activeOnly ? allOrders.filter((o) => o.status === "active") : allOrders;
   const changes = await upcomingAddressChanges(profile.id, zonedDateIso(requestNow(), timezone));
   const live = allOrders.filter((o) => inOrderStatuses(LIVE, o.status));
+  const canFinance = await can({ finance: ["read"] });
 
   return (
     <>
+      {canFinance ? (
+        <Suspense fallback={<Skeleton className="h-28 w-full" />}>
+          <PaymentSummaryCards id={id} />
+        </Suspense>
+      ) : null}
       <SectionCard title={activeOnly ? "Active orders" : "Orders"}>
         <CustomerOrdersTable orders={orders} />
       </SectionCard>
@@ -87,6 +96,7 @@ export default async function CustomerOrdersPage({
           </div>
         </div>
       </SectionCard>
+      {canFinance ? <PaymentsSection id={id} searchParams={searchParams} /> : null}
     </>
   );
 }
