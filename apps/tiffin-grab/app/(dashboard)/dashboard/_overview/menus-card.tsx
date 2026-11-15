@@ -19,7 +19,7 @@ const weekLabel = (monday: string) =>
   formatDateOnly(monday, { mode: "short" });
 
 /** This week's and next week's menu: is each released, so customers can pick and the kitchen can plan? */
-export async function MenusCard({ today }: { today: string }) {
+export async function MenusCard({ today, canEdit }: { today: string; canEdit: boolean }) {
   const weeks = await menuService.listWeeks();
   const thisMonday = mondayOfIso(today);
   const rows = [
@@ -43,7 +43,7 @@ export async function MenusCard({ today }: { today: string }) {
               <div className="text-muted-foreground truncate text-xs">{r.week ? `${r.week.itemCount} dishes` : "no menu yet"}</div>
             </div>
             <Badge variant={STATE[r.state].variant}>{STATE[r.state].label}</Badge>
-            {r.state !== "released" ? (
+            {r.state !== "released" && (r.week || canEdit) ? (
               <Button asChild size="sm" variant="outline">
                 <Link href={r.week ? `/dashboard/menus/${r.week.publicId}` : "/dashboard/menus"}>{r.week ? "Open" : "Create"}</Link>
               </Button>

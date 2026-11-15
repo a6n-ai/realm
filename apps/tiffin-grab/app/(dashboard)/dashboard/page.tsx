@@ -46,9 +46,21 @@ async function DashboardData({ searchParams }: { searchParams: SearchParams }) {
   const session = await getSession();
   if (!session?.user) redirect("/login");
   const visible = await resolveSessionVisibleOrgIds(session);
-  const seesMenus = await can({ menu: ["write"] });
+  // Each region needs the read permission of its own domain; a role with none sees an empty overview.
+  const [seesMenus, editsMenus, seesOrders, seesDelivery, seesPayments, seesTickets] = await Promise.all([
+    can({ menu: ["read"] }),
+    can({ menu: ["write"] }),
+    can({ order: ["read"] }),
+    can({ delivery: ["read"] }),
+    can({ finance: ["verify"] }),
+    can({ ticket: ["read"] }),
+  ]);
+  const allowedKinds = OVERVIEW_KINDS.filter((k) =>
+    k === "payment" ? seesPayments : k === "ticket" ? seesTickets : seesOrders,
+  );
+  const perms = { orders: seesOrders, delivery: seesDelivery, payments: seesPayments, tickets: seesTickets, menus: seesMenus, editMenus: editsMenus };
   const { type, week } = await searchParams;
-  const activeType = isTodayKind(type) ? type : null;
+  const activeType = isTodayKind(type) && allowedKinds.includes(type) ? type : null;
   const { timezone } = await getAppSettings();
   const now = requestNow();
   const today = zonedDateIso(now, timezone);
@@ -57,7 +69,7 @@ async function DashboardData({ searchParams }: { searchParams: SearchParams }) {
   const greeting = firstName ? `Hi ${firstName}` : "Overview";
   const todayLabel = formatDateOnly(today, { mode: "fullDate" });
 
-  const seesAll = await coversAllOrgs(visible);
+  const seesAll = (await coversAllOrgs(visible)) && seesDelivery;
   const weekStart = parseWeekParam(week) ?? mondayOfIso(today);
 
   if (noVisibleOrgs(visible)) {
@@ -75,31 +87,46 @@ async function DashboardData({ searchParams }: { searchParams: SearchParams }) {
     );
   }
 
+  if (!seesMenus && !seesOrders && !seesDelivery && !seesPayments && !seesTickets) {
+    return (
+      <PageShell>
+        <PageHeader icon={LayoutDashboardIcon} title={greeting} subtitle={todayLabel} />
+        <Alert>
+          <AlertTitle>Nothing to show yet</AlertTitle>
+          <AlertDescription>Your role has no overview access. Use the menu to open the pages you can use.</AlertDescription>
+        </Alert>
+      </PageShell>
+    );
+  }
+
   return (
     <PageShell>
       <PageHeader icon={LayoutDashboardIcon} title={greeting} subtitle={`${todayLabel} · What is waiting on us today.`} />
 
-      <Suspense fallback={<StatCardsSkeleton count={4} cols={4} />}>
-        <GlanceCard visible={visible} today={today} now={now} timeZone={timezone} />
-      </Suspense>
+      {seesOrders && (
+        <Suspense fallback={<StatCardsSkeleton count={4} cols={4} />}>
+          <GlanceCard visible={visible} today={today} now={now} timeZone={timezone} />
+        </Suspense>
+      )}
 
       {/* Act first: what needs doing, how today is going, the menus to release. */}
       <CardGrid
         cards={[
-          { key: "action", node: <NeedsActionCard visible={visible} today={today} seesAll={seesAll} seesMenus={seesMenus} />, h: 260 },
+          { key: "action", node: <NeedsActionCard visible={visible} today={today} seesAll={seesAll} perms={perms} />, h: 260 },
           seesAll && { key: "service", node: <ServiceCard today={today} />, h: 260 },
-          // The menu page needs menu:write, so the menu card does too.
-          seesMenus && { key: "menus", node: <MenusCard today={today} />, h: 200 },
+          seesMenus && { key: "menus", node: <MenusCard today={today} canEdit={editsMenus} />, h: 200 },
         ]}
       />
 
-      <div id="queue">
-        <SectionCard title="Waiting on us" subtitle="Most urgent first. Verify a payment here; every other row opens its record.">
-          <Suspense fallback={<DataTableSkeleton columns={QUEUE_SKELETON_COLUMNS} rows={6} serial={false} />}>
-            <TodayQueueSection visible={visible} today={today} now={now} activeType={activeType} />
-          </Suspense>
-        </SectionCard>
-      </div>
+      {allowedKinds.length > 0 && (
+        <div id="queue">
+          <SectionCard title="Waiting on us" subtitle="Most urgent first. Verify a payment here; every other row opens its record.">
+            <Suspense fallback={<DataTableSkeleton columns={QUEUE_SKELETON_COLUMNS} rows={6} serial={false} />}>
+              <TodayQueueSection visible={visible} today={today} now={now} activeType={activeType} kinds={allowedKinds} />
+            </Suspense>
+          </SectionCard>
+        </div>
+      )}
 
       {/* Then dispatch: tomorrow's route and today's drivers. What to cook is in Kitchen week. */}
       <CardGrid
@@ -109,9 +136,11 @@ async function DashboardData({ searchParams }: { searchParams: SearchParams }) {
         ]}
       />
 
-      <Suspense fallback={<ChartSkeleton height={260} />}>
-        <KitchenWeekCard visible={visible} monday={weekStart} thisMonday={mondayOfIso(today)} today={today} seesAll={seesAll} />
-      </Suspense>
+      {seesOrders && (
+        <Suspense fallback={<ChartSkeleton height={260} />}>
+          <KitchenWeekCard visible={visible} monday={weekStart} thisMonday={mondayOfIso(today)} today={today} seesAll={seesAll} />
+        </Suspense>
+      )}
 
     </PageShell>
   );
@@ -143,12 +172,12 @@ const QUEUE_SKELETON_COLUMNS = [
   { key: "action", label: "Action", align: "right" },
 ] as const;
 
-async function TodayQueueSection({ visible, today, now, activeType }: { visible: Visible; today: string; now: number; activeType: TodayKind | null }) {
+async function TodayQueueSection({ visible, today, now, activeType, kinds }: { visible: Visible; today: string; now: number; activeType: TodayKind | null; kinds: readonly TodayKind[] }) {
   const [counts, queue] = await Promise.all([
     getTodayCounts(visible, today),
-    getTodayQueue(visible, now, activeType ? [activeType] : undefined),
+    getTodayQueue(visible, now, activeType ? [activeType] : kinds),
   ]);
   // Pills are quick filters: each carries the exact total; picking one filters on the server before the 50 cap.
-  const pills = OVERVIEW_KINDS.map((k) => ({ kind: k, count: counts.byKind[k] }));
+  const pills = kinds.map((k) => ({ kind: k, count: counts.byKind[k] }));
   return <TodayQueue rows={queue.items} now={now} pills={pills} failed={queue.failed} activeType={activeType} />;
 }

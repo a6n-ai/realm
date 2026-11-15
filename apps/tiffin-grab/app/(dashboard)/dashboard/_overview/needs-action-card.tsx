@@ -26,11 +26,15 @@ const go = (href: string, text: string) => (
   </Button>
 );
 
-export async function NeedsActionCard({ visible, today, seesAll, seesMenus }: { visible: Visible; today: string; seesAll: boolean; seesMenus: boolean }) {
-  const [c, [oldest]] = await Promise.all([getTodayCounts(visible, today), listReviewPayments(visible, 1)]);
+export type OverviewPerms = { orders: boolean; delivery: boolean; payments: boolean; tickets: boolean; menus: boolean; editMenus: boolean };
+
+export async function NeedsActionCard({ visible, today, seesAll, perms }: { visible: Visible; today: string; seesAll: boolean; perms: OverviewPerms }) {
+  const seesMenus = perms.menus;
+  const [c, [oldest]] = await Promise.all([getTodayCounts(visible, today), perms.payments ? listReviewPayments(visible, 1) : Promise.resolve([])]);
   // Quick action: verify the oldest payment in place (same rule as the queue's Verify); the rest via the pill filter.
   const canVerifyOldest = oldest != null && oldest.method !== "stripe" && (inStatuses(PENDING, oldest.status));
-  const lines: Line[] = [
+  const lines: Line[] = [];
+  if (perms.payments) lines.push(
     {
       key: "payment", icon: CreditCardIcon, count: c.byKind.payment, label: "payments to verify",
       sub: oldest ? `oldest: ${oldest.customer}` : "oldest first",
@@ -47,7 +51,7 @@ export async function NeedsActionCard({ visible, today, seesAll, seesMenus }: { 
         </div>
       ),
     },
-  ];
+  );
   if (seesAll) {
     const optimo = await getOptimoRouteStatus();
     const push = optimo.installed ? await nextRoutePushStatus(today).catch(() => null) : null;
@@ -63,7 +67,7 @@ export async function NeedsActionCard({ visible, today, seesAll, seesMenus }: { 
       });
     }
   }
-  // Next week's menu must be released before customers can pick; the menu page needs menu:write.
+  // Next week's menu must be released before customers can pick; 
   if (seesMenus) {
     const nextMonday = addDaysIso(mondayOfIso(today), 7);
     const week = (await menuService.listWeeks()).find((w) => w.weekStart === nextMonday);
@@ -75,14 +79,17 @@ export async function NeedsActionCard({ visible, today, seesAll, seesMenus }: { 
       label: released ? "Next week's menu released" : "Next week's menu not released",
       bare: true,
       sub: `week of ${dayLabel(nextMonday)} · ${week ? week.status : "not started"}`,
-      action: go(week ? `/dashboard/menus/${week.publicId}` : "/dashboard/menus", week ? "Open" : "Create"),
+      action: week ? go(`/dashboard/menus/${week.publicId}`, "Open") : perms.editMenus ? go("/dashboard/menus", "Create") : null,
     });
   }
-  lines.push(
+  if (perms.orders) lines.push(
     { key: "missed", icon: CircleAlertIcon, count: c.byKind.missed, label: "missed days", sub: "past days nobody confirmed", action: go("/dashboard?type=missed#queue", "Review") },
     { key: "renewal", icon: RefreshCwIcon, count: c.byKind.renewal, label: "plans ending within 2 days", sub: "not renewed yet", action: go("/dashboard/renewals?ending=2", "Renew") },
+  );
+  if (perms.tickets) lines.push(
     { key: "ticket", icon: LifeBuoyIcon, count: c.byKind.ticket, label: "tickets waiting", sub: c.overdueTickets ? `${c.overdueTickets} overdue` : "open and in progress", action: go("/dashboard/tickets", "Tickets") },
   );
+  if (lines.length === 0) return null;
   const open = lines.filter((l) => (l.count ?? 0) > 0).length;
   return (
     <ChartCard title="Needs action" subtitle={open === 0 ? "Nothing is waiting" : `${open} of ${lines.length} areas have work, worst first`}>
