@@ -30,7 +30,7 @@ function byOrder(rows: Row[]): Row[] {
   return [...out.values()];
 }
 
-type Key = "order" | "tiffins" | "selling" | "deductions" | "revenue" | "food" | "driver" | "profit";
+type Key = "order" | "tiffins" | "selling" | "deductions" | "revenue" | "food" | "driver" | "cost" | "profit";
 const COLUMNS: readonly Column<Key>[] = [
   { key: "order", label: "Order", width: "w-48" },
   { key: "tiffins", label: "Tiffins", align: "right", width: "w-20" },
@@ -39,6 +39,7 @@ const COLUMNS: readonly Column<Key>[] = [
   { key: "revenue", label: "Revenue", align: "right", width: "w-24" },
   { key: "food", label: "Food", align: "right", width: "w-24" },
   { key: "driver", label: "Driver", align: "right", width: "w-24" },
+  { key: "cost", label: "Cost", align: "right", width: "w-24" },
   { key: "profit", label: "Profit", align: "right", width: "w-24" },
 ];
 
@@ -72,7 +73,7 @@ export function OrderWeeksTable({ weeks }: { weeks: OrderWeek[] }) {
           </SelectContent>
         </Select>
         <p className="text-muted-foreground text-xs tabular-nums">
-          {`${orders} ${orders === 1 ? "order" : "orders"} · ${total("tiffins")} tiffins · Selling ${money(total("selling"))} · Deductions ${money(total("deductions"))} · Revenue ${money(total("revenue"))} · Food ${money(total("food"))} · Driver ${money(total("driver"))} · Profit ${money(total("profit"))}`}
+          {`${orders} ${orders === 1 ? "order" : "orders"} · ${total("tiffins")} tiffins · Selling ${money(total("selling"))} · Deductions ${money(total("deductions"))} · Revenue ${money(total("revenue"))} · Food ${money(total("food"))} · Driver ${money(total("driver"))} · Cost ${money(round2(total("food") + total("driver")))} · Profit ${money(total("profit"))}`}
         </p>
       </div>
       <DataTable
@@ -110,6 +111,7 @@ export function OrderWeeksTable({ weeks }: { weeks: OrderWeek[] }) {
               </span>
             </TableCell>
             <TableCell className="text-right tabular-nums">{money(r.driver)}</TableCell>
+            <TableCell className="text-right font-medium tabular-nums">{money(round2(r.food + r.driver))}</TableCell>
             <TableCell className={cn("text-right font-medium tabular-nums", r.profit < 0 && "text-destructive")}>{money(r.profit)}</TableCell>
           </>
         )}
