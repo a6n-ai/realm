@@ -9,23 +9,27 @@ const row = (o: Partial<ProfitRow>): ProfitRow => ({
 });
 
 describe("buildProfitWaterfall", () => {
-  it("ends at the stat-card profit: start minus the steps", () => {
+  // Running total the chart draws: a subtotal resets it, a step adds to it.
+  const run = (w: ReturnType<typeof buildProfitWaterfall>) => w.steps.reduce((t, x) => (x.total ? x.value : t + x.value), w.start.value);
+
+  it("starts at cash collected, deducts down to revenue, ends at the stat-card profit", () => {
     const rows = [
-      row({ revenue: 1000.1, food: 300.25, driver: 120.5, marketing: 80, salaries: 200.1, other: 0, costs: 700.85 }),
+      row({ revenue: 1000.1, cashCollected: 1300, food: 300.25, driver: 120.5, marketing: 80, salaries: 200.1, other: 0, costs: 700.85 }),
       row({ date: "2026-10-02", revenue: 500.2, food: 150.1, driver: 60.3, marketing: 80, salaries: 200.1, other: 12.5, costs: 503 }),
     ];
     const k = kpis(rows);
     const w = buildProfitWaterfall(k, costBreakdown(rows));
-    expect(w.start.value).toBe(k.revenue);
+    expect(w.start).toMatchObject({ label: "Cash collected", value: k.cashCollected });
+    expect(w.steps[0]).toMatchObject({ label: "Deductions", value: Math.round((k.revenue - k.cashCollected) * 100) / 100 });
+    expect(w.steps[1]).toMatchObject({ label: "Revenue", value: k.revenue, total: true });
+    expect(w.steps.slice(2).every((s) => s.value < 0)).toBe(true);
+    expect(run(w)).toBeCloseTo(w.end.value, 2);
     expect(w.end.value).toBe(k.profit);
-    const running = w.steps.reduce((s, x) => s + x.value, w.start.value);
-    expect(running).toBeCloseTo(w.end.value, 2);
-    expect(w.steps.every((s) => s.value < 0)).toBe(true);
   });
 
-  it("drops zero-cost steps", () => {
-    const rows = [row({ revenue: 100, food: 40, costs: 40 })];
-    expect(buildProfitWaterfall(kpis(rows), costBreakdown(rows)).steps.map((s) => s.label)).toEqual(["Food"]);
+  it("drops zero-cost steps and a zero deduction", () => {
+    const rows = [row({ revenue: 100, cashCollected: 100, food: 40, costs: 40 })];
+    expect(buildProfitWaterfall(kpis(rows), costBreakdown(rows)).steps.map((s) => s.label)).toEqual(["Revenue", "Food"]);
   });
 });
 

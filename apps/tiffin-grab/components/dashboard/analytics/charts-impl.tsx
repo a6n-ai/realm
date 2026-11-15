@@ -1382,15 +1382,19 @@ export function WaterfallChart({ start, steps, end, format = "currency", height 
   if (start.value === 0 && steps.length === 0 && end.value === 0) return <EmptyChart />;
   let run = start.value;
   const bars = [
-    { label: start.label, range: [Math.min(0, start.value), Math.max(0, start.value)] as [number, number], delta: start.value, fill: "var(--chart-2)" },
+    { label: start.label, range: [Math.min(0, start.value), Math.max(0, start.value)] as [number, number], delta: start.value, fill: start.fill ?? "var(--chart-2)" },
     ...steps.map((s) => {
+      if (s.total) {
+        run = s.value;
+        return { label: s.label, range: [Math.min(0, s.value), Math.max(0, s.value)] as [number, number], delta: s.value, fill: s.fill ?? "var(--chart-2)" };
+      }
       const from = run;
       run += s.value;
       return {
         label: s.label,
         range: [Math.min(from, run), Math.max(from, run)] as [number, number],
         delta: s.value,
-        fill: s.value < 0 ? "var(--chart-bad)" : "var(--chart-good)",
+        fill: s.fill ?? (s.value < 0 ? "var(--chart-bad)" : "var(--chart-good)"),
       };
     }),
     { label: end.label, range: [Math.min(0, end.value), Math.max(0, end.value)] as [number, number], delta: end.value, fill: end.value >= 0 ? "var(--chart-good)" : "var(--chart-bad)" },

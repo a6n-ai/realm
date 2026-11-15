@@ -15,9 +15,11 @@ export type OrderCostRow = {
   deploymentId: string;
   customer: string;
   mealSize: string;
-  /** What the order sold for per tiffin: order total ex tax / its tiffin count, paid or not. */
-  pricePerTiffin: number;
   tiffins: number;
+  /** List price of these tiffins before any discount (order subtotal share). */
+  selling: number;
+  /** Coupons, staff and catalog discounts on these tiffins (selling minus the net price, ex tax). */
+  deductions: number;
   revenue: number;
   food: number;
   driver: number;
@@ -30,21 +32,24 @@ export type OrderWeek = {
   key: string;
   label: string;
   orders: OrderCostRow[];
-  totals: { orders: number; tiffins: number; revenue: number; food: number; driver: number; profit: number };
+  totals: { orders: number; tiffins: number; selling: number; deductions: number; revenue: number; food: number; driver: number; profit: number };
 };
 
 type Acc = Omit<OrderCostRow, "profit">;
+type OrderInfo = Pick<OrderCostRow, "orderPublicId" | "deploymentId" | "customer" | "mealSize">;
 
 export function groupOrderWeeks(
-  trips: { orderId: bigint; deliveryDate: string; tiffins: number; revenue: number; food: number; unrated: boolean; order: Omit<Acc, "tiffins" | "revenue" | "food" | "driver" | "unrated"> }[],
+  trips: { orderId: bigint; deliveryDate: string; tiffins: number; selling: number; deductions: number; revenue: number; food: number; unrated: boolean; order: OrderInfo }[],
   driverPerTiffin: number,
 ): OrderWeek[] {
   const weeks = new Map<string, Map<bigint, Acc>>();
   for (const t of trips) {
     const key = periodKey(t.deliveryDate, "weekly");
     const byOrder = weeks.get(key) ?? new Map<bigint, Acc>();
-    const acc = byOrder.get(t.orderId) ?? { ...t.order, tiffins: 0, revenue: 0, food: 0, driver: 0, unrated: false };
+    const acc = byOrder.get(t.orderId) ?? { ...t.order, tiffins: 0, selling: 0, deductions: 0, revenue: 0, food: 0, driver: 0, unrated: false };
     acc.tiffins += t.tiffins;
+    acc.selling += t.selling;
+    acc.deductions += t.deductions;
     acc.revenue += t.revenue;
     acc.food += t.food;
     acc.driver += t.tiffins * driverPerTiffin;
@@ -56,14 +61,14 @@ export function groupOrderWeeks(
     .sort(([a], [b]) => b.localeCompare(a))
     .map(([key, byOrder]) => {
       const rows = [...byOrder.values()]
-        .map((a) => ({ ...a, revenue: round2(a.revenue), food: round2(a.food), driver: round2(a.driver), profit: round2(a.revenue - a.food - a.driver) }))
+        .map((a) => ({ ...a, selling: round2(a.selling), deductions: round2(a.deductions), revenue: round2(a.revenue), food: round2(a.food), driver: round2(a.driver), profit: round2(a.revenue - a.food - a.driver) }))
         .sort((a, b) => a.profit - b.profit);
-      const sum = (k: "tiffins" | "revenue" | "food" | "driver" | "profit") => round2(rows.reduce((s, r) => s + r[k], 0));
+      const sum = (k: "tiffins" | "selling" | "deductions" | "revenue" | "food" | "driver" | "profit") => round2(rows.reduce((s, r) => s + r[k], 0));
       return {
         key,
         label: periodLabel(key, "weekly"),
         orders: rows,
-        totals: { orders: rows.length, tiffins: sum("tiffins"), revenue: sum("revenue"), food: sum("food"), driver: sum("driver"), profit: sum("profit") },
+        totals: { orders: rows.length, tiffins: sum("tiffins"), selling: sum("selling"), deductions: sum("deductions"), revenue: sum("revenue"), food: sum("food"), driver: sum("driver"), profit: sum("profit") },
       };
     });
 }
@@ -88,8 +93,11 @@ export async function getOrderWeeks(scope: AnalyticsScope, from: string, to: str
         deploymentId: orders.deploymentId,
         customer: orders.fullName,
         mealSize: mealSizes.name,
-        pricePerTiffin: sql<number>`coalesce(round((${orders.total}::numeric - coalesce((${orders.pricingSnapshot}->>'taxTotal')::numeric, 0))
-          / nullif(${orders.tiffinCount}, 0), 2), 0)::float`,
+        // Orders without a snapshot subtotal (imported/legacy) show their net price as selling, no deductions.
+        listPerTiffin: sql<number>`coalesce(coalesce((${orders.pricingSnapshot}->>'subtotal')::numeric,
+          ${orders.total}::numeric - coalesce((${orders.pricingSnapshot}->>'taxTotal')::numeric, 0)) / nullif(${orders.tiffinCount}, 0), 0)::float`,
+        netPerTiffin: sql<number>`coalesce((${orders.total}::numeric - coalesce((${orders.pricingSnapshot}->>'taxTotal')::numeric, 0))
+          / nullif(${orders.tiffinCount}, 0), 0)::float`,
       })
       .from(deliveries)
       .innerJoin(orders, eq(deliveries.orderId, orders.id))
@@ -105,10 +113,12 @@ export async function getOrderWeeks(scope: AnalyticsScope, from: string, to: str
         orderId: e.orderId,
         deliveryDate: String(e.deliveryDate).slice(0, 10),
         tiffins: e.tiffins,
+        selling: Number(e.listPerTiffin) * e.tiffins,
+        deductions: Math.max(0, Number(e.listPerTiffin) - Number(e.netPerTiffin)) * e.tiffins,
         revenue: Number(e.revenue),
         food: f?.foodCost ?? 0,
         unrated: (f?.tiffinsWithoutRate ?? 0) > 0,
-        order: { orderPublicId: e.orderPublicId, deploymentId: e.deploymentId, customer: e.customer, mealSize: e.mealSize, pricePerTiffin: Number(e.pricePerTiffin) },
+        order: { orderPublicId: e.orderPublicId, deploymentId: e.deploymentId, customer: e.customer, mealSize: e.mealSize },
       };
     }),
     assumptions.driverCostPerTiffin,
