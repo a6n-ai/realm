@@ -19,22 +19,23 @@ import { RowTag } from "./row-tags";
 // server page maps over it; re-exporting it here would hand the RSC graph a
 // client reference instead of the array.
 
-type ListColumn = OrderSortColumn | "deployment" | "city" | "owner";
+type ListColumn = OrderSortColumn | "owner" | "cost";
 
 // Single source of truth for the table's columns. DataTable renders the header
 // and DataTable.Skeleton renders the loading twin from this same array, so the
 // two can never drift. "deployment" isn't a server sort key (see
 // OrderSortColumn), so it's a plain non-sortable column here.
+// Deployment and city sit under the name, so the table fits without sideways scroll.
 const COLUMNS: readonly Column<ListColumn>[] = [
-    { key: "name", label: "Name", sortable: true },
-    { key: "deployment", label: "Deployment", sortable: false },
-    { key: "city", label: "City" },
-    { key: "status", label: "Status", sortable: true },
-    { key: "owner", label: "Owner", sortable: false },
-    { key: "start", label: "Start", sortable: true, align: "right" },
-    { key: "total", label: "Total", sortable: true, align: "right" },
-    { key: "created", label: "Created", sortable: true, align: "right" },
+    { key: "name", label: "Name", sortable: true, width: "w-56" },
+    { key: "status", label: "Status", sortable: true, width: "w-32" },
+    { key: "owner", label: "Owner", sortable: false, width: "w-32" },
+    { key: "start", label: "Start", sortable: true, align: "right", width: "w-28" },
+    { key: "total", label: "Total", sortable: true, align: "right", width: "w-24" },
+    { key: "created", label: "Created", sortable: true, align: "right", width: "w-28" },
 ];
+const COST_COLUMN: Column<ListColumn> = { key: "cost", label: "Our cost", align: "right", width: "w-24" };
+const withCost = (cols: readonly Column<ListColumn>[]) => [...cols.slice(0, 5), COST_COLUMN, ...cols.slice(5)];
 
 export function OrdersList({
   spec,
@@ -46,6 +47,7 @@ export function OrdersList({
   lookOutView = false,
   paymentReviewView = false,
   freeTiffinsView = false,
+  costs = null,
 }: {
   spec: FacetDef[];
   rows: OrderListRow[];
@@ -58,13 +60,15 @@ export function OrdersList({
   paymentReviewView?: boolean;
   /** The Free tiffins tab: orders where staff gave tiffins on top of the plan. */
   freeTiffinsView?: boolean;
+  /** Plan cost per order publicId; null = viewer may not see costs (column hidden). */
+  costs?: Record<string, number | null> | null;
 }) {
   const tz = useTimezone();
   return (
     <div className="space-y-4">
     <DataTable
       serialOffset={pageOffset(page, size)}
-      columns={COLUMNS}
+      columns={costs ? withCost(COLUMNS) : COLUMNS}
       rows={rows}
       rowKey={(o) => o.publicId}
       sort={sort}
@@ -84,10 +88,12 @@ export function OrdersList({
             {o.trial && <RowTag tag="trial" />}
             {o.lookOut && !lookOutView && <RowTag tag="lookOut" title={o.lookOutNote ? `Look out for: ${o.lookOutNote}` : undefined} />}
             {o.freeTiffins > 0 && <RowTag tag="free" count={o.freeTiffins} title={`${o.freeTiffins} free ${o.freeTiffins === 1 ? "tiffin" : "tiffins"} given`} />}
+            <p className="text-muted-foreground truncate text-xs font-normal">
+              {o.deploymentId}
+              {o.city ? ` · ${o.city}` : ""}
+            </p>
             {lookOutView && o.lookOutNote && <p className="text-muted-foreground text-xs font-normal text-pretty">{o.lookOutNote}</p>}
           </TableCell>
-          <TableCell>{o.deploymentId}</TableCell>
-          <TableCell>{o.city}</TableCell>
           <TableCell>
             <OrderStatusBadge status={orderDisplayStatus(o.status, [o.paymentStatus])} />
           </TableCell>
@@ -96,6 +102,9 @@ export function OrdersList({
           </TableCell>
           <TableCell className="text-right tabular-nums">{o.startDate}</TableCell>
           <TableCell className="text-right tabular-nums">{fmt(Number(o.total))}</TableCell>
+          {costs ? (
+            <TableCell className="text-muted-foreground text-right tabular-nums">{costs[o.publicId] == null ? "—" : fmt(costs[o.publicId]!)}</TableCell>
+          ) : null}
           <TableCell className="text-right tabular-nums">
             {formatEpoch(o.createdAt, { mode: "date", timeZone: tz })}
           </TableCell>

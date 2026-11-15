@@ -10,6 +10,7 @@ import { expireUnpaidStripeOrders } from "@/lib/orders/unpaid-checkouts";
 import { getAppSettings } from "@/lib/settings";
 import { listActiveLeadSources } from "@/lib/inquiries/lead-sources.service";
 import { countMigratedWaiting, listOrdersPage } from "@/lib/orders/orders.service";
+import { planCostsForOrders } from "@/lib/pricing/meal-cost";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import { countLookOutOrders } from "@/lib/orders/look-out";
 import { countFreeTiffinOrders, type FreeTiffinRange, countPaymentReviewOrders } from "@/lib/orders/queries";
@@ -368,10 +369,14 @@ async function OrdersData({ searchParams }: { searchParams: SearchParams }) {
           : undefined,
     });
 
+  // Internal cost is analytics data: computed (and sent) only for staff who may see it.
+  const costs = (await can({ analytics: ["read"] })) ? await planCostsForOrders(result.items.map((o) => o.publicId)) : null;
+
   return (
     <OrdersList
       spec={spec}
       rows={result.items}
+      costs={costs}
       total={result.total}
       page={page.page}
       size={page.size}
