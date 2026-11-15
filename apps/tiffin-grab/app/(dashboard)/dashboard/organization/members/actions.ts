@@ -12,7 +12,7 @@ import { auth } from "@/lib/auth";
 import type { ActionResult } from "@/lib/actions/action-result";
 import { staffAction, type StaffActionOpts } from "@/lib/actions/staff-action";
 import { sendStaffInviteLink, sendStaffSetupLink } from "@/lib/auth/invite-links";
-import { requirePermission, requirePermissionIn } from "@/lib/auth/guards";
+import { requireOwnerToGrant, requirePermission, requirePermissionIn } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { getBrandOrgId, getMemberOrganizations } from "@/lib/services/organizations.service";
 import { ContactTakenError, usersService } from "@/lib/services/users.service";
@@ -33,15 +33,24 @@ const INVITATION_CANCEL = { guard: { invitation: ["cancel"] }, revalidate: [MEMB
 async function authorizeTarget(userPublicId: string): Promise<void> {
   const session = await getSession();
   if (session?.user.platformRole === "super_admin") return requirePermission({ member: ["update"] });
-  const [target] = await db.select({ id: users.id, role: users.role }).from(users).where(eq(users.publicId, userPublicId)).limit(1);
-  if (!target) throw new ForbiddenError();
-  const activeOrgId = session?.session.activeOrganizationId;
-  if (activeOrgId) {
-    const [row] = await db
-      .select({ id: member.id })
-      .from(member)
-      .where(and(eq(member.organizationId, activeOrgId), eq(member.userId, target.id)));
-    if (row) return requirePermission({ member: ["update"] });
+  const [target] = await db
+    .select({ id: users.id, role: users.role, platformRole: users.platformRole })
+    .from(users)
+    .where(eq(users.publicId, userPublicId))
+    .limit(1);
+  if (!target || target.platformRole === "super_admin") throw new ForbiddenError();
+  // An email change is an account takeover, so the caller needs member:update (and owner, for an
+  // owner row) in EVERY org the target belongs to, not only the active one.
+  const rows = await db
+    .select({ organizationId: member.organizationId, role: member.role })
+    .from(member)
+    .where(eq(member.userId, target.id));
+  if (rows.length) {
+    for (const r of rows) {
+      await requirePermissionIn(r.organizationId, { member: ["update"] });
+      await requireOwnerToGrant(r.organizationId, r.role);
+    }
+    return;
   }
   // Customers are global (the customers pages apply no org scope), so customer:manage is the whole check.
   if (isCustomerRole(target.role)) return requirePermission({ customer: ["manage"] });
@@ -68,6 +77,8 @@ export async function setUserRole(userId: string, role: RoleValue): Promise<Acti
     const brandId = await getBrandOrgId();
     if (!brandId) throw new ForbiddenError();
     await requirePermissionIn(brandId, { member: ["update"] });
+    // Demoting to a customer drops every membership the target holds, owner rows included.
+    await authorizeTarget(userId);
     // setRole, not update: demoting your own row out of admin locks you out of this
     // page, and the guard lives in the service so every caller inherits it.
     await usersService.setRole(userId, role);
