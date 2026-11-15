@@ -78,6 +78,10 @@ describe("tiffin-grab permission map", () => {
     expect(orgRoles.member.authorize({ finance: ["verify", "charge"] }).success).toBe(false);
   });
 
+  it("org member keeps inquiry import (it was staff-gated)", () => {
+    expect(orgRoles.member.authorize({ inquiry: ["import"] }).success).toBe(true);
+  });
+
   it("org admin allows every app action", () => {
     expect(orgRoles.admin.authorize(appStatement as unknown as Record<string, string[]>).success).toBe(true);
   });

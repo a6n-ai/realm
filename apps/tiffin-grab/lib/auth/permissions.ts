@@ -37,7 +37,7 @@ export const MEMBER_PERMISSIONS = {
   subscription: ["read", "write", "pause"],
   menu: ["read"],
   finance: ["read", "verify"],
-  inquiry: ["read", "write"],
+  inquiry: ["read", "write", "import"],
   customer: ["read", "write", "export"],
   delivery: ["read", "write"],
   ticket: ["read", "write"],
