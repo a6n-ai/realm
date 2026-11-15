@@ -1,8 +1,6 @@
 "use client";
 
-import { pageOffset } from "@foundry/design-system/filters/parse-filter-state";
 import { UsersIcon } from "lucide-react";
-import { useSearchParams } from "next/navigation";
 import { DataTable, ListPagination, SkeletonFilterBar, type Column, type FacetDef } from "@/components/ds";
 import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
 import type { SortState } from "@foundry/design-system/list-sort";
@@ -14,12 +12,11 @@ export type UserListRow = PeopleRow;
 // Single source of truth for the table's columns. DataTable renders the header
 // and DataTable.Skeleton renders the loading twin from this same array, so the
 // two can never drift.
-const COLUMNS: readonly Column<"name" | "email" | "role" | "access" | "status" | "joined" | "actions">[] = [
+const COLUMNS: readonly Column<"name" | "role" | "access" | "status" | "joined" | "actions">[] = [
   { key: "name", label: "Member", sortable: true },
-  { key: "email", label: "Contact", sortable: true },
-  { key: "role", label: "Roles", sortable: true },
+  { key: "role", label: "Roles", sortable: true, width: "w-56" },
   { key: "access", label: "Access" },
-  { key: "status", label: "Status", sortable: true },
+  { key: "status", label: "Status", sortable: true, width: "w-44" },
   { key: "joined", label: "Joined" },
   { key: "actions", label: "" },
 ];
@@ -38,25 +35,18 @@ export function UsersList({
   total: number;
   page: number;
   size: number;
-  sort: SortState<"name" | "email" | "role" | "status">;
+  sort: SortState<"name" | "role" | "status">;
   roleCtx: RoleCtx;
 }) {
-  const params = useSearchParams();
-  // Opens the member panel and keeps the search and filters in the URL.
-  const hrefFor = (memberId: string) => {
-    const sp = new URLSearchParams(params.toString());
-    sp.set("member", memberId);
-    return `?${sp.toString()}`;
-  };
+  const hrefFor = (memberId: string) => `/dashboard/organization/people/${memberId}`;
   return (
     <div className="space-y-4">
       <DataTable
-        serialOffset={pageOffset(page, size)}
+        serial={false}
         columns={COLUMNS}
         rows={rows}
         rowKey={(r) => r.id}
         sort={sort}
-        idAccessor={(r) => r.id}
         idHref={(r) => hrefFor(r.memberId)}
         search={{ placeholder: "Search users…", shortPlaceholder: "Search…", debounceMs: 250 }}
         filters={<ReuiFacetFilters spec={spec} />}
@@ -71,12 +61,12 @@ export function UsersList({
   );
 }
 
-// FilterBar twin + table twin — mirrors live search + ReuiFacetFilters chrome.
+// FilterBar twin + table twin: mirrors live search + ReuiFacetFilters chrome.
 export function UsersListSkeleton() {
   return (
     <div className="space-y-4">
       <SkeletonFilterBar dropdown />
-      <DataTable.Skeleton columns={COLUMNS} hasId />
+      <DataTable.Skeleton columns={COLUMNS} serial={false} />
     </div>
   );
 }

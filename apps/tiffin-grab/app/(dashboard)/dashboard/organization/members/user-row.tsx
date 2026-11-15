@@ -9,14 +9,13 @@ import { toast } from "sonner";
 import { Button } from "@foundry/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
 import { TableCell } from "@foundry/ui/table";
-import { RowActions } from "@foundry/design-system";
 import { Badge } from "@/components/reui/badge";
 import { AppDate } from "@/components/dashboard/app-date";
-import { RowActionTooltipButton, UserAvatar } from "@/components/ds";
+import { UserAvatar } from "@/components/ds";
 import { unwrapAction } from "@/lib/actions/unwrap";
 import { sendStaffAccessEmail, setUserStatus, type UserStatusValue } from "./actions";
 import type { PeopleRow } from "./people-rows";
-import { EditMemberRolesDialog, RemoveMemberButton } from "./member-row-actions";
+import { MemberRowMenu } from "./member-row-actions";
 
 const USER_STATUSES: UserStatusValue[] = ["active", "inactive", "suspended", "deleted"];
 
@@ -36,7 +35,7 @@ export function StatusSelect({ id, status }: { id: string; status: UserStatusVal
       }
       disabled={pending}
     >
-      <SelectTrigger size="sm" className="w-32 capitalize"><SelectValue /></SelectTrigger>
+      <SelectTrigger size="sm" className="w-36 capitalize"><SelectValue /></SelectTrigger>
       <SelectContent>
         {USER_STATUSES.map((s) => (
           <SelectItem key={s} value={s}>{s}</SelectItem>
@@ -59,7 +58,7 @@ export function AccessBadges({ row }: { row: PeopleRow }) {
   return (
     <span className="flex flex-wrap gap-1">
       {row.areas.map((a) => (
-        <Badge key={a.resource} variant="secondary">{a.label}</Badge>
+        <Badge key={a.resource} variant="info-light">{a.label}</Badge>
       ))}
     </span>
   );
@@ -71,27 +70,14 @@ export function RoleBadges({ orgRole, ctx }: { orgRole: string; ctx: RoleCtx }) 
   return (
     <span className="flex flex-wrap gap-1">
       {roles.map((r) => (
-        <Badge key={r} variant="secondary">{ctx.options.find((o) => o.value === r)?.label ?? r}</Badge>
+        <Badge key={r} variant="primary-light">{ctx.options.find((o) => o.value === r)?.label ?? r}</Badge>
       ))}
     </span>
   );
 }
 
-// Staff rows only. With a password: mails a reset code. Without one: re-sends
-// the invite email (sign in with an email code, then choose a password) — see
-// sendStaffAccessEmail. "icon": tooltip icon button for a table row. "button":
-// labeled outline button for the detail page header.
-export function ResetPasswordButton({
-  id,
-  role,
-  passwordSet,
-  variant = "icon",
-}: {
-  id: string;
-  role: RoleValue;
-  passwordSet: boolean;
-  variant?: "icon" | "button";
-}) {
+// Staff only: mails a reset code when a password is set, otherwise re-sends the invite.
+export function ResetPasswordButton({ id, role, passwordSet }: { id: string; role: RoleValue; passwordSet: boolean }) {
   const [pending, start] = useTransition();
   if (isCustomerRole(role)) return null;
   const label = passwordSet ? "Reset password" : "Resend invite";
@@ -110,63 +96,49 @@ export function ResetPasswordButton({
         toast.error(e instanceof Error ? e.message : passwordSet ? "Could not send the reset code." : "Could not resend the invite.");
       }
     });
-
-  if (variant === "button") {
-    return (
-      <Button variant="outline" size="sm" disabled={pending} onClick={onClick}>
-        {label}
-      </Button>
-    );
-  }
+  const Icon = passwordSet ? KeyRound : SendHorizonal;
   return (
-    <RowActionTooltipButton icon={passwordSet ? KeyRound : SendHorizonal} label={label} disabled={pending} onClick={onClick} />
+    <Button variant="outline" size="sm" disabled={pending} onClick={onClick}>
+      <Icon /> {label}
+    </Button>
   );
 }
 
-// Returns only the <TableCell> children — DataTable supplies the wrapping
-// <TableRow>. Interactive role controls stay client-side here.
+function MemberName({ row, href }: { row: PeopleRow; href: string }) {
+  const contact = row.email ?? (row.phone ? formatPhone(row.phone) : null);
+  return (
+    <Link href={href} className="group flex min-w-0 items-center gap-3">
+      <UserAvatar name={row.name} fallbackText={row.email} presence={row.status === "active" ? "active" : "off"} size="sm" />
+      <span className="grid min-w-0">
+        <span className="truncate font-medium group-hover:underline underline-offset-4">{row.name || "—"}</span>
+        <span className="text-muted-foreground truncate text-xs">{contact ?? "No email on file"}</span>
+      </span>
+    </Link>
+  );
+}
+
+// Returns only the <TableCell> children; DataTable supplies the <TableRow>.
 export function UserRow({ ctx, href, ...r }: PeopleRow & { ctx: RoleCtx; href: string }) {
-  const { id, name, email, phone, role, status, passwordSet } = r;
   return (
     <>
-      <TableCell>
-        <Link
-          href={href}
-          className="group flex items-center gap-3 font-medium underline-offset-4 hover:[&>span]:underline"
-        >
-          <UserAvatar name={name} fallbackText={email} presence={status === "active" ? "active" : "off"} size="sm" />
-          <span>{name || "—"}</span>
-        </Link>
-      </TableCell>
-      <TableCell>{email ?? (phone ? formatPhone(phone) : null) ?? "—"}</TableCell>
+      <TableCell><MemberName row={r} href={href} /></TableCell>
       <TableCell><RoleBadges orgRole={r.orgRole} ctx={ctx} /></TableCell>
       <TableCell><AccessBadges row={r} /></TableCell>
-      <TableCell><StatusSelect id={id} status={status} /></TableCell>
+      <TableCell><StatusSelect id={r.id} status={r.status} /></TableCell>
       <TableCell className="text-muted-foreground"><AppDate value={r.joinedAt} /></TableCell>
-      <TableCell>
-        <RowActions>
-          <EditMemberRolesDialog row={r} ctx={ctx} />
-          <ResetPasswordButton id={id} role={role} passwordSet={passwordSet} />
-          <RemoveMemberButton row={r} />
-        </RowActions>
-      </TableCell>
+      <TableCell><MemberRowMenu row={r} ctx={ctx} href={href} /></TableCell>
     </>
   );
 }
 
-// Mobile card variant — UserRow returns <td>s (a component, so DataTable can't
-// auto-derive a card from it); this renders the same controls as card content.
+// Mobile card variant: UserRow returns <td>s, so DataTable needs this explicit card.
 export function UserRowCard({ ctx, href, ...r }: PeopleRow & { ctx: RoleCtx; href: string }) {
-  const { id, name, email, phone, role, status, passwordSet } = r;
   return (
     <div className="space-y-3">
-      <Link href={href} className="flex items-center gap-3">
-        <UserAvatar name={name} fallbackText={email} presence={status === "active" ? "active" : "off"} />
-        <span className="text-base font-medium underline-offset-4 hover:underline">
-          {name || email || (phone ? formatPhone(phone) : null) || "—"}
-        </span>
-      </Link>
-      {(email || phone) && <div className="text-muted-foreground text-sm">{email ?? (phone ? formatPhone(phone) : null)}</div>}
+      <div className="flex items-start justify-between gap-3">
+        <MemberName row={r} href={href} />
+        <MemberRowMenu row={r} ctx={ctx} href={href} />
+      </div>
       <div className="flex items-center justify-between gap-3">
         <span className="text-muted-foreground text-sm">Roles</span>
         <RoleBadges orgRole={r.orgRole} ctx={ctx} />
@@ -177,18 +149,8 @@ export function UserRowCard({ ctx, href, ...r }: PeopleRow & { ctx: RoleCtx; hre
       </div>
       <div className="flex items-center justify-between gap-3">
         <span className="text-muted-foreground text-sm">Status</span>
-        <StatusSelect id={id} status={status} />
+        <StatusSelect id={r.id} status={r.status} />
       </div>
-      {!isCustomerRole(role) && (
-        <div className="flex items-center justify-between gap-3">
-          <span className="text-muted-foreground text-sm">Password</span>
-          <ResetPasswordButton id={id} role={role} passwordSet={passwordSet} />
-        </div>
-      )}
-      <RowActions>
-        <EditMemberRolesDialog row={r} ctx={ctx} />
-        <RemoveMemberButton row={r} />
-      </RowActions>
     </div>
   );
 }

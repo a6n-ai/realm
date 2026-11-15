@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { redirect } from "next/navigation";
 import { pageOffset } from "@foundry/design-system/filters/parse-filter-state";
 import { parseSort } from "@foundry/design-system/list-sort";
 import { whoCan, type ResourceLabel, type WhoCanHit } from "@foundry/crm";
@@ -18,8 +19,6 @@ import { getInvitationsForOrgs } from "../invites/invites-query";
 import { InviteUserButton } from "../members/invite-user-button";
 import { matchesCondition } from "../members/member-filter";
 import { getMembersForOrgs } from "../members/members-query";
-import { loadMemberPanel } from "../members/member-panel-data";
-import { MemberSheet } from "../members/member-panel";
 import { toPeopleRows } from "../members/people-rows";
 import { UsersList, UsersListSkeleton } from "../members/users-list";
 import { WhoCanFilter } from "../members/who-can-filter";
@@ -70,10 +69,11 @@ async function PeopleData({ searchParams }: { searchParams: SearchParams }) {
   await requirePermission({ member: ["update"] });
   const session = await getSession();
   const sp = await searchParams;
+  if (sp.member) redirect(`/dashboard/organization/people/${sp.member}`);
   const activeOrgId = session?.session.activeOrganizationId;
 
-  const sort = parseSort(sp, ["name", "email", "role", "status"], { column: "email", dir: "asc" });
-  const SORT_COLUMNS = { name: "name", email: "email", role: "orgRole", status: "status" } as const;
+  const sort = parseSort(sp, ["name", "role", "status"], { column: "name", dir: "asc" });
+  const SORT_COLUMNS = { name: "name", role: "orgRole", status: "status" } as const;
 
   const visible = await resolveSessionVisibleOrgIds(session);
   const inviteOrgIds = visible === "all" ? (await listOrganizations()).map((o) => o.id) : visible;
@@ -109,8 +109,6 @@ async function PeopleData({ searchParams }: { searchParams: SearchParams }) {
   const total = filtered.length;
   const from = pageOffset(page.page, page.size);
   const rows = filtered.slice(from, from + page.size);
-
-  const panel = sp.member ? await loadMemberPanel(sp.member) : null;
 
   const now = requestNow();
   const inviteStatus = INVITE_BUCKETS.find((b) => b === sp.invite);
@@ -160,7 +158,6 @@ async function PeopleData({ searchParams }: { searchParams: SearchParams }) {
           actionableOrgIds={directOrgs.map((o) => o.id)}
         />
       </SectionCard>
-      {panel && <MemberSheet data={panel} resources={RESOURCE_LABELS} />}
     </>
   );
 }

@@ -1,13 +1,15 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { UserMinusIcon } from "lucide-react";
+import { EllipsisIcon, UserMinusIcon } from "lucide-react";
 import { chipState } from "@foundry/crm";
 import { Button } from "@foundry/ui/button";
 import { Checkbox } from "@foundry/ui/checkbox";
-import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@foundry/ui/dialog";
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@foundry/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@foundry/ui/dropdown-menu";
 import { Label } from "@foundry/ui/label";
 import { removeMemberAction } from "@/lib/services/organizations-actions";
 import { setMemberRoles } from "./actions";
@@ -17,9 +19,18 @@ import type { RoleCtx } from "./user-row";
 const heldRoles = (orgRole: string) => orgRole.split(",").map((r) => r.trim()).filter(Boolean);
 
 /** Checkbox per role; a role the server would refuse is disabled with its reason. */
-export function EditMemberRolesDialog({ row, ctx }: { row: PeopleRow; ctx: RoleCtx }) {
+export function EditMemberRolesDialog({
+  row,
+  ctx,
+  open,
+  onOpenChange,
+}: {
+  row: PeopleRow;
+  ctx: RoleCtx;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<string[]>(heldRoles(row.orgRole));
   const [error, setError] = useState<string>();
   const [pending, start] = useTransition();
@@ -36,31 +47,27 @@ export function EditMemberRolesDialog({ row, ctx }: { row: PeopleRow; ctx: RoleC
     setSelected((s) => (on ? [...s.filter((r) => r !== role), role] : s.filter((r) => r !== role)));
   const changed = [...selected].sort().join() !== heldRoles(row.orgRole).sort().join();
 
+  function handleOpenChange(next: boolean) {
+    if (next) {
+      setSelected(heldRoles(row.orgRole));
+      setError(undefined);
+    }
+    onOpenChange(next);
+  }
+
   function save() {
     setError(undefined);
     start(async () => {
       const res = await setMemberRoles(row.memberId, selected);
       if ("error" in res) return void setError(res.error);
       toast.success("Roles updated.");
-      setOpen(false);
+      onOpenChange(false);
       router.refresh();
     });
   }
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(o) => {
-        setOpen(o);
-        if (o) {
-          setSelected(heldRoles(row.orgRole));
-          setError(undefined);
-        }
-      }}
-    >
-      <DialogTrigger asChild>
-        <Button variant="outline" size="sm" disabled={row.isSelf}>Edit roles</Button>
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Edit roles for {row.name || row.email || "this person"}</DialogTitle>
@@ -100,9 +107,16 @@ export function EditMemberRolesDialog({ row, ctx }: { row: PeopleRow; ctx: RoleC
   );
 }
 
-export function RemoveMemberButton({ row }: { row: PeopleRow }) {
+export function RemoveMemberDialog({
+  row,
+  open,
+  onOpenChange,
+}: {
+  row: PeopleRow;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
   const [error, setError] = useState<string>();
   const [pending, start] = useTransition();
   const remove = () => {
@@ -111,17 +125,12 @@ export function RemoveMemberButton({ row }: { row: PeopleRow }) {
       const res = await removeMemberAction(row.organizationId, row.id);
       if (!res.ok) return void setError(res.error);
       toast.success("Removed from this organization.");
-      setOpen(false);
+      onOpenChange(false);
       router.refresh();
     });
   };
   return (
-    <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (o) setError(undefined); }}>
-      <DialogTrigger asChild>
-        <Button variant="ghost" size="sm" disabled={row.isSelf || pending}>
-          <UserMinusIcon /> Remove
-        </Button>
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={(o) => { onOpenChange(o); if (o) setError(undefined); }}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Remove {row.name || row.email || "this person"}?</DialogTitle>
@@ -136,5 +145,35 @@ export function RemoveMemberButton({ row }: { row: PeopleRow }) {
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+// Dialogs sit outside the menu so they stay mounted after it closes.
+export function MemberRowMenu({ row, ctx, href }: { row: PeopleRow; ctx: RoleCtx; href: string }) {
+  const [editing, setEditing] = useState(false);
+  const [removing, setRemoving] = useState(false);
+  return (
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="icon-sm" aria-label={`Actions for ${row.name || row.email || "this person"}`}>
+            <EllipsisIcon />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem asChild>
+            <Link href={href}>Open</Link>
+          </DropdownMenuItem>
+          <DropdownMenuItem disabled={row.isSelf} onSelect={() => setEditing(true)}>
+            Edit roles
+          </DropdownMenuItem>
+          <DropdownMenuItem variant="destructive" disabled={row.isSelf} onSelect={() => setRemoving(true)}>
+            <UserMinusIcon /> Remove
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <EditMemberRolesDialog row={row} ctx={ctx} open={editing} onOpenChange={setEditing} />
+      <RemoveMemberDialog row={row} open={removing} onOpenChange={setRemoving} />
+    </>
   );
 }

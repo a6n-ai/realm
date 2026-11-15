@@ -1,60 +1,32 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@foundry/ui/button";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@foundry/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@foundry/ui/sheet";
 import { OrgRoleDialog, RoleChips, chipState, type PermissionMap, type ResourceLabel } from "@foundry/crm";
 import { Badge } from "@/components/reui/badge";
 import { AdminContactForm } from "@/components/dashboard/admin-contact-form";
+import { SectionCard, UserAvatar } from "@/components/ds";
 import { unwrapAction } from "@/lib/actions/unwrap";
 import { addMemberAction, removeMemberAction } from "@/lib/services/organizations-actions";
 import { createRole } from "../roles/actions";
 import { setMemberRoles, setUserStatus } from "./actions";
 import type { MemberPanelData } from "./member-panel-data";
-import { StatusSelect } from "./user-row";
+import { ResetPasswordButton, StatusSelect } from "./user-row";
 
 type Confirm = "remove" | "suspend" | null;
 
-export function MemberSheet({ data, resources }: { data: MemberPanelData; resources: ResourceLabel[] }) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const params = useSearchParams();
-  // Closing drops only the member param, so search and filters survive.
-  const close = () => {
-    const sp = new URLSearchParams(params.toString());
-    sp.delete("member");
-    const qs = sp.toString();
-    router.push(qs ? `${pathname}?${qs}` : pathname);
-  };
-  return (
-    <Sheet open onOpenChange={(open) => !open && close()}>
-      <SheetContent>
-        <SheetHeader>
-          <SheetTitle>{data.member.name || data.member.email || "Member"}</SheetTitle>
-          <SheetDescription>{data.member.email ?? "No email on file"}</SheetDescription>
-        </SheetHeader>
-        <MemberPanelBody key={data.member.id} data={data} resources={resources} onRemoved={close} />
-      </SheetContent>
-    </Sheet>
-  );
-}
+const STATUS_VARIANT = {
+  active: "success-light",
+  inactive: "invert-light",
+  suspended: "warning-light",
+  deleted: "destructive-light",
+} as const;
 
-export function MemberPanelBody({
-  data,
-  resources,
-  onRemoved,
-  showContact = true,
-}: {
-  data: MemberPanelData;
-  resources: ResourceLabel[];
-  onRemoved?: () => void;
-  /** The member detail page already shows the contact card. */
-  showContact?: boolean;
-}) {
+export function MemberDetail({ data, resources }: { data: MemberPanelData; resources: ResourceLabel[] }) {
   const router = useRouter();
   const { member, activeOrgId, access, chips, options, grantable, canCreateRole, memberships, addableOrgs } = data;
   const [pending, start] = useTransition();
@@ -86,6 +58,7 @@ export function MemberPanelBody({
     }))
     .filter((r) => r.actions.length > 0);
 
+  // The person is gone from this org after a removal, so the page has nothing left to show.
   function removeFromOrg() {
     start(async () => {
       const res = await removeMemberAction(activeOrgId, member.id);
@@ -95,8 +68,7 @@ export function MemberPanelBody({
       }
       setConfirm(null);
       toast.success(`${label} was removed from this organization.`);
-      if (onRemoved) onRemoved();
-      else router.refresh();
+      router.push("/dashboard/organization/people");
     });
   }
 
@@ -127,112 +99,126 @@ export function MemberPanelBody({
 
   return (
     <div className="grid gap-6">
-      <section className="grid gap-3" aria-label="Roles">
-        <h3 className="text-sm font-medium">Roles</h3>
-        <RoleChips
-          key={access.roles.join(",")}
-          roles={access.roles}
-          options={options}
-          onAdd={(role) => assign([...access.roles, role])}
-          onRemove={(role) => assign(access.roles.filter((r) => r !== role))}
-          disabledReason={(role, op) => chipState(role, op, chips)}
-        />
-        {canCreateRole && (
-          <OrgRoleDialog
-            resources={resources}
-            grantable={grantable}
-            initial={{ name: "", permission: Object.fromEntries(Object.entries(access.permissions).map(([r, acts]) => [r, (acts ?? []).filter((a) => (grantable[r] ?? []).includes(a))])) }}
-            trigger={
-              <Button variant="outline" size="sm" className="justify-self-start">
-                Create a role from these permissions
-              </Button>
-            }
-            onSave={createAndAssign}
-          />
-        )}
-      </section>
+      <header className="flex flex-wrap items-center gap-4">
+        <UserAvatar name={member.name} fallbackText={member.email} presence={member.status === "active" ? "active" : "off"} />
+        <div className="grid min-w-0 flex-1 gap-1">
+          <h1 className="truncate text-xl font-semibold">{label}</h1>
+          <p className="text-muted-foreground truncate text-sm">{member.email ?? "No email on file"}</p>
+        </div>
+        <Badge variant={STATUS_VARIANT[member.status]} className="capitalize">{member.status}</Badge>
+      </header>
 
-      <section className="grid gap-2" aria-label="Effective permissions">
-        <h3 className="text-sm font-medium">Effective permissions</h3>
-        <p className="text-muted-foreground text-xs">The union of this person&apos;s roles. Read only.</p>
+      <SectionCard title="Roles" subtitle="Their access is the union of these roles.">
+        <div className="grid gap-3">
+          <RoleChips
+            key={access.roles.join(",")}
+            roles={access.roles}
+            options={options}
+            onAdd={(role) => assign([...access.roles, role])}
+            onRemove={(role) => assign(access.roles.filter((r) => r !== role))}
+            disabledReason={(role, op) => chipState(role, op, chips)}
+          />
+          {canCreateRole && (
+            <OrgRoleDialog
+              resources={resources}
+              grantable={grantable}
+              initial={{ name: "", permission: Object.fromEntries(Object.entries(access.permissions).map(([r, acts]) => [r, (acts ?? []).filter((a) => (grantable[r] ?? []).includes(a))])) }}
+              trigger={
+                <Button variant="outline" size="sm" className="justify-self-start">
+                  Create a role from these permissions
+                </Button>
+              }
+              onSave={createAndAssign}
+            />
+          )}
+        </div>
+      </SectionCard>
+
+      <SectionCard title="Access by area" subtitle="Read only. The union of this person's roles.">
         {held.length === 0 ? (
-          <p className="text-muted-foreground text-sm">No permissions yet. Add a role to give access.</p>
+          <p className="text-muted-foreground text-sm">No access yet. Add a role to give access.</p>
         ) : (
           <ul className="grid gap-3">
             {held.map((r) => (
-              <li key={r.resource} className="grid gap-1">
+              <li key={r.resource} className="grid gap-1.5">
                 <span className="text-sm font-medium">{r.label}</span>
                 <span className="flex flex-wrap gap-1">
                   {r.actions.map((a) => (
-                    <Badge key={a.action} variant="secondary">{a.label}</Badge>
+                    <Badge key={a.action} variant="info-light">{a.label}</Badge>
                   ))}
                 </span>
               </li>
             ))}
           </ul>
         )}
-      </section>
+      </SectionCard>
 
-      <section className="grid gap-2" aria-label="Organizations">
-        <h3 className="text-sm font-medium">Organizations</h3>
-        <ul className="grid gap-2">
-          {memberships.map((m) => (
-            <li key={m.organizationId} className="flex items-center justify-between gap-3 text-sm">
-              <span className="min-w-0 truncate">{m.name}</span>
-              {m.role && <Badge variant="secondary" className="capitalize">{m.role}</Badge>}
-            </li>
-          ))}
-        </ul>
-        {addableOrgs.length > 0 && (
-          <div className="flex flex-wrap items-center gap-2">
-            <Select value={addOrgId} onValueChange={(id) => { setAddOrgId(id); setAddRole(""); }}>
-              <SelectTrigger size="sm" className="min-w-48 flex-1" aria-label="Organization">
-                <SelectValue placeholder="Add to an organization" />
-              </SelectTrigger>
-              <SelectContent>
-                {addableOrgs.map((o) => (
-                  <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {addOrgId && (
-              <Select value={addRole} onValueChange={setAddRole}>
-                <SelectTrigger size="sm" className="min-w-40" aria-label="Role">
-                  <SelectValue placeholder="Choose a role" />
+      <SectionCard title="Organizations">
+        <div className="grid gap-4">
+          <ul className="grid gap-2">
+            {memberships.map((m) => (
+              <li key={m.organizationId} className="flex items-center justify-between gap-3 text-sm">
+                <span className="min-w-0 truncate">{m.name}</span>
+                {m.role && <Badge variant="primary-light" className="capitalize">{m.role}</Badge>}
+              </li>
+            ))}
+          </ul>
+          {addableOrgs.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2">
+              <Select value={addOrgId} onValueChange={(id) => { setAddOrgId(id); setAddRole(""); }}>
+                <SelectTrigger size="sm" className="min-w-48 flex-1" aria-label="Organization">
+                  <SelectValue placeholder="Add to an organization" />
                 </SelectTrigger>
                 <SelectContent>
-                  {addRoles.map((r) => (
-                    <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
+                  {addableOrgs.map((o) => (
+                    <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-            )}
-            <Button size="sm" variant="outline" disabled={pending || !addOrgId || !addRole} onClick={addToOrg}>
-              Add
-            </Button>
-          </div>
-        )}
-      </section>
+              {addOrgId && (
+                <Select value={addRole} onValueChange={setAddRole}>
+                  <SelectTrigger size="sm" className="min-w-40" aria-label="Role">
+                    <SelectValue placeholder="Choose a role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {addRoles.map((r) => (
+                      <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+              <Button size="sm" variant="outline" disabled={pending || !addOrgId || !addRole} onClick={addToOrg}>
+                Add
+              </Button>
+            </div>
+          )}
+        </div>
+      </SectionCard>
 
-      <section className="grid gap-3" aria-label="Status and contact">
-        <h3 className="text-sm font-medium">Status</h3>
-        <StatusSelect id={member.id} status={member.status} />
-        {showContact && (
-          <>
+      <SectionCard title="Contact and actions">
+        <div className="grid gap-6">
+          <div className="grid gap-3 sm:grid-cols-[auto_1fr] sm:items-center">
+            <span className="text-sm font-medium">Status</span>
+            <StatusSelect id={member.id} status={member.status} />
+            <span className="text-sm font-medium">Password</span>
+            <div>
+              <ResetPasswordButton id={member.id} role={member.role} passwordSet={member.passwordSet} />
+            </div>
+          </div>
+          <div className="grid gap-3">
             <h3 className="text-sm font-medium">Contact</h3>
             <AdminContactForm userId={member.id} email={member.email ?? ""} phone={member.phone ?? ""} />
-          </>
-        )}
-      </section>
-
-      <section className="flex flex-wrap gap-2 border-t pt-4" aria-label="Actions">
-        <Button variant="outline" size="sm" disabled={pending || member.status === "suspended"} onClick={() => setConfirm("suspend")}>
-          Suspend
-        </Button>
-        <Button variant="destructive" size="sm" disabled={pending} onClick={() => setConfirm("remove")}>
-          Remove from org
-        </Button>
-      </section>
+          </div>
+          <div className="flex flex-wrap gap-2 border-t pt-4">
+            <Button variant="outline" size="sm" disabled={pending || member.status === "suspended"} onClick={() => setConfirm("suspend")}>
+              Suspend
+            </Button>
+            <Button variant="destructive" size="sm" disabled={pending} onClick={() => setConfirm("remove")}>
+              Remove from org
+            </Button>
+          </div>
+        </div>
+      </SectionCard>
 
       <Dialog open={confirm !== null} onOpenChange={(open) => !open && setConfirm(null)}>
         <DialogContent>
