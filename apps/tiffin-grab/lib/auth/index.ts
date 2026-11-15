@@ -37,6 +37,9 @@ export const DISABLED_PATHS = [
   "/organization/update",
   "/organization/delete",
   "/organization/update-member-role",
+  // Reads that check only for a member row, not member:read; the app never calls them over HTTP.
+  "/organization/get-full-organization",
+  "/organization/list-members",
   "/organization/remove-member",
   "/organization/invite-member",
   "/organization/cancel-invitation",
