@@ -75,8 +75,9 @@ export async function foodCostByDate(scope: AnalyticsScope, from: string, to: st
     .where(deliveredWhere(scope, from, to));
   if (trips.length === 0) return out;
 
-  const deliveryIds = trips.map((t) => t.id);
-  const orderIds = [...new Set(trips.map((t) => t.orderId))];
+  // Subqueries, not id lists: a 12-month range can exceed Postgres's 65535 bind-parameter limit.
+  const deliveredIds = db.select({ id: deliveries.id }).from(deliveries).innerJoin(orders, eq(deliveries.orderId, orders.id)).where(deliveredWhere(scope, from, to));
+  const deliveredOrderIds = db.select({ id: orders.id }).from(deliveries).innerJoin(orders, eq(deliveries.orderId, orders.id)).where(deliveredWhere(scope, from, to));
   const mealSizeIds = [...new Set(trips.map((t) => t.mealSizeId))];
   const [items, swapRows, addonRows, categoryRows, rateRows] = await Promise.all([
     db
@@ -95,12 +96,12 @@ export async function foodCostByDate(scope: AnalyticsScope, from: string, to: st
         receiveTu: deliveryCategorySwaps.receiveTu,
       })
       .from(deliveryCategorySwaps)
-      .where(inArray(deliveryCategorySwaps.deliveryId, deliveryIds))
+      .where(inArray(deliveryCategorySwaps.deliveryId, deliveredIds))
       .orderBy(asc(deliveryCategorySwaps.id)),
     db
       .select({ orderId: orderAddons.orderId, category: orderAddons.category, planId: orderAddons.planId, tuAmount: orderAddons.tuAmount, qty: orderAddons.qty })
       .from(orderAddons)
-      .where(inArray(orderAddons.orderId, orderIds))
+      .where(inArray(orderAddons.orderId, deliveredOrderIds))
       .orderBy(asc(orderAddons.id)),
     db
       .select({ key: dishCategories.key, tuUnitType: dishCategories.tuUnitType, tuUnitSize: dishCategories.tuUnitSize, tuUnitLabel: dishCategories.tuUnitLabel, selectable: dishCategories.selectable })
@@ -145,9 +146,10 @@ export async function foodCostByDate(scope: AnalyticsScope, from: string, to: st
     const persons = trip.tiffinUnits / days.length;
     const day = out.get(trip.deliveryDate) ?? { foodCost: 0, tiffinsWithoutRate: 0, unratedCategories: [] };
     const unrated = new Set(day.unratedCategories);
+    const mealItems = itemsByMeal.get(trip.mealSizeId) ?? [];
     for (const eatingDay of days) {
       const picks = deliveryPicks({
-        items: itemsByMeal.get(trip.mealSizeId) ?? [],
+        items: mealItems,
         swaps: swapsForDay(swapsByDelivery.get(trip.id) ?? [], { id: trip.id, deliveryDate: trip.deliveryDate }, eatingDay),
         addons: addonsByOrder.get(trip.orderId) ?? [],
         orderPlanId: trip.planId,
@@ -156,7 +158,7 @@ export async function foodCostByDate(scope: AnalyticsScope, from: string, to: st
       const priced = tiffinFoodCost(picks, rates, trip.organizationId);
       day.foodCost += priced.cost * persons;
       // A meal size with no items has no composition to price, so it is unrated rather than free.
-      if (picks.length === 0 || priced.unrated.length > 0) {
+      if (mealItems.length === 0 || priced.unrated.length > 0) {
         day.tiffinsWithoutRate += persons;
         priced.unrated.forEach((c) => unrated.add(c));
       }

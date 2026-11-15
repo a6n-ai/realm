@@ -255,7 +255,7 @@ async function UnratedNote({ view }: { view: View }) {
   return (
     <Alert variant="info">
       <AlertDescription>
-        {`${shown} ${shown === 1 ? "tiffin has" : "tiffins have"} items without a cost rate (${unratedCategories.join(", ")}). `}
+        {`${shown} ${shown === 1 ? "tiffin has" : "tiffins have"} items without a cost rate${unratedCategories.length ? ` (${unratedCategories.join(", ")})` : ""}. `}
         <Link href="/dashboard/catalog/cost-rates" prefetch={false} className="underline underline-offset-4">
           Set cost rates
         </Link>

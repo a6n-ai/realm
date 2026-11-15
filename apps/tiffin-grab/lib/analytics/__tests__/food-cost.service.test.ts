@@ -4,7 +4,7 @@ import { eq, inArray, like } from "drizzle-orm";
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
 const { db } = await import("@/db/client");
-const { categoryCostRates, deliveries, deliveryCategorySwaps, deliveryFrequencies, mealSizeItems, mealSizes, orders, plans, users } = await import("@/db/schema");
+const { categoryCostRates, deliveries, deliveryCategorySwaps, orderAddons, deliveryFrequencies, mealSizeItems, mealSizes, orders, plans, users } = await import("@/db/schema");
 const { buildAnalyticsScope } = await import("../metrics/scope");
 const { deliveryPicks, foodCostByDate } = await import("../food-cost.service");
 
@@ -183,6 +183,11 @@ describe("foodCostByDate", () => {
       optimoCompletionStatus: "success",
       cutoffAt: NOW - 1,
     });
+    // An add-on on an item-less meal must not make the tiffin look fully costed.
+    await db.insert(orderAddons).values({
+      orderId: noItems!.id, addonKey: "cost-test-salad", addonName: "Salad", category: "salad",
+      planId: veg!.id, tuAmount: "1", pricePerTiffin: "2", qty: 1, amount: "2",
+    });
     await db.insert(deliveryCategorySwaps).values({
       deliveryId: tripDelivery!.id,
       fromCategory: "sabzi",
@@ -206,6 +211,6 @@ describe("foodCostByDate", () => {
 
   it("counts a tiffin whose meal size has no items as unrated", async () => {
     const byDate = await foodCostByDate(scope, FROM, TO);
-    expect(byDate.get("2036-03-10")).toEqual({ foodCost: 0, tiffinsWithoutRate: 1, unratedCategories: [] });
+    expect(byDate.get("2036-03-10")).toEqual({ foodCost: 1, tiffinsWithoutRate: 1, unratedCategories: [] });
   });
 });
