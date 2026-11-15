@@ -38,9 +38,8 @@ export const inquiries = pgTable("inquiries", {
   nextFollowUpAt: bigint("next_follow_up_at", { mode: "number" }),
   // set null: a hard-deleted user (tests; prod only soft-deletes) must not block on the leads they owned.
   currentOwner: bigint("current_owner", { mode: "bigint" }).references(() => users.id, { onDelete: "set null" }),
-  convertedOrderId: bigint("converted_order_id", { mode: "bigint" }).references(() => orders.id),
   customerId: bigint("customer_id", { mode: "bigint" }).references(() => users.id, { onDelete: "set null" }),
-  // The order of the open round: null = first sale; set = renewal of that order. Replaces convertedOrderId.
+  // The order of the open round: null = first sale; set = renewal of that order.
   currentOrderId: bigint("current_order_id", { mode: "bigint" }).references(() => orders.id, { onDelete: "set null" }),
   renewalStatus: renewalStatus("renewal_status"),
   renewalStatusSetAt: bigint("renewal_status_set_at", { mode: "number" }),
@@ -83,7 +82,6 @@ export const inquiries = pgTable("inquiries", {
   index("inquiries_organization_idx").on(t.organizationId),
   index("inquiries_stage_created_idx").on(t.stage, t.createdAt),
   index("inquiries_source_idx").on(t.sourceId),
-  index("inquiries_converted_order_idx").on(t.convertedOrderId),
   index("inquiries_sub_source_idx").on(t.subSourceId),
   index("inquiries_zone_idx").on(t.zoneId),
   index("inquiries_next_follow_up_idx").on(t.nextFollowUpAt),

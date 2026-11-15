@@ -5,7 +5,7 @@ vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
 const { db } = await import("@/db/client");
 const { deleteNonSystemUsers, ensureSystemUser } = await import("@/db/test-helpers");
-const { orders, payments, orderActivities, ledgerEntries, users, walletLedger, notificationOutbox, renewals, inquiries, inquiryActivities } = await import("@/db/schema");
+const { orders, payments, orderActivities, ledgerEntries, users, walletLedger, notificationOutbox, inquiries, inquiryActivities } = await import("@/db/schema");
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { nextWeekday } = await import("@foundry/commons");
 const { createOrder } = await import("../../orders/create-order");
@@ -16,7 +16,6 @@ const { deliveries } = await import("@/db/schema");
 const { addDaysIso } = await import("@foundry/commons/util/dates");
 
 async function reset() {
-  await db.delete(renewals);
   await db.delete(inquiryActivities);
   await db.delete(inquiries);
   await db.delete(walletLedger);
@@ -59,7 +58,6 @@ describe("renewal tracking mirrors onto the inquiry", () => {
   it("a staff status on the current order sets the inquiry's renewal columns and a stage_change", async () => {
     const p = await plan();
     await setTrackStatus(p.publicId, { status: "follow_up", nextFollowUpAt: Date.now() + 86_400_000 });
-    expect(await db.$count(renewals)).toBe(0);
     const after = await inqRow(p.inquiryId);
     expect(after).toMatchObject({ renewalStatus: "follow_up", renewalStatusSource: "staff" });
     expect(after.renewalStatusSetAt).not.toBeNull();

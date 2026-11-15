@@ -95,15 +95,20 @@ async function InquiryDetail({ params }: { params: Promise<{ id: string }> }) {
   );
 
   let convertedOrderHref: string | undefined;
-  // currentOrderId is the round's order; convertedOrderId is only set on rows converted before it existed.
-  const linkedOrderId = inq.currentOrderId ?? inq.convertedOrderId;
-  if (linkedOrderId != null && (await can({ order: ["read"] }))) {
-    const [ord] = await db
-      .select({ publicId: orders.publicId })
-      .from(orders)
-      .where(eq(orders.id, linkedOrderId))
-      .limit(1);
-    if (ord) convertedOrderHref = `/dashboard/orders/${ord.publicId}`;
+  const linkedOrderId = inq.currentOrderId;
+  if (await can({ order: ["read"] })) {
+    if (linkedOrderId != null) {
+      const [ord] = await db
+        .select({ publicId: orders.publicId })
+        .from(orders)
+        .where(eq(orders.id, linkedOrderId))
+        .limit(1);
+      if (ord) convertedOrderHref = `/dashboard/orders/${ord.publicId}`;
+    } else {
+      // No open round (e.g. its order was cancelled): link the newest order the timeline records.
+      const last = activities.find((a) => a.orderPublicId != null)?.orderPublicId;
+      if (last) convertedOrderHref = `/dashboard/orders/${last}`;
+    }
   }
 
   const now = requestNow();
