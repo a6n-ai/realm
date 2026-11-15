@@ -5,7 +5,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { WhoCanSearch, type WhoCanHit } from "@foundry/crm";
 
 /** The query lives in `?who=` so the server filters before paging. Debounced so typing does not navigate per key. */
-export function WhoCanFilter({ value, results, nameOf }: { value: string; results: WhoCanHit[]; nameOf: (id: string) => string }) {
+export function WhoCanFilter({ value, results, names }: { value: string; results: WhoCanHit[]; names: Record<string, string> }) {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -24,5 +24,5 @@ export function WhoCanFilter({ value, results, nameOf }: { value: string; result
     return () => clearTimeout(t);
   }, [draft, value, params, pathname, router]);
 
-  return <WhoCanSearch value={draft} onChange={setDraft} results={results} nameOf={nameOf} />;
+  return <WhoCanSearch value={draft} onChange={setDraft} results={results} nameOf={(id) => names[id] ?? id} />;
 }

@@ -136,7 +136,7 @@ async function PeopleData({ searchParams }: { searchParams: SearchParams }) {
               {matrix.noRole.length} {matrix.noRole.length === 1 ? "person has" : "people have"} no role, so no access.
             </p>
           )}
-          <WhoCanFilter value={who} results={hits} nameOf={(id) => nameById.get(id) ?? id} />
+          <WhoCanFilter value={who} results={hits} names={Object.fromEntries(nameById)} />
           <UsersList
             spec={spec}
             rows={rows}
