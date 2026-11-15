@@ -1,7 +1,9 @@
+import type { AccessRow } from "@foundry/crm";
 import {
   Building2Icon,
   CheckCircle2Icon,
   ClockIcon,
+  CrownIcon,
   KeyRoundIcon,
   MailIcon,
   MailCheckIcon,
@@ -41,12 +43,21 @@ export function overviewStats(clients: Client[], members: MemberRow[], pendingIn
   ];
 }
 
-export function memberStats(rows: MemberRow[]): StatCardItem[] {
+/** Counts from the resolved role lists (member.role comma list), so a multi-role member counts in each role it holds. */
+export function memberStats(
+  rows: MemberRow[],
+  access: Pick<AccessRow, "id" | "roles">[],
+  isBuiltIn: (role: string) => boolean,
+): StatCardItem[] {
   const staff = people(rows);
+  const rolesOf = new Map(access.map((a) => [a.id, a.roles]));
+  const holds = (m: MemberRow, role: string) => rolesOf.get(m.memberId)?.includes(role) ?? false;
+  const customs = (m: MemberRow) => (rolesOf.get(m.memberId) ?? []).some((r) => !isBuiltIn(r));
   return [
     { label: "Total", value: staff.length, icon: UsersIcon, hint: "people with console access", href: PEOPLE },
-    { label: "Admins", value: count(staff, (m) => m.role === "admin"), icon: ShieldIcon, hint: "full access", href: `${PEOPLE}?role=admin` },
-    { label: "Members", value: count(staff, (m) => m.role === "member"), icon: UserIcon, hint: "limited access", href: `${PEOPLE}?role=member` },
+    { label: "Owners", value: count(staff, (m) => holds(m, "owner")), icon: CrownIcon, hint: "full access, can grant owner", href: `${PEOPLE}?role=owner` },
+    { label: "Admins", value: count(staff, (m) => holds(m, "admin")), icon: ShieldIcon, hint: "full access", href: `${PEOPLE}?role=admin` },
+    { label: "Custom roles", value: count(staff, customs), icon: UserIcon, hint: "hold a custom role" },
     { label: "Active", value: count(staff, (m) => m.status === "active"), icon: UserCheckIcon, hint: "can sign in", href: `${PEOPLE}?status=active` },
     { label: "No password yet", value: count(staff, (m) => !m.passwordSet), icon: KeyRoundIcon, hint: "invited, not set up", href: `${PEOPLE}?password=unset` },
   ];

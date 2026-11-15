@@ -5,7 +5,7 @@ import { parseSort } from "@foundry/design-system/list-sort";
 import { whoCan, type ResourceLabel, type WhoCanHit } from "@foundry/crm";
 import { getSession } from "@/lib/auth/session";
 import { requirePagePermission } from "@/lib/auth/guards";
-import { RESOURCE_LABELS } from "@/lib/auth/permissions";
+import { RESOURCE_LABELS, orgRoles } from "@/lib/auth/permissions";
 import { getRoleChoices, type RoleChoice } from "@/lib/auth/role-options";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import { getOrgAccessMatrix } from "@/lib/services/org-access-matrix";
@@ -116,7 +116,7 @@ async function PeopleData({ searchParams }: { searchParams: SearchParams }) {
 
   return (
     <>
-      <StatCards items={memberStats(members)} />
+      <StatCards items={memberStats(members, matrix?.rows ?? [], (r) => Object.hasOwn(orgRoles, r))} />
       <SectionCard
         title="People"
         subtitle="Everyone with console access to this organization. Open a person to change their details."

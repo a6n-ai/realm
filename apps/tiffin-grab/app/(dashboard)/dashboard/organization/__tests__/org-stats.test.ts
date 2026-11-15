@@ -9,6 +9,8 @@ const values = (items: { label: string; value: string | number }[]) =>
 const hrefs = (items: { label: string; href?: string }[]) =>
   Object.fromEntries(items.map((i) => [i.label, i.href]));
 
+const builtIn = (role: string) => ["owner", "admin", "member"].includes(role);
+
 const member = (id: string, over: Partial<MemberRow> = {}): MemberRow => ({
   id,
   joinedAt: new Date(0),
@@ -32,13 +34,41 @@ describe("org stats", () => {
       member("a", { role: "admin", organizationId: "o2" }),
       member("b", { status: "inactive", passwordSet: false }),
     ];
-    expect(values(memberStats(rows))).toEqual({ Total: 2, Admins: 1, Members: 1, Active: 1, "No password yet": 1 });
-    expect(hrefs(memberStats(rows))).toEqual({
+    const access = [
+      { id: "mem-a", roles: ["admin"] },
+      { id: "mem-b", roles: ["member"] },
+    ];
+    expect(values(memberStats(rows, access, builtIn))).toEqual({
+      Total: 2,
+      Owners: 0,
+      Admins: 1,
+      "Custom roles": 0,
+      Active: 1,
+      "No password yet": 1,
+    });
+    expect(hrefs(memberStats(rows, access, builtIn))).toEqual({
       Total: "/dashboard/organization/people",
+      Owners: "/dashboard/organization/people?role=owner",
       Admins: "/dashboard/organization/people?role=admin",
-      Members: "/dashboard/organization/people?role=member",
+      "Custom roles": undefined,
       Active: "/dashboard/organization/people?status=active",
       "No password yet": "/dashboard/organization/people?password=unset",
+    });
+  });
+
+  it("counts a comma-list member in each built-in it holds and flags custom roles", () => {
+    const rows = [member("a"), member("b"), member("c", { status: "suspended" })];
+    const access = [
+      { id: "mem-a", roles: ["owner", "admin"] },
+      { id: "mem-b", roles: ["admin", "Field lead"] },
+      { id: "mem-c", roles: [] },
+    ];
+    expect(values(memberStats(rows, access, builtIn))).toMatchObject({
+      Total: 3,
+      Owners: 1,
+      Admins: 2,
+      "Custom roles": 1,
+      Active: 2,
     });
   });
 
