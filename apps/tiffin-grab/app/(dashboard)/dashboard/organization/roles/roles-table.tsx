@@ -8,7 +8,7 @@ import { OrgRoleDialog, type PermissionMap, type ResourceLabel } from "@foundry/
 import { Button } from "@foundry/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
 import { TableCell } from "@foundry/ui/table";
-import { DataTable, type Column } from "@/components/ds";
+import { AreaBadge, DataTable, type Column } from "@/components/ds";
 import { Badge } from "@/components/reui/badge";
 import { createRole } from "./actions";
 import { areasOf, countPermissions, memberCount, type RoleItem } from "./role-summary";
@@ -98,9 +98,7 @@ export function RolesTable({
             <TableCell>
               <div className="flex flex-wrap gap-1">
                 {areas.map((a) => (
-                  <Badge key={a.resource} variant="secondary">
-                    {a.label}
-                  </Badge>
+                  <AreaBadge key={a.resource} resource={a.resource} label={a.label} />
                 ))}
               </div>
             </TableCell>

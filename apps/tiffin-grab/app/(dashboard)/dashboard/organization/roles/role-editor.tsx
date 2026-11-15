@@ -20,6 +20,8 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
 import { SaveBar, SwitchList, type SwitchRow } from "@/components/ds/switch-list";
 import { Badge } from "@/components/reui/badge";
+import { GroupHeading } from "@/components/ds/group-heading";
+import { groupResources } from "@/lib/auth/permission-groups";
 import { setMemberRoles } from "../members/actions";
 import { deleteRole, updateRole } from "./actions";
 import { setPermission } from "./permission-toggle";
@@ -252,19 +254,28 @@ export function RoleEditor({
         />
       )}
 
-      <div className="grid items-start gap-6 md:grid-cols-2">
-        {resources.map((r) => (
-          <section key={r.resource} className="grid gap-2" aria-label={r.label}>
-            <div className="flex items-baseline justify-between gap-2">
-              <h3 className="text-sm font-medium">{r.label}</h3>
-              <span className="text-xs text-muted-foreground tabular-nums">
-                {countOn(draft, r)} of {r.actions.length} on
-              </span>
+      {groupResources(resources).map(({ group, items }) => {
+        const on = items.reduce((n, r) => n + countOn(draft, r), 0);
+        const total = items.reduce((n, r) => n + r.actions.length, 0);
+        return (
+          <section key={group.key} className="grid gap-4" aria-label={group.label}>
+            <GroupHeading group={group} trailing={<span className="text-xs text-muted-foreground tabular-nums">{on} of {total} on</span>} />
+            <div className="grid items-start gap-6 md:grid-cols-2">
+              {items.map((r) => (
+                <section key={r.resource} className="grid gap-2" aria-label={r.label}>
+                  <div className="flex items-baseline justify-between gap-2">
+                    <h4 className="text-sm font-medium">{r.label}</h4>
+                    <span className="text-xs text-muted-foreground tabular-nums">
+                      {countOn(draft, r)} of {r.actions.length} on
+                    </span>
+                  </div>
+                  <SwitchList rows={rowsFor(r)} />
+                </section>
+              ))}
             </div>
-            <SwitchList rows={rowsFor(r)} />
           </section>
-        ))}
-      </div>
+        );
+      })}
 
       {members && <RoleMembers roleName={role.name} members={members} />}
     </div>

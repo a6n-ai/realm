@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { TableCell } from "@foundry/ui/table";
 import { Badge } from "@/components/reui/badge";
 import { AppDate } from "@/components/dashboard/app-date";
-import { UserAvatar } from "@/components/ds";
+import { AreaBadge, UserAvatar } from "@/components/ds";
 import { unwrapAction } from "@/lib/actions/unwrap";
 import { sendStaffAccessEmail, setUserStatus, type UserStatusValue } from "./actions";
 import type { PeopleRow } from "./people-rows";
@@ -58,7 +58,7 @@ export function AccessBadges({ row }: { row: PeopleRow }) {
   return (
     <span className="flex flex-wrap gap-1">
       {row.areas.map((a) => (
-        <Badge key={a.resource} variant="info-light">{a.label}</Badge>
+        <AreaBadge key={a.resource} resource={a.resource} label={a.label} />
       ))}
     </span>
   );

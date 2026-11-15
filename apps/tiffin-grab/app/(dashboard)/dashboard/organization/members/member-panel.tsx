@@ -9,8 +9,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { OrgRoleDialog, RoleChips, chipState, type PermissionMap, type ResourceLabel } from "@foundry/crm";
 import { Badge } from "@/components/reui/badge";
 import { AdminContactForm } from "@/components/dashboard/admin-contact-form";
-import { SectionCard, UserAvatar } from "@/components/ds";
+import { AreaBadge, GroupHeading, SectionCard, UserAvatar } from "@/components/ds";
 import { unwrapAction } from "@/lib/actions/unwrap";
+import { groupResources } from "@/lib/auth/permission-groups";
 import { addMemberAction, removeMemberAction } from "@/lib/services/organizations-actions";
 import { createRole } from "../roles/actions";
 import { setMemberRoles, setUserStatus } from "./actions";
@@ -138,18 +139,25 @@ export function MemberDetail({ data, resources }: { data: MemberPanelData; resou
         {held.length === 0 ? (
           <p className="text-muted-foreground text-sm">No access yet. Add a role to give access.</p>
         ) : (
-          <ul className="grid gap-3">
-            {held.map((r) => (
-              <li key={r.resource} className="grid gap-1.5">
-                <span className="text-sm font-medium">{r.label}</span>
-                <span className="flex flex-wrap gap-1">
-                  {r.actions.map((a) => (
-                    <Badge key={a.action} variant="info-light">{a.label}</Badge>
+          <div className="grid gap-6">
+            {groupResources(held).map(({ group, items }) => (
+              <section key={group.key} className="grid gap-3" aria-label={group.label}>
+                <GroupHeading group={group} />
+                <ul className="grid gap-3">
+                  {items.map((r) => (
+                    <li key={r.resource} className="grid gap-1.5">
+                      <span><AreaBadge resource={r.resource} label={r.label} /></span>
+                      <span className="flex flex-wrap gap-1">
+                        {r.actions.map((a) => (
+                          <Badge key={a.action} variant="info-light">{a.label}</Badge>
+                        ))}
+                      </span>
+                    </li>
                   ))}
-                </span>
-              </li>
+                </ul>
+              </section>
             ))}
-          </ul>
+          </div>
         )}
       </SectionCard>
 

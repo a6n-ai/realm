@@ -6,3 +6,5 @@ export * from "./tone-pill";
 export * from "./order-status-badge";
 export * from "./user-avatar";
 export * from "./row-action-tooltip-button";
+export * from "./area-badge";
+export * from "./group-heading";
