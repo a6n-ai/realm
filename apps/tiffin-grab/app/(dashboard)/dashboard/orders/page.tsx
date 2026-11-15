@@ -289,7 +289,7 @@ async function OrdersData({ searchParams }: { searchParams: SearchParams }) {
       { kind: "select", field: "day", label: "Day", options: [...MISSED_DAYS] },
       { kind: "search", fields: ["customerName", "orderCode", "planName"] },
     ];
-    return <MissedList rows={rows} anyMissed={all.length > 0} spec={spec} isAdmin={await can({ order: ["write"] })} today={today} />;
+    return <MissedList rows={rows} anyMissed={all.length > 0} spec={spec} isAdmin={await can({ order: ["manage"] })} today={today} />;
   }
   const lookOutOnly = raw.view === "lookout";
   const paymentReview = raw.view === "payment";

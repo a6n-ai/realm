@@ -150,5 +150,5 @@ export async function reassignOrderAction(orderId: string, ownerId: string): Pro
 export async function startAllMigratedAction(
   fromDate: string,
 ): Promise<ActionResult<{ started: number; failed: { deploymentId: string; error: string }[] }>> {
-  return staffAction({ guard: ORDER_WRITE, revalidate: ["/dashboard/orders"] }, () => ordersService.startAllMigrated(fromDate));
+  return staffAction({ guard: { order: ["manage"] }, revalidate: ["/dashboard/orders"] }, () => ordersService.startAllMigrated(fromDate));
 }

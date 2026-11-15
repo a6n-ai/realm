@@ -87,7 +87,7 @@ export async function loadSubscription(
       : null;
 
   // Under payment review staff can check the schedule, but nothing changes until the money is verified.
-  return { order, paymentReview, week, readOnly: finished || paymentReview, canEditDeliveryStatus: await can({ order: ["write"] }) };
+  return { order, paymentReview, week, readOnly: finished || paymentReview, canEditDeliveryStatus: await can({ order: ["manage"] }) };
 }
 
 export function DeliveriesSection({ data, routing = [] }: { data: SubscriptionData; routing?: OptimoRouteRow[] }) {

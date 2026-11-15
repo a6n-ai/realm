@@ -51,8 +51,10 @@ describe("tiffin-grab permission map", () => {
     expect(roles.member.authorize({ menu: ["write", "publish"] }).success).toBe(false);
   });
 
-  it("org member denies order:cancel", () => {
-    expect(orgRoles.member.authorize({ order: ["cancel"] }).success).toBe(false);
+  it("org member keeps order:cancel (all staff had it) but not admin-only order:manage", () => {
+    expect(orgRoles.member.authorize({ order: ["cancel"] }).success).toBe(true);
+    expect(orgRoles.member.authorize({ order: ["manage"] }).success).toBe(false);
+    expect(orgRoles.admin.authorize({ order: ["manage"] }).success).toBe(true);
   });
 
   it("org admin allows every app action", () => {

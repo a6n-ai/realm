@@ -7,7 +7,7 @@ export const appStatement = {
   // permissions.ts. Gating them on better-auth's `user` resource would also authorize
   // the plugin's ban/impersonate/remove endpoints, which are mounted unconditionally.
   staff: ["invite", "suspend", "remove"],
-  order: ["read", "write", "cancel"],
+  order: ["read", "write", "cancel", "manage"],
   subscription: ["read", "write", "pause"],
   menu: ["read", "write", "publish"],
   finance: ["read", "refund", "charge"],
@@ -36,9 +36,9 @@ export const MEMBER_PERMISSIONS = {
   order: ["read", "write", "cancel"],
   subscription: ["read", "write", "pause"],
   menu: ["read"],
-  finance: ["read"],
+  finance: ["read", "charge"],
   inquiry: ["read", "write"],
-  customer: ["read"],
+  customer: ["read", "write", "export"],
   delivery: ["read"],
   ticket: ["read", "write"],
 };
@@ -49,7 +49,8 @@ export const RESOURCE_LABELS: ResourceLabel[] = [
   { resource: "staff", label: "Staff", actions: [
     { action: "invite", label: "Invite staff" }, { action: "suspend", label: "Suspend staff" }, { action: "remove", label: "Remove staff" } ] },
   { resource: "order", label: "Orders", actions: [
-    { action: "read", label: "View orders" }, { action: "write", label: "Create and edit orders" }, { action: "cancel", label: "Cancel orders" } ] },
+    { action: "read", label: "View orders" }, { action: "write", label: "Create and edit orders" }, { action: "cancel", label: "Cancel orders" },
+    { action: "manage", label: "Override deliveries, give free tiffins, bulk start" } ] },
   { resource: "subscription", label: "Subscriptions", actions: [
     { action: "read", label: "View subscriptions" }, { action: "write", label: "Edit subscriptions" }, { action: "pause", label: "Pause subscriptions" } ] },
   { resource: "menu", label: "Menu", actions: [
