@@ -48,8 +48,68 @@ export const getOrgAccessFor = cache(async (organizationId: string): Promise<Org
       .where(and(eq(organizationRole.organizationId, organizationId), inArray(organizationRole.role, custom)));
     for (const r of rows) customRoles[r.role] = JSON.parse(r.permission) as Permissions;
   }
-  return resolveOrgAccess({ ...base, memberRole, customRoles });
+  const { roles, statements } = resolveMemberAccess(memberRole, customRoles);
+  // Built-in roles keep their orgRoles object: requireOwnerToGrant compares by identity.
+  const builtIns = orgRoles as Record<string, ReturnType<typeof ac.newRole>>;
+  return {
+    kind: "member",
+    userId: session.user.id,
+    organizationId,
+    roles: roles.map((name, i) => (Object.hasOwn(builtIns, name) ? builtIns[name] : ac.newRole(statements[i]))),
+  };
 });
+
+export type MemberAccess = {
+  roles: string[];
+  /** Aligned with `roles`: what each resolved role grants. */
+  statements: Permissions[];
+  /** Union across the roles, the same as effectivePermissions. */
+  permissions: Permissions;
+  /** resource -> action -> the roles that grant it. */
+  grants: Record<string, Record<string, string[]>>;
+  /** Names in the comma list that resolve to no built-in or custom role (deleted custom roles). */
+  unresolved: string[];
+};
+
+/** Pure: a member row's comma list resolved against built-in roles and this org's custom roles. */
+export function resolveMemberAccess(memberRole: string, customRoles: Record<string, Permissions>): MemberAccess {
+  const roles: string[] = [];
+  const statements: Permissions[] = [];
+  const unresolved: string[] = [];
+  const permissions: Record<string, Set<string>> = {};
+  const grants: Record<string, Record<string, string[]>> = {};
+  for (const raw of memberRole.split(",")) {
+    const name = raw.trim();
+    if (!name) continue;
+    // Object.hasOwn: a role named "constructor" must not resolve via the prototype.
+    const granted = Object.hasOwn(orgRoles, name)
+      ? (orgRoles as Record<string, { statements: Permissions }>)[name].statements
+      : Object.hasOwn(customRoles, name)
+        ? customRoles[name]
+        : undefined;
+    if (!granted) {
+      unresolved.push(name);
+      continue;
+    }
+    roles.push(name);
+    statements.push(granted);
+    for (const [resource, actions] of Object.entries(granted)) {
+      const set = (permissions[resource] ??= new Set());
+      const byAction = (grants[resource] ??= {});
+      for (const action of actions) {
+        set.add(action);
+        (byAction[action] ??= []).push(name);
+      }
+    }
+  }
+  return {
+    roles,
+    statements,
+    permissions: Object.fromEntries(Object.entries(permissions).map(([k, v]) => [k, [...v]])),
+    grants,
+    unresolved,
+  };
+}
 
 export const getOrgAccess = cache(async (): Promise<OrgAccess> => {
   const session = await getSession();
