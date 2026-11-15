@@ -39,11 +39,13 @@ const STATUS_OPTIONS: { value: "all" | InviteBucket; label: string }[] = [
 export function InvitesList({
   rows,
   status = "all",
+  counts,
   actionableOrgIds,
   emptyAction,
 }: {
   rows: InviteRow[];
   status?: "all" | InviteBucket;
+  counts?: Record<InviteBucket | "all", number>;
   actionableOrgIds: string[];
   emptyAction?: ReactNode;
 }) {
@@ -73,7 +75,9 @@ export function InvitesList({
           <SelectTrigger size="sm" className="w-36"><SelectValue /></SelectTrigger>
           <SelectContent>
             {STATUS_OPTIONS.map((o) => (
-              <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+              <SelectItem key={o.value} value={o.value}>
+                {counts ? `${o.label} (${counts[o.value]})` : o.label}
+              </SelectItem>
             ))}
           </SelectContent>
         </Select>

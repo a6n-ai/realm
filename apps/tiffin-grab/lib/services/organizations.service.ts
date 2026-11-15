@@ -117,15 +117,15 @@ export async function updateOrganization(
   }
 }
 
-export type MemberRow = { userId: string; email: string; role: string };
+export type MemberRow = { memberId: string; userId: string; email: string; role: string };
 
 export async function listMembers(organizationId: string): Promise<MemberRow[]> {
   const rows = await db
-    .select({ userId: users.publicId, email: users.email, role: member.role })
+    .select({ memberId: member.id, userId: users.publicId, email: users.email, role: member.role })
     .from(member)
     .innerJoin(users, eq(users.id, member.userId))
     .where(eq(member.organizationId, organizationId));
-  return rows.map((r) => ({ userId: r.userId, email: r.email ?? "", role: r.role }));
+  return rows.map((r) => ({ memberId: r.memberId, userId: r.userId, email: r.email ?? "", role: r.role }));
 }
 
 const isMemberConflict = (e: unknown) => isUniqueViolation(e, "member_org_user_unique");

@@ -1,12 +1,18 @@
+import Link from "next/link";
 import { Suspense } from "react";
 import { desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import { invitation, member, users } from "@/db/schema";
+import { canIn } from "@/lib/auth/guards";
+import { orgRoles } from "@/lib/auth/permissions";
 import { getSession } from "@/lib/auth/session";
 import { listOrganizations } from "@/lib/services/organizations.service";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
+import { requestNow } from "@/lib/dates/request-now";
+import { summarizeAttention, type Attention } from "@/lib/services/org-health";
+import { loadOrgHealthRows } from "@/lib/services/org-health-query";
 import { getMembersForOrgs } from "../members/members-query";
-import { countPendingInvites } from "../invites/invites-query";
+import { countPendingInvites, getInvitationsForOrgs } from "../invites/invites-query";
 import { SectionCard } from "@/components/ds";
 import { StatCards, StatCardsSkeleton } from "@/components/dashboard/stat-cards";
 import { overviewStats } from "../org-stats";
@@ -14,6 +20,11 @@ import { RecentActivity, RecentActivitySkeleton, type ActivityItem } from "./rec
 
 const ACTIVITY_TITLE = "Recent activity";
 const ACTIVITY_SUBTITLE = "Invites sent and staff who joined, newest first.";
+const ATTENTION_TITLE = "Needs attention";
+const ATTENTION_SUBTITLE = "Things to fix before they block someone.";
+const INVITES = "/dashboard/organization/invites";
+const MEMBERS = "/dashboard/organization/members";
+const CLIENTS = "/dashboard/organization/settings";
 
 export default function OrganizationOverviewPage() {
   return (
@@ -38,7 +49,10 @@ async function OverviewData() {
   const allOrgs = await listOrganizations();
   const orgIds = visible === "all" ? allOrgs.map((o) => o.id) : visible;
 
-  const [members, pendingInviteCount, recentInvites, recentMembers] = await Promise.all([
+  const franchises = allOrgs
+    .filter((o) => o.parentOrganizationId && orgIds.includes(o.id))
+    .map((o) => ({ id: o.id, name: o.name }));
+  const [members, pendingInviteCount, recentInvites, recentMembers, health, allInvites, manageableFlags] = await Promise.all([
     getMembersForOrgs(orgIds),
     countPendingInvites(orgIds),
     orgIds.length === 0
@@ -58,7 +72,20 @@ async function OverviewData() {
           .where(inArray(member.organizationId, orgIds))
           .orderBy(desc(member.createdAt))
           .limit(10),
+    loadOrgHealthRows(orgIds),
+    getInvitationsForOrgs(orgIds),
+    Promise.all(franchises.map((f) => canIn(f.id, { member: ["update"] }))),
   ]);
+
+  const attention = summarizeAttention({
+    now: requestNow(),
+    invites: allInvites,
+    members: health.members,
+    customRoles: health.customRoles,
+    builtIns: Object.keys(orgRoles),
+    franchises,
+    manageable: new Set(franchises.filter((_, i) => manageableFlags[i]).map((f) => f.id)),
+  });
 
   const activity: ActivityItem[] = [
     ...recentInvites.map((r) => ({ kind: "invited" as const, email: r.email, at: r.createdAt.toISOString() })),
@@ -72,9 +99,44 @@ async function OverviewData() {
   return (
     <>
       <StatCards items={overviewStats(clients, members, pendingInviteCount)} />
+      <SectionCard title={ATTENTION_TITLE} subtitle={ATTENTION_SUBTITLE}>
+        <NeedsAttention attention={attention} />
+      </SectionCard>
       <SectionCard title={ACTIVITY_TITLE} subtitle={ACTIVITY_SUBTITLE}>
         <RecentActivity items={activity} />
       </SectionCard>
     </>
   );
+}
+
+function NeedsAttention({ attention }: { attention: Attention }) {
+  const items: { href: string; text: string }[] = [];
+  if (attention.expiringInvites > 0) {
+    items.push({ href: `${INVITES}?status=pending`, text: `${countText(attention.expiringInvites, "invite")} expire within 48 hours` });
+  }
+  if (attention.expiredInvites > 0) {
+    items.push({ href: `${INVITES}?status=expired`, text: `${countText(attention.expiredInvites, "invite")} expired` });
+  }
+  if (attention.noRoleMemberships > 0) {
+    items.push({ href: MEMBERS, text: `${countText(attention.noRoleMemberships, "person", "people")} with no role, so no access` });
+  }
+  for (const f of attention.ownerlessFranchises) {
+    items.push({ href: `${CLIENTS}/${f.id}`, text: `${f.name} has no owner` });
+  }
+  if (items.length === 0) return <p className="text-sm text-muted-foreground">Nothing needs attention.</p>;
+  return (
+    <ul className="grid gap-2">
+      {items.map((item) => (
+        <li key={item.text}>
+          <Link href={item.href} className="text-sm underline-offset-4 hover:underline">
+            {item.text}
+          </Link>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function countText(n: number, singular: string, plural = `${singular}s`) {
+  return `${n} ${n === 1 ? singular : plural}`;
 }

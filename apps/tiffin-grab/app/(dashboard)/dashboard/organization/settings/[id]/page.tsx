@@ -2,19 +2,23 @@ import { notFound } from "next/navigation";
 import { BackButton, SectionCard, UserAvatar } from "@/components/ds";
 import { Badge } from "@/components/reui/badge";
 import { canIn } from "@/lib/auth/guards";
-import { getOrganization, listFranchiseCities, listMembers, type MemberRole } from "@/lib/services/organizations.service";
+import { getOrganization, listFranchiseCities, listMembers } from "@/lib/services/organizations.service";
+import { getRoleOptions } from "@/lib/auth/role-options";
+import { getSession } from "@/lib/auth/session";
 import { ClientDetailForm } from "./client-detail-form";
-import { MemberManagement } from "../member-management";
+import { StaffSection } from "./staff-section";
 
 export default async function ClientDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   if (!(await canIn(id, { member: ["update"] }))) notFound();
   const org = await getOrganization(id);
   if (!org) notFound();
-  const [members, cities, parent] = await Promise.all([
+  const [members, cities, parent, roleOptions, session] = await Promise.all([
     listMembers(id),
     listFranchiseCities(),
     org.parentOrganizationId ? getOrganization(org.parentOrganizationId) : null,
+    getRoleOptions(id),
+    getSession(),
   ]);
   const isBrand = !org.parentOrganizationId;
 
@@ -42,10 +46,17 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
 
       <ClientDetailForm organizationId={id} organization={org} cities={cities} isBrand={isBrand} />
 
-      <SectionCard title="Members" subtitle="Staff who belong to this client, and their role in it.">
-        <MemberManagement
-          rows={members.map((m) => ({ organizationId: id, userPublicId: m.userId, label: m.email, role: m.role as MemberRole }))}
-          fixed={{ organizationId: id }}
+      <SectionCard title="Staff" subtitle="Staff who belong to this client, and their roles in it.">
+        <StaffSection
+          organizationId={id}
+          rows={members.map((m) => ({
+            memberId: m.memberId,
+            userId: m.userId,
+            email: m.email,
+            roles: m.role.split(",").map((r) => r.trim()).filter(Boolean),
+          }))}
+          options={roleOptions}
+          selfUserId={session?.user.id ?? ""}
         />
       </SectionCard>
     </>

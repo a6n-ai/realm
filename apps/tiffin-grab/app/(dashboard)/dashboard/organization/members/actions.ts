@@ -79,38 +79,51 @@ export async function setUserStatus(userId: string, status: UserStatusValue): Pr
 
 export async function setMemberRoles(memberId: string, roles: string[]): Promise<ActionResult> {
   return staffAction(MEMBER_UPDATE, async () => {
-    const session = await getSession();
-    const organizationId = session?.session.activeOrganizationId;
-    if (!session || !organizationId) throw new ValidationError("Select an organization first.");
-    const target = await getMemberInOrg(organizationId, memberId);
-    if (!target) throw new ValidationError("Member not found in this organization.");
-    if (target.userId === (await userIdByPublicId(session.user.id))) {
-      throw new ValidationError("You can't change your own role");
-    }
-    const next = [...new Set(roles)];
-    if (next.length === 0) throw new ValidationError("Remove from org instead");
-    const known = new Set((await getRoleOptions(organizationId)).map((o) => o.value));
-    if (next.some((r) => !known.has(r))) throw new ValidationError("Unknown role.");
-    const current = target.role.split(",").map((r) => r.trim()).filter(Boolean);
-    const added = next.filter((r) => !current.includes(r));
-    await requireOwnerToGrant(organizationId, ...added, ...current);
-    for (const role of added) await requireCanAssignRole(organizationId, role);
-    // Nor change someone whose current roles hold more than you do (e.g. member:update demoting an admin).
-    await requireCanActOnRoles(organizationId, target.role);
-    const wasOwner = current.includes("owner");
-    if (wasOwner && !next.includes("owner") && (await countOwners(organizationId)) <= 1) {
-      throw new ValidationError("An organization needs at least one owner");
-    }
-    await authApi(async () =>
-      auth.api.updateMemberRole({ body: { memberId, role: next, organizationId }, headers: await headers() }),
-    );
-    await recordAudit({
-      entity: "member",
-      entityPublicId: memberId,
-      operation: "update",
-      changes: { role: { from: target.role, to: next.join(",") }, organizationId },
-      createdBy: await userIdByPublicId(session.user.id),
-    });
+    const organizationId = (await getSession())?.session.activeOrganizationId;
+    if (!organizationId) throw new ValidationError("Select an organization first.");
+    await writeMemberRoles(organizationId, memberId, roles);
+  });
+}
+
+/** Same write as setMemberRoles, for a client other than the active one (its staff section). */
+export async function setMemberRolesIn(organizationId: string, memberId: string, roles: string[]): Promise<ActionResult> {
+  return staffAction({ revalidate: [MEMBERS] }, async () => {
+    await requirePermissionIn(organizationId, { member: ["update"] });
+    await writeMemberRoles(organizationId, memberId, roles);
+  });
+}
+
+async function writeMemberRoles(organizationId: string, memberId: string, roles: string[]): Promise<void> {
+  const session = await getSession();
+  if (!session) throw new ValidationError("Select an organization first.");
+  const target = await getMemberInOrg(organizationId, memberId);
+  if (!target) throw new ValidationError("Member not found in this organization.");
+  if (target.userId === (await userIdByPublicId(session.user.id))) {
+    throw new ValidationError("You can't change your own role");
+  }
+  const next = [...new Set(roles)];
+  if (next.length === 0) throw new ValidationError("Remove from org instead");
+  const known = new Set((await getRoleOptions(organizationId)).map((o) => o.value));
+  if (next.some((r) => !known.has(r))) throw new ValidationError("Unknown role.");
+  const current = target.role.split(",").map((r) => r.trim()).filter(Boolean);
+  const added = next.filter((r) => !current.includes(r));
+  await requireOwnerToGrant(organizationId, ...added, ...current);
+  for (const role of added) await requireCanAssignRole(organizationId, role);
+  // Nor change someone whose current roles hold more than you do (e.g. member:update demoting an admin).
+  await requireCanActOnRoles(organizationId, target.role);
+  const wasOwner = current.includes("owner");
+  if (wasOwner && !next.includes("owner") && (await countOwners(organizationId)) <= 1) {
+    throw new ValidationError("An organization needs at least one owner");
+  }
+  await authApi(async () =>
+    auth.api.updateMemberRole({ body: { memberId, role: next, organizationId }, headers: await headers() }),
+  );
+  await recordAudit({
+    entity: "member",
+    entityPublicId: memberId,
+    operation: "update",
+    changes: { role: { from: target.role, to: next.join(",") }, organizationId },
+    createdBy: await userIdByPublicId(session.user.id),
   });
 }
 

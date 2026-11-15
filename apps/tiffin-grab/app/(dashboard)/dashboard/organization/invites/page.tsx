@@ -8,12 +8,19 @@ import { StatCards, StatCardsSkeleton } from "@/components/dashboard/stat-cards"
 import { inviteBucket, inviteStats, type InviteBucket } from "../org-stats";
 import { InviteUserButton } from "../members/invite-user-button";
 import { InvitesList, InvitesListSkeleton } from "./invites-list";
+import type { InviteRow } from "./invites-list";
 import { getInvitationsForOrgs } from "./invites-query";
 import { requestNow } from "@/lib/dates/request-now";
 
 const BUCKETS: readonly InviteBucket[] = ["pending", "accepted", "expired", "canceled"];
 
 type SearchParams = Promise<Record<string, string | undefined>>;
+
+function bucketCounts(rows: InviteRow[], now: number): Record<InviteBucket, number> & { all: number } {
+  const counts = { pending: 0, accepted: 0, expired: 0, canceled: 0, all: rows.length };
+  for (const r of rows) counts[inviteBucket(r, now)]++;
+  return counts;
+}
 
 function InvitesCard({ children, roles = [] }: { children: React.ReactNode; roles?: { value: string; label: string }[] }) {
   return (
@@ -65,7 +72,12 @@ async function InvitesData({ searchParams }: { searchParams: SearchParams }) {
     <>
       <StatCards items={inviteStats(rows, now)} />
       <InvitesCard roles={canInvite ? options.filter((r) => !r.locked) : []}>
-        <InvitesList rows={shown} status={status ?? "all"} actionableOrgIds={directOrgs.map((o) => o.id)} />
+        <InvitesList
+          rows={shown}
+          status={status ?? "all"}
+          counts={bucketCounts(rows, now)}
+          actionableOrgIds={directOrgs.map((o) => o.id)}
+        />
       </InvitesCard>
     </>
   );
