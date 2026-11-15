@@ -6,7 +6,7 @@ import { and, eq, or } from "drizzle-orm";
 import type { PgTable } from "drizzle-orm/pg-core";
 import type { z } from "zod";
 import { db } from "@/db/client";
-import { addons, deliveryFrequencies, deliveryStrategies, discounts, durationPackages, mealSizeItems, mealSizes, orders, plans } from "@/db/schema";
+import { addons, categoryCostRates, deliveryFrequencies, deliveryStrategies, discounts, durationPackages, mealSizeItems, mealSizes, orders, plans } from "@/db/schema";
 import { categoryCountsFromItems } from "@/lib/menu/pick-size";
 import { RESOURCES, slug } from "@/lib/catalog/resource-config";
 import {
@@ -286,6 +286,22 @@ class AddonService extends SoftDeleteService<typeof addons> {
 }
 
 export const addonService = new AddonService(new UpdatableRepository(db, addons, addons.publicId, addons.id));
+
+class CostRateService extends SoftDeleteService<typeof categoryCostRates> {
+  async create(values: Record<string, unknown>) {
+    return super.create(await this.withPlanId(RESOURCES["cost-rates"].schema.parse(values)));
+  }
+  async update(id: string, patch: Record<string, unknown>) {
+    return super.update(id, await this.withPlanId(parsePatch(RESOURCES["cost-rates"].schema, patch)));
+  }
+  private async withPlanId(parsed: Record<string, unknown>) {
+    const out = { ...parsed };
+    if (parsed.planId !== undefined) out.planId = parsed.planId ? await resolvePlanId(parsed.planId as string) : null;
+    return out;
+  }
+}
+
+export const costRateService = new CostRateService(new UpdatableRepository(db, categoryCostRates, categoryCostRates.publicId, categoryCostRates.id));
 export const deliveryFrequencyService = new CatalogService(new UpdatableRepository(db, deliveryFrequencies, deliveryFrequencies.publicId, deliveryFrequencies.id), RESOURCES["delivery-frequencies"].schema);
 export const durationPackageService = new CatalogService(new UpdatableRepository(db, durationPackages, durationPackages.publicId, durationPackages.id), RESOURCES["duration-packages"].schema);
 export const discountService = new DiscountService(new UpdatableRepository(db, discounts, discounts.publicId, discounts.id));

@@ -3,7 +3,7 @@ import type { PgTable } from "drizzle-orm/pg-core";
 import type { FilterCondition } from "@foundry/commons/model/condition";
 import { zonedDateIso } from "@foundry/commons";
 import { db } from "@/db/client";
-import { addons, deliveryFrequencies, dishCategories, discounts, dishes, durationPackages, mealSizeItems, mealSizes, plans } from "@/db/schema";
+import { addons, categoryCostRates, deliveryFrequencies, dishCategories, discounts, dishes, durationPackages, mealSizeItems, mealSizes, plans } from "@/db/schema";
 import { getAppSettings } from "@/lib/settings";
 import { dishCategoriesService } from "@/lib/menu/dish-categories.service";
 
@@ -90,6 +90,12 @@ export const RESOURCE_HOOKS: Record<string, ResourceHooks> = {
       rows.forEach((dto, i) => {
         dto.fallbackPlanIds = ((raw[i].fallbackPlanIds as bigint[] | null) ?? []).flatMap((id) => planPublicById.get(id) ?? []);
       });
+    },
+  },
+  "cost-rates": {
+    table: categoryCostRates,
+    async hydrate(rows, raw, ctx) {
+      hydratePlanId(rows, raw, ctx);
     },
   },
   "dish-categories": {

@@ -176,6 +176,15 @@ const addonsSchema = z.object({
   active,
 });
 
+// Blank costs would silently save as $0 without reqNum, so a missing rate is rejected instead.
+const costRatesSchema = z.object({
+  category: z.string().trim().min(1, "Pick a category"),
+  planId: z.string().trim().optional(),
+  costBase: reqNum(z.coerce.number().nonnegative()),
+  costPerTu: reqNum(z.coerce.number().nonnegative()),
+  active,
+});
+
 // Select controls serialize "no choice" as "" (see emptyForm/rowToForm); coerce a
 // blank category back to null so the optional soft ref round-trips cleanly.
 const optCategory = z.preprocess(
@@ -322,6 +331,16 @@ export const RESOURCES: Record<string, ResourceDef> = {
       { key: "tuAmount", label: "Portion (TU)", type: "number", help: "One row's portion, in the same TU as meal-size items. Each qty adds one such row to every tiffin." },
       { key: "pricePerTiffin", label: "Price / tiffin", type: "number", unit: "$", help: "Charged per tiffin for each qty." },
       { key: "maxQty", label: "Max qty per tiffin", type: "number" },
+    ],
+  },
+  "cost-rates": {
+    key: "cost-rates", label: "Cost rates", singular: "cost rate", keyed: false, schema: costRatesSchema,
+    note: "Internal food cost per pick = cost per pick + cost per TU × the slot's TU. The most specific rate wins: this plan over all plans. Staff only, never shown on the website.",
+    fields: [
+      { key: "category", label: "Category", type: "select", optionsSource: "categories" },
+      { key: "planId", label: "Plan", type: "select", optionsSource: "plans", optional: true, help: "Blank = every plan" },
+      { key: "costBase", label: "Cost per pick", type: "number", unit: "$" },
+      { key: "costPerTu", label: "Cost per TU", type: "number", unit: "$", help: "1 TU = the category's natural units per TU, e.g. 8oz or 4 roti" },
     ],
   },
 };

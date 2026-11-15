@@ -6,6 +6,7 @@ import { isUniqueViolation } from "@/lib/db/errors";
 import { ConflictError } from "@/lib/errors";
 import {
   addonService,
+  costRateService,
   deliveryFrequencyService,
   discountService,
   durationPackageService,
@@ -26,6 +27,7 @@ const SERVICES = {
   "duration-packages": durationPackageService,
   discounts: discountService,
   addons: addonService,
+  "cost-rates": costRateService,
 } as const;
 
 export type ResourceKey = keyof typeof SERVICES;
