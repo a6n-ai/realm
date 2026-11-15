@@ -56,6 +56,21 @@ const UNPAID_PER_TIFFIN = sql`greatest(
   ((${orders.total}::numeric - coalesce((${orders.pricingSnapshot}->>'taxTotal')::numeric, 0)) - ${CAPTURED_NET})
   / nullif(${orders.tiffinCount}, 0), 0)`;
 
+function deliveredBase(scope: AnalyticsScope, from: string, to: string) {
+  return [
+    eq(deliveries.status, "scheduled"),
+    eq(deliveries.optimoCompletionStatus, "success"),
+    gte(deliveries.deliveryDate, from),
+    lte(deliveries.deliveryDate, to),
+    ordersScope(scope),
+  ];
+}
+
+/** Delivered tiffins in a date window, WordPress-migrated orders excluded. Shared by earned revenue and food cost. */
+export function deliveredWhere(scope: AnalyticsScope, from: string, to: string) {
+  return and(...deliveredBase(scope, from, to), sql`not ${WP_MIGRATED}`);
+}
+
 /**
  * Delivered tiffins in the window — same predicate as tiffin-counts.ts
  * `deliveredTiffinCount` (scheduled AND confirmed delivered),
@@ -84,14 +99,7 @@ export async function getProfitabilityReport(opts: {
   const { from, to } = bounds.from <= bounds.to ? bounds : { from: bounds.to, to: bounds.from };
   const orderWhere = ordersScope(scope);
 
-  const delivered = [
-    eq(deliveries.status, "scheduled"),
-    eq(deliveries.optimoCompletionStatus, "success"),
-    gte(deliveries.deliveryDate, from),
-    lte(deliveries.deliveryDate, to),
-    orderWhere,
-  ];
-  const deliveredWhere = and(...delivered, sql`not ${WP_MIGRATED}`);
+  const delivered = deliveredBase(scope, from, to);
 
   const hasNoOrgs = noOrgs(scope);
   const [earnedRows, cashDays, totals, [nextCutoff], [migrated], [migratedAddons]] = await Promise.all([
@@ -109,7 +117,7 @@ export async function getProfitabilityReport(opts: {
           })
           .from(deliveries)
           .innerJoin(orders, eq(deliveries.orderId, orders.id))
-          .where(deliveredWhere)
+          .where(deliveredWhere(scope, from, to))
           .groupBy(deliveries.deliveryDate),
     revenueBy(scope, "day"),
     revenueTotals(scope),
