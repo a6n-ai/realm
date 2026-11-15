@@ -9,7 +9,9 @@ const { orders, payments, orderActivities, ledgerEntries, users, walletLedger, d
 const { loadCatalogSnapshot } = await import("@/lib/catalog/load");
 const { nextWeekday } = await import("@foundry/commons");
 const { createOrder } = await import("../../orders/create-order");
-const { addTrackNote, followUpWhere, getTrackRows, latestTrackActivities, listTrackActivities, logTrackActivity, setTrackStatus, trackInquiry } = await import("../renewal-tracking.service");
+const { addTrackNote, getTrackRows, latestTrackActivities, listTrackActivities, logTrackActivity, setTrackStatus } = await import("../renewal-tracking.service");
+const { loadPlanFacts } = await import("../renewal-facts");
+const { renewalMatches } = await import("../renewal-filter");
 const { addDaysIso: addDays } = await import("@foundry/commons/util/dates");
 
 async function reset() {
@@ -157,7 +159,7 @@ describe("renewal tracking (integration)", () => {
     expect(await rowOf(p.publicId)).toMatchObject({ status: "renewed", source: "auto" });
   });
 
-  it("followUpWhere due/overdue/upcoming/none, closed rows excluded", async () => {
+  it("follow-up due/overdue/upcoming/none, closed rows excluded", async () => {
     const dayStart = Date.parse("2099-05-10T00:00:00Z");
     const dayEnd = dayStart + 86_400_000;
     const overdue = await plan();
@@ -171,13 +173,14 @@ describe("renewal tracking (integration)", () => {
     await setTrackStatus(stale.publicId, { status: "follow_up", nextFollowUpAt: dayStart + 1000 });
     await laterPlan(stale, { status: "active" });
 
+    const facts = await loadPlanFacts();
+    const range = { by: "last" as const, fromIso: null, toIso: null, fromMs: null, toMs: null };
     const idsFor = async (kind: "due" | "overdue" | "upcoming" | "none") => {
-      const rows = await db
-        .select({ publicId: orders.publicId })
-        .from(orders)
-        .leftJoinLateral(trackInquiry, sql`true`)
-        .where(followUpWhere(kind, dayStart, dayEnd));
-      return rows.map((r) => r.publicId);
+      const keep = renewalMatches(
+        { tab: "renewals", type: null, track: null, followUp: kind, dateBy: "last", ending: null, ended: null, status: null, renewed: null, from: null, to: null, q: "" },
+        { today: "2099-05-10", range, day: { dayStart, dayEnd }, ownerId: null },
+      );
+      return facts.filter(keep).map((f) => f.orderPublicId);
     };
     expect(await idsFor("due")).toEqual([due.publicId]);
     expect(await idsFor("overdue")).toEqual([overdue.publicId]);

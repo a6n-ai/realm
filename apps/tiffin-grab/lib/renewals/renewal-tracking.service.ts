@@ -1,52 +1,11 @@
 import { db } from "@/db/client";
-import { inquiries, inquiryActivities, orders, users } from "@/db/schema";
-import { laterBookedAtFor, laterBookedAtLatestFor, renewalStatusSql, type RenewalStatus } from "@/lib/orders/queries";
+import { inquiryActivities, orders, users } from "@/db/schema";
 import { effectiveTrackStatus, isClosedTrack, type TrackActivityType, type TrackStatus } from "@/lib/renewals/status";
 import { NotFoundError, ValidationError } from "@foundry/commons";
-import { and, desc, eq, gte, inArray, isNull, lt, or, sql, type SQL } from "drizzle-orm";
+import { and, desc, eq, inArray, or, sql } from "drizzle-orm";
 import { assertFiniteFollowUp, type LostReason } from "../inquiries/lost-reason";
 import { ensureInquiryForOrder, logReminderSent, mirrorRenewalActivity } from "@/lib/inquiries/inquiry-links.service";
-
-export const computedStatusSql = sql<RenewalStatus>`(case when ${orders.trialLength} is not null then ${renewalStatusSql(true)} else ${renewalStatusSql(false)} end)`;
-
-export const laterBookedAtSql = sql<number | null>`(case when ${orders.trialLength} is not null then ${laterBookedAtFor(true)} else ${laterBookedAtFor(false)} end)`;
-
-const laterBookedAtLatestSql = sql<number | null>`(case when ${orders.trialLength} is not null then ${laterBookedAtLatestFor(true)} else ${laterBookedAtLatestFor(false)} end)`;
-
-/** The inquiry that tracks an order: the one whose current order it is. Join it with `leftJoinLateral(trackInquiry, sql\`true\`)`. */
-export const trackInquiry = db
-  .select({
-    status: inquiries.renewalStatus,
-    setAt: inquiries.renewalStatusSetAt,
-    source: inquiries.renewalStatusSource,
-    followUpAt: inquiries.renewalFollowUpAt,
-    lostReason: inquiries.renewalLostReason,
-  })
-  .from(inquiries)
-  .where(eq(inquiries.currentOrderId, orders.id))
-  .orderBy(inquiries.id)
-  .limit(1)
-  .as("ir");
-
-const autoSql = sql`(case when ${computedStatusSql} = 'renewed' then 'renewed' when ${computedStatusSql} in ('unpaid', 'waitlisted') then 'pending_payment' else null end)`;
-
-// Same rule as effectiveTrackStatus in lib/renewals/status.ts; keep the two in step.
-export const effectiveTrackStatusSql = sql<TrackStatus | null>`(case
-  when ${autoSql} is not null and (${trackInquiry.source} = 'auto' or ${trackInquiry.setAt} is null or (${laterBookedAtLatestSql} is not null and ${laterBookedAtLatestSql} > ${trackInquiry.setAt})) then ${autoSql}
-  else cast(${trackInquiry.status} as text) end)`;
-
-// Needs trackInquiry joined. Closed rows never show a follow-up.
-const openTrackSql = sql`(${effectiveTrackStatusSql} is null or ${effectiveTrackStatusSql} not in ('renewed', 'not_renewed'))`;
-
-export function followUpWhere(kind: "due" | "overdue" | "upcoming" | "none", dayStart: number, dayEnd: number): SQL {
-  const at = trackInquiry.followUpAt;
-  const when =
-    kind === "due" ? and(gte(at, dayStart), lt(at, dayEnd))
-    : kind === "overdue" ? lt(at, dayStart)
-    : kind === "upcoming" ? gte(at, dayEnd)
-    : isNull(at);
-  return sql`(${when}) and ${openTrackSql}`;
-}
+import { loadPlanFacts, type PlanFact } from "./renewal-facts";
 
 export type TrackRow = {
   status: TrackStatus | null;
@@ -218,32 +177,20 @@ export async function latestTrackActivities(orderPublicIds: string[]): Promise<M
   return out;
 }
 
-export async function getTrackRows(orderPublicIds: string[]): Promise<Map<string, TrackRow>> {
+/** `facts`: already loaded plan facts covering these orders, to skip loading them again. */
+export async function getTrackRows(orderPublicIds: string[], facts?: readonly PlanFact[]): Promise<Map<string, TrackRow>> {
   const out = new Map<string, TrackRow>();
   if (!orderPublicIds.length) return out;
-  const rows = await db
-    .select({
-      orderPublicId: orders.publicId,
-      status: effectiveTrackStatusSql,
-      computed: computedStatusSql,
-      laterBookedAt: laterBookedAtLatestSql,
-      staff: trackInquiry.status,
-      staffSource: trackInquiry.source,
-      staffSetAt: trackInquiry.setAt,
-      lostReason: trackInquiry.lostReason,
-      nextFollowUpAt: trackInquiry.followUpAt,
-    })
-    .from(orders)
-    .leftJoinLateral(trackInquiry, sql`true`)
-    .where(inArray(orders.publicId, orderPublicIds));
-  for (const r of rows) {
-    const { source } = effectiveTrackStatus({ staff: r.staff, staffSetAt: r.staffSetAt, staffSource: r.staffSource, computed: r.computed, laterBookedAt: r.laterBookedAt });
-    out.set(r.orderPublicId, {
-      status: r.status,
+  const wanted = new Set(orderPublicIds);
+  for (const f of facts ?? (await loadPlanFacts(orderPublicIds))) {
+    if (!wanted.has(f.orderPublicId)) continue;
+    const { source } = effectiveTrackStatus({ staff: f.trackStaff, staffSetAt: f.trackStaffSetAt, staffSource: f.trackStaffSource, computed: f.renewal, laterBookedAt: f.laterBookedAtLatest });
+    out.set(f.orderPublicId, {
+      status: f.track,
       source,
-      lostReason: r.status === "not_renewed" ? r.lostReason : null,
-      nextFollowUpAt: isClosedTrack(r.status) ? null : r.nextFollowUpAt,
-      laterBookedAt: r.laterBookedAt == null ? null : Number(r.laterBookedAt),
+      lostReason: f.track === "not_renewed" ? f.trackLostReason : null,
+      nextFollowUpAt: isClosedTrack(f.track) ? null : f.trackFollowUpAt,
+      laterBookedAt: f.laterBookedAtLatest,
     });
   }
   return out;

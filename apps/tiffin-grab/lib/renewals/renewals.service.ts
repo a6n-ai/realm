@@ -9,7 +9,7 @@ import { deliveries, ledgerEntries, mealSizes, messageSuppression, notificationO
 import { unexpired } from "@foundry/wallet";
 import { renewalQueueFilter, type PlanType, type RenewalQueue, type RenewalRange, type RenewalsFilter } from "@/lib/renewals/filters";
 import { UNASSIGNED_OWNER } from "@/lib/list/presets";
-import { lastTiffinSql, renewalStatusSql, type RenewalStatus } from "@/lib/orders/queries";
+import { lastTiffinSql, type RenewalStatus } from "@/lib/orders/queries";
 import { DAY_MS, daysBetween } from "@foundry/commons/util/dates";
 import { getTrackRows, latestTrackActivities, listTrackActivities, type TrackActivity, type TrackRow } from "./renewal-tracking.service";
 import type { TrackStatus } from "@/lib/renewals/status";
@@ -401,7 +401,7 @@ export async function getCustomerRenewal(visible: Visible, customerPublicId: str
     .limit(1);
   if (!user) return null;
 
-  const rows = await db
+  const planRows = await db
     .select({
       id: orders.id,
       orderPublicId: orders.publicId,
@@ -410,16 +410,21 @@ export async function getCustomerRenewal(visible: Visible, customerPublicId: str
       trialLength: orders.trialLength,
       status: orders.status,
       startDate: orders.startDate,
-      lastTiffin: sql<string | null>`${lastTiffinSql}`,
       total: orders.total,
       createdAt: orders.createdAt,
-      next: renewalStatusSql(),
     })
     .from(orders)
     .innerJoin(mealSizes, eq(orders.mealSizeId, mealSizes.id))
     .where(and(eq(orders.userId, user.id), notCancelled, orgScope(orders.organizationId, visible)))
     .orderBy(asc(orders.startDate), asc(orders.id));
-  if (rows.length === 0) return null;
+  if (planRows.length === 0) return null;
+  // Last tiffin and where each plan's renewal stands, from the plan facts (every later plan counts here, trials too).
+  const planFacts = await loadPlanFacts(planRows.map((r) => r.orderPublicId));
+  const facts = new Map(planFacts.map((f) => [f.orderPublicId, f]));
+  const rows = planRows.map((r) => {
+    const f = facts.get(r.orderPublicId);
+    return { ...r, lastTiffin: f?.last ?? null, next: f?.renewalAny ?? ("none" as const) };
+  });
 
   const pendingIds = rows.filter((r) => r.status === "pending").map((r) => r.id);
   const unpaid = new Map<string, string>();
@@ -433,7 +438,7 @@ export async function getCustomerRenewal(visible: Visible, customerPublicId: str
   }
 
   const orderPublicIds = rows.map((r) => r.orderPublicId);
-  const [tracks, activities] = await Promise.all([getTrackRows(orderPublicIds), listTrackActivities(orderPublicIds)]);
+  const [tracks, activities] = await Promise.all([getTrackRows(orderPublicIds, planFacts), listTrackActivities(orderPublicIds)]);
   const plans = rows.map(({ id, trialLength, ...r }, i) => {
     const after = rows[i + 1];
     const track = tracks.get(r.orderPublicId) ?? NO_TRACK;
