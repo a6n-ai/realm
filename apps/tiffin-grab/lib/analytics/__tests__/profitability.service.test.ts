@@ -2,6 +2,32 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq, inArray } from "drizzle-orm";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
+// Food cost is priced from catalog rates (food-cost.service.test.ts covers that). Here: 4 per delivered tiffin, WP orders excluded.
+vi.mock("../food-cost.service", async () => {
+  const { and, eq, gte, lte, sql } = await import("drizzle-orm");
+  const { db } = await import("@/db/client");
+  const { deliveries, orders } = await import("@/db/schema");
+  const { WP_MIGRATED } = await import("@/lib/orders/wordpress-import-sql");
+  return {
+    foodCostByDate: async (_scope: unknown, from: string, to: string) => {
+      const rows = await db
+        .select({ date: deliveries.deliveryDate, units: sql<number>`coalesce(sum(${deliveries.tiffinUnits}), 0)::int` })
+        .from(deliveries)
+        .innerJoin(orders, eq(deliveries.orderId, orders.id))
+        .where(
+          and(
+            eq(deliveries.status, "scheduled"),
+            eq(deliveries.optimoCompletionStatus, "success"),
+            gte(deliveries.deliveryDate, from),
+            lte(deliveries.deliveryDate, to),
+            sql`not ${WP_MIGRATED}`,
+          ),
+        )
+        .groupBy(deliveries.deliveryDate);
+      return new Map(rows.map((r) => [String(r.date), { foodCost: r.units * 4, tiffinsWithoutRate: 0, unratedCategories: [] }]));
+    },
+  };
+});
 
 const { db } = await import("@/db/client");
 const { deliveries, deliveryFrequencies, ledgerEntries, mealSizes, orders, payments, plans, users } = await import("@/db/schema");
@@ -153,10 +179,9 @@ describe("profitability report", () => {
     expect(report.kpis.revenue).toBe(20);
   });
 
-  it("charges kitchen/driver against delivered tiffins and still allocates monthly costs on empty days", async () => {
+  it("charges food/driver against delivered tiffins and still allocates monthly costs on empty days", async () => {
     await setProfitabilityAssumptions({
       ...ZERO_ASSUMPTIONS,
-      kitchenCostPerTiffin: 4,
       driverCostPerTiffin: 1,
       marketingMonthly: 310, // January 2026 has 31 days → $10/day
     });
@@ -166,7 +191,7 @@ describe("profitability report", () => {
 
     const report = await getProfitabilityReport({ month: "2035-01", grain: "daily", now: NOW, scope: JAN_2035 });
     const day = report.rows.find((r) => r.date === "2035-01-05");
-    expect(day?.kitchen).toBe(8);
+    expect(day?.food).toBe(8);
     expect(day?.driver).toBe(2);
     expect(day?.marketing).toBe(10);
     expect(day?.profit).toBe(0); // 20 revenue − 8 − 2 − 10
@@ -189,7 +214,6 @@ describe("profitability report", () => {
   });
 
   it("holds unpaid orders out of revenue but still charges their tiffin costs", async () => {
-    await setProfitabilityAssumptions({ ...ZERO_ASSUMPTIONS, kitchenCostPerTiffin: 4 });
     const order = await makeOrder({ total: "50.00", tiffinCount: 5, deploymentId: "PROF-UNPAID" });
     await makePayment(order.id, "50.00", Date.parse("2035-01-02T15:00:00Z"), "awaiting_payment");
     await makeDelivery(order.id, "2035-01-05");
@@ -198,7 +222,7 @@ describe("profitability report", () => {
     const day = report.rows.find((r) => r.date === "2035-01-05");
     expect(day?.revenue).toBe(0);
     expect(day?.unpaidRevenue).toBe(10);
-    expect(day?.kitchen).toBe(4);
+    expect(day?.food).toBe(4);
     expect(report.kpis.unpaidRevenue).toBe(10);
   });
 
@@ -322,7 +346,7 @@ describe("profitability report", () => {
   });
 
   it("leaves WP-migrated tiffins out of revenue and per-tiffin costs, but not the monthly costs", async () => {
-    await setProfitabilityAssumptions({ ...ZERO_ASSUMPTIONS, kitchenCostPerTiffin: 4, otherCostPerTiffin: 1, marketingMonthly: 310 });
+    await setProfitabilityAssumptions({ ...ZERO_ASSUMPTIONS, otherCostPerTiffin: 1, marketingMonthly: 310 });
     const normal = await makeOrder({ total: "20.00", tiffinCount: 2, deploymentId: "PROF-NORM" });
     await makePayment(normal.id, "20.00", Date.parse("2034-12-20T15:00:00Z"));
     await makeDelivery(normal.id, "2035-01-05", { tiffinUnits: 2 });
@@ -339,7 +363,7 @@ describe("profitability report", () => {
     const day = report.rows.find((r) => r.date === "2035-01-05");
     expect(day?.tiffins).toBe(2);
     expect(day?.revenue).toBe(20);
-    expect(day?.kitchen).toBe(8);
+    expect(day?.food).toBe(8);
     expect(day?.other).toBe(2);
     expect(day?.marketing).toBe(10);
     expect(report.rows.find((r) => r.date === "2035-01-06")?.tiffins).toBe(0);
@@ -349,13 +373,13 @@ describe("profitability report", () => {
   });
 
   it("splits total costs by kind", async () => {
-    await setProfitabilityAssumptions({ ...ZERO_ASSUMPTIONS, kitchenCostPerTiffin: 4, otherCostPerTiffin: 1, otherMonthly: 310 });
+    await setProfitabilityAssumptions({ ...ZERO_ASSUMPTIONS, otherCostPerTiffin: 1, otherMonthly: 310 });
     const order = await makeOrder({ total: "20.00", tiffinCount: 2, deploymentId: "PROF-KIND" });
     await makePayment(order.id, "20.00", Date.parse("2034-12-20T15:00:00Z"));
     await makeDelivery(order.id, "2035-01-05", { tiffinUnits: 2 });
     const report = await getProfitabilityReport({ month: "2035-01", grain: "daily", now: NOW, scope: JAN_2035 });
     const parts = Object.fromEntries(report.costParts.map((p) => [p.label, p.value]));
-    expect(parts["Kitchen"]).toBe(8);
+    expect(parts["Food"]).toBe(8);
     expect(parts["Other"]).toBe(312);
   });
 
@@ -380,7 +404,6 @@ describe("profitability report", () => {
   });
 
   it("a free tiffin earns nothing but still carries its food cost", async () => {
-    await setProfitabilityAssumptions({ ...ZERO_ASSUMPTIONS, kitchenCostPerTiffin: 3 });
     const order = await makeOrder({ total: "200.00", tiffinCount: 20, deploymentId: "PROF-FREE" });
     await makePayment(order.id, "200.00", Date.parse("2034-12-20T15:00:00Z"));
     for (let d = 1; d <= 20; d++) await makeDelivery(order.id, `2035-01-${String(d).padStart(2, "0")}`);
@@ -389,6 +412,6 @@ describe("profitability report", () => {
     expect(report.kpis.tiffins).toBe(21);
     expect(report.kpis.revenue).toBe(200);
     expect(report.rows.find((r) => r.date === "2035-01-21")?.revenue).toBe(0);
-    expect(report.kpis.costs).toBe(63);
+    expect(report.kpis.costs).toBe(84); // 21 tiffins × 4 food
   });
 });

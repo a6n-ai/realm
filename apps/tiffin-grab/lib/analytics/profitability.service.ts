@@ -5,6 +5,7 @@ import { deliveries, ledgerEntries, orders, payments } from "@/db/schema";
 import { getProfitabilityAssumptions } from "@/lib/analytics/profitability-settings";
 import { costBreakdown, decorateDay, kpis, rollup, type CostPart, type Grain, type ProfitabilityAssumptions, type ProfitabilityKpis, type ProfitRow } from "@/lib/analytics/profitability";
 import { chartPeriod } from "@/lib/analytics/buckets";
+import { foodCostByDate } from "./food-cost.service";
 import { moneyDate, netExTax, refundExTax, revenueBy, revenueTotals } from "./metrics/money";
 import { WP_MIGRATED } from "@/lib/orders/wordpress-import-sql";
 import { CAPTURED } from "@/lib/payments/status";
@@ -35,6 +36,9 @@ export type ProfitabilityReport = {
   trend: { period: string; profit: number; revenue: number }[];
   /** Next delivery cutoff in range; when it passes, those tiffins count as delivered. */
   nextCutoffAt: number | null;
+  /** Delivered tiffins with an item or category that has no cost rate: their food cost is missing, not zero. */
+  tiffinsWithoutRate: number;
+  unratedCategories: string[];
 };
 
 const HAS_CAPTURED = sql`exists (
@@ -79,7 +83,7 @@ export function deliveredWhere(scope: AnalyticsScope, from: string, to: string) 
  *
  * An order earns what it was actually paid ex tax, less refunds (partial payments earn
  * the paid share); the unpaid remainder of an order is reported as `unpaidRevenue`. Every
- * delivered tiffin still carries its kitchen and driver cost, because that food
+ * delivered tiffin still carries its food and driver cost, because that food
  * went out whether or not it was paid for.
  */
 export async function getProfitabilityReport(opts: {
@@ -102,7 +106,7 @@ export async function getProfitabilityReport(opts: {
   const delivered = deliveredBase(scope, from, to);
 
   const hasNoOrgs = noOrgs(scope);
-  const [earnedRows, cashDays, totals, [nextCutoff], [migrated], [migratedAddons]] = await Promise.all([
+  const [earnedRows, cashDays, totals, [nextCutoff], [migrated], [migratedAddons], foodByDate] = await Promise.all([
     hasNoOrgs
       ? []
       : db
@@ -151,6 +155,7 @@ export async function getProfitabilityReport(opts: {
           .from(payments)
           .innerJoin(orders, eq(payments.orderId, orders.id))
           .where(and(orderWhere, WP_MIGRATED, inArray(payments.status, CAPTURED), sql`${payments.addonRequest} is not null`, dateWhere(moneyDate, scope))),
+    foodCostByDate(scope, from, to),
   ]);
 
   const earnedByDate = new Map(earnedRows.map((r) => [isoDate(r.date), r]));
@@ -167,6 +172,7 @@ export async function getProfitabilityReport(opts: {
         revenue: Number(earnedByDate.get(date)?.revenue ?? 0),
         unpaidRevenue: Number(earnedByDate.get(date)?.unpaidRevenue ?? 0),
         cashCollected: Number(cashByDate.get(date) ?? 0),
+        foodCost: foodByDate.get(date)?.foodCost ?? 0,
       },
       assumptions,
     ),
@@ -175,6 +181,7 @@ export async function getProfitabilityReport(opts: {
   const rows = rollup(daily, grain);
   // Equal to the Revenue tab's Net collected by construction, not a sum of rounded days.
   const stats = { ...kpis(rows), cashCollected: round2(totals.gross - totals.refundsExSurcharge) };
+  const foodDays = [...foodByDate.values()];
   return {
     grain,
     month,
@@ -192,5 +199,7 @@ export async function getProfitabilityReport(opts: {
       revenue: r.revenue,
     })),
     nextCutoffAt: nextCutoff?.at == null ? null : Number(nextCutoff.at),
+    tiffinsWithoutRate: round2(foodDays.reduce((s, d) => s + d.tiffinsWithoutRate, 0)),
+    unratedCategories: [...new Set(foodDays.flatMap((d) => d.unratedCategories))].sort(),
   };
 }

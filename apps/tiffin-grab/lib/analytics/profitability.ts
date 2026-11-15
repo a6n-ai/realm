@@ -10,7 +10,6 @@ import { daysInMonth, monthBounds, zonedRangeMs } from "@/lib/dates/epoch-window
 import { addDaysIso, isoToUtcDate, mondayOfIso } from "@foundry/commons/util/dates";
 
 export type ProfitabilityAssumptions = {
-  kitchenCostPerTiffin: number;
   driverCostPerTiffin: number;
   otherCostPerTiffin: number;
   marketingMonthly: number;
@@ -19,7 +18,6 @@ export type ProfitabilityAssumptions = {
 };
 
 export const ZERO_ASSUMPTIONS: ProfitabilityAssumptions = {
-  kitchenCostPerTiffin: 0,
   driverCostPerTiffin: 0,
   otherCostPerTiffin: 0,
   marketingMonthly: 0,
@@ -114,11 +112,13 @@ export type DailyFacts = {
    * `revenue` and profit until the payment settles; their costs are already in.
    */
   unpaidRevenue?: number;
+  /** Internal food cost of the day's delivered tiffins (see food-cost.service). */
+  foodCost?: number;
 };
 
-export type ProfitRow = Omit<DailyFacts, "unpaidRevenue"> & {
+export type ProfitRow = Omit<DailyFacts, "unpaidRevenue" | "foodCost"> & {
   unpaidRevenue: number;
-  kitchen: number;
+  food: number;
   driver: number;
   marketing: number;
   salaries: number;
@@ -141,10 +141,10 @@ function allocatedForDate(assumptions: ProfitabilityAssumptions, isoDate: string
 
 export function decorateDay(facts: DailyFacts, assumptions: ProfitabilityAssumptions): ProfitRow {
   const allocated = allocatedForDate(assumptions, facts.date);
-  const kitchen = facts.tiffins * assumptions.kitchenCostPerTiffin;
+  const food = facts.foodCost ?? 0;
   const driver = facts.tiffins * assumptions.driverCostPerTiffin;
   const other = allocated.otherMonthly + facts.tiffins * assumptions.otherCostPerTiffin;
-  const costs = kitchen + driver + allocated.marketing + allocated.salaries + other;
+  const costs = food + driver + allocated.marketing + allocated.salaries + other;
   const profit = facts.revenue - costs;
   const marginPct = facts.revenue > 0 ? round2((profit / facts.revenue) * 100) : null;
   return {
@@ -153,7 +153,7 @@ export function decorateDay(facts: DailyFacts, assumptions: ProfitabilityAssumpt
     revenue: round2(facts.revenue),
     cashCollected: round2(facts.cashCollected),
     unpaidRevenue: round2(facts.unpaidRevenue ?? 0),
-    kitchen: round2(kitchen),
+    food: round2(food),
     driver: round2(driver),
     marketing: round2(allocated.marketing),
     salaries: round2(allocated.salaries),
@@ -183,12 +183,12 @@ function sumRows(date: string, group: ProfitRow[]): ProfitRow {
   const revenue = round2(group.reduce((s, r) => s + r.revenue, 0));
   const cashCollected = round2(group.reduce((s, r) => s + r.cashCollected, 0));
   const unpaidRevenue = round2(group.reduce((s, r) => s + r.unpaidRevenue, 0));
-  const kitchen = round2(group.reduce((s, r) => s + r.kitchen, 0));
+  const food = round2(group.reduce((s, r) => s + r.food, 0));
   const driver = round2(group.reduce((s, r) => s + r.driver, 0));
   const marketing = round2(group.reduce((s, r) => s + r.marketing, 0));
   const salaries = round2(group.reduce((s, r) => s + r.salaries, 0));
   const other = round2(group.reduce((s, r) => s + r.other, 0));
-  const costs = round2(kitchen + driver + marketing + salaries + other);
+  const costs = round2(food + driver + marketing + salaries + other);
   const profit = round2(revenue - costs);
   return {
     date,
@@ -196,7 +196,7 @@ function sumRows(date: string, group: ProfitRow[]): ProfitRow {
     revenue,
     cashCollected,
     unpaidRevenue,
-    kitchen,
+    food,
     driver,
     marketing,
     salaries,
@@ -241,9 +241,9 @@ export type CostPart = { label: string; value: number };
 
 /** Total costs by kind (five parts, so the donut never folds). */
 export function costBreakdown(rows: ProfitRow[]): CostPart[] {
-  const sum = (k: "kitchen" | "driver" | "marketing" | "salaries" | "other") => round2(rows.reduce((s, r) => s + r[k], 0));
+  const sum = (k: "food" | "driver" | "marketing" | "salaries" | "other") => round2(rows.reduce((s, r) => s + r[k], 0));
   return [
-    { label: "Kitchen", value: sum("kitchen") },
+    { label: "Food", value: sum("food") },
     { label: "Driver", value: sum("driver") },
     { label: "Marketing", value: sum("marketing") },
     { label: "Salaries", value: sum("salaries") },

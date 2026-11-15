@@ -11,7 +11,6 @@ import { unwrapAction } from "@/lib/actions/unwrap";
 import { saveAssumptionsAction } from "./actions";
 
 const FIELDS: { key: keyof ProfitabilityAssumptions; label: string }[] = [
-  { key: "kitchenCostPerTiffin", label: "Kitchen / tiffin" },
   { key: "driverCostPerTiffin", label: "Driver / tiffin" },
   { key: "otherCostPerTiffin", label: "Other / tiffin" },
   { key: "marketingMonthly", label: "Marketing / month" },
@@ -23,7 +22,6 @@ function asFields(
   current: ProfitabilityAssumptions,
 ): Record<keyof ProfitabilityAssumptions, string> {
   return {
-    kitchenCostPerTiffin: String(current.kitchenCostPerTiffin || ""),
     driverCostPerTiffin: String(current.driverCostPerTiffin || ""),
     otherCostPerTiffin: String(current.otherCostPerTiffin || ""),
     marketingMonthly: String(current.marketingMonthly || ""),
@@ -45,7 +43,6 @@ export function AssumptionsForm({
 
   function save() {
     const parsed: ProfitabilityAssumptions = {
-      kitchenCostPerTiffin: Number(fields.kitchenCostPerTiffin || 0),
       driverCostPerTiffin: Number(fields.driverCostPerTiffin || 0),
       otherCostPerTiffin: Number(fields.otherCostPerTiffin || 0),
       marketingMonthly: Number(fields.marketingMonthly || 0),

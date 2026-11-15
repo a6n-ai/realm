@@ -23,7 +23,7 @@ function Card({ row, title }: { row: ProfitRow; title: string }) {
       ]}
       profit={row.profit}
       details={[
-        ["Kitchen", fmt(row.kitchen)],
+        ["Food", fmt(row.food)],
         ["Driver", fmt(row.driver)],
         ["Marketing", fmt(row.marketing)],
         ["Salaries", fmt(row.salaries)],

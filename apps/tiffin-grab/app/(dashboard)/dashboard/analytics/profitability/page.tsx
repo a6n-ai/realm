@@ -1,6 +1,7 @@
 import { requirePagePermission } from "@/lib/auth/guards";
 import { Can, NoAccessNote } from "@/components/auth/can";
 import { Skeleton } from "@foundry/ui/skeleton";
+import Link from "next/link";
 import { cache, Suspense } from "react";
 import { BanknoteIcon, TrendingUpIcon } from "lucide-react";
 import { paymentsHref } from "@/lib/analytics/drill";
@@ -16,6 +17,7 @@ import { buildProfitWaterfall } from "@/lib/analytics/waterfall";
 import { AnalyticsStatCards, AnalyticsStatCardsSkeleton, StatFootnote, type AnalyticsStatCardItem } from "@/components/dashboard/stat-cards";
 import { AnalyticsIntro } from "@/components/dashboard/analytics/analytics-intro";
 import { Badge } from "@/components/reui/badge";
+import { Alert, AlertDescription } from "@/components/reui/alert";
 import { getProfitabilityReport } from "@/lib/analytics/profitability.service";
 import { navScope, type Grain, type ProfitabilityKpis } from "@/lib/analytics/profitability";
 import { currentMonth } from "@/lib/dates/epoch-window";
@@ -76,6 +78,10 @@ export default async function ProfitabilityAnalyticsPage({ searchParams }: { sea
           <MigratedNote view={view} />
         </Suspense>
 
+        <Suspense fallback={null}>
+          <UnratedNote view={view} />
+        </Suspense>
+
         <ChartCard
           title={CARDS_TITLE[grain]}
           subtitle="Each day: revenue, costs and profit" info="Revenue is allocated to the day the tiffin went out, not the day the customer paid. Open a card for its cost breakdown. Each column is shaded on its own scale; weekends and days without deliveries are muted. Monthly costs are company-wide."
@@ -94,7 +100,7 @@ export default async function ProfitabilityAnalyticsPage({ searchParams }: { sea
               <Trend view={view} />
             </Suspense>
           </ChartCard>
-          <ChartCard title="Where the money goes" subtitle="Revenue less each cost, down to profit" info="Revenue in this range less kitchen, driver, marketing, salaries and other costs, under your assumptions. It ends at the profit shown above.">
+          <ChartCard title="Where the money goes" subtitle="Revenue less each cost, down to profit" info="Revenue in this range less food, driver, marketing, salaries and other costs, under your assumptions. It ends at the profit shown above.">
             <Suspense fallback={<ChartSkeleton />}>
               <Costs view={view} />
             </Suspense>
@@ -239,6 +245,22 @@ async function MigratedNote({ view }: { view: View }) {
       {n > 0 && addons > 0 ? " " : null}
       {addons > 0 ? "Add-on payments on these orders are also not counted in earned revenue." : null}
     </p>
+  );
+}
+
+async function UnratedNote({ view }: { view: View }) {
+  const { tiffinsWithoutRate: n, unratedCategories } = await reportFrom(view);
+  if (n <= 0) return null;
+  const shown = Math.max(1, Math.round(n));
+  return (
+    <Alert variant="info">
+      <AlertDescription>
+        {`${shown} ${shown === 1 ? "tiffin has" : "tiffins have"} items without a cost rate (${unratedCategories.join(", ")}). `}
+        <Link href="/dashboard/catalog/cost-rates" prefetch={false} className="underline underline-offset-4">
+          Set cost rates
+        </Link>
+      </AlertDescription>
+    </Alert>
   );
 }
 

@@ -16,7 +16,6 @@ export function AssumptionChips({ current }: { current: ProfitabilityAssumptions
   const cents = useFormatMoney();
   const money = (n: number) => (Number.isInteger(n) ? whole : cents)(n);
   const chips = [
-    `Kitchen ${money(current.kitchenCostPerTiffin)}/tiffin`,
     `Driver ${money(current.driverCostPerTiffin)}/tiffin`,
     `Other ${money(current.otherCostPerTiffin)}/tiffin`,
     `Marketing ${money(current.marketingMonthly)}/mo`,

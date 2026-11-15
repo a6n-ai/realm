@@ -10,7 +10,6 @@ const PATH = "/dashboard/analytics/profitability";
 const money = z.number().min(0).max(1_000_000);
 
 const schema = z.object({
-  kitchenCostPerTiffin: money,
   driverCostPerTiffin: money,
   otherCostPerTiffin: money,
   marketingMonthly: money,

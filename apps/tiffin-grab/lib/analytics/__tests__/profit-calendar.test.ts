@@ -28,10 +28,10 @@ describe("profitCalendar", () => {
 
 describe("costBreakdown", () => {
   it("adds up to the row costs", () => {
-    const a = { ...ZERO_ASSUMPTIONS, kitchenCostPerTiffin: 3, otherCostPerTiffin: 1, otherMonthly: 310, marketingMonthly: 310 };
-    const rows = [decorateDay({ date: "2035-01-05", tiffins: 2, revenue: 20, cashCollected: 0 }, a)];
+    const a = { ...ZERO_ASSUMPTIONS, otherCostPerTiffin: 1, otherMonthly: 310, marketingMonthly: 310 };
+    const rows = [decorateDay({ date: "2035-01-05", tiffins: 2, revenue: 20, cashCollected: 0, foodCost: 6 }, a)];
     const parts = Object.fromEntries(costBreakdown(rows).map((p) => [p.label, p.value]));
-    expect(parts).toMatchObject({ Kitchen: 6, Other: 12, Marketing: 10 });
+    expect(parts).toMatchObject({ Food: 6, Other: 12, Marketing: 10 });
     expect(Object.values(parts).reduce((s, v) => s + v, 0)).toBe(rows[0]!.costs);
   });
 });

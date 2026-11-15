@@ -5,14 +5,14 @@ import { buildSourceFlow } from "../source-flow";
 
 const row = (o: Partial<ProfitRow>): ProfitRow => ({
   date: "2026-10-01", tiffins: 10, revenue: 0, cashCollected: 0, unpaidRevenue: 0,
-  kitchen: 0, driver: 0, marketing: 0, salaries: 0, other: 0, costs: 0, profit: 0, marginPct: null, ...o,
+  food: 0, driver: 0, marketing: 0, salaries: 0, other: 0, costs: 0, profit: 0, marginPct: null, ...o,
 });
 
 describe("buildProfitWaterfall", () => {
   it("ends at the stat-card profit: start minus the steps", () => {
     const rows = [
-      row({ revenue: 1000.1, kitchen: 300.25, driver: 120.5, marketing: 80, salaries: 200.1, other: 0, costs: 700.85 }),
-      row({ date: "2026-10-02", revenue: 500.2, kitchen: 150.1, driver: 60.3, marketing: 80, salaries: 200.1, other: 12.5, costs: 503 }),
+      row({ revenue: 1000.1, food: 300.25, driver: 120.5, marketing: 80, salaries: 200.1, other: 0, costs: 700.85 }),
+      row({ date: "2026-10-02", revenue: 500.2, food: 150.1, driver: 60.3, marketing: 80, salaries: 200.1, other: 12.5, costs: 503 }),
     ];
     const k = kpis(rows);
     const w = buildProfitWaterfall(k, costBreakdown(rows));
@@ -24,8 +24,8 @@ describe("buildProfitWaterfall", () => {
   });
 
   it("drops zero-cost steps", () => {
-    const rows = [row({ revenue: 100, kitchen: 40, costs: 40 })];
-    expect(buildProfitWaterfall(kpis(rows), costBreakdown(rows)).steps.map((s) => s.label)).toEqual(["Kitchen"]);
+    const rows = [row({ revenue: 100, food: 40, costs: 40 })];
+    expect(buildProfitWaterfall(kpis(rows), costBreakdown(rows)).steps.map((s) => s.label)).toEqual(["Food"]);
   });
 });
 

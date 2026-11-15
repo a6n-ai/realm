@@ -4,7 +4,7 @@ import { addDaysIso, mondayOfIso } from "@foundry/commons/util/dates";
 
 export type ProfitWeek = { start: string; end: string; row: ProfitRow };
 
-const SUMMED = ["tiffins", "revenue", "cashCollected", "unpaidRevenue", "kitchen", "driver", "marketing", "salaries", "other", "costs", "profit"] as const;
+const SUMMED = ["tiffins", "revenue", "cashCollected", "unpaidRevenue", "food", "driver", "marketing", "salaries", "other", "costs", "profit"] as const;
 
 /** Mon–Sun weeks, oldest first; every figure is the plain sum of its day cards, margin recomputed from the sums. */
 export function groupProfitWeeks(rows: ProfitRow[]): ProfitWeek[] {

@@ -5,8 +5,12 @@ import { isoDateInZone, mondayOfIso } from "@foundry/commons/util/dates";
 describe("parseAssumptions", () => {
   it("treats missing or negative values as zero", () => {
     expect(parseAssumptions(null)).toEqual(ZERO_ASSUMPTIONS);
-    expect(parseAssumptions({ kitchenCostPerTiffin: -4, marketingMonthly: "30" }).kitchenCostPerTiffin).toBe(0);
+    expect(parseAssumptions({ driverCostPerTiffin: -4, marketingMonthly: "30" }).driverCostPerTiffin).toBe(0);
     expect(parseAssumptions({ marketingMonthly: "30" }).marketingMonthly).toBe(30);
+  });
+
+  it("parseAssumptions ignores the stored kitchen key", () => {
+    expect("kitchenCostPerTiffin" in parseAssumptions({ kitchenCostPerTiffin: 5 })).toBe(false);
   });
 });
 
@@ -22,12 +26,19 @@ describe("decorateDay", () => {
     expect(row.marginPct).toBeNull();
   });
 
-  it("applies kitchen and driver as per-tiffin variable costs", () => {
+  it("food cost replaces kitchen", () => {
+    const row = decorateDay({ date: "2026-11-02", tiffins: 10, revenue: 200, cashCollected: 0, foodCost: 92.3 }, parseAssumptions({ kitchenCostPerTiffin: 5, driverCostPerTiffin: 3 }));
+    expect(row.food).toBe(92.3);
+    expect(row.driver).toBe(30);
+    expect(row.costs).toBeCloseTo(122.3, 2); // no 10 × $5 kitchen
+  });
+
+  it("applies driver as a per-tiffin variable cost on top of food", () => {
     const row = decorateDay(
-      { date: "2026-01-15", tiffins: 4, revenue: 80, cashCollected: 0 },
-      { ...ZERO_ASSUMPTIONS, kitchenCostPerTiffin: 5, driverCostPerTiffin: 2 },
+      { date: "2026-01-15", tiffins: 4, revenue: 80, cashCollected: 0, foodCost: 20 },
+      { ...ZERO_ASSUMPTIONS, driverCostPerTiffin: 2 },
     );
-    expect(row.kitchen).toBe(20);
+    expect(row.food).toBe(20);
     expect(row.driver).toBe(8);
     expect(row.profit).toBe(52);
     expect(row.marginPct).toBe(65);
