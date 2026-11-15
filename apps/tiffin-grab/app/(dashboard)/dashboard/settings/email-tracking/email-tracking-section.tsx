@@ -1,16 +1,12 @@
 "use client";
 
-import { Fragment, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { SaveIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@foundry/ui/button";
-import { Card } from "@foundry/ui/card";
-import { Separator } from "@foundry/ui/separator";
-import { Switch } from "@foundry/ui/switch";
-import { Field, FieldContent, FieldDescription, FieldGroup, FieldLabel, FieldTitle } from "@/components/ui/field";
 import type { ActionResult } from "@/lib/actions/action-result";
 import { Alert, AlertAction, AlertDescription } from "@/components/reui/alert";
+import { SaveBar, SwitchList } from "@/components/ds/switch-list";
 
 export interface EmailTypeRow {
   event: string;
@@ -28,76 +24,6 @@ const groupByCategory = (rows: EmailTypeRow[]) => {
   for (const t of rows) groups.set(t.categoryLabel, [...(groups.get(t.categoryLabel) ?? []), t]);
   return groups;
 };
-
-/** Save bar shared by both tabs: status on the left, Reset + Save on the right. */
-export function SaveBar({
-  status,
-  dirty,
-  pending,
-  error,
-  onReset,
-  onSave,
-}: {
-  status: string;
-  dirty: boolean;
-  pending: boolean;
-  error?: string;
-  onReset: () => void;
-  onSave: () => void;
-}) {
-  return (
-    <div className="flex flex-wrap items-center justify-between gap-3">
-      <div className="flex flex-col gap-0.5">
-        <p className="text-sm font-medium">{status}</p>
-        {error && <p className="text-sm text-destructive">{error}</p>}
-      </div>
-      <div className="flex items-center gap-2">
-        {dirty && (
-          <Button variant="ghost" disabled={pending} onClick={onReset}>
-            Reset
-          </Button>
-        )}
-        <Button onClick={onSave} disabled={pending || !dirty} className="gap-2">
-          <SaveIcon className="size-4" />
-          Save
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-export interface SwitchRow {
-  id: string;
-  label: string;
-  hint?: string;
-  checked: boolean;
-  disabled?: boolean;
-  onChange: (on: boolean) => void;
-}
-
-/** ReUI c-switch-6: one bordered list, name left, switch right, separators between rows. */
-export function SwitchList({ rows }: { rows: SwitchRow[] }) {
-  return (
-    <Card className="p-0">
-      <FieldGroup className="gap-0">
-        {rows.map((r, i) => (
-          <Fragment key={r.id}>
-            {i > 0 && <Separator />}
-            <Field data-disabled={r.disabled || undefined}>
-              <FieldLabel className="justify-between px-4 py-3">
-                <FieldContent>
-                  <FieldTitle>{r.label}</FieldTitle>
-                  {r.hint && <FieldDescription className="text-xs tabular-nums">{r.hint}</FieldDescription>}
-                </FieldContent>
-                <Switch checked={r.checked} disabled={r.disabled} onCheckedChange={r.onChange} />
-              </FieldLabel>
-            </Field>
-          </Fragment>
-        ))}
-      </FieldGroup>
-    </Card>
-  );
-}
 
 export function TrackedEmailsForm({
   types,

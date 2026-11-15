@@ -4,7 +4,8 @@ import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { EMAIL_EVENT_TYPES, type EmailEventRouting, type EmailEventType, type EmailStream } from "@relay/email/events/types";
 import type { ActionResult } from "@/lib/actions/action-result";
-import { LoadErrorAlert, SaveBar, SwitchList } from "./email-tracking-section";
+import { SaveBar, SwitchList } from "@/components/ds/switch-list";
+import { LoadErrorAlert } from "./email-tracking-section";
 import { EVENT_NAME, FORCED_NOTE, STREAM_NAME, routingChanges } from "./event-names";
 
 const FORCED: readonly EmailEventType[] = ["bounce", "complaint"];
