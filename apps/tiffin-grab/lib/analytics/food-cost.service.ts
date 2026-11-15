@@ -3,6 +3,7 @@ import { db } from "@/db/client";
 import { categoryCostRates, deliveries, deliveryCategorySwaps, dishCategories, mealSizeItems, orderAddons, orders } from "@/db/schema";
 import { coveredDates } from "@/lib/deliveries/schedule/coverage";
 import { type TuCategory } from "@/lib/menu/format-tu";
+import { ADDON_SORT_BASE } from "@/lib/menu/grid-types";
 import { slotRowsAfterSwaps, type MealSizeItemRow, type PortionSwap } from "@/lib/menu/pick-size";
 import { swapsForDay } from "@/lib/menu/trip-meals";
 import { type AnalyticsScope } from "@/lib/analytics/scope-types";
@@ -12,7 +13,7 @@ import { noOrgs } from "./metrics/scope";
 
 export type FoodCostDay = { foodCost: number; tiffinsWithoutRate: number; unratedCategories: string[] };
 
-/** One tiffin's picks for one eating day: the meal's slots after that day's swaps, then the add-on rows. */
+/** One tiffin's picks for one eating day: the meal's rows plus add-on rows, folded through that day's swaps like the kitchen sheet. */
 export function deliveryPicks(input: {
   items: (MealSizeItemRow & { planId: bigint })[];
   swaps: PortionSwap[];
@@ -21,23 +22,31 @@ export function deliveryPicks(input: {
   categoriesByKey: Map<string, TuCategory>;
 }): CostPick[] {
   const { items, swaps, addons, orderPlanId, categoriesByKey } = input;
-  const plansByCategory = new Map<string, bigint[]>();
+  const mealPlans = new Map<string, bigint[]>();
   for (const item of [...items].sort((a, b) => a.sortOrder - b.sortOrder)) {
-    const list = plansByCategory.get(item.category) ?? [];
+    const list = mealPlans.get(item.category) ?? [];
     list.push(item.planId);
-    plansByCategory.set(item.category, list);
+    mealPlans.set(item.category, list);
+  }
+
+  const addonRows = addons.flatMap((a) => Array.from({ length: a.qty }, () => a));
+  const rows = [...items, ...addonRows.map((a, i) => ({ category: a.category, planId: a.planId, tuAmount: a.tuAmount, sortOrder: ADDON_SORT_BASE + i }))].sort(
+    (a, b) => a.sortOrder - b.sortOrder,
+  );
+  const rowPlans = new Map<string, bigint[]>();
+  for (const row of rows) {
+    const list = rowPlans.get(row.category) ?? [];
+    list.push(row.planId);
+    rowPlans.set(row.category, list);
   }
 
   const picks: CostPick[] = [];
-  for (const [category, slots] of slotRowsAfterSwaps(items, swaps, categoriesByKey)) {
+  for (const [category, slots] of slotRowsAfterSwaps(rows, swaps, categoriesByKey)) {
     for (const slot of slots) {
       // A received slot has no source row: it is priced on the meal's first item of its category, else the order's plan.
-      const planId = slot.row == null ? (plansByCategory.get(category)?.[0] ?? orderPlanId) : plansByCategory.get(category)![slot.row]!;
+      const planId = slot.row == null ? (mealPlans.get(category)?.[0] ?? orderPlanId) : rowPlans.get(category)![slot.row]!;
       picks.push({ category, planId, tu: slot.value });
     }
-  }
-  for (const addon of addons) {
-    for (let i = 0; i < addon.qty; i++) picks.push({ category: addon.category, planId: addon.planId, tu: addon.tuAmount });
   }
   return picks;
 }

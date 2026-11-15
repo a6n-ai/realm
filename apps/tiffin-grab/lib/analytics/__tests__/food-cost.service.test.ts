@@ -59,6 +59,36 @@ describe("deliveryPicks", () => {
     const addons = [{ category: "roti", planId: VEG, tuAmount: 1, qty: 1 }];
     expect(deliveryPicks({ ...base, items: [], addons })).toEqual([{ category: "roti", planId: VEG, tu: 1 }]);
   });
+
+  it("fromRow gives up that row, not row 0", () => {
+    const items = [item("sabzi", NONVEG, 1.5, 0), item("sabzi", VEG, 1, 1), item("daal", VEG, 1, 2)];
+    const swaps = [{ fromCategory: "sabzi", toCategory: "daal", qtyFrom: 1, qtyTo: 1, fromRow: 1, receiveTu: null }];
+    expect(deliveryPicks({ ...base, items, swaps })).toEqual([
+      { category: "sabzi", planId: NONVEG, tu: 1.5 },
+      { category: "daal", planId: VEG, tu: 1 },
+      { category: "daal", planId: VEG, tu: 1 },
+    ]);
+  });
+
+  it("receiveTu prices the received pick at the override", () => {
+    const items = [item("sabzi", NONVEG, 1.5, 0), item("daal", VEG, 1, 1)];
+    const swaps = [{ fromCategory: "sabzi", toCategory: "daal", qtyFrom: 1, qtyTo: 1, fromRow: null, receiveTu: 1.25 }];
+    expect(deliveryPicks({ ...base, items, swaps })).toEqual([
+      { category: "daal", planId: VEG, tu: 1 },
+      { category: "daal", planId: VEG, tu: 1.25 },
+    ]);
+  });
+
+  it("a swap that gives up an add-on row removes that add-on pick and its plan", () => {
+    const items = [item("sabzi", NONVEG, 1.5, 0), item("daal", VEG, 1, 1)];
+    const addons = [{ category: "sabzi", planId: VEG, tuAmount: 1, qty: 1 }];
+    const swaps = [{ fromCategory: "sabzi", toCategory: "daal", qtyFrom: 1, qtyTo: 1, fromRow: 1, receiveTu: null }];
+    expect(deliveryPicks({ ...base, items, addons, swaps })).toEqual([
+      { category: "sabzi", planId: NONVEG, tu: 1.5 },
+      { category: "daal", planId: VEG, tu: 1 },
+      { category: "daal", planId: VEG, tu: 1 },
+    ]);
+  });
 });
 
 const FROM = "2036-03-01";
