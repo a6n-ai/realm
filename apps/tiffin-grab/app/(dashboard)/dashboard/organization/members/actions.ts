@@ -50,6 +50,8 @@ async function authorizeTarget(userPublicId: string): Promise<void> {
       await requirePermissionIn(r.organizationId, { member: ["update"] });
       await requireOwnerToGrant(r.organizationId, r.role);
     }
+    // A customer account added to an org is still a customer: both checks apply.
+    if (isCustomerRole(target.role)) await requirePermission({ customer: ["manage"] });
     return;
   }
   // Customers are global (the customers pages apply no org scope), so customer:manage is the whole check.
