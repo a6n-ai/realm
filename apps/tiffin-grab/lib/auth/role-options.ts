@@ -1,6 +1,6 @@
 import { listCustomRoleNames } from "@/lib/services/organizations.service";
 import { can, canAssignRole } from "./guards";
-import { getOrgAccess } from "./org-access";
+import { getOrgAccess, getOrgAccessFor } from "./org-access";
 import { orgRoles } from "./permissions";
 import { getSession } from "./session";
 
@@ -13,6 +13,18 @@ export async function getRoleOptions(organizationId: string | null): Promise<Rol
 }
 
 export type RoleChoice = RoleOption & { locked?: boolean };
+
+/** Options for one org, locked where the add, role and owner guards would refuse the viewer. */
+export async function getRoleChoicesFor(organizationId: string): Promise<RoleChoice[]> {
+  const access = await getOrgAccessFor(organizationId);
+  const canGrantOwner = access.kind === "platform" || (access.kind === "member" && access.roles.includes(orgRoles.owner));
+  return Promise.all(
+    (await getRoleOptions(organizationId)).map(async (o) => {
+      const ok = (o.value !== "owner" || canGrantOwner) && (await canAssignRole(organizationId, o.value));
+      return ok ? o : { ...o, locked: true };
+    }),
+  );
+}
 
 /** Role options for the viewer's active org; locked when the viewer may not hand the role out (`owner`, or more than they hold). */
 export async function getRoleChoices(): Promise<{ organizationId: string | null; options: RoleChoice[]; canGrantOwner: boolean; canInvite: boolean }> {

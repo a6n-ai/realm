@@ -60,7 +60,9 @@ export function MemberPanelBody({
   const [pending, start] = useTransition();
   const [confirm, setConfirm] = useState<Confirm>(null);
   const [addOrgId, setAddOrgId] = useState("");
+  const [addRole, setAddRole] = useState("");
   const label = member.name || member.email || "This person";
+  const addRoles = addableOrgs.find((o) => o.id === addOrgId)?.roles ?? [];
 
   async function assign(roles: string[]): Promise<{ error?: string }> {
     const res = await setMemberRoles(member.memberId, roles);
@@ -112,12 +114,13 @@ export function MemberPanelBody({
 
   function addToOrg() {
     start(async () => {
-      const res = await addMemberAction(addOrgId, member.id, "admin");
+      const res = await addMemberAction(addOrgId, member.id, addRole);
       if (!res.ok) {
         toast.error(res.error);
         return;
       }
       setAddOrgId("");
+      setAddRole("");
       router.refresh();
     });
   }
@@ -138,7 +141,7 @@ export function MemberPanelBody({
           <OrgRoleDialog
             resources={resources}
             grantable={grantable}
-            initial={{ name: "", permission: access.permissions }}
+            initial={{ name: "", permission: Object.fromEntries(Object.entries(access.permissions).map(([r, acts]) => [r, (acts ?? []).filter((a) => (grantable[r] ?? []).includes(a))])) }}
             trigger={
               <Button variant="outline" size="sm" className="justify-self-start">
                 Create a role from these permissions
@@ -176,13 +179,13 @@ export function MemberPanelBody({
           {memberships.map((m) => (
             <li key={m.organizationId} className="flex items-center justify-between gap-3 text-sm">
               <span className="min-w-0 truncate">{m.name}</span>
-              <Badge variant="secondary" className="capitalize">{m.role}</Badge>
+              {m.role && <Badge variant="secondary" className="capitalize">{m.role}</Badge>}
             </li>
           ))}
         </ul>
         {addableOrgs.length > 0 && (
           <div className="flex flex-wrap items-center gap-2">
-            <Select value={addOrgId} onValueChange={setAddOrgId}>
+            <Select value={addOrgId} onValueChange={(id) => { setAddOrgId(id); setAddRole(""); }}>
               <SelectTrigger size="sm" className="min-w-48 flex-1" aria-label="Organization">
                 <SelectValue placeholder="Add to an organization" />
               </SelectTrigger>
@@ -192,7 +195,19 @@ export function MemberPanelBody({
                 ))}
               </SelectContent>
             </Select>
-            <Button size="sm" variant="outline" disabled={pending || !addOrgId} onClick={addToOrg}>
+            {addOrgId && (
+              <Select value={addRole} onValueChange={setAddRole}>
+                <SelectTrigger size="sm" className="min-w-40" aria-label="Role">
+                  <SelectValue placeholder="Choose a role" />
+                </SelectTrigger>
+                <SelectContent>
+                  {addRoles.map((r) => (
+                    <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            <Button size="sm" variant="outline" disabled={pending || !addOrgId || !addRole} onClick={addToOrg}>
               Add
             </Button>
           </div>

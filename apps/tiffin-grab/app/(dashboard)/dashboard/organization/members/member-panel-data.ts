@@ -1,7 +1,7 @@
 import type { AccessRow, ChipContext, PermissionMap } from "@foundry/crm";
 import { can, canIn } from "@/lib/auth/guards";
 import { effectivePermissions, getOrgAccess } from "@/lib/auth/org-access";
-import { getRoleChoices, type RoleChoice } from "@/lib/auth/role-options";
+import { getRoleChoices, getRoleChoicesFor, type RoleChoice, type RoleOption } from "@/lib/auth/role-options";
 import { getSession } from "@/lib/auth/session";
 import { getOrgAccessMatrix } from "@/lib/services/org-access-matrix";
 import { listMembershipsForUser, listOrganizations } from "@/lib/services/organizations.service";
@@ -17,9 +17,10 @@ export type MemberPanelData = {
   /** The viewer's own effective permissions: what "Create a role from these permissions" may grant. */
   grantable: PermissionMap;
   canCreateRole: boolean;
-  memberships: { organizationId: string; name: string; role: string }[];
-  /** Orgs the viewer may add this person to and the person is not in yet. */
-  addableOrgs: { id: string; name: string }[];
+  /** The active org's role, plus other orgs by name only where the viewer may manage members. */
+  memberships: { organizationId: string; name: string; role: string | null }[];
+  /** Orgs the viewer may add this person to and the person is not in yet, with the roles the viewer may give there. */
+  addableOrgs: { id: string; name: string; roles: RoleOption[] }[];
 };
 
 /** `memberId` is member.id (the org membership), not the user's publicId. Null when not visible to the viewer. */
@@ -47,8 +48,16 @@ export async function loadMemberPanel(memberId: string): Promise<MemberPanelData
   const aboveViewer = choices.options.filter((o) => o.locked).map((o) => o.value);
   const owners = matrix.rows.filter((r) => r.roles.includes("owner")).length;
   const notIn = new Set(memberships.map((m) => m.organizationId));
-  const candidates = orgs.filter((o) => !notIn.has(o.id));
-  const manageable = await Promise.all(candidates.map((o) => canIn(o.id, { member: ["update"] })));
+  const manageableFlags = await Promise.all(orgs.map((o) => canIn(o.id, { member: ["update"] })));
+  const manageable = new Set(orgs.filter((_, i) => manageableFlags[i]).map((o) => o.id));
+  const addable = orgs.filter((o) => !notIn.has(o.id) && manageable.has(o.id));
+  const addableOrgs = await Promise.all(
+    addable.map(async (o) => ({
+      id: o.id,
+      name: o.name,
+      roles: (await getRoleChoicesFor(o.id)).filter((r) => !r.locked),
+    })),
+  );
 
   return {
     member,
@@ -64,7 +73,13 @@ export async function loadMemberPanel(memberId: string): Promise<MemberPanelData
     options: choices.options,
     grantable: effectivePermissions(viewer),
     canCreateRole,
-    memberships: memberships.map((m) => ({ organizationId: m.organizationId, name: m.organizationName, role: m.role })),
-    addableOrgs: candidates.filter((_, i) => manageable[i]).map((o) => ({ id: o.id, name: o.name })),
+    memberships: memberships
+      .filter((m) => m.organizationId === orgId || manageable.has(m.organizationId))
+      .map((m) => ({
+        organizationId: m.organizationId,
+        name: m.organizationName,
+        role: m.organizationId === orgId ? m.role : null,
+      })),
+    addableOrgs: addableOrgs.filter((o) => o.roles.length > 0),
   };
 }

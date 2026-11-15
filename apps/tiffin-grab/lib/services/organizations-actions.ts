@@ -114,6 +114,20 @@ export async function addMemberAction(
   userPublicId: string,
   role: MemberRole,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  // Refusals come back as values: production builds redact thrown server-action errors.
+  try {
+    return await addMemberChecked(organizationId, userPublicId, role);
+  } catch (e) {
+    if (e instanceof ForbiddenError || e instanceof AuthError) return { ok: false, error: e.message };
+    throw e;
+  }
+}
+
+async function addMemberChecked(
+  organizationId: string,
+  userPublicId: string,
+  role: MemberRole,
+): Promise<{ ok: true } | { ok: false; error: string }> {
   await requirePermissionIn(organizationId, { member: ["update"] });
   // `role` is only typed: a server action receives whatever the client sends.
   if (!(await getRoleOptions(organizationId)).some((o) => o.value === role)) {
@@ -123,11 +137,19 @@ export async function addMemberAction(
   await requireCanAssignRole(organizationId, role);
   try {
     await addMember(organizationId, userPublicId, role);
-    revalidatePath(`/dashboard/organization/settings/${organizationId}`);
-    return { ok: true };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Could not add member." };
   }
+  const session = await getSession();
+  await recordAudit({
+    entity: "member",
+    entityPublicId: userPublicId,
+    operation: "create",
+    changes: { organizationId, role },
+    createdBy: session ? await userIdByPublicId(session.user.id) : null,
+  });
+  revalidatePath(`/dashboard/organization/settings/${organizationId}`);
+  return { ok: true };
 }
 
 export async function updateOrganizationAction(

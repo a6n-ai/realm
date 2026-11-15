@@ -132,7 +132,8 @@ const isMemberConflict = (e: unknown) => isUniqueViolation(e, "member_org_user_u
 
 // The only two roles anything in this codebase writes to member.role (see
 // createFranchise's owner-member insert and db/seed-brand-org.ts's admin backfill).
-export type MemberRole = "owner" | "admin";
+// Any role the org defines, built-in or custom; the action checks it against getRoleOptions.
+export type MemberRole = string;
 
 export async function addMember(organizationId: string, userPublicId: string, role: MemberRole): Promise<void> {
   const userId = await userIdByPublicId(userPublicId);

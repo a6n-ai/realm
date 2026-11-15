@@ -3,7 +3,7 @@ import { BackButton, SectionCard, UserAvatar } from "@/components/ds";
 import { Badge } from "@/components/reui/badge";
 import { canIn } from "@/lib/auth/guards";
 import { getOrganization, listFranchiseCities, listMembers } from "@/lib/services/organizations.service";
-import { getRoleOptions } from "@/lib/auth/role-options";
+import { getRoleChoicesFor } from "@/lib/auth/role-options";
 import { getSession } from "@/lib/auth/session";
 import { ClientDetailForm } from "./client-detail-form";
 import { StaffSection } from "./staff-section";
@@ -17,7 +17,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
     listMembers(id),
     listFranchiseCities(),
     org.parentOrganizationId ? getOrganization(org.parentOrganizationId) : null,
-    getRoleOptions(id),
+    getRoleChoicesFor(id),
     getSession(),
   ]);
   const isBrand = !org.parentOrganizationId;
