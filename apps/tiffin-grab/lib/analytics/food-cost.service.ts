@@ -8,7 +8,7 @@ import { slotRowsAfterSwaps, type MealSizeItemRow, type PortionSwap } from "@/li
 import { swapsForDay } from "@/lib/menu/trip-meals";
 import { type AnalyticsScope } from "@/lib/analytics/scope-types";
 import { tiffinFoodCost, type CostPick, type CostRate } from "./food-cost";
-import { deliveredWhere } from "./profitability.service";
+import { deliveredWhere } from "./delivered-where";
 import { noOrgs } from "./metrics/scope";
 
 export type FoodCostDay = { foodCost: number; tiffinsWithoutRate: number; unratedCategories: string[] };

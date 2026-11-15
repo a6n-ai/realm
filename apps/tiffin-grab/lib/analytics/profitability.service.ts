@@ -6,6 +6,7 @@ import { getProfitabilityAssumptions } from "@/lib/analytics/profitability-setti
 import { costBreakdown, decorateDay, kpis, rollup, type CostPart, type Grain, type ProfitabilityAssumptions, type ProfitabilityKpis, type ProfitRow } from "@/lib/analytics/profitability";
 import { chartPeriod } from "@/lib/analytics/buckets";
 import { foodCostByDate } from "./food-cost.service";
+import { deliveredBase, deliveredWhere } from "./delivered-where";
 import { moneyDate, netExTax, refundExTax, revenueBy, revenueTotals } from "./metrics/money";
 import { WP_MIGRATED } from "@/lib/orders/wordpress-import-sql";
 import { CAPTURED } from "@/lib/payments/status";
@@ -60,20 +61,6 @@ const UNPAID_PER_TIFFIN = sql`greatest(
   ((${orders.total}::numeric - coalesce((${orders.pricingSnapshot}->>'taxTotal')::numeric, 0)) - ${CAPTURED_NET})
   / nullif(${orders.tiffinCount}, 0), 0)`;
 
-function deliveredBase(scope: AnalyticsScope, from: string, to: string) {
-  return [
-    eq(deliveries.status, "scheduled"),
-    eq(deliveries.optimoCompletionStatus, "success"),
-    gte(deliveries.deliveryDate, from),
-    lte(deliveries.deliveryDate, to),
-    ordersScope(scope),
-  ];
-}
-
-/** Delivered tiffins in a date window, WordPress-migrated orders excluded. Shared by earned revenue and food cost. */
-export function deliveredWhere(scope: AnalyticsScope, from: string, to: string) {
-  return and(...deliveredBase(scope, from, to), sql`not ${WP_MIGRATED}`);
-}
 
 /**
  * Delivered tiffins in the window — same predicate as tiffin-counts.ts
