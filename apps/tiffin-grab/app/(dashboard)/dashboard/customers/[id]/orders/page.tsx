@@ -5,7 +5,7 @@ import { SectionCard } from "@/components/ds";
 import { formatDateOnly } from "@/lib/format/datetime";
 import { upcomingAddressChanges } from "@/lib/services/customers.service";
 import { CustomerOrdersTable } from "../customer-orders-table";
-import { loadCustomer, loadViewer } from "../data";
+import { loadCustomer, loadCustomerOrders, loadViewer } from "../data";
 import { requestNow } from "@/lib/dates/request-now";
 import { requirePagePermission } from "@/lib/auth/guards";
 
@@ -28,10 +28,10 @@ export default async function CustomerOrdersPage({
   await requirePagePermission({ order: ["read"] });
   const { id } = await params;
   const activeOnly = (await searchParams).status === "active";
-  const [data, { timezone }] = await Promise.all([loadCustomer(id), loadViewer()]);
-  const orders = activeOnly ? data.orders.filter((o) => o.status === "active") : data.orders;
-  const changes = await upcomingAddressChanges(data.profile.id, zonedDateIso(requestNow(), timezone));
-  const live = data.orders.filter((o) => inOrderStatuses(LIVE, o.status));
+  const [allOrders, { profile }, { timezone }] = await Promise.all([loadCustomerOrders(id), loadCustomer(id), loadViewer()]);
+  const orders = activeOnly ? allOrders.filter((o) => o.status === "active") : allOrders;
+  const changes = await upcomingAddressChanges(profile.id, zonedDateIso(requestNow(), timezone));
+  const live = allOrders.filter((o) => inOrderStatuses(LIVE, o.status));
 
   return (
     <>

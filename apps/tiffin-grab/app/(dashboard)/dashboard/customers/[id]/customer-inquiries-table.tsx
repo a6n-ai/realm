@@ -8,10 +8,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { TableCell } from "@foundry/ui/table";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@foundry/design-system/timezone-provider";
-import type { getCustomer360 } from "@/lib/services/customers.service";
+import type { getCustomerInquiries } from "@/lib/services/customers.service";
 import { displayName } from "@/lib/inquiries/display";
 
-type CustomerInquiryRow = Awaited<ReturnType<typeof getCustomer360>>["inquiries"][number];
+type CustomerInquiryRow = Awaited<ReturnType<typeof getCustomerInquiries>>[number];
 
 // Same DataTable shape as the standalone /dashboard/inquiries table (see
 // inquiries-list.tsx) — a read-only, unpaginated slice scoped to one customer, so it

@@ -10,7 +10,7 @@ import { formatDateOnly, formatEpoch } from "@/lib/format/datetime";
 import { getAppSettings } from "@/lib/settings";
 import { listPayments } from "@/lib/payments/payments-list.service";
 import { PaymentsTable, PaymentsTableSkeleton } from "../../../payments/payments-table";
-import { loadCustomer, loadViewer } from "../data";
+import { loadCustomer, loadCustomerPayments, loadViewer } from "../data";
 import { requirePagePermission } from "@/lib/auth/guards";
 
 type SearchParams = Promise<Record<string, string | undefined>>;
@@ -19,10 +19,15 @@ type SearchParams = Promise<Record<string, string | undefined>>;
 export default async function CustomerPaymentsPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: SearchParams }) {
   await requirePagePermission({ finance: ["read"] });
   const { id } = await params;
-  const [data, { timezone }, { currency }, sp] = await Promise.all([loadCustomer(id), loadViewer(), getAppSettings(), searchParams]);
+  const [{ payment, orderCount }, { profile }, { timezone }, { currency }, sp] = await Promise.all([
+    loadCustomerPayments(id),
+    loadCustomer(id),
+    loadViewer(),
+    getAppSettings(),
+    searchParams,
+  ]);
   // The export follows the filters open in the table; paging doesn't apply to a download.
   const exportQs = new URLSearchParams(Object.entries(sp).filter((e): e is [string, string] => e[1] != null && e[0] !== "page" && e[0] !== "size"));
-  const { payment } = data;
   const money = (v: number) => formatMoney(v, currency);
   const cards: StatCardItem[] = [
     {
@@ -38,7 +43,7 @@ export default async function CustomerPaymentsPage({ params, searchParams }: { p
       tone: payment.outstanding.amount > 0 ? "bad" : undefined,
       hint: payment.outstanding.count ? `${payment.outstanding.count} unpaid or rejected` : "Nothing owed",
     },
-    { label: "Refunded", value: money(payment.refunded), icon: Undo2Icon, hint: `${data.orders.length} orders in total` },
+    { label: "Refunded", value: money(payment.refunded), icon: Undo2Icon, hint: `${orderCount} orders in total` },
     {
       label: "Last tiffin delivered",
       value: payment.lastDeliveredDate ? formatDateOnly(payment.lastDeliveredDate) : "—",
@@ -62,7 +67,7 @@ export default async function CustomerPaymentsPage({ params, searchParams }: { p
         }
       >
         <Suspense fallback={<PaymentsTableSkeleton scope="customer" />}>
-          <CustomerPaymentsData userId={data.profile.id} searchParams={searchParams} />
+          <CustomerPaymentsData userId={profile.id} searchParams={searchParams} />
         </Suspense>
       </SectionCard>
     </>

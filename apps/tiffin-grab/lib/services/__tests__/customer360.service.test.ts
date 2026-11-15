@@ -7,7 +7,7 @@ const { db } = await import("@/db/client");
 const { deleteNonSystemUsers } = await import("@/db/test-helpers");
 const { users, inquiries, leadSources, orders, payments, orderActivities, inquiryActivities, walletLedger, deliveries, plans, mealSizes, deliveryFrequencies } = await import("@/db/schema");
 const { awardCustomerBroadcast } = await import("../customer-payouts.service");
-const { getCustomer360 } = await import("../customers.service");
+const { getCustomerInquiries, getCustomerPayments, walletTimeline } = await import("../customers.service");
 
 async function reset() {
   await db.delete(walletLedger);
@@ -19,17 +19,16 @@ async function reset() {
   await deleteNonSystemUsers();
 }
 
-describe("getCustomer360 (integration)", () => {
+describe("customer sections (integration)", () => {
   beforeEach(reset);
   afterAll(reset);
 
-  it("shows Give coins grants in the timeline with who gave them", async () => {
+  it("shows Give coins grants in the wallet events with who gave them", async () => {
     const [u] = await db.insert(users).values({ email: "coins@example.com", role: "user" }).returning({ id: users.id, publicId: users.publicId });
     const [staff] = await db.insert(users).values({ email: "staff@example.com", name: "Priya Staff", role: "admin" }).returning({ id: users.id });
     await awardCustomerBroadcast([u.id], 40, "Diwali thank-you", staff.id);
 
-    const { timeline } = await getCustomer360(u.publicId);
-    const wallet = timeline.filter((e) => e.kind === "wallet");
+    const wallet = await walletTimeline(u.id);
     expect(wallet.map((e) => e.label)).toEqual(['+40 coins · Staff grant · "Diwali thank-you" · by Priya Staff']);
   });
 
@@ -56,20 +55,20 @@ describe("getCustomer360 (integration)", () => {
       { ...dlv, deliveryDate: "2035-01-04", status: "skipped", optimoCompletionStatus: "success" },
     ]);
 
-    const { payment } = await getCustomer360(u.publicId);
+    const { payment } = await getCustomerPayments(u.id);
     expect(payment).toMatchObject({
       totalPaid: 50, paidCount: 1, lastPaidAt: 1_000,
       outstanding: { count: 1, amount: 20 }, refunded: 15, lastDeliveredDate: "2035-01-02",
     });
   });
 
-  it("getCustomer360 lists inquiries linked by customer_id, not ones that only share a contact", async () => {
+  it("lists inquiries linked by customer_id, not ones that only share a contact", async () => {
     const [u] = await db.insert(users).values({ email: "linked@example.com", role: "user" }).returning({ id: users.id, publicId: users.publicId });
     const [manual] = await db.select({ id: leadSources.id }).from(leadSources).where(eq(leadSources.key, "manual")).limit(1);
     await db.insert(inquiries).values({ fullName: "Linked Person", phone: "+10000000001", email: "other@x.com", sourceId: manual.id, stage: "new", customerId: u.id });
     await db.insert(inquiries).values({ fullName: "Same Email Only", phone: "+10000000002", email: "LINKED@example.com", sourceId: manual.id, stage: "new" });
 
-    const result = await getCustomer360(u.publicId);
-    expect(result.inquiries.map((i) => i.fullName)).toEqual(["Linked Person"]);
+    const result = await getCustomerInquiries(u.id);
+    expect(result.map((i) => i.fullName)).toEqual(["Linked Person"]);
   });
 });

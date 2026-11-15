@@ -11,8 +11,8 @@ import { loadCustomer, loadViewer } from "../data";
 /** Referrals tab: their code, who referred them, and the friends who joined with their code. */
 export default async function CustomerReferralsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const [data, { timezone }] = await Promise.all([loadCustomer(id), loadViewer()]);
-  const referral = await getReferralInfo(data.profile.id);
+  const [{ profile }, { timezone }] = await Promise.all([loadCustomer(id), loadViewer()]);
+  const referral = await getReferralInfo(profile.id);
   const earned = referral.friends.filter((f) => f.status !== "reversed").reduce((n, f) => n + f.referrerCoins, 0);
 
   return (

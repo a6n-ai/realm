@@ -1,37 +1,46 @@
 import { SectionCard } from "@/components/ds";
-import { listCustomerOrderActivities } from "@/lib/orders/orders.service";
+import { can } from "@/lib/auth/guards";
+import { inquiryTimeline } from "@/lib/services/customers.service";
 import { OrderActivityLog, type OrderActivityLogRow } from "../../../orders/[id]/order-activity-log";
 import { CUSTOMER_ACTIVITY_FACETS } from "../../../orders/[id]/activity-facets";
-import { loadCustomer } from "../data";
+import {
+  loadCustomerAddressEvents,
+  loadCustomerInquiries,
+  loadCustomerOrderActivity,
+  loadCustomerPlanAddressEvents,
+  loadCustomerWalletEvents,
+} from "../data";
 
 const ACCOUNT_TYPE = { address: "account_address", wallet: "account_wallet", inquiry: "account_inquiry" } as const;
 
-/** Activity tab: the order page's log across every order of this customer, plus account events (addresses, coins, inquiries). */
+/** Activity tab: the order page's log across every order of this customer, plus account events (addresses, coins, inquiries). Each part needs its own permission. */
 export default async function CustomerActivityPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const data = await loadCustomer(id);
-  const orderRows = await listCustomerOrderActivities(data.profile.id);
+  const [canOrder, canInquiry, canWallet] = await Promise.all([can({ order: ["read"] }), can({ inquiry: ["read"] }), can({ wallet: ["read"] })]);
+  const [orderRows, planAddress, inquiryEvents, walletEvents, addressEvents] = await Promise.all([
+    canOrder ? loadCustomerOrderActivity(id) : [],
+    canOrder ? loadCustomerPlanAddressEvents(id) : [],
+    canInquiry ? loadCustomerInquiries(id).then(inquiryTimeline) : [],
+    canWallet ? loadCustomerWalletEvents(id) : [],
+    loadCustomerAddressEvents(id),
+  ]);
+  const account = [...inquiryEvents, ...walletEvents, ...addressEvents, ...planAddress].sort((a, b) => b.at - a.at);
 
   const rows: OrderActivityLogRow[] = [
     ...orderRows.map(({ orderPublicId, deploymentId, ...r }) => ({ ...r, order: { publicId: orderPublicId, label: deploymentId } })),
-    // Order creation is already in the order log; the rest belong to the account, not an order.
-    ...data.timeline.flatMap((e) =>
-      e.kind === "order"
-        ? []
-        : [{
-            publicId: e.id,
-            type: ACCOUNT_TYPE[e.kind],
-            note: e.label,
-            fromStatus: null,
-            toStatus: null,
-            createdAt: e.at,
-            createdBy: null,
-            actorName: null,
-            actorEmail: null,
-            actorRole: null,
-            noActor: true,
-          }],
-    ),
+    ...account.map((e) => ({
+      publicId: e.id,
+      type: ACCOUNT_TYPE[e.kind],
+      note: e.label,
+      fromStatus: null,
+      toStatus: null,
+      createdAt: e.at,
+      createdBy: null,
+      actorName: null,
+      actorEmail: null,
+      actorRole: null,
+      noActor: true,
+    })),
   ];
 
   return (

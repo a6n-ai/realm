@@ -540,7 +540,7 @@ const walletActor = alias(users, "wallet_actor");
 const STAFF_WALLET_SOURCES = new Set(["manual_broadcast", "adjustment"]);
 
 /** Coin credits/debits for the staff timeline. Lapsed checkout holds never moved coins, so they are left out. */
-async function walletTimeline(userId: bigint) {
+export async function walletTimeline(userId: bigint) {
   const rows = await db
     .select({ publicId: walletLedger.publicId, direction: walletLedger.direction, coins: walletLedger.coins, sourceType: walletLedger.sourceType, memo: walletLedger.memo, at: walletLedger.createdAt, actor: walletActor.name })
     .from(walletLedger)
@@ -559,7 +559,7 @@ async function walletTimeline(userId: bigint) {
 }
 
 /** Address-book changes (staff or customer) from the audit log, archived addresses included. */
-async function addressTimeline(userId: bigint) {
+export async function addressTimeline(userId: bigint) {
   const book = await db.select({ publicId: customerAddresses.publicId, label: customerAddresses.label })
     .from(customerAddresses).where(eq(customerAddresses.userId, userId));
   if (!book.length) return [];
@@ -576,7 +576,7 @@ async function addressTimeline(userId: bigint) {
 }
 
 /** Plan and one-day address changes on this customer's orders (staff or customer). */
-async function planAddressTimeline(userId: bigint, orderRows: { id: bigint; publicId: string; deploymentId: string }[]) {
+export async function planAddressTimeline(userId: bigint, orderRows: { id: bigint; publicId: string; deploymentId: string }[]) {
   if (!orderRows.length) return [];
   const byId = new Map(orderRows.map((o) => [o.id, o]));
   const rows = await db.select({ publicId: orderActivities.publicId, orderId: orderActivities.orderId, note: orderActivities.note, at: orderActivities.createdAt, by: orderActivities.createdBy, actor: users.name })
@@ -600,7 +600,8 @@ async function planAddressTimeline(userId: bigint, orderRows: { id: bigint; publ
   });
 }
 
-export async function getCustomer360(userPublicId: string) {
+/** Profile fields for the customer header and profile card (customer:read). */
+export async function getCustomerProfile(userPublicId: string) {
   const [user] = await db
     .select({
       id: users.id,
@@ -621,55 +622,56 @@ export async function getCustomer360(userPublicId: string) {
     .where(eq(users.publicId, userPublicId))
     .limit(1);
   if (!user || !isCustomerRole(user.role)) throw new NotFoundError("Customer not found");
+  return user;
+}
 
-  const [orderRows, inqRows] = await Promise.all([
-    db
-      .select({
-        id: orders.id,
-        publicId: orders.publicId,
-        deploymentId: orders.deploymentId,
-        fullName: orders.fullName,
-        city: orders.city,
-        addressLine: orders.addressLine,
-        addressUnit: orders.addressUnit,
-        postalCode: orders.postalCode,
-        deliveryInstructions: orders.deliveryInstructions,
-        status: orders.status,
-        startDate: orders.startDate,
-        total: orders.total,
-        createdAt: orders.createdAt,
-        // Named so the subscription switcher on this page can label an order the way
-        // staff talk about it ("Veg"), not just by its deployment id.
-        planName: plans.name,
-      })
-      .from(orders)
-      .innerJoin(plans, eq(orders.planId, plans.id))
-      .where(eq(orders.userId, user.id))
-      .orderBy(desc(orders.createdAt)),
-    db
-      .select({
-        publicId: inquiries.publicId,
-        fullName: inquiries.fullName,
-        phone: inquiries.phone,
-        stage: inquiries.stage,
-        source: leadSources.label,
-        createdAt: inquiries.createdAt,
-      })
-      .from(inquiries)
-      .innerJoin(leadSources, eq(inquiries.sourceId, leadSources.id))
-      .where(eq(inquiries.customerId, user.id))
-      .orderBy(desc(inquiries.createdAt)),
-  ]);
+/** A customer's orders, newest first (order:read). paymentStatus is finance data, so it is filled only when `withPayments`. */
+export async function getCustomerOrders(userId: bigint, { withPayments }: { withPayments: boolean }) {
+  const orderRows = await db
+    .select({
+      id: orders.id,
+      publicId: orders.publicId,
+      deploymentId: orders.deploymentId,
+      fullName: orders.fullName,
+      city: orders.city,
+      addressLine: orders.addressLine,
+      addressUnit: orders.addressUnit,
+      postalCode: orders.postalCode,
+      deliveryInstructions: orders.deliveryInstructions,
+      status: orders.status,
+      startDate: orders.startDate,
+      total: orders.total,
+      createdAt: orders.createdAt,
+      // Named so the subscription switcher on this page can label an order the way
+      // staff talk about it ("Veg"), not just by its deployment id.
+      planName: plans.name,
+    })
+    .from(orders)
+    .innerJoin(plans, eq(orders.planId, plans.id))
+    .where(eq(orders.userId, userId))
+    .orderBy(desc(orders.createdAt));
+  const statusByOrder = withPayments ? await planPaymentStatuses(orderRows.map((o) => o.id)) : new Map<string, string>();
+  return orderRows.map((o) => ({ ...o, paymentStatus: statusByOrder.get(o.id.toString()) ?? null }));
+}
 
-  const orderIds = orderRows.map((o) => o.id);
-  // Delivered = still scheduled and confirmed by OptimoRoute or staff (same rule as tiffin-counts.ts).
-  const lastDeliveredPromise = orderIds.length
-    ? db
-        .select({ date: sql<string | null>`max(${deliveries.deliveryDate})` })
-        .from(deliveries)
-        .where(and(inArray(deliveries.orderId, orderIds), eq(deliveries.status, "scheduled"), eq(deliveries.optimoCompletionStatus, "success")))
-        .then(([r]) => r?.date ?? null)
-    : Promise.resolve(null);
+/** Newest plan-payment status per order; add-on requests are not the plan's payment. */
+async function planPaymentStatuses(orderIds: bigint[]) {
+  const statusByOrder = new Map<string, string>();
+  if (!orderIds.length) return statusByOrder;
+  const rows = await db
+    .select({ orderId: payments.orderId, status: payments.status, addonRequest: payments.addonRequest })
+    .from(payments)
+    .where(inArray(payments.orderId, orderIds))
+    .orderBy(desc(payments.createdAt));
+  for (const p of rows) {
+    if (!p.addonRequest && !statusByOrder.has(p.orderId.toString())) statusByOrder.set(p.orderId.toString(), p.status);
+  }
+  return statusByOrder;
+}
+
+/** Payment totals, the last confirmed delivery and the order count (finance:read). */
+export async function getCustomerPayments(userId: bigint) {
+  const orderIds = (await db.select({ id: orders.id }).from(orders).where(eq(orders.userId, userId))).map((o) => o.id);
   const paymentRows = orderIds.length
     ? await db
         .select({
@@ -685,55 +687,59 @@ export async function getCustomer360(userPublicId: string) {
         .where(inArray(payments.orderId, orderIds))
         .orderBy(desc(payments.createdAt))
     : [];
-  const paymentStatusByOrder = new Map<string, string>();
+  // Delivered = still scheduled and confirmed by OptimoRoute or staff (same rule as tiffin-counts.ts).
+  const lastDeliveredDate = orderIds.length
+    ? await db
+        .select({ date: sql<string | null>`max(${deliveries.deliveryDate})` })
+        .from(deliveries)
+        .where(and(inArray(deliveries.orderId, orderIds), eq(deliveries.status, "scheduled"), eq(deliveries.optimoCompletionStatus, "success")))
+        .then(([r]) => r?.date ?? null)
+    : null;
   const planPayments = paymentRows.filter((p) => !p.addonRequest);
-  for (const p of planPayments) {
-    const key = p.orderId.toString();
-    if (!paymentStatusByOrder.has(key)) paymentStatusByOrder.set(key, p.status);
-  }
   const sumOf = (rows: typeof paymentRows) => rows.reduce((sum, p) => sum + Number(p.amount), 0);
   const paid = paymentRows.filter((p) => inStatuses(PAID, p.status));
   const unpaid = paymentRows.filter((p) => inStatuses(UNPAID, p.status));
-  const payment = {
-    totalPaid: sumOf(paid),
-    paidCount: paid.length,
-    lastPaidAt: paid.reduce<number | null>((at, p) => Math.max(at ?? 0, p.capturedAt ?? p.createdAt), null),
-    pendingCount: planPayments.filter((p) => inStatuses(PENDING, p.status)).length,
-    outstanding: { count: unpaid.length, amount: sumOf(unpaid) },
-    refunded: sumOf(paymentRows.filter((p) => p.status === "refunded")),
-    lastMethod: paymentRows[0]?.method ?? null,
-    lastDeliveredDate: await lastDeliveredPromise,
-  };
-
-  const timeline = [
-    ...orderRows.map((o) => ({ id: `order:${o.publicId}`, kind: "order" as const, label: `Order ${o.deploymentId} (${o.status})`, at: o.createdAt })),
-    ...inqRows.map((i) => ({ id: `inquiry:${i.publicId}`, kind: "inquiry" as const, label: `Inquiry from ${displayName(i)} (${i.stage})`, at: i.createdAt })),
-    ...(await addressTimeline(user.id)),
-    ...(await planAddressTimeline(user.id, orderRows)),
-    ...(await walletTimeline(user.id)),
-  ].sort((a, b) => b.at - a.at);
-
   return {
-    profile: {
-      id: user.id,
-      publicId: user.publicId,
-      name: user.name,
-      email: user.email,
-      emailVerified: user.emailVerified,
-      phone: user.phone,
-      createdAt: user.createdAt,
-      addressLine: user.addressLine,
-      city: user.city,
-      province: user.province,
-      postalCode: user.postalCode,
-      locale: user.locale,
+    orderCount: orderIds.length,
+    payment: {
+      totalPaid: sumOf(paid),
+      paidCount: paid.length,
+      lastPaidAt: paid.reduce<number | null>((at, p) => Math.max(at ?? 0, p.capturedAt ?? p.createdAt), null),
+      pendingCount: planPayments.filter((p) => inStatuses(PENDING, p.status)).length,
+      outstanding: { count: unpaid.length, amount: sumOf(unpaid) },
+      refunded: sumOf(paymentRows.filter((p) => p.status === "refunded")),
+      lastMethod: paymentRows[0]?.method ?? null,
+      lastDeliveredDate,
     },
-    payment,
-    orders: orderRows.map(({ id, ...o }) => ({
-      ...o,
-      paymentStatus: paymentStatusByOrder.get(id.toString()) ?? null,
-    })),
-    inquiries: inqRows,
-    timeline,
   };
+}
+
+/** Lifetime billed total and first order date for the header (finance:read). */
+export async function getCustomerSpend(userId: bigint) {
+  const rows = await db.select({ total: orders.total, createdAt: orders.createdAt }).from(orders).where(eq(orders.userId, userId));
+  return {
+    lifetimeSpend: rows.reduce((sum, o) => sum + Number(o.total), 0),
+    firstOrderAt: rows.reduce<number | null>((first, o) => (first == null || o.createdAt < first ? o.createdAt : first), null),
+  };
+}
+
+/** Inquiries linked to this customer by customer_id (inquiry:read). */
+export async function getCustomerInquiries(userId: bigint) {
+  return db
+    .select({
+      publicId: inquiries.publicId,
+      fullName: inquiries.fullName,
+      phone: inquiries.phone,
+      stage: inquiries.stage,
+      source: leadSources.label,
+      createdAt: inquiries.createdAt,
+    })
+    .from(inquiries)
+    .innerJoin(leadSources, eq(inquiries.sourceId, leadSources.id))
+    .where(eq(inquiries.customerId, userId))
+    .orderBy(desc(inquiries.createdAt));
+}
+
+export function inquiryTimeline(rows: Awaited<ReturnType<typeof getCustomerInquiries>>) {
+  return rows.map((i) => ({ id: `inquiry:${i.publicId}`, kind: "inquiry" as const, label: `Inquiry from ${displayName(i)} (${i.stage})`, at: i.createdAt }));
 }

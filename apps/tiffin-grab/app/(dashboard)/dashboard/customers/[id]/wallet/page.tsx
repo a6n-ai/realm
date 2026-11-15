@@ -41,8 +41,8 @@ export default function CustomerWalletPage({ params, searchParams }: { params: P
 async function WalletStats({ params }: { params: Promise<{ id: string }> }) {
   await requirePagePermission({ wallet: ["read"] });
   const { id } = await params;
-  const data = await loadCustomer(id);
-  const [s, { currency, timezone }] = await Promise.all([customerWalletStats(data.profile.id), getAppSettings()]);
+  const { profile } = await loadCustomer(id);
+  const [s, { currency, timezone }] = await Promise.all([customerWalletStats(profile.id), getAppSettings()]);
   const usd = (coins: number) => (s.rate == null ? null : formatMoney(coins * s.rate, currency));
   const cards: StatCardItem[] = [
     { label: "Balance", value: s.balance.toLocaleString(), icon: CoinsIcon, hint: usd(s.balance) ? `≈ ${usd(s.balance)}` : "coins held now" },
@@ -58,8 +58,8 @@ async function WalletStats({ params }: { params: Promise<{ id: string }> }) {
 async function WalletRows({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: SearchParams }) {
   await requirePagePermission({ wallet: ["read"] });
   const { id } = await params;
-  const [data, sp, { timezone }] = await Promise.all([loadCustomer(id), searchParams, getAppSettings()]);
-  const userId = data.profile.id;
+  const [{ profile }, sp, { timezone }] = await Promise.all([loadCustomer(id), searchParams, getAppSettings()]);
+  const userId = profile.id;
   const sort: SortState<CustomerWalletColumn> = parseSort(sp, [...SORTABLE], { column: "time", dir: "desc" });
   const direction = sp.direction === "credit" || sp.direction === "debit" ? sp.direction : undefined;
   const search: FacetDef = { kind: "search", fields: ["memo", "source"] };
