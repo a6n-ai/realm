@@ -15,7 +15,7 @@ import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { findZone } from "@/lib/catalog/zone-match";
 import { parseCanadianPostalCode } from "@/lib/catalog/postal";
 import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
-import { createWebsiteInquiry } from "@/lib/landing/contact-actions";
+import { recordWebsiteInquiry } from "@/lib/landing/inquiry-intake";
 import { runAction, type ActionResult } from "@/lib/actions/action-result";
 import type { CardSource, PayByCardResult } from "@/lib/payments/payment-stripe";
 import { captureMetaAttribution } from "@/lib/meta/request-context";
@@ -230,7 +230,7 @@ async function placeSubscription(rawInput: ConfirmInput): Promise<ConfirmResult>
   const { zones } = await loadCatalogSnapshot(orgId);
   const address = [input.contact.addressLine, input.contact.city, input.contact.postalCode].filter(Boolean).join(", ");
   if ((await findZone(zones, { postalCode: input.contact.postalCode, address }, orgId)) == null) {
-    await createWebsiteInquiry({
+    await recordWebsiteInquiry({
       fullName: input.contact.fullName,
       phone: input.contact.phone,
       email: input.contact.email,

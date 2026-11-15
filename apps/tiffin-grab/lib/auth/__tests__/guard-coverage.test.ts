@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 const APP = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 
 const ACTION_GUARD =
-  /\b(staffAction|orderAction|guard|requirePermission|requirePermissionIn|assertStaffSession|requireCustomer|requireCustomerId|requireCustomerSession|requireCustomerIdOrRedirect|requireActiveUser|assertCanManage\w*|assertOwn\w*|callerIsStaff|isStaffRole)\(/;
+  /\b(staffAction|orderAction|guard|requirePermission|requirePermissionIn|assertStaffSession|requireCustomer|requireCustomerId|requireCustomerSession|requireCustomerIdOrRedirect|requireActiveUser|guardPublicWrite|assertCanManage\w*|assertOwn\w*|callerIsStaff|isStaffRole)\(/;
 const ROUTE_GUARD =
   /\b(requirePermission|requirePermissionIn|requirePagePermission|assertStaffSession|adminRoute|adminIdRoute|withCronAuth|cronRoutes|cronJobRoute|CRON_SECRET|captcha\w*|constructEvent|stripe-signature|verifySignature\w*|verifyWebhook\w*|getSession|requireCustomer\w*|requireActiveUser)\b/;
 const PAGE_GUARD = /\b(requirePagePermission|requirePermission|requirePermissionIn|assertStaffSession)\(|<Can\b/;
@@ -83,15 +83,8 @@ const REDIRECT_ONLY_PAGES: Record<string, string> = {
   "app/(dashboard)/dashboard/analytics/page.tsx": "redirects to a sub-page",
 };
 
-// Real gaps the scan found, keyed file:export. The test fails when one closes, so drop it then.
-const KNOWN_GAPS: string[] = [
-  // TODO: public form with no captcha; add the captcha check, then drop this entry.
-  "lib/landing/contact-actions.ts:createWebsiteInquiry",
-  // TODO: public account lookup by email reveals whether an account exists; rate-limit or drop the detail.
-  "lib/wizard/actions.ts:checkExistingAccount",
-  // TODO: public account creation with no captcha or rate limit.
-  "lib/wizard/actions.ts:createCheckoutAccount",
-];
+// Real gaps the scan found, keyed file:export. Empty: every public write checks captcha and a per-IP cap first.
+const KNOWN_GAPS: string[] = [];
 
 const rel = (p: string) => relative(APP, p).split(sep).join("/");
 

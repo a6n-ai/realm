@@ -8,6 +8,9 @@ import { inquiries, inquiryActivities, leadSources, users } from "@/db/schema";
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 const tracked = vi.hoisted(() => ({ calls: 0 }));
 vi.mock("@/lib/services/tracking", () => ({ trackConversion: () => { tracked.calls++; } }));
+const captcha = vi.hoisted(() => ({ on: false }));
+vi.mock("@/lib/auth/captcha", () => ({ captchaPasses: async (t: string | null | undefined) => !captcha.on || t === "ok" }));
+vi.mock("next/headers", () => ({ headers: async () => new Headers() }));
 
 const { createWebsiteInquiry } = await import("../contact-actions");
 
@@ -93,5 +96,25 @@ describe("createWebsiteInquiry", () => {
     expect(res.ok).toBe(true);
     const rows = await db.select().from(inquiries).where(eq(inquiries.phone, "+16475559002"));
     expect(rows).toHaveLength(0);
+  });
+
+  it("refuses without a captcha token and writes nothing", async () => {
+    const email = testEmail();
+    captcha.on = true;
+    try {
+      await expect(createWebsiteInquiry({ fullName: "No Token", phone: "+16475559020", email })).rejects.toThrow(/Security check failed/);
+    } finally {
+      captcha.on = false;
+    }
+    expect(await db.select().from(inquiries).where(eq(inquiries.email, email))).toHaveLength(0);
+  });
+
+  it("refuses past the hourly cap, before any write", async () => {
+    let last: unknown;
+    for (let i = 0; i < 25; i++) {
+      last = await createWebsiteInquiry({ fullName: "Flood", phone: "12", email: testEmail() }).catch((e: unknown) => e);
+    }
+    expect(last).toBeInstanceOf(ValidationError);
+    expect((last as Error).message).toMatch(/Too many attempts/);
   });
 });

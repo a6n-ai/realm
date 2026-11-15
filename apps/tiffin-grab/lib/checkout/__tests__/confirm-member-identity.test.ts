@@ -19,8 +19,8 @@ vi.mock("@/lib/orders/create-order", () => ({
 const updateContact = vi.fn(async (..._a: unknown[]) => ({}));
 vi.mock("@/lib/services/users.service", () => ({ usersService: { updateContact: (...a: unknown[]) => updateContact(...a) } }));
 vi.mock("@foundry/places", () => ({ resolveAndPersist: async () => null }));
-const createWebsiteInquiry = vi.fn();
-vi.mock("@/lib/landing/contact-actions", () => ({ createWebsiteInquiry: (...a: unknown[]) => createWebsiteInquiry(...a) }));
+const recordWebsiteInquiry = vi.fn();
+vi.mock("@/lib/landing/inquiry-intake", () => ({ recordWebsiteInquiry: (...a: unknown[]) => recordWebsiteInquiry(...a) }));
 vi.mock("@/lib/auth/session", () => ({ getSession: async () => (signedIn ? { user: { id: "usr_7", email: "priya@example.com" } } : null) }));
 vi.mock("@/lib/auth", () => ({ auth: { api: { sendVerificationEmail: vi.fn() } } }));
 vi.mock("@/lib/tenant/resolve-request-org", () => ({ resolveRequestOrg: async () => null }));
@@ -115,7 +115,7 @@ describe("confirmSubscription: a signed-in member keeps their account identity",
     const r = await confirmSubscription(submitted);
     expect(r).toEqual({ ok: true, waitlisted: true });
     expect(createOrder).not.toHaveBeenCalled();
-    expect(createWebsiteInquiry.mock.calls.at(-1)![0]).toMatchObject({ email: "priya@example.com", fullName: "Priya Shah" });
+    expect(recordWebsiteInquiry.mock.calls.at(-1)![0]).toMatchObject({ email: "priya@example.com", fullName: "Priya Shah" });
   });
 
   it("does not pass the renewal flag through to createOrder", async () => {

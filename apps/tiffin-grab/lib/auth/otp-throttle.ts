@@ -62,3 +62,34 @@ export async function allowOtpTo(email: string, ip: string | null, now = Date.no
   }
   return true;
 }
+
+async function allowHourlyDb(key: string, max: number): Promise<boolean> {
+  return db.transaction(async (tx) => {
+    await tx.execute(sql`
+      INSERT INTO otp_throttle (key, count, window_start)
+      VALUES (${key}, 0, ${NOW_MS})
+      ON CONFLICT (key) DO NOTHING`);
+    const rows = await tx.execute(sql`
+      SELECT CASE WHEN window_start < ${NOW_MS} - ${WINDOW_MS} THEN 0 ELSE count END AS count
+      FROM otp_throttle WHERE key = ${key} FOR UPDATE`);
+    if (Number(rows[0]?.count ?? 0) + 1 > max) return false;
+    await tx.execute(sql`
+      UPDATE otp_throttle SET
+        count = CASE WHEN window_start < ${NOW_MS} - ${WINDOW_MS} THEN 1 ELSE count + 1 END,
+        window_start = CASE WHEN window_start < ${NOW_MS} - ${WINDOW_MS} THEN ${NOW_MS} ELSE window_start END
+      WHERE key = ${key}`);
+    return true;
+  });
+}
+
+/** One hourly counter per key, for public writes with no recipient. Records the hit when under `max`. */
+export async function allowHourly(key: string, max: number, now = Date.now()): Promise<boolean> {
+  if (isWorkers()) return allowHourlyDb(key, max);
+  const hits = recent(key, now);
+  if (hits.length >= max) {
+    sent.set(key, hits);
+    return false;
+  }
+  sent.set(key, [...hits, now]);
+  return true;
+}

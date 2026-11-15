@@ -25,6 +25,7 @@ import { findReferrerByCode } from "@/lib/referrals/referrals.service";
 import { REFERRAL_COOKIE, normalizeReferralCode, setReferralCookie } from "@/lib/referrals/cookie";
 import { cookies } from "next/headers";
 import { getSession } from "@/lib/auth/session";
+import { guardPublicWrite } from "@/lib/auth/public-write-guard";
 import { checkoutPaymentMethods, type CheckoutPaymentMethod } from "@/lib/checkout/payment-methods";
 import { db } from "@/db/client";
 import { users } from "@/db/schema";
@@ -260,7 +261,16 @@ export async function validatePostal(postalCode: string): Promise<{ served: bool
 // (provisionCustomerByPhone refuses it), so saying so here stops the customer
 // before they build a whole plan. It discloses nothing checkout didn't already
 // say (STAFF_ACCOUNT_MESSAGE) for the same email.
-export async function checkExistingAccount(email: string): Promise<{ status: "new" | "matched" | "staff" }> {
+// Captcha and an hourly cap per IP come first: without them this is an unthrottled email oracle.
+export async function checkExistingAccount(
+  email: string,
+  captchaToken?: string | null,
+): Promise<{ status: "new" | "matched" | "staff" }> {
+  await guardPublicWrite("account-lookup", captchaToken, 30);
+  return lookupAccountStatus(email);
+}
+
+async function lookupAccountStatus(email: string): Promise<{ status: "new" | "matched" | "staff" }> {
   const parsed = emailSchema.safeParse(email?.trim());
   // Malformed input fails open to "new" rather than surfacing a validation
   // error — this is a soft pre-check, not a form field with its own
@@ -283,13 +293,15 @@ export async function checkExistingAccount(email: string): Promise<{ status: "ne
 export async function createCheckoutAccount(
   email: string,
   fullName: string,
+  captchaToken?: string | null,
 ): Promise<{ status: "created" | "matched" | "staff" | "invalid" }> {
+  await guardPublicWrite("checkout-account", captchaToken, 10);
   const parsed = emailSchema.safeParse(email?.trim());
   const name = fullName?.trim();
   if (!parsed.success || !name) return { status: "invalid" };
   if (await provisionCustomerByEmail({ email: parsed.data.toLowerCase(), fullName: name })) return { status: "created" };
   // Lost a race with another signup, or the gate was bypassed — re-check the role.
-  const { status } = await checkExistingAccount(parsed.data);
+  const { status } = await lookupAccountStatus(parsed.data);
   return { status: status === "staff" ? "staff" : "matched" };
 }
 

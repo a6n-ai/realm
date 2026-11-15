@@ -11,7 +11,7 @@ vi.mock("@/lib/catalog/zone-match", () => ({ findZone: async () => ({ name: "Dow
 vi.mock("@/lib/tenant/resolve-request-org", () => ({ resolveRequestOrg: async () => null }));
 vi.mock("@/lib/services/customers.service", () => ({ sendAccountSetupEmail: vi.fn() }));
 vi.mock("@foundry/places", () => ({ resolveAndPersist: async () => null }));
-vi.mock("@/lib/landing/contact-actions", () => ({ createWebsiteInquiry: vi.fn() }));
+vi.mock("@/lib/landing/inquiry-intake", () => ({ recordWebsiteInquiry: vi.fn() }));
 vi.mock("@/lib/payments/stripe", async (orig) => ({
   ...(await orig<object>()),
   stripeRuntime: async () => ({

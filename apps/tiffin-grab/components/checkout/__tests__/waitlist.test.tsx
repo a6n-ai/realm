@@ -12,6 +12,7 @@ vi.mock("@/components/app-currency", () => ({
 }));
 vi.mock("@foundry/design-system/timezone-provider", () => ({ useTimezone: () => "America/Toronto" }));
 
+vi.mock("@/lib/auth/captcha-client", () => ({ getCaptchaToken: async () => "tok" }));
 vi.mock("sonner", () => ({ toast: { error: vi.fn() } }));
 const mockRouter = { push: vi.fn(), replace: vi.fn() };
 vi.mock("next/navigation", () => ({
@@ -87,6 +88,7 @@ describe("Checkout postal-served gate + waitlist", () => {
       phone: "+14165551234", // PhoneInput normalizes to E.164
       email: "jane@example.com",
       postalCode: "99999",
+      captchaToken: "tok",
     }, { detailsSource: "waitlist" }));
 
     expect(await screen.findByText(/you.re on the waitlist/i)).toBeTruthy();

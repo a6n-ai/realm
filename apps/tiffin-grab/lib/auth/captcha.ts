@@ -18,3 +18,25 @@ export function turnstileKeys(): { siteKey: string; secretKey: string } | null {
   const secretKey = turnstileSecretKey();
   return siteKey && secretKey ? { siteKey, secretKey } : null;
 }
+
+// Public server actions (no HTTP endpoint for the plugin to check) verify the same token here.
+// Off with the keys, like the endpoints above. Fails closed on any siteverify error.
+export async function captchaPasses(token: string | null | undefined, ip: string | null): Promise<boolean> {
+  const keys = turnstileKeys();
+  if (!keys) return true;
+  if (!token) return false;
+  const body = new FormData();
+  body.set("secret", keys.secretKey);
+  body.set("response", token);
+  if (ip) body.set("remoteip", ip);
+  try {
+    const res = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
+      method: "POST",
+      body,
+      signal: AbortSignal.timeout(5000),
+    });
+    return ((await res.json()) as { success?: boolean }).success === true;
+  } catch {
+    return false;
+  }
+}

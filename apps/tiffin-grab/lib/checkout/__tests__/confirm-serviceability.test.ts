@@ -3,7 +3,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 // The serviceability gate is the whole point: an out-of-zone checkout must never
 // call createOrder (no order, no payment) — it captures a waitlist inquiry instead.
 const createOrder = vi.fn(async (..._a: unknown[]) => ({ deploymentId: "SUB-XXXXXX", publicId: "ord_x" }));
-const createWebsiteInquiry = vi.fn(async (..._a: unknown[]) => ({ ok: true as const, waitlisted: true }));
+const recordWebsiteInquiry = vi.fn(async (..._a: unknown[]) => ({ ok: true as const, waitlisted: true }));
 // The server-side re-resolve — never the client's contact.lat/lng — is what
 // gets stored. A fixed stub value lets the override test assert it landed
 // instead of whatever the (malicious) input claimed.
@@ -23,7 +23,7 @@ vi.mock("@/lib/orders/create-order", () => ({
 const updateContact = vi.fn(async (..._a: unknown[]) => ({}));
 vi.mock("@/lib/services/users.service", () => ({ usersService: { updateContact: (...a: unknown[]) => updateContact(...a) } }));
 vi.mock("@foundry/places", () => ({ resolveAndPersist: (...a: unknown[]) => resolveAndPersist(...a) }));
-vi.mock("@/lib/landing/contact-actions", () => ({ createWebsiteInquiry: (...a: unknown[]) => createWebsiteInquiry(...a) }));
+vi.mock("@/lib/landing/inquiry-intake", () => ({ recordWebsiteInquiry: (...a: unknown[]) => recordWebsiteInquiry(...a) }));
 vi.mock("@/lib/auth/session", () => ({ getSession: async () => ({ user: { id: "usr_7", email: "j@x.com" } }) }));
 vi.mock("@/lib/services/customers.service", () => ({ sendAccountSetupEmail: vi.fn() }));
 vi.mock("@/lib/services/session-service", () => ({ currentUserId: async () => 7n }));
@@ -45,7 +45,7 @@ const input = {
 describe("confirmSubscription serviceability gate", () => {
   beforeEach(() => {
     createOrder.mockClear();
-    createWebsiteInquiry.mockClear();
+    recordWebsiteInquiry.mockClear();
     resolveAndPersist.mockClear();
   });
 
@@ -53,7 +53,7 @@ describe("confirmSubscription serviceability gate", () => {
     matchZoneResult = null;
     const res = await confirmSubscription(input);
     expect(res).toEqual({ ok: true, waitlisted: true });
-    expect(createWebsiteInquiry).toHaveBeenCalledTimes(1);
+    expect(recordWebsiteInquiry).toHaveBeenCalledTimes(1);
     expect(createOrder).not.toHaveBeenCalled();
   });
 
@@ -62,7 +62,7 @@ describe("confirmSubscription serviceability gate", () => {
     const res = await confirmSubscription(input);
     expect(res).toEqual({ ok: true, waitlisted: false, deploymentId: "SUB-XXXXXX", publicId: "ord_x" });
     expect(createOrder).toHaveBeenCalledTimes(1);
-    expect(createWebsiteInquiry).not.toHaveBeenCalled();
+    expect(recordWebsiteInquiry).not.toHaveBeenCalled();
   });
 
   it("never trusts a client-supplied contact.lat/lng — stores the server re-resolve instead", async () => {

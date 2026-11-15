@@ -1,6 +1,6 @@
 "use client";
 
-import { GENERIC_CLIENT_ERROR } from "@foundry/commons/util/client-error";
+import { GENERIC_CLIENT_ERROR, sanitizeClientError } from "@foundry/commons/util/client-error";
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, useReducedMotion } from "motion/react";
@@ -8,7 +8,7 @@ import * as m from "motion/react-m";
 import { OTP_CODE_REGEX, OTP_LENGTH, OTP_TTL_MINUTES } from "@foundry/commons";
 import { emailSchema } from "@foundry/commons/util/email";
 import { authClient, signIn } from "@/lib/auth/client";
-import { warmCaptchaOnInput } from "@/lib/auth/captcha-client";
+import { getCaptchaToken, warmCaptchaOnInput } from "@/lib/auth/captcha-client";
 import { checkExistingAccount, createCheckoutAccount, rememberReferralCode } from "@/lib/wizard/actions";
 import { BottomBar, Button, Field, Label, Notice } from "@/components/kit";
 import { AuthLegal, tiffinAuthUi } from "@/components/auth/auth-kit";
@@ -109,7 +109,12 @@ export function IdentityGate({
       const ref = await rememberReferralCode(referralCode);
       if (!ref.ok) return setError({ field: "referral", message: ref.error });
     }
-    const { status } = await checkExistingAccount(clean);
+    let status: Awaited<ReturnType<typeof checkExistingAccount>>["status"];
+    try {
+      ({ status } = await checkExistingAccount(clean, await getCaptchaToken()));
+    } catch (e) {
+      return setError({ field: "email", message: sanitizeClientError(e) });
+    }
     if (status === "staff") return setPhase("staff");
     if (status === "matched") {
       setIsNew(false);
@@ -124,7 +129,12 @@ export function IdentityGate({
     // Checked first so a typo is fixed here, before the account exists.
     const ref = await rememberReferralCode(referralCode);
     if (!ref.ok) return setError({ field: "referral", message: ref.error });
-    const { status } = await createCheckoutAccount(email, fullName);
+    let status: Awaited<ReturnType<typeof createCheckoutAccount>>["status"];
+    try {
+      ({ status } = await createCheckoutAccount(email, fullName, await getCaptchaToken()));
+    } catch (e) {
+      return setError({ field: "name", message: sanitizeClientError(e) });
+    }
     if (status === "staff") return setPhase("staff");
     if (status === "invalid") return setError({ field: "form", message: "Check your name and email, then try again." });
     await sendCode(email);

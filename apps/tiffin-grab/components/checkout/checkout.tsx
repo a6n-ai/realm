@@ -39,6 +39,7 @@ import type { CardCheckoutContext } from "@/lib/payments/card-checkout-context";
 import { billingAddress, e164 } from "@/lib/payments/billing-address";
 import type { CardSource } from "@/lib/payments/payment-stripe";
 import { createWebsiteInquiry } from "@/lib/landing/contact-actions";
+import { getCaptchaToken } from "@/lib/auth/captcha-client";
 import { toast } from "sonner";
 import { emailSchema, phoneSchema } from "@foundry/commons";
 import { asWizardOrigin, originHref, parsePlanSteps, wizardSession } from "@/lib/wizard/session";
@@ -581,6 +582,7 @@ export function Checkout({
         phone: contact.phone,
         email: contact.email,
         postalCode: contact.postalCode,
+        captchaToken: await getCaptchaToken(),
       }, { detailsSource: "waitlist" });
       setWaitlisted(true);
     } catch (err) {

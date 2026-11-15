@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 const checkExistingAccount = vi.fn();
 const createCheckoutAccount = vi.fn();
+vi.mock("@/lib/auth/captcha-client", () => ({ getCaptchaToken: async () => "tok", warmCaptchaOnInput: () => () => {} }));
 const rememberReferralCode = vi.fn(async (..._args: unknown[]) => ({ ok: true }) as { ok: boolean; error?: string });
 vi.mock("@/lib/wizard/actions", () => ({
   checkExistingAccount: (...args: unknown[]) => checkExistingAccount(...args),
@@ -107,7 +108,7 @@ describe("IdentityGate", () => {
     await user.click(screen.getByRole("button", { name: /send my code/i }));
 
     expect(await screen.findByLabelText(/code sent to new@person\.com/i)).toBeInTheDocument();
-    expect(createCheckoutAccount).toHaveBeenCalledWith("new@person.com", "Priya Shah");
+    expect(createCheckoutAccount).toHaveBeenCalledWith("new@person.com", "Priya Shah", "tok");
     expect(sendVerificationOtp).toHaveBeenCalledWith({ email: "new@person.com", type: "sign-in" });
   });
 

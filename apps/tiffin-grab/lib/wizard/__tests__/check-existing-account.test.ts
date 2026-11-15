@@ -4,6 +4,9 @@ import { deleteNonSystemUsers } from "@/db/test-helpers";
 import { referrals, users } from "@/db/schema";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
+const captcha = vi.hoisted(() => ({ on: false }));
+vi.mock("@/lib/auth/captcha", () => ({ captchaPasses: async (t: string | null | undefined) => !captcha.on || t === "ok" }));
+vi.mock("next/headers", () => ({ headers: async () => new Headers() }));
 
 const { checkExistingAccount } = await import("../actions");
 
@@ -54,5 +57,26 @@ describe("checkExistingAccount", () => {
   it("never leaks fields beyond status", async () => {
     const r = await checkExistingAccount("existing@x.com");
     expect(Object.keys(r)).toEqual(["status"]);
+  });
+});
+
+describe("checkExistingAccount refusals", () => {
+  it("refuses without a captcha token, so an unthrottled caller learns nothing", async () => {
+    await db.insert(users).values({ phone: "+16475550199", email: "probe@x.com", name: "Probe", role: "user" }).onConflictDoNothing();
+    captcha.on = true;
+    try {
+      await expect(checkExistingAccount("probe@x.com")).rejects.toThrow(/Security check failed/);
+      await expect(checkExistingAccount("probe@x.com", "ok")).resolves.toEqual({ status: "matched" });
+    } finally {
+      captcha.on = false;
+    }
+  });
+
+  it("refuses past the hourly cap per IP", async () => {
+    let last: unknown;
+    for (let i = 0; i < 35; i++) {
+      last = await checkExistingAccount(`cap-${i}@x.com`).catch((e: unknown) => e);
+    }
+    expect((last as Error).message).toMatch(/Too many attempts/);
   });
 });

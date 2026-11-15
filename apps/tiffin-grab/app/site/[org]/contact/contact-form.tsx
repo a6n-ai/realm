@@ -17,6 +17,7 @@ import { Textarea } from "@foundry/ui/textarea";
 import { trackMeta } from "@foundry/meta-pixel/client";
 import { contactFormSchema, type ContactFormValues } from "@/app/(marketing)/contact/schema";
 import { createWebsiteInquiry } from "@/lib/landing/contact-actions";
+import { getCaptchaToken } from "@/lib/auth/captcha-client";
 
 const PhoneInput = dynamic(
   () => import("@foundry/ui/phone-input").then((m) => m.PhoneInput),
@@ -38,6 +39,7 @@ export function ContactForm({ defaultCountry }: { defaultCountry: CountryCode })
         ...values,
         eventId,
         eventSourceUrl: typeof window !== "undefined" ? window.location.href : undefined,
+        captchaToken: await getCaptchaToken(),
       });
       setDone({ waitlisted: res.waitlisted });
     } catch (e) {
