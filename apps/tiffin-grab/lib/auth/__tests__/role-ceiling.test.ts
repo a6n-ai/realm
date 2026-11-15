@@ -10,7 +10,7 @@ vi.mock("@/lib/identity/audit", () => ({ recordAudit: vi.fn() }));
 vi.mock("@/lib/identity/user-ids", () => ({ userIdByPublicId: vi.fn(async () => 7n) }));
 
 const { getSession } = await import("@/lib/auth/session");
-const { canAssignRole, requireCanAssignRole } = await import("../guards");
+const { canAssignRole, requireCanActOnRoles, requireCanAssignRole } = await import("../guards");
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -41,5 +41,11 @@ describe("role ceiling", () => {
   it("an unknown role name is never assignable", async () => {
     dbRows.mockResolvedValueOnce([{ role: "admin" }]).mockResolvedValueOnce([]);
     expect(await canAssignRole("o1", "ghost")).toBe(false);
+  });
+
+  it("a deleted role on the target does not block acting on them", async () => {
+    // viewer is admin; target holds "ghost" (deleted) + "member"
+    dbRows.mockResolvedValueOnce([]).mockResolvedValueOnce([{ role: "admin" }]);
+    await expect(requireCanActOnRoles("o1", "ghost, member")).resolves.toBeUndefined();
   });
 });

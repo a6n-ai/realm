@@ -2,12 +2,18 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ForbiddenError } from "@foundry/commons";
 
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
-vi.mock("@/lib/auth/guards", () => ({
-  requirePermission: vi.fn(),
-  requirePermissionIn: vi.fn(),
-  requireOwnerToGrant: vi.fn(),
-  requireCanAssignRole: vi.fn(),
-}));
+vi.mock("@/lib/auth/guards", async () => {
+  const requireCanAssignRole = vi.fn();
+  return {
+    requirePermission: vi.fn(),
+    requirePermissionIn: vi.fn(),
+    requireOwnerToGrant: vi.fn(),
+    requireCanAssignRole,
+    requireCanActOnRoles: vi.fn(async (org: string, list: string | null) => {
+      for (const r of (list ?? "").split(",").map((x) => x.trim()).filter(Boolean)) await requireCanAssignRole(org, r);
+    }),
+  };
+});
 vi.mock("@/lib/auth/role-options", () => ({ getRoleOptions: vi.fn() }));
 vi.mock("@/lib/auth/session", () => ({
   getSession: vi.fn().mockResolvedValue({ user: { id: "usr_me" }, session: { activeOrganizationId: "org_1" } }),
@@ -63,10 +69,10 @@ describe("removeMemberAction", () => {
     );
   });
 
-  it("a removal above the caller's ceiling throws and removes nothing", async () => {
+  it("a removal above the caller's ceiling is refused as a value and removes nothing", async () => {
     dbRows.mockResolvedValueOnce([{ role: "admin" }]);
     vi.mocked(guards.requireCanAssignRole).mockRejectedValueOnce(new ForbiddenError());
-    await expect(removeMemberAction("org_1", "usr_2")).rejects.toBeInstanceOf(ForbiddenError);
+    expect(await removeMemberAction("org_1", "usr_2")).toMatchObject({ ok: false });
     expect(svc.removeMember).not.toHaveBeenCalled();
     expect(recordAudit).not.toHaveBeenCalled();
   });

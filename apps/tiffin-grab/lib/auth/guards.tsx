@@ -60,6 +60,19 @@ export async function requireCanAssignRole(organizationId: string, role: string)
   }
 }
 
+/**
+ * Acting on a member (re-roling, removing) needs the caller to hold everything the target's CURRENT roles grant.
+ * Role names that no longer exist grant nothing, so they are skipped: otherwise a deleted custom role would leave
+ * that member permanently out of reach for everyone but owners.
+ */
+export async function requireCanActOnRoles(organizationId: string, roleList: string | null | undefined): Promise<void> {
+  const names = (roleList ?? "").split(",").map((r) => r.trim()).filter(Boolean);
+  for (const name of names) {
+    if (!(await rolePermissions(organizationId, name))) continue;
+    await requireCanAssignRole(organizationId, name);
+  }
+}
+
 /** Signed-in staff account (not a customer). For routes with no domain permission, like generic uploads. */
 export async function assertStaffSession(): Promise<void> {
   const session = await getSession();

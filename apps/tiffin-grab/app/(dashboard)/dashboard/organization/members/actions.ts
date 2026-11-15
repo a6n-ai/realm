@@ -11,7 +11,7 @@ import { auth } from "@/lib/auth";
 import type { ActionResult } from "@/lib/actions/action-result";
 import { staffAction, type StaffActionOpts } from "@/lib/actions/staff-action";
 import { sendStaffInviteLink, sendStaffSetupLink } from "@/lib/auth/invite-links";
-import { requireCanAssignRole, requireOwnerToGrant, requirePermission, requirePermissionIn } from "@/lib/auth/guards";
+import { requireCanActOnRoles, requireCanAssignRole, requireOwnerToGrant, requirePermission, requirePermissionIn } from "@/lib/auth/guards";
 import { authApi } from "@/lib/auth/org-role-api";
 import { getRoleOptions } from "@/lib/auth/role-options";
 import { getSession } from "@/lib/auth/session";
@@ -96,7 +96,7 @@ export async function setMemberRoles(memberId: string, roles: string[]): Promise
     await requireOwnerToGrant(organizationId, ...added, ...current);
     for (const role of added) await requireCanAssignRole(organizationId, role);
     // Nor change someone whose current roles hold more than you do (e.g. member:update demoting an admin).
-    await requireCanAssignRole(organizationId, target.role);
+    await requireCanActOnRoles(organizationId, target.role);
     const wasOwner = current.includes("owner");
     if (wasOwner && !next.includes("owner") && (await countOwners(organizationId)) <= 1) {
       throw new ValidationError("An organization needs at least one owner");

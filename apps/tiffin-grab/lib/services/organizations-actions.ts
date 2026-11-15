@@ -1,4 +1,5 @@
 "use server";
+import { AuthError, ForbiddenError } from "@foundry/commons";
 
 import { revalidatePath } from "next/cache";
 import { and, eq } from "drizzle-orm";
@@ -6,7 +7,7 @@ import { assertHierarchyDepth } from "@foundry/auth";
 import { db } from "@/db/client";
 import { member, organization } from "@/db/schema";
 import { systemUserId, userIdByPublicId } from "@/lib/identity/user-ids";
-import { requireCanAssignRole, requireOwnerToGrant, requirePermission, requirePermissionIn } from "@/lib/auth/guards";
+import { requireCanActOnRoles, requireCanAssignRole, requireOwnerToGrant, requirePermission, requirePermissionIn } from "@/lib/auth/guards";
 import { getRoleOptions } from "@/lib/auth/role-options";
 import { getSession } from "@/lib/auth/session";
 import { recordAudit } from "@/lib/identity/audit";
@@ -146,13 +147,26 @@ export async function removeMemberAction(
   organizationId: string,
   userPublicId: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  // Refusals come back as values: production builds redact thrown server-action errors.
+  try {
+    return await removeMemberChecked(organizationId, userPublicId);
+  } catch (e) {
+    if (e instanceof ForbiddenError || e instanceof AuthError) return { ok: false, error: e.message };
+    throw e;
+  }
+}
+
+async function removeMemberChecked(
+  organizationId: string,
+  userPublicId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
   await requirePermissionIn(organizationId, { member: ["update"] });
   const session = await getSession();
   if (session?.user.id === userPublicId) return { ok: false, error: "You can't remove yourself from the organization." };
   const current = await currentMemberRole(organizationId, userPublicId);
   await requireOwnerToGrant(organizationId, current);
   // Removing someone who holds more than you is as much an escalation as granting it.
-  if (current) await requireCanAssignRole(organizationId, current);
+  await requireCanActOnRoles(organizationId, current);
   const wasOwner = current?.split(",").some((r) => r.trim() === "owner") ?? false;
   if (wasOwner && (await countOwners(organizationId)) <= 1) {
     return { ok: false, error: "An organization needs at least one owner" };

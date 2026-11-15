@@ -1,6 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/lib/auth/guards", () => ({ requirePermission: vi.fn(), requirePermissionIn: vi.fn(), requireOwnerToGrant: vi.fn(), requireCanAssignRole: vi.fn() }));
+vi.mock("@/lib/auth/guards", async () => {
+  const requireCanAssignRole = vi.fn();
+  return {
+    requirePermission: vi.fn(),
+    requirePermissionIn: vi.fn(),
+    requireOwnerToGrant: vi.fn(),
+    requireCanAssignRole,
+    requireCanActOnRoles: vi.fn(async (org: string, list: string | null) => {
+      for (const r of (list ?? "").split(",").map((x) => x.trim()).filter(Boolean)) await requireCanAssignRole(org, r);
+    }),
+  };
+});
 vi.mock("@/lib/auth/session", () => ({ getSession: vi.fn().mockResolvedValue({ user: { id: "usr_me" }, session: { activeOrganizationId: "org_1" } }) }));
 vi.mock("@/lib/auth/role-options", () => ({
   getRoleOptions: vi.fn().mockResolvedValue([{ value: "owner", label: "owner" }, { value: "admin", label: "admin" }, { value: "member", label: "member" }]),
