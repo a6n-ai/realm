@@ -11,7 +11,7 @@ vi.mock("@/lib/auth/org-access", () => ({
   effectivePermissions: vi.fn(() => ({})),
 }));
 vi.mock("@/lib/auth/role-options", () => ({
-  getRoleChoices: vi.fn(async () => ({ organizationId: "org_1", options: [], canGrantOwner: false, canInvite: true })),
+  getRoleChoices: vi.fn(async () => ({ organizationId: "org_1", options: [], canInvite: true })),
   getRoleChoicesFor: vi.fn(async () => [{ value: "kitchen", label: "kitchen" }]),
 }));
 vi.mock("@/lib/auth/session", () => ({

@@ -108,7 +108,10 @@ async function UserDetailData({ params }: { params: Promise<{ id: string }> }) {
 
       <SectionCard title="Access" subtitle="Roles, permissions and organizations in the active organization.">
         {!activeMembership ? (
-          <p className="text-muted-foreground text-sm">Not a member of this organization.</p>
+          <div className="grid gap-3">
+            <p className="text-muted-foreground text-sm">Not a member of this organization.</p>
+            <StatusSelect id={user.publicId} status={user.status} />
+          </div>
         ) : panel ? (
           <MemberPanelBody data={panel} resources={RESOURCE_LABELS} showContact={false} />
         ) : (

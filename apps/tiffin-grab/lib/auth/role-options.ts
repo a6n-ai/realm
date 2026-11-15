@@ -27,7 +27,7 @@ export async function getRoleChoicesFor(organizationId: string): Promise<RoleCho
 }
 
 /** Role options for the viewer's active org; locked when the viewer may not hand the role out (`owner`, or more than they hold). */
-export async function getRoleChoices(): Promise<{ organizationId: string | null; options: RoleChoice[]; canGrantOwner: boolean; canInvite: boolean }> {
+export async function getRoleChoices(): Promise<{ organizationId: string | null; options: RoleChoice[]; canInvite: boolean }> {
   const [session, access] = await Promise.all([getSession(), getOrgAccess()]);
   const organizationId = session?.session.activeOrganizationId ?? null;
   const canGrantOwner = access.kind === "platform" || (access.kind === "member" && access.roles.includes(orgRoles.owner));
@@ -37,5 +37,5 @@ export async function getRoleChoices(): Promise<{ organizationId: string | null;
       return locked ? { ...o, locked: true } : o;
     }),
   );
-  return { organizationId, options, canGrantOwner, canInvite: await can({ invitation: ["create"], staff: ["invite"] }) };
+  return { organizationId, options, canInvite: await can({ invitation: ["create"], staff: ["invite"] }) };
 }

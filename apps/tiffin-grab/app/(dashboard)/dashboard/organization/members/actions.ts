@@ -95,7 +95,7 @@ export async function setMemberRolesIn(organizationId: string, memberId: string,
 
 async function writeMemberRoles(organizationId: string, memberId: string, roles: string[]): Promise<void> {
   const session = await getSession();
-  if (!session) throw new ValidationError("Select an organization first.");
+  if (!session) throw new ValidationError("Sign in again.");
   const target = await getMemberInOrg(organizationId, memberId);
   if (!target) throw new ValidationError("Member not found in this organization.");
   if (target.userId === (await userIdByPublicId(session.user.id))) {
