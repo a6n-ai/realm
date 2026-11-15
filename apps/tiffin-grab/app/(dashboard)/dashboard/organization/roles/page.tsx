@@ -2,12 +2,12 @@ import { Suspense } from "react";
 import { RESOURCE_LABELS, orgRoles } from "@/lib/auth/permissions";
 import { can, requirePermission } from "@/lib/auth/guards";
 import { effectivePermissions, getOrgAccess } from "@/lib/auth/org-access";
-import { getRoleChoices } from "@/lib/auth/role-options";
 import { getSession } from "@/lib/auth/session";
-import { getOrgAccessMatrix } from "@/lib/services/org-access-matrix";
 import { getRoleHolderCounts, listCustomRoles } from "@/lib/services/organizations.service";
 import { SectionCard } from "@/components/ds";
-import { RolesList, RolesListSkeleton } from "./roles-list";
+import { RoleEditor } from "./role-editor";
+import { RolesTable, RolesTableSkeleton } from "./roles-table";
+import type { RoleItem } from "./role-summary";
 
 type SearchParams = Promise<{ role?: string }>;
 
@@ -16,7 +16,7 @@ export default function RolesPage({ searchParams }: { searchParams: SearchParams
     <Suspense
       fallback={
         <SectionCard title="Roles">
-          <RolesListSkeleton />
+          <RolesTableSkeleton />
         </SectionCard>
       }
     >
@@ -31,18 +31,15 @@ async function RolesData({ searchParams }: { searchParams: SearchParams }) {
   const sp = await searchParams;
   const session = await getSession();
   const organizationId = session?.session.activeOrganizationId;
-  const canManageMembers = await can({ member: ["update"] });
-  const [access, custom, counts, canCreate, canUpdate, canDelete, choices, matrix] = await Promise.all([
+  const [access, custom, counts, canCreate, canUpdate, canDelete] = await Promise.all([
     getOrgAccess(),
     organizationId ? listCustomRoles(organizationId) : [],
     organizationId ? getRoleHolderCounts(organizationId) : ({} as Record<string, number>),
     can({ ac: ["create"] }),
     can({ ac: ["update"] }),
     can({ ac: ["delete"] }),
-    getRoleChoices(),
-    organizationId && canManageMembers ? getOrgAccessMatrix(organizationId) : null,
   ]);
-  const roles = [
+  const roles: RoleItem[] = [
     ...Object.entries(orgRoles).map(([name, role]) => ({
       name,
       id: null,
@@ -51,24 +48,29 @@ async function RolesData({ searchParams }: { searchParams: SearchParams }) {
     })),
     ...custom.map((r) => ({ name: r.role, id: r.id, permission: r.permission, members: counts[r.role] ?? 0 })),
   ];
-  const selected = roles.find((r) => r.name === sp.role)?.name ?? null;
+  const grantable = effectivePermissions(access);
+  const current = roles.find((r) => r.name === sp.role);
+
+  if (current) {
+    return (
+      <RoleEditor
+        // Re-seeds the draft when the server set changes (save, refresh).
+        key={`${current.name}:${JSON.stringify(current.permission)}`}
+        role={current}
+        resources={RESOURCE_LABELS}
+        grantable={grantable}
+        canUpdate={canUpdate}
+        canDelete={canDelete}
+      />
+    );
+  }
+
   return (
     <SectionCard
       title="Roles"
       subtitle="What each role can do in this organization. Built-in roles are fixed; create your own for everything in between."
     >
-      <RolesList
-        resources={RESOURCE_LABELS}
-        grantable={effectivePermissions(access)}
-        roles={roles}
-        selected={selected}
-        canCreate={canCreate}
-        canUpdate={canUpdate}
-        canDelete={canDelete}
-        people={matrix?.rows.map((r) => ({ id: r.id, name: r.name, email: r.email, roles: r.roles })) ?? null}
-        roleOptions={choices.options}
-        selfEmail={session?.user.email ?? null}
-      />
+      <RolesTable roles={roles} resources={RESOURCE_LABELS} grantable={grantable} canCreate={canCreate} />
     </SectionCard>
   );
 }

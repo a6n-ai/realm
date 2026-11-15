@@ -12,8 +12,8 @@ describe("sidebar nav filter", () => {
     expect(out).toHaveLength(1);
   });
 
-  it("lists Roles under Administration", () => {
-    const admin = SECTIONS.find((s) => s.label === "Administration");
-    expect(admin?.items.map((i) => i.href)).toContain("/dashboard/organization/roles");
+  it("leaves Roles to the Organization tabs", () => {
+    const hrefs = SECTIONS.flatMap((s) => s.items.map((i) => i.href));
+    expect(hrefs).not.toContain("/dashboard/organization/roles");
   });
 });

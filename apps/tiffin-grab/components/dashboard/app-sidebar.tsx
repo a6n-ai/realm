@@ -23,7 +23,6 @@ import {
   PackageIcon,
   RefreshCwIcon,
   SettingsIcon,
-  ShieldCheckIcon,
   TagIcon,
   TicketPercentIcon,
   UserIcon,
@@ -132,7 +131,6 @@ export const SECTIONS: NavSection[] = [
     label: "Administration",
     items: [
       { title: "Organization", href: "/dashboard/organization", icon: Building2Icon },
-      { title: "Roles", href: "/dashboard/organization/roles", icon: ShieldCheckIcon },
       { title: "Settings", href: "/dashboard/settings", icon: SettingsIcon },
     ],
   },

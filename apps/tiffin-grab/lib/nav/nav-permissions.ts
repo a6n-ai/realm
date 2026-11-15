@@ -20,7 +20,6 @@ const NAV_PERMISSIONS: Record<string, Perms> = {
   "/dashboard/notifications": { notification: ["read"] },
   "/dashboard/customer-groups": { customer: ["manage"] },
   "/dashboard/organization": { member: ["update"] },
-  "/dashboard/organization/roles": { ac: ["read"], member: ["update"] },
   "/dashboard/settings": { settings: ["read"] },
 };
 
