@@ -19,8 +19,8 @@ import { CustomerInviteCell } from "./customer-invite-cell";
 // Name, email and phone share one column so order facts fit without sideways scroll.
 // DataTable renders the header and its Skeleton from this array, so the two can never drift.
 type Key = CustomerSortColumn | "status" | "orders" | "invite";
-const NAME: Column<Key> = { key: "name", label: "Customer", sortable: true, width: "w-72" };
-const STATUS: Column<Key> = { key: "status", label: "Status", width: "w-28" };
+const NAME: Column<Key> = { key: "name", label: "Customer", sortable: true, width: "w-64" };
+const STATUS: Column<Key> = { key: "status", label: "Status", width: "w-52" };
 const ORDERS: Column<Key> = { key: "orders", label: "Orders", align: "right", width: "w-20" };
 const LAST: Column<Key> = { key: "latestOrder", label: "Last order", sortable: true, align: "right", width: "w-28" };
 const PAID: Column<Key> = { key: "paid", label: "Total paid", sortable: true, align: "right", width: "w-28" };
@@ -77,9 +77,11 @@ export function CustomersList({
               </p>
             </TableCell>
             <TableCell>
-              <Badge variant={statusOf(c.latestStatus).variant}>{statusOf(c.latestStatus).label}</Badge>
-              {/* Joined = they've used the account (verified email); until then the invite actions show. */}
-              <p className={cn("mt-1 text-xs", c.joined ? "text-muted-foreground" : "text-warning")}>{c.joined ? "Joined" : "Not joined"}</p>
+              {/* One line: only the Customer column wraps to two. Joined = verified email; until then the invite actions show. */}
+              <span className="flex items-center gap-2 whitespace-nowrap">
+                <Badge variant={statusOf(c.latestStatus).variant}>{statusOf(c.latestStatus).label}</Badge>
+                <span className={cn("text-xs", c.joined ? "text-muted-foreground" : "text-warning")}>{c.joined ? "Joined" : "Not joined"}</span>
+              </span>
             </TableCell>
             <TableCell className="text-right tabular-nums">{c.orderCount}</TableCell>
             <TableCell className="text-right tabular-nums">
