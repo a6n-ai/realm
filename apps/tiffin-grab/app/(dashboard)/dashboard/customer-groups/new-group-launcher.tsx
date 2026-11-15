@@ -13,6 +13,6 @@ export function NewGroupButtonSkeleton() {
 }
 
 export async function NewGroupLauncher() {
-  await requirePermission({ customer: ["write"] });
+  await requirePermission({ customer: ["manage"] });
   return <NewGroupDialog cities={await listOrderCities()} maxRows={MAX_REVIEW_ROWS} />;
 }

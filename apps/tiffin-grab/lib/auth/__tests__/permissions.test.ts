@@ -72,6 +72,11 @@ describe("tiffin-grab permission map", () => {
     }
   });
 
+  it("org member keeps payment verification (all staff had it) without charge", () => {
+    expect(orgRoles.member.authorize({ finance: ["verify"] }).success).toBe(true);
+    expect(orgRoles.member.authorize({ finance: ["verify", "charge"] }).success).toBe(false);
+  });
+
   it("org admin allows every app action", () => {
     expect(orgRoles.admin.authorize(appStatement as unknown as Record<string, string[]>).success).toBe(true);
   });

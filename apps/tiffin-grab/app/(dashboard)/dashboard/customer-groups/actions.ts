@@ -27,7 +27,7 @@ import { listPayoutCandidates, type PayoutCandidate, type PayoutCandidateFilters
 import { walletBalanceSql } from "@/lib/wallet/balance-sql";
 
 export async function searchAccounts(query: string) {
-  await requirePermission({ customer: ["read"], wallet: ["read"] });
+  await requirePermission({ customer: ["manage"], wallet: ["read"] });
   const rows = await searchCustomers(query);
   if (rows.length === 0) return [];
   // Spendable balance for the review table when staff add someone by hand.
@@ -44,11 +44,12 @@ export async function searchAccounts(query: string) {
   return rows.map((r) => ({ ...r, walletCoins: byId.get(r.publicId) ?? 0 }));
 }
 
-const CUSTOMER_READ: Guard = { customer: ["read"] };
-const CUSTOMER_EXPORT: Guard = { customer: ["export"] };
-const GROUPS: StaffActionOpts = { guard: { customer: ["write"] }, revalidate: ["/dashboard/customer-groups"] };
+// Customer groups were admin-only; customer:manage keeps them off the member role.
+const CUSTOMER_READ: Guard = { customer: ["manage"] };
+const CUSTOMER_EXPORT: Guard = { customer: ["manage", "export"] };
+const GROUPS: StaffActionOpts = { guard: { customer: ["manage"] }, revalidate: ["/dashboard/customer-groups"] };
 const READ: StaffActionOpts = { guard: CUSTOMER_READ };
-const READ_WALLET: StaffActionOpts = { guard: { customer: ["read"], wallet: ["read"] } };
+const READ_WALLET: StaffActionOpts = { guard: { customer: ["manage"], wallet: ["read"] } };
 
 export async function searchGroupsAction(query: string): Promise<ActionResult<{ groups: { publicId: string; name: string; memberCount: number }[] }>> {
   return staffAction(READ, async () => ({ groups: await searchCustomerGroups(parseInput(z.string().max(120), query)) }));

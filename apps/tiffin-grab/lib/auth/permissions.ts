@@ -10,7 +10,7 @@ export const appStatement = {
   order: ["read", "write", "cancel", "manage"],
   subscription: ["read", "write", "pause"],
   menu: ["read", "write", "publish"],
-  finance: ["read", "refund", "charge", "manage"],
+  finance: ["read", "verify", "refund", "charge", "manage"],
   holiday: ["read", "write"],
   // Open many private files with one link: one folder token covers a whole ticket/payment.
   files: ["bulkAccess"],
@@ -36,7 +36,7 @@ export const MEMBER_PERMISSIONS = {
   order: ["read", "write", "cancel"],
   subscription: ["read", "write", "pause"],
   menu: ["read"],
-  finance: ["read"],
+  finance: ["read", "verify"],
   inquiry: ["read", "write"],
   customer: ["read", "write", "export"],
   delivery: ["read"],
@@ -56,7 +56,7 @@ export const RESOURCE_LABELS: ResourceLabel[] = [
   { resource: "menu", label: "Menu", actions: [
     { action: "read", label: "View menu" }, { action: "write", label: "Edit menu" }, { action: "publish", label: "Publish menu" } ] },
   { resource: "finance", label: "Finance", actions: [
-    { action: "read", label: "View finances" }, { action: "refund", label: "Issue refunds" }, { action: "charge", label: "Charge payments" },
+    { action: "read", label: "View finances" }, { action: "verify", label: "Verify payments and send reminders" }, { action: "refund", label: "Issue refunds" }, { action: "charge", label: "Charge payments" },
     { action: "manage", label: "Open the payments desk and KPIs" } ] },
   { resource: "holiday", label: "Holidays", actions: [
     { action: "read", label: "View holidays" }, { action: "write", label: "Edit holidays" } ] },

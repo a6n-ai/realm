@@ -27,7 +27,7 @@ export default function CustomerGroupPage({ params }: { params: Promise<{ id: st
 }
 
 async function GroupData({ params }: { params: Promise<{ id: string }> }) {
-  await requirePermission({ customer: ["read"] });
+  await requirePermission({ customer: ["manage"] });
   const { id } = await params;
   const detail = await getCustomerGroup(id);
   if (!detail) notFound();

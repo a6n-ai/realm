@@ -43,7 +43,7 @@ export default function CustomerGroupsPage({ searchParams }: { searchParams: Sea
 const SPEC: FacetDef[] = [{ kind: "search", fields: ["name"] }];
 
 async function GroupsStats({ searchParams }: { searchParams: SearchParams }) {
-  await requirePermission({ customer: ["read"] });
+  await requirePermission({ customer: ["manage"] });
   const sp = await withDefaultMonth(await searchParams);
   const stats = await customerGroupStats(epochRange(sp));
   const cards: StatCardItem[] = [
@@ -63,7 +63,7 @@ async function GroupsStats({ searchParams }: { searchParams: SearchParams }) {
 }
 
 async function GroupsData({ searchParams }: { searchParams: SearchParams }) {
-  await requirePermission({ customer: ["read"] });
+  await requirePermission({ customer: ["manage"] });
   const sp = await withListDates(await searchParams);
   const { page } = parseFilterState(SPEC, sp);
   const { rows, total } = await listCustomerGroups({ page: page.page, size: page.size, range: epochRange(sp), q: sp.q });
