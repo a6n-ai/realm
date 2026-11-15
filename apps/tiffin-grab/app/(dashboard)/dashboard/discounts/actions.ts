@@ -17,7 +17,7 @@ import { couponsService } from "@/lib/coupons/coupons.service";
 import { getDiscountPolicy, setDiscountPolicy } from "@/lib/coupons/discount-policy-settings";
 import { revalidatePublicSite } from "@/lib/landing/revalidate-site";
 
-const OPTS = { guard: "admin", revalidate: [["/dashboard/discounts", "layout"]] } as const;
+const OPTS = { guard: { discount: ["write"] }, revalidate: [["/dashboard/discounts", "layout"]] } as const;
 
 // Numeric columns are dollar strings; null clears the column.
 const money = (n: number | null | undefined): string | null => (n == null ? null : n.toFixed(2));

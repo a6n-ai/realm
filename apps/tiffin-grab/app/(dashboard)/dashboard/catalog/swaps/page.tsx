@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { ArrowLeftRightIcon } from "lucide-react";
-import { requireAdmin } from "@/lib/auth/guards";
+import { requirePermission } from "@/lib/auth/guards";
 import { db } from "@/db/client";
 import { and, eq } from "drizzle-orm";
 import { mealSizes, plans } from "@/db/schema";
@@ -18,7 +18,7 @@ export default function SwapRulesPage() {
 }
 
 async function SwapRulesData() {
-  await requireAdmin();
+  await requirePermission({ catalog: ["read"] });
 
   const [pairs, categories, plansByCategoryKey, planRows, sizeRows] = await Promise.all([
     dishCategoriesService.listSwapPairs(),

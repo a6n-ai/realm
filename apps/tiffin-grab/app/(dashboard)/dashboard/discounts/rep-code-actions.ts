@@ -33,7 +33,7 @@ const view = (a: { capAmount: number; capPct: number; dailyUses: number; codeVal
 });
 
 export async function repCodeAllowance(): Promise<ActionResult<{ allowance: RepCodeAllowance }>> {
-  return staffAction({ guard: "staff" }, async () => {
+  return staffAction({ guard: { order: ["write"] } }, async () => {
     const { staffId, allowance, istDate } = await ownAllowance();
     return { allowance: view(allowance, await couponsService.repUsesToday(db, staffId, istDate)) };
   });
@@ -43,7 +43,7 @@ export async function issueRepCode(
   amount: number,
   note?: string,
 ): Promise<ActionResult<{ code: string; expiresAt: number; allowance: RepCodeAllowance }>> {
-  return staffAction({ guard: "staff", revalidate: [["/dashboard/discounts", "layout"]] }, async () => {
+  return staffAction({ guard: { order: ["write"] }, revalidate: [["/dashboard/discounts", "layout"]] }, async () => {
     const { staffId, allowance, istDate } = await ownAllowance();
     if (!Number.isFinite(amount)) throw new ValidationError("Enter a discount amount");
     const expiresAt = Date.now() + allowance.codeValidityHours * 3_600_000;

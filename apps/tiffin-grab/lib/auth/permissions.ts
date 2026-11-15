@@ -19,7 +19,7 @@ export const appStatement = {
   customer: ["read", "write", "export", "manage"],
   inquiry: ["read", "write", "import"],
   catalog: ["read", "write"],
-  delivery: ["read", "write"],
+  delivery: ["read", "write", "manage"],
   discount: ["read", "write"],
   ticket: ["read", "write"],
   analytics: ["read"],
@@ -39,7 +39,7 @@ export const MEMBER_PERMISSIONS = {
   finance: ["read", "verify"],
   inquiry: ["read", "write"],
   customer: ["read", "write", "export"],
-  delivery: ["read"],
+  delivery: ["read", "write"],
   ticket: ["read", "write"],
 };
 
@@ -74,7 +74,8 @@ export const RESOURCE_LABELS: ResourceLabel[] = [
   { resource: "catalog", label: "Catalog", actions: [
     { action: "read", label: "View catalog" }, { action: "write", label: "Edit catalog" } ] },
   { resource: "delivery", label: "Deliveries", actions: [
-    { action: "read", label: "View deliveries" }, { action: "write", label: "Edit deliveries" } ] },
+    { action: "read", label: "View deliveries" }, { action: "write", label: "Edit deliveries" },
+    { action: "manage", label: "Edit delivery charges" } ] },
   { resource: "discount", label: "Discounts", actions: [
     { action: "read", label: "View discounts" }, { action: "write", label: "Edit discounts" } ] },
   { resource: "ticket", label: "Support tickets", actions: [

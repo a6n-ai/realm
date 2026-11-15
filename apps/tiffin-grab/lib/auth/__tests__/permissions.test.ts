@@ -65,6 +65,7 @@ describe("tiffin-grab permission map", () => {
       { wallet: ["manage"] },
       { wallet: ["read"] },
       { wallet: ["give"] },
+      { delivery: ["manage"] },
     ];
     for (const perm of adminOnly) {
       expect(orgRoles.member.authorize(perm).success).toBe(false);

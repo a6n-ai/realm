@@ -1,10 +1,11 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq, ne } from "drizzle-orm";
 
-// The settings actions go through requireAdmin() and revalidatePath(); stub both
+// The settings actions go through requirePermission() and revalidatePath(); stub both
 // so the action path runs outside a request scope. The point under test is the
 // rep_daily guard and that a public coupon round-trips by public_id.
-vi.mock("@/lib/auth/guards", () => ({ requireAdmin: async () => undefined }));
+const requirePermission = vi.fn(async () => undefined);
+vi.mock("@/lib/auth/guards", () => ({ requirePermission }));
 vi.mock("next/cache", () => ({ revalidatePath: () => undefined }));
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
@@ -43,6 +44,11 @@ async function reset() {
 describe("discounts settings actions", () => {
   beforeEach(reset);
   afterAll(reset);
+
+  it("guards coupon writes with discount:write", async () => {
+    await saveCoupon(null, { ...basePatch, kind: "rep_daily" });
+    expect(requirePermission).toHaveBeenCalledWith({ discount: ["write"] });
+  });
 
   it("rejects manual creation of a rep_daily coupon", async () => {
     await expect(

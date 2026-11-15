@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
-vi.mock("@/lib/auth/guards", () => ({ requireAdmin: vi.fn() }));
+vi.mock("@/lib/auth/guards", () => ({ requirePermission: vi.fn() }));
 vi.mock("@/lib/catalog/load", () => ({ invalidateCatalogSnapshot: vi.fn() }));
 const setAppSettings = vi.fn();
 vi.mock("@/lib/deliveries/set-app-settings", () => ({ setAppSettings }));

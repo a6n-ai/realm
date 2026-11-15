@@ -32,7 +32,7 @@ export type ResourceKey = keyof typeof SERVICES;
 
 // Every resource here feeds loadCatalogSnapshot, so any edit busts the snapshot
 // cache and regenerates the public marketing pages that read it.
-const opts = (resource: ResourceKey) => ({ guard: "admin", revalidate: [`/dashboard/catalog/${resource}`], catalog: true }) as const;
+const opts = (resource: ResourceKey) => ({ guard: { catalog: ["write"] }, revalidate: [`/dashboard/catalog/${resource}`], catalog: true }) as const;
 
 export async function saveItem(resource: ResourceKey, id: string | null, patch: Record<string, unknown>): Promise<ActionResult> {
   return staffAction(opts(resource), async () => {

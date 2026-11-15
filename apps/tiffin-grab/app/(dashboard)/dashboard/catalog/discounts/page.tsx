@@ -4,7 +4,7 @@ import { and, desc, eq, notInArray } from "drizzle-orm";
 import { PageHeader, PageShell, SectionCard } from "@/components/ds";
 import { db } from "@/db/client";
 import { coupons } from "@/db/schema";
-import { requireAdmin } from "@/lib/auth/guards";
+import { requirePermission } from "@/lib/auth/guards";
 import { getAppSettings } from "@/lib/settings";
 import { DiscountCapForm, DiscountCapSkeleton } from "./discount-cap-form";
 import { AllDiscountsSkeleton, AllDiscountsTable } from "./all-discounts-table";
@@ -17,13 +17,13 @@ import { requestNow } from "@/lib/dates/request-now";
 const COUPON_LIMIT = 25;
 
 async function CapData() {
-  await requireAdmin();
+  await requirePermission({ catalog: ["read"] });
   const s = await getAppSettings();
   return <DiscountCapForm value={s.maxDiscountPct} />;
 }
 
 async function AllDiscounts() {
-  await requireAdmin();
+  await requirePermission({ catalog: ["read"] });
   const [{ freqs, durs, sizes, strategies, dtos }, cRows] = await Promise.all([
     loadDiscountData(),
     db.select({ publicId: coupons.publicId, code: coupons.code, kind: coupons.kind, valuePct: coupons.valuePct, valueAmount: coupons.valueAmount, active: coupons.active, startsAt: coupons.startsAt, expiresAt: coupons.expiresAt })

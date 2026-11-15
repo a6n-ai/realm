@@ -7,7 +7,7 @@ import { getAppSettings } from "@/lib/settings";
 import { setAppSettings } from "@/lib/deliveries/set-app-settings";
 
 export async function saveTiffinsPerWeek(input: { minTiffinsPerWeek: number; maxTiffinsPerWeek: number }): Promise<ActionResult> {
-  return staffAction({ guard: "admin", revalidate: ["/dashboard/catalog/delivery-frequencies", "/subscribe"], catalog: true }, async () => {
+  return staffAction({ guard: { catalog: ["write"] }, revalidate: ["/dashboard/catalog/delivery-frequencies", "/subscribe"], catalog: true }, async () => {
     const { minTiffinsPerWeek: min, maxTiffinsPerWeek: max } = input;
     for (const [label, v] of [["Min", min], ["Max", max]] as const) {
       if (!Number.isInteger(v) || v < 1 || v > 7) throw new ValidationError(`${label} tiffins per week must be a whole number from 1 to 7`);

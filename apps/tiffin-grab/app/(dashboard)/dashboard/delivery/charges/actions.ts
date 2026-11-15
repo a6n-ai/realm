@@ -14,7 +14,7 @@ import { staffAction } from "@/lib/actions/staff-action";
 import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 import { evictPublicPages } from "@/lib/landing/public-cache";
 
-const DELIVERY = { guard: "admin", catalog: true } as const;
+const DELIVERY = { guard: { delivery: ["manage"] }, catalog: true } as const;
 
 // Charges half: payloads ride in `value` (the @foundry/delivery charges UI expects the bare result; see delivery-clients.tsx).
 

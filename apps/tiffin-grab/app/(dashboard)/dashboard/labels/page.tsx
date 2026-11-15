@@ -4,7 +4,7 @@ import { BoxIcon, CalendarDaysIcon, LayoutListIcon, PackageIcon, TagIcon, TruckI
 import { StatCards, StatCardsSkeleton } from "@/components/dashboard/stat-cards";
 import { zonedDateIso } from "@foundry/commons";
 import { Skeleton } from "@foundry/ui/skeleton";
-import { requireStaff } from "@/lib/auth/guards";
+import { requirePermission } from "@/lib/auth/guards";
 import { getAppSettings } from "@/lib/settings";
 import { dailyLabelSheet } from "@/lib/menu/daily-labels.service";
 import { listDayDeliveryStatuses } from "@/lib/deliveries/day-deliveries";
@@ -50,7 +50,7 @@ export default async function LabelsPage({ searchParams }: { searchParams: Searc
 }
 
 async function LabelsData({ searchParams }: { searchParams: SearchParams }) {
-  await requireStaff();
+  await requirePermission({ delivery: ["read"] });
   const { date: dateParam } = await searchParams;
   const { timezone } = await getAppSettings();
 

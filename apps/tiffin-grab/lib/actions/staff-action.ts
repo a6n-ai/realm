@@ -5,7 +5,8 @@ import { requireAdmin, requirePermission, requireStaff } from "@/lib/auth/guards
 import { runAction, type ActionResult } from "./action-result";
 
 /** @deprecated "staff"/"admin" go in Task 11; pass a permissions object. */
-export type Guard = "staff" | "admin" | Parameters<typeof requirePermission>[0];
+type Perms = Parameters<typeof requirePermission>[0];
+export type Guard = "staff" | "admin" | { readonly [K in keyof Perms]: readonly string[] };
 
 export type RevalidateTarget = string | readonly [path: string, type: "layout" | "page"];
 
@@ -27,7 +28,7 @@ export function parseInput<S extends z.ZodType>(schema: S, input: unknown): z.in
 export function guard(g: Guard): Promise<void> {
   if (g === "staff") return requireStaff();
   if (g === "admin") return requireAdmin();
-  return requirePermission(g);
+  return requirePermission(g as Perms);
 }
 
 export function revalidateAll(targets: readonly RevalidateTarget[] = []): void {

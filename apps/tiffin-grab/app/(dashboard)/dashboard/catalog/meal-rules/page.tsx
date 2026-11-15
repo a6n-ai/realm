@@ -3,7 +3,7 @@ import { ListChecksIcon } from "lucide-react";
 import { asc, eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { dishes, mealSizes, plans } from "@/db/schema";
-import { requireAdmin } from "@/lib/auth/guards";
+import { requirePermission } from "@/lib/auth/guards";
 import { dishCategoriesService } from "@/lib/menu/dish-categories.service";
 import { mealRulesService, type BuilderRule } from "@/lib/menu/meal-rules.service";
 import { generateDescription, type RuleLabels } from "@/lib/menu/meal-rule-text";
@@ -47,7 +47,7 @@ function scopeLabel(r: BuilderRule): string {
 }
 
 async function MealRulesData() {
-  await requireAdmin();
+  await requirePermission({ catalog: ["read"] });
 
   const [rules, categories, planRows, dishRows, sizeRows] = await Promise.all([
     mealRulesService.listBuilderRules(),

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { ValidationError } from "@foundry/commons";
 
-vi.mock("@/lib/auth/guards", () => ({ requireAdmin: vi.fn() }));
+vi.mock("@/lib/auth/guards", () => ({ requirePermission: vi.fn() }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/lib/catalog/load", () => ({ invalidateCatalogSnapshot: vi.fn() }));
 
@@ -40,11 +40,12 @@ describe("menu actions", () => {
     expect(res).toMatchObject({ error: "Only a draft can be marked ready" });
   });
 
-  it("returns session expired error when requireAdmin throws AuthError", async () => {
-    const { requireAdmin } = await import("@/lib/auth/guards");
+  it("returns session expired error when requirePermission throws AuthError", async () => {
+    const { requirePermission } = await import("@/lib/auth/guards");
     const { AuthError } = await import("@foundry/commons");
-    vi.mocked(requireAdmin).mockRejectedValueOnce(new AuthError());
+    vi.mocked(requirePermission).mockRejectedValueOnce(new AuthError());
     const res = await releaseWeek("mw_test");
+    expect(requirePermission).toHaveBeenCalledWith({ menu: ["publish"] });
     expect(res).toMatchObject({ error: "Session expired. Please log in again." });
   });
 

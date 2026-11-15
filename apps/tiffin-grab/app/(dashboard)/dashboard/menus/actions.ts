@@ -13,8 +13,8 @@ import { revalidatePublicSite } from "@/lib/landing/revalidate-site";
 // Draft edits are invisible to the public site — only a release changes what is served.
 // Revalidating "/" and /menu/weekly on every add/remove was busting the marketing home
 // page once per click for no reachable change.
-const MENUS = { guard: "admin", revalidate: ["/dashboard/menus"] } as const;
-const ADMIN = { guard: "admin" } as const;
+const MENUS = { guard: { menu: ["write"] }, revalidate: ["/dashboard/menus"] } as const;
+const ADMIN = { guard: { menu: ["write"] } } as const;
 
 export async function upsertWeek(input: { weekStart: string }): Promise<ActionResult<{ publicId: string }>> {
   return staffAction(MENUS, async () => {
@@ -104,7 +104,7 @@ export async function copyWeek(input: {
 }
 
 export async function releaseWeek(menuWeekId: string): Promise<ActionResult> {
-  return staffAction(MENUS, async () => {
+  return staffAction({ ...MENUS, guard: { menu: ["publish"] } }, async () => {
     await menuService.release(menuWeekId);
     revalidatePublicSite();
   });

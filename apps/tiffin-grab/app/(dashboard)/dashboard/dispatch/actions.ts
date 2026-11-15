@@ -84,7 +84,7 @@ async function pullAfter(date: string): Promise<void> {
  */
 export async function pushDayAction(date: string): Promise<ActionResult<PushResult>> {
   // The Overview's route-push tile and the header badge read the same push status.
-  return staffAction({ guard: "staff", revalidate: [DISPATCH, ["/dashboard", "layout"]] }, async () => {
+  return staffAction({ guard: { delivery: ["write"] }, revalidate: [DISPATCH, ["/dashboard", "layout"]] }, async () => {
     requireDate(date);
     return pushDay(date, await currentUserId(), await ownDeliveriesOn(date));
   });
@@ -95,7 +95,7 @@ export async function pushDayAction(date: string): Promise<ActionResult<PushResu
  * any that OptimoRoute already routed show their driver.
  */
 export async function pushUnassignedAction(date: string, orderNos: string[]): Promise<ActionResult<PushResult>> {
-  return staffAction({ guard: "staff", revalidate: [DISPATCH] }, async () => {
+  return staffAction({ guard: { delivery: ["write"] }, revalidate: [DISPATCH] }, async () => {
     requireDate(date);
     if (orderNos.length === 0) throw new ValidationError("No unassigned deliveries to push");
     await assertDispatchOrders(orderNos);
@@ -111,7 +111,7 @@ export async function pushUnassignedAction(date: string, orderNos: string[]): Pr
  * fresh read before deleting anything, so a stop that went live again is skipped.
  */
 export async function removeStopsAction(date: string, orderNos: string[]): Promise<ActionResult<RemoveResult>> {
-  return staffAction({ guard: "staff", revalidate: [DISPATCH] }, async () => {
+  return staffAction({ guard: { delivery: ["write"] }, revalidate: [DISPATCH] }, async () => {
     requireDate(date);
     if (orderNos.length === 0) throw new ValidationError("Select at least one stop to remove");
     await assertDispatchOrders(orderNos);
@@ -125,7 +125,7 @@ export async function removeStopsAction(date: string, orderNos: string[]): Promi
  */
 export async function pullRoutesAction(date: string): Promise<ActionResult<PullResult>> {
   // Labels print in driver-then-stop order, so they change the moment routes land.
-  return staffAction({ guard: "staff", revalidate: [DISPATCH, "/dashboard/labels"] }, async () => {
+  return staffAction({ guard: { delivery: ["write"] }, revalidate: [DISPATCH, "/dashboard/labels"] }, async () => {
     requireDate(date);
     return pullRoutes(date);
   });
@@ -137,7 +137,7 @@ export async function pullRoutesAction(date: string): Promise<ActionResult<PullR
  * by hand, pooling the tiffin. Safe to re-run — matching and the skip itself are idempotent.
  */
 export async function pullCompletionsAction(date: string): Promise<ActionResult<PullCompletionsResult>> {
-  return staffAction({ guard: "staff", revalidate: [DISPATCH, "/dashboard/orders", ["/me", "layout"]] }, async () => {
+  return staffAction({ guard: { delivery: ["write"] }, revalidate: [DISPATCH, "/dashboard/orders", ["/me", "layout"]] }, async () => {
     requireDate(date);
     return pullCompletions(date, await currentUserId());
   });
@@ -145,7 +145,7 @@ export async function pullCompletionsAction(date: string): Promise<ActionResult<
 
 /** Reassigns a stop to a different driver; assignDriver throws if the order has no planned delivery for that date. */
 export async function reassignDriverAction(orderNo: string, date: string, driverSerial: string): Promise<ActionResult> {
-  return staffAction({ guard: "staff", revalidate: [DISPATCH] }, async () => {
+  return staffAction({ guard: { delivery: ["write"] }, revalidate: [DISPATCH] }, async () => {
     requireDate(date);
     await assertDispatchOrders([orderNo]);
     await assignDriver(orderNo, date, driverSerial, await currentUserId());
@@ -155,7 +155,7 @@ export async function reassignDriverAction(orderNo: string, date: string, driver
 
 /** Manual "redo the push" for one delivery, from the Dispatch table's own row actions. */
 export async function pushDeliveryAction(orderNo: string, date: string): Promise<ActionResult> {
-  return staffAction({ guard: "staff", revalidate: [DISPATCH] }, async () => {
+  return staffAction({ guard: { delivery: ["write"] }, revalidate: [DISPATCH] }, async () => {
     requireDate(date);
     await assertDispatchOrders([orderNo]);
     await pushOneDelivery(orderNo, date, await currentUserId());
@@ -165,7 +165,7 @@ export async function pushDeliveryAction(orderNo: string, date: string): Promise
 
 /** Read-only push/pull activity log for one delivery — the Dispatch row-click history drawer. */
 export async function getDeliveryActivitiesAction(orderNo: string): Promise<ActionResult<{ activities: DeliveryActivity[] }>> {
-  return staffAction({ guard: "staff" }, async () => {
+  return staffAction({ guard: { delivery: ["read"] } }, async () => {
     await assertDispatchOrders([orderNo]);
     return { activities: await getDeliveryActivities(orderNo) };
   });
@@ -173,7 +173,7 @@ export async function getDeliveryActivitiesAction(orderNo: string): Promise<Acti
 
 /** Manual per-row removal from the Dispatch table — force-removes regardless of the day-level stale check. */
 export async function removeDeliveryAction(orderNo: string, date: string): Promise<ActionResult> {
-  return staffAction({ guard: "staff", revalidate: [DISPATCH] }, async () => {
+  return staffAction({ guard: { delivery: ["write"] }, revalidate: [DISPATCH] }, async () => {
     requireDate(date);
     await assertDispatchOrders([orderNo]);
     await removeOneDelivery(orderNo, date, await currentUserId());

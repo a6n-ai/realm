@@ -4,18 +4,18 @@ import { PageHeader, PageShell, SectionCard } from "@/components/ds";
 import { CatalogData, type SearchParams } from "../catalog-data";
 import { ResourceEditorSkeleton } from "../[resource]/resource-editor";
 import { GroupedResourceTabs } from "../grouped-resource-tabs";
-import { requireAdmin } from "@/lib/auth/guards";
+import { requirePermission } from "@/lib/auth/guards";
 import { getAppSettings } from "@/lib/settings";
 import { TiffinsPerWeekForm, TiffinsPerWeekSkeleton } from "./tiffins-per-week-form";
 
 async function TiffinsPerWeekData() {
-  await requireAdmin();
+  await requirePermission({ catalog: ["read"] });
   const s = await getAppSettings();
   return <TiffinsPerWeekForm min={s.minTiffinsPerWeek} max={s.maxTiffinsPerWeek} />;
 }
 
 async function DeliveryChargesData() {
-  await requireAdmin();
+  await requirePermission({ catalog: ["read"] });
   const { deliveryService } = await import("@/lib/services/delivery.service");
   const { resolveRequestOrg } = await import("@/lib/tenant/resolve-request-org");
   const { DeliveryChargesBoundary } = await import("../../delivery/charges/delivery-clients");
@@ -35,7 +35,7 @@ async function DeliveryChargesData() {
 }
 
 async function DeliveryZonesData() {
-  await requireAdmin();
+  await requirePermission({ catalog: ["read"] });
   const { deliveryService } = await import("@/lib/services/delivery.service");
   const { resolveRequestOrg } = await import("@/lib/tenant/resolve-request-org");
   const { DeliveryZonesManager } = await import("@foundry/delivery/ui");
@@ -67,7 +67,7 @@ async function DeliveryZonesData() {
 }
 
 async function DeliveryTypesData() {
-  await requireAdmin();
+  await requirePermission({ catalog: ["read"] });
   const { deliveryService } = await import("@/lib/services/delivery.service");
   const { resolveRequestOrg } = await import("@/lib/tenant/resolve-request-org");
   const { DeliveryTypesManager } = await import("@foundry/delivery/ui");

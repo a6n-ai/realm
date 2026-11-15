@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, CalendarIcon } from "lucide-react";
-import { requireAdmin } from "@/lib/auth/guards";
+import { requirePermission } from "@/lib/auth/guards";
 import { menuService } from "@/lib/menu/menu.service";
 import { getMealTypes } from "@/lib/menu/meal-types-settings";
 import { dishCategoriesService } from "@/lib/menu/dish-categories.service";
@@ -45,7 +45,7 @@ export default function MenuWeekPage({ params }: { params: Params }) {
 }
 
 async function WeekData({ params }: { params: Params }) {
-  await requireAdmin();
+  await requirePermission({ menu: ["write"] });
   const { week: weekPublicId } = await params;
 
   const result = await menuService.weekWithItems(weekPublicId);

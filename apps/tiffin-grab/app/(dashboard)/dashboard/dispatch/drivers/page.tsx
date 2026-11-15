@@ -1,6 +1,6 @@
 import { parseIsoDate } from "@/lib/dates/iso-date";
 import { TruckIcon } from "lucide-react";
-import { requireStaff } from "@/lib/auth/guards";
+import { requirePermission } from "@/lib/auth/guards";
 import { getAppSettings } from "@/lib/settings";
 import { zonedDateIso } from "@foundry/commons";
 import { buildDispatchRows, listKnownDrivers } from "@/lib/optimoroute/drivers";
@@ -14,7 +14,7 @@ import { requestNow } from "@/lib/dates/request-now";
 
 type SearchParams = Promise<{ date?: string }>;
 export default async function DriversPage({ searchParams }: { searchParams: SearchParams }) {
-  await requireStaff();
+  await requirePermission({ delivery: ["read"] });
   const { date: dateParam } = await searchParams;
   const { timezone } = await getAppSettings();
   const today = zonedDateIso(requestNow(), timezone);

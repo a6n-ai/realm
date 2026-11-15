@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { TruckIcon } from "lucide-react";
 import { zonedDateIso } from "@foundry/commons";
 import { Skeleton } from "@foundry/ui/skeleton";
-import { requireStaff } from "@/lib/auth/guards";
+import { requirePermission } from "@/lib/auth/guards";
 import { getAppSettings } from "@/lib/settings";
 import { getOptimoRouteStatus } from "@/lib/optimoroute/config";
 import { buildDayLedger } from "@/lib/optimoroute/ledger";
@@ -39,7 +39,7 @@ export default async function DispatchPage({ searchParams }: { searchParams: Sea
 }
 
 async function DispatchData({ searchParams }: { searchParams: SearchParams }) {
-  await requireStaff();
+  await requirePermission({ delivery: ["read"] });
   const { date: dateParam } = await searchParams;
   const [{ timezone }, status] = await Promise.all([getAppSettings(), getOptimoRouteStatus()]);
 

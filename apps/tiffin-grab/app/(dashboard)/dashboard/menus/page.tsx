@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { CalendarIcon } from "lucide-react";
-import { requireAdmin } from "@/lib/auth/guards";
+import { requirePermission } from "@/lib/auth/guards";
 import { menuService } from "@/lib/menu/menu.service";
 import { getAppSettings } from "@/lib/settings";
 import { PageHeader, PageShell, SectionCard } from "@/components/ds";
@@ -36,7 +36,7 @@ export default function MenusPage() {
 }
 
 async function MenusData() {
-  await requireAdmin();
+  await requirePermission({ menu: ["write"] });
 
   const [appSettings, weeks] = await Promise.all([
     getAppSettings(),

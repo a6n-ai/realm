@@ -40,7 +40,7 @@ const ruleSchema = z.object({
 });
 
 export async function saveMealRule(input: unknown): Promise<ActionResult> {
-  return staffAction({ guard: "admin", revalidate: [[PATH, "layout"]] }, async () => {
+  return staffAction({ guard: { catalog: ["write"] }, revalidate: [[PATH, "layout"]] }, async () => {
     const parsed = ruleSchema.safeParse(input);
     if (!parsed.success) throw new ValidationError("Something in this rule isn't filled in correctly.");
     const { publicId, ...rule } = parsed.data;
@@ -49,7 +49,7 @@ export async function saveMealRule(input: unknown): Promise<ActionResult> {
 }
 
 export async function deleteMealRuleSafe(input: unknown): Promise<ActionResult> {
-  return staffAction({ guard: "admin", revalidate: [[PATH, "layout"]] }, async () => {
+  return staffAction({ guard: { catalog: ["write"] }, revalidate: [[PATH, "layout"]] }, async () => {
     await mealRulesService.deleteRule(parseInput(idSchema, input).id);
   });
 }

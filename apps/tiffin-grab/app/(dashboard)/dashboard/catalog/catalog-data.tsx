@@ -6,7 +6,7 @@ import { pageOrder } from "@foundry/database";
 import { PgColumn } from "drizzle-orm/pg-core";
 import { db } from "@/db/client";
 import { deliveryFrequencies, durationPackages, mealSizes, plans } from "@/db/schema";
-import { requireAdmin } from "@/lib/auth/guards";
+import { requirePermission } from "@/lib/auth/guards";
 import { dishCategoriesService } from "@/lib/menu/dish-categories.service";
 import { columnResolver, conditionToSql, type FilterResolver } from "@foundry/database";
 import { parseFilterState, type FacetDef } from "@foundry/design-system";
@@ -55,7 +55,7 @@ function facetsFor(def: ResourceDef, dynamicOptions: Record<string, { value: str
 }
 
 export async function CatalogData({ resource, searchParams }: { resource: string; searchParams: SearchParams }) {
-  await requireAdmin();
+  await requirePermission({ catalog: ["read"] });
   const def: ResourceDef | undefined = RESOURCES[resource];
   const hooks = RESOURCE_HOOKS[resource];
   if (!def || !hooks) notFound();

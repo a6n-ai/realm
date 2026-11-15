@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
-vi.mock("@/lib/auth/guards", () => ({ requireAdmin: vi.fn() }));
+vi.mock("@/lib/auth/guards", () => ({ requirePermission: vi.fn() }));
 const setAppSettings = vi.fn();
 vi.mock("@/lib/deliveries/set-app-settings", () => ({ setAppSettings }));
 vi.mock("@/lib/settings", () => ({ getAppSettings: async () => ({ timezone: "UTC", cutoffHour: 18 }) }));

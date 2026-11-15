@@ -7,7 +7,7 @@ import { dishCategoriesService } from "@/lib/menu/dish-categories.service";
 import { currentUserId } from "@/lib/services/session-service";
 
 // The wizard reads swap pairs off the cached snapshot, hence catalog: true.
-const SWAPS = { guard: "admin", revalidate: [["/dashboard/catalog/swaps", "layout"]], catalog: true } as const;
+const SWAPS = { guard: { catalog: ["write"] }, revalidate: [["/dashboard/catalog/swaps", "layout"]], catalog: true } as const;
 
 // TU to hundredths, the precision meal_size_items and receive_tu store.
 const tu = z.number().finite().max(1000).transform((n) => Math.round(n * 100) / 100).pipe(z.number().positive());

@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { UtensilsIcon } from "lucide-react";
 import { PageHeader, PageShell, SectionCard } from "@/components/ds";
-import { requireAdmin } from "@/lib/auth/guards";
+import { requirePermission } from "@/lib/auth/guards";
 import { getTrialSettings } from "@/lib/trial/trial-settings.service";
 import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
@@ -12,7 +12,7 @@ import { GroupedResourceTabs } from "../grouped-resource-tabs";
 import { TrialSettingsForm, TrialSettingsSkeleton } from "./trial-settings-form";
 
 async function TrialSettingsData() {
-  await requireAdmin();
+  await requirePermission({ catalog: ["read"] });
   const orgId = await resolveRequestOrg();
   const [settings, catalog] = await Promise.all([getTrialSettings(orgId), loadCatalogSnapshot(orgId)]);
   const frequencies = catalog.frequencies.map((f) => ({

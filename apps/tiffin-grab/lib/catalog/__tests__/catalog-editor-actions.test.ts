@@ -3,10 +3,11 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { durationPackages } from "@/db/schema";
 
-// The editor actions go through requireAdmin() and revalidatePath(); stub both
+// The editor actions go through requirePermission() and revalidatePath(); stub both
 // so the action path runs outside a request scope. The point under test is that
 // the editor passes a public_id (NOT the bigint id) and the service resolves it.
-vi.mock("@/lib/auth/guards", () => ({ requireAdmin: async () => undefined }));
+const requirePermission = vi.fn(async () => undefined);
+vi.mock("@/lib/auth/guards", () => ({ requirePermission }));
 vi.mock("next/cache", () => ({ revalidatePath: () => undefined }));
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
@@ -34,6 +35,7 @@ describe("catalog editor action round-trip (public_id resolves)", () => {
 
   it("retire then reactivate via the action path flips active using the public_id", async () => {
     await retireItem("duration-packages", publicId);
+    expect(requirePermission).toHaveBeenCalledWith({ catalog: ["write"] });
     let [row] = await db.select().from(durationPackages).where(eq(durationPackages.publicId, publicId));
     expect(row.active).toBe(false);
 

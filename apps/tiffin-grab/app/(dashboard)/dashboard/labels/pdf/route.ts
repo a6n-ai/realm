@@ -1,12 +1,12 @@
 import { parseIsoDate } from "@/lib/dates/iso-date";
-import { requireStaff } from "@/lib/auth/guards";
+import { requirePermission } from "@/lib/auth/guards";
 import { dailyLabelSheet } from "@/lib/menu/daily-labels.service";
 import { renderDailyLabelsPdf } from "@/lib/menu/labels-pdf";
 import { unreleasedWeekMessage } from "@/lib/menu/unreleased-week";
 
 // Staff-gated: labels carry customer names, addresses, phone numbers, and delivery notes.
 export async function GET(request: Request) {
-  await requireStaff();
+  await requirePermission({ delivery: ["read"] });
 
   const date = parseIsoDate(new URL(request.url).searchParams.get("date"));
   if (!date) return new Response("A ?date=YYYY-MM-DD is required", { status: 400 });
