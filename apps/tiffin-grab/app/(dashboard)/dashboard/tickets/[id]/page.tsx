@@ -9,7 +9,7 @@ import { NotFoundError } from "@foundry/commons";
 import { db } from "@/db/client";
 import { mealSizes, orders, plans, tickets, users } from "@/db/schema";
 import { formatEpoch } from "@/lib/format/datetime";
-import { requireStaff } from "@/lib/auth/guards";
+import { requirePermission } from "@/lib/auth/guards";
 import { getAppSettings } from "@/lib/settings";
 import {
   ticketsService,
@@ -37,9 +37,9 @@ const AUTHOR_LABEL: Record<string, string> = {
 };
 
 // The three Suspense blocks below each need the same auth + ticket. cache()
-// dedupes them per request so one row-click does one requireStaff + one read
+// dedupes them per request so one row-click does one permission check + one read
 // instead of three of each (the fan-out that intermittently saturated the pool).
-const ensureStaff = cache(() => requireStaff());
+const ensureStaff = cache(() => requirePermission({ ticket: ["read"] }));
 const loadTicket = cache((id: string) => ticketsService.readForStaff(id));
 
 export default function TicketDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -162,7 +162,7 @@ async function ConversationData({ params }: { params: Promise<{ id: string }> })
   const closed = ticket.status === "resolved" || ticket.status === "closed";
   const channel = `ticket:${ticket.publicId}`;
 
-  // Mint token-gated hrefs at render time (staff already passed requireStaff above).
+  // Mint token-gated hrefs at render time (staff already passed the ticket permission check above).
   const withHref = await withAttachmentViews(messages, `tickets/${ticket.publicId}`);
   const authorIds = [...new Set(messages.map((m) => m.authorId))];
   const names = new Map(

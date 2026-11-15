@@ -1,7 +1,7 @@
 import { xlsxResponse } from "@/lib/files/export-response";
 import { handler } from "@foundry/routes";
 import { customerListQuery } from "@/app/(dashboard)/dashboard/customers/list-query";
-import { requireStaff } from "@/lib/auth/guards";
+import { requirePermission } from "@/lib/auth/guards";
 import { appTodayIso } from "@/lib/dates/today";
 import { formatEpoch } from "@/lib/format/datetime";
 import { getAppSettings } from "@/lib/settings";
@@ -13,7 +13,7 @@ const MAX_ROWS = 10_000;
 
 /** All pages, not just the visible one. */
 export const GET = handler(async (request: Request): Promise<Response> => {
-  await requireStaff();
+  await requirePermission({ customer: ["export"] });
   const [{ sort, condition, custom }, { timezone }] = await Promise.all([
     customerListQuery(Object.fromEntries(new URL(request.url).searchParams)),
     getAppSettings(),

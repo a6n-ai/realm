@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import { UsersIcon, PlusIcon, ShoppingBagIcon, RepeatIcon, UserPlusIcon, UserXIcon } from "lucide-react";
 import { StatCards, StatCardsSkeleton, type StatCardItem } from "@/components/dashboard/stat-cards";
 import { and, eq, gte, sql } from "drizzle-orm";
-import { AdminOnly, requireStaff } from "@/lib/auth/guards";
+import { can, requirePermission } from "@/lib/auth/guards";
 import { db } from "@/db/client";
 import { orders, users } from "@/db/schema";
 import { getAppSettings } from "@/lib/settings";
@@ -34,6 +34,9 @@ import { SectionDateRange } from "@/components/filters/section-date-range";
 import { epochBoundsWhere, withDefaultMonth } from "@/lib/list/default-month";
 import { customersListHref } from "@/lib/list/customers-drill";
 import { requestNow } from "@/lib/dates/request-now";
+
+const CUSTOMER_READ = { customer: ["read"] };
+const CUSTOMER_WRITE = { customer: ["write"] };
 
 type SearchParams = Promise<Record<string, string | undefined>>;
 
@@ -118,16 +121,12 @@ async function InvitePendingButtonLoader() {
 }
 
 async function InvitePendingAction() {
-  await requireStaff();
-  return (
-    <AdminOnly>
-      <InvitePendingButtonLoader />
-    </AdminOnly>
-  );
+  if (!(await can(CUSTOMER_WRITE))) return null;
+  return <InvitePendingButtonLoader />;
 }
 
 async function CustomersStats({ searchParams }: { searchParams: SearchParams }) {
-  await requireStaff();
+  await requirePermission(CUSTOMER_READ);
   const sp = await withDefaultMonth(await searchParams);
 
   const now = requestNow();
@@ -199,7 +198,7 @@ async function CustomersStats({ searchParams }: { searchParams: SearchParams }) 
 }
 
 async function CustomersData({ searchParams, tab }: { searchParams: SearchParams; tab: "all" | "payments" }) {
-  await requireStaff();
+  await requirePermission(CUSTOMER_READ);
   const { sort, condition, page, custom } = await customerListQuery(await searchParams);
   const result = await listCustomersPage(condition, page, sort, custom);
   const List = tab === "payments" ? CustomerPaymentsList : CustomersList;
@@ -207,7 +206,7 @@ async function CustomersData({ searchParams, tab }: { searchParams: SearchParams
 }
 
 async function NewCustomerAction() {
-  await requireStaff();
+  if (!(await can(CUSTOMER_WRITE))) return null;
 
   const [{ defaultCountry }, sources, catalog, slots] = await Promise.all([
     getAppSettings(),

@@ -1,10 +1,10 @@
 import type { ReactNode } from "react";
 import { WalletCardsIcon } from "lucide-react";
-import { requireAdmin } from "@/lib/auth/guards";
+import { requirePermission } from "@/lib/auth/guards";
 import { PageShell, PageHeader } from "@/components/ds";
 
 export default async function PaymentsLayout({ children }: { children: ReactNode }) {
-  await requireAdmin();
+  await requirePermission({ finance: ["read"] });
 
   return (
     <PageShell>

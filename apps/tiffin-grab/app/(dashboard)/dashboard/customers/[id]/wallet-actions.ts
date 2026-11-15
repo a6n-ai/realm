@@ -12,7 +12,7 @@ export async function adjustCustomerCoinsAction(
   customerPublicId: string,
   input: { coins: number; memo: string },
 ): Promise<ActionResult> {
-  return staffAction({ guard: "admin", revalidate: [[`/dashboard/customers/${customerPublicId}`, "layout"]] }, async () => {
+  return staffAction({ guard: { wallet: ["give"] }, revalidate: [[`/dashboard/customers/${customerPublicId}`, "layout"]] }, async () => {
     const userId = await userIdByPublicId(customerPublicId);
     if (!userId) throw new ValidationError("Customer not found.");
     await walletService.adjust({ userId, coins: input.coins, memo: input.memo, actorId: await currentUserId() });
@@ -32,7 +32,7 @@ export async function attachReferralCodeAction(
   customerPublicId: string,
   code: string,
 ): Promise<ActionResult<{ friend?: number; referrer?: number; skipped?: string }>> {
-  return staffAction({ guard: "admin", revalidate: [[`/dashboard/customers/${customerPublicId}`, "layout"]] }, async () => {
+  return staffAction({ guard: { wallet: ["give"] }, revalidate: [[`/dashboard/customers/${customerPublicId}`, "layout"]] }, async () => {
     const userId = await userIdByPublicId(customerPublicId);
     if (!userId) throw new ValidationError("Customer not found.");
     const res = await staffAttachReferral(userId, code, await currentUserId());

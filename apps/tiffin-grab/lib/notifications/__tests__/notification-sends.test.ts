@@ -3,6 +3,7 @@ import { and, eq, inArray, like, ne } from "drizzle-orm";
 import { nextWeekday } from "@foundry/commons";
 
 const session: { user: { id: string; role: string } | null } = { user: null };
+vi.mock("@/lib/auth/guards", () => ({ can: async () => true }));
 vi.mock("@/lib/auth/session", () => ({ getSession: async () => (session.user ? session : null) }));
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 vi.mock("@/lib/payments/stripe", async (orig) => ({

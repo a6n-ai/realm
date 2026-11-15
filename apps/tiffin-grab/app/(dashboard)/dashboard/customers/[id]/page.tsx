@@ -11,7 +11,7 @@ import { loadCustomer, loadViewer } from "./data";
 /** Overview tab: money, account basics, contact on file, and inquiries. Orders, renewals and the rest have their own tabs. */
 export default async function CustomerOverviewPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const [data, { isAdmin, timezone }, saved] = await Promise.all([loadCustomer(id), loadViewer(), addressService.list(await addressScopeFor(id))]);
+  const [data, { canEdit, timezone }, saved] = await Promise.all([loadCustomer(id), loadViewer(), addressService.list(await addressScopeFor(id))]);
   // The default saved address is the account's address now; the users.address columns are
   // only a fallback until every customer's book is backfilled.
   const def = saved.find((a) => a.isDefault);
@@ -65,7 +65,7 @@ export default async function CustomerOverviewPage({ params }: { params: Promise
         </SectionCard>
       </div>
 
-      {isAdmin && (
+      {canEdit && (
         <SectionCard title="Contact" subtitle="Edit the email and phone on file.">
           <div className="flex flex-col gap-4">
             <div className="flex flex-wrap gap-2">

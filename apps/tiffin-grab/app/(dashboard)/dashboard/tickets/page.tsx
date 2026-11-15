@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { LifeBuoyIcon, InboxIcon, AlertCircleIcon, CheckCircleIcon, HourglassIcon, TicketIcon } from "lucide-react";
 import { StatCards, StatCardsSkeleton } from "@/components/dashboard/stat-cards";
-import { AdminOnly, requireStaff } from "@/lib/auth/guards";
+import { can, requirePermission } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import { getSupportHours } from "@/lib/support/support-hours-settings";
@@ -83,16 +83,12 @@ async function SupportHoursDialogLoader() {
 }
 
 async function SupportHoursAction() {
-  await requireStaff();
-  return (
-    <AdminOnly>
-      <SupportHoursDialogLoader />
-    </AdminOnly>
-  );
+  if (!(await can({ ticket: ["write"] }))) return null;
+  return <SupportHoursDialogLoader />;
 }
 
 async function TicketStats({ searchParams }: { searchParams: TicketSearchParams }) {
-  await requireStaff();
+  await requirePermission({ ticket: ["read"] });
   const sp = await withDefaultMonth(await searchParams);
   // Cards are the date-range overview. A status on the URL (including the overdue drill) filters the list only.
   const filters = parseComplaintFilters({ from: sp.from, to: sp.to });
@@ -124,7 +120,7 @@ async function TicketStats({ searchParams }: { searchParams: TicketSearchParams 
 }
 
 async function TicketsData({ searchParams }: { searchParams: TicketSearchParams }) {
-  await requireStaff();
+  await requirePermission({ ticket: ["read"] });
 
   const sp = await withListDates(await searchParams);
   const sort = parseSort(sp, SORT_COLUMNS, {

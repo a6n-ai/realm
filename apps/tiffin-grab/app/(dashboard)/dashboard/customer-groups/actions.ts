@@ -3,9 +3,9 @@
 import { unexpired } from "@foundry/wallet";
 import { and, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
-import { requireAdmin } from "@/lib/auth/guards";
+import { requirePermission } from "@/lib/auth/guards";
 import type { ActionResult } from "@/lib/actions/action-result";
-import { parseInput, staffAction } from "@/lib/actions/staff-action";
+import { parseInput, staffAction, type Guard, type StaffActionOpts } from "@/lib/actions/staff-action";
 import { ValidationError } from "@foundry/commons";
 import { db } from "@/db/client";
 import { users, walletLedger } from "@/db/schema";
@@ -27,7 +27,7 @@ import { listPayoutCandidates, type PayoutCandidate, type PayoutCandidateFilters
 import { walletBalanceSql } from "@/lib/wallet/balance-sql";
 
 export async function searchAccounts(query: string) {
-  await requireAdmin();
+  await requirePermission({ customer: ["read"] });
   const rows = await searchCustomers(query);
   if (rows.length === 0) return [];
   // Spendable balance for the review table when staff add someone by hand.
@@ -44,11 +44,13 @@ export async function searchAccounts(query: string) {
   return rows.map((r) => ({ ...r, walletCoins: byId.get(r.publicId) ?? 0 }));
 }
 
-const GROUPS = { guard: "admin", revalidate: ["/dashboard/customer-groups"] } as const;
-const ADMIN = { guard: "admin" } as const;
+const CUSTOMER_READ: Guard = { customer: ["read"] };
+const CUSTOMER_EXPORT: Guard = { customer: ["export"] };
+const GROUPS: StaffActionOpts = { guard: { customer: ["write"] }, revalidate: ["/dashboard/customer-groups"] };
+const READ: StaffActionOpts = { guard: CUSTOMER_READ };
 
 export async function searchGroupsAction(query: string): Promise<ActionResult<{ groups: { publicId: string; name: string; memberCount: number }[] }>> {
-  return staffAction(ADMIN, async () => ({ groups: await searchCustomerGroups(parseInput(z.string().max(120), query)) }));
+  return staffAction(READ, async () => ({ groups: await searchCustomerGroups(parseInput(z.string().max(120), query)) }));
 }
 
 const payoutFiltersSchema = z.object({
@@ -66,7 +68,7 @@ const payoutFiltersSchema = z.object({
 });
 
 export async function getPayoutCandidates(input: unknown): Promise<ActionResult<{ rows: PayoutCandidate[]; total: number }>> {
-  return staffAction(ADMIN, async () => {
+  return staffAction(READ, async () => {
     const filters = parseInput(payoutFiltersSchema, input) satisfies PayoutCandidateFilters;
     return listPayoutCandidates(filters);
   });
@@ -112,7 +114,7 @@ const giveCoinsSchema = z.object({
 });
 
 export async function giveGroupCoinsAction(input: unknown): Promise<ActionResult<{ actionPublicId: string; awarded: number; capped: number }>> {
-  return staffAction(GROUPS, async () => {
+  return staffAction({ ...GROUPS, guard: { wallet: ["give"] } }, async () => {
     const d = parseInput(giveCoinsSchema, input);
     return giveGroupCoins(d.groupPublicId, { coins: d.coins, memo: d.memo }, await currentUserId());
   });
@@ -121,7 +123,7 @@ export async function giveGroupCoinsAction(input: unknown): Promise<ActionResult
 export async function getCoinsActionMembersAction(
   actionPublicId: string,
 ): Promise<ActionResult<{ rows: Awaited<ReturnType<typeof getCoinsActionMembers>> }>> {
-  return staffAction(ADMIN, async () => ({ rows: await getCoinsActionMembers(parseInput(idSchema, actionPublicId)) }));
+  return staffAction(READ, async () => ({ rows: await getCoinsActionMembers(parseInput(idSchema, actionPublicId)) }));
 }
 
 export async function emailGroupAction(groupPublicId: string): Promise<ActionResult<{ campaignPublicId: string }>> {
@@ -133,5 +135,5 @@ export async function emailAwardedMembersAction(actionPublicId: string): Promise
 }
 
 export async function exportGroupCsvAction(groupPublicId: string): Promise<ActionResult<{ csv: string }>> {
-  return staffAction(ADMIN, async () => ({ csv: await groupMembersCsv(parseInput(idSchema, groupPublicId)) }));
+  return staffAction({ guard: CUSTOMER_EXPORT }, async () => ({ csv: await groupMembersCsv(parseInput(idSchema, groupPublicId)) }));
 }

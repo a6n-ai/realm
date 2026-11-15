@@ -5,7 +5,8 @@ const guard = { admin: true };
 vi.mock("@/lib/auth/guards", async () => {
   const { ForbiddenError } = await import("@foundry/commons");
   return {
-    requireAdmin: async () => {
+    requirePermission: async (perms: unknown) => {
+      expect(perms).toEqual({ customer: ["write"] });
       if (!guard.admin) throw new ForbiddenError("Forbidden");
     },
   };

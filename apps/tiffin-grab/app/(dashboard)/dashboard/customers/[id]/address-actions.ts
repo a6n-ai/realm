@@ -1,14 +1,14 @@
 "use server";
 
 import type { AddressInput, SavedAddress } from "@foundry/address";
-import { staffAction } from "@/lib/actions/staff-action";
+import { staffAction, type StaffActionOpts } from "@/lib/actions/staff-action";
 import { addressScopeFor, addressService } from "@/lib/services/addresses.service";
 import { assertAddressServiceable } from "@/lib/catalog/zone-match";
 import type { ActionResult } from "@/lib/actions/action-result";
 
 // Admin-only, always scoped to the customer whose page this is.
-const opts = (customerPublicId: string) =>
-  ({ guard: "admin", revalidate: [[`/dashboard/customers/${customerPublicId}`, "layout"]] }) as const;
+const opts = (customerPublicId: string): StaffActionOpts =>
+  ({ guard: { customer: ["write"] }, revalidate: [[`/dashboard/customers/${customerPublicId}`, "layout"]] });
 
 export async function staffCreateAddress(customerPublicId: string, input: AddressInput): Promise<ActionResult<SavedAddress>> {
   return staffAction(opts(customerPublicId), async () => {

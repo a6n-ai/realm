@@ -22,20 +22,20 @@ import { loadCustomer, loadViewer } from "./data";
 // One customer, split into tabs (each its own URL) instead of one long page. The header,
 // stats and tab bar stay put while a tab loads.
 export default async function CustomerLayout({ children, params }: { children: React.ReactNode; params: Promise<{ id: string }> }) {
-  const [{ id }, { isAdmin }] = await Promise.all([params, loadViewer()]);
+  const [{ id }, { canWallet }] = await Promise.all([params, loadViewer()]);
   return (
     <PageShell>
       <Suspense fallback={<HeaderSkeleton />}>
         <CustomerHeader id={id} />
       </Suspense>
-      <CustomerTabs customerPublicId={id} showWallet={isAdmin} />
+      <CustomerTabs customerPublicId={id} showWallet={canWallet} />
       {children}
     </PageShell>
   );
 }
 
 async function CustomerHeader({ id }: { id: string }) {
-  const [data, { isAdmin, timezone }] = await Promise.all([loadCustomer(id), loadViewer()]);
+  const [data, { canGive, timezone }] = await Promise.all([loadCustomer(id), loadViewer()]);
   const [coinBalance, rate, { currency }, [{ planEnd }]] = await Promise.all([
     walletService.balance(data.profile.id),
     currentRate(),
@@ -71,8 +71,8 @@ async function CustomerHeader({ id }: { id: string }) {
         actions={
           <div className="flex flex-wrap gap-2">
             <ResendInviteButton email={data.profile.email} />
-            {isAdmin ? <AdjustCoins customerPublicId={id} balance={coinBalance} who={who} /> : null}
-            {isAdmin ? <AttachReferral customerPublicId={id} /> : null}
+            {canGive ? <AdjustCoins customerPublicId={id} balance={coinBalance} who={who} /> : null}
+            {canGive ? <AttachReferral customerPublicId={id} /> : null}
           </div>
         }
       />

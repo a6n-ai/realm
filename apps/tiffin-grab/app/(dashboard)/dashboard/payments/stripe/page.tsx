@@ -2,8 +2,7 @@ import { Suspense } from "react";
 import { after } from "next/server";
 import { eq } from "drizzle-orm";
 import { SectionCard } from "@/components/ds";
-import { requirePermission, roleCan } from "@/lib/auth/guards";
-import { getSession } from "@/lib/auth/session";
+import { can, requirePermission } from "@/lib/auth/guards";
 import { payments } from "@/db/schema";
 import { stripeRuntime } from "@/lib/payments/stripe";
 import { settleStaleOnView } from "@/lib/payments/payment-stripe";
@@ -33,7 +32,6 @@ export default function StripePaymentsPage({ searchParams }: { searchParams: Sea
 
 async function StripeData({ searchParams }: { searchParams: SearchParams }) {
   await requirePermission({ finance: ["read"] });
-  const role = (await getSession())?.user.role ?? "";
   const [{ rows, total, page, size, sort }, rt] = await Promise.all([
     listPayments(await searchParams, { where: eq(payments.method, "stripe") }),
     stripeRuntime(),
@@ -49,7 +47,7 @@ async function StripeData({ searchParams }: { searchParams: SearchParams }) {
       sort={sort}
       now={serverNow()}
       livemode={rt?.cfg.livemode ?? false}
-      canRefund={roleCan(role, { finance: ["refund"] })}
+      canRefund={await can({ finance: ["refund"] })}
     />
   );
 }

@@ -13,6 +13,7 @@ import { enqueueNotification, enqueueStaffNotification } from "@/lib/notificatio
 import { deliveryZones, orders, plans, ticketMessages, tickets, users, type Attachment } from "@/db/schema";
 import { complaintWhere, type ComplaintFilters } from "@/lib/support/complaint-filters";
 import { getSession } from "@/lib/auth/session";
+import { can } from "@/lib/auth/guards";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import { assertReassignAllowed, resolveAssignableOwner } from "@/lib/staff/reassign";
 import { publishTicketsInbox } from "@/lib/realtime/publish-inbox";
@@ -107,7 +108,7 @@ class TicketsService extends SessionUpdatableService<typeof tickets> {
     const id = await this.currentUserId();
     if (!session || id == null) throw new AuthError();
     const role = session.user.role as RoleValue;
-    const isStaff = isStaffRole(role);
+    const isStaff = isStaffRole(role) && (await can({ ticket: ["read"] }));
     return { id, role, isStaff };
   }
 

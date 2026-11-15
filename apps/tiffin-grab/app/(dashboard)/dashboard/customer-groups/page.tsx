@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { CoinsIcon, MailIcon, UserRoundIcon, UsersIcon, ZapIcon } from "lucide-react";
-import { requireAdmin } from "@/lib/auth/guards";
+import { requirePermission } from "@/lib/auth/guards";
 import { PageShell, PageHeader, SectionCard, parseFilterState, type FacetDef } from "@/components/ds";
 import { StatCards, StatCardsSkeleton, type StatCardItem } from "@/components/dashboard/stat-cards";
 import { SectionDateRange } from "@/components/filters/section-date-range";
@@ -43,7 +43,7 @@ export default function CustomerGroupsPage({ searchParams }: { searchParams: Sea
 const SPEC: FacetDef[] = [{ kind: "search", fields: ["name"] }];
 
 async function GroupsStats({ searchParams }: { searchParams: SearchParams }) {
-  await requireAdmin();
+  await requirePermission({ customer: ["read"] });
   const sp = await withDefaultMonth(await searchParams);
   const stats = await customerGroupStats(epochRange(sp));
   const cards: StatCardItem[] = [
@@ -63,7 +63,7 @@ async function GroupsStats({ searchParams }: { searchParams: SearchParams }) {
 }
 
 async function GroupsData({ searchParams }: { searchParams: SearchParams }) {
-  await requireAdmin();
+  await requirePermission({ customer: ["read"] });
   const sp = await withListDates(await searchParams);
   const { page } = parseFilterState(SPEC, sp);
   const { rows, total } = await listCustomerGroups({ page: page.page, size: page.size, range: epochRange(sp), q: sp.q });

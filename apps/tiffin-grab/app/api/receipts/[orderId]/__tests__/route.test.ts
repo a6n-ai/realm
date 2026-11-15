@@ -4,6 +4,7 @@ const session = vi.hoisted(() => ({ current: null as null | { user: { id: string
 const visibleOrders = vi.hoisted(() => new Set<string>());
 const ownedOrders = vi.hoisted(() => new Set<string>());
 
+vi.mock("@/lib/auth/guards", () => ({ can: async () => true }));
 vi.mock("@/lib/auth/session", () => ({ getSession: async () => session.current }));
 vi.mock("@/lib/account/order-access", () => ({
   loadOrderOwnership: async (id: string) => ({ userId: null, organizationId: id }),

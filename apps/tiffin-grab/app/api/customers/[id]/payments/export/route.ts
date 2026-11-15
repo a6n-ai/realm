@@ -8,7 +8,7 @@ import { methodLabel } from "@/lib/payments/facets";
 import { paymentStatusLabel } from "@/lib/payments/status";
 import { orders } from "@/db/schema";
 import { emailByPublicId, userIdByPublicId } from "@/lib/identity/user-ids";
-import { requireStaff } from "@/lib/auth/guards";
+import { requirePermission } from "@/lib/auth/guards";
 import { appTodayIso } from "@/lib/dates/today";
 import { formatEpoch } from "@/lib/format/datetime";
 import { getAppSettings } from "@/lib/settings";
@@ -17,7 +17,7 @@ const HEADERS = ["Created", "Order", "Type", "Method", "Status", "Amount", "Refe
 
 /** One customer's payments as .xlsx, with the status/method/search filters the Payments tab has open. */
 export const GET = handler(async (request: Request, { params }: { params: Promise<{ id: string }> }): Promise<Response> => {
-  await requireStaff();
+  await requirePermission({ finance: ["read"] });
   const { id } = await params;
   const [userId, email] = await Promise.all([userIdByPublicId(id), emailByPublicId(id)]);
   if (userId == null) throw new NotFoundError("Customer not found");

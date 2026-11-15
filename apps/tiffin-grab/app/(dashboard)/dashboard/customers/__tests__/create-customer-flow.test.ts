@@ -6,7 +6,7 @@ import { inquiries, users } from "@/db/schema";
 import { resetInquiryData } from "@/lib/inquiries/__tests__/helpers/inquiry-fixtures";
 
 vi.mock("next/cache", () => ({ revalidatePath: () => undefined }));
-vi.mock("@/lib/auth/guards", () => ({ requireStaff: async () => undefined, requireAdmin: async () => undefined }));
+vi.mock("@/lib/auth/guards", () => ({ requirePermission: async () => undefined, can: async () => true }));
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 vi.mock("@/lib/services/customers.service", async (orig) => ({
   ...(await orig<typeof import("@/lib/services/customers.service")>()),

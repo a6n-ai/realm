@@ -2,7 +2,7 @@
 
 import { setSupportHours } from "@/lib/support/support-hours-settings";
 import type { ActionResult } from "@/lib/actions/action-result";
-import { staffAction } from "@/lib/actions/staff-action";
+import { staffAction, type StaffActionOpts } from "@/lib/actions/staff-action";
 import {
   ticketsService,
   type TicketPriority,
@@ -11,8 +11,10 @@ import {
 import { uploadAttachments } from "@/lib/support/ticket-attachments";
 import type { TicketCategoryValue } from "@/lib/support/ticket-taxonomy";
 
-const ticketOpts = (ticketId: string, extra: readonly string[] = []) =>
-  ({ guard: "staff", revalidate: ["/dashboard/tickets", `/dashboard/tickets/${ticketId}`, ...extra] }) as const;
+const TICKET_WRITE = { ticket: ["write"] };
+
+const ticketOpts = (ticketId: string, extra: readonly string[] = []): StaffActionOpts =>
+  ({ guard: TICKET_WRITE, revalidate: ["/dashboard/tickets", `/dashboard/tickets/${ticketId}`, ...extra] });
 
 export async function setStatus(
   ticketId: string,
@@ -64,7 +66,7 @@ export async function replyTicket(ticketId: string, form: FormData): Promise<Act
 /** Support days, hours and usual reply time, shown to customers in Support. */
 export async function saveSupportHours(input: unknown): Promise<ActionResult> {
   return staffAction(
-    { guard: "admin", revalidate: ["/dashboard/tickets", ["/me/support", "layout"]] },
+    { guard: TICKET_WRITE, revalidate: ["/dashboard/tickets", ["/me/support", "layout"]] },
     async () => {
       await setSupportHours(input);
     },

@@ -1,5 +1,6 @@
 import { isStaffRole } from "@/lib/roles";
 import { NotFoundError } from "@foundry/commons";
+import { can } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { loadReceipt } from "@/lib/billing/receipt";
 import { renderReceiptPdf } from "@/lib/billing/receipt-pdf";
@@ -18,7 +19,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ orde
       if (!session) return new Response("Not found", { status: 404 });
       const order = await loadOrderOwnership(orderId);
       if (!order) throw new NotFoundError("Order not found");
-      const allowed = isStaffRole(session.user.role) ? await staffSeesOrder(session, order) : await ownsOrder(order);
+      const allowed = isStaffRole(session.user.role) ? (await staffSeesOrder(session, order)) && (await can({ finance: ["read"] })) : await ownsOrder(order);
       if (!allowed) throw new NotFoundError("Order not found");
     } catch (e) {
       if (e instanceof NotFoundError) return new Response("Not found", { status: 404 });

@@ -2,7 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 import { ValidationError } from "@foundry/commons";
 
 const adjust = vi.hoisted(() => vi.fn());
-vi.mock("@/lib/auth/guards", () => ({ requireAdmin: async () => {} }));
+const requirePermission = vi.hoisted(() => vi.fn(async () => {}));
+vi.mock("@/lib/auth/guards", () => ({ requirePermission }));
 vi.mock("@/lib/wallet/wallet.service", () => ({ walletService: { adjust } }));
 vi.mock("@/lib/services/session-service", () => ({ currentUserId: async () => 7n }));
 vi.mock("@/lib/identity/user-ids", () => ({ userIdByPublicId: async () => 42n }));
@@ -15,6 +16,7 @@ describe("adjustCustomerCoinsAction", () => {
   it("adjusts the customer's wallet as the signed-in staff member", async () => {
     adjust.mockResolvedValue({ balance: 15 });
     expect(await adjustCustomerCoinsAction("usr_1", { coins: 5, memo: "Sorry" })).toEqual({ ok: true });
+    expect(requirePermission).toHaveBeenCalledWith({ wallet: ["give"] });
     expect(adjust).toHaveBeenCalledWith({ userId: 42n, coins: 5, memo: "Sorry", actorId: 7n });
   });
 

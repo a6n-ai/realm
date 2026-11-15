@@ -18,7 +18,7 @@ const broadcastSchema = z.object({
 export type CustomerBroadcastResult = { awarded: number; coinsPerCustomer: number; capped: number };
 
 export async function broadcastCustomerPayout(input: unknown): Promise<ActionResult<CustomerBroadcastResult>> {
-  return staffAction({ guard: "admin", revalidate: [["/dashboard/wallet", "layout"]] }, async () => {
+  return staffAction({ guard: { wallet: ["give"] }, revalidate: [["/dashboard/wallet", "layout"]] }, async () => {
     const data = parseInput(broadcastSchema, input);
     const rows = await db.select({ id: users.id }).from(users).where(inArray(users.publicId, data.userPublicIds));
     return awardCustomerBroadcast(rows.map((r) => r.id), data.coins, data.memo, await currentUserId());

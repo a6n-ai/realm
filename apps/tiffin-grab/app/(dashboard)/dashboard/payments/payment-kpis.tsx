@@ -21,7 +21,7 @@ import {
 import { formatMoney } from "@foundry/commons";
 import { StatCards, StatCardsSkeleton, type StatCardItem } from "@/components/dashboard/stat-cards";
 import { SectionDateRange } from "@/components/filters/section-date-range";
-import { requireAdmin } from "@/lib/auth/guards";
+import { requirePermission } from "@/lib/auth/guards";
 import { withDefaultMonth } from "@/lib/list/default-month";
 import { paymentsListHref, type PaymentsTabPath } from "@/lib/list/payments-drill";
 import { countStripeAttention, getLedgerKpis, getLogKpis, getPaymentKpis, OVERDUE_DAYS, type PaymentKpis } from "@/lib/payments/payments-list.service";
@@ -227,6 +227,6 @@ async function cardsFor(tab: PaymentsTab, sp: Record<string, string | undefined>
 }
 
 async function PaymentKpisData({ tab, searchParams }: { tab: PaymentsTab; searchParams: SearchParams }): Promise<ReactNode> {
-  await requireAdmin();
+  await requirePermission({ finance: ["read"] });
   return <StatCards items={await cardsFor(tab, await searchParams, Date.now())} />;
 }

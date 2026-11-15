@@ -2,7 +2,7 @@ import { ACTION_LABEL } from "@/lib/customer-groups/action-labels";
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { CoinsIcon, HistoryIcon, MailIcon, PlayIcon, UsersIcon } from "lucide-react";
-import { requireAdmin } from "@/lib/auth/guards";
+import { requirePermission } from "@/lib/auth/guards";
 import { PageShell, PageHeader } from "@/components/ds";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { StatCards, type StatCardItem } from "@/components/dashboard/stat-cards";
@@ -27,7 +27,7 @@ export default function CustomerGroupPage({ params }: { params: Promise<{ id: st
 }
 
 async function GroupData({ params }: { params: Promise<{ id: string }> }) {
-  await requireAdmin();
+  await requirePermission({ customer: ["read"] });
   const { id } = await params;
   const detail = await getCustomerGroup(id);
   if (!detail) notFound();

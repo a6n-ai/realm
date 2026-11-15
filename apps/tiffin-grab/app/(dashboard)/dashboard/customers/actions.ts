@@ -7,11 +7,13 @@ import { inquiriesService } from "@/lib/inquiries/inquiries.service";
 import { createCustomer, customerInviteUrl, invitePendingCustomers, sendCustomerInvite } from "@/lib/services/customers.service";
 import { sendMenuReminderToCustomer } from "@/lib/notifications/menu-reminder";
 import type { ActionResult } from "@/lib/actions/action-result";
-import { staffAction } from "@/lib/actions/staff-action";
+import { staffAction, type Guard } from "@/lib/actions/staff-action";
 import { linkCustomer } from "@/lib/inquiries/inquiry-links.service";
 import { userIdByPublicId } from "@/lib/identity/user-ids";
 
 const log = createLogger("customers-actions");
+
+const CUSTOMER_WRITE: Guard = { customer: ["write"] };
 
 type Source = { sourceKey: string; subSourceKey?: string };
 // Email is required on every account — it is the login path.
@@ -33,7 +35,7 @@ export async function createCustomerFlow(input: {
   interest?: Interest;
   pickedInquiryId?: string;
 }): Promise<ActionResult<{ customerPublicId: string; inquiryId: string }>> {
-  return staffAction({ guard: "staff", revalidate: ["/dashboard/customers", "/dashboard/inquiries"] }, async () => {
+  return staffAction({ guard: CUSTOMER_WRITE, revalidate: ["/dashboard/customers", "/dashboard/inquiries"] }, async () => {
     const inquiryId = await inquiriesService.resolveForSource({
       phone: input.contact.phone,
       sourceKey: input.source.sourceKey,
@@ -61,7 +63,7 @@ export async function createCustomerFlow(input: {
 // Staff send/resend of the welcome sign-in link. Not best-effort: a failure is returned
 // so the row's button can show it to the admin.
 export async function resendCustomerInvite(email: string): Promise<ActionResult> {
-  return staffAction({ guard: "staff" }, async () => {
+  return staffAction({ guard: CUSTOMER_WRITE }, async () => {
     await sendCustomerInvite(email);
   });
 }
@@ -69,15 +71,15 @@ export async function resendCustomerInvite(email: string): Promise<ActionResult>
 // Same single-use sign-in link as the welcome email, handed to staff to share
 // over WhatsApp/SMS. Nothing is mailed.
 export async function copyCustomerInviteLink(email: string): Promise<ActionResult<{ url: string }>> {
-  return staffAction({ guard: "staff" }, async () => ({ url: await customerInviteUrl(email) }));
+  return staffAction({ guard: CUSTOMER_WRITE }, async () => ({ url: await customerInviteUrl(email) }));
 }
 
 /** Latest released week's menu reminder to one customer (Customers list row action). */
 export async function sendCustomerMenuReminder(customerPublicId: string): Promise<ActionResult<{ queued: number }>> {
-  return staffAction({ guard: "staff" }, () => sendMenuReminderToCustomer(customerPublicId));
+  return staffAction({ guard: CUSTOMER_WRITE }, () => sendMenuReminderToCustomer(customerPublicId));
 }
 
 /** "Invite all pending": welcome email to every pending customer. Admin only: one press mails them all. */
 export async function inviteAllPendingCustomers(): Promise<ActionResult<{ sent: number; failed: number }>> {
-  return staffAction({ guard: "admin", revalidate: ["/dashboard/customers"] }, () => invitePendingCustomers());
+  return staffAction({ guard: CUSTOMER_WRITE, revalidate: ["/dashboard/customers"] }, () => invitePendingCustomers());
 }

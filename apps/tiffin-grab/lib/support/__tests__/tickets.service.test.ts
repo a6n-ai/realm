@@ -5,6 +5,7 @@ import { notificationOutbox, ownerPool, ticketMessages, tickets, users } from "@
 import { ForbiddenError, NotFoundError, ValidationError } from "@foundry/commons";
 
 const session: { user: { id: string; role: string } | null } = { user: null };
+vi.mock("@/lib/auth/guards", () => ({ can: async () => true }));
 vi.mock("@/lib/auth/session", () => ({ getSession: async () => (session.user ? session : null) }));
 let visible: "all" | string[] = "all";
 vi.mock("@/lib/auth/visible-orgs", () => ({ resolveSessionVisibleOrgIds: async () => visible }));

@@ -11,7 +11,7 @@ import { requestNow } from "@/lib/dates/request-now";
 /** Renewals tab: the same view as Renewals → customer, inside the customer page. */
 export default async function CustomerRenewalsTab({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { session, isAdmin, timezone } = await loadViewer();
+  const { session, canGive, timezone } = await loadViewer();
   const data = await getCustomerRenewal(await resolveSessionVisibleOrgIds(session), id);
   if (!data) {
     return (
@@ -26,7 +26,7 @@ export default async function CustomerRenewalsTab({ params }: { params: Promise<
   return (
     <>
       {/* Adjust coins already sits in the page header, so no second coins button here. */}
-      <RenewalActions data={data} isAdmin={isAdmin} giveCoins={false} />
+      <RenewalActions data={data} isAdmin={canGive} giveCoins={false} />
       <RenewalSections data={data} today={zonedDateIso(now, timezone)} now={now} timezone={timezone} />
     </>
   );

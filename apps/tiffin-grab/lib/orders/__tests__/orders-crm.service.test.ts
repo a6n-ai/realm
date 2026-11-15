@@ -3,6 +3,7 @@ import { ne, sql } from "drizzle-orm";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 const session: { user: { id: string; role: string } | null } = { user: null };
+vi.mock("@/lib/auth/guards", () => ({ can: async () => true }));
 vi.mock("@/lib/auth/session", () => ({ getSession: async () => (session.user ? session : null) }));
 
 const { db } = await import("@/db/client");
