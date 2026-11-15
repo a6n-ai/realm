@@ -13,7 +13,7 @@ import { RowActions } from "@foundry/design-system";
 import { MemberRoleSelect } from "@foundry/crm";
 import { RowActionTooltipButton, UserAvatar } from "@/components/ds";
 import { unwrapAction } from "@/lib/actions/unwrap";
-import { sendStaffAccessEmail, setMemberRole, setUserStatus, type UserStatusValue } from "./actions";
+import { sendStaffAccessEmail, setMemberRoles, setUserStatus, type UserStatusValue } from "./actions";
 import type { UserListRow } from "./users-list";
 
 const USER_STATUSES: UserStatusValue[] = ["active", "inactive", "suspended", "deleted"];
@@ -62,7 +62,7 @@ export function OrgRoleSelect({ row, ctx }: { row: Pick<UserListRow, "memberId" 
       options={options}
       disabled={disabled}
       onChange={async (role) => {
-        const res = await setMemberRole(row.memberId, role);
+        const res = await setMemberRoles(row.memberId, [role]);
         return "error" in res ? { error: res.error } : {};
       }}
     />

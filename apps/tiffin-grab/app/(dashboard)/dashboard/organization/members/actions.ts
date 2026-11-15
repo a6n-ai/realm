@@ -77,7 +77,7 @@ export async function setUserStatus(userId: string, status: UserStatusValue): Pr
   });
 }
 
-export async function setMemberRole(memberId: string, role: string): Promise<ActionResult> {
+export async function setMemberRoles(memberId: string, roles: string[]): Promise<ActionResult> {
   return staffAction(MEMBER_UPDATE, async () => {
     const session = await getSession();
     const organizationId = session?.session.activeOrganizationId;
@@ -87,23 +87,28 @@ export async function setMemberRole(memberId: string, role: string): Promise<Act
     if (target.userId === (await userIdByPublicId(session.user.id))) {
       throw new ValidationError("You can't change your own role");
     }
-    if (!(await getRoleOptions(organizationId)).some((o) => o.value === role)) throw new ValidationError("Unknown role.");
-    await requireOwnerToGrant(organizationId, role, target.role);
-    await requireCanAssignRole(organizationId, role);
-    // Nor change someone whose current role holds more than you do (e.g. member:update demoting an admin).
+    const next = [...new Set(roles)];
+    if (next.length === 0) throw new ValidationError("Remove from org instead");
+    const known = new Set((await getRoleOptions(organizationId)).map((o) => o.value));
+    if (next.some((r) => !known.has(r))) throw new ValidationError("Unknown role.");
+    const current = target.role.split(",").map((r) => r.trim()).filter(Boolean);
+    const added = next.filter((r) => !current.includes(r));
+    await requireOwnerToGrant(organizationId, ...added, ...current);
+    for (const role of added) await requireCanAssignRole(organizationId, role);
+    // Nor change someone whose current roles hold more than you do (e.g. member:update demoting an admin).
     await requireCanAssignRole(organizationId, target.role);
-    const wasOwner = target.role.split(",").some((r) => r.trim() === "owner");
-    if (wasOwner && role !== "owner" && (await countOwners(organizationId)) <= 1) {
+    const wasOwner = current.includes("owner");
+    if (wasOwner && !next.includes("owner") && (await countOwners(organizationId)) <= 1) {
       throw new ValidationError("An organization needs at least one owner");
     }
     await authApi(async () =>
-      auth.api.updateMemberRole({ body: { memberId, role, organizationId }, headers: await headers() }),
+      auth.api.updateMemberRole({ body: { memberId, role: next, organizationId }, headers: await headers() }),
     );
     await recordAudit({
       entity: "member",
       entityPublicId: memberId,
       operation: "update",
-      changes: { role: { from: target.role, to: role }, organizationId },
+      changes: { role: { from: target.role, to: next.join(",") }, organizationId },
       createdBy: await userIdByPublicId(session.user.id),
     });
   });

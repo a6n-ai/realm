@@ -9,8 +9,10 @@ import { systemUserId, userIdByPublicId } from "@/lib/identity/user-ids";
 import { requireCanAssignRole, requireOwnerToGrant, requirePermission, requirePermissionIn } from "@/lib/auth/guards";
 import { getRoleOptions } from "@/lib/auth/role-options";
 import { getSession } from "@/lib/auth/session";
+import { recordAudit } from "@/lib/identity/audit";
 import {
   addMember,
+  countOwners,
   removeMember,
   searchUsersByEmail,
   updateOrganization,
@@ -140,14 +142,31 @@ export async function updateOrganizationAction(
   return result;
 }
 
-export async function removeMemberAction(organizationId: string, userPublicId: string): Promise<void> {
+export async function removeMemberAction(
+  organizationId: string,
+  userPublicId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
   await requirePermissionIn(organizationId, { member: ["update"] });
+  const session = await getSession();
+  if (session?.user.id === userPublicId) return { ok: false, error: "You can't remove yourself from the organization." };
   const current = await currentMemberRole(organizationId, userPublicId);
   await requireOwnerToGrant(organizationId, current);
   // Removing someone who holds more than you is as much an escalation as granting it.
   if (current) await requireCanAssignRole(organizationId, current);
+  const wasOwner = current?.split(",").some((r) => r.trim() === "owner") ?? false;
+  if (wasOwner && (await countOwners(organizationId)) <= 1) {
+    return { ok: false, error: "An organization needs at least one owner" };
+  }
   await removeMember(organizationId, userPublicId);
+  await recordAudit({
+    entity: "member",
+    entityPublicId: userPublicId,
+    operation: "delete",
+    changes: { organizationId, role: current },
+    createdBy: session ? await userIdByPublicId(session.user.id) : null,
+  });
   revalidatePath(`/dashboard/organization/settings/${organizationId}`);
+  return { ok: true };
 }
 
 export async function searchUsersByEmailAction(query: string): Promise<UserSearchRow[]> {

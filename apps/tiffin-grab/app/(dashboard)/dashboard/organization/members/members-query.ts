@@ -10,7 +10,7 @@ export type MemberRow = {
   email: string | null;
   phone: string | null;
   role: RoleValue;
-  memberId: string; // member.id, what setMemberRole takes
+  memberId: string; // member.id, what setMemberRoles takes
   orgRole: string; // member.role: the role in that org (users.role is only the staff marker)
   status: "active" | "inactive" | "suspended" | "deleted";
   passwordSet: boolean;
