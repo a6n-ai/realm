@@ -102,16 +102,21 @@ export function EditMemberRolesDialog({ row, ctx }: { row: PeopleRow; ctx: RoleC
 
 export function RemoveMemberButton({ row }: { row: PeopleRow }) {
   const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const [error, setError] = useState<string>();
   const [pending, start] = useTransition();
-  const remove = () =>
+  const remove = () => {
+    setError(undefined);
     start(async () => {
       const res = await removeMemberAction(row.organizationId, row.id);
-      if (!res.ok) return void toast.error(res.error);
+      if (!res.ok) return void setError(res.error);
       toast.success("Removed from this organization.");
+      setOpen(false);
       router.refresh();
     });
+  };
   return (
-    <Dialog>
+    <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (o) setError(undefined); }}>
       <DialogTrigger asChild>
         <Button variant="ghost" size="sm" disabled={row.isSelf || pending}>
           <UserMinusIcon /> Remove
@@ -122,13 +127,12 @@ export function RemoveMemberButton({ row }: { row: PeopleRow }) {
           <DialogTitle>Remove {row.name || row.email || "this person"}?</DialogTitle>
           <DialogDescription>They lose access to this organization. You can invite them again later.</DialogDescription>
         </DialogHeader>
+        {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
         <DialogFooter>
           <DialogClose asChild>
             <Button variant="outline">Keep</Button>
           </DialogClose>
-          <DialogClose asChild>
-            <Button variant="destructive" disabled={pending} onClick={remove}>Remove</Button>
-          </DialogClose>
+          <Button variant="destructive" disabled={pending} onClick={remove}>Remove</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

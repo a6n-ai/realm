@@ -7,7 +7,6 @@ import { DataTable, ListPagination, SkeletonFilterBar, type Column, type FacetDe
 import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
 import type { SortState } from "@foundry/design-system/list-sort";
 import { UserRow, UserRowCard, type RoleCtx } from "./user-row";
-import type { UserStatusValue } from "./actions";
 import type { PeopleRow } from "./people-rows";
 
 export type UserListRow = PeopleRow;

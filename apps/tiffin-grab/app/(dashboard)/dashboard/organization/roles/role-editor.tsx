@@ -113,18 +113,20 @@ function RoleMembers({ roleName, members }: { roleName: string; members: RoleMem
 function DeleteRole({ role, id, disabled }: { role: RoleItem; id: string; disabled: boolean }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [error, setError] = useState<string>();
   const [pending, start] = useTransition();
   function confirm() {
+    setError(undefined);
     start(async () => {
       const res = await deleteRole(id);
-      if ("error" in res) return void toast.error(res.error);
+      if ("error" in res) return void setError(res.error);
       toast.success("Role deleted.");
       setOpen(false);
       router.push(ROLES);
     });
   }
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (o) setError(undefined); }}>
       <DialogTrigger asChild>
         <Button variant="ghost" size="sm" disabled={disabled} aria-label={`Delete ${role.name}`}>
           <Trash2Icon />
@@ -139,6 +141,7 @@ function DeleteRole({ role, id, disabled }: { role: RoleItem; id: string; disabl
               : "This can't be undone."}
           </DialogDescription>
         </DialogHeader>
+        {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
         <DialogFooter>
           <DialogClose asChild>
             <Button variant="outline">Keep</Button>
