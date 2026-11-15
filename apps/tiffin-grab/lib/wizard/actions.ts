@@ -24,7 +24,7 @@ import { findReferrerByCode } from "@/lib/referrals/referrals.service";
 import { REFERRAL_COOKIE, normalizeReferralCode, setReferralCookie } from "@/lib/referrals/cookie";
 import { cookies } from "next/headers";
 import { getSession } from "@/lib/auth/session";
-import { guardPublicWrite } from "@/lib/auth/public-write-guard";
+import { publicWriteRefusal } from "@/lib/auth/public-write-guard";
 import { checkoutPaymentMethods, type CheckoutPaymentMethod } from "@/lib/checkout/payment-methods";
 import { db } from "@/db/client";
 import { users } from "@/db/schema";
@@ -259,11 +259,13 @@ export async function validatePostal(postalCode: string): Promise<{ served: bool
 // before they build a whole plan. It discloses nothing checkout didn't already
 // say (STAFF_ACCOUNT_MESSAGE) for the same email.
 // Captcha and an hourly cap per IP come first: without them this is an unthrottled email oracle.
+// A refusal comes back as `{ error }`: a thrown message is redacted in production.
 export async function checkExistingAccount(
   email: string,
   captchaToken?: string | null,
-): Promise<{ status: "new" | "matched" | "staff" }> {
-  await guardPublicWrite("account-lookup", captchaToken, 30);
+): Promise<{ status: "new" | "matched" | "staff" } | { error: string }> {
+  const refusal = await publicWriteRefusal("account-lookup", captchaToken, 30);
+  if (refusal) return { error: refusal };
   return lookupAccountStatus(email);
 }
 
@@ -291,8 +293,9 @@ export async function createCheckoutAccount(
   email: string,
   fullName: string,
   captchaToken?: string | null,
-): Promise<{ status: "created" | "matched" | "staff" | "invalid" }> {
-  await guardPublicWrite("checkout-account", captchaToken, 10);
+): Promise<{ status: "created" | "matched" | "staff" | "invalid" } | { error: string }> {
+  const refusal = await publicWriteRefusal("checkout-account", captchaToken, 10);
+  if (refusal) return { error: refusal };
   const parsed = emailSchema.safeParse(email?.trim());
   const name = fullName?.trim();
   if (!parsed.success || !name) return { status: "invalid" };

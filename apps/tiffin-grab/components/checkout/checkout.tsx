@@ -40,6 +40,7 @@ import { billingAddress, e164 } from "@/lib/payments/billing-address";
 import type { CardSource } from "@/lib/payments/payment-stripe";
 import { createWebsiteInquiry } from "@/lib/landing/contact-actions";
 import { getCaptchaToken } from "@/lib/auth/captcha-client";
+import { needsCaptchaToken } from "@/lib/checkout/captcha-gate";
 import { toast } from "sonner";
 import { emailSchema, phoneSchema } from "@foundry/commons";
 import { asWizardOrigin, originHref, parsePlanSteps, wizardSession } from "@/lib/wizard/session";
@@ -577,13 +578,14 @@ export function Checkout({
 
   const joinWaitlist = async () => {
     try {
-      await createWebsiteInquiry({
+      const res = await createWebsiteInquiry({
         fullName: contact.fullName,
         phone: contact.phone,
         email: contact.email,
         postalCode: contact.postalCode,
         captchaToken: await getCaptchaToken(),
       }, { detailsSource: "waitlist" });
+      if ("error" in res) return toast.error(res.error);
       setWaitlisted(true);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not join the waitlist.");
@@ -756,7 +758,7 @@ export function Checkout({
         coins: appliedCoins || undefined,
         paymentMethodId: paymentMethods.length > 0 ? paymentMethodId : null,
         eventSourceUrl: typeof window !== "undefined" ? window.location.href : undefined,
-        captchaToken: zone && !zone.served ? await getCaptchaToken() : undefined,
+        captchaToken: needsCaptchaToken(zone) ? await getCaptchaToken() : undefined,
       });
       if ("error" in res) {
         toast.error(res.error);
@@ -814,7 +816,7 @@ export function Checkout({
       source,
       acceptSurcharge,
       eventSourceUrl: typeof window !== "undefined" ? window.location.href : undefined,
-      captchaToken: zone && !zone.served ? await getCaptchaToken() : undefined,
+      captchaToken: needsCaptchaToken(zone) ? await getCaptchaToken() : undefined,
     });
     if ("error" in res) {
       // The server priced differently: show its total so the next Pay sends that one.

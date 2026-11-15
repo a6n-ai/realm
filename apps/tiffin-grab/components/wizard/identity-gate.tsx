@@ -109,9 +109,11 @@ export function IdentityGate({
       const ref = await rememberReferralCode(referralCode);
       if (!ref.ok) return setError({ field: "referral", message: ref.error });
     }
-    let status: Awaited<ReturnType<typeof checkExistingAccount>>["status"];
+    let status: Extract<Awaited<ReturnType<typeof checkExistingAccount>>, { status: unknown }>["status"];
     try {
-      ({ status } = await checkExistingAccount(clean, await getCaptchaToken()));
+      const res = await checkExistingAccount(clean, await getCaptchaToken());
+      if ("error" in res) return setError({ field: "email", message: res.error });
+      status = res.status;
     } catch (e) {
       return setError({ field: "email", message: sanitizeClientError(e) });
     }
@@ -129,9 +131,11 @@ export function IdentityGate({
     // Checked first so a typo is fixed here, before the account exists.
     const ref = await rememberReferralCode(referralCode);
     if (!ref.ok) return setError({ field: "referral", message: ref.error });
-    let status: Awaited<ReturnType<typeof createCheckoutAccount>>["status"];
+    let status: Extract<Awaited<ReturnType<typeof createCheckoutAccount>>, { status: unknown }>["status"];
     try {
-      ({ status } = await createCheckoutAccount(email, fullName, await getCaptchaToken()));
+      const res = await createCheckoutAccount(email, fullName, await getCaptchaToken());
+      if ("error" in res) return setError({ field: "name", message: res.error });
+      status = res.status;
     } catch (e) {
       return setError({ field: "name", message: sanitizeClientError(e) });
     }

@@ -65,7 +65,7 @@ describe("checkExistingAccount refusals", () => {
     await db.insert(users).values({ phone: "+16475550199", email: "probe@x.com", name: "Probe", role: "user" }).onConflictDoNothing();
     captcha.on = true;
     try {
-      await expect(checkExistingAccount("probe@x.com")).rejects.toThrow(/Security check failed/);
+      expect(await checkExistingAccount("probe@x.com")).toEqual({ error: expect.stringMatching(/Security check failed/) });
       await expect(checkExistingAccount("probe@x.com", "ok")).resolves.toEqual({ status: "matched" });
     } finally {
       captcha.on = false;
@@ -75,8 +75,8 @@ describe("checkExistingAccount refusals", () => {
   it("refuses past the hourly cap per IP", async () => {
     let last: unknown;
     for (let i = 0; i < 35; i++) {
-      last = await checkExistingAccount(`cap-${i}@x.com`).catch((e: unknown) => e);
+      last = await checkExistingAccount(`cap-${i}@x.com`);
     }
-    expect((last as Error).message).toMatch(/Too many attempts/);
+    expect(last).toEqual({ error: expect.stringMatching(/Too many attempts/) });
   });
 });

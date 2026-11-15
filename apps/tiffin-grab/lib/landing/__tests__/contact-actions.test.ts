@@ -33,7 +33,7 @@ describe("createWebsiteInquiry", () => {
 
   it("creates a website inquiry with a created activity", async () => {
     const res = await createWebsiteInquiry({ fullName: "Web Lead", phone: "+16475559000", message: "Interested", email: testEmail() });
-    expect(res.ok).toBe(true);
+    expect(res).toMatchObject({ ok: true });
     const [row] = await db.select().from(inquiries).where(eq(inquiries.phone, "+16475559000"));
     const [src] = await db.select({ key: leadSources.key }).from(leadSources).where(eq(leadSources.id, row.sourceId)).limit(1);
     expect(src.key).toBe("website");
@@ -65,7 +65,7 @@ describe("createWebsiteInquiry", () => {
 
   it("flags an unserved postal code as waitlisted", async () => {
     const res = await createWebsiteInquiry({ fullName: "Far Lead", phone: "+16475559001", postalCode: "X0X 0X0", email: testEmail() });
-    expect(res.waitlisted).toBe(true);
+    expect(res).toMatchObject({ waitlisted: true });
   });
 
   it("rejects a malformed phone", async () => {
@@ -85,7 +85,7 @@ describe("createWebsiteInquiry", () => {
 
   it("accepts a national number and stores it as E.164", async () => {
     const res = await createWebsiteInquiry({ fullName: "National Lead", phone: "647 555 0003", email: testEmail() });
-    expect(res.ok).toBe(true);
+    expect(res).toMatchObject({ ok: true });
     const [row] = await db.select().from(inquiries).where(eq(inquiries.phone, "+16475550003"));
     expect(row).toBeDefined();
     expect(row.phone).toBe("+16475550003");
@@ -93,7 +93,7 @@ describe("createWebsiteInquiry", () => {
 
   it("silently drops a honeypot-filled submission without writing", async () => {
     const res = await createWebsiteInquiry({ fullName: "Bot", phone: "+16475559002", company: "spam-co", email: testEmail() });
-    expect(res.ok).toBe(true);
+    expect(res).toMatchObject({ ok: true });
     const rows = await db.select().from(inquiries).where(eq(inquiries.phone, "+16475559002"));
     expect(rows).toHaveLength(0);
   });
@@ -102,7 +102,7 @@ describe("createWebsiteInquiry", () => {
     const email = testEmail();
     captcha.on = true;
     try {
-      await expect(createWebsiteInquiry({ fullName: "No Token", phone: "+16475559020", email })).rejects.toThrow(/Security check failed/);
+      expect(await createWebsiteInquiry({ fullName: "No Token", phone: "+16475559020", email })).toEqual({ error: expect.stringMatching(/Security check failed/) });
     } finally {
       captcha.on = false;
     }
@@ -112,9 +112,8 @@ describe("createWebsiteInquiry", () => {
   it("refuses past the hourly cap, before any write", async () => {
     let last: unknown;
     for (let i = 0; i < 25; i++) {
-      last = await createWebsiteInquiry({ fullName: "Flood", phone: "12", email: testEmail() }).catch((e: unknown) => e);
+      last = await createWebsiteInquiry({ fullName: "Flood", phone: "12", email: testEmail() }).catch(() => null);
     }
-    expect(last).toBeInstanceOf(ValidationError);
-    expect((last as Error).message).toMatch(/Too many attempts/);
+    expect(last).toEqual({ error: expect.stringMatching(/Too many attempts/) });
   });
 });

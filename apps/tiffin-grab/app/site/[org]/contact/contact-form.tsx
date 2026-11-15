@@ -41,6 +41,7 @@ export function ContactForm({ defaultCountry }: { defaultCountry: CountryCode })
         eventSourceUrl: typeof window !== "undefined" ? window.location.href : undefined,
         captchaToken: await getCaptchaToken(),
       });
+      if ("error" in res) return form.setError("root", { message: res.error });
       setDone({ waitlisted: res.waitlisted });
     } catch (e) {
       form.setError("root", { message: sanitizeClientError(e) });
