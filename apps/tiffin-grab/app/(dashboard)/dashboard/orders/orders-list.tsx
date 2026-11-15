@@ -27,7 +27,7 @@ type ListColumn = OrderSortColumn | "owner" | "cost";
 // OrderSortColumn), so it's a plain non-sortable column here.
 // Deployment and city sit under the name, so the table fits without sideways scroll.
 const COLUMNS: readonly Column<ListColumn>[] = [
-    { key: "name", label: "Name", sortable: true, width: "w-56" },
+    { key: "name", label: "Name", sortable: true, width: "w-72" },
     { key: "status", label: "Status", sortable: true, width: "w-32" },
     { key: "owner", label: "Owner", sortable: false, width: "w-32" },
     { key: "start", label: "Start", sortable: true, align: "right", width: "w-28" },
@@ -72,7 +72,7 @@ export function OrdersList({
       rows={rows}
       rowKey={(o) => o.publicId}
       sort={sort}
-      idAccessor={(o) => o.publicId}
+      // No idAccessor: the short deployment ID sits under the name instead; idHref keeps rows clickable.
       idHref={(o) => `/dashboard/orders/${o.publicId}`}
       rowClassName={() => "group cursor-pointer"}
       filters={<ListSearchFilters spec={spec} placeholder="Search orders…" shortPlaceholder="Search…" dateControl="external" />}
@@ -118,5 +118,5 @@ export function OrdersList({
 
 // Loading twin is now owned by DataTable — same COLUMNS + lead columns, zero drift.
 export function OrdersListSkeleton() {
-  return <DataTable.Skeleton columns={COLUMNS} hasId />;
+  return <DataTable.Skeleton columns={COLUMNS} />;
 }

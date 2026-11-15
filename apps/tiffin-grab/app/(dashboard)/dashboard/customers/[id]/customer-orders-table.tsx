@@ -17,9 +17,8 @@ type CustomerOrderRow = Awaited<ReturnType<typeof getCustomerOrders>>[number];
 // Same DataTable + column shape as the standalone /dashboard/orders table (see
 // orders-list.tsx) — this is a read-only, unpaginated slice scoped to one customer,
 // so it drops the Owner/reassign column that table has (no owner data on this view).
-export const CUSTOMER_ORDERS_COLUMNS: readonly Column<"name" | "city" | "status" | "start" | "total" | "created">[] = [
-  { key: "name", label: "Plan", sortable: false },
-  { key: "city", label: "City" },
+export const CUSTOMER_ORDERS_COLUMNS: readonly Column<"name" | "status" | "start" | "total" | "created">[] = [
+  { key: "name", label: "Plan", sortable: false, width: "w-72" },
   { key: "status", label: "Status" },
   { key: "start", label: "Start", align: "right" },
   { key: "total", label: "Total", align: "right" },
@@ -50,9 +49,8 @@ export function CustomerOrdersTable({ orders }: { orders: CustomerOrderRow[] }) 
       columns={CUSTOMER_ORDERS_COLUMNS}
       rows={filtered}
       rowKey={(o) => o.publicId}
-      idAccessor={(o) => o.deploymentId}
+      // The short deployment ID sits under the plan name, not in its own column; idHref keeps rows clickable.
       idHref={(o) => `/dashboard/orders/${o.publicId}`}
-      idLabel="Deployment"
       rowClassName={() => "group cursor-pointer"}
       emptyIcon={PackageIcon}
       emptyMessage="No orders for this customer."
@@ -81,8 +79,11 @@ export function CustomerOrdersTable({ orders }: { orders: CustomerOrderRow[] }) 
             <Link href={`/dashboard/orders/${o.publicId}`} className="group-hover:underline">
               {o.planName}
             </Link>
+            <p className="text-muted-foreground truncate text-xs font-normal">
+              {o.deploymentId}
+              {o.city ? ` · ${o.city}` : ""}
+            </p>
           </TableCell>
-          <TableCell>{o.city}</TableCell>
           <TableCell>
             <OrderStatusBadge status={orderDisplayStatus(o.status, [o.paymentStatus])} />
           </TableCell>
