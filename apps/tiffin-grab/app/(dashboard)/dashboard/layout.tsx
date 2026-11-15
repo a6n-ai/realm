@@ -5,7 +5,7 @@ import { Suspense, type ReactNode } from "react";
 import { zonedDateIso } from "@foundry/commons";
 import { CrmShell } from "@foundry/crm";
 import { can } from "@/lib/auth/guards";
-import { getActiveRoleLabel } from "@/lib/auth/org-access";
+import { getActiveRoleLabel, getOrgAccess } from "@/lib/auth/org-access";
 import { getSession } from "@/lib/auth/session";
 import { allowedNavHrefs } from "@/lib/nav/nav-permissions";
 import { NavAccessProvider } from "@/components/dashboard/nav-access";
@@ -76,9 +76,9 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   // and it also makes post-login push("/dashboard") land customers on /me.
   if (isCustomerRole(session.user.role)) redirect("/me");
 
-  // getSession() has already activated the first membership for staff. A super_admin may have
-  // no member rows at all; anyone else without an org has nothing to see.
-  if (!session.session.activeOrganizationId && session.user.platformRole !== "super_admin") redirect("/no-access");
+  // getSession() has already activated the first membership for staff. No member row in the active
+  // org (none set, or removed since) means no dashboard; super_admin resolves to platform access.
+  if ((await getOrgAccess()).kind === "none") redirect("/no-access");
 
   // One read covers PIN state + the header avatar (name/image). Status is re-checked on the read
   // path: session.create.before only gates a session being CREATED.

@@ -14,6 +14,13 @@ const baseSession = createGetSession({ auth: { api: { getSession: (ctx) => auth.
 export const getSession = cache(async () => {
   const s = await baseSession();
   if (!s || s.session.activeOrganizationId || isCustomerRole(s.user.role)) return s;
-  const activeOrganizationId = await ensureActiveOrganization(auth.api, await headers());
+  // A failed activation must not take sign-in or every staff page down: fall back to no active org
+  // (the dashboard layout then shows /no-access) and retry on the next request.
+  let activeOrganizationId: string | null = null;
+  try {
+    activeOrganizationId = await ensureActiveOrganization(auth.api, await headers());
+  } catch (e) {
+    console.error("[session] ensureActiveOrganization failed", e);
+  }
   return activeOrganizationId ? { ...s, session: { ...s.session, activeOrganizationId } } : s;
 });
