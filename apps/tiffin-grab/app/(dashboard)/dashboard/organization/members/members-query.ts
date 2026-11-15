@@ -16,6 +16,7 @@ export type MemberRow = {
   passwordSet: boolean;
   invitationStatus: "none" | "pending" | "expired" | "accepted";
   organizationId: string;
+  joinedAt: Date;
 };
 
 /**
@@ -41,6 +42,7 @@ export async function getMembersForOrgs(orgIds: string[]): Promise<MemberRow[]> 
       organizationId: member.organizationId,
       memberId: member.id,
       orgRole: member.role,
+      joinedAt: member.createdAt,
     })
     .from(member)
     .innerJoin(users, eq(users.id, member.userId))
@@ -71,6 +73,7 @@ export async function getMembersForOrgs(orgIds: string[]): Promise<MemberRow[]> 
       organizationId: r.organizationId,
       memberId: r.memberId,
       orgRole: r.orgRole,
+      joinedAt: r.joinedAt,
     };
   });
 }

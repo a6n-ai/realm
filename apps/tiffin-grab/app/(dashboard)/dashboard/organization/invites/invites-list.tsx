@@ -39,12 +39,15 @@ const STATUS_OPTIONS: { value: "all" | InviteBucket; label: string }[] = [
 export function InvitesList({
   rows,
   status = "all",
+  param = "status",
   counts,
   actionableOrgIds,
   emptyAction,
 }: {
   rows: InviteRow[];
   status?: "all" | InviteBucket;
+  /** URL key for the status filter; the People page uses "invite" because "status" filters people. */
+  param?: string;
   counts?: Record<InviteBucket | "all", number>;
   actionableOrgIds: string[];
   emptyAction?: ReactNode;
@@ -54,8 +57,8 @@ export function InvitesList({
   const params = useSearchParams();
   const setStatus = (value: string) => {
     const sp = new URLSearchParams(params.toString());
-    if (value === "all") sp.delete("status");
-    else sp.set("status", value);
+    if (value === "all") sp.delete(param);
+    else sp.set(param, value);
     const qs = sp.toString();
     nav(qs ? `${pathname}?${qs}` : pathname);
   };

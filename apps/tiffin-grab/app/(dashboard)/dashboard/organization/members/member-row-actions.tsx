@@ -1,0 +1,136 @@
+"use client";
+
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { UserMinusIcon } from "lucide-react";
+import { chipState } from "@foundry/crm";
+import { Button } from "@foundry/ui/button";
+import { Checkbox } from "@foundry/ui/checkbox";
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@foundry/ui/dialog";
+import { Label } from "@foundry/ui/label";
+import { removeMemberAction } from "@/lib/services/organizations-actions";
+import { setMemberRoles } from "./actions";
+import type { PeopleRow } from "./people-rows";
+import type { RoleCtx } from "./user-row";
+
+const heldRoles = (orgRole: string) => orgRole.split(",").map((r) => r.trim()).filter(Boolean);
+
+/** Checkbox per role; a role the server would refuse is disabled with its reason. */
+export function EditMemberRolesDialog({ row, ctx }: { row: PeopleRow; ctx: RoleCtx }) {
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const [selected, setSelected] = useState<string[]>(heldRoles(row.orgRole));
+  const [error, setError] = useState<string>();
+  const [pending, start] = useTransition();
+
+  const reasonFor = (role: string) =>
+    chipState(role, selected.includes(role) ? "remove" : "add", {
+      self: row.isSelf,
+      roleCount: row.roles.length,
+      targetAboveViewer: row.targetAboveViewer,
+      lastOwnerRole: ctx.owners <= 1 ? "owner" : undefined,
+      aboveViewer: ctx.aboveViewer,
+    });
+  const toggle = (role: string, on: boolean) =>
+    setSelected((s) => (on ? [...s.filter((r) => r !== role), role] : s.filter((r) => r !== role)));
+  const changed = [...selected].sort().join() !== heldRoles(row.orgRole).sort().join();
+
+  function save() {
+    setError(undefined);
+    start(async () => {
+      const res = await setMemberRoles(row.memberId, selected);
+      if ("error" in res) return void setError(res.error);
+      toast.success("Roles updated.");
+      setOpen(false);
+      router.refresh();
+    });
+  }
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        setOpen(o);
+        if (o) {
+          setSelected(heldRoles(row.orgRole));
+          setError(undefined);
+        }
+      }}
+    >
+      <DialogTrigger asChild>
+        <Button variant="outline" size="sm" disabled={row.isSelf}>Edit roles</Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Edit roles for {row.name || row.email || "this person"}</DialogTitle>
+          <DialogDescription>Their access is the union of the roles they hold.</DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-3">
+          {ctx.options.map((o) => {
+            const reason = reasonFor(o.value);
+            const id = `role-${row.memberId}-${o.value}`;
+            return (
+              <div key={o.value} className="flex items-start gap-3">
+                <Checkbox
+                  id={id}
+                  checked={selected.includes(o.value)}
+                  disabled={pending || reason !== null}
+                  onCheckedChange={(on) => toggle(o.value, on === true)}
+                />
+                <div className="grid gap-0.5">
+                  <Label htmlFor={id}>{o.label}</Label>
+                  {reason && <span className="text-xs text-muted-foreground">{reason}</span>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button variant="outline">Cancel</Button>
+          </DialogClose>
+          <Button disabled={pending || !changed || selected.length === 0} onClick={save}>
+            Save
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+export function RemoveMemberButton({ row }: { row: PeopleRow }) {
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  const remove = () =>
+    start(async () => {
+      const res = await removeMemberAction(row.organizationId, row.id);
+      if (!res.ok) return void toast.error(res.error);
+      toast.success("Removed from this organization.");
+      router.refresh();
+    });
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button variant="ghost" size="sm" disabled={row.isSelf || pending}>
+          <UserMinusIcon /> Remove
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Remove {row.name || row.email || "this person"}?</DialogTitle>
+          <DialogDescription>They lose access to this organization. You can invite them again later.</DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button variant="outline">Keep</Button>
+          </DialogClose>
+          <DialogClose asChild>
+            <Button variant="destructive" disabled={pending} onClick={remove}>Remove</Button>
+          </DialogClose>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}

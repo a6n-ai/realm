@@ -24,7 +24,7 @@ export function RecentActivity({ items }: { items: ActivityItem[] }) {
         message="No invites or new members yet."
         action={
           <Button asChild size="sm" variant="outline">
-            <Link href="/dashboard/organization/members">Invite staff</Link>
+            <Link href="/dashboard/organization/people">Invite staff</Link>
           </Button>
         }
       />

@@ -11,10 +11,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { TableCell } from "@foundry/ui/table";
 import { RowActions } from "@foundry/design-system";
 import { Badge } from "@/components/reui/badge";
+import { AppDate } from "@/components/dashboard/app-date";
 import { RowActionTooltipButton, UserAvatar } from "@/components/ds";
 import { unwrapAction } from "@/lib/actions/unwrap";
 import { sendStaffAccessEmail, setUserStatus, type UserStatusValue } from "./actions";
-import type { UserListRow } from "./users-list";
+import type { PeopleRow } from "./people-rows";
+import { EditMemberRolesDialog, RemoveMemberButton } from "./member-row-actions";
 
 const USER_STATUSES: UserStatusValue[] = ["active", "inactive", "suspended", "deleted"];
 
@@ -44,7 +46,24 @@ export function StatusSelect({ id, status }: { id: string; status: UserStatusVal
   );
 }
 
-export type RoleCtx = { options: { value: string; label: string }[] };
+export type RoleCtx = {
+  options: { value: string; label: string; locked?: boolean }[];
+  aboveViewer: string[];
+  /** Members holding the owner role, for the last-owner rule. */
+  owners: number;
+};
+
+export function AccessBadges({ row }: { row: PeopleRow }) {
+  if (row.fullAccess) return <Badge variant="success-light">Full access</Badge>;
+  if (row.areas.length === 0) return <Badge variant="warning-light">No access</Badge>;
+  return (
+    <span className="flex flex-wrap gap-1">
+      {row.areas.map((a) => (
+        <Badge key={a.resource} variant="secondary">{a.label}</Badge>
+      ))}
+    </span>
+  );
+}
 
 export function RoleBadges({ orgRole, ctx }: { orgRole: string; ctx: RoleCtx }) {
   const roles = orgRole.split(",").map((r) => r.trim()).filter(Boolean);
@@ -106,7 +125,7 @@ export function ResetPasswordButton({
 
 // Returns only the <TableCell> children — DataTable supplies the wrapping
 // <TableRow>. Interactive role controls stay client-side here.
-export function UserRow({ ctx, href, ...r }: UserListRow & { ctx: RoleCtx; href: string }) {
+export function UserRow({ ctx, href, ...r }: PeopleRow & { ctx: RoleCtx; href: string }) {
   const { id, name, email, phone, role, status, passwordSet } = r;
   return (
     <>
@@ -121,10 +140,14 @@ export function UserRow({ ctx, href, ...r }: UserListRow & { ctx: RoleCtx; href:
       </TableCell>
       <TableCell>{email ?? (phone ? formatPhone(phone) : null) ?? "—"}</TableCell>
       <TableCell><RoleBadges orgRole={r.orgRole} ctx={ctx} /></TableCell>
+      <TableCell><AccessBadges row={r} /></TableCell>
       <TableCell><StatusSelect id={id} status={status} /></TableCell>
+      <TableCell className="text-muted-foreground"><AppDate value={r.joinedAt} /></TableCell>
       <TableCell>
         <RowActions>
+          <EditMemberRolesDialog row={r} ctx={ctx} />
           <ResetPasswordButton id={id} role={role} passwordSet={passwordSet} />
+          <RemoveMemberButton row={r} />
         </RowActions>
       </TableCell>
     </>
@@ -133,7 +156,7 @@ export function UserRow({ ctx, href, ...r }: UserListRow & { ctx: RoleCtx; href:
 
 // Mobile card variant — UserRow returns <td>s (a component, so DataTable can't
 // auto-derive a card from it); this renders the same controls as card content.
-export function UserRowCard({ ctx, href, ...r }: UserListRow & { ctx: RoleCtx; href: string }) {
+export function UserRowCard({ ctx, href, ...r }: PeopleRow & { ctx: RoleCtx; href: string }) {
   const { id, name, email, phone, role, status, passwordSet } = r;
   return (
     <div className="space-y-3">
@@ -149,6 +172,10 @@ export function UserRowCard({ ctx, href, ...r }: UserListRow & { ctx: RoleCtx; h
         <RoleBadges orgRole={r.orgRole} ctx={ctx} />
       </div>
       <div className="flex items-center justify-between gap-3">
+        <span className="text-muted-foreground text-sm">Access</span>
+        <AccessBadges row={r} />
+      </div>
+      <div className="flex items-center justify-between gap-3">
         <span className="text-muted-foreground text-sm">Status</span>
         <StatusSelect id={id} status={status} />
       </div>
@@ -158,6 +185,10 @@ export function UserRowCard({ ctx, href, ...r }: UserListRow & { ctx: RoleCtx; h
           <ResetPasswordButton id={id} role={role} passwordSet={passwordSet} />
         </div>
       )}
+      <RowActions>
+        <EditMemberRolesDialog row={r} ctx={ctx} />
+        <RemoveMemberButton row={r} />
+      </RowActions>
     </div>
   );
 }

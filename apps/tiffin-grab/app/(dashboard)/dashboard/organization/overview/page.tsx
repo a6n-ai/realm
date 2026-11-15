@@ -22,8 +22,8 @@ const ACTIVITY_TITLE = "Recent activity";
 const ACTIVITY_SUBTITLE = "Invites sent and staff who joined, newest first.";
 const ATTENTION_TITLE = "Needs attention";
 const ATTENTION_SUBTITLE = "Things to fix before they block someone.";
-const INVITES = "/dashboard/organization/invites";
-const MEMBERS = "/dashboard/organization/members";
+const INVITES = "/dashboard/organization/people";
+const MEMBERS = "/dashboard/organization/people";
 const CLIENTS = "/dashboard/organization/settings";
 
 export default function OrganizationOverviewPage() {
@@ -113,10 +113,10 @@ async function OverviewData() {
 function NeedsAttention({ attention }: { attention: Attention }) {
   const items: { href: string; text: string }[] = [];
   if (attention.expiringInvites > 0) {
-    items.push({ href: `${INVITES}?status=pending`, text: `${countText(attention.expiringInvites, "invite")} expire within 48 hours` });
+    items.push({ href: `${INVITES}?invite=pending`, text: `${countText(attention.expiringInvites, "invite")} expire within 48 hours` });
   }
   if (attention.expiredInvites > 0) {
-    items.push({ href: `${INVITES}?status=expired`, text: `${countText(attention.expiredInvites, "invite")} expired` });
+    items.push({ href: `${INVITES}?invite=expired`, text: `${countText(attention.expiredInvites, "invite")} expired` });
   }
   if (attention.noRoleMemberships > 0) {
     items.push({ href: MEMBERS, text: `${countText(attention.noRoleMemberships, "person", "people")} with no role, so no access` });

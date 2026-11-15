@@ -11,6 +11,7 @@ const hrefs = (items: { label: string; href?: string }[]) =>
 
 const member = (id: string, over: Partial<MemberRow> = {}): MemberRow => ({
   id,
+  joinedAt: new Date(0),
   name: null,
   email: `${id}@x.test`,
   phone: null,
@@ -33,11 +34,11 @@ describe("org stats", () => {
     ];
     expect(values(memberStats(rows))).toEqual({ Total: 2, Admins: 1, Members: 1, Active: 1, "No password yet": 1 });
     expect(hrefs(memberStats(rows))).toEqual({
-      Total: "/dashboard/organization/members",
-      Admins: "/dashboard/organization/members?role=admin",
-      Members: "/dashboard/organization/members?role=member",
-      Active: "/dashboard/organization/members?status=active",
-      "No password yet": "/dashboard/organization/members?password=unset",
+      Total: "/dashboard/organization/people",
+      Admins: "/dashboard/organization/people?role=admin",
+      Members: "/dashboard/organization/people?role=member",
+      Active: "/dashboard/organization/people?status=active",
+      "No password yet": "/dashboard/organization/people?password=unset",
     });
   });
 
@@ -60,8 +61,8 @@ describe("org stats", () => {
       invite("rejected", "2026-10-21T00:00:00Z"),
     ];
     expect(values(inviteStats(rows, now))).toEqual({ Total: 5, Pending: 1, Accepted: 1, Expired: 1, Canceled: 2 });
-    expect(hrefs(inviteStats(rows, now)).Expired).toBe("/dashboard/organization/invites?status=expired");
-    expect(hrefs(inviteStats(rows, now)).Canceled).toBe("/dashboard/organization/invites?status=canceled");
+    expect(hrefs(inviteStats(rows, now)).Expired).toBe("/dashboard/organization/people?invite=expired");
+    expect(hrefs(inviteStats(rows, now)).Canceled).toBe("/dashboard/organization/people?invite=canceled");
   });
 
   it("counts clients by type and staffing", () => {

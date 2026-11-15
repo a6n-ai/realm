@@ -26,8 +26,8 @@ function people(rows: MemberRow[]) {
 
 const count = <T,>(xs: T[], f: (x: T) => boolean) => xs.filter(f).length;
 
-const MEMBERS = "/dashboard/organization/members";
-const INVITES = "/dashboard/organization/invites";
+const PEOPLE = "/dashboard/organization/people";
+const INVITES = PEOPLE;
 const CLIENTS = "/dashboard/organization/settings";
 
 export function overviewStats(clients: Client[], members: MemberRow[], pendingInvites: number): StatCardItem[] {
@@ -35,20 +35,20 @@ export function overviewStats(clients: Client[], members: MemberRow[], pendingIn
   return [
     { label: "Clients", value: clients.length, icon: Building2Icon, hint: "brand and franchises", href: CLIENTS },
     { label: "Franchises", value: count(clients, (c) => !c.isBrand), icon: StoreIcon, hint: "shops under the brand", href: `${CLIENTS}?type=franchise` },
-    { label: "Staff", value: staff.length, icon: UsersIcon, hint: "people with console access", href: MEMBERS },
-    { label: "Admins", value: count(staff, (m) => m.role === "admin"), icon: ShieldIcon, hint: "full access", href: `${MEMBERS}?role=admin` },
-    { label: "Pending invites", value: pendingInvites, icon: MailIcon, hint: "waiting to be accepted", href: `${INVITES}?status=pending` },
+    { label: "Staff", value: staff.length, icon: UsersIcon, hint: "people with console access", href: PEOPLE },
+    { label: "Admins", value: count(staff, (m) => m.role === "admin"), icon: ShieldIcon, hint: "full access", href: `${PEOPLE}?role=admin` },
+    { label: "Pending invites", value: pendingInvites, icon: MailIcon, hint: "waiting to be accepted", href: `${INVITES}?invite=pending` },
   ];
 }
 
 export function memberStats(rows: MemberRow[]): StatCardItem[] {
   const staff = people(rows);
   return [
-    { label: "Total", value: staff.length, icon: UsersIcon, hint: "people with console access", href: MEMBERS },
-    { label: "Admins", value: count(staff, (m) => m.role === "admin"), icon: ShieldIcon, hint: "full access", href: `${MEMBERS}?role=admin` },
-    { label: "Members", value: count(staff, (m) => m.role === "member"), icon: UserIcon, hint: "limited access", href: `${MEMBERS}?role=member` },
-    { label: "Active", value: count(staff, (m) => m.status === "active"), icon: UserCheckIcon, hint: "can sign in", href: `${MEMBERS}?status=active` },
-    { label: "No password yet", value: count(staff, (m) => !m.passwordSet), icon: KeyRoundIcon, hint: "invited, not set up", href: `${MEMBERS}?password=unset` },
+    { label: "Total", value: staff.length, icon: UsersIcon, hint: "people with console access", href: PEOPLE },
+    { label: "Admins", value: count(staff, (m) => m.role === "admin"), icon: ShieldIcon, hint: "full access", href: `${PEOPLE}?role=admin` },
+    { label: "Members", value: count(staff, (m) => m.role === "member"), icon: UserIcon, hint: "limited access", href: `${PEOPLE}?role=member` },
+    { label: "Active", value: count(staff, (m) => m.status === "active"), icon: UserCheckIcon, hint: "can sign in", href: `${PEOPLE}?status=active` },
+    { label: "No password yet", value: count(staff, (m) => !m.passwordSet), icon: KeyRoundIcon, hint: "invited, not set up", href: `${PEOPLE}?password=unset` },
   ];
 }
 
@@ -64,7 +64,7 @@ export function inviteBucket(r: InviteRow, now: number): InviteBucket {
   return unreachable;
 }
 
-const inviteHref = (status?: InviteBucket) => (status ? `${INVITES}?status=${status}` : INVITES);
+const inviteHref = (status?: InviteBucket) => (status ? `${INVITES}?invite=${status}` : INVITES);
 
 export function inviteStats(rows: InviteRow[], now: number): StatCardItem[] {
   const n = (status: InviteBucket) => count(rows, (r) => inviteBucket(r, now) === status);

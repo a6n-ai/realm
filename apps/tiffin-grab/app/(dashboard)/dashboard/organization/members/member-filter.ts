@@ -1,16 +1,19 @@
 import type { Condition } from "@foundry/commons/model/condition";
 import type { MemberRow } from "./members-query";
 
-export function matchesCondition(row: MemberRow, condition: Condition): boolean {
+/** `areaIds` holds the resource ids the person has any action in (see access-areas.ts). */
+export type FilterableMember = MemberRow & { areaIds?: string[] };
+
+export function matchesCondition(row: FilterableMember, condition: Condition): boolean {
   if (condition.type === "complex") {
     return condition.operator === "and"
       ? condition.conditions.every((c) => matchesCondition(row, c))
       : condition.conditions.some((c) => matchesCondition(row, c));
   }
   if (condition.field === "password") return condition.value === "unset" ? !row.passwordSet : row.passwordSet;
-  // orgRole is a comma list: a person matches a role they hold anywhere in it.
-  if (condition.field === "role" && (condition.operator === "eq" || condition.operator === "in")) {
-    const held = row.orgRole.split(",").map((r) => r.trim());
+  // Multi-valued fields: a person matches when they hold any one of the selected values.
+  if ((condition.field === "role" || condition.field === "area") && (condition.operator === "eq" || condition.operator === "in")) {
+    const held = condition.field === "role" ? row.orgRole.split(",").map((r) => r.trim()) : (row.areaIds ?? []);
     return condition.operator === "eq"
       ? held.includes(String(condition.value))
       : (condition.value as unknown[]).some((v) => held.includes(String(v)));

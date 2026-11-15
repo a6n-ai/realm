@@ -8,30 +8,20 @@ import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
 import type { SortState } from "@foundry/design-system/list-sort";
 import { UserRow, UserRowCard, type RoleCtx } from "./user-row";
 import type { UserStatusValue } from "./actions";
-import type { RoleValue } from "@foundry/commons";
+import type { PeopleRow } from "./people-rows";
 
-export type UserListRow = {
-  id: string;
-  name: string | null;
-  email: string | null;
-  phone: string | null;
-  role: RoleValue;
-  memberId: string;
-  orgRole: string;
-  status: UserStatusValue;
-  passwordSet: boolean;
-  invitationStatus: "none" | "pending" | "expired" | "accepted";
-  organizationId: string;
-};
+export type UserListRow = PeopleRow;
 
 // Single source of truth for the table's columns. DataTable renders the header
 // and DataTable.Skeleton renders the loading twin from this same array, so the
 // two can never drift.
-const COLUMNS: readonly Column<"name" | "email" | "role" | "status" | "actions">[] = [
-  { key: "name", label: "Name", sortable: true },
+const COLUMNS: readonly Column<"name" | "email" | "role" | "access" | "status" | "joined" | "actions">[] = [
+  { key: "name", label: "Member", sortable: true },
   { key: "email", label: "Contact", sortable: true },
   { key: "role", label: "Roles", sortable: true },
+  { key: "access", label: "Access" },
   { key: "status", label: "Status", sortable: true },
+  { key: "joined", label: "Joined" },
   { key: "actions", label: "" },
 ];
 

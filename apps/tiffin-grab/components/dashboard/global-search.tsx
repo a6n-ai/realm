@@ -32,7 +32,7 @@ const ADD_KIND: Record<string, QuickAddKind> = {
 const LIST_SEARCH: Record<string, string> = {
   "/dashboard/customers": "customers",
   "/dashboard/orders": "orders",
-  "/dashboard/organization/members": "members",
+  "/dashboard/organization/people": "people",
   "/dashboard/tickets": "tickets",
   "/dashboard/inquiries": "inquiries",
   "/dashboard/wallet/ledger": "the ledger",
