@@ -12,7 +12,6 @@ import {
   addMember,
   removeMember,
   searchUsersByEmail,
-  updateMemberRole,
   updateOrganization,
   type MemberRole,
   type UpdateOrganizationInput,
@@ -145,20 +144,4 @@ export async function removeMemberAction(organizationId: string, userPublicId: s
 export async function searchUsersByEmailAction(query: string): Promise<UserSearchRow[]> {
   await requirePermission({ member: ["update"] });
   return searchUsersByEmail(query);
-}
-
-export async function updateMemberRoleAction(
-  organizationId: string,
-  userPublicId: string,
-  role: MemberRole,
-): Promise<{ ok: true } | { ok: false; error: string }> {
-  await requirePermissionIn(organizationId, { member: ["update"] });
-  await requireOwnerToGrant(organizationId, role, await currentMemberRole(organizationId, userPublicId));
-  try {
-    await updateMemberRole(organizationId, userPublicId, role);
-    revalidatePath(`/dashboard/organization/settings/${organizationId}`);
-    return { ok: true };
-  } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : "Could not update role." };
-  }
 }

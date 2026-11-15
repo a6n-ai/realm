@@ -15,11 +15,12 @@ import {
 } from "@foundry/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
 import { UserAvatar } from "@/components/ds";
-import { addMemberAction, removeMemberAction, updateMemberRoleAction } from "@/lib/services/organizations-actions";
+import { Badge } from "@/components/reui/badge";
+import { addMemberAction, removeMemberAction } from "@/lib/services/organizations-actions";
 import type { MemberRole, UserSearchRow } from "@/lib/services/organizations.service";
 import { UserPicker } from "./user-picker";
 
-type Row = { organizationId: string; userPublicId: string; label: string; role: MemberRole };
+type Row = { organizationId: string; userPublicId: string; label: string; role: string };
 
 const ROLES: MemberRole[] = ["admin", "owner"];
 
@@ -99,11 +100,7 @@ export function MemberManagement({
             <li key={row.organizationId + row.userPublicId} className="flex items-center gap-3 py-2.5 first:pt-0">
               <UserAvatar name={row.label} size="sm" />
               <span className="min-w-0 flex-1 truncate text-sm font-medium">{row.label}</span>
-              <RoleSelect
-                value={row.role}
-                disabled={pending}
-                onChange={(role) => run(() => updateMemberRoleAction(row.organizationId, row.userPublicId, role))}
-              />
+              <Badge variant="secondary" className="capitalize">{row.role}</Badge>
               <Button variant="ghost" size="sm" disabled={pending} onClick={() => setRemoving(row)}>
                 Remove
               </Button>

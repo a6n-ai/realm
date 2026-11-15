@@ -5,7 +5,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import { member, organizationRole } from "@/db/schema";
 import { userIdByPublicId } from "@/lib/identity/user-ids";
-import { ac, orgRoles } from "./permissions";
+import { ac, appStatement, orgRoles } from "./permissions";
 import { getSession } from "./session";
 
 /** Access in one specific org: the caller's own member row there, never the active org's. */
@@ -78,4 +78,18 @@ export async function getActiveRoleLabel(): Promise<string | null> {
     .from(member)
     .where(and(eq(member.organizationId, organizationId), eq(member.userId, dbUserId)));
   return row ? row.role.split(",").map((r) => r.trim().replaceAll("_", " ")).filter(Boolean).join(", ") : null;
+}
+
+/** What the viewer may hand out: their roles combined (platform admins: every app permission). */
+export function effectivePermissions(access: OrgAccess): Permissions {
+  if (access.kind === "none") return {};
+  if (access.kind === "platform") return Object.fromEntries(Object.entries(appStatement).map(([k, v]) => [k, [...v]]));
+  const out: Record<string, Set<string>> = {};
+  for (const role of access.roles) {
+    for (const [resource, actions] of Object.entries(role.statements)) {
+      const set = (out[resource] ??= new Set());
+      for (const a of actions as string[]) set.add(a);
+    }
+  }
+  return Object.fromEntries(Object.entries(out).map(([k, v]) => [k, [...v]]));
 }

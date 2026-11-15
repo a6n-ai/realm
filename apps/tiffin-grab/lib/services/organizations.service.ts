@@ -2,7 +2,7 @@ import { isUniqueViolation } from "@/lib/db/errors";
 import { and, asc, eq, ilike, isNull, sql } from "drizzle-orm";
 import type { OrgLocation } from "@foundry/commons";
 import { db } from "@/db/client";
-import { member, organization, users } from "@/db/schema";
+import { member, organization, organizationRole, users } from "@/db/schema";
 import { userIdByPublicId } from "@/lib/identity/user-ids";
 
 // Per-request memoized: the dashboard shell resolves the same actor several times.
@@ -175,9 +175,10 @@ export async function getBrandOrgId(tx: { select: typeof db.select } = db): Prom
 }
 
 /**
- * Keep `member` rows in step with `users.role`. Staff with no membership land in
- * the brand org; staff already in a franchise are left alone so a role change never
- * widens their visibility. Demotion to customer drops every membership.
+ * Keep brand membership in step with the staff/customer split. Staff with no membership land in the
+ * brand org as plain `member`; their org role is set through Better Auth, never copied from `users.role`.
+ * Staff already in a franchise are left alone so a role change never widens their visibility.
+ * Demotion to customer drops every membership.
  */
 export async function syncStaffMembership(userId: bigint, role: string): Promise<void> {
   if (role !== "admin" && role !== "member") {
@@ -188,7 +189,7 @@ export async function syncStaffMembership(userId: bigint, role: string): Promise
   if (existing) return;
   const brandId = await getBrandOrgId();
   if (!brandId) return;
-  await db.insert(member).values({ organizationId: brandId, userId, role }).onConflictDoNothing();
+  await db.insert(member).values({ organizationId: brandId, userId, role: "member" }).onConflictDoNothing();
 }
 
 export type UserSearchRow = { publicId: string; email: string };
@@ -204,26 +205,52 @@ export async function searchUsersByEmail(query: string): Promise<UserSearchRow[]
   return rows.filter((r): r is UserSearchRow => r.email !== null);
 }
 
-export async function updateMemberRole(
-  organizationId: string,
-  userPublicId: string,
-  role: MemberRole,
-): Promise<void> {
-  const userId = await userIdByPublicId(userPublicId);
-  if (!userId) throw new Error("User not found");
-  await db
-    .update(member)
-    .set({ role })
-    .where(and(eq(member.organizationId, organizationId), eq(member.userId, userId)));
+export type CustomRoleRow = { id: string; role: string; permission: Record<string, string[]> };
+
+/** Custom roles of an org, read from the table: auth.api.listOrgRoles needs ac:read and a member row, which pickers and super_admin lack. */
+export async function listCustomRoles(organizationId: string): Promise<CustomRoleRow[]> {
+  const rows = await db
+    .select({ id: organizationRole.id, role: organizationRole.role, permission: organizationRole.permission })
+    .from(organizationRole)
+    .where(eq(organizationRole.organizationId, organizationId))
+    .orderBy(asc(organizationRole.role));
+  return rows.map((r) => ({ ...r, permission: JSON.parse(r.permission) as Record<string, string[]> }));
 }
 
-export type UserMembershipRow = { organizationId: string; organizationName: string; role: string };
+export async function listCustomRoleNames(organizationId: string): Promise<string[]> {
+  return (await listCustomRoles(organizationId)).map((r) => r.role);
+}
+
+export async function getMemberInOrg(organizationId: string, memberId: string) {
+  const [row] = await db
+    .select({ id: member.id, userId: member.userId, role: member.role })
+    .from(member)
+    .where(and(eq(member.organizationId, organizationId), eq(member.id, memberId)))
+    .limit(1);
+  return row ?? null;
+}
+
+export async function countOwners(organizationId: string): Promise<number> {
+  return (await getRoleHolderCounts(organizationId)).owner ?? 0;
+}
+
+/** How many members hold each role (comma lists count once per role). */
+export async function getRoleHolderCounts(organizationId: string): Promise<Record<string, number>> {
+  const rows = await db.select({ role: member.role }).from(member).where(eq(member.organizationId, organizationId));
+  const counts: Record<string, number> = {};
+  for (const r of rows) {
+    for (const name of new Set(r.role.split(",").map((x) => x.trim()).filter(Boolean))) counts[name] = (counts[name] ?? 0) + 1;
+  }
+  return counts;
+}
+
+export type UserMembershipRow = { memberId: string; organizationId: string; organizationName: string; role: string };
 
 export async function listMembershipsForUser(userPublicId: string): Promise<UserMembershipRow[]> {
   const userId = await userIdByPublicId(userPublicId);
   if (!userId) return [];
   return db
-    .select({ organizationId: organization.id, organizationName: organization.name, role: member.role })
+    .select({ memberId: member.id, organizationId: organization.id, organizationName: organization.name, role: member.role })
     .from(member)
     .innerJoin(organization, eq(organization.id, member.organizationId))
     .where(eq(member.userId, userId));
