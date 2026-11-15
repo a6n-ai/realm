@@ -42,22 +42,27 @@ const PUBLIC_ROUTES: Record<string, string> = {
   "app/api/public/v1/referral/route.ts": "public referral program copy, read-only",
 };
 
-// Customer self-service actions: getSession plus an ownership check on the row they touch.
-// Keep this list short. A file belongs here only if every export acts on the caller's own data.
+// Customer self-service exports: the caller's own session scopes every read and write, but no guard call
+// appears in the export's body. Keyed file:export, so a new export in the same file is scanned again.
 const CUSTOMER_SELF_SERVICE_ACTIONS: Record<string, string> = {
-  "lib/deliveries/customer-actions.ts": "currentUserId scopes every read and write to the caller's own orders",
-  "lib/support/customer-actions.ts": "currentUserId scopes tickets to the caller",
-  "lib/referrals/customer-actions.ts": "currentUserId scopes the referral code to the caller",
-  "lib/payments/customer-actions.ts": "requireCustomerId and currentUserId, the caller's own payments",
-  "lib/payments/card-actions.ts": "getSession, removes only the caller's saved cards",
-  "lib/payments/pay-actions.ts": "requireCustomer or getSession before any payment session",
-  "lib/account/actions.ts": "requireCustomer, the caller's own account",
-  "lib/checkout/actions.ts": "getSession or currentUserId for signed-in checkout",
-  "app/(customer)/me/review-nudge-actions.ts": "getSession, marks the caller's own review nudge",
-  "app/(auth)/set-password/actions.ts": "getSession, sets the caller's own password",
-  "app/(auth)/login/actions.ts": "getSession, PIN check for the caller's own session",
-  "lib/services/filter-usage.actions.ts": "per-user filter preferences, the service reads getSession",
-  "lib/services/section-seen.actions.ts": "per-user seen markers, the service reads getSession",
+  "app/(auth)/login/actions.ts:verifyPinAction": "getSession, PIN check for the caller's own session",
+  "app/(auth)/set-password/actions.ts:setInitialPassword": "getSession, sets the caller's own password",
+  "app/(customer)/me/review-nudge-actions.ts:markReviewNudgeDone": "getSession, marks the caller's own review nudge",
+  "lib/account/actions.ts:deleteMyAccount": "requireAccountUser, password-checked delete of the caller's own account",
+  "lib/checkout/actions.ts:confirmSubscription": "placeSubscription resolves the caller's session; its out-of-zone waitlist branch is not guarded",
+  "lib/checkout/actions.ts:payCheckout": "getSession, the caller's own checkout",
+  "lib/payments/card-actions.ts:removeSavedCard": "getSession, removes only the caller's saved cards",
+  "lib/payments/customer-actions.ts:claimPaymentAction": "loadClaimPaymentContext calls assertCanManageOrder (one helper hop)",
+  "lib/payments/pay-actions.ts:confirmReturn": "getSession and ownsPayment",
+  "lib/payments/pay-actions.ts:newCustomerSession": "getSession, returns the caller's own session secret",
+  "lib/referrals/customer-actions.ts:enterReferralCode": "currentUserId, the caller's own referral code",
+  "lib/services/filter-usage.actions.ts:recordFilterUseAction": "per-user filter preferences, the service reads getSession",
+  "lib/services/filter-usage.actions.ts:filterRecommendationsAction": "per-user filter preferences, the service reads getSession",
+  "lib/services/section-seen.actions.ts:markReadAction": "per-user seen markers, the service reads getSession",
+  "lib/services/section-seen.actions.ts:markAllReadAction": "per-user seen markers, the service reads getSession",
+  "lib/support/customer-actions.ts:createTicket": "currentUserId scopes tickets to the caller",
+  "lib/support/customer-actions.ts:replyTicket": "currentUserId scopes tickets to the caller",
+  "lib/support/customer-actions.ts:rateTicket": "currentUserId scopes tickets to the caller",
 };
 
 // Actions that are public or self-authenticating by design, keyed file:export.
@@ -154,14 +159,13 @@ describe("guard coverage", () => {
     let exports = 0;
     for (const file of files) {
       const r = rel(file);
-      if (CUSTOMER_SELF_SERVICE_ACTIONS[r]) continue;
       const src = read(file);
       const decls = declarations(src);
       for (const d of decls) {
         if (!d.exported || !d.isFn) continue;
         exports++;
         const key = `${r}:${d.name}`;
-        if (PUBLIC_ACTIONS[key]) continue;
+        if (PUBLIC_ACTIONS[key] || CUSTOMER_SELF_SERVICE_ACTIONS[key]) continue;
         if (!exportGuarded(src, d, decls)) bad.push(key);
       }
     }
@@ -213,11 +217,16 @@ describe("guard coverage", () => {
   it("allowlists and known gaps point at files that still exist", () => {
     const files = [
       ...Object.keys(PUBLIC_ROUTES),
-      ...Object.keys(CUSTOMER_SELF_SERVICE_ACTIONS),
+      ...Object.keys(CUSTOMER_SELF_SERVICE_ACTIONS).map((k) => k.split(":")[0]!),
       ...Object.keys(REDIRECT_ONLY_PAGES),
       ...Object.keys(PUBLIC_ACTIONS).map((k) => k.split(":")[0]!),
     ];
     const missing = files.filter((f) => !existsSync(join(APP, f)));
     expect(missing).toEqual([]);
+    const staleExports = Object.keys(CUSTOMER_SELF_SERVICE_ACTIONS).filter((k) => {
+      const [file, name] = k.split(":") as [string, string];
+      return !read(join(APP, file)).includes(`function ${name}(`);
+    });
+    expect(staleExports).toEqual([]);
   });
 });
