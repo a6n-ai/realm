@@ -42,7 +42,7 @@ export type ProfitabilityReport = {
   unratedCategories: string[];
 };
 
-const HAS_CAPTURED = sql`exists (
+export const HAS_CAPTURED = sql`exists (
   select 1 from ${payments} where ${payments.orderId} = ${orders.id}
   and ${inArray(payments.status, CAPTURED)}
 )`;
@@ -54,7 +54,7 @@ const ORDER_EARNED = sql`(${CAPTURED_NET}
   - (select coalesce(sum(${refundExTax}), 0) from ${ledgerEntries}
     inner join ${payments} on ${payments.id} = ${ledgerEntries.paymentId}
     where ${payments.orderId} = ${orders.id} and ${ledgerEntries.type} = 'refund'))`;
-const EARNED_PER_TIFFIN = sql`(${ORDER_EARNED} / nullif(${orders.tiffinCount}, 0))`;
+export const EARNED_PER_TIFFIN = sql`(${ORDER_EARNED} / nullif(${orders.tiffinCount}, 0))`;
 // Still owed per tiffin: order total ex tax less what was paid ex tax (before refunds). A half-paid
 // order owes half; an order nobody paid owes all of it.
 const UNPAID_PER_TIFFIN = sql`greatest(

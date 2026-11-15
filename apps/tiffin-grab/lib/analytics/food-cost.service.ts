@@ -57,6 +57,21 @@ export function deliveryPicks(input: {
  */
 export async function foodCostByDate(scope: AnalyticsScope, from: string, to: string): Promise<Map<string, FoodCostDay>> {
   const out = new Map<string, FoodCostDay>();
+  for (const t of await foodCostByTrip(scope, from, to)) {
+    const day = out.get(t.deliveryDate) ?? { foodCost: 0, tiffinsWithoutRate: 0, unratedCategories: [] };
+    day.foodCost += t.foodCost;
+    day.tiffinsWithoutRate += t.tiffinsWithoutRate;
+    day.unratedCategories = [...new Set([...day.unratedCategories, ...t.unratedCategories])].sort();
+    out.set(t.deliveryDate, day);
+  }
+  return out;
+}
+
+export type FoodCostTrip = FoodCostDay & { deliveryId: bigint; orderId: bigint; deliveryDate: string };
+
+/** Food cost of each delivered trip in the window (every eating day it carries). */
+export async function foodCostByTrip(scope: AnalyticsScope, from: string, to: string): Promise<FoodCostTrip[]> {
+  const out: FoodCostTrip[] = [];
   if (noOrgs(scope)) return out;
 
   const trips = await db
@@ -144,8 +159,8 @@ export async function foodCostByDate(scope: AnalyticsScope, from: string, to: st
   for (const trip of trips) {
     const days = coveredDates({ deliveryDate: trip.deliveryDate, coversDates: trip.coversDates });
     const persons = trip.tiffinUnits / days.length;
-    const day = out.get(trip.deliveryDate) ?? { foodCost: 0, tiffinsWithoutRate: 0, unratedCategories: [] };
-    const unrated = new Set(day.unratedCategories);
+    const cost: FoodCostTrip = { deliveryId: trip.id, orderId: trip.orderId, deliveryDate: trip.deliveryDate, foodCost: 0, tiffinsWithoutRate: 0, unratedCategories: [] };
+    const unrated = new Set<string>();
     const mealItems = itemsByMeal.get(trip.mealSizeId) ?? [];
     for (const eatingDay of days) {
       const picks = deliveryPicks({
@@ -156,15 +171,15 @@ export async function foodCostByDate(scope: AnalyticsScope, from: string, to: st
         categoriesByKey,
       });
       const priced = tiffinFoodCost(picks, rates, trip.organizationId);
-      day.foodCost += priced.cost * persons;
+      cost.foodCost += priced.cost * persons;
       // A meal size with no items has no composition to price, so it is unrated rather than free.
       if (mealItems.length === 0 || priced.unrated.length > 0) {
-        day.tiffinsWithoutRate += persons;
+        cost.tiffinsWithoutRate += persons;
         priced.unrated.forEach((c) => unrated.add(c));
       }
     }
-    day.unratedCategories = [...unrated].sort();
-    out.set(trip.deliveryDate, day);
+    cost.unratedCategories = [...unrated].sort();
+    out.push(cost);
   }
   return out;
 }

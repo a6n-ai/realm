@@ -20,10 +20,12 @@ import { Badge } from "@/components/reui/badge";
 import { Alert, AlertDescription } from "@/components/reui/alert";
 import { getProfitabilityReport } from "@/lib/analytics/profitability.service";
 import { navScope, type Grain, type ProfitabilityKpis } from "@/lib/analytics/profitability";
-import { currentMonth } from "@/lib/dates/epoch-window";
+import { currentMonth, monthBounds } from "@/lib/dates/epoch-window";
+import { getOrderWeeks } from "@/lib/analytics/order-weeks.service";
 import { ManualRefresh } from "@/components/dashboard/analytics/manual-refresh";
 import { AssumptionChips } from "./assumption-chips";
 import { DayCards } from "./day-cards";
+import { OrderWeeksTable } from "./order-weeks-table";
 import { GrainNav } from "./grain-nav";
 import { isoDateInZone } from "@foundry/commons/util/dates";
 import { requestNow } from "@/lib/dates/request-now";
@@ -106,6 +108,16 @@ export default async function ProfitabilityAnalyticsPage({ searchParams }: { sea
             </Suspense>
           </ChartCard>
         </div>
+
+        <ChartCard
+          title="Orders by week"
+          subtitle="Each order's revenue, food and driver cost, by delivery week"
+          info="Revenue is the order's earned share per delivered tiffin, the same as above. Food comes from Catalog → Cost rates; driver from the per-tiffin assumption. Marketing and salaries stay in the page totals, not on orders. Losing orders are listed first."
+        >
+          <Suspense fallback={<ChartSkeleton height={320} />}>
+            <OrderWeeks view={view} />
+          </Suspense>
+        </ChartCard>
       </div>
     </Can>
   );
@@ -219,6 +231,13 @@ function HeadlineCards({ kpis, range, cashHref, toDate, money }: { kpis: Profita
   ];
 
   return <AnalyticsStatCards items={items} />;
+}
+
+async function OrderWeeks({ view }: { view: View }) {
+  const report = await reportFrom(view);
+  // A 12-month range would be ~52 tables; the monthly view lists the selected month only.
+  const range = view.grain === "monthly" ? monthBounds(view.month) : { from: report.from, to: report.to };
+  return <OrderWeeksTable weeks={await getOrderWeeks(view.scope, range.from, range.to)} />;
 }
 
 async function Trend({ view }: { view: View }) {
