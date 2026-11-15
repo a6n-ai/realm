@@ -10,10 +10,10 @@ import { Button } from "@foundry/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
 import { TableCell } from "@foundry/ui/table";
 import { RowActions } from "@foundry/design-system";
-import { MemberRoleSelect } from "@foundry/crm";
+import { Badge } from "@/components/reui/badge";
 import { RowActionTooltipButton, UserAvatar } from "@/components/ds";
 import { unwrapAction } from "@/lib/actions/unwrap";
-import { sendStaffAccessEmail, setMemberRoles, setUserStatus, type UserStatusValue } from "./actions";
+import { sendStaffAccessEmail, setUserStatus, type UserStatusValue } from "./actions";
 import type { UserListRow } from "./users-list";
 
 const USER_STATUSES: UserStatusValue[] = ["active", "inactive", "suspended", "deleted"];
@@ -44,28 +44,17 @@ export function StatusSelect({ id, status }: { id: string; status: UserStatusVal
   );
 }
 
-export type RoleCtx = {
-  activeOrgId: string | null;
-  options: { value: string; label: string; locked?: boolean }[];
-  canGrantOwner: boolean;
-};
+export type RoleCtx = { options: { value: string; label: string }[] };
 
-// A row is editable only in the active org (Better Auth acts there), and an owner row only by an owner.
-export function OrgRoleSelect({ row, ctx }: { row: Pick<UserListRow, "memberId" | "orgRole" | "organizationId">; ctx: RoleCtx }) {
-  const isOwner = row.orgRole.split(",").some((r) => r.trim() === "owner");
-  const disabled = row.organizationId !== ctx.activeOrgId || (isOwner && !ctx.canGrantOwner);
-  const known = ctx.options.some((o) => o.value === row.orgRole);
-  const options = known ? ctx.options : [...ctx.options, { value: row.orgRole, label: row.orgRole, locked: true }];
+export function RoleBadges({ orgRole, ctx }: { orgRole: string; ctx: RoleCtx }) {
+  const roles = orgRole.split(",").map((r) => r.trim()).filter(Boolean);
+  if (roles.length === 0) return <Badge variant="warning-light">No role</Badge>;
   return (
-    <MemberRoleSelect
-      value={row.orgRole}
-      options={options}
-      disabled={disabled}
-      onChange={async (role) => {
-        const res = await setMemberRoles(row.memberId, [role]);
-        return "error" in res ? { error: res.error } : {};
-      }}
-    />
+    <span className="flex flex-wrap gap-1">
+      {roles.map((r) => (
+        <Badge key={r} variant="secondary">{ctx.options.find((o) => o.value === r)?.label ?? r}</Badge>
+      ))}
+    </span>
   );
 }
 
@@ -117,13 +106,13 @@ export function ResetPasswordButton({
 
 // Returns only the <TableCell> children — DataTable supplies the wrapping
 // <TableRow>. Interactive role controls stay client-side here.
-export function UserRow({ ctx, ...r }: UserListRow & { ctx: RoleCtx }) {
+export function UserRow({ ctx, href, ...r }: UserListRow & { ctx: RoleCtx; href: string }) {
   const { id, name, email, phone, role, status, passwordSet } = r;
   return (
     <>
       <TableCell>
         <Link
-          href={`/dashboard/organization/members/${id}`}
+          href={href}
           className="group flex items-center gap-3 font-medium underline-offset-4 hover:[&>span]:underline"
         >
           <UserAvatar name={name} fallbackText={email} presence={status === "active" ? "active" : "off"} size="sm" />
@@ -131,7 +120,7 @@ export function UserRow({ ctx, ...r }: UserListRow & { ctx: RoleCtx }) {
         </Link>
       </TableCell>
       <TableCell>{email ?? (phone ? formatPhone(phone) : null) ?? "—"}</TableCell>
-      <TableCell><OrgRoleSelect row={r} ctx={ctx} /></TableCell>
+      <TableCell><RoleBadges orgRole={r.orgRole} ctx={ctx} /></TableCell>
       <TableCell><StatusSelect id={id} status={status} /></TableCell>
       <TableCell>
         <RowActions>
@@ -144,11 +133,11 @@ export function UserRow({ ctx, ...r }: UserListRow & { ctx: RoleCtx }) {
 
 // Mobile card variant — UserRow returns <td>s (a component, so DataTable can't
 // auto-derive a card from it); this renders the same controls as card content.
-export function UserRowCard({ ctx, ...r }: UserListRow & { ctx: RoleCtx }) {
+export function UserRowCard({ ctx, href, ...r }: UserListRow & { ctx: RoleCtx; href: string }) {
   const { id, name, email, phone, role, status, passwordSet } = r;
   return (
     <div className="space-y-3">
-      <Link href={`/dashboard/organization/members/${id}`} className="flex items-center gap-3">
+      <Link href={href} className="flex items-center gap-3">
         <UserAvatar name={name} fallbackText={email} presence={status === "active" ? "active" : "off"} />
         <span className="text-base font-medium underline-offset-4 hover:underline">
           {name || email || (phone ? formatPhone(phone) : null) || "—"}
@@ -156,8 +145,8 @@ export function UserRowCard({ ctx, ...r }: UserListRow & { ctx: RoleCtx }) {
       </Link>
       {(email || phone) && <div className="text-muted-foreground text-sm">{email ?? (phone ? formatPhone(phone) : null)}</div>}
       <div className="flex items-center justify-between gap-3">
-        <span className="text-muted-foreground text-sm">Role</span>
-        <OrgRoleSelect row={r} ctx={ctx} />
+        <span className="text-muted-foreground text-sm">Roles</span>
+        <RoleBadges orgRole={r.orgRole} ctx={ctx} />
       </div>
       <div className="flex items-center justify-between gap-3">
         <span className="text-muted-foreground text-sm">Status</span>

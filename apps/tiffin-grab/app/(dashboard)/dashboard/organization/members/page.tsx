@@ -13,6 +13,9 @@ import { memberStats } from "../org-stats";
 import { UsersList, UsersListSkeleton } from "./users-list";
 import { getMembersForOrgs, type MemberRow } from "./members-query";
 import type { UserStatusValue } from "./actions";
+import { loadMemberPanel } from "./member-panel-data";
+import { MemberSheet } from "./member-panel";
+import { RESOURCE_LABELS } from "@/lib/auth/permissions";
 
 const USER_STATUSES: UserStatusValue[] = ["active", "inactive", "suspended", "deleted"];
 
@@ -46,7 +49,7 @@ function MembersCard({ children, inviteRoles = [] }: { children: React.ReactNode
   return (
     <SectionCard
       title="Members"
-      subtitle="Everyone with access to the console. Change a role or status inline, or open a member for details."
+      subtitle="Everyone with access to the console. Open a member to change their roles, status or contact details."
       action={inviteRoles.length ? <InviteUserButton roles={inviteRoles.filter((r) => !r.locked)} /> : undefined}
     >
       {children}
@@ -103,7 +106,7 @@ async function UsersData({ searchParams }: { searchParams: SearchParams }) {
   const sort = parseSort(sp, ["name", "email", "role", "status"], { column: "email", dir: "asc" });
   const SORT_COLUMNS = { name: "name", email: "email", role: "orgRole", status: "status" } as const;
 
-  const { organizationId: activeOrgId, options, canGrantOwner, canInvite } = await getRoleChoices();
+  const { options, canInvite } = await getRoleChoices();
   const spec = buildSpec(options);
   const { condition, page } = parseFilterState(spec, sp);
 
@@ -116,6 +119,8 @@ async function UsersData({ searchParams }: { searchParams: SearchParams }) {
   const dir = sort.dir === "asc" ? 1 : -1;
   const sortField = SORT_COLUMNS[sort.column];
   filtered.sort((a, b) => String(a[sortField] ?? "").localeCompare(String(b[sortField] ?? "")) * dir);
+
+  const panel = sp.member ? await loadMemberPanel(sp.member) : null;
 
   const total = filtered.length;
   const rows = filtered.slice(pageOffset(page.page, page.size), pageOffset(page.page, page.size) + page.size);
@@ -131,9 +136,10 @@ async function UsersData({ searchParams }: { searchParams: SearchParams }) {
           page={page.page}
           size={page.size}
           sort={sort}
-          roleCtx={{ activeOrgId, options, canGrantOwner }}
+          roleCtx={{ options }}
         />
       </MembersCard>
+      {panel && <MemberSheet data={panel} resources={RESOURCE_LABELS} />}
     </>
   );
 }

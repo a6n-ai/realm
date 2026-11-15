@@ -4,20 +4,18 @@ import { notFound } from "next/navigation";
 import { NotFoundError } from "@foundry/commons";
 import { usersService } from "@/lib/services/users.service";
 import { getAppSettings } from "@/lib/settings";
-import { listMembershipsForUser, listOrganizations, type MemberRole } from "@/lib/services/organizations.service";
+import { listMembershipsForUser } from "@/lib/services/organizations.service";
 import { formatEpoch } from "@/lib/format/datetime";
 import { SectionCard, UserAvatar } from "@/components/ds";
 import { Badge } from "@/components/reui/badge";
 import { Skeleton } from "@foundry/ui/skeleton";
-import {
-  OrgRoleSelect,
-  StatusSelect,
-  ResetPasswordButton,
-} from "../user-row";
+import { ResetPasswordButton, StatusSelect } from "../user-row";
 import { getRoleChoices } from "@/lib/auth/role-options";
 import { AdminContactForm } from "@/components/dashboard/admin-contact-form";
-import { MemberManagement } from "../../settings/member-management";
 import { StatusBadge } from "../../status-badge";
+import { RESOURCE_LABELS } from "@/lib/auth/permissions";
+import { loadMemberPanel } from "../member-panel-data";
+import { MemberPanelBody } from "../member-panel";
 
 export default function UserDetailPage({ params }: { params: Promise<{ id: string }> }) {
   return (
@@ -47,13 +45,13 @@ async function UserDetailData({ params }: { params: Promise<{ id: string }> }) {
     throw e;
   }
 
-  const [{ timezone }, memberships, allOrgs, roleCtx] = await Promise.all([
+  const [{ timezone }, memberships, roleCtx] = await Promise.all([
     getAppSettings(),
     listMembershipsForUser(user.publicId),
-    listOrganizations(),
     getRoleChoices(),
   ]);
   const activeMembership = memberships.find((m) => m.organizationId === roleCtx.organizationId);
+  const panel = activeMembership ? await loadMemberPanel(activeMembership.memberId) : null;
 
   const isStaff = isStaffRole(user.role);
   const contact = [user.email, user.phone].filter(Boolean).join(" · ");
@@ -106,26 +104,14 @@ async function UserDetailData({ params }: { params: Promise<{ id: string }> }) {
         </div>
       </SectionCard>
 
-      <SectionCard title="Access" subtitle="Role in the active organization and account status.">
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-wrap items-center gap-6">
-            <label className="flex items-center gap-2 text-sm">
-              <span className="text-muted-foreground">Role</span>
-              {activeMembership ? (
-                <OrgRoleSelect
-                  row={{ memberId: activeMembership.memberId, orgRole: activeMembership.role, organizationId: activeMembership.organizationId }}
-                  ctx={{ activeOrgId: roleCtx.organizationId, options: roleCtx.options, canGrantOwner: roleCtx.canGrantOwner }}
-                />
-              ) : (
-                <span className="text-muted-foreground">Not a member of this organization</span>
-              )}
-            </label>
-            <label className="flex items-center gap-2 text-sm">
-              <span className="text-muted-foreground">Status</span>
-              <StatusSelect id={user.publicId} status={user.status} />
-            </label>
-          </div>
-        </div>
+      <SectionCard title="Access" subtitle="Roles, permissions and organizations in the active organization.">
+        {!activeMembership ? (
+          <p className="text-muted-foreground text-sm">Not a member of this organization.</p>
+        ) : panel ? (
+          <MemberPanelBody data={panel} resources={RESOURCE_LABELS} showContact={false} />
+        ) : (
+          <p className="text-muted-foreground text-sm">You can&apos;t see this person&apos;s access.</p>
+        )}
       </SectionCard>
 
       <SectionCard title="Profile">
@@ -137,21 +123,6 @@ async function UserDetailData({ params }: { params: Promise<{ id: string }> }) {
         </dl>
       </SectionCard>
 
-      <SectionCard title="Client access" subtitle="Organizations this user is a member of.">
-        <MemberManagement
-          rows={memberships.map((m) => ({
-            organizationId: m.organizationId,
-            userPublicId: user.publicId,
-            label: m.organizationName,
-            role: m.role as MemberRole,
-          }))}
-          fixed={{ userPublicId: user.publicId }}
-          organizations={allOrgs
-            .filter((o) => !memberships.some((m) => m.organizationId === o.id))
-            .map((o) => ({ id: o.id, name: o.name }))}
-          emptyMessage="Not a member of any organization yet."
-        />
-      </SectionCard>
     </>
   );
 }
@@ -167,7 +138,7 @@ function UserDetailSkeleton() {
         </div>
       </div>
 
-      {["Identity", "Contact", "Access", "Profile", "Client access"].map((t) => (
+      {["Identity", "Contact", "Access", "Profile"].map((t) => (
         <SectionCard key={t} title={t}>
           <div className="space-y-2">
             {[0, 1, 2].map((i) => (

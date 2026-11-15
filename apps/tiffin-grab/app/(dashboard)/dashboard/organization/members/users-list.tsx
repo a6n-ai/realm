@@ -2,6 +2,7 @@
 
 import { pageOffset } from "@foundry/design-system/filters/parse-filter-state";
 import { UsersIcon } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 import { DataTable, ListPagination, SkeletonFilterBar, type Column, type FacetDef } from "@/components/ds";
 import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
 import type { SortState } from "@foundry/design-system/list-sort";
@@ -29,7 +30,7 @@ export type UserListRow = {
 const COLUMNS: readonly Column<"name" | "email" | "role" | "status" | "actions">[] = [
   { key: "name", label: "Name", sortable: true },
   { key: "email", label: "Contact", sortable: true },
-  { key: "role", label: "Role", sortable: true },
+  { key: "role", label: "Roles", sortable: true },
   { key: "status", label: "Status", sortable: true },
   { key: "actions", label: "" },
 ];
@@ -51,6 +52,13 @@ export function UsersList({
   sort: SortState<"name" | "email" | "role" | "status">;
   roleCtx: RoleCtx;
 }) {
+  const params = useSearchParams();
+  // Opens the member panel and keeps the search and filters in the URL.
+  const hrefFor = (memberId: string) => {
+    const sp = new URLSearchParams(params.toString());
+    sp.set("member", memberId);
+    return `?${sp.toString()}`;
+  };
   return (
     <div className="space-y-4">
       <DataTable
@@ -60,14 +68,14 @@ export function UsersList({
         rowKey={(r) => r.id}
         sort={sort}
         idAccessor={(r) => r.id}
-        idHref={(r) => `/dashboard/organization/members/${r.id}`}
+        idHref={(r) => hrefFor(r.memberId)}
         search={{ placeholder: "Search users…", shortPlaceholder: "Search…", debounceMs: 250 }}
         filters={<ReuiFacetFilters spec={spec} />}
         emptyIcon={UsersIcon}
         emptyMessage="No users yet."
         emptySearchMessage="No users match your filters."
-        renderRow={(r) => <UserRow {...r} ctx={roleCtx} />}
-        mobileCard={(r) => <UserRowCard {...r} ctx={roleCtx} />}
+        renderRow={(r) => <UserRow {...r} ctx={roleCtx} href={hrefFor(r.memberId)} />}
+        mobileCard={(r) => <UserRowCard {...r} ctx={roleCtx} href={hrefFor(r.memberId)} />}
       />
       <ListPagination page={page} size={size} total={total} />
     </div>

@@ -22,7 +22,6 @@ type Props = {
 export function AccessView({ rows, noRole, platformAdmins, resources, roleOptions, selfEmail }: Props) {
   const router = useRouter();
   const [query, setQuery] = useState("");
-  const [highlight, setHighlight] = useState<string>();
   const reason = chipReasons(rows, roleOptions, selfEmail);
   const names = new Map(rows.map((r) => [r.id, r.name]));
 
@@ -50,8 +49,7 @@ export function AccessView({ rows, noRole, platformAdmins, resources, roleOption
         rows={rows}
         resources={resources}
         platformAdmins={platformAdmins}
-        highlight={highlight}
-        onRowOpen={setHighlight}
+        onRowOpen={(id) => router.push(`/dashboard/organization/members?member=${id}`)}
         renderChips={(row) => (
           <RoleChips
             roles={row.roles}
