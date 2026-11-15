@@ -304,13 +304,15 @@ async function OrderDetail({
     unconfirmed: { units: unconfirmedUnits, dates: unconfirmed.map((r) => r.deliveryDate).sort() },
     renewal: renewal ? { deploymentId: renewal.deploymentId, startDate: renewal.startDate } : null,
     holds,
-    money: {
-      paid,
-      total: Number(order.total),
-      due,
-      refunded: order.payments.filter((p) => p.status === "refunded").reduce((n, p) => n + Number(p.amount), 0),
-      toReview,
-    },
+    money: canFinance
+      ? {
+          paid,
+          total: Number(order.total),
+          due,
+          refunded: order.payments.filter((p) => p.status === "refunded").reduce((n, p) => n + Number(p.amount), 0),
+          toReview,
+        }
+      : null,
     cancelledOn: cancelledAt != null ? zonedDateIso(Number(cancelledAt), settings.timezone) : null,
     fmt: (n) => fmt(n, settings.currency),
     day: humanDate,

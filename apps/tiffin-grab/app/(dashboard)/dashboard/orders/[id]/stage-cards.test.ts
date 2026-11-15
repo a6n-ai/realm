@@ -13,6 +13,17 @@ const base: StageInput = {
 const labels = (i: Partial<StageInput>) => stageCards({ ...base, ...i }).map((c) => c.label);
 const card = (i: Partial<StageInput>, label: string) => stageCards({ ...base, ...i }).find((c) => c.label === label);
 
+describe("order stage cards without finance:read", () => {
+  it("drops the money cards and the still-due status for a running plan", () => {
+    const cards = stageCards({ ...base, money: null });
+    const labels = cards.map((c) => c.label);
+    expect(labels).not.toContain("Balance due");
+    expect(labels).not.toContain("Paid");
+    expect(JSON.stringify(cards)).not.toMatch(/paid|still due|refunded/i);
+    expect(cards.find((c) => c.label === "Status")?.hint).toBe("5 days");
+  });
+});
+
 describe("order stage cards", () => {
   it("every stage shows five cards", () => {
     for (const i of [{}, { notStarted: true }, { status: "pending" }, { status: "waitlisted" }, { status: "completed" },
@@ -34,7 +45,7 @@ describe("order stage cards", () => {
 
   it("unpaid or not started leads with the balance and start date", () => {
     expect(labels({ status: "pending", displayStatus: "payment_review" })).toEqual(["Status", "Tiffins left", "Balance due", "Starts", "Ends"]);
-    expect(card({ status: "pending", money: { ...base.money, paid: 0, due: 200 } }, "Balance due")?.tone).toBe("bad");
+    expect(card({ status: "pending", money: { paid: 0, total: 200, due: 200, refunded: 0, toReview: 0 } }, "Balance due")?.tone).toBe("bad");
     expect(card({ notStarted: true, counts: null, complimentaryTiffins: 2 }, "Tiffins left")?.value).toBe("22 / 22");
   });
 

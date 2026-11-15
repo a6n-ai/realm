@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { notFound, redirect } from "next/navigation";
+import { requirePagePermission } from "@/lib/auth/guards";
 import { ensurePaymentCatalog } from "@/lib/payments/payment-config";
 import { PaymentsBackLink } from "../back-link";
 import { PaymentsForm, PaymentsFormSkeleton } from "../payments-form";
@@ -7,6 +8,7 @@ import { PaymentsForm, PaymentsFormSkeleton } from "../payments-form";
 type Props = { params: Promise<{ methodId: string }> };
 
 export default async function PaymentMethodSettingsPage({ params }: Props) {
+  await requirePagePermission({ finance: ["manage"] });
   const { methodId } = await params;
 
   return (

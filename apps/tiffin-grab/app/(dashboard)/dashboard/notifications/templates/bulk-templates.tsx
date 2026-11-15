@@ -2,7 +2,8 @@ import Link from "next/link";
 import { ChevronRightIcon } from "lucide-react";
 import { Badge } from "@foundry/ui/badge";
 import { SectionCard } from "@/components/ds";
-import { requirePagePermission } from "@/lib/auth/guards";
+import { NoAccessNote } from "@/components/auth/can";
+import { can } from "@/lib/auth/guards";
 import { ensureMenuReminder } from "@/lib/notifications/menu-reminder";
 import { listSystemCampaigns } from "@/lib/notifications/lists";
 import { getAppSettings } from "@/lib/settings";
@@ -14,8 +15,8 @@ import { formatEpoch } from "@/lib/format/datetime";
  * its run history on the campaign page this links to.
  */
 export async function BulkTemplates() {
-  // Own guard, not just the layout's: this render writes (seeds the reminder).
-  await requirePagePermission({ notification: ["write"] });
+  // Own guard, not just the layout's: this render writes (seeds the reminder). Read-only viewers keep the rest of the page.
+  if (!(await can({ notification: ["write"] }))) return <NoAccessNote />;
   // Seeded on first view so staff can review the copy before the first send.
   await ensureMenuReminder();
   const [rows, { timezone }] = await Promise.all([

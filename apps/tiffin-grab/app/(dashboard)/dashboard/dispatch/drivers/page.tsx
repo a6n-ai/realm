@@ -1,6 +1,6 @@
 import { parseIsoDate } from "@/lib/dates/iso-date";
 import { TruckIcon } from "lucide-react";
-import { requirePagePermission } from "@/lib/auth/guards";
+import { can, requirePagePermission } from "@/lib/auth/guards";
 import { getAppSettings } from "@/lib/settings";
 import { zonedDateIso } from "@foundry/commons";
 import { buildDispatchRows, listKnownDrivers } from "@/lib/optimoroute/drivers";
@@ -23,6 +23,10 @@ export default async function DriversPage({ searchParams }: { searchParams: Sear
   let dispatchRows, drivers;
   try {
     [dispatchRows, drivers] = await Promise.all([buildDispatchRows(date), listKnownDrivers()]);
+    // Phones are not rendered (or searchable) client-side without customer:read, so they never reach the browser.
+    if (!(await can({ customer: ["read"] }))) {
+      dispatchRows = dispatchRows.map((r) => ({ ...r, phone: null }));
+    }
   } catch (e) {
     return (
       <PageShell>

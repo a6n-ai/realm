@@ -246,8 +246,8 @@ export type CustomerRow = {
   phone: string | null;
   latestStatus: string | null;
   latestOrderAt: number | null;
-  /** Sum of settled payments (PAID) across all their orders, as a numeric string. */
-  totalPaid: string;
+  /** Sum of settled payments (PAID) across all their orders, as a numeric string. Null without finance:read. */
+  totalPaid: string | null;
   /** Complimentary tiffins staff gave across all orders. */
   freeTiffins: number;
   cancelledOrders: number;
@@ -286,7 +286,9 @@ export async function listCustomersPage(
     latestStatus?: string;
     /** Only customers with an order created in this epoch-ms window; either end may be open. */
     orderedIn?: { from?: number; to?: number };
-  }
+  },
+  // Lifetime paid is finance data: null unless the caller holds finance:read.
+  opts: { withPayments?: boolean } = {},
 ): Promise<Page<CustomerRow>> {
   const planCompletionSubquery = sql<string>`(
     select max(d.delivery_date)
@@ -373,7 +375,7 @@ export async function listCustomersPage(
         phone: users.phone,
         latestStatus: sql<string | null>`(array_agg(${orders.status} order by ${orders.createdAt} desc))[1]`,
         latestOrderAt,
-        totalPaid,
+        totalPaid: opts.withPayments ? totalPaid : sql<null>`null`,
         freeTiffins,
         cancelledOrders,
         lastDelivered,

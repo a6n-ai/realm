@@ -26,7 +26,8 @@ export type StageInput = {
   unconfirmed: { units: number; dates: string[] };
   renewal: { deploymentId: string; startDate: string } | null;
   holds: { daysUsed: number; maxDays: number | null } | null;
-  money: { paid: number; total: number; due: number; refunded: number; toReview: number };
+  /** Null when the viewer lacks finance:read; the money cards are then dropped. */
+  money: StageMoney | null;
   cancelledOn: string | null;
   fmt: (amount: number) => string;
   day: (iso: string) => string;
@@ -39,7 +40,15 @@ const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
  * leads with money, a running one with tiffins and the next drop, a finished one with what was
  * delivered and whether the customer came back.
  */
+type StageMoney = { paid: number; total: number; due: number; refunded: number; toReview: number };
+const NO_MONEY: StageMoney = { paid: 0, total: 0, due: 0, refunded: 0, toReview: 0 };
+
 export function stageCards(i: StageInput): StatCardItem[] {
+  if (i.money) return cardsFor(i, i.money);
+  return cardsFor(i, NO_MONEY).filter((c) => c.label !== "Balance due" && c.label !== "Paid");
+}
+
+function cardsFor(i: StageInput, money: StageMoney): StatCardItem[] {
   const total = i.counts?.total ?? i.tiffinCount + i.complimentaryTiffins;
   const extras = [
     i.complimentaryTiffins > 0 ? `${i.complimentaryTiffins} free` : null,
@@ -48,12 +57,12 @@ export function stageCards(i: StageInput): StatCardItem[] {
   const status = (hint: string): StatCardItem => ({ label: "Status", value: i.statusLabel, icon: ActivityIcon, hint });
   const balance: StatCardItem = {
     label: "Balance due",
-    value: i.fmt(i.money.due),
+    value: i.fmt(money.due),
     icon: ReceiptIcon,
-    tone: i.money.due > 0 ? "bad" : "ok",
-    hint: i.money.toReview > 0
-      ? `${plural(i.money.toReview, "payment")} to review`
-      : `${i.fmt(i.money.paid)} paid of ${i.fmt(i.money.total)}`,
+    tone: money.due > 0 ? "bad" : "ok",
+    hint: money.toReview > 0
+      ? `${plural(money.toReview, "payment")} to review`
+      : `${i.fmt(money.paid)} paid of ${i.fmt(money.total)}`,
   };
   const renewed: StatCardItem = i.renewal
     ? { label: "Renewed", value: "Yes", icon: RefreshCwIcon, tone: "ok", hint: `${i.renewal.deploymentId} starts ${i.day(i.renewal.startDate)}` }
@@ -84,9 +93,9 @@ export function stageCards(i: StageInput): StatCardItem[] {
       { ...delivered, hint: "delivered before it was cancelled" },
       {
         label: "Paid",
-        value: i.fmt(i.money.paid),
+        value: i.fmt(money.paid),
         icon: ReceiptIcon,
-        hint: i.money.refunded > 0 ? `${i.fmt(i.money.refunded)} refunded` : "Nothing refunded",
+        hint: money.refunded > 0 ? `${i.fmt(money.refunded)} refunded` : "Nothing refunded",
       },
       { label: "Last tiffin", value: i.lastTiffin ? i.day(i.lastTiffin) : "None", icon: CalendarCheckIcon, hint: `Started ${i.day(i.startDate)}` },
       renewed,
@@ -148,7 +157,7 @@ export function stageCards(i: StageInput): StatCardItem[] {
   const endsIn = i.lastTiffin ? daysBetween(i.today, i.lastTiffin) : null;
   const ending = endsIn != null && endsIn <= 2;
   const cards: StatCardItem[] = [
-    status(i.fullyPaused ? "All upcoming days paused" : i.money.due > 0 ? `${i.fmt(i.money.due)} still due` : i.frequencyName),
+    status(i.fullyPaused ? "All upcoming days paused" : money.due > 0 ? `${i.fmt(money.due)} still due` : i.frequencyName),
     left,
     { label: "Next delivery", value: i.next ? i.day(i.next.date) : "None", icon: TruckIcon, hint: i.next?.driver ?? (i.next ? "No driver yet" : "Nothing scheduled") },
     {

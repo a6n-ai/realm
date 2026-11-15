@@ -207,7 +207,7 @@ async function CustomersData({ searchParams, tab }: { searchParams: SearchParams
   const canFinance = await can({ finance: ["read"] });
   const { condition, page, custom } = query;
   const sort = !canFinance && query.sort.column === "paid" ? { column: "latestOrder" as const, dir: "desc" as const } : query.sort;
-  const result = await listCustomersPage(condition, page, sort, custom);
+  const result = await listCustomersPage(condition, page, sort, custom, { withPayments: canFinance });
   const List = tab === "payments" ? CustomerPaymentsList : CustomersList;
   return <List spec={CUSTOMER_SPEC} rows={result.items} total={result.total} page={page.page} size={page.size} sort={sort} />;
 }

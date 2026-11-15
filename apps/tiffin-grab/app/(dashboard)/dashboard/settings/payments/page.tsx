@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { PlusIcon, ReceiptIcon } from "lucide-react";
+import { requirePagePermission } from "@/lib/auth/guards";
 import { PAYMENT_PROVIDERS } from "@foundry/payments/providers";
 import { Badge } from "@/components/reui/badge";
 import { ensurePaymentCatalog } from "@/lib/payments/payment-config";
@@ -13,6 +14,7 @@ import { providerDisplay, providerHref } from "./provider-display";
 const MANUAL_IDS = new Set(["cash", "etransfer"]);
 
 export default async function PaymentsSettingsHub() {
+  await requirePagePermission({ finance: ["manage"] });
   return (
     <Suspense fallback={<PaymentsHubSkeleton />}>
       <PaymentsHub />

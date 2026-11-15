@@ -49,7 +49,7 @@ const CUSTOMER_SELF_SERVICE_ACTIONS: Record<string, string> = {
   "app/(auth)/set-password/actions.ts:setInitialPassword": "getSession, sets the caller's own password",
   "app/(customer)/me/review-nudge-actions.ts:markReviewNudgeDone": "getSession, marks the caller's own review nudge",
   "lib/account/actions.ts:deleteMyAccount": "requireAccountUser, password-checked delete of the caller's own account",
-  "lib/checkout/actions.ts:confirmSubscription": "placeSubscription resolves the caller's session; its out-of-zone waitlist branch is not guarded",
+  "lib/checkout/actions.ts:confirmSubscription": "resolveContact requires a session before placeSubscription's out-of-zone waitlist branch; the session needs captcha and cap first",
   "lib/checkout/actions.ts:payCheckout": "getSession, the caller's own checkout",
   "lib/payments/card-actions.ts:removeSavedCard": "getSession, removes only the caller's saved cards",
   "lib/payments/customer-actions.ts:claimPaymentAction": "loadClaimPaymentContext calls assertCanManageOrder (one helper hop)",

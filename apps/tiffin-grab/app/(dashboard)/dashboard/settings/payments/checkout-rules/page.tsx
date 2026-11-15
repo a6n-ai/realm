@@ -1,9 +1,11 @@
+import { requirePagePermission } from "@/lib/auth/guards";
 import { getProvinceTaxes } from "@/lib/tax/province-taxes";
 import { ProvinceTaxForm } from "./province-tax-form";
 import { PaymentsBackLink } from "../back-link";
 
 // Coin limits moved to Wallet → Settings (2026-10); this page is tax only.
 export default async function CheckoutRulesPage() {
+  await requirePagePermission({ finance: ["manage"] });
   const provinceTaxes = await getProvinceTaxes();
 
   return (

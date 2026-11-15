@@ -3,7 +3,7 @@
 import { unexpired } from "@foundry/wallet";
 import { and, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
-import { requirePermission } from "@/lib/auth/guards";
+import { can, requirePermission } from "@/lib/auth/guards";
 import type { ActionResult } from "@/lib/actions/action-result";
 import { parseInput, staffAction, type Guard, type StaffActionOpts } from "@/lib/actions/staff-action";
 import { ValidationError } from "@foundry/commons";
@@ -137,5 +137,7 @@ export async function emailAwardedMembersAction(actionPublicId: string): Promise
 }
 
 export async function exportGroupCsvAction(groupPublicId: string): Promise<ActionResult<{ csv: string }>> {
-  return staffAction({ guard: CUSTOMER_EXPORT }, async () => ({ csv: await groupMembersCsv(parseInput(idSchema, groupPublicId)) }));
+  return staffAction({ guard: CUSTOMER_EXPORT }, async () => ({
+    csv: await groupMembersCsv(parseInput(idSchema, groupPublicId), { finance: await can({ finance: ["read"] }) }),
+  }));
 }

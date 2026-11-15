@@ -45,4 +45,15 @@ describe("listCustomersPage", () => {
     expect(none.total).toBe(0);
     expect(none.items.length).toBe(0);
   });
+
+  it("sends totalPaid only when withPayments is set", async () => {
+    await createCustomer({ email: `u${Math.random().toString(36).slice(2)}@test.invalid`, fullName: `${PREFIX} Carol`, phone: PHONES[2] }, {});
+    const scope = cLike("name", `${PREFIX} Carol%`);
+
+    const hidden = await listCustomersPage(scope, { page: 0, size: 5 });
+    expect(hidden.items[0].totalPaid).toBeNull();
+
+    const shown = await listCustomersPage(scope, { page: 0, size: 5 }, undefined, undefined, { withPayments: true });
+    expect(shown.items[0].totalPaid).toBe("0");
+  });
 });

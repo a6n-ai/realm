@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { requirePagePermission } from "@/lib/auth/guards";
 import { getPaymentConfig } from "@/lib/payments/payment-config";
 import { ProviderCatalogSkeleton } from "../provider-catalog";
 import { ProviderCatalogLoader } from "../provider-catalog-loader";
@@ -6,6 +7,7 @@ import { PaymentsBackLink } from "../back-link";
 
 /** Reachable from the Payment page's "Add payment method" row. */
 export default async function AddPaymentProviderPage() {
+  await requirePagePermission({ finance: ["manage"] });
   const cfg = await getPaymentConfig();
 
   return (

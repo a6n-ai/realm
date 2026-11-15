@@ -362,7 +362,7 @@ export async function customerGroupStats(r: EpochRange, { wallet = true }: { wal
   return { groups, members, actions: a.actions, coinsViaGroups: wallet ? a.coins : 0, emailsSent: a.emails };
 }
 
-export async function getCustomerGroup(publicId: string, perms: { wallet: boolean; finance: boolean } = { wallet: true, finance: true }): Promise<{
+export async function getCustomerGroup(publicId: string, perms: { wallet: boolean; finance: boolean }): Promise<{
   group: CustomerGroupRow & { filters: Record<string, unknown>; contactListPublicId: string | null };
   members: GroupMember[];
 } | null> {
@@ -405,12 +405,13 @@ async function memberDetails(groupId: bigint, perms: { wallet: boolean; finance:
   });
 }
 
-export async function groupMembersCsv(groupPublicId: string): Promise<string> {
-  const detail = await getCustomerGroup(groupPublicId);
+// Revenue is finance data: the column is written only when the caller holds finance:read.
+export async function groupMembersCsv(groupPublicId: string, perms: { finance: boolean }): Promise<string> {
+  const detail = await getCustomerGroup(groupPublicId, { wallet: false, finance: perms.finance });
   if (!detail) throw new ValidationError("Group not found");
   const lines = [
-    ["Name", "Email", "Phone", "Revenue", "Ordering since", "Last tiffin"],
-    ...detail.members.map((m) => [m.name, m.email, m.phone, m.revenue, m.firstOrderDate, m.lastTiffin]),
+    ["Name", "Email", "Phone", ...(perms.finance ? ["Revenue"] : []), "Ordering since", "Last tiffin"],
+    ...detail.members.map((m) => [m.name, m.email, m.phone, ...(perms.finance ? [m.revenue] : []), m.firstOrderDate, m.lastTiffin]),
   ];
   return lines.map((r) => r.map(csvCell).join(",")).join("\r\n") + "\r\n";
 }

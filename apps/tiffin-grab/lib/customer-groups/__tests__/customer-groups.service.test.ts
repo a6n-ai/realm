@@ -62,6 +62,7 @@ let uCappedPublic: string;
 const groupIds: bigint[] = [];
 
 const run = Date.now();
+const ALL = { wallet: true, finance: true };
 
 beforeAll(async () => {
   const rows = await db.insert(users).values([
@@ -123,7 +124,7 @@ async function listMemberCount(pid: string) {
 describe("customer groups", () => {
   it("creates a group with members and memberCount", async () => {
     const g = await mk("g1", [uOk, uCapped, uOk], uOk);
-    const detail = await getCustomerGroup(g.publicId);
+    const detail = await getCustomerGroup(g.publicId, ALL);
     expect(detail?.group.memberCount).toBe(2);
     expect(detail?.group.createdBy).toBe("Ok");
     expect(detail?.members).toHaveLength(2);
@@ -133,9 +134,9 @@ describe("customer groups", () => {
   it("adds and removes members", async () => {
     const g = await mk("g2", [uOk]);
     await addGroupMembers(g.publicId, [uOk, uNoEmail]);
-    expect((await getCustomerGroup(g.publicId))?.group.memberCount).toBe(2);
+    expect((await getCustomerGroup(g.publicId, ALL))?.group.memberCount).toBe(2);
     await removeGroupMember(g.publicId, uOkPublic);
-    const d = await getCustomerGroup(g.publicId);
+    const d = await getCustomerGroup(g.publicId, ALL);
     expect(d?.group.memberCount).toBe(1);
     expect(d?.members.map((m) => m.name)).toEqual(["NoEmail"]);
   });
@@ -157,7 +158,7 @@ describe("customer groups", () => {
     const actions = await listGroupActions(g.publicId);
     expect(actions).toHaveLength(2);
     expect(actions[0].createdAt).toBeGreaterThanOrEqual(actions[1].createdAt);
-    expect((await getCustomerGroup(g.publicId))?.group.lastAction?.kind).toBe("coins");
+    expect((await getCustomerGroup(g.publicId, ALL))?.group.lastAction?.kind).toBe("coins");
   });
 
   it("zero coins rejected", async () => {
@@ -397,7 +398,7 @@ describe("customer groups", () => {
     expect(s.coinsGiven).toBe(14 + 5 * r.awarded);
     expect(s.actionsRun).toBe(2);
     expect(s.lastAction?.kind).toBe("coins");
-    const m = (await getCustomerGroup(g.publicId))!.members;
+    const m = (await getCustomerGroup(g.publicId, ALL))!.members;
     expect(m.find((x) => x.name === "Capped")!.coins).toBeGreaterThanOrEqual(100);
     expect(m.find((x) => x.name === "NoEmail")!.notifyEmail).toBe(false);
   });
@@ -429,7 +430,7 @@ describe("customer groups", () => {
     const [u] = await db.insert(users).values({ email: "cg-csv-f@throwaway.local", name: '=HYPERLINK("x")' }).returning();
     try {
       const g = await mk("csv-formula-group", [u.id]);
-      const csv = await groupMembersCsv(g.publicId);
+      const csv = await groupMembersCsv(g.publicId, { finance: true });
       expect(csv).toContain('"\'=HYPERLINK(""x"")",cg-csv-f@throwaway.local,');
     } finally {
       await db.delete(customerGroupMembers).where(eq(customerGroupMembers.userId, u.id));
@@ -441,9 +442,22 @@ describe("customer groups", () => {
     const [u] = await db.insert(users).values({ email: "cg-csv@throwaway.local", name: 'Doe, "Jo"\nX' }).returning();
     try {
       const g = await mk("csv-group", [u.id]);
-      const csv = await groupMembersCsv(g.publicId);
+      const csv = await groupMembersCsv(g.publicId, { finance: true });
       expect(csv.split("\r\n")[0]).toBe("Name,Email,Phone,Revenue,Ordering since,Last tiffin");
       expect(csv).toContain('"Doe, ""Jo""\nX",cg-csv@throwaway.local,');
+    } finally {
+      await db.delete(customerGroupMembers).where(eq(customerGroupMembers.userId, u.id));
+      await db.delete(users).where(eq(users.id, u.id));
+    }
+  });
+
+  it("omits the Revenue column without finance:read", async () => {
+    const [u] = await db.insert(users).values({ email: "cg-csv-nf@throwaway.local", name: "No Finance" }).returning();
+    try {
+      const g = await mk("csv-nofinance-group", [u.id]);
+      const csv = await groupMembersCsv(g.publicId, { finance: false });
+      expect(csv.split("\r\n")[0]).toBe("Name,Email,Phone,Ordering since,Last tiffin");
+      expect(csv).not.toContain("Revenue");
     } finally {
       await db.delete(customerGroupMembers).where(eq(customerGroupMembers.userId, u.id));
       await db.delete(users).where(eq(users.id, u.id));
