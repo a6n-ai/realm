@@ -2,7 +2,6 @@ import Link from "next/link";
 import { Star } from "lucide-react";
 import type { Review } from "@foundry/google-reviews";
 import { summaryOrNull } from "@/lib/landing/reviews";
-import { getPlacePhotos } from "@/lib/landing/place-photos";
 
 export function ReviewStars({ value, size = 16 }: { value: number; size?: number }) {
   const filled = Math.round(value);
@@ -80,7 +79,7 @@ export async function HeroRating() {
 }
 
 // Real Google reviews only; without any, the section is not rendered at all.
-export async function LandingReviews({ withPhotos = false }: { withPhotos?: boolean } = {}) {
+export async function LandingReviews() {
   const summary = await summaryOrNull();
   if (!summary || summary.reviews.length === 0) return null;
   const score = `${summary.rating.toFixed(1)} out of 5 from ${summary.total} Google reviews`;
@@ -100,34 +99,8 @@ export async function LandingReviews({ withPhotos = false }: { withPhotos?: bool
           {summary.reviews.slice(0, 3).map((r, i) => <ReviewCard key={`${r.author}-${i}`} review={r} clamp />)}
         </div>
         <p className="mt-6"><Link href="/reviews" className="tg-link tg-link--tap">Read every review</Link></p>
-        {withPhotos ? <div className="mt-12"><ReviewPhotos limit={4} /></div> : null}
       </div>
     </section>
-  );
-}
-
-// Listing photos from Google. Each one carries its uploader's name, as Google requires.
-export async function ReviewPhotos({ limit = 8 }: { limit?: number }) {
-  const photos = await getPlacePhotos(limit);
-  if (photos.length === 0) return null;
-  return (
-    <div className="flex flex-col gap-4">
-      <h2 className="tg-h2">From our <span className="c-accent">Google listing.</span></h2>
-      <ul className="m-0 grid list-none grid-cols-2 gap-3 p-0 md:grid-cols-4">
-        {photos.map((p) => (
-          <li key={p.url}>
-            <figure className="m-0 flex flex-col gap-2">
-              {/* eslint-disable-next-line @next/next/no-img-element -- key-free googleusercontent URL, not in remotePatterns */}
-              <img src={p.url} alt={`Customer photo of Tiffin Grab food, shared by ${p.author}`} width={p.width} height={p.height} loading="lazy" referrerPolicy="no-referrer" className="aspect-square w-full rounded-2xl object-cover" />
-              <figcaption className="c-caption truncate">
-                Photo:{" "}
-                {p.authorUrl ? <a href={p.authorUrl} target="_blank" rel="noreferrer" className="tg-link">{p.author}</a> : p.author}
-              </figcaption>
-            </figure>
-          </li>
-        ))}
-      </ul>
-    </div>
   );
 }
 

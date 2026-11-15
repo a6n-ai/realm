@@ -1,12 +1,12 @@
 import { BreadcrumbSchema } from "@/components/landing/breadcrumb-schema";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getGoogleReviewsConfig, getReviewsSummary, writeReviewUrl } from "@foundry/google-reviews";
+import { getGoogleReviewsConfig, writeReviewUrl } from "@foundry/google-reviews";
 import { PageIntro } from "@/components/landing/public-shell";
-import { Suspense } from "react";
-import { ReviewCard, ReviewPhotos, ReviewStars } from "@/components/landing/landing-reviews";
+import { ReviewCard, ReviewStars } from "@/components/landing/landing-reviews";
 import { integrationsConfigReadStore } from "@/lib/payments/integrations-config";
 import { pageMeta } from "@/lib/landing/meta";
+import { summaryOrNull } from "@/lib/landing/reviews";
 import { buttonClass } from "@/components/kit/button-class";
 
 export const metadata: Metadata = pageMeta("Tiffin Grab Reviews: What GTA Customers Say on Google", "Read real Google reviews of Tiffin Grab's home-style tiffins from customers across the Greater Toronto Area.", "/reviews");
@@ -15,7 +15,7 @@ export const dynamic = "error";
 
 export default async function ReviewsPage() {
   const [summary, cfg] = await Promise.all([
-    getReviewsSummary(integrationsConfigReadStore),
+    summaryOrNull(),
     getGoogleReviewsConfig(integrationsConfigReadStore),
   ]);
   // Not connected (or Google returned nothing): the page does not exist, same as every other review spot.
@@ -50,8 +50,6 @@ export default async function ReviewsPage() {
             {summary.reviews.map((r, i) => <ReviewCard key={`${r.author}-${i}`} review={r} glass />)}
           </div>
 
-          {/* Separate Google calls per photo: stream in after the reviews. */}
-          <Suspense fallback={null}><ReviewPhotos /></Suspense>
         </div>
       </div>
     </div>

@@ -1,13 +1,14 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { ExternalLinkIcon, StarIcon } from "lucide-react";
-import { getGoogleReviewsConfig, loadPlacesApiKeyFromEnv, placesProvider, writeReviewUrl } from "@foundry/google-reviews";
+import { getGoogleReviewsConfig, loadPlacesApiKeyFromEnv, writeReviewUrl } from "@foundry/google-reviews";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { PageHeader, SectionCard } from "@/components/ds";
 import { Alert, AlertAction, AlertDescription, AlertTitle } from "@/components/reui/alert";
 import { Badge } from "@/components/reui/badge";
 import { Button } from "@foundry/ui/button";
 import { integrationsConfigStore } from "@/lib/payments/integrations-config";
+import { cachedReviewsSummary } from "@/lib/landing/reviews";
 import { PlaceIdForm } from "./place-id-form";
 import { RetryButton } from "./retry-button";
 
@@ -30,7 +31,7 @@ function Stars({ value }: { value: number }) {
 }
 
 async function ReviewsPreview({ placeId }: { placeId: string }) {
-  const summary = await placesProvider.fetchSummary(placeId);
+  const summary = await cachedReviewsSummary(placeId);
   if (!summary) {
     return (
       <Alert variant="destructive">
@@ -139,7 +140,7 @@ export default async function GoogleReviewsSettingsPage() {
         </SectionCard>
       </div>
 
-      <SectionCard title="What Google returns" subtitle="Google sends the overall rating and up to 5 reviews it picks. They refresh every 6 hours.">
+      <SectionCard title="What Google returns" subtitle="Google sends the overall rating and up to 5 reviews it picks. They refresh at most once a day; Save and test pulls them now.">
         {!placeId || !apiKeyConfigured ? (
           <div className="flex flex-col items-start gap-3">
             <p className="text-muted-foreground text-sm">No listing connected yet. Add your Place ID to see the rating and reviews here.</p>

@@ -12,6 +12,7 @@ import { integrationsConfigStore } from "@/lib/payments/integrations-config";
 import { currentUserId } from "@/lib/services/session-service";
 import { recordAudit } from "@/lib/identity/audit";
 import { revalidatePublicSite } from "@/lib/landing/revalidate-site";
+import { storeReviewsSummary } from "@/lib/landing/reviews";
 
 export async function saveGoogleReviewsPlaceId(placeId: string): Promise<ActionResult<{ rating: number; total: number }>> {
   return staffAction(
@@ -26,6 +27,7 @@ export async function saveGoogleReviewsPlaceId(placeId: string): Promise<ActionR
 
       const current = await getGoogleReviewsConfig(integrationsConfigStore);
       await setGoogleReviewsConfig(integrationsConfigStore, { ...current, placeId });
+      await storeReviewsSummary(placeId, summary);
 
       await recordAudit({
         entity: "integrations",

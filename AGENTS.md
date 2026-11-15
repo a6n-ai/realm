@@ -63,6 +63,38 @@ Two things `tsc` cannot catch — verify by eye when touching client components:
 - **Next.js 16:** route protection lives in `proxy.ts` (renamed `middleware.ts`).
   Read `node_modules/next/dist/docs/` before writing framework code.
 
+## Caching on Cloudflare Workers — strict rules
+
+Every rule below comes from an incident: in Nov 2026, Google Places billed $107 in one
+day and $3-4 every day after, because the cache did not survive deploys (October on EC2: $0).
+
+1. **Only pages are per build. Data is not.** Stock OpenNext keys every cache entry by
+   `OPEN_NEXT_BUILD_ID`, so each deploy (often 10-35 a day) starts empty. Pages (`cache`)
+   and `"use cache"` (`composable`) entries must stay per build, because they reference
+   build-hashed chunks and Server Action ids. `fetch()` data and tag revalidation times
+   must survive deploys. `apps/tiffin-grab/cloudflare/data-cache.ts` does this. Every
+   Workers app's `open-next.config.ts` uses `r2CacheKeepingData` and
+   `d1TagCacheKeepingData`, never the stock `r2IncrementalCache` / `d1NextTagCache`.
+2. **Never pin `OPEN_NEXT_BUILD_ID`** to a fixed value to keep the cache. Old pages
+   would then load chunks and actions that no longer exist.
+3. **A metered API is never called from a page render without a hard cap.** The
+   `fetch` cache alone is not a cap: concurrent misses, a new bucket or a key change all
+   re-bill. Persist the result in `runtime_leases` (it survives deploys), and take a
+   refresh lease before the call, so at most one call happens per window. A failed call
+   also waits out the window. Pattern: `apps/tiffin-grab/lib/landing/reviews.ts`.
+4. **No per-item fan-out to a paid API.** One call per photo, per review or per row
+   multiplies every cache miss (the Places photo gallery was 9 of 10 calls; removed).
+5. **Do the budget before shipping.** Calls per day = refresh windows per day + admin
+   actions. It must stay under the provider's monthly free tier with room to spare. Also
+   set a provider-side quota as a backstop. A billing budget only emails, it never stops spend.
+6. **Cache third-party content only as long as its terms allow.** Google Places: only
+   the Place ID may be kept indefinitely. Ratings and reviews stay on a short refresh
+   window (currently 24 h) and hide after 3 days without a successful refresh. Never
+   store Places photos.
+7. **On any `@opennextjs/cloudflare` upgrade**, re-check that `getR2Key` and
+   `getBuildId` still exist with the same meaning, and run
+   `cloudflare/data-cache.test.ts`. Both overrides lean on internals.
+
 ## Migrations — strict rules
 
 drizzle's migrator applies a journal entry **only if its `when` is later than the

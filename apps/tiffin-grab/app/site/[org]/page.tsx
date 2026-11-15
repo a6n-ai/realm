@@ -135,9 +135,9 @@ export default async function LandingPage({ params }: { params: Promise<{ org: s
         <DeliverySection orgId={orgId} />
       </section>
 
-      {/* External Places fetch: a cache miss must not hold back the rest of the page. */}
+      {/* A cache miss calls Google: it must not hold back the rest of the page. */}
       <Suspense fallback={null}>
-        <LandingReviews withPhotos />
+        <LandingReviews />
       </Suspense>
 
       <Faq items={FAQS} />
