@@ -15,7 +15,7 @@ import { revalidatePublicSite } from "@/lib/landing/revalidate-site";
 
 export async function saveGoogleReviewsPlaceId(placeId: string): Promise<ActionResult<{ rating: number; total: number }>> {
   return staffAction(
-    { guard: "admin", revalidate: ["/dashboard/settings/google-reviews", "/dashboard/settings/integrations"] },
+    { guard: { settings: ["write"] }, revalidate: ["/dashboard/settings/google-reviews", "/dashboard/settings/integrations"] },
     async () => {
       if (!placeId) throw new ValidationError("Enter a Google Place ID");
 

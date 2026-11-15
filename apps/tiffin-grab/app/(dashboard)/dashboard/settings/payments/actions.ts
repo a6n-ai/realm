@@ -7,7 +7,7 @@ import type { ActionResult } from "@/lib/actions/action-result";
 import { staffAction } from "@/lib/actions/staff-action";
 import { getPaymentConfig, setPaymentConfig } from "@/lib/payments/payment-config";
 
-const OPTS = { guard: "admin", revalidate: [["/dashboard/settings/payments", "layout"], "/dashboard/settings/integrations"] } as const;
+const OPTS = { guard: { settings: ["write"] }, revalidate: [["/dashboard/settings/payments", "layout"], "/dashboard/settings/integrations"] } as const;
 
 // Shared Foundry rules: payee handle only for enabled e-Transfer; cash needs no destination.
 export async function savePaymentConfig(cfg: PaymentConfig): Promise<ActionResult> {

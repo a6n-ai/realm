@@ -28,4 +28,4 @@ export const POST = adminIdRoute(async (req, id) => {
   }
   if (result.scheduledAt) await scheduleCampaignWake(result.scheduledAt);
   return result;
-});
+}, { perm: { notification: ["send"] } });

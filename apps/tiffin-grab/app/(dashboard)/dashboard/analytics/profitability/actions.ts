@@ -19,7 +19,7 @@ const schema = z.object({
 });
 
 export async function saveAssumptionsAction(input: unknown): Promise<ActionResult> {
-  return staffAction({ guard: "admin", revalidate: [PATH] }, async () => {
+  return staffAction({ guard: { settings: ["write"] }, revalidate: [PATH] }, async () => {
     await setProfitabilityAssumptions(parseInput(schema, input));
   });
 }

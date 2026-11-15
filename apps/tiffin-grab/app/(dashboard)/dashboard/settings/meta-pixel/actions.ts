@@ -10,7 +10,7 @@ import { META_PIXEL_SETTINGS_HREF } from "@foundry/meta-pixel/plugin";
 import { getMetaPixelConfig, metaPixel, updateMetaPixelConfig } from "@/lib/services/meta-pixel/config";
 import { requestBrowser } from "@/lib/services/tracking";
 
-const OPTS = { guard: "admin", revalidate: [META_PIXEL_SETTINGS_HREF, "/dashboard/settings/integrations"] } as const;
+const OPTS = { guard: { settings: ["write"] }, revalidate: [META_PIXEL_SETTINGS_HREF, "/dashboard/settings/integrations"] } as const;
 
 export async function saveMetaPixelSettings(input: {
   pixelId: string;
@@ -122,7 +122,7 @@ export async function removeMetaLeadgenSecrets(): Promise<ActionResult> {
 
 /** Test events only: refuses without a test code so a check never lands in live data. */
 export async function sendMetaPixelTestEvent(): Promise<ActionResult<{ eventsReceived?: number }>> {
-  return staffAction({ guard: "admin" }, async (): Promise<{ eventsReceived?: number }> => {
+  return staffAction({ guard: { settings: ["write"] } }, async (): Promise<{ eventsReceived?: number }> => {
     const cfg = await getMetaPixelConfig();
     if (!cfg.testEventCode) throw new ValidationError("Add the test event code from Events Manager → Test events first");
     const browser = await requestBrowser();
@@ -144,7 +144,7 @@ export async function sendMetaPixelTestEvent(): Promise<ActionResult<{ eventsRec
 
 /** CRM Qualified Leads test: system_generated Lead with a synthetic lead_id (Test events only). */
 export async function sendMetaCrmTestEvent(): Promise<ActionResult<{ eventsReceived?: number }>> {
-  return staffAction({ guard: "admin" }, async (): Promise<{ eventsReceived?: number }> => {
+  return staffAction({ guard: { settings: ["write"] } }, async (): Promise<{ eventsReceived?: number }> => {
     const cfg = await getMetaPixelConfig();
     if (!cfg.testEventCode) throw new ValidationError("Add the test event code from Events Manager → Test events first");
     const res = await postMetaEvent(await metaPixel.connection(), {

@@ -1,5 +1,5 @@
 import { activeStaffWhere } from "@/lib/staff/staff-roster";
-import { isAdmin } from "@/lib/roles";
+import { can } from "@/lib/auth/guards";
 import { and, eq } from "drizzle-orm";
 import { ForbiddenError, ValidationError } from "@foundry/commons";
 import { db } from "@/db/client";
@@ -7,8 +7,8 @@ import { users } from "@/db/schema";
 import { getSession } from "@/lib/auth/session";
 
 export async function canReassign(): Promise<boolean> {
-  const user = (await getSession())?.user;
-  return isAdmin(user?.role);
+  if (!(await getSession())?.user) return false;
+  return can({ member: ["update"] });
 }
 
 export async function assertReassignAllowed(): Promise<void> {

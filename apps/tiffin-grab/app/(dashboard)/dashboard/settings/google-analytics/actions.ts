@@ -11,7 +11,7 @@ import { GA_SETTINGS_HREF } from "@foundry/google-analytics/plugin";
 import { googleAnalytics, updateGaConfig } from "@/lib/services/google-analytics/config";
 import { requestBrowser } from "@/lib/services/tracking";
 
-const OPTS = { guard: "admin", revalidate: [GA_SETTINGS_HREF, "/dashboard/settings/integrations"] } as const;
+const OPTS = { guard: { settings: ["write"] }, revalidate: [GA_SETTINGS_HREF, "/dashboard/settings/integrations"] } as const;
 
 export async function saveGaSettings(input: { measurementId: string; apiSecret: string }): Promise<ActionResult> {
   return staffAction(OPTS, async () => {
@@ -61,7 +61,7 @@ export async function removeGaSecret(): Promise<ActionResult> {
  * debug_mode event so it shows in GA → Admin → DebugView without touching reports.
  */
 export async function sendGaTestEvent(): Promise<ActionResult<{ problems?: string[] }>> {
-  return staffAction({ guard: "admin" }, async (): Promise<{ problems?: string[] }> => {
+  return staffAction({ guard: { settings: ["write"] } }, async (): Promise<{ problems?: string[] }> => {
     const { gaClientId } = await requestBrowser();
     const { currency } = await getAppSettings();
     const event = { name: "settings_test", params: { value: 1, currency } };

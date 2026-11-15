@@ -32,7 +32,7 @@ const schema = z.object({
 
 export type PromotionInput = z.input<typeof schema>;
 
-const OPTS = { guard: "admin", revalidate: [["/dashboard/settings/promotions", "layout"]] } as const;
+const OPTS = { guard: { settings: ["write"] }, revalidate: [["/dashboard/settings/promotions", "layout"]] } as const;
 
 export async function savePromotionAction(publicId: string | null, input: PromotionInput): Promise<ActionResult<{ publicId: string }>> {
   return staffAction(OPTS, async () => {

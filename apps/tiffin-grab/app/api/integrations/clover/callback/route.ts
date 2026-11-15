@@ -1,4 +1,3 @@
-import { isAdmin } from "@/lib/roles";
 import { NextResponse } from "next/server";
 import {
   exchangeCloverAuthorizationCode,
@@ -7,6 +6,7 @@ import {
   consumeCloverOAuthState,
   persistCloverOAuthConnection,
 } from "@foundry/clover";
+import { can } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { integrationsConfigStore } from "@/lib/payments/integrations-config";
 
@@ -22,7 +22,7 @@ function settingsRedirect(request: Request, query: Record<string, string>) {
  */
 export async function GET(request: Request) {
   const session = await getSession();
-  if (!session?.user || !isAdmin(session)) {
+  if (!session?.user || !(await can({ settings: ["write"] }))) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 

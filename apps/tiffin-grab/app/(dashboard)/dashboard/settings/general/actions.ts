@@ -16,7 +16,7 @@ export async function saveAppSettings(input: {
   defaultMaxPauseDaysTotal: number | null;
   defaultMaxPauseStretchDays: number | null;
 }): Promise<ActionResult> {
-  return staffAction({ guard: "admin", revalidate: ["/dashboard/settings/general"], catalog: true }, async () => {
+  return staffAction({ guard: { settings: ["write"] }, revalidate: ["/dashboard/settings/general"], catalog: true }, async () => {
     if (!input.timezone) throw new ValidationError("Timezone is required");
     if (!Number.isInteger(input.cutoffHour) || input.cutoffHour < 0 || input.cutoffHour > 23) {
       throw new ValidationError("Cutoff hour must be an integer 0–23");

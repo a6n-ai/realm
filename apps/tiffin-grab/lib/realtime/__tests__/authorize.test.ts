@@ -5,6 +5,11 @@ vi.mock("@/lib/auth/session", () => ({
   getSession: async () => (session.user ? { user: session.user } : null),
 }));
 
+// Admins hold finance:manage, members do not (MEMBER_PERMISSIONS).
+vi.mock("@/lib/auth/guards", () => ({
+  can: async (perms: { finance?: string[] }) => session.user?.role === "admin" && perms.finance?.[0] === "manage",
+}));
+
 vi.mock("@/lib/support/tickets.service", () => ({
   ticketsService: {
     assertReadable: vi.fn(async () => undefined),

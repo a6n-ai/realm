@@ -26,7 +26,7 @@ const go = (href: string, text: string) => (
   </Button>
 );
 
-export async function NeedsActionCard({ visible, today, seesAll, isAdmin }: { visible: Visible; today: string; seesAll: boolean; isAdmin: boolean }) {
+export async function NeedsActionCard({ visible, today, seesAll, seesMenus }: { visible: Visible; today: string; seesAll: boolean; seesMenus: boolean }) {
   const [c, [oldest]] = await Promise.all([getTodayCounts(visible, today), listReviewPayments(visible, 1)]);
   // Quick action: verify the oldest payment in place (same rule as the queue's Verify); the rest via the pill filter.
   const canVerifyOldest = oldest != null && oldest.method !== "stripe" && (inStatuses(PENDING, oldest.status));
@@ -63,8 +63,8 @@ export async function NeedsActionCard({ visible, today, seesAll, isAdmin }: { vi
       });
     }
   }
-  // Next week's menu must be released before customers can pick; menu pages are admin-only.
-  if (isAdmin) {
+  // Next week's menu must be released before customers can pick; the menu page needs menu:write.
+  if (seesMenus) {
     const nextMonday = addDaysIso(mondayOfIso(today), 7);
     const week = (await menuService.listWeeks()).find((w) => w.weekStart === nextMonday);
     const released = week?.status === "released";

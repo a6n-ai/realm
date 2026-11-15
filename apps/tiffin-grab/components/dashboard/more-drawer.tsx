@@ -6,23 +6,23 @@ import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@foundry/ui/dr
 import { signOut } from "@/lib/auth/client";
 import { lockSession } from "@/lib/auth/lock-actions";
 import { SECTIONS } from "./app-sidebar";
+import { useNavAllowed } from "./nav-access";
 
 // Full mobile navigation surfaced from the bottom bar's More tab: every
-// role-filtered SECTIONS group as link rows, plus account/lock/logout in a
+// permission-filtered SECTIONS group as link rows, plus account/lock/logout in a
 // pinned footer. Mirrors the sidebar; the bottom bar owns mobile nav.
 export function MoreDrawer({
-  role,
   open,
   onOpenChange,
 }: {
-  role: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
   const router = useRouter();
+  const navAllowed = useNavAllowed();
   const sections = SECTIONS.map((s) => ({
     label: s.label,
-    items: s.items.filter((i) => i.roles.includes(role)),
+    items: s.items.filter((i) => navAllowed(i.href)),
   })).filter((s) => s.items.length > 0);
 
   const rowClass =

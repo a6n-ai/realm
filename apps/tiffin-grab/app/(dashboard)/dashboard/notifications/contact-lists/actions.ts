@@ -23,7 +23,7 @@ export async function convertContactToCustomer(input: {
   email?: string;
   phone?: string;
 }): Promise<ActionResult<{ customerPublicId: string; alreadyExisted: boolean }>> {
-  return staffAction({ guard: "admin", revalidate: ["/dashboard/notifications/contact-lists", "/dashboard/customers"] }, async () => {
+  return staffAction({ guard: { notification: ["write"], customer: ["manage"] }, revalidate: ["/dashboard/notifications/contact-lists", "/dashboard/customers"] }, async () => {
     const member = await getContactListMember(campaignDeps, input.memberPublicId);
     if (!member) throw new NotFoundError("Contact not found");
 

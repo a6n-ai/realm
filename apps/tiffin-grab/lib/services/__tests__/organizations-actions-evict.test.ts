@@ -7,7 +7,7 @@ const { evictPublicPages, updateOrganization } = vi.hoisted(() => ({
 
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/lib/landing/public-cache", () => ({ evictPublicPages }));
-vi.mock("@/lib/auth/guards", () => ({ requireAdmin: vi.fn() }));
+vi.mock("@/lib/auth/guards", () => ({ requirePermission: vi.fn() }));
 vi.mock("../organizations.service", () => ({ updateOrganization }));
 
 import { updateOrganizationAction } from "../organizations-actions";

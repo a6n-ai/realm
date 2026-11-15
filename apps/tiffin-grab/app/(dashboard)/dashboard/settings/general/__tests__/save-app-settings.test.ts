@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const set = vi.fn();
-vi.mock("@/lib/auth/guards", () => ({ requireAdmin: async () => undefined }));
+vi.mock("@/lib/auth/guards", () => ({ requirePermission: async () => undefined }));
 vi.mock("@/lib/deliveries/set-app-settings", () => ({ setAppSettings: (...a: unknown[]) => set(...a) }));
 vi.mock("@/lib/catalog/load", () => ({ invalidateCatalogSnapshot: async () => undefined }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));

@@ -10,7 +10,7 @@ import { parseRoutingInput } from "@/lib/email/routing-input";
 import { setTrackedEmailEvents } from "@/lib/notifications/tracked-email-events";
 import { NOTIFICATION_EVENTS, eventCategory } from "@/lib/notifications/events";
 
-const OPTS = { guard: "admin", revalidate: ["/dashboard/settings/email-tracking"] } as const;
+const OPTS = { guard: { settings: ["write"] }, revalidate: ["/dashboard/settings/email-tracking"] } as const;
 const log = createLogger("email-events");
 // SES / AWS errors can carry ARNs and account ids, so the admin sees this instead.
 const SAFE_ERROR = "Couldn't save — SES rejected the change. Try again or check logs.";

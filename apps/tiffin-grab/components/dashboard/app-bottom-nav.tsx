@@ -31,7 +31,7 @@ export function AppBottomNav({ role }: { role: string }) {
   return (
     <>
       <BottomNav items={items} onFabClick={() => setCreateOpen(true)} fabLabel="Create" />
-      <MoreDrawer role={role} open={moreOpen} onOpenChange={setMoreOpen} />
+      <MoreDrawer open={moreOpen} onOpenChange={setMoreOpen} />
       <QuickCreateDrawer role={role} open={createOpen} onOpenChange={setCreateOpen} />
     </>
   );

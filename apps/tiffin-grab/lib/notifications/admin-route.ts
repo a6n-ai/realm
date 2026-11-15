@@ -1,12 +1,16 @@
 import { handler, json, problem } from "@foundry/routes";
-import { requireAdmin } from "@/lib/auth/guards";
+import { requirePermission } from "@/lib/auth/guards";
 import { signalOutbox } from "@/lib/notifications/outbox-signal";
 
 type IdCtx = { params: Promise<{ id: string }> };
 type Opts = {
   /** Wake the outbox consumer after a successful result (a failure never signals). */
   signal?: (result: any) => boolean;
+  /** Overrides the default: notification:read for GET, notification:write otherwise. */
+  perm?: Parameters<typeof requirePermission>[0];
 };
+
+const needs = (req: Request, opts?: Opts) => opts?.perm ?? (req.method === "GET" ? { notification: ["read"] } : { notification: ["write"] });
 
 /** A returned Response passes through, `{ error, status }` becomes problem(), anything else is JSON. */
 async function respond(result: unknown, opts?: Opts): Promise<Response> {
@@ -21,7 +25,7 @@ async function respond(result: unknown, opts?: Opts): Promise<Response> {
 
 export function adminRoute(fn: (req: Request) => Promise<unknown>, opts?: Opts) {
   return handler(async (req: Request): Promise<Response> => {
-    await requireAdmin();
+    await requirePermission(needs(req, opts));
     return respond(await fn(req), opts);
   });
 }
@@ -29,7 +33,7 @@ export function adminRoute(fn: (req: Request) => Promise<unknown>, opts?: Opts) 
 /** Same for a route under `[id]`: awaits `ctx.params` and hands `id` to `fn`. */
 export function adminIdRoute(fn: (req: Request, id: string) => Promise<unknown>, opts?: Opts) {
   return handler(async (req: Request, ctx: IdCtx): Promise<Response> => {
-    await requireAdmin();
+    await requirePermission(needs(req, opts));
     const { id } = await ctx.params;
     return respond(await fn(req, id), opts);
   });

@@ -1,4 +1,5 @@
-import { isAdmin, isStaffRole } from "@/lib/roles";
+import { isStaffRole } from "@/lib/roles";
+import { can } from "@/lib/auth/guards";
 import { type RoleValue } from "@foundry/commons";
 import type { RealtimeRole } from "@foundry/realtime";
 import { getSession } from "@/lib/auth/session";
@@ -10,7 +11,7 @@ import { notifyChannel } from "./notify";
 // - `notify:<userId>` — that user's bell + shell refresh (personal hub)
 // - `ticket:<publicId>` — staff, or the customer who raised it (chat/presence)
 // - `tickets:inbox` — staff (new-ticket sidebar ping)
-// - `payments:inbox` — admin only (matches Payments nav; review-queue ping)
+// - `payments:inbox` — finance:manage (matches Payments nav; review-queue ping)
 export async function authorizeChannel(
   channel: string,
 ): Promise<{ channel: string; userId: string; role: RealtimeRole } | null> {
@@ -36,8 +37,8 @@ export async function authorizeChannel(
   }
 
   if (kind === "payments" && publicId === "inbox") {
-    // Payments nav is admin-only — members must not hold the review stream.
-    if (!isAdmin(role)) return null;
+    // Payments nav needs finance:manage — members must not hold the review stream.
+    if (!(await can({ finance: ["manage"] }))) return null;
     return { channel: PAYMENTS_INBOX, userId, role: "staff" };
   }
 

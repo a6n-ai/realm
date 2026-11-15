@@ -1,10 +1,9 @@
 import { type Visible, noVisibleOrgs } from "@/lib/tenant/org-scope";
-import { isAdmin } from "@/lib/roles";
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { LayoutDashboardIcon } from "lucide-react";
 import { zonedDateIso } from "@foundry/commons";
-import { requireStaff } from "@/lib/auth/guards";
+import { assertStaffSession, can } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { getAppSettings } from "@/lib/settings";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
@@ -43,11 +42,11 @@ export default function DashboardOverviewPage({ searchParams }: { searchParams: 
 
 // Staff-only: the overview exposes business-wide stats and customer PII (the layout already sends customers to /me).
 async function DashboardData({ searchParams }: { searchParams: SearchParams }) {
-  await requireStaff();
+  await assertStaffSession();
   const session = await getSession();
   if (!session?.user) redirect("/login");
   const visible = await resolveSessionVisibleOrgIds(session);
-  const admin = isAdmin(session);
+  const seesMenus = await can({ menu: ["write"] });
   const { type, week } = await searchParams;
   const activeType = isTodayKind(type) ? type : null;
   const { timezone } = await getAppSettings();
@@ -87,10 +86,10 @@ async function DashboardData({ searchParams }: { searchParams: SearchParams }) {
       {/* Act first: what needs doing, how today is going, the menus to release. */}
       <CardGrid
         cards={[
-          { key: "action", node: <NeedsActionCard visible={visible} today={today} seesAll={seesAll} isAdmin={admin} />, h: 260 },
+          { key: "action", node: <NeedsActionCard visible={visible} today={today} seesAll={seesAll} seesMenus={seesMenus} />, h: 260 },
           seesAll && { key: "service", node: <ServiceCard today={today} />, h: 260 },
-          // Menu pages are admin-only, so the menu card is too.
-          admin && { key: "menus", node: <MenusCard today={today} />, h: 200 },
+          // The menu page needs menu:write, so the menu card does too.
+          seesMenus && { key: "menus", node: <MenusCard today={today} />, h: 200 },
         ]}
       />
 

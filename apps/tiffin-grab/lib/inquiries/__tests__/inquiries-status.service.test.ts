@@ -10,7 +10,7 @@ import type { CreateOrderInput } from "../../orders/create-order";
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 const session: { user: { id: string; role: string } | null } = { user: null };
 vi.mock("@/lib/auth/session", () => ({ getSession: async () => (session.user ? session : null) }));
-vi.mock("@/lib/auth/guards", () => ({ requireStaff: async () => ({}) }));
+vi.mock("@/lib/auth/guards", () => ({ requirePermission: async () => {} }));
 // The bulk action checks org visibility; these tests act as staff who see every organization.
 vi.mock("@/lib/auth/visible-orgs", () => ({ resolveSessionVisibleOrgIds: async () => "all" }));
 vi.mock("next/cache", () => ({ revalidatePath: () => {} }));

@@ -15,6 +15,7 @@ import {
 } from "@foundry/ui/command";
 import { useIsMobile } from "@foundry/ui/use-mobile";
 import { SECTIONS } from "@/components/dashboard/app-sidebar";
+import { useNavAllowed } from "@/components/dashboard/nav-access";
 import { globalSearch, type SearchResults } from "@/app/(dashboard)/dashboard/search-actions";
 import { useQuickAdd, type QuickAddKind } from "@/components/dashboard/quick-add-provider";
 
@@ -61,6 +62,7 @@ export function GlobalSearch({ role }: { role: string }) {
   const quickAdd = useQuickAdd();
   const isMobile = useIsMobile();
   const isStaff = isStaffRole(role);
+  const navAllowed = useNavAllowed();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -150,7 +152,7 @@ export function GlobalSearch({ role }: { role: string }) {
   );
 
   const navItems = SECTIONS.flatMap((s) => s.items)
-    .filter((i) => i.roles.includes(role))
+    .filter((i) => navAllowed(i.href))
     .filter((i) => !query || i.title.toLowerCase().includes(query.toLowerCase()));
 
   const hasEntity = GROUPS.some((g) => results[g.key].length > 0);

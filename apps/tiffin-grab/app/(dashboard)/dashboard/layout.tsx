@@ -1,10 +1,13 @@
-import { isAdmin, isCustomerRole } from "@/lib/roles";
+import { isCustomerRole } from "@/lib/roles";
 import "@/app/styles/app.css";
 import { redirect } from "next/navigation";
 import { Suspense, type ReactNode } from "react";
 import { zonedDateIso } from "@foundry/commons";
 import { CrmShell } from "@foundry/crm";
+import { can } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
+import { allowedNavHrefs } from "@/lib/nav/nav-permissions";
+import { NavAccessProvider } from "@/components/dashboard/nav-access";
 import { isLocked } from "@/lib/auth/lock";
 import { getAppSettings } from "@/lib/settings";
 import { getDiscountPolicy } from "@/lib/coupons/discount-policy-settings";
@@ -59,8 +62,8 @@ function timer() {
   };
 }
 
-// Any authenticated user reaches the shell; the sidebar filters nav by role and
-// staff/admin-only pages self-guard (requireStaff/requireAdmin). Customers use
+// Any authenticated user reaches the shell; the sidebar filters nav by org permissions and
+// pages self-guard with requirePermission. Customers use
 // it for the account page.
 export default async function DashboardLayout({ children }: { children: ReactNode }) {
   const { timed, log } = timer();
@@ -98,7 +101,8 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   };
 
   const notify = notifyChannel(session.user.id);
-  const realtimeChannels = [notify, TICKETS_INBOX, ...(isAdmin(role) ? [PAYMENTS_INBOX] : [])];
+  const [seePayments, navHrefs] = await Promise.all([can({ finance: ["manage"] }), allowedNavHrefs()]);
+  const realtimeChannels = [notify, TICKETS_INBOX, ...(seePayments ? [PAYMENTS_INBOX] : [])];
 
   // Independent reads; this layout blocks first byte of every /dashboard page.
   const [{ timezone, cutoffHour, currency }, memberOrganizations, activity, repCoupon, notificationFeed, realtimeTokens] =
@@ -116,6 +120,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   return (
     <div className={`crm-app ${geistSansAdmin.variable}`}>
       <DashboardProviders tz={timezone}>
+        <NavAccessProvider hrefs={navHrefs}>
         <AppCurrencyProvider currency={currency}>
         <CrmShell
           hideSidebarOnMobile
@@ -154,7 +159,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
           bottomNav={<DashboardBottomNav role={role} />}
         >
           <DashboardLive
-            payments={isAdmin(role)}
+            payments={seePayments}
             showRepCode={hasRepAllowance}
             ticketsBootstrap={realtimeTokens[TICKETS_INBOX]}
             paymentsBootstrap={realtimeTokens[PAYMENTS_INBOX]}
@@ -164,6 +169,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
           {hasRepAllowance && <div aria-hidden className="h-20" />}
         </CrmShell>
         </AppCurrencyProvider>
+        </NavAccessProvider>
       </DashboardProviders>
     </div>
   );

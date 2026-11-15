@@ -9,7 +9,7 @@ import { setMembership } from "@/lib/staff/owner-pool.service";
 import { getLeadAssignment, setLeadAssignment } from "@/lib/staff/lead-assignment-settings";
 import type { OwnerEntity, Strategy } from "@/lib/staff/assignment";
 
-const OPTS = { guard: "admin", revalidate: ["/dashboard/settings/owner-assignment"] } as const;
+const OPTS = { guard: { settings: ["write"] }, revalidate: ["/dashboard/settings/owner-assignment"] } as const;
 
 // sourceKey only applies to inquiries; orders and tickets have one pool each.
 export async function saveMembership(

@@ -7,7 +7,7 @@ import { staffAction } from "@/lib/actions/staff-action";
 import { db } from "@/db/client";
 import { notificationTables } from "@/lib/notifications/tables";
 
-const OPTS = { guard: "admin", revalidate: ["/dashboard/notifications/unsubscribed"] } as const;
+const OPTS = { guard: { notification: ["write"] }, revalidate: ["/dashboard/notifications/unsubscribed"] } as const;
 
 export async function clearSuppressionAction(publicId: string): Promise<ActionResult> {
   return staffAction(OPTS, async () => {

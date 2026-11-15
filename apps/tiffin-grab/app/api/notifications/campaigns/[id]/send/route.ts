@@ -21,5 +21,5 @@ export const POST = adminIdRoute(
     }
     return result;
   },
-  { signal: () => true },
+  { perm: { notification: ["send"] }, signal: () => true },
 );

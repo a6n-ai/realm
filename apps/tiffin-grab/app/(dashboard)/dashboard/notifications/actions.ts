@@ -12,7 +12,7 @@ const log = createLogger("resubscribe");
 
 /** Signed link an admin sends to someone who unsubscribed and wants mail again. */
 export async function resubscribeLink(address: string): Promise<ActionResult<{ url: string }>> {
-  return staffAction({ guard: "admin" }, async () => {
+  return staffAction({ guard: { notification: ["write"] } }, async () => {
     const secret = unsubscribeSecret();
     const base = campaignBaseUrl();
     if (!secret || !base) throw new ValidationError("UNSUBSCRIBE_SECRET and SITE_URL must be set");

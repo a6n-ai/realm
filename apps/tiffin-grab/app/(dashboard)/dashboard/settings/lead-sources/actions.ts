@@ -8,7 +8,7 @@ import { db } from "@/db/client";
 import { leadSources } from "@/db/schema";
 import { leadSourceService, leadSubsourceService } from "@/lib/inquiries/lead-sources.service";
 
-const OPTS = { guard: "admin", revalidate: ["/dashboard/settings/lead-sources"] } as const;
+const OPTS = { guard: { settings: ["write"] }, revalidate: ["/dashboard/settings/lead-sources"] } as const;
 
 export async function saveSource(
   publicId: string | null,

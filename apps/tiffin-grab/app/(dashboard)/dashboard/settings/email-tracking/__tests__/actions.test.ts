@@ -2,8 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/catalog/load", () => ({ invalidateCatalogSnapshot: async () => undefined }));
 vi.mock("next/cache", () => ({ revalidatePath: () => undefined }));
-const requireAdmin = vi.fn(async () => undefined);
-vi.mock("@/lib/auth/guards", () => ({ requireAdmin: () => requireAdmin() }));
+const requirePermission = vi.fn(async (_: unknown) => undefined);
+vi.mock("@/lib/auth/guards", () => ({ requirePermission: (p: unknown) => requirePermission(p) }));
 const setTracked = vi.fn(async (_: string[]) => undefined);
 vi.mock("@/lib/notifications/tracked-email-events", () => ({ setTrackedEmailEvents: (e: string[]) => setTracked(e) }));
 const setRouting = vi.fn(async (..._a: unknown[]) => undefined);
@@ -36,8 +36,8 @@ describe("saveStreamRouting", () => {
     expect(setRouting).toHaveBeenCalledOnce();
   });
 
-  it("rejects non-admins", async () => {
-    requireAdmin.mockRejectedValueOnce(new Error("forbidden"));
+  it("rejects callers without settings:write", async () => {
+    requirePermission.mockRejectedValueOnce(new Error("forbidden"));
     expect(await saveStreamRouting("marketing", { webhook: [] })).toHaveProperty("error");
     expect(setRouting).not.toHaveBeenCalled();
   });
@@ -47,11 +47,13 @@ describe("saveTrackedTypes", () => {
   it("strips account events", async () => {
     await saveTrackedTypes(["order_created", "signup"]);
     expect(setTracked).toHaveBeenCalledWith(["order_created"]);
+    expect(requirePermission).toHaveBeenCalledWith({ settings: ["write"] });
   });
 
   it("drops events the app does not know", async () => {
     await saveTrackedTypes(["order_created", "bogus_event"]);
     expect(setTracked).toHaveBeenCalledWith(["order_created"]);
+    expect(requirePermission).toHaveBeenCalledWith({ settings: ["write"] });
   });
 
   it("returns a safe {error} when saving throws", async () => {
@@ -61,8 +63,8 @@ describe("saveTrackedTypes", () => {
     expect(JSON.stringify(res)).not.toContain("123456789012");
   });
 
-  it("rejects non-admins", async () => {
-    requireAdmin.mockRejectedValueOnce(new Error("forbidden"));
+  it("rejects callers without settings:write", async () => {
+    requirePermission.mockRejectedValueOnce(new Error("forbidden"));
     expect(await saveTrackedTypes(["order_created"])).toHaveProperty("error");
     expect(setTracked).not.toHaveBeenCalled();
   });

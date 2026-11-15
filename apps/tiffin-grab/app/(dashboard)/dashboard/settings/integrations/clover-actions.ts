@@ -19,7 +19,7 @@ import { staffAction } from "@/lib/actions/staff-action";
 import { integrationsConfigStore } from "@/lib/payments/integrations-config";
 
 const OPTS = {
-  guard: "admin",
+  guard: { settings: ["write"] },
   revalidate: ["/dashboard/settings/integrations", "/dashboard/settings/clover", "/dashboard/settings"],
 } as const;
 
@@ -52,7 +52,7 @@ export async function connectCloverApiTokenAction(input: CloverApiTokenConnectIn
 
 /** Returns the Clover authorize URL; client navigates (avoids swallowing NEXT_REDIRECT). */
 export async function startCloverConnectAction(): Promise<ActionResult<{ url: string }>> {
-  return staffAction({ guard: "admin" }, async () => {
+  return staffAction({ guard: { settings: ["write"] } }, async () => {
     const credentials = loadCloverAppCredentialsFromEnv();
     if (!credentials) {
       throw new ValidationError("Clover app credentials are not configured. Set CLOVER_APP_ID and CLOVER_APP_SECRET.");

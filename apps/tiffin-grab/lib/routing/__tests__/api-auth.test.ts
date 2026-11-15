@@ -8,7 +8,7 @@ const API_DIR = fileURLToPath(new URL("../../../app/api", import.meta.url));
 
 /** Any of these in a route file means it authenticates (or is a factory that does). */
 const AUTHENTICATES =
-  /requireAdmin|requireStaff|requirePermission|currentUserId|getSession|withCronAuth|cronRoutes|cronJobRoute|adminRoute|adminIdRoute|guard:|auth\.api|authorizeChannel/;
+  /assertStaffSession|requirePermission|currentUserId|getSession|withCronAuth|cronRoutes|cronJobRoute|adminRoute|adminIdRoute|guard:|auth\.api|authorizeChannel/;
 
 /**
  * Routes that run behind the proxy's session-cookie gate alone: they are not public, and nothing in the

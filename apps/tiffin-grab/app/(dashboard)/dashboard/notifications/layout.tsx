@@ -1,12 +1,12 @@
 import type { ReactNode } from "react";
 import { BellIcon } from "lucide-react";
-import { requireAdmin } from "@/lib/auth/guards";
+import { requirePermission } from "@/lib/auth/guards";
 import { PageShell, PageHeader } from "@/components/ds";
 import { SectionDateRange } from "@/components/filters/section-date-range";
 import { DatedTabNav } from "@/components/filters/dated-tab-nav";
 
 export default async function NotificationsLayout({ children }: { children: ReactNode }) {
-  await requireAdmin();
+  await requirePermission({ notification: ["read"] });
   return (
     <PageShell>
       <PageHeader

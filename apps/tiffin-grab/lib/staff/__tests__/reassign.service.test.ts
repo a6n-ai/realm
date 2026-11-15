@@ -7,6 +7,11 @@ import { ForbiddenError, ValidationError } from "@foundry/commons";
 const session: { user: { id: string; role: string } | null } = { user: null };
 vi.mock("@/lib/auth/session", () => ({ getSession: async () => (session.user ? session : null) }));
 
+// Only admins hold member:update (MEMBER_PERMISSIONS has no member actions).
+vi.mock("@/lib/auth/guards", () => ({
+  can: async (perms: { member?: string[] }) => session.user?.role === "admin" && perms.member?.[0] === "update",
+}));
+
 const { inquiriesService } = await import("../../inquiries/inquiries.service");
 
 const seededUserIds: bigint[] = [];

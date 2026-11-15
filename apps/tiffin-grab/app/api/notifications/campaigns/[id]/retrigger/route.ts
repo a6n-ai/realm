@@ -10,5 +10,5 @@ export const POST = adminIdRoute(async (req, id) => {
   if (!parsed.success) return problem(400, "Invalid request");
   return retriggerCampaign(campaignDeps, id, { listIds: parsed.data.listIds });
 },
-  { signal: () => true },
+  { perm: { notification: ["send"] }, signal: () => true },
 );

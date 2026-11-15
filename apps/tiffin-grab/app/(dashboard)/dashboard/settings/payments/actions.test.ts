@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { paymentConfigSaveError } from "@foundry/payments";
 
-vi.mock("@/lib/auth/guards", () => ({ requireAdmin: vi.fn() }));
+vi.mock("@/lib/auth/guards", () => ({ requirePermission: vi.fn() }));
 vi.mock("@/lib/payments/payment-config", () => ({
   getPaymentConfig: vi.fn(),
   setPaymentConfig: vi.fn(),

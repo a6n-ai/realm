@@ -18,7 +18,7 @@ const PLUGIN_PATHS = [
 
 /** Install/uninstall any plugin in the app registry. */
 export async function setPluginInstalledAction(id: string, installed: boolean): Promise<ActionResult> {
-  return staffAction({ guard: "admin", revalidate: PLUGIN_PATHS }, async () => {
+  return staffAction({ guard: { settings: ["write"] }, revalidate: PLUGIN_PATHS }, async () => {
     const plugin = PLUGINS.find((p) => p.id === id);
     if (!plugin) throw new ValidationError("Unknown plugin");
 

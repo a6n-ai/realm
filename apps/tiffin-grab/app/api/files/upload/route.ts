@@ -1,10 +1,10 @@
 import { handler, problem } from "@foundry/routes";
-import { requireStaff } from "@/lib/auth/guards";
+import { assertStaffSession } from "@/lib/auth/guards";
 import { filesService } from "@/lib/files";
 import { readImageUpload, sanitizeFilename, uploadKey } from "@/lib/files/upload";
 
 export const POST = handler(async (request: Request): Promise<Response> => {
-  await requireStaff();
+  await assertStaffSession();
 
   const form = await request.formData();
   const file = form.get("file");

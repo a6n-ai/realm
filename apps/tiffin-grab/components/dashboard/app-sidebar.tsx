@@ -1,7 +1,7 @@
 "use client";
 
 import { initials } from "@foundry/ui/initials";
-import { ADMIN_ROLES, ALL_ROLES, STAFF_ROLES, isAdmin } from "@/lib/roles";
+import { useNavAllowed } from "@/components/dashboard/nav-access";
 import * as React from "react";
 import {
   BarChart3Icon,
@@ -63,7 +63,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@foundry/ui/avatar";
 import { useFormatMoney } from "@/components/app-currency";
 import { useCopy } from "@/lib/hooks/use-copy";
 
-export type NavItem = { title: string; href: string; icon: LucideIcon; roles: string[] };
+export type NavItem = { title: string; href: string; icon: LucideIcon };
 export type NavSection = { label: string; items: NavItem[] };
 
 // Swaps the nav icon for a spinner while this link's navigation is in flight.
@@ -88,56 +88,56 @@ const SECTION_BY_HREF: Record<string, Section> = {
   "/dashboard/payments": "payments",
 };
 
-// Grouped navigation. A section renders only when the current user's role
-// matches at least one of its items. Exported so the command palette reuses it.
+// Grouped navigation. A section renders only when the caller's org permissions
+// admit at least one of its items (see lib/nav/nav-permissions.ts). Exported so the command palette reuses it.
 export const SECTIONS: NavSection[] = [
   {
     label: "Operations",
     items: [
-      { title: "Overview", href: "/dashboard", icon: LayoutDashboardIcon, roles: STAFF_ROLES },
-      { title: "Analytics", href: "/dashboard/analytics", icon: BarChart3Icon, roles: ADMIN_ROLES },
-      { title: "Inquiries", href: "/dashboard/inquiries", icon: ClipboardListIcon, roles: STAFF_ROLES },
-      { title: "Orders", href: "/dashboard/orders", icon: PackageIcon, roles: STAFF_ROLES },
-      { title: "Daily labels", href: "/dashboard/labels", icon: TagIcon, roles: STAFF_ROLES },
-      { title: "Dispatch", href: "/dashboard/dispatch", icon: TruckIcon, roles: STAFF_ROLES },
-      { title: "Renewals", href: "/dashboard/renewals", icon: RefreshCwIcon, roles: STAFF_ROLES },
-      { title: "Customers", href: "/dashboard/customers", icon: UsersIcon, roles: STAFF_ROLES },
-      { title: "Tickets", href: "/dashboard/tickets", icon: LifeBuoyIcon, roles: STAFF_ROLES },
+      { title: "Overview", href: "/dashboard", icon: LayoutDashboardIcon },
+      { title: "Analytics", href: "/dashboard/analytics", icon: BarChart3Icon },
+      { title: "Inquiries", href: "/dashboard/inquiries", icon: ClipboardListIcon },
+      { title: "Orders", href: "/dashboard/orders", icon: PackageIcon },
+      { title: "Daily labels", href: "/dashboard/labels", icon: TagIcon },
+      { title: "Dispatch", href: "/dashboard/dispatch", icon: TruckIcon },
+      { title: "Renewals", href: "/dashboard/renewals", icon: RefreshCwIcon },
+      { title: "Customers", href: "/dashboard/customers", icon: UsersIcon },
+      { title: "Tickets", href: "/dashboard/tickets", icon: LifeBuoyIcon },
     ],
   },
   {
     label: "Catalog",
     items: [
-      { title: "Catalog", href: "/dashboard/catalog", icon: UtensilsCrossedIcon, roles: ADMIN_ROLES },
-      { title: "Weekly Menus", href: "/dashboard/menus", icon: CalendarIcon, roles: ADMIN_ROLES },
+      { title: "Catalog", href: "/dashboard/catalog", icon: UtensilsCrossedIcon },
+      { title: "Weekly Menus", href: "/dashboard/menus", icon: CalendarIcon },
     ],
   },
   {
     label: "Finance",
     items: [
-      { title: "Payments", href: "/dashboard/payments", icon: WalletCardsIcon, roles: ADMIN_ROLES },
-      { title: "Wallet", href: "/dashboard/wallet", icon: CoinsIcon, roles: ADMIN_ROLES },
-      { title: "Discounts", href: "/dashboard/discounts", icon: TicketPercentIcon, roles: ADMIN_ROLES },
+      { title: "Payments", href: "/dashboard/payments", icon: WalletCardsIcon },
+      { title: "Wallet", href: "/dashboard/wallet", icon: CoinsIcon },
+      { title: "Discounts", href: "/dashboard/discounts", icon: TicketPercentIcon },
     ],
   },
   {
     label: "Engagement",
     items: [
-      { title: "Notifications", href: "/dashboard/notifications", icon: BellIcon, roles: ADMIN_ROLES },
-      { title: "Customer groups", href: "/dashboard/customer-groups", icon: UsersIcon, roles: ADMIN_ROLES },
+      { title: "Notifications", href: "/dashboard/notifications", icon: BellIcon },
+      { title: "Customer groups", href: "/dashboard/customer-groups", icon: UsersIcon },
     ],
   },
   {
     label: "Administration",
     items: [
-      { title: "Organization", href: "/dashboard/organization", icon: Building2Icon, roles: ADMIN_ROLES },
-      { title: "Settings", href: "/dashboard/settings", icon: SettingsIcon, roles: ADMIN_ROLES },
+      { title: "Organization", href: "/dashboard/organization", icon: Building2Icon },
+      { title: "Settings", href: "/dashboard/settings", icon: SettingsIcon },
     ],
   },
   {
     label: "Personal",
     items: [
-      { title: "Account", href: "/dashboard/account", icon: UserIcon, roles: ALL_ROLES },
+      { title: "Account", href: "/dashboard/account", icon: UserIcon },
     ],
   },
 ];
@@ -165,6 +165,7 @@ export function AppSidebar({
 }) {
   const pathname = usePathname();
   const router = useRouter();
+  const navAllowed = useNavAllowed();
   // Sections read since the layout last rendered `activity`. A fresh `activity`
   // (any refresh) already reflects those reads, so the set resets with it.
   const [read, setRead] = React.useState<{ from: typeof activity; set: ReadonlySet<Section> }>({ from: activity, set: new Set() });
@@ -195,7 +196,7 @@ export function AppSidebar({
 
       <SidebarContent>
         {SECTIONS.map((section) => {
-          const items = section.items.filter((item) => item.roles.includes(user.role));
+          const items = section.items.filter((item) => navAllowed(item.href));
           if (items.length === 0) return null;
           return (
             <SidebarGroup key={section.label}>
@@ -285,7 +286,7 @@ export function AppSidebar({
                       Account
                     </Link>
                   </DropdownMenuItem>
-                  {isAdmin(user.role) && (
+                  {navAllowed("/dashboard/settings") && (
                     <DropdownMenuItem asChild>
                       <Link href="/dashboard/settings">
                         <SettingsIcon data-icon="inline-start" />

@@ -4,5 +4,5 @@ import { adminIdRoute } from "@/lib/notifications/admin-route";
 import { notificationTables } from "@/lib/notifications/tables";
 
 export const POST = adminIdRoute((_req, id) => retryFailedCampaign({ db, tables: notificationTables }, id),
-  { signal: (result) => result.requeued > 0 },
+  { perm: { notification: ["send"] }, signal: (result) => result.requeued > 0 },
 );

@@ -20,10 +20,12 @@ import { inviteUser } from "@/lib/services/users-invite";
 export type UserStatusValue = "active" | "inactive" | "suspended" | "deleted";
 
 const MEMBERS = "/dashboard/organization/members";
-const ADMIN_MEMBERS = { guard: "admin", revalidate: [MEMBERS] } as const;
+const MEMBER_UPDATE = { guard: { member: ["update"] }, revalidate: [MEMBERS] } as const;
+const INVITATION_CREATE = { guard: { invitation: ["create"] }, revalidate: [MEMBERS] } as const;
+const INVITATION_CANCEL = { guard: { invitation: ["cancel"] }, revalidate: [MEMBERS] } as const;
 
 export async function setUserStatus(userId: string, status: UserStatusValue): Promise<ActionResult> {
-  return staffAction(ADMIN_MEMBERS, async () => {
+  return staffAction(MEMBER_UPDATE, async () => {
     const session = await getSession();
     if ((session?.user as { publicId?: string })?.publicId === userId) {
       throw new ValidationError("Change your own account status from account settings.");
@@ -36,7 +38,7 @@ export async function setUserStatus(userId: string, status: UserStatusValue): Pr
 }
 
 export async function setUserRole(userId: string, role: RoleValue): Promise<ActionResult> {
-  return staffAction(ADMIN_MEMBERS, async () => {
+  return staffAction(MEMBER_UPDATE, async () => {
     // setRole, not update: demoting your own row out of admin locks you out of this
     // page, and the guard lives in the service so every caller inherits it.
     await usersService.setRole(userId, role);
@@ -57,7 +59,7 @@ export async function adminUpdateContact(
     [`/dashboard/customers/${userId}`, "layout"] as const,
     MEMBERS,
   ];
-  return staffAction({ guard: "admin", revalidate: targets }, async (): Promise<{ taken?: { message: string; holderHref: string } }> => {
+  return staffAction({ guard: { member: ["update"] }, revalidate: targets }, async (): Promise<{ taken?: { message: string; holderHref: string } }> => {
     try {
       await usersService.updateContact(userId, opts.removePhone ? { phone: "" } : input, { nameClash: true, ...opts });
     } catch (e) {
@@ -80,7 +82,7 @@ export async function adminUpdateContact(
 // to someone who never had a password read as a mistake, which is why this is
 // not one path.
 export async function sendStaffAccessEmail(userId: string): Promise<ActionResult<{ email: string; kind: "invite" | "reset" }>> {
-  return staffAction({ guard: "admin" }, async (): Promise<{ email: string; kind: "invite" | "reset" }> => {
+  return staffAction({ guard: { member: ["update"] } }, async (): Promise<{ email: string; kind: "invite" | "reset" }> => {
     const email = await usersService.assertStaffEmail(userId);
     const [u] = await db
       .select({ role: users.role, passwordSet: users.passwordSet })
@@ -100,7 +102,7 @@ export async function sendStaffAccessEmail(userId: string): Promise<ActionResult
 // an OTP: createInvitation issues a fresh invitation row (extends expiry / makes
 // a first invite for accounts created before this plan that have none at all).
 export async function resendInvite(userId: string, organizationId: string): Promise<ActionResult<{ email: string }>> {
-  return staffAction(ADMIN_MEMBERS, async () => {
+  return staffAction(INVITATION_CREATE, async () => {
     const [u] = await db.select({ email: users.email, role: users.role }).from(users).where(eq(users.publicId, userId)).limit(1);
     if (!u?.email) throw new ValidationError("This user has no email address to send an invite to.");
     const invitation = await auth.api.createInvitation({
@@ -113,7 +115,7 @@ export async function resendInvite(userId: string, organizationId: string): Prom
 }
 
 export async function cancelInvitation(invitationId: string): Promise<ActionResult> {
-  return staffAction(ADMIN_MEMBERS, async () => {
+  return staffAction(INVITATION_CANCEL, async () => {
     await auth.api.cancelInvitation({ body: { invitationId }, headers: await headers() });
   });
 }

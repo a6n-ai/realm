@@ -9,8 +9,6 @@ const m = vi.hoisted(() => ({
 }));
 vi.mock("@/lib/auth/guards", () => ({
   requirePermission: m.requirePermission,
-  requireAdmin: vi.fn(),
-  requireStaff: vi.fn(),
 }));
 vi.mock("@/lib/auth/session", () => ({ getSession: async () => ({}) }));
 vi.mock("@/lib/auth/visible-orgs", () => ({ resolveSessionVisibleOrgIds: async () => "all" }));

@@ -9,8 +9,8 @@ type Ids = { order?: string; delivery?: string; payment?: string };
 /** At least one id: an action that names no order, delivery or payment cannot be checked, so it cannot compile. */
 export type OrderTarget = { [K in keyof Ids]-?: Required<Pick<Ids, K>> & Ids }[keyof Ids];
 
-/** The guard (staff by default), then every named order, delivery or payment must sit in the caller's organizations. */
-export async function assertOrderAccess(target: OrderTarget, guard: Guard = "staff"): Promise<void> {
+/** The permission guard, then every named order, delivery or payment must sit in the caller's organizations. */
+export async function assertOrderAccess(target: OrderTarget, guard: Guard): Promise<void> {
   await runGuard(guard);
   const visible = await resolveSessionVisibleOrgIds(await getSession());
   if (target.order) await assertOrderVisible(target.order, visible);
@@ -19,7 +19,7 @@ export async function assertOrderAccess(target: OrderTarget, guard: Guard = "sta
 }
 
 type Opts = OrderTarget & {
-  guard?: Guard;
+  guard: Guard;
   orderPage?: string;
   reach?: Parameters<typeof revalidateOrder>[1];
   revalidate?: readonly RevalidateTarget[];

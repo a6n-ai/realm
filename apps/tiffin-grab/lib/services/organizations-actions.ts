@@ -6,7 +6,7 @@ import { assertHierarchyDepth } from "@foundry/auth";
 import { db } from "@/db/client";
 import { member, organization } from "@/db/schema";
 import { systemUserId, userIdByPublicId } from "@/lib/identity/user-ids";
-import { requireAdmin } from "@/lib/auth/guards";
+import { requirePermission } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import {
   addMember,
@@ -64,7 +64,7 @@ export async function createFranchise(
   name: string,
   clientCode: string,
 ): Promise<CreateFranchiseResult> {
-  await requireAdmin();
+  await requirePermission({ organization: ["update"] });
   try {
     const actingUserId = await resolveActingUserId();
     if (!actingUserId) return { ok: false, error: "No user available to create this organization." };
@@ -100,7 +100,7 @@ export async function addMemberAction(
   userPublicId: string,
   role: MemberRole,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  await requireAdmin();
+  await requirePermission({ member: ["update"] });
   try {
     await addMember(organizationId, userPublicId, role);
     revalidatePath(`/dashboard/organization/settings/${organizationId}`);
@@ -114,7 +114,7 @@ export async function updateOrganizationAction(
   id: string,
   fields: UpdateOrganizationInput,
 ): Promise<UpdateOrganizationResult> {
-  await requireAdmin();
+  await requirePermission({ organization: ["update"] });
   const result = await updateOrganization(id, fields);
   if (result.ok) {
     revalidatePath(`/dashboard/organization/settings/${id}`);
@@ -124,13 +124,13 @@ export async function updateOrganizationAction(
 }
 
 export async function removeMemberAction(organizationId: string, userPublicId: string): Promise<void> {
-  await requireAdmin();
+  await requirePermission({ member: ["update"] });
   await removeMember(organizationId, userPublicId);
   revalidatePath(`/dashboard/organization/settings/${organizationId}`);
 }
 
 export async function searchUsersByEmailAction(query: string): Promise<UserSearchRow[]> {
-  await requireAdmin();
+  await requirePermission({ member: ["update"] });
   return searchUsersByEmail(query);
 }
 
@@ -139,7 +139,7 @@ export async function updateMemberRoleAction(
   userPublicId: string,
   role: MemberRole,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  await requireAdmin();
+  await requirePermission({ member: ["update"] });
   try {
     await updateMemberRole(organizationId, userPublicId, role);
     revalidatePath(`/dashboard/organization/settings/${organizationId}`);
