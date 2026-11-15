@@ -27,6 +27,8 @@ vi.mock("@foundry/places", () => ({ resolveAndPersist: (...a: unknown[]) => reso
 vi.mock("@/lib/landing/inquiry-intake", () => ({ recordWebsiteInquiry: (...a: unknown[]) => recordWebsiteInquiry(...a) }));
 const guardPublicWrite = vi.fn(async (..._a: unknown[]) => {});
 vi.mock("@/lib/auth/public-write-guard", () => ({ guardPublicWrite: (...a: unknown[]) => guardPublicWrite(...a) }));
+let captchaOn = false;
+vi.mock("@/lib/auth/captcha", () => ({ turnstileKeys: () => (captchaOn ? { siteKey: "s", secretKey: "k" } : null) }));
 vi.mock("@/lib/auth/session", () => ({ getSession: async () => ({ user: { id: "usr_7", email: "j@x.com" } }) }));
 vi.mock("@/lib/services/customers.service", () => ({ sendAccountSetupEmail: vi.fn() }));
 vi.mock("@/lib/services/session-service", () => ({ currentUserId: async () => 7n }));
@@ -51,6 +53,32 @@ describe("confirmSubscription serviceability gate", () => {
     recordWebsiteInquiry.mockClear();
     resolveAndPersist.mockClear();
     guardPublicWrite.mockClear();
+    captchaOn = false;
+  });
+
+  it("out-of-zone without a captcha token → captcha_required, no write, waitlist cap not spent", async () => {
+    matchZoneResult = null;
+    captchaOn = true;
+    const res = await confirmSubscription(input);
+    expect(res).toMatchObject({ error: "Security check required. Please try again.", errorCode: "captcha_required" });
+    expect(guardPublicWrite).not.toHaveBeenCalled();
+    expect(recordWebsiteInquiry).not.toHaveBeenCalled();
+    expect(createOrder).not.toHaveBeenCalled();
+  });
+
+  it("out-of-zone with a captcha token → waitlist inquiry", async () => {
+    matchZoneResult = null;
+    captchaOn = true;
+    const res = await confirmSubscription({ ...input, captchaToken: "tok" });
+    expect(res).toEqual({ ok: true, waitlisted: true });
+    expect(guardPublicWrite).toHaveBeenCalledWith("checkout-waitlist", "tok", 10);
+    expect(recordWebsiteInquiry).toHaveBeenCalledTimes(1);
+  });
+
+  it("out-of-zone with captcha off → no token needed", async () => {
+    matchZoneResult = null;
+    const res = await confirmSubscription(input);
+    expect(res).toEqual({ ok: true, waitlisted: true });
   });
 
   it("out-of-zone → waitlist inquiry, NO order/payment", async () => {

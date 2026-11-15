@@ -747,19 +747,23 @@ export function Checkout({
     }
     setSubmitting(true);
     try {
-      const res = await confirmSubscription({
-        selections,
-        planKey: selections.planKey!,
-        contact,
-        addressPublicId,
-        renewal: lockContact,
-        planRenewal: isPlanRenewalCheckout(lastTiffin),
-        couponCodes: appliedCodes,
-        coins: appliedCoins || undefined,
-        paymentMethodId: paymentMethods.length > 0 ? paymentMethodId : null,
-        eventSourceUrl: typeof window !== "undefined" ? window.location.href : undefined,
-        captchaToken: needsCaptchaToken(zone) ? await getCaptchaToken() : undefined,
-      });
+      const submit = (captchaToken?: string | null) =>
+        confirmSubscription({
+          selections,
+          planKey: selections.planKey!,
+          contact,
+          addressPublicId,
+          renewal: lockContact,
+          planRenewal: isPlanRenewalCheckout(lastTiffin),
+          couponCodes: appliedCodes,
+          coins: appliedCoins || undefined,
+          paymentMethodId: paymentMethods.length > 0 ? paymentMethodId : null,
+          eventSourceUrl: typeof window !== "undefined" ? window.location.href : undefined,
+          captchaToken,
+        });
+      let res = await submit(needsCaptchaToken(zone) ? await getCaptchaToken() : undefined);
+      // The server found the address out of zone although the client thought it served: retry once with a token.
+      if ("error" in res && res.errorCode === "captcha_required") res = await submit(await getCaptchaToken());
       if ("error" in res) {
         toast.error(res.error);
         return;
@@ -801,23 +805,26 @@ export function Checkout({
   if (!selections || bouncing) return null;
 
   const payByCard = async (source: CardSource, acceptSurcharge: boolean) => {
-    const res = await payCheckout({
-      selections,
-      planKey: selections.planKey!,
-      contact,
-      addressPublicId,
-      renewal: lockContact,
-      planRenewal: isPlanRenewalCheckout(lastTiffin),
-      couponCodes: appliedCodes,
-      coins: appliedCoins || undefined,
-      paymentMethodId: "stripe",
-      expectedAmountCents: toCents(result!.total),
-      paymentPublicId: placed.current?.paymentPublicId ?? null,
-      source,
-      acceptSurcharge,
-      eventSourceUrl: typeof window !== "undefined" ? window.location.href : undefined,
-      captchaToken: needsCaptchaToken(zone) ? await getCaptchaToken() : undefined,
-    });
+    const pay = (captchaToken?: string | null) =>
+      payCheckout({
+        selections,
+        planKey: selections.planKey!,
+        contact,
+        addressPublicId,
+        renewal: lockContact,
+        planRenewal: isPlanRenewalCheckout(lastTiffin),
+        couponCodes: appliedCodes,
+        coins: appliedCoins || undefined,
+        paymentMethodId: "stripe",
+        expectedAmountCents: toCents(result!.total),
+        paymentPublicId: placed.current?.paymentPublicId ?? null,
+        source,
+        acceptSurcharge,
+        eventSourceUrl: typeof window !== "undefined" ? window.location.href : undefined,
+        captchaToken,
+      });
+    let res = await pay(needsCaptchaToken(zone) ? await getCaptchaToken() : undefined);
+    if ("error" in res && res.errorCode === "captcha_required") res = await pay(await getCaptchaToken());
     if ("error" in res) {
       // The server priced differently: show its total so the next Pay sends that one.
       if (res.errorCode === "total_changed") void refreshPrice(selections, appliedCodes, paymentMethodId, appliedCoins || undefined).catch(repriceFailed);

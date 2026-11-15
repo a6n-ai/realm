@@ -17,6 +17,7 @@ import { parseCanadianPostalCode } from "@/lib/catalog/postal";
 import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 import { recordWebsiteInquiry } from "@/lib/landing/inquiry-intake";
 import { guardPublicWrite } from "@/lib/auth/public-write-guard";
+import { turnstileKeys } from "@/lib/auth/captcha";
 import { runAction, type ActionResult } from "@/lib/actions/action-result";
 import type { CardSource, PayByCardResult } from "@/lib/payments/payment-stripe";
 import { captureMetaAttribution } from "@/lib/meta/request-context";
@@ -49,6 +50,15 @@ class TotalChangedError extends ValidationError {
   readonly errorCode = "total_changed";
   constructor() {
     super("Your total changed. Check it and pay again.");
+  }
+}
+
+// The client priced the address as served, but the server found it out of zone and needs a token.
+// Thrown before the waitlist cap is spent; the client fetches a token and retries once.
+class CaptchaRequiredError extends ValidationError {
+  readonly errorCode = "captcha_required";
+  constructor() {
+    super("Security check required. Please try again.");
   }
 }
 
@@ -233,6 +243,8 @@ async function placeSubscription(rawInput: ConfirmInput): Promise<ConfirmResult>
   const { zones } = await loadCatalogSnapshot(orgId);
   const address = [input.contact.addressLine, input.contact.city, input.contact.postalCode].filter(Boolean).join(", ");
   if ((await findZone(zones, { postalCode: input.contact.postalCode, address }, orgId)) == null) {
+    // Captcha off (no keys) means no token is ever issued, so the token is only demanded when it can be checked.
+    if (!captchaToken && turnstileKeys()) throw new CaptchaRequiredError();
     await guardPublicWrite("checkout-waitlist", captchaToken, 10);
     await recordWebsiteInquiry({
       fullName: input.contact.fullName,
