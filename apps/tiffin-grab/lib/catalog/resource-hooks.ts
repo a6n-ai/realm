@@ -31,6 +31,8 @@ export interface EditorExtras {
   compositionCategories?: CompositionCategoryOption[];
   plansByCategory?: Record<string, { value: string; label: string }[]>;
   dishNames?: DishName[];
+  /** Cost rates preview: each category's TU unit and the portion sizes meal sizes actually use. */
+  costPreview?: Record<string, { label: string; unit: CompositionCategoryOption; tus: number[] }>;
 }
 
 export type CatalogRow = Record<string, unknown> & { publicId: string };
@@ -94,6 +96,15 @@ export const RESOURCE_HOOKS: Record<string, ResourceHooks> = {
   },
   "cost-rates": {
     table: categoryCostRates,
+    async extras(ctx) {
+      const used = await db.selectDistinct({ category: mealSizeItems.category, tu: mealSizeItems.tuAmount }).from(mealSizeItems);
+      const costPreview: NonNullable<EditorExtras["costPreview"]> = {};
+      for (const c of ctx.categoryRows) {
+        const tus = [...new Set(used.filter((u) => u.category === c.key).map((u) => Number(u.tu)))].sort((a, b) => a - b);
+        costPreview[c.key] = { label: c.label, unit: compositionOption(c), tus: tus.length ? tus : [1] };
+      }
+      return { costPreview };
+    },
     async hydrate(rows, raw, ctx) {
       hydratePlanId(rows, raw, ctx);
     },

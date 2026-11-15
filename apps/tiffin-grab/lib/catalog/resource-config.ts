@@ -337,7 +337,7 @@ export const RESOURCES: Record<string, ResourceDef> = {
   },
   "cost-rates": {
     key: "cost-rates", label: "Cost rates", singular: "cost rate", keyed: false, internal: true, schema: costRatesSchema,
-    note: "Internal food cost per pick = cost per pick + cost per TU × the slot's TU. The most specific rate wins: this plan over all plans. Staff only, never shown on the website.",
+    note: "Cost of one item = cost per pick + cost per TU × its size in TU. A plan-specific rate beats the all-plans one. Staff only, never shown on the website.",
     fields: [
       { key: "category", label: "Category", type: "select", optionsSource: "categories" },
       { key: "planId", label: "Plan", type: "select", optionsSource: "plans", optional: true, help: "Blank = every plan" },

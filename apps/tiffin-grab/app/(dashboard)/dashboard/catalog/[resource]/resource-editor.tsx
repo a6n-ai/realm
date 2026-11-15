@@ -54,6 +54,7 @@ import { DateInput } from "@/components/dashboard/date-fields";
 import { CompositionField } from "./composition-field";
 
 import { WebsitePreview } from "./website-preview";
+import { CostRatePreview } from "./cost-rate-preview";
 
 import type { EditorExtras } from "@/lib/catalog/resource-hooks";
 
@@ -385,7 +386,7 @@ function EditorDialog({
                 {form.formState.errors.root.message as string}
               </p>
             ) : null}
-            {def.internal ? null : <WebsitePreview resource={resource} values={watched} />}
+            {resource === "cost-rates" ? <CostRatePreview values={watched} preview={extras.costPreview} /> : def.internal ? null : <WebsitePreview resource={resource} values={watched} />}
           </div>
         </form>
       </Form>
