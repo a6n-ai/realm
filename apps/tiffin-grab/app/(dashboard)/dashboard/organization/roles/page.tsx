@@ -4,6 +4,7 @@ import { can, requirePermission } from "@/lib/auth/guards";
 import { effectivePermissions, getOrgAccess } from "@/lib/auth/org-access";
 import { getSession } from "@/lib/auth/session";
 import { getRoleHolderCounts, listCustomRoles } from "@/lib/services/organizations.service";
+import { getMembersForOrgs } from "../members/members-query";
 import { SectionCard } from "@/components/ds";
 import { RoleEditor } from "./role-editor";
 import { RolesTable, RolesTableSkeleton } from "./roles-table";
@@ -31,14 +32,20 @@ async function RolesData({ searchParams }: { searchParams: SearchParams }) {
   const sp = await searchParams;
   const session = await getSession();
   const organizationId = session?.session.activeOrganizationId;
-  const [access, custom, counts, canCreate, canUpdate, canDelete] = await Promise.all([
+  const [access, custom, counts, canCreate, canUpdate, canDelete, canManageMembers] = await Promise.all([
     getOrgAccess(),
     organizationId ? listCustomRoles(organizationId) : [],
     organizationId ? getRoleHolderCounts(organizationId) : ({} as Record<string, number>),
     can({ ac: ["create"] }),
     can({ ac: ["update"] }),
     can({ ac: ["delete"] }),
+    can({ member: ["update"] }),
   ]);
+  // Holders and candidates for the editor's member list. Needs member:update, not just ac:read.
+  const members =
+    organizationId && canManageMembers
+      ? (await getMembersForOrgs([organizationId])).map((m) => ({ memberId: m.memberId, name: m.name, email: m.email, orgRole: m.orgRole }))
+      : null;
   const roles: RoleItem[] = [
     ...Object.entries(orgRoles).map(([name, role]) => ({
       name,
@@ -61,6 +68,7 @@ async function RolesData({ searchParams }: { searchParams: SearchParams }) {
         grantable={grantable}
         canUpdate={canUpdate}
         canDelete={canDelete}
+        members={members}
       />
     );
   }
