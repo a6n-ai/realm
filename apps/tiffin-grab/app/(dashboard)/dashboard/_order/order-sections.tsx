@@ -1,5 +1,6 @@
 "use client";
 
+import { CostingNote } from "./costing-note";
 import { round2 } from "@foundry/commons/util/money";
 import { useState } from "react";
 import { CalendarDaysIcon, ChevronDownIcon, CopyIcon, MinusIcon, PlusIcon, RefreshCwIcon, XIcon } from "lucide-react";
@@ -478,6 +479,7 @@ export function DiscountsSection({ d, customerLabel }: { d: Draft; customerLabel
             {d.coinPreview && <CoinsField onOrder coins={d.coinPreview} setCoins={d.setCoinsWanted} />}
 
             <CustomerCodeField onOrder subtotal={d.subtotal} maxStaffDiscount={d.maxStaffDiscount} apply={d.applyStaffCode} note={`New order: ${customerLabel}`} />
+            {d.subtotal > 0 ? <CostingNote costing={d.costing} /> : null}
 
             {repInfo && !(repInfo.available === false && repInfo.reason === "disabled") && (
               repInfo.available ? (

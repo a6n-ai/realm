@@ -14,6 +14,7 @@ import { Skeleton } from "@foundry/ui/skeleton";
 import { discountLine } from "@/components/customer/home/coupons-section";
 import { OrderForm, type EstimateState } from "./order-form";
 import { OrderPricingBreakdown } from "./order-pricing-breakdown";
+import { CostingNote } from "./costing-note";
 import { CustomerSearch } from "../_leads/customer-search";
 import type { CustomerHit } from "../_leads/match-actions";
 import type { OrderFormInput } from "./order-schema";
@@ -191,6 +192,7 @@ export function EstimateDialog({ open, onOpenChange, fromOrder }: { open: boolea
               apply={estimate?.apply}
               note={who?.fullName ? `Estimate: ${who.fullName}` : "Order estimate"}
             />
+            {estimate?.preview ? <CostingNote costing={estimate.costing} /> : null}
 
             <Button type="button" className="mt-auto" disabled={!estimate?.copyText} onClick={() => void copy()}>
               <CopyIcon className="size-4" /> Copy WhatsApp message

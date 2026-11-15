@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import {
+  CalculatorIcon,
   CalendarOffIcon,
   ClockIcon,
   GlobeIcon,
@@ -32,6 +33,7 @@ const STATIC_GROUPS: Group[] = [
     items: [
       { label: "General", description: "Timezone and order cutoff", icon: SettingsIcon, tone: "gray", href: "/dashboard/settings/general" },
       { label: "Meal types", description: "Plan types, dish categories, menu setup", icon: UtensilsCrossedIcon, tone: "orange", href: "/dashboard/settings/meal-types" },
+      { label: "Costing", description: "Driver and overhead costs, target and minimum margin", icon: CalculatorIcon, tone: "green", href: "/dashboard/settings/costing" },
       { label: "Holidays", description: "Kitchen closures and where those deliveries go", icon: CalendarOffIcon, tone: "red", href: "/dashboard/settings/holidays" },
       { label: "Owner assignment", description: "Who owns new inquiries, orders and tickets", icon: UsersIcon, tone: "blue", href: "/dashboard/settings/owner-assignment" },
     ],

@@ -15,6 +15,10 @@ export type ProfitabilityAssumptions = {
   marketingMonthly: number;
   salaryMonthly: number;
   otherMonthly: number;
+  /** Margin the Estimate recommends staying at or above, as a % of the pre-tax total after discounts. */
+  targetMarginPct: number;
+  /** Discounts may not go below this margin (0 = sell at cost at worst). */
+  minMarginPct: number;
 };
 
 export const ZERO_ASSUMPTIONS: ProfitabilityAssumptions = {
@@ -23,6 +27,8 @@ export const ZERO_ASSUMPTIONS: ProfitabilityAssumptions = {
   marketingMonthly: 0,
   salaryMonthly: 0,
   otherMonthly: 0,
+  targetMarginPct: 25,
+  minMarginPct: 0,
 };
 
 const KEYS = Object.keys(ZERO_ASSUMPTIONS) as (keyof ProfitabilityAssumptions)[];
@@ -36,7 +42,8 @@ function asNonNeg(n: unknown): number {
 export function parseAssumptions(raw: unknown): ProfitabilityAssumptions {
   const src = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
   const out = { ...ZERO_ASSUMPTIONS };
-  for (const k of KEYS) out[k] = asNonNeg(src[k]);
+  // A key never saved keeps its default (margins default to 25% / 0%, costs to 0).
+  for (const k of KEYS) out[k] = src[k] == null ? ZERO_ASSUMPTIONS[k] : asNonNeg(src[k]);
   return out;
 }
 

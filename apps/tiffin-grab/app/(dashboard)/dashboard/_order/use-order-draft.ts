@@ -21,7 +21,7 @@ import { DEFAULT_EATING_DAYS, quoteLinkQuery, tiffinBounds } from "@/lib/wizard/
 import { orderFormSchema, type OrderFormInput, type OrderFormValues } from "./order-schema";
 import { appToday } from "@/lib/dates/start-date";
 import { earliestTrialIso, nextTrialStart, trialSendDays, type TrialSettings } from "@/lib/trial/schedule";
-import { convertInquiry, customerOrderContext, orderFormDeliveryOptions, previewPrice, repCouponInfo, trialFormSettings, type CustomerOrderContext, type RepCouponInfo, type StaffCoinPreview, type StaffCouponPreview } from "./actions";
+import { convertInquiry, customerOrderContext, orderFormDeliveryOptions, previewPrice, repCouponInfo, trialFormSettings, type CustomerOrderContext, type RepCouponInfo, type StaffCoinPreview, type StaffPricePreview, type StaffCouponPreview } from "./actions";
 import { plannedSchedule } from "@/components/wizard/schedule-card";
 import {
   buildOrderInput, firstWeekdayOnOrAfter, missingFields, multiDayTrialPicks,
@@ -68,6 +68,8 @@ export type EstimateState = {
   costFloor: number | null;
   /** Largest staff discount that still stays above cost; null when cost is unset. */
   maxStaffDiscount: number | null;
+  /** Cost and margin of this quote; null when no cost is known. */
+  costing: StaffPricePreview["costing"];
   /** How many coins the customer wants to use; "max" (the default) takes all this order allows. */
   setCoins: (coins: number | "max") => void;
   codes: string[];
@@ -110,6 +112,7 @@ export function useOrderDraft({
   const [coupons, setCoupons] = useState<StaffCouponPreview | null>(null);
   const [costFloor, setCostFloor] = useState<number | null>(null);
   const [maxStaffDiscount, setMaxStaffDiscount] = useState<number | null>(null);
+  const [costing, setCosting] = useState<StaffPricePreview["costing"]>(null);
   // An estimate shows the best price (all allowed coins); a real order spends none until staff opt in.
   const [coinsWanted, setCoinsWanted] = useState<number | "max">(estimateOnly ? "max" : 0);
   const [coinPreview, setCoinPreview] = useState<StaffCoinPreview | null>(null);
@@ -413,6 +416,7 @@ export function useOrderDraft({
         setCoinPreview("error" in r ? null : r.coins);
         setCostFloor("error" in r ? null : r.costFloor);
         setMaxStaffDiscount("error" in r ? null : r.maxStaffDiscount);
+        setCosting("error" in r ? null : r.costing);
         coinPreviewFor.current = "error" in r ? null : pricedFor;
         const bulk = bulkCodes.current;
         if (bulk && !("error" in r)) {
@@ -428,6 +432,7 @@ export function useOrderDraft({
         setCoinPreview(null);
         setCostFloor(null);
         setMaxStaffDiscount(null);
+        setCosting(null);
         coinPreviewFor.current = null;
         setPreviewError("Couldn't price this order. Check your connection and try again.");
       });
@@ -520,6 +525,7 @@ export function useOrderDraft({
       coins: coinPreview,
       costFloor,
       maxStaffDiscount,
+      costing,
       setCoins: setCoinsWanted,
       codes: couponCodes,
       apply: applyCoupon,
@@ -528,7 +534,7 @@ export function useOrderDraft({
     });
     // Every input to the text also reprices, so the preview alone is the trigger.
   });
-  useEffect(() => repricePreview(), [shownPreview, previewError, coupons, couponCodes.join(), coinPreview, costFloor, maxStaffDiscount]);
+  useEffect(() => repricePreview(), [shownPreview, previewError, coupons, couponCodes.join(), coinPreview, costFloor, maxStaffDiscount, costing]);
 
   const orderFields = ["planKey", "mealSizeId", "frequencyKey", "eatingDays", "persons", "mealSlots", "durationWeeks", "startDate"] as const;
   async function continueToPayment() {
@@ -676,6 +682,7 @@ export function useOrderDraft({
     ceiling,
     costFloor,
     maxStaffDiscount,
+    costing,
     missing,
     liveDraft,
     continueToPayment,

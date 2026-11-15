@@ -16,7 +16,7 @@ import { couponsService, type AvailableCoupon } from "@/lib/coupons/coupons.serv
 import { userIdByPublicId } from "@/lib/identity/user-ids";
 import { postCatalogSubtotal } from "@/lib/pricing/discounts";
 import { maxDiscountAboveCost } from "@/lib/pricing/cost-floor";
-import { loadMealCostFloor } from "@/lib/pricing/meal-cost";
+import { loadOrderCosting } from "@/lib/pricing/meal-cost";
 import type { AppliedCoupon } from "@/lib/wizard/actions";
 import { getDiscountPolicy } from "@/lib/coupons/discount-policy-settings";
 import { getPaymentConfig } from "@/lib/payments/payment-config";
@@ -215,6 +215,17 @@ export type StaffPricePreview = {
    * Null when cost is unset (allowance ceiling alone applies).
    */
   maxStaffDiscount: number | null;
+  /** Plan cost and margin for staff; null when no cost is known (no rates and no cost price). */
+  costing: {
+    cost: number;
+    /** Pre-tax total after every discount on this quote. */
+    net: number;
+    marginPct: number | null;
+    targetMarginPct: number;
+    minMarginPct: number;
+    /** Largest staff discount (after autos) that keeps the target margin. */
+    recommendedMaxDiscount: number;
+  } | null;
 };
 
 // The account createOrder would bill, when the contact matches exactly one. Usage-capped and
@@ -243,7 +254,8 @@ async function quotePrice(
     (await priceWithTax({ selections, catalog, adjustments, address, methodTaxes, reference: "admin-preview", cache: true })).pricing;
   const base = await quote([]);
   const plan = snap.plans.find((p) => p.key === input.planKey);
-  const costFloor = await loadMealCostFloor(input.selections.mealSizeId, base.tiffinCount);
+  const costing = await loadOrderCosting(input.selections.mealSizeId, base.tiffinCount);
+  const costFloor = costing?.floor ?? null;
 
   // Customer coupons, then the rep discount on top: the lane createOrder prices through, against
   // the subtotal after catalog discounts.
@@ -290,12 +302,21 @@ async function quotePrice(
   // generated code is not immediately refused as below cost.
   const autoAmount = lane.applied.filter((a) => a.coupon.autoApply).reduce((s, a) => s + a.amount, 0);
   const maxStaffDiscount = maxDiscountAboveCost(round2(postCatalog - autoAmount), costFloor);
+  const net = postCatalogSubtotal(postCatalog, lines);
 
   return {
     preview: lines.length > 0 ? await quote(lines) : base,
     coins: coinPreview,
     costFloor,
     maxStaffDiscount,
+    costing: costing && {
+      cost: costing.cost,
+      net,
+      marginPct: net > 0 ? round2(((net - costing.cost) / net) * 100) : null,
+      targetMarginPct: costing.targetMarginPct,
+      minMarginPct: costing.minMarginPct,
+      recommendedMaxDiscount: maxDiscountAboveCost(round2(postCatalog - autoAmount), costing.target) ?? 0,
+    },
     coupons: {
       applied,
       error,
