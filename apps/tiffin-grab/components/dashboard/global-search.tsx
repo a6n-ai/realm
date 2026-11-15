@@ -15,7 +15,7 @@ import {
 } from "@foundry/ui/command";
 import { useIsMobile } from "@foundry/ui/use-mobile";
 import { SECTIONS } from "@/components/dashboard/app-sidebar";
-import { useNavAllowed } from "@/components/dashboard/nav-access";
+import { useNavAllowed } from "@/components/dashboard/nav-access-provider";
 import { globalSearch, type SearchResults } from "@/app/(dashboard)/dashboard/search-actions";
 import { useQuickAdd, type QuickAddKind } from "@/components/dashboard/quick-add-provider";
 

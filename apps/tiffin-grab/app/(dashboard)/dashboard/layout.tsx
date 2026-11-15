@@ -8,7 +8,7 @@ import { can } from "@/lib/auth/guards";
 import { getActiveRoleLabel, getOrgAccess } from "@/lib/auth/org-access";
 import { getSession } from "@/lib/auth/session";
 import { allowedNavHrefs } from "@/lib/nav/nav-permissions";
-import { NavAccessProvider } from "@/components/dashboard/nav-access";
+import { NavAccessProvider } from "@/components/dashboard/nav-access-provider";
 import { isLocked } from "@/lib/auth/lock";
 import { getAppSettings } from "@/lib/settings";
 import { getDiscountPolicy } from "@/lib/coupons/discount-policy-settings";

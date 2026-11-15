@@ -6,7 +6,7 @@ import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@foundry/ui/dr
 import { signOut } from "@/lib/auth/client";
 import { lockSession } from "@/lib/auth/lock-actions";
 import { SECTIONS } from "./app-sidebar";
-import { useNavAllowed } from "./nav-access";
+import { useNavAllowed } from "./nav-access-provider";
 
 // Full mobile navigation surfaced from the bottom bar's More tab: every
 // permission-filtered SECTIONS group as link rows, plus account/lock/logout in a

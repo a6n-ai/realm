@@ -1,7 +1,7 @@
 "use client";
 
 import { initials } from "@foundry/ui/initials";
-import { useNavAllowed } from "@/components/dashboard/nav-access";
+import { useNavAllowed } from "@/components/dashboard/nav-access-provider";
 import * as React from "react";
 import {
   BarChart3Icon,
