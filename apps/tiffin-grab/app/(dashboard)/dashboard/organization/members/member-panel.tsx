@@ -8,6 +8,7 @@ import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, Di
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
 import { OrgRoleDialog, RoleChips, chipState, type PermissionMap, type ResourceLabel } from "@foundry/crm";
 import { Badge } from "@/components/reui/badge";
+import { ActionIcon } from "@/components/ds/action-icon";
 import { AdminContactForm } from "@/components/dashboard/admin-contact-form";
 import { AreaBadge, GroupHeading, SectionCard, UserAvatar } from "@/components/ds";
 import { unwrapAction } from "@/lib/actions/unwrap";
@@ -149,7 +150,7 @@ export function MemberDetail({ data, resources }: { data: MemberPanelData; resou
                       <span><AreaBadge resource={r.resource} label={r.label} /></span>
                       <span className="flex flex-wrap gap-1">
                         {r.actions.map((a) => (
-                          <Badge key={a.action} variant="info-light">{a.label}</Badge>
+                          <Badge key={a.action} variant="info-light"><ActionIcon action={a.action} />{a.label}</Badge>
                         ))}
                       </span>
                     </li>

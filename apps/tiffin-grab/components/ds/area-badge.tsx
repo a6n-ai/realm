@@ -5,7 +5,7 @@ import { groupOfResource, type GroupColor } from "@/lib/auth/permission-groups";
 
 // Categorical identity, not status: raw palette with a dark pair, so it never reads as ok/warn/bad.
 export const GROUP_TONE: Record<GroupColor, { badge: string; text: string }> = {
-  blue: { badge: "bg-blue-500/10 text-blue-700 dark:text-blue-300", text: "text-blue-700 dark:text-blue-300" },
+  teal: { badge: "bg-teal-500/10 text-teal-700 dark:text-teal-300", text: "text-teal-700 dark:text-teal-300" },
   amber: { badge: "bg-amber-500/10 text-amber-700 dark:text-amber-300", text: "text-amber-700 dark:text-amber-300" },
   violet: { badge: "bg-violet-500/10 text-violet-700 dark:text-violet-300", text: "text-violet-700 dark:text-violet-300" },
   emerald: { badge: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300", text: "text-emerald-700 dark:text-emerald-300" },

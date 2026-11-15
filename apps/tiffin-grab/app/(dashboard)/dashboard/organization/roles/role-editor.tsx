@@ -21,6 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { SaveBar, SwitchList, type SwitchRow } from "@/components/ds/switch-list";
 import { Badge } from "@/components/reui/badge";
 import { GroupHeading } from "@/components/ds/group-heading";
+import { ActionIcon } from "@/components/ds/action-icon";
 import { groupResources } from "@/lib/auth/permission-groups";
 import { setMemberRoles } from "../members/actions";
 import { deleteRole, updateRole } from "./actions";
@@ -207,6 +208,7 @@ export function RoleEditor({
       return {
         id: `${r.resource}.${a.action}`,
         label: a.label,
+        icon: <ActionIcon action={a.action} />,
         hint: !readOnly && !allowed ? "You don't have this permission" : undefined,
         checked: draft[r.resource]?.includes(a.action) ?? false,
         disabled: readOnly || !canUpdate || pending || !allowed,

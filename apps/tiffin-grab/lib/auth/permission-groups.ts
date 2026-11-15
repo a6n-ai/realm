@@ -1,7 +1,7 @@
 // No imports: shared by server and client code. Icons are names, resolved to components in components/ds.
 
 export type GroupIconName = "Truck" | "UtensilsCrossed" | "Users" | "ChartColumn" | "ShieldCheck";
-export type GroupColor = "blue" | "amber" | "violet" | "emerald" | "slate";
+export type GroupColor = "teal" | "amber" | "violet" | "emerald" | "slate";
 
 export type PermissionGroup = {
   key: "operations" | "menu" | "customers" | "finance" | "team";
@@ -12,7 +12,7 @@ export type PermissionGroup = {
 };
 
 export const PERMISSION_GROUPS: readonly PermissionGroup[] = [
-  { key: "operations", label: "Operations", icon: "Truck", color: "blue", resources: ["order", "subscription", "delivery", "holiday", "files"] },
+  { key: "operations", label: "Operations", icon: "Truck", color: "teal",resources: ["order", "subscription", "delivery", "holiday", "files"] },
   { key: "menu", label: "Menu & catalog", icon: "UtensilsCrossed", color: "amber", resources: ["menu", "catalog", "discount"] },
   { key: "customers", label: "Customers & support", icon: "Users", color: "violet", resources: ["customer", "inquiry", "ticket", "notification", "wallet"] },
   { key: "finance", label: "Finance & insights", icon: "ChartColumn", color: "emerald", resources: ["finance", "analytics", "audit"] },

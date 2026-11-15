@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment } from "react";
+import { Fragment, type ReactNode } from "react";
 import { SaveIcon } from "lucide-react";
 import { Button } from "@foundry/ui/button";
 import { Card } from "@foundry/ui/card";
@@ -48,6 +48,7 @@ export function SaveBar({
 export interface SwitchRow {
   id: string;
   label: string;
+  icon?: ReactNode;
   hint?: string;
   checked: boolean;
   disabled?: boolean;
@@ -65,7 +66,7 @@ export function SwitchList({ rows }: { rows: SwitchRow[] }) {
             <Field data-disabled={r.disabled || undefined}>
               <FieldLabel className="justify-between px-4 py-3">
                 <FieldContent>
-                  <FieldTitle>{r.label}</FieldTitle>
+                  <FieldTitle className="flex items-center gap-2">{r.icon}{r.label}</FieldTitle>
                   {r.hint && <FieldDescription className="text-xs tabular-nums">{r.hint}</FieldDescription>}
                 </FieldContent>
                 <Switch checked={r.checked} disabled={r.disabled} onCheckedChange={r.onChange} />
