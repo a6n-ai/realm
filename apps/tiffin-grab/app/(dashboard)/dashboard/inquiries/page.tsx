@@ -6,7 +6,7 @@ import { StatCards, StatCardsSkeleton } from "@/components/dashboard/stat-cards"
 import Link from "next/link";
 import { db } from "@/db/client";
 import { deliveryZones, inquiries } from "@/db/schema";
-import { can, requirePermission } from "@/lib/auth/guards";
+import { can, requirePagePermission } from "@/lib/auth/guards";
 import { LOST_REASON_LABELS } from "@/lib/inquiries/lost-reason";
 import { getAppSettings } from "@/lib/settings";
 import { listActiveLeadSources } from "@/lib/inquiries/lead-sources.service";
@@ -117,7 +117,7 @@ export default async function InquiriesPage({ searchParams }: { searchParams: Se
 
 /** The Leads view's recommended leads for the card's owner (default: the signed-in user). Ignores the list's other filters. */
 async function NextLead({ searchParams }: { searchParams: SearchParams }) {
-  await requirePermission({ inquiry: ["read"] });
+  await requirePagePermission({ inquiry: ["read"] });
   const sp = await searchParams;
   const session = await getSession();
   const viewer = session?.user.id;
@@ -278,7 +278,7 @@ function newInquiryTrigger() {
 
 
 async function NewInquiryAction() {
-  await requirePermission({ inquiry: ["read"] });
+  await requirePagePermission({ inquiry: ["read"] });
 
   const { defaultCountry, timezone, sources, zones, catalog } = await loadSheetData();
 
@@ -306,7 +306,7 @@ async function NewInquiryAction() {
 }
 
 async function InquiryStats({ searchParams }: { searchParams: SearchParams }) {
-  await requirePermission({ inquiry: ["read"] });
+  await requirePagePermission({ inquiry: ["read"] });
   const sp = await withDefaultMonth(await searchParams);
   const where = epochBoundsWhere(inquiries.createdAt, sp);
   const owner = resolveOwnerParam(sp.owner, (await getSession())?.user.id);
@@ -348,7 +348,7 @@ function renewalOwnerHref(sp: Awaited<SearchParams>, owner: string): string {
 }
 
 async function InquiriesData({ searchParams }: { searchParams: SearchParams }) {
-  await requirePermission({ inquiry: ["read"] });
+  await requirePagePermission({ inquiry: ["read"] });
 
   // No default-month filter here: a follow-up queue must show older leads. Explicit from/to still apply.
   const sp = await searchParams;

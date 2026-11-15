@@ -8,7 +8,7 @@ import {
   UsersIcon,
   UtensilsCrossedIcon,
 } from "lucide-react";
-import { requirePermission } from "@/lib/auth/guards";
+import { requirePagePermission } from "@/lib/auth/guards";
 import {
   Card,
   CardContent,
@@ -27,7 +27,7 @@ import {
 import { InteractiveDemo } from "./interactive-demo";
 
 export default async function DesignPage() {
-  await requirePermission({ settings: ["read"] });
+  await requirePagePermission({ settings: ["read"] });
 
   return (
     <PageShell>

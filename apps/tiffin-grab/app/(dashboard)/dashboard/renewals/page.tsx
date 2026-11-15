@@ -7,7 +7,7 @@ import { Tabs, TabsList, TabsTrigger } from "@foundry/ui/tabs";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { PageShell, PageHeader, SectionCard, parseFilterState, type FacetDef } from "@/components/ds";
 import { StatCards, StatCardsSkeleton } from "@/components/dashboard/stat-cards";
-import { requirePermission } from "@/lib/auth/guards";
+import { requirePagePermission } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { loadOwnerOptions } from "@/lib/list/facet-options";
 import { UNASSIGNED_OWNER, resolveOwnerParam } from "@/lib/list/presets";
@@ -26,7 +26,7 @@ import { requestNow } from "@/lib/dates/request-now";
 type SearchParams = Promise<Record<string, string | undefined>>;
 
 async function scope() {
-  await requirePermission({ order: ["read"] });
+  await requirePagePermission({ order: ["read"] });
   const session = await getSession();
   const [visible, { timezone }] = await Promise.all([resolveSessionVisibleOrgIds(session), getAppSettings()]);
   const today = zonedDateIso(requestNow(), timezone);
@@ -35,7 +35,7 @@ async function scope() {
 }
 
 export default async function RenewalsPage({ searchParams }: { searchParams: SearchParams }) {
-  await requirePermission({ order: ["read"] });
+  await requirePagePermission({ order: ["read"] });
   // Same date rules as Orders: this month by default, and a text search spans all dates.
   const sp = await withListDates(await searchParams);
   const f = parseRenewalsFilter(sp);

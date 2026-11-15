@@ -3,7 +3,7 @@ import { and, eq } from "drizzle-orm";
 import { notFound, redirect } from "next/navigation";
 import { db } from "@/db/client";
 import { deliveries, orders } from "@/db/schema";
-import { requirePermission } from "@/lib/auth/guards";
+import { requirePagePermission } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 
@@ -13,7 +13,7 @@ import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
  * Deliveries tab. Paste after /dashboard/go/.
  */
 export default async function GoToOrder({ params }: { params: Promise<{ id: string }> }) {
-  await requirePermission({ order: ["read"] });
+  await requirePagePermission({ order: ["read"] });
   const id = decodeURIComponent((await params).id).trim();
   // Same org scope as the order page (readOrder), so an id from another franchise doesn't
   // even resolve to its order id.

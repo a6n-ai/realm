@@ -1,11 +1,11 @@
 import type { ReactNode } from "react";
 import { CoinsIcon } from "lucide-react";
-import { requirePermission } from "@/lib/auth/guards";
+import { requirePagePermission } from "@/lib/auth/guards";
 import { PageShell, PageHeader } from "@/components/ds";
 import { WalletTabs } from "./wallet-tabs";
 
 export default async function WalletLayout({ children }: { children: ReactNode }) {
-  await requirePermission({ wallet: ["read"] });
+  await requirePagePermission({ wallet: ["read"] });
 
   return (
     <PageShell>

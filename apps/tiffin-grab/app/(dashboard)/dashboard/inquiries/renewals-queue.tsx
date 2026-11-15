@@ -5,7 +5,7 @@ import { Badge } from "@/components/reui/badge";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@foundry/ui/tabs";
 import { parseFilterState, type FacetDef } from "@/components/ds";
-import { requirePermission } from "@/lib/auth/guards";
+import { requirePagePermission } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import { loadOwnerOptions } from "@/lib/list/facet-options";
@@ -36,7 +36,7 @@ function queueHref(sp: Record<string, string | undefined>, queue: RenewalQueue):
 }
 /** The Renewals view of the follow-up queue: plans, not leads. Dates follow the top range, as the Renewals desk does. */
 export async function RenewalsQueue({ sp }: { sp: Record<string, string | undefined> }) {
-  await requirePermission({ order: ["read"] });
+  await requirePagePermission({ order: ["read"] });
   const session = await getSession();
   const [visible, { timezone }, owners] = await Promise.all([resolveSessionVisibleOrgIds(session), getAppSettings(), loadOwnerOptions()]);
   const today = zonedDateIso(requestNow(), timezone);

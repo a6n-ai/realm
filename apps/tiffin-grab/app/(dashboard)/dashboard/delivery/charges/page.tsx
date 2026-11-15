@@ -1,6 +1,6 @@
 import { TruckIcon } from "lucide-react";
 import { PageHeader, PageShell } from "@/components/ds";
-import { requirePermission } from "@/lib/auth/guards";
+import { requirePagePermission } from "@/lib/auth/guards";
 import { deliveryService } from "@/lib/services/delivery.service";
 import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 import { DeliveryChargesBoundary } from "./delivery-clients";
@@ -8,7 +8,7 @@ import { DeliveryChargesBoundary } from "./delivery-clients";
 export const dynamic = "force-dynamic";
 
 export default async function DeliveryChargesPage() {
-  await requirePermission({ delivery: ["manage"] });
+  await requirePagePermission({ delivery: ["manage"] });
   const orgId = await resolveRequestOrg();
   const [baseCharge, deliveryStrategies, strategyGroups] = await Promise.all([
     deliveryService.getBaseDeliveryCharge(orgId),

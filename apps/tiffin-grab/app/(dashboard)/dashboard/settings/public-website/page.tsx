@@ -1,13 +1,13 @@
 import Link from "next/link";
 import { ArrowRightIcon, HelpCircleIcon } from "lucide-react";
 import { Card, CardContent, CardHeader, PageHeader } from "@/components/ds";
-import { requirePermission } from "@/lib/auth/guards";
+import { requirePagePermission } from "@/lib/auth/guards";
 
 // One content type today (FAQ); more public-site content graduates in here
 // as its own card once it needs admin editing too — same landing page shape
 // as apps/puchkaman's Settings > Public Website.
 export default async function PublicWebsitePage() {
-  await requirePermission({ settings: ["read"] });
+  await requirePagePermission({ settings: ["read"] });
 
   return (
     <div className="grid gap-6">

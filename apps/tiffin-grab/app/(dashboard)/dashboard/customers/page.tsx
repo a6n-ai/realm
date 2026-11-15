@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import { UsersIcon, PlusIcon, ShoppingBagIcon, RepeatIcon, UserPlusIcon, UserXIcon } from "lucide-react";
 import { StatCards, StatCardsSkeleton, type StatCardItem } from "@/components/dashboard/stat-cards";
 import { and, eq, gte, sql } from "drizzle-orm";
-import { can, requirePermission } from "@/lib/auth/guards";
+import { can, requirePagePermission } from "@/lib/auth/guards";
 import { db } from "@/db/client";
 import { orders, users } from "@/db/schema";
 import { getAppSettings } from "@/lib/settings";
@@ -126,7 +126,7 @@ async function InvitePendingAction() {
 }
 
 async function CustomersStats({ searchParams }: { searchParams: SearchParams }) {
-  await requirePermission(CUSTOMER_READ);
+  await requirePagePermission(CUSTOMER_READ);
   const sp = await withDefaultMonth(await searchParams);
 
   const now = requestNow();
@@ -198,7 +198,7 @@ async function CustomersStats({ searchParams }: { searchParams: SearchParams }) 
 }
 
 async function CustomersData({ searchParams, tab }: { searchParams: SearchParams; tab: "all" | "payments" }) {
-  await requirePermission(CUSTOMER_READ);
+  await requirePagePermission(CUSTOMER_READ);
   const { sort, condition, page, custom } = await customerListQuery(await searchParams);
   const result = await listCustomersPage(condition, page, sort, custom);
   const List = tab === "payments" ? CustomerPaymentsList : CustomersList;

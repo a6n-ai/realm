@@ -1,6 +1,6 @@
 import { type Visible, noVisibleOrgs } from "@/lib/tenant/org-scope";
 import { Suspense, type ReactNode } from "react";
-import { requirePermission } from "@/lib/auth/guards";
+import { requirePagePermission } from "@/lib/auth/guards";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/reui/alert";
 import { BarChart3Icon } from "lucide-react";
@@ -52,7 +52,7 @@ function complaintFacets(tickets: AnalyticsFilterOptions["tickets"]): FacetDef[]
 }
 
 export default async function AnalyticsLayout({ children }: { children: ReactNode }) {
-  await requirePermission({ analytics: ["read"] });
+  await requirePagePermission({ analytics: ["read"] });
   const visible = await resolveSessionVisibleOrgIds(await getSession());
   const noAccess = noVisibleOrgs(visible);
 

@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { RESOURCE_LABELS, orgRoles } from "@/lib/auth/permissions";
-import { can, requirePermission } from "@/lib/auth/guards";
+import { can, requirePagePermission } from "@/lib/auth/guards";
 import { effectivePermissions, getOrgAccess } from "@/lib/auth/org-access";
 import { getSession } from "@/lib/auth/session";
 import { getRoleHolderCounts, listCustomRoles } from "@/lib/services/organizations.service";
@@ -28,7 +28,7 @@ export default function RolesPage({ searchParams }: { searchParams: SearchParams
 
 // An unreadable list throws to organization/error.tsx, which shows the inline error with Retry.
 async function RolesData({ searchParams }: { searchParams: SearchParams }) {
-  await requirePermission({ ac: ["read"] });
+  await requirePagePermission({ ac: ["read"] });
   const sp = await searchParams;
   const session = await getSession();
   const organizationId = session?.session.activeOrganizationId;

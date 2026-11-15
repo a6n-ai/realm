@@ -1,5 +1,5 @@
 import { ONGOING, RUNNING, inOrderStatuses } from "@/lib/orders/status";
-import { inStatuses, PAID, UNPAID } from "@/lib/payments/status";
+import { inStatuses, PAID } from "@/lib/payments/status";
 import { isWordpressImport } from "@/lib/orders/wordpress-import";
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
@@ -10,12 +10,11 @@ import { enabledMethods, findMethod } from "@foundry/payments";
 import { after } from "next/server";
 import { expireUnpaidStripeOrders } from "@/lib/orders/unpaid-checkouts";
 import { mealSizeAddons } from "@/lib/catalog/types";
-import { can, requirePermission } from "@/lib/auth/guards";
+import { can, requirePagePermission } from "@/lib/auth/guards";
 import { settleStaleOnView } from "@/lib/payments/payment-stripe";
 import { getSession } from "@/lib/auth/session";
 import { readOrder, listOrderActivities, ordersService } from "@/lib/orders/orders.service";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
-import { getClaimPaymentContext } from "@/lib/payments/verification";
 import { appToday } from "@/lib/dates/start-date";
 import { earliestNewPlanStart, runningPlans } from "@/lib/orders/order-window";
 import { orderTiffinCounts } from "@/lib/deliveries/customer-deliveries.service";
@@ -48,9 +47,9 @@ import { projectedEndDate, tripsFor } from "@/lib/orders/bounded-deliveries";
 import { dayAllowed, orderDeliveryDays, planDeliveryDays, type DayOfWeek } from "@/lib/deliveries/schedule/delivery-days";
 import type { OrderPricingSnapshot } from "@/lib/pricing/types";
 import { Skeleton } from "@foundry/ui/skeleton";
-import { payLink } from "@/lib/payments/stripe";
 import { receiptPath } from "@/lib/billing/receipt-link";
-import { PaymentsPanel } from "./payments-panel";
+import { Can } from "@/components/auth/can";
+import { PaymentsSection } from "./payments-section";
 import { OrderOverview } from "./order-summary-panel";
 import { OrderInquiryCard, OrderInquiryCardSkeleton } from "./order-inquiry-card";
 import { OrderTabs } from "./order-tabs";
@@ -99,7 +98,7 @@ async function OrderDetail({
   params: Promise<{ id: string }>;
   searchParams: SearchParams;
 }) {
-  await requirePermission({ order: ["read"] });
+  await requirePagePermission({ order: ["read"] });
   const { id } = await params;
   const { week, free } = await searchParams;
 
@@ -160,22 +159,12 @@ async function OrderDetail({
   // Second wave: everything below needs only order/planRow, so run it together
   // instead of five sequential round trips.
   const migratedWaiting = isWordpressImport(order) && order.status === "pending";
-  const claimContexts: Record<string, NonNullable<Awaited<ReturnType<typeof getClaimPaymentContext>>>> = {};
   // Ended plans get no subscription week, so their counts come straight from the delivery rows.
   const ended = order.status === "completed" || order.status === "cancelled";
   const running = inOrderStatuses(RUNNING, order.status);
-  const [categoryRows, catalogSnapshot, , sub, startBlocker, otherPlanEnd, endedCounts, customerPlans, holds] = await Promise.all([
+  const [categoryRows, catalogSnapshot, sub, startBlocker, otherPlanEnd, endedCounts, customerPlans, holds] = await Promise.all([
     dishCategoriesService.forPlanType(planType),
     loadCatalogSnapshot(order.organizationId),
-    // Staff-on-behalf claim form for payments that still need a reference/screenshot.
-    Promise.all(
-      order.payments
-        .filter((p) => !p.addonRequest && (inStatuses(UNPAID, p.status)))
-        .map(async (p) => {
-          const ctx = await getClaimPaymentContext(p.publicId);
-          if (ctx) claimContexts[p.publicId] = ctx;
-        }),
-    ),
     loadSubscription(order, week),
     // A WordPress plan waiting to start has its own Start plan flow.
     migratedWaiting
@@ -210,8 +199,9 @@ async function OrderDetail({
     .filter((p) => inStatuses(PAID, p.status))
     .reduce((sum, p) => sum + Number(p.amount), 0);
   const due = Math.max(Number(order.total) - paid, 0);
-  const toReview = order.payments.filter((p) => p.status === "pending_verification").length;
-  const pendingPay = order.payments.find((p) => p.status === "pending_verification");
+  const canFinance = await can({ finance: ["read"] });
+  const toReview = canFinance ? order.payments.filter((p) => p.status === "pending_verification").length : 0;
+  const pendingPay = canFinance ? order.payments.find((p) => p.status === "pending_verification") : undefined;
   const displayStatus = orderDisplayStatus(order.status, order.payments.filter((p) => !p.addonRequest).map((p) => p.status));
 
   // A WordPress-imported plan waiting to be started: where WordPress left off, and when the
@@ -481,6 +471,7 @@ async function OrderDetail({
       )}
 
       <OrderTabs
+        hidden={canFinance ? [] : ["payments"]}
         badges={toReview ? { payments: <Badge variant="secondary" className="h-5 px-1.5 tabular-nums">{toReview}</Badge> } : undefined}
         panels={{
           overview: (
@@ -506,24 +497,15 @@ async function OrderDetail({
             </>
           ),
           payments: (
-            <SectionCard title="Payments" subtitle="Verify or reject claims, and share the pay link with the customer.">
-              <PaymentsPanel
-                orderId={order.publicId}
-                deploymentId={order.deploymentId}
-                orderTotal={Number(order.total)}
+            <Can perms={{ finance: ["read"] }}>
+              <PaymentsSection
+                order={order}
                 currency={settings.currency}
                 timezone={settings.timezone}
                 checkoutMethodLabel={checkoutMethodLabel}
-                pricingSnapshot={order.pricingSnapshot}
-                payments={order.payments}
-                payLinks={Object.fromEntries(order.payments.filter((p) => p.method === "stripe").map((p) => [p.publicId, payLink(p.publicId)]))}
-                now={requestNow()}
-                claimContexts={claimContexts}
-                canCheck={await can({ finance: ["charge"] })}
-                canRefund={await can({ finance: ["refund"] })}
-                canCharge={(await can({ finance: ["charge"] })) && !!customer?.stripeCustomerId}
+                hasStripeCustomer={!!customer?.stripeCustomerId}
               />
-            </SectionCard>
+            </Can>
           ),
           activity: (
             <SectionCard title="Activity" subtitle="Every change on this order, by staff, the customer or the system.">

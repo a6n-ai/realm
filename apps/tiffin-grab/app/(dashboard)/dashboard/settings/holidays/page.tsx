@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { CalendarOffIcon } from "lucide-react";
 import { zonedDateIso } from "@foundry/commons";
 import { PageHeader, SectionCard } from "@/components/ds";
-import { requirePermission } from "@/lib/auth/guards";
+import { requirePagePermission } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { getAppSettings } from "@/lib/settings";
 import { listDeclarableOrganizations, listHolidays, listNeedsPlacing } from "@/lib/deliveries/holidays.service";
@@ -12,7 +12,7 @@ import { HolidaysTable, HolidaysTableSkeleton, NeedsPlacingTable } from "./holid
 import { requestNow } from "@/lib/dates/request-now";
 
 export default async function HolidaysPage() {
-  await requirePermission({ holiday: ["read"] });
+  await requirePagePermission({ holiday: ["read"] });
   const visible = await resolveSessionVisibleOrgIds(await getSession());
   const [{ timezone }, rows, waiting, organizations] = await Promise.all([
     getAppSettings(), listHolidays(visible), listNeedsPlacing(visible), listDeclarableOrganizations(visible),

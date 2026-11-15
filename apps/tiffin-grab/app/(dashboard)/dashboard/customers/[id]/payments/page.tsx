@@ -11,11 +11,13 @@ import { getAppSettings } from "@/lib/settings";
 import { listPayments } from "@/lib/payments/payments-list.service";
 import { PaymentsTable, PaymentsTableSkeleton } from "../../../payments/payments-table";
 import { loadCustomer, loadViewer } from "../data";
+import { requirePagePermission } from "@/lib/auth/guards";
 
 type SearchParams = Promise<Record<string, string | undefined>>;
 
 /** Payments tab: what this customer has paid, owes and had refunded, then every payment across their orders. */
 export default async function CustomerPaymentsPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: SearchParams }) {
+  await requirePagePermission({ finance: ["read"] });
   const { id } = await params;
   const [data, { timezone }, { currency }, sp] = await Promise.all([loadCustomer(id), loadViewer(), getAppSettings(), searchParams]);
   // The export follows the filters open in the table; paging doesn't apply to a download.

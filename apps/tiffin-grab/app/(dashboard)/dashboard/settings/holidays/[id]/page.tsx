@@ -4,7 +4,7 @@ import { CalendarCheckIcon, CalendarOffIcon, CircleSlashIcon, HourglassIcon, Use
 import { NotFoundError, zonedDateIso } from "@foundry/commons";
 import { formatEpoch } from "@/lib/format/datetime";
 import { PageHeader, SectionCard, StatGrid, TonePill } from "@/components/ds";
-import { requirePermission } from "@/lib/auth/guards";
+import { requirePagePermission } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { humanDate } from "@/lib/deliveries/view";
 import { getAppSettings } from "@/lib/settings";
@@ -14,7 +14,7 @@ import { ClosedDaysTable, NeedsPlacingTable } from "../holidays-table";
 import { requestNow } from "@/lib/dates/request-now";
 
 export default async function HolidayPage({ params }: { params: Promise<{ id: string }> }) {
-  await requirePermission({ holiday: ["read"] });
+  await requirePagePermission({ holiday: ["read"] });
   const { id } = await params;
   const visible = await resolveSessionVisibleOrgIds(await getSession());
   const [{ timezone }, waiting] = await Promise.all([getAppSettings(), listNeedsPlacing(visible)]);

@@ -1,11 +1,11 @@
 import { UploadIcon } from "lucide-react";
 import { PageShell, PageHeader, SectionCard } from "@/components/ds";
-import { requirePermission } from "@/lib/auth/guards";
+import { requirePagePermission } from "@/lib/auth/guards";
 import { loadSourceOptions } from "@/lib/list/facet-options";
 import { ImportForm } from "./import-form";
 
 export default async function ImportInquiriesPage() {
-  await requirePermission({ inquiry: ["import"] });
+  await requirePagePermission({ inquiry: ["import"] });
   const { sources } = await loadSourceOptions();
 
   return (

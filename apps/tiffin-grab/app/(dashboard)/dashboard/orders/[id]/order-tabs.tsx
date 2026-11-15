@@ -18,10 +18,20 @@ const LABEL: Record<OrderTab, string> = {
  * `?tab=` keeps the open tab across refreshes and shareable links. replaceState (not the router)
  * so switching tabs never refetches the page; Next syncs it into useSearchParams.
  */
-export function OrderTabs({ panels, badges }: { panels: Record<OrderTab, ReactNode>; badges?: Partial<Record<OrderTab, ReactNode>> }) {
+export function OrderTabs({
+  panels,
+  badges,
+  hidden = [],
+}: {
+  panels: Record<OrderTab, ReactNode>;
+  badges?: Partial<Record<OrderTab, ReactNode>>;
+  /** Tabs the viewer can't open (their permission is missing); they are not rendered. */
+  hidden?: readonly OrderTab[];
+}) {
+  const tabs = ORDER_TABS.filter((t) => !hidden.includes(t));
   const params = useSearchParams();
   const raw = params.get("tab");
-  const value: OrderTab = (ORDER_TABS as readonly string[]).includes(raw ?? "") ? (raw as OrderTab) : "overview";
+  const value: OrderTab = (tabs as readonly string[]).includes(raw ?? "") ? (raw as OrderTab) : "overview";
 
   const select = (next: string) => {
     const sp = new URLSearchParams(params.toString());
@@ -40,7 +50,7 @@ export function OrderTabs({ panels, badges }: { panels: Record<OrderTab, ReactNo
     <Tabs value={value} onValueChange={select} className="gap-4">
       <div className="-mx-4 overflow-x-auto px-4 md:mx-0 md:px-0">
         <TabsList>
-          {ORDER_TABS.map((t) => (
+          {tabs.map((t) => (
             <TabsTrigger key={t} value={t} className="gap-1.5">
               {LABEL[t]}
               {badges?.[t]}
@@ -48,7 +58,7 @@ export function OrderTabs({ panels, badges }: { panels: Record<OrderTab, ReactNo
           ))}
         </TabsList>
       </div>
-      {ORDER_TABS.map((t) => (
+      {tabs.map((t) => (
         <TabsContent key={t} value={t} className="space-y-4">
           {panels[t]}
         </TabsContent>

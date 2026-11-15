@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { listTaxCodes, parseStripeConfig } from "@foundry/payments/stripe";
 import { Card } from "@foundry/ui/card";
 import { Skeleton } from "@foundry/ui/skeleton";
-import { requirePermission } from "@/lib/auth/guards";
+import { requirePagePermission } from "@/lib/auth/guards";
 import { stripeRuntime } from "@/lib/payments/stripe";
 import { findMethod } from "@foundry/payments";
 import { getIntegrationsConfig } from "@/lib/payments/integrations-config";
@@ -12,7 +12,7 @@ import { PaymentsBackLink } from "../back-link";
 import { StripeSettingsForm, type StripeView } from "./stripe-settings-form";
 
 export default async function StripeSettingsPage() {
-  await requirePermission({ settings: ["read"] });
+  await requirePagePermission({ settings: ["read"] });
   const blob = await getIntegrationsConfig();
   const raw = blob["stripe"] as { installed?: boolean } | undefined;
   if (!raw?.installed) notFound();

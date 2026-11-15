@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { RefreshCwIcon } from "lucide-react";
 import { zonedDateIso } from "@foundry/commons";
 import { PageShell, PageHeader } from "@/components/ds";
-import { can, requirePermission } from "@/lib/auth/guards";
+import { can, requirePagePermission } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { getAppSettings } from "@/lib/settings";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
@@ -12,7 +12,7 @@ import { requestNow } from "@/lib/dates/request-now";
 
 /** One customer's renewals only: how often and how fast they renew, each plan and what followed it, and the reminders sent. */
 export default async function CustomerRenewalPage({ params }: { params: Promise<{ id: string }> }) {
-  await requirePermission({ order: ["read"] });
+  await requirePagePermission({ order: ["read"] });
   const { id } = await params;
   const session = await getSession();
   const [visible, { timezone }] = await Promise.all([resolveSessionVisibleOrgIds(session), getAppSettings()]);

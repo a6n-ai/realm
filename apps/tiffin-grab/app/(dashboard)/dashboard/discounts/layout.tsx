@@ -1,12 +1,12 @@
 import type { ReactNode } from "react";
 import { TicketPercentIcon } from "lucide-react";
-import { requirePermission } from "@/lib/auth/guards";
+import { requirePagePermission } from "@/lib/auth/guards";
 import { PageShell, PageHeader } from "@/components/ds";
 import { SectionDateRange } from "@/components/filters/section-date-range";
 import { DiscountsTabs } from "./discounts-tabs";
 
 export default async function DiscountsLayout({ children }: { children: ReactNode }) {
-  await requirePermission({ discount: ["read"] });
+  await requirePagePermission({ discount: ["read"] });
 
   return (
     <PageShell>

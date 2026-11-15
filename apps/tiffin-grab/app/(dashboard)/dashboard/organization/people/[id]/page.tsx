@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeftIcon } from "lucide-react";
 import { Skeleton } from "@foundry/ui/skeleton";
-import { requirePermission } from "@/lib/auth/guards";
+import { requirePagePermission } from "@/lib/auth/guards";
 import { RESOURCE_LABELS } from "@/lib/auth/permissions";
 import { loadMemberPanel } from "../../members/member-panel-data";
 import { MemberDetail } from "../../members/member-panel";
@@ -22,7 +22,7 @@ export default function PersonPage({ params }: { params: Promise<{ id: string }>
 }
 
 async function PersonData({ params }: { params: Promise<{ id: string }> }) {
-  await requirePermission({ member: ["update"] });
+  await requirePagePermission({ member: ["update"] });
   const { id } = await params;
   const data = await loadMemberPanel(id);
   if (!data) notFound();

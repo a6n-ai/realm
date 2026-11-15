@@ -17,10 +17,10 @@ const TABS = [
 ] as const;
 
 /** RoutedTabNav's line tabs, but Overview is the bare customer URL, so the longest matching href wins (a prefix match would light Overview on every tab). */
-export function CustomerTabs({ customerPublicId, showWallet }: { customerPublicId: string; showWallet: boolean }) {
+export function CustomerTabs({ customerPublicId, hidden }: { customerPublicId: string; hidden: readonly string[] }) {
   const pathname = usePathname();
   const base = `/dashboard/customers/${customerPublicId}`;
-  const tabs = showWallet ? TABS : TABS.filter((t) => t.seg !== "/wallet");
+  const tabs = TABS.filter((t) => !hidden.includes(t.seg));
   const active = [...tabs].reverse().find((t) => pathname === base + t.seg || pathname.startsWith(`${base}${t.seg}/`))?.seg ?? "";
   return (
     <Tabs value={active}>

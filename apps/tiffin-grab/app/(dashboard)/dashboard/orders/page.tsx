@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { PackageIcon, ActivityIcon, CalendarClockIcon, CalendarOffIcon, RefreshCwIcon, CircleXIcon, FlagIcon, PlayCircleIcon, WalletIcon, ShieldCheckIcon, AlarmClockIcon, GiftIcon, TruckIcon, PackageCheckIcon, CalendarX2Icon, UsersIcon } from "lucide-react";
 import { formatMoney, zonedDateIso } from "@foundry/commons";
-import { can, requirePermission } from "@/lib/auth/guards";
+import { can, requirePagePermission } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { loadOrderFilterOptions, loadOwnerOptions } from "@/lib/list/facet-options";
 import { after } from "next/server";
@@ -126,7 +126,7 @@ export default async function OrdersPage({
 
 // Only while WordPress plans are waiting to be started; gone once the switch-over is done.
 async function StartMigratedAction() {
-  await requirePermission({ order: ["read"] });
+  await requirePagePermission({ order: ["read"] });
   const waiting = await countMigratedWaiting();
   return waiting > 0 ? <StartMigratedDialog waiting={waiting} /> : null;
 }
@@ -143,7 +143,7 @@ async function freeRange(raw: Awaited<SearchParams>): Promise<FreeTiffinRange> {
 }
 
 async function OrdersViews({ searchParams }: { searchParams: SearchParams }) {
-  await requirePermission({ order: ["read"] });
+  await requirePagePermission({ order: ["read"] });
   const visible = await resolveSessionVisibleOrgIds(await getSession());
   const [lookOutCount, missedCount, paymentReviewCount, freeCount] = await Promise.all([
     countLookOutOrders(visible),
@@ -155,7 +155,7 @@ async function OrdersViews({ searchParams }: { searchParams: SearchParams }) {
 }
 
 async function OrdersStats({ searchParams }: { searchParams: SearchParams }) {
-  await requirePermission({ order: ["read"] });
+  await requirePagePermission({ order: ["read"] });
   const sp = await withDefaultMonth(await searchParams);
   const range = { from: Number(sp.from), to: Number(sp.to) };
   const visible = await resolveSessionVisibleOrgIds(await getSession());
@@ -275,7 +275,7 @@ async function OrdersStats({ searchParams }: { searchParams: SearchParams }) {
 }
 
 async function OrdersData({ searchParams }: { searchParams: SearchParams }) {
-  await requirePermission({ order: ["read"] });
+  await requirePagePermission({ order: ["read"] });
   after(() => expireUnpaidStripeOrders({}));
 
   const raw = await searchParams;
@@ -372,7 +372,7 @@ async function OrdersData({ searchParams }: { searchParams: SearchParams }) {
 }
 
 async function NewOrderAction() {
-  await requirePermission({ order: ["read"] });
+  await requirePagePermission({ order: ["read"] });
 
   const [{ defaultCountry, currency }, sources, catalog, slots, planKeys] = await Promise.all([
     getAppSettings(),

@@ -126,6 +126,8 @@ const nextConfig: NextConfig = {
     // 10 MB, so anything bigger was rejected or truncated.
     serverActions: { bodySizeLimit: "25mb" },
     proxyClientMaxBodySize: "25mb",
+    // forbidden() (the friendly no-access page) is experimental and needs this flag.
+    authInterrupts: true,
   },
   // Webpack's client compiler rejects the `node:` scheme. A client page
   // (`@relay/engine` contact-list upload) reaches `@foundry/commons` `generateCode`,

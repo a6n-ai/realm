@@ -9,7 +9,7 @@ import { leadSources, orders, users } from "@/db/schema";
 import { canReassign } from "@/lib/staff/reassign";
 import { listAssignableStaff } from "@/lib/staff/assignable-staff";
 import { reassignInquiry } from "../actions";
-import { requirePermission } from "@/lib/auth/guards";
+import { requirePagePermission } from "@/lib/auth/guards";
 import { assertInquiriesVisible, inquiriesService } from "@/lib/inquiries/inquiries.service";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import { getAppSettings } from "@/lib/settings";
@@ -39,7 +39,7 @@ export default function InquiryDetailPage({ params }: { params: Promise<{ id: st
 }
 
 async function InquiryDetail({ params }: { params: Promise<{ id: string }> }) {
-  await requirePermission({ inquiry: ["read"] });
+  await requirePagePermission({ inquiry: ["read"] });
   const { id } = await params;
 
   let inq;

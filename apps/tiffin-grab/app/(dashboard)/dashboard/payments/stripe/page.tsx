@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { after } from "next/server";
 import { eq } from "drizzle-orm";
 import { SectionCard } from "@/components/ds";
-import { can, requirePermission } from "@/lib/auth/guards";
+import { can, requirePagePermission } from "@/lib/auth/guards";
 import { payments } from "@/db/schema";
 import { stripeRuntime } from "@/lib/payments/stripe";
 import { settleStaleOnView } from "@/lib/payments/payment-stripe";
@@ -31,7 +31,7 @@ export default function StripePaymentsPage({ searchParams }: { searchParams: Sea
 }
 
 async function StripeData({ searchParams }: { searchParams: SearchParams }) {
-  await requirePermission({ finance: ["read"] });
+  await requirePagePermission({ finance: ["read"] });
   const [{ rows, total, page, size, sort }, rt] = await Promise.all([
     listPayments(await searchParams, { where: eq(payments.method, "stripe") }),
     stripeRuntime(),

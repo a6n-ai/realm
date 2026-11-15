@@ -4,7 +4,7 @@ import { pageOffset } from "@foundry/design-system/filters/parse-filter-state";
 import { parseSort } from "@foundry/design-system/list-sort";
 import { whoCan, type ResourceLabel, type WhoCanHit } from "@foundry/crm";
 import { getSession } from "@/lib/auth/session";
-import { requirePermission } from "@/lib/auth/guards";
+import { requirePagePermission } from "@/lib/auth/guards";
 import { RESOURCE_LABELS } from "@/lib/auth/permissions";
 import { getRoleChoices, type RoleChoice } from "@/lib/auth/role-options";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
@@ -66,7 +66,7 @@ export default function PeoplePage({ searchParams }: { searchParams: SearchParam
 
 // Small dataset (org-scoped staff count), so filter, search and sort run in memory before paging.
 async function PeopleData({ searchParams }: { searchParams: SearchParams }) {
-  await requirePermission({ member: ["update"] });
+  await requirePagePermission({ member: ["update"] });
   const session = await getSession();
   const sp = await searchParams;
   if (sp.member) redirect(`/dashboard/organization/people/${sp.member}`);

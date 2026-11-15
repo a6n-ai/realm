@@ -7,6 +7,7 @@ import { upcomingAddressChanges } from "@/lib/services/customers.service";
 import { CustomerOrdersTable } from "../customer-orders-table";
 import { loadCustomer, loadViewer } from "../data";
 import { requestNow } from "@/lib/dates/request-now";
+import { requirePagePermission } from "@/lib/auth/guards";
 
 
 // Imported WordPress lines already end in city + postal code; don't print them twice.
@@ -24,6 +25,7 @@ export default async function CustomerOrdersPage({
   params: Promise<{ id: string }>;
   searchParams: Promise<{ status?: string }>;
 }) {
+  await requirePagePermission({ order: ["read"] });
   const { id } = await params;
   const activeOnly = (await searchParams).status === "active";
   const [data, { timezone }] = await Promise.all([loadCustomer(id), loadViewer()]);

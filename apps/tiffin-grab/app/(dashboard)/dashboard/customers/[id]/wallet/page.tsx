@@ -14,7 +14,7 @@ import { walletEntryLabel } from "@/lib/wallet/source-labels";
 import { eventLabel } from "@relay/engine/ui/template-status";
 import { walletLedgerRows, type WalletSortColumn } from "@/lib/wallet/wallet-ledger.service";
 import { loadCustomer } from "../data";
-import { requirePermission } from "@/lib/auth/guards";
+import { requirePagePermission } from "@/lib/auth/guards";
 import { CustomerWalletTable, CustomerWalletTableSkeleton, type CustomerWalletColumn } from "./customer-wallet-table";
 
 type SearchParams = Promise<Record<string, string | undefined>>;
@@ -39,7 +39,7 @@ export default function CustomerWalletPage({ params, searchParams }: { params: P
 
 // Wallet data (memos, who gave coins) is admin-only, same as the Wallet section.
 async function WalletStats({ params }: { params: Promise<{ id: string }> }) {
-  await requirePermission({ wallet: ["read"] });
+  await requirePagePermission({ wallet: ["read"] });
   const { id } = await params;
   const data = await loadCustomer(id);
   const [s, { currency, timezone }] = await Promise.all([customerWalletStats(data.profile.id), getAppSettings()]);
@@ -56,7 +56,7 @@ async function WalletStats({ params }: { params: Promise<{ id: string }> }) {
 }
 
 async function WalletRows({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: SearchParams }) {
-  await requirePermission({ wallet: ["read"] });
+  await requirePagePermission({ wallet: ["read"] });
   const { id } = await params;
   const [data, sp, { timezone }] = await Promise.all([loadCustomer(id), searchParams, getAppSettings()]);
   const userId = data.profile.id;

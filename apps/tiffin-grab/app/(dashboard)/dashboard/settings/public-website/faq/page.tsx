@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { HelpCircleIcon } from "lucide-react";
 import { PageHeader } from "@/components/ds";
-import { requirePermission } from "@/lib/auth/guards";
+import { requirePagePermission } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { listAllFaqs } from "@/lib/landing/faqs.service";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
@@ -19,7 +19,7 @@ export default function PublicFaqSettingsPage() {
 }
 
 async function FaqData() {
-  await requirePermission({ settings: ["read"] });
+  await requirePagePermission({ settings: ["read"] });
   const session = await getSession();
   const visible = await resolveSessionVisibleOrgIds(session);
   const faqs = await listAllFaqs(visible);

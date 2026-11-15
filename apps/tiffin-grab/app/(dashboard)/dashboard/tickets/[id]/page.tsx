@@ -9,7 +9,7 @@ import { NotFoundError } from "@foundry/commons";
 import { db } from "@/db/client";
 import { mealSizes, orders, plans, tickets, users } from "@/db/schema";
 import { formatEpoch } from "@/lib/format/datetime";
-import { requirePermission } from "@/lib/auth/guards";
+import { requirePagePermission } from "@/lib/auth/guards";
 import { getAppSettings } from "@/lib/settings";
 import {
   ticketsService,
@@ -39,7 +39,7 @@ const AUTHOR_LABEL: Record<string, string> = {
 // The three Suspense blocks below each need the same auth + ticket. cache()
 // dedupes them per request so one row-click does one permission check + one read
 // instead of three of each (the fan-out that intermittently saturated the pool).
-const ensureStaff = cache(() => requirePermission({ ticket: ["read"] }));
+const ensureStaff = cache(() => requirePagePermission({ ticket: ["read"] }));
 const loadTicket = cache((id: string) => ticketsService.readForStaff(id));
 
 export default function TicketDetailPage({ params }: { params: Promise<{ id: string }> }) {

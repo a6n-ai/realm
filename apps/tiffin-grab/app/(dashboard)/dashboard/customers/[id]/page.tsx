@@ -3,6 +3,7 @@ import { formatMoney } from "@foundry/commons";
 import { AdminContactForm } from "@/components/dashboard/admin-contact-form";
 import { Badge } from "@foundry/ui/badge";
 import { SectionCard } from "@/components/ds";
+import { Can } from "@/components/auth/can";
 import { formatEpoch } from "@/lib/format/datetime";
 import { addressScopeFor, addressService } from "@/lib/services/addresses.service";
 import { CustomerInquiriesTable } from "./customer-inquiries-table";
@@ -26,24 +27,26 @@ export default async function CustomerOverviewPage({ params }: { params: Promise
   return (
     <>
       <div className="grid gap-4 md:grid-cols-2">
-        <SectionCard title="Payment">
-          <dl className="space-y-2.5 text-sm">
-            <div className="flex items-center justify-between gap-3">
-              <dt className="text-muted-foreground flex items-center gap-2">
-                <CreditCardIcon className="size-4" /> Total paid
-              </dt>
-              <dd className="tabular-nums font-medium">{formatMoney(data.payment.totalPaid)}</dd>
-            </div>
-            <div className="flex items-center justify-between gap-3">
-              <dt className="text-muted-foreground">Pending verification</dt>
-              <dd className="tabular-nums font-medium">{data.payment.pendingCount}</dd>
-            </div>
-            <div className="flex items-center justify-between gap-3">
-              <dt className="text-muted-foreground">Last method</dt>
-              <dd className="font-medium capitalize">{data.payment.lastMethod ?? "—"}</dd>
-            </div>
-          </dl>
-        </SectionCard>
+        <Can perms={{ finance: ["read"] }}>
+          <SectionCard title="Payment">
+            <dl className="space-y-2.5 text-sm">
+              <div className="flex items-center justify-between gap-3">
+                <dt className="text-muted-foreground flex items-center gap-2">
+                  <CreditCardIcon className="size-4" /> Total paid
+                </dt>
+                <dd className="tabular-nums font-medium">{formatMoney(data.payment.totalPaid)}</dd>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <dt className="text-muted-foreground">Pending verification</dt>
+                <dd className="tabular-nums font-medium">{data.payment.pendingCount}</dd>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <dt className="text-muted-foreground">Last method</dt>
+                <dd className="font-medium capitalize">{data.payment.lastMethod ?? "—"}</dd>
+              </div>
+            </dl>
+          </SectionCard>
+        </Can>
 
         <SectionCard title="Account">
           <dl className="space-y-2.5 text-sm">
@@ -78,9 +81,11 @@ export default async function CustomerOverviewPage({ params }: { params: Promise
         </SectionCard>
       )}
 
-      <SectionCard title="Inquiries">
-        <CustomerInquiriesTable inquiries={data.inquiries} />
-      </SectionCard>
+      <Can perms={{ inquiry: ["read"] }}>
+        <SectionCard title="Inquiries">
+          <CustomerInquiriesTable inquiries={data.inquiries} />
+        </SectionCard>
+      </Can>
     </>
   );
 }

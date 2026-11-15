@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ChevronRightIcon } from "lucide-react";
 import { Badge } from "@foundry/ui/badge";
 import { SectionCard } from "@/components/ds";
-import { requirePermission } from "@/lib/auth/guards";
+import { requirePagePermission } from "@/lib/auth/guards";
 import { ensureMenuReminder } from "@/lib/notifications/menu-reminder";
 import { listSystemCampaigns } from "@/lib/notifications/lists";
 import { getAppSettings } from "@/lib/settings";
@@ -15,7 +15,7 @@ import { formatEpoch } from "@/lib/format/datetime";
  */
 export async function BulkTemplates() {
   // Own guard, not just the layout's: this render writes (seeds the reminder).
-  await requirePermission({ notification: ["write"] });
+  await requirePagePermission({ notification: ["write"] });
   // Seeded on first view so staff can review the copy before the first send.
   await ensureMenuReminder();
   const [rows, { timezone }] = await Promise.all([

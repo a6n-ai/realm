@@ -1,11 +1,11 @@
 import { redirect } from "next/navigation";
-import { requirePermission } from "@/lib/auth/guards";
+import { requirePagePermission } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { getMembersForOrgs } from "../members-query";
 
 // Old deep links carry the user publicId; the member page is keyed by membership id.
 export default async function MemberRedirect({ params }: { params: Promise<{ id: string }> }) {
-  await requirePermission({ member: ["update"] });
+  await requirePagePermission({ member: ["update"] });
   const { id } = await params;
   const session = await getSession();
   const orgId = session?.session.activeOrganizationId;

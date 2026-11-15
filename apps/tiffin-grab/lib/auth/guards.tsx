@@ -1,6 +1,8 @@
 import { AuthError, ForbiddenError } from "@foundry/commons";
 import { createOrgPermissionGuards } from "@foundry/auth";
+import { forbidden } from "next/navigation";
 import { getSession } from "./session";
+import { isForbiddenDenial } from "./forbidden-denial";
 import { effectivePermissions, getOrgAccess, getOrgAccessFor, rolePermissions } from "./org-access";
 import { orgRoles } from "./permissions";
 import { recordAudit } from "@/lib/identity/audit";
@@ -17,6 +19,19 @@ const onPlatformBypass = async (userId: string, perms: Record<string, string[]>)
   });
 
 export const { can, requirePermission } = createOrgPermissionGuards({ getAccess: getOrgAccess, onPlatformBypass });
+
+/**
+ * For page and layout renders: a denial shows the no-access page (app/(dashboard)/dashboard/forbidden.tsx).
+ * Server actions and route handlers keep `requirePermission`, so they still return the refusal text.
+ */
+export async function requirePagePermission(perms: Record<string, string[]>): Promise<void> {
+  try {
+    await requirePermission(perms);
+  } catch (error) {
+    if (isForbiddenDenial(error)) forbidden();
+    throw error;
+  }
+}
 
 const guardsFor = (organizationId: string) =>
   createOrgPermissionGuards({ getAccess: () => getOrgAccessFor(organizationId), onPlatformBypass });

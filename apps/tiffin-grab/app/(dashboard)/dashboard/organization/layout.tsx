@@ -1,10 +1,10 @@
 import type { ReactNode } from "react";
 import { Building2Icon } from "lucide-react";
-import { can, requirePermission } from "@/lib/auth/guards";
+import { can, requirePagePermission } from "@/lib/auth/guards";
 import { PageHeader, PageShell, RoutedTabNav } from "@/components/ds";
 
 export default async function OrganizationLayout({ children }: { children: ReactNode }) {
-  await requirePermission({ member: ["update"] });
+  await requirePagePermission({ member: ["update"] });
   const canReadRoles = await can({ ac: ["read"] });
   return (
     <PageShell>

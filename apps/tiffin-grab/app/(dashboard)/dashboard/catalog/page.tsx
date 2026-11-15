@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { ArrowLeftRightIcon, ArrowRightIcon, LayersIcon, ListChecksIcon, UtensilsCrossedIcon } from "lucide-react";
-import { requirePermission } from "@/lib/auth/guards";
+import { requirePagePermission } from "@/lib/auth/guards";
 import { Card, CardContent, CardHeader, PageHeader, PageShell } from "@/components/ds";
 import { catalogIndexEntries } from "@/lib/catalog/resource-config";
 
 export default async function CatalogIndexPage() {
-  await requirePermission({ catalog: ["read"] });
+  await requirePagePermission({ catalog: ["read"] });
   return (
     <PageShell>
       <PageHeader icon={UtensilsCrossedIcon} title="Catalog" />

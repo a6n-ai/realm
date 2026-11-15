@@ -22,29 +22,37 @@ import { loadCustomer, loadViewer } from "./data";
 // One customer, split into tabs (each its own URL) instead of one long page. The header,
 // stats and tab bar stay put while a tab loads.
 export default async function CustomerLayout({ children, params }: { children: React.ReactNode; params: Promise<{ id: string }> }) {
-  const [{ id }, { canWallet }] = await Promise.all([params, loadViewer()]);
+  const [{ id }, { canWallet, canOrder, canFinance }] = await Promise.all([params, loadViewer()]);
+  // A tab the viewer can't open is not offered; its route still checks the permission itself.
+  const hiddenTabs = [
+    ...(canWallet ? [] : ["/wallet"]),
+    ...(canOrder ? [] : ["/orders", "/renewals"]),
+    ...(canFinance ? [] : ["/payments"]),
+  ];
   return (
     <PageShell>
       <Suspense fallback={<HeaderSkeleton />}>
         <CustomerHeader id={id} />
       </Suspense>
-      <CustomerTabs customerPublicId={id} showWallet={canWallet} />
+      <CustomerTabs customerPublicId={id} hidden={hiddenTabs} />
       {children}
     </PageShell>
   );
 }
 
 async function CustomerHeader({ id }: { id: string }) {
-  const [data, { canGive, timezone }] = await Promise.all([loadCustomer(id), loadViewer()]);
+  const [data, { canGive, canWallet, canOrder, canFinance, timezone }] = await Promise.all([loadCustomer(id), loadViewer()]);
   const [coinBalance, rate, { currency }, [{ planEnd }]] = await Promise.all([
-    walletService.balance(data.profile.id),
-    currentRate(),
+    canWallet ? walletService.balance(data.profile.id) : 0,
+    canWallet ? currentRate() : null,
     getAppSettings(),
-    db
-      .select({ planEnd: max(deliveries.deliveryDate) })
-      .from(deliveries)
-      .innerJoin(orders, eq(orders.id, deliveries.orderId))
-      .where(and(eq(orders.userId, data.profile.id), eq(orders.status, "active"))),
+    canOrder
+      ? db
+          .select({ planEnd: max(deliveries.deliveryDate) })
+          .from(deliveries)
+          .innerJoin(orders, eq(orders.id, deliveries.orderId))
+          .where(and(eq(orders.userId, data.profile.id), eq(orders.status, "active")))
+      : [{ planEnd: null }],
   ]);
   const activeOrders = data.orders.filter((o) => o.status === "active").length;
   const lifetimeSpend = data.orders.reduce((sum, o) => sum + Number(o.total), 0);
@@ -55,11 +63,13 @@ async function CustomerHeader({ id }: { id: string }) {
   const last = data.orders[0];
   const first = data.orders[data.orders.length - 1];
   const cards: StatCardItem[] = [
-    { label: "Orders", value: data.orders.length, icon: PackageIcon, hint: `${activeOrders} active`, href: `/dashboard/customers/${id}/orders` },
-    { label: "Active", value: activeOrders, icon: ActivityIcon, hint: activeOrders && planEnd ? `ends ${formatDateOnly(planEnd)}` : "No active plan", href: `/dashboard/customers/${id}/orders?status=active` },
-    { label: "Lifetime spend", value: usd(lifetimeSpend), icon: WalletIcon, hint: first ? `since ${formatEpoch(first.createdAt, { mode: "date", timeZone: timezone })}` : "no orders yet" },
-    { label: "Wallet coins", value: coinBalance, icon: CoinsIcon, hint: rate == null ? undefined : `≈ ${usd(coinBalance * rate)}` },
-    { label: "Last order", value: last ? formatEpoch(last.createdAt, { mode: "date", timeZone: timezone }) : "—", icon: CalendarClockIcon, hint: last ? last.status : "no orders yet" },
+    ...(canOrder ? [
+      { label: "Orders", value: data.orders.length, icon: PackageIcon, hint: `${activeOrders} active`, href: `/dashboard/customers/${id}/orders` },
+      { label: "Active", value: activeOrders, icon: ActivityIcon, hint: activeOrders && planEnd ? `ends ${formatDateOnly(planEnd)}` : "No active plan", href: `/dashboard/customers/${id}/orders?status=active` },
+    ] : []),
+    ...(canFinance ? [{ label: "Lifetime spend", value: usd(lifetimeSpend), icon: WalletIcon, hint: first ? `since ${formatEpoch(first.createdAt, { mode: "date", timeZone: timezone })}` : "no orders yet" }] : []),
+    ...(canWallet ? [{ label: "Wallet coins", value: coinBalance, icon: CoinsIcon, hint: rate == null ? undefined : `≈ ${usd(coinBalance * rate)}` }] : []),
+    ...(canOrder ? [{ label: "Last order", value: last ? formatEpoch(last.createdAt, { mode: "date", timeZone: timezone }) : "—", icon: CalendarClockIcon, hint: last ? last.status : "no orders yet" }] : []),
   ];
   return (
     <>
