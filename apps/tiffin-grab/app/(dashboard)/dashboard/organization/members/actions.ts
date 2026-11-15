@@ -6,7 +6,7 @@ import { ForbiddenError, ValidationError } from "@foundry/commons";
 import { and, eq } from "drizzle-orm";
 import { headers } from "next/headers";
 import { db } from "@/db/client";
-import { member, users } from "@/db/schema";
+import { invitation, member, users } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import type { ActionResult } from "@/lib/actions/action-result";
 import { staffAction, type StaffActionOpts } from "@/lib/actions/staff-action";
@@ -178,15 +178,22 @@ export async function resendInvite(userId: string, organizationId: string): Prom
     const role = m?.role ?? "member";
     await requirePermissionIn(organizationId, INVITE_PERMS);
     await requireCanAssignRole(organizationId, role);
-    const invitation = await authApi(async () =>
+    // BA re-issues a pending invitation with its own role, so check that role before it runs.
+    const [pending] = await db
+      .select({ role: invitation.role })
+      .from(invitation)
+      .where(and(eq(invitation.organizationId, organizationId), eq(invitation.email, u.email), eq(invitation.status, "pending")))
+      .limit(1);
+    if (pending?.role) await requireCanAssignRole(organizationId, pending.role);
+    const issued = await authApi(async () =>
       auth.api.createInvitation({
         body: { email: u.email!, role: role as "member", organizationId, resend: true },
         headers: await headers(),
       }),
     );
-    // BA keeps a pending invitation's own role, so the mail must say that one, within the same ceiling.
-    await requireCanAssignRole(organizationId, invitation.role);
-    await sendStaffInviteLink({ email: u.email, role: invitation.role, invitationId: invitation.id });
+    // The mail must name the role BA actually issued.
+    await requireCanAssignRole(organizationId, issued.role);
+    await sendStaffInviteLink({ email: u.email, role: issued.role, invitationId: issued.id });
     return { email: u.email };
   });
 }
