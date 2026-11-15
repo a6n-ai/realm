@@ -348,7 +348,7 @@ export type TiffinCounts = {
   mealDays?: DayOfWeek[] | null;
 };
 
-// AUTH-FREE core: callers MUST have already gated (assertCanManageOrder for /me, requireStaff for
+// AUTH-FREE core: callers MUST have already gated (assertCanManageOrder for /me, requirePermission for
 // /dashboard). Use myTiffinCounts from customer code — it adds the ownership check.
 export async function orderTiffinCounts(orderPublicId: string): Promise<TiffinCounts> {
   const [order] = await db
@@ -414,7 +414,7 @@ export async function orderTiffinCounts(orderPublicId: string): Promise<TiffinCo
 }
 
 // Ownership-checked counts for the customer header. Staff read via orderTiffinCounts directly
-// (the dashboard page already gates with requireStaff).
+// (the dashboard page already gates with requirePermission).
 export async function myTiffinCounts(userId: bigint, orderPublicId: string): Promise<TiffinCounts> {
   await assertOwnsOrder(userId, orderPublicId); // IDOR gate — before the read
   return orderTiffinCounts(orderPublicId);

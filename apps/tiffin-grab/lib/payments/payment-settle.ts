@@ -21,7 +21,7 @@ export async function findUnpaidPayment(orderPublicId: string): Promise<string> 
 /**
  * Staff already hold the customer's payment screenshot when creating the order:
  * record it as the claim and approve it in one go, so the plan starts now
- * instead of waiting in Payments → Requests. Callers MUST requireStaff first.
+ * instead of waiting in Payments → Requests. Callers MUST check permissions first.
  */
 export async function settleWithStaffProof(
   paymentPublicId: string,

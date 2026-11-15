@@ -57,7 +57,7 @@ export type FranchiseLocation = OrgLocation & { id: string; name: string; client
 
 // Public-safe location listing (no member counts, no parent/brand rows without
 // a city set) — used by the public location popup/picker and the /locations
-// map. Not gated behind requireAdmin; nothing here is sensitive.
+// map. Not gated behind a permission check; nothing here is sensitive.
 export async function listFranchiseLocations(): Promise<FranchiseLocation[]> {
   return db
     .select({

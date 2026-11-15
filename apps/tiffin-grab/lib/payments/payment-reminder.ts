@@ -41,7 +41,7 @@ export function reminderInstructions(
 /**
  * Staff-triggered only (never scheduled): emails the customer a single-use
  * sign-in link to Finances → Bills, where they upload the payment screenshot.
- * Callers MUST authorize (requireStaff) first.
+ * Callers MUST authorize (requirePermission) first.
  */
 export async function sendPaymentReminder(
   orderPublicId: string,

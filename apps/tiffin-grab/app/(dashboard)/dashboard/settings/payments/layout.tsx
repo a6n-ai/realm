@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { BanknoteIcon } from "lucide-react";
 import { PageHeader } from "@/components/ds";
 
-// Admin gate lives on settings/layout — no second requireAdmin here.
+// Admin gate lives on settings/layout — no second guard here.
 export default async function PaymentsSettingsLayout({ children }: { children: ReactNode }) {
   return (
     <div className="grid gap-6">

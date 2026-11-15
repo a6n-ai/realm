@@ -408,7 +408,7 @@ export async function claimPayment(
 }
 
 // Staff rejects a submitted claim. pending_verification → rejected with a note;
-// customer may re-claim. Auth lives at the action layer (requireStaff).
+// customer may re-claim. Auth lives at the action layer (requirePermission).
 export async function rejectPayment(
   paymentPublicId: string,
   note: string,

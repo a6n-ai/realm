@@ -31,7 +31,7 @@ export const statement = createOrgStatement(appStatement);
 
 export const ac = createAccessControl(statement);
 
-// Today's member plus what requireStaff admits; Task 11 confirms against staff pages.
+// What a staff member holds: the pages and actions every staff account could use before org permissions.
 export const MEMBER_PERMISSIONS = {
   order: ["read", "write", "cancel"],
   subscription: ["read", "write", "pause"],
