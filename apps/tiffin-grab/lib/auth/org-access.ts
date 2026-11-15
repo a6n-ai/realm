@@ -64,3 +64,18 @@ export const getOrgAccess = cache(async (): Promise<OrgAccess> => {
   }
   return getOrgAccessFor(organizationId);
 });
+
+/** Display name of the caller's role in the active org, for the sidebar user chip. */
+export async function getActiveRoleLabel(): Promise<string | null> {
+  const session = await getSession();
+  if (!session) return null;
+  if (session.user.platformRole === "super_admin") return "Super admin";
+  const organizationId = session.session.activeOrganizationId;
+  const dbUserId = organizationId ? await userIdByPublicId(session.user.id) : null;
+  if (!organizationId || !dbUserId) return null;
+  const [row] = await db
+    .select({ role: member.role })
+    .from(member)
+    .where(and(eq(member.organizationId, organizationId), eq(member.userId, dbUserId)));
+  return row ? row.role.split(",").map((r) => r.trim().replaceAll("_", " ")).filter(Boolean).join(", ") : null;
+}

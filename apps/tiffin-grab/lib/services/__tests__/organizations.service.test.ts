@@ -257,7 +257,7 @@ describe("updateMemberRole (integration)", () => {
 describe("resolveSessionVisibleOrgIds (integration)", () => {
   afterEach(reset);
 
-  it("returns the member's own org ids for a normal staff session", async () => {
+  it("returns the active org for a member of it", async () => {
     const [org] = await db
       .insert(organization)
       .values({ name: "Franchise Admin Org", clientCode: "test-svc-franchise-admin" })
@@ -268,7 +268,10 @@ describe("resolveSessionVisibleOrgIds (integration)", () => {
       .returning({ id: users.id, publicId: users.publicId });
     await db.insert(member).values({ organizationId: org.id, userId: user.id, role: "admin" });
 
-    const orgIds = await resolveSessionVisibleOrgIds({ user: { id: user.publicId } });
+    const orgIds = await resolveSessionVisibleOrgIds({
+      user: { id: user.publicId },
+      session: { activeOrganizationId: org.id },
+    });
 
     expect(orgIds).toEqual([org.id]);
   });
@@ -279,7 +282,10 @@ describe("resolveSessionVisibleOrgIds (integration)", () => {
       .values({ name: "Customer", email: `customer-${Math.random().toString(36).slice(2)}@test.invalid`, role: "admin" })
       .returning({ publicId: users.publicId });
 
-    const orgIds = await resolveSessionVisibleOrgIds({ user: { id: user.publicId } });
+    const orgIds = await resolveSessionVisibleOrgIds({
+      user: { id: user.publicId },
+      session: { activeOrganizationId: "org_none" },
+    });
 
     expect(orgIds).toEqual([]);
   });

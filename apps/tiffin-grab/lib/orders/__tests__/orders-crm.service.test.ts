@@ -327,7 +327,10 @@ describe("order CRM queries (integration)", () => {
     await db.insert(member).values({ organizationId: orgA.id, userId: staffUser.id, role: "member" });
 
     // Single-member-org session: sees only orgA's order.
-    const scopedVisible = await resolveSessionVisibleOrgIds({ user: { id: staffUser.publicId, platformRole: null } });
+    const scopedVisible = await resolveSessionVisibleOrgIds({
+      user: { id: staffUser.publicId, platformRole: null },
+      session: { activeOrganizationId: orgA.id },
+    });
     const scopedPage = await listOrdersPage(undefined, { page: 0, size: 10 }, undefined, scopedVisible);
     expect(scopedPage.items.map((r) => r.publicId)).toEqual([orderAId]);
 
@@ -343,7 +346,10 @@ describe("order CRM queries (integration)", () => {
       .insert(users)
       .values({ name: "No Org Staff", email: `nomember${suffix}@test.invalid`, role: "member", status: "active" })
       .returning({ id: users.id, publicId: users.publicId });
-    const noneVisible = await resolveSessionVisibleOrgIds({ user: { id: noMemberUser.publicId, platformRole: null } });
+    const noneVisible = await resolveSessionVisibleOrgIds({
+      user: { id: noMemberUser.publicId, platformRole: null },
+      session: { activeOrganizationId: orgA.id },
+    });
     const nonePage = await listOrdersPage(undefined, { page: 0, size: 10 }, undefined, noneVisible);
     expect(nonePage.items.length).toBe(0);
     expect(nonePage.total).toBe(0);

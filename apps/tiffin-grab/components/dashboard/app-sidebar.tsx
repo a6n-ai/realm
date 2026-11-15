@@ -23,6 +23,7 @@ import {
   PackageIcon,
   RefreshCwIcon,
   SettingsIcon,
+  ShieldCheckIcon,
   TagIcon,
   TicketPercentIcon,
   UserIcon,
@@ -131,6 +132,7 @@ export const SECTIONS: NavSection[] = [
     label: "Administration",
     items: [
       { title: "Organization", href: "/dashboard/organization", icon: Building2Icon },
+      { title: "Roles", href: "/dashboard/organization/roles", icon: ShieldCheckIcon },
       { title: "Settings", href: "/dashboard/settings", icon: SettingsIcon },
     ],
   },
@@ -180,7 +182,10 @@ export function AppSidebar({
   }, [activity]);
   const userInitials = initials(user.name?.trim() || user.email);
   const isActive = (href: string) =>
-    href === "/dashboard" ? pathname === href : pathname.startsWith(href);
+    href === "/dashboard"
+      ? pathname === href
+      : pathname.startsWith(href) &&
+        !SECTIONS.some((s) => s.items.some((i) => i.href.length > href.length && i.href.startsWith(href) && pathname.startsWith(i.href)));
 
   return (
     <Sidebar collapsible="icon">
