@@ -23,7 +23,7 @@ import { inviteUser } from "@/lib/services/users-invite";
 
 export type UserStatusValue = "active" | "inactive" | "suspended" | "deleted";
 
-const MEMBERS = "/dashboard/organization/members";
+const MEMBERS = "/dashboard/organization/people";
 const MEMBER_UPDATE = { guard: { member: ["update"] }, revalidate: [MEMBERS] } as const;
 const INVITE_PERMS = { invitation: ["create"], staff: ["invite"] };
 const INVITATION_CREATE = { guard: INVITE_PERMS, revalidate: [MEMBERS] } as const;
