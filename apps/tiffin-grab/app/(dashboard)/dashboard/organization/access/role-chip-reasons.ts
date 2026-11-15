@@ -10,7 +10,7 @@ export function chipReasons(rows: Pick<AccessRow, "roles" | "email">[], options:
     chipState(role, op, {
       self: selfEmail !== null && row.email === selfEmail,
       roleCount: row.roles.length,
-      targetAboveViewer: false,
+      targetAboveViewer: row.roles.some((r) => aboveViewer.includes(r)),
       lastOwnerRole: owners <= 1 ? "owner" : undefined,
       aboveViewer,
     });

@@ -61,7 +61,7 @@ function RoleLink({ role, active }: { role: RoleItem; active: boolean }) {
         )}
       >
         <span className="min-w-0 flex-1 truncate text-sm font-medium capitalize">{role.name}</span>
-        {role.id === null && <LockIcon aria-hidden />}
+        {role.id === null && <LockIcon aria-hidden className="size-4 text-muted-foreground" />}
         <span className="text-xs text-muted-foreground">{memberCount(role.members)}</span>
       </Link>
     </li>
@@ -111,6 +111,7 @@ function DeleteRole({ role, id, disabled }: { role: RoleItem; id: string; disabl
 }
 
 function AddHolder({ candidates, role }: { candidates: Person[]; role: string }) {
+  const router = useRouter();
   const [error, setError] = useState<string>();
   const [pending, start] = useTransition();
   function add(id: string) {
@@ -120,11 +121,12 @@ function AddHolder({ candidates, role }: { candidates: Person[]; role: string })
     start(async () => {
       const res = await setMemberRoles(id, [...person.roles, role]);
       if ("error" in res) return void setError(res.error);
+      router.refresh();
     });
   }
   return (
     <div className="grid gap-2">
-      <Select onValueChange={add} disabled={pending}>
+      <Select value="" onValueChange={add} disabled={pending}>
         <SelectTrigger aria-label={`Add a member to ${role}`}>
           <SelectValue placeholder="Add a member" />
         </SelectTrigger>
@@ -192,7 +194,7 @@ function RoleDetail({
   return (
     <div className="grid content-start gap-6">
       <div className="flex flex-wrap items-center gap-3">
-        <h2 className="min-w-0 flex-1 truncate text-sm font-medium capitalize">{role.name}</h2>
+        <h2 className="min-w-0 flex-1 truncate text-base font-semibold capitalize">{role.name}</h2>
         {role.id === null ? (
           <Badge variant="secondary">
             <LockIcon /> Locked
@@ -358,7 +360,8 @@ export function RolesList({
       detail={
         current ? (
           <RoleDetail
-            key={current.name}
+            // Re-seeds the switches when the server set changes (Edit dialog save, refresh).
+            key={`${current.name}:${JSON.stringify(current.permission)}`}
             role={current}
             resources={resources}
             grantable={grantable}

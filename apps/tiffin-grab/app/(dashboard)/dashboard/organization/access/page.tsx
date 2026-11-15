@@ -1,5 +1,6 @@
 import { UsersIcon } from "lucide-react";
 import { RESOURCE_LABELS } from "@/lib/auth/permissions";
+import { requirePermission } from "@/lib/auth/guards";
 import { getRoleChoices } from "@/lib/auth/role-options";
 import { getSession } from "@/lib/auth/session";
 import { getOrgAccessMatrix } from "@/lib/services/org-access-matrix";
@@ -7,6 +8,7 @@ import { EmptyState, SectionCard } from "@/components/ds";
 import { AccessView } from "./access-view";
 
 export default async function AccessPage() {
+  await requirePermission({ member: ["update"] });
   const session = await getSession();
   const organizationId = session?.session.activeOrganizationId;
   if (!organizationId) {
