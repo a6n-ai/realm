@@ -2,7 +2,7 @@
 
 import { isCustomerRole } from "@/lib/roles";
 import Link from "next/link";
-import { Role, formatPhone, type RoleValue } from "@foundry/commons";
+import { formatPhone, type RoleValue } from "@foundry/commons";
 import { useTransition } from "react";
 import { KeyRound, SendHorizonal } from "lucide-react";
 import { toast } from "sonner";
@@ -10,9 +10,10 @@ import { Button } from "@foundry/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
 import { TableCell } from "@foundry/ui/table";
 import { RowActions } from "@foundry/design-system";
+import { MemberRoleSelect } from "@foundry/crm";
 import { RowActionTooltipButton, UserAvatar } from "@/components/ds";
 import { unwrapAction } from "@/lib/actions/unwrap";
-import { sendStaffAccessEmail, setUserRole, setUserStatus, type UserStatusValue } from "./actions";
+import { sendStaffAccessEmail, setMemberRole, setUserStatus, type UserStatusValue } from "./actions";
 import type { UserListRow } from "./users-list";
 
 const USER_STATUSES: UserStatusValue[] = ["active", "inactive", "suspended", "deleted"];
@@ -43,31 +44,28 @@ export function StatusSelect({ id, status }: { id: string; status: UserStatusVal
   );
 }
 
-// Interactive controls extracted so both the desktop table row (cells) and the
-// mobile card can render them — each owns its own pending transition.
-export function RoleSelect({ id, role }: { id: string; role: RoleValue }) {
-  const [pending, start] = useTransition();
+export type RoleCtx = {
+  activeOrgId: string | null;
+  options: { value: string; label: string; locked?: boolean }[];
+  canGrantOwner: boolean;
+};
+
+// A row is editable only in the active org (Better Auth acts there), and an owner row only by an owner.
+export function OrgRoleSelect({ row, ctx }: { row: Pick<UserListRow, "memberId" | "orgRole" | "organizationId">; ctx: RoleCtx }) {
+  const isOwner = row.orgRole.split(",").some((r) => r.trim() === "owner");
+  const disabled = row.organizationId !== ctx.activeOrgId || (isOwner && !ctx.canGrantOwner);
+  const known = ctx.options.some((o) => o.value === row.orgRole);
+  const options = known ? ctx.options : [...ctx.options, { value: row.orgRole, label: row.orgRole, locked: true }];
   return (
-    <Select
-      defaultValue={role}
-      onValueChange={(v) =>
-        start(async () => {
-          try {
-            await unwrapAction(setUserRole(id, v as RoleValue));
-          } catch (e) {
-            toast.error(e instanceof Error ? e.message : "Could not change role.");
-          }
-        })
-      }
-      disabled={pending}
-    >
-      <SelectTrigger size="sm" className="w-32 capitalize"><SelectValue /></SelectTrigger>
-      <SelectContent>
-        {Object.values(Role).map((r) => (
-          <SelectItem key={r} value={r}>{r}</SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+    <MemberRoleSelect
+      value={row.orgRole}
+      options={options}
+      disabled={disabled}
+      onChange={async (role) => {
+        const res = await setMemberRole(row.memberId, role);
+        return "error" in res ? { error: res.error } : {};
+      }}
+    />
   );
 }
 
@@ -119,7 +117,8 @@ export function ResetPasswordButton({
 
 // Returns only the <TableCell> children — DataTable supplies the wrapping
 // <TableRow>. Interactive role controls stay client-side here.
-export function UserRow({ id, name, email, phone, role, status, passwordSet }: UserListRow) {
+export function UserRow({ ctx, ...r }: UserListRow & { ctx: RoleCtx }) {
+  const { id, name, email, phone, role, status, passwordSet } = r;
   return (
     <>
       <TableCell>
@@ -132,7 +131,7 @@ export function UserRow({ id, name, email, phone, role, status, passwordSet }: U
         </Link>
       </TableCell>
       <TableCell>{email ?? (phone ? formatPhone(phone) : null) ?? "—"}</TableCell>
-      <TableCell><RoleSelect id={id} role={role} /></TableCell>
+      <TableCell><OrgRoleSelect row={r} ctx={ctx} /></TableCell>
       <TableCell><StatusSelect id={id} status={status} /></TableCell>
       <TableCell>
         <RowActions>
@@ -145,7 +144,8 @@ export function UserRow({ id, name, email, phone, role, status, passwordSet }: U
 
 // Mobile card variant — UserRow returns <td>s (a component, so DataTable can't
 // auto-derive a card from it); this renders the same controls as card content.
-export function UserRowCard({ id, name, email, phone, role, status, passwordSet }: UserListRow) {
+export function UserRowCard({ ctx, ...r }: UserListRow & { ctx: RoleCtx }) {
+  const { id, name, email, phone, role, status, passwordSet } = r;
   return (
     <div className="space-y-3">
       <Link href={`/dashboard/organization/members/${id}`} className="flex items-center gap-3">
@@ -157,7 +157,7 @@ export function UserRowCard({ id, name, email, phone, role, status, passwordSet 
       {(email || phone) && <div className="text-muted-foreground text-sm">{email ?? (phone ? formatPhone(phone) : null)}</div>}
       <div className="flex items-center justify-between gap-3">
         <span className="text-muted-foreground text-sm">Role</span>
-        <RoleSelect id={id} role={role} />
+        <OrgRoleSelect row={r} ctx={ctx} />
       </div>
       <div className="flex items-center justify-between gap-3">
         <span className="text-muted-foreground text-sm">Status</span>

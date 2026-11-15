@@ -10,10 +10,11 @@ import { SectionCard, UserAvatar } from "@/components/ds";
 import { Badge } from "@/components/reui/badge";
 import { Skeleton } from "@foundry/ui/skeleton";
 import {
-  RoleSelect,
+  OrgRoleSelect,
   StatusSelect,
   ResetPasswordButton,
 } from "../user-row";
+import { getRoleChoices } from "@/lib/auth/role-options";
 import { AdminContactForm } from "@/components/dashboard/admin-contact-form";
 import { MemberManagement } from "../../settings/member-management";
 import { StatusBadge } from "../../status-badge";
@@ -46,11 +47,13 @@ async function UserDetailData({ params }: { params: Promise<{ id: string }> }) {
     throw e;
   }
 
-  const [{ timezone }, memberships, allOrgs] = await Promise.all([
+  const [{ timezone }, memberships, allOrgs, roleCtx] = await Promise.all([
     getAppSettings(),
     listMembershipsForUser(user.publicId),
     listOrganizations(),
+    getRoleChoices(),
   ]);
+  const activeMembership = memberships.find((m) => m.organizationId === roleCtx.organizationId);
 
   const isStaff = isStaffRole(user.role);
   const contact = [user.email, user.phone].filter(Boolean).join(" · ");
@@ -68,7 +71,7 @@ async function UserDetailData({ params }: { params: Promise<{ id: string }> }) {
               {user.name || user.email || "User"}
             </h1>
             <div className="flex flex-wrap items-center gap-1.5">
-              <Badge variant="secondary" className="capitalize">{user.role}</Badge>
+              <Badge variant="secondary" className="capitalize">{activeMembership?.role ?? user.role}</Badge>
               <StatusBadge status={user.status} />
             </div>
             {contact && <p className="text-muted-foreground text-sm">{contact}</p>}
@@ -103,12 +106,19 @@ async function UserDetailData({ params }: { params: Promise<{ id: string }> }) {
         </div>
       </SectionCard>
 
-      <SectionCard title="Access" subtitle="Role and account status.">
+      <SectionCard title="Access" subtitle="Role in the active organization and account status.">
         <div className="flex flex-col gap-4">
           <div className="flex flex-wrap items-center gap-6">
             <label className="flex items-center gap-2 text-sm">
               <span className="text-muted-foreground">Role</span>
-              <RoleSelect id={user.publicId} role={user.role} />
+              {activeMembership ? (
+                <OrgRoleSelect
+                  row={{ memberId: activeMembership.memberId, orgRole: activeMembership.role, organizationId: activeMembership.organizationId }}
+                  ctx={{ activeOrgId: roleCtx.organizationId, options: roleCtx.options, canGrantOwner: roleCtx.canGrantOwner }}
+                />
+              ) : (
+                <span className="text-muted-foreground">Not a member of this organization</span>
+              )}
             </label>
             <label className="flex items-center gap-2 text-sm">
               <span className="text-muted-foreground">Status</span>

@@ -15,6 +15,8 @@ const member = (id: string, over: Partial<MemberRow> = {}): MemberRow => ({
   email: `${id}@x.test`,
   phone: null,
   role: "member",
+  memberId: `mem-${id}`,
+  orgRole: "member",
   status: "active",
   passwordSet: true,
   invitationStatus: "none",

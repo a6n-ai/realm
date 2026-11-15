@@ -6,12 +6,13 @@ import { sendStaffInviteLink } from "@/lib/auth/invite-links";
 import { usersService } from "./users.service";
 
 const { inviteStaff } = createStaffInvite({
-  createUser: async ({ email, name, role }) => {
+  // `role` is the ORG role (it rides on the invitation); the account itself is always the staff marker.
+  createUser: async ({ email, name }) => {
     // No `password` field on purpose. The admin plugin treats it as optional and, when
     // absent, creates the user with NO credential account at all — so there is no
     // password to generate, hash, or leak. /set-password creates the credential once
     // the invitee accepts and signs in.
-    const res = await auth.api.createUser({ body: { email, name, role: role as "admin" | "member" } });
+    const res = await auth.api.createUser({ body: { email, name, role: "member" } });
     const created = res.user as { id: string; publicId?: string; email: string };
     if (!created.publicId) throw new Error("createUser returned no publicId");
     return { publicId: created.publicId, email: created.email, id: created.id };
@@ -22,7 +23,7 @@ const { inviteStaff } = createStaffInvite({
   // headers, which the shared StaffInviteDeps shape doesn't carry.
   inviteMember: async (input) => {
     const invitation = await auth.api.createInvitation({
-      body: { ...input.body, role: input.body.role as "admin" | "member" },
+      body: { ...input.body, role: input.body.role as "member" },
       headers: await headers(),
     });
     await sendStaffInviteLink({ email: input.body.email, role: input.body.role, invitationId: invitation.id });
@@ -35,7 +36,7 @@ const { inviteStaff } = createStaffInvite({
  * The invite email's magic link signs the invitee in, accepts the invitation,
  * and lands on /set-password (the accept page's email-code form is the fallback).
  */
-export async function inviteUser(input: { email: string; name: string; role: "admin" | "member"; organizationId: string }) {
+export async function inviteUser(input: { email: string; name: string; role: string; organizationId: string }) {
   // createInvitation requires a DIRECT member row with invitation:create on this
   // exact org, but only checks it after createUser has already run. Check first
   // so a refusal never leaves behind a credential-less account with no invitation.

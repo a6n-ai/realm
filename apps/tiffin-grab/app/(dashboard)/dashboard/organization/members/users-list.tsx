@@ -5,7 +5,7 @@ import { UsersIcon } from "lucide-react";
 import { DataTable, ListPagination, SkeletonFilterBar, type Column, type FacetDef } from "@/components/ds";
 import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
 import type { SortState } from "@foundry/design-system/list-sort";
-import { UserRow, UserRowCard } from "./user-row";
+import { UserRow, UserRowCard, type RoleCtx } from "./user-row";
 import type { UserStatusValue } from "./actions";
 import type { RoleValue } from "@foundry/commons";
 
@@ -15,6 +15,8 @@ export type UserListRow = {
   email: string | null;
   phone: string | null;
   role: RoleValue;
+  memberId: string;
+  orgRole: string;
   status: UserStatusValue;
   passwordSet: boolean;
   invitationStatus: "none" | "pending" | "expired" | "accepted";
@@ -39,6 +41,7 @@ export function UsersList({
   page,
   size,
   sort,
+  roleCtx,
 }: {
   spec: FacetDef[];
   rows: UserListRow[];
@@ -46,6 +49,7 @@ export function UsersList({
   page: number;
   size: number;
   sort: SortState<"name" | "email" | "role" | "status">;
+  roleCtx: RoleCtx;
 }) {
   return (
     <div className="space-y-4">
@@ -62,8 +66,8 @@ export function UsersList({
         emptyIcon={UsersIcon}
         emptyMessage="No users yet."
         emptySearchMessage="No users match your filters."
-        renderRow={(r) => <UserRow {...r} />}
-        mobileCard={(r) => <UserRowCard {...r} />}
+        renderRow={(r) => <UserRow {...r} ctx={roleCtx} />}
+        mobileCard={(r) => <UserRowCard {...r} ctx={roleCtx} />}
       />
       <ListPagination page={page} size={size} total={total} />
     </div>

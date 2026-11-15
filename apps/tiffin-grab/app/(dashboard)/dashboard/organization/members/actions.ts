@@ -2,7 +2,6 @@
 
 import { isCustomerRole } from "@/lib/roles";
 import { StaffInviteError } from "@foundry/auth";
-import type { RoleValue } from "@foundry/commons";
 import { ForbiddenError, ValidationError } from "@foundry/commons";
 import { and, eq } from "drizzle-orm";
 import { headers } from "next/headers";
@@ -13,8 +12,12 @@ import type { ActionResult } from "@/lib/actions/action-result";
 import { staffAction, type StaffActionOpts } from "@/lib/actions/staff-action";
 import { sendStaffInviteLink, sendStaffSetupLink } from "@/lib/auth/invite-links";
 import { requireOwnerToGrant, requirePermission, requirePermissionIn } from "@/lib/auth/guards";
+import { authApi } from "@/lib/auth/org-role-api";
+import { getRoleOptions } from "@/lib/auth/role-options";
 import { getSession } from "@/lib/auth/session";
-import { getBrandOrgId, getMemberOrganizations } from "@/lib/services/organizations.service";
+import { recordAudit } from "@/lib/identity/audit";
+import { userIdByPublicId } from "@/lib/identity/user-ids";
+import { countOwners, getMemberInOrg, getMemberOrganizations } from "@/lib/services/organizations.service";
 import { ContactTakenError, usersService } from "@/lib/services/users.service";
 import { inviteUser } from "@/lib/services/users-invite";
 
@@ -73,17 +76,32 @@ export async function setUserStatus(userId: string, status: UserStatusValue): Pr
   });
 }
 
-export async function setUserRole(userId: string, role: RoleValue): Promise<ActionResult> {
+export async function setMemberRole(memberId: string, role: string): Promise<ActionResult> {
   return staffAction(MEMBER_UPDATE, async () => {
-    // syncStaffMembership writes the brand org's member row, so authorize there, not only in the active org.
-    const brandId = await getBrandOrgId();
-    if (!brandId) throw new ForbiddenError();
-    await requirePermissionIn(brandId, { member: ["update"] });
-    // Demoting to a customer drops every membership the target holds, owner rows included.
-    await authorizeTarget(userId);
-    // setRole, not update: demoting your own row out of admin locks you out of this
-    // page, and the guard lives in the service so every caller inherits it.
-    await usersService.setRole(userId, role);
+    const session = await getSession();
+    const organizationId = session?.session.activeOrganizationId;
+    if (!session || !organizationId) throw new ValidationError("Select an organization first.");
+    const target = await getMemberInOrg(organizationId, memberId);
+    if (!target) throw new ValidationError("Member not found in this organization.");
+    if (target.userId === (await userIdByPublicId(session.user.id))) {
+      throw new ValidationError("You can't change your own role");
+    }
+    if (!(await getRoleOptions(organizationId)).some((o) => o.value === role)) throw new ValidationError("Unknown role.");
+    await requireOwnerToGrant(organizationId, role, target.role);
+    const wasOwner = target.role.split(",").some((r) => r.trim() === "owner");
+    if (wasOwner && role !== "owner" && (await countOwners(organizationId)) <= 1) {
+      throw new ValidationError("An organization needs at least one owner");
+    }
+    await authApi(async () =>
+      auth.api.updateMemberRole({ body: { memberId, role, organizationId }, headers: await headers() }),
+    );
+    await recordAudit({
+      entity: "member",
+      entityPublicId: memberId,
+      operation: "update",
+      changes: { role: { from: target.role, to: role }, organizationId },
+      createdBy: await userIdByPublicId(session.user.id),
+    });
   });
 }
 
@@ -147,13 +165,22 @@ export async function sendStaffAccessEmail(userId: string): Promise<ActionResult
 // a first invite for accounts created before this plan that have none at all).
 export async function resendInvite(userId: string, organizationId: string): Promise<ActionResult<{ email: string }>> {
   return staffAction(INVITATION_CREATE, async () => {
-    const [u] = await db.select({ email: users.email, role: users.role }).from(users).where(eq(users.publicId, userId)).limit(1);
+    const [u] = await db.select({ id: users.id, email: users.email }).from(users).where(eq(users.publicId, userId)).limit(1);
     if (!u?.email) throw new ValidationError("This user has no email address to send an invite to.");
-    const invitation = await auth.api.createInvitation({
-      body: { email: u.email, role: u.role as "admin" | "member", organizationId, resend: true },
-      headers: await headers(),
-    });
-    await sendStaffInviteLink({ email: u.email, role: u.role, invitationId: invitation.id });
+    // The invite carries the org role, not users.role (always "member" for staff).
+    const [m] = await db
+      .select({ role: member.role })
+      .from(member)
+      .where(and(eq(member.organizationId, organizationId), eq(member.userId, u.id)))
+      .limit(1);
+    const role = m?.role ?? "member";
+    const invitation = await authApi(async () =>
+      auth.api.createInvitation({
+        body: { email: u.email!, role: role as "member", organizationId, resend: true },
+        headers: await headers(),
+      }),
+    );
+    await sendStaffInviteLink({ email: u.email, role, invitationId: invitation.id });
     return { email: u.email };
   });
 }
@@ -164,7 +191,9 @@ export async function cancelInvitation(invitationId: string): Promise<ActionResu
   });
 }
 
-const INVITE: StaffActionOpts = { guard: { staff: ["invite"], user: ["create", "set-role"] }, revalidate: [MEMBERS] };
+// The invitation permission is the org-level gate. `user:*` is a platform-admin permission no org role
+// holds; createUser then runs from this trusted action without headers, which skips its caller check.
+const INVITE: StaffActionOpts = INVITATION_CREATE;
 
 export async function inviteUserAction(input: { email: string; name: string; role: string }): Promise<ActionResult> {
   return staffAction(INVITE, async () => {
@@ -176,13 +205,12 @@ export async function inviteUserAction(input: { email: string; name: string; rol
     const organizationId =
       session?.session.activeOrganizationId ?? (await getMemberOrganizations(session))[0]?.id;
     if (!organizationId) throw new ValidationError("You aren't a member of any organization.");
+    if (!(await getRoleOptions(organizationId)).some((o) => o.value === input.role)) {
+      throw new ValidationError("Unknown role.");
+    }
+    await requireOwnerToGrant(organizationId, input.role);
     try {
-      await inviteUser({
-        email: input.email,
-        name: input.name,
-        role: input.role as "admin" | "member",
-        organizationId,
-      });
+      await inviteUser({ email: input.email, name: input.name, role: input.role, organizationId });
     } catch (e) {
       if (e instanceof StaffInviteError) throw new ValidationError(e.message);
       throw e;

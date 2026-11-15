@@ -10,6 +10,8 @@ export type MemberRow = {
   email: string | null;
   phone: string | null;
   role: RoleValue;
+  memberId: string; // member.id, what setMemberRole takes
+  orgRole: string; // member.role: the role in that org (users.role is only the staff marker)
   status: "active" | "inactive" | "suspended" | "deleted";
   passwordSet: boolean;
   invitationStatus: "none" | "pending" | "expired" | "accepted";
@@ -37,6 +39,8 @@ export async function getMembersForOrgs(orgIds: string[]): Promise<MemberRow[]> 
       invitationStatus: invitation.status,
       invitationExpiresAt: invitation.expiresAt,
       organizationId: member.organizationId,
+      memberId: member.id,
+      orgRole: member.role,
     })
     .from(member)
     .innerJoin(users, eq(users.id, member.userId))
@@ -65,6 +69,8 @@ export async function getMembersForOrgs(orgIds: string[]): Promise<MemberRow[]> 
       passwordSet: r.passwordSet,
       invitationStatus,
       organizationId: r.organizationId,
+      memberId: r.memberId,
+      orgRole: r.orgRole,
     };
   });
 }

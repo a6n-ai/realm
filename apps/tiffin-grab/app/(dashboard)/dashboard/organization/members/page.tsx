@@ -4,7 +4,7 @@ import type { Condition } from "@foundry/commons/model/condition";
 import { getSession } from "@/lib/auth/session";
 import { listOrganizations } from "@/lib/services/organizations.service";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
-import { INVITABLE_ROLES } from "@/lib/auth/permissions";
+import { getRoleChoices, type RoleChoice } from "@/lib/auth/role-options";
 import { parseSort } from "@foundry/design-system/list-sort";
 import { SectionCard, parseFilterState, type FacetDef } from "@/components/ds";
 import { StatCards, StatCardsSkeleton } from "@/components/dashboard/stat-cards";
@@ -18,12 +18,12 @@ const USER_STATUSES: UserStatusValue[] = ["active", "inactive", "suspended", "de
 
 // Server-authored so parseFilterState (server) and ReuiFacetFilters (client)
 // stay in lockstep — same pattern as campaigns/logs/contact-lists.
-const SPEC: FacetDef[] = [
+const buildSpec = (roles: RoleChoice[]): FacetDef[] => [
   {
     kind: "multi",
     field: "role",
     label: "Role",
-    options: [...INVITABLE_ROLES.map((r) => ({ value: r as string, label: r })), { value: "user", label: "user" }],
+    options: roles.map((r) => ({ value: r.value, label: r.label })),
   },
   {
     kind: "pills",
@@ -42,14 +42,12 @@ const SPEC: FacetDef[] = [
 
 type SearchParams = Promise<Record<string, string | undefined>>;
 
-function MembersCard({ children }: { children: React.ReactNode }) {
+function MembersCard({ children, inviteRoles = [] }: { children: React.ReactNode; inviteRoles?: RoleChoice[] }) {
   return (
     <SectionCard
       title="Members"
       subtitle="Everyone with access to the console. Change a role or status inline, or open a member for details."
-      action={
-        <InviteUserButton roles={INVITABLE_ROLES.map((r) => ({ value: r, label: r }))} />
-      }
+      action={inviteRoles.length ? <InviteUserButton roles={inviteRoles.filter((r) => !r.locked)} /> : undefined}
     >
       {children}
     </SectionCard>
@@ -83,7 +81,7 @@ function matchesCondition(row: MemberRow, condition: Condition): boolean {
       : condition.conditions.some((c) => matchesCondition(row, c));
   }
   if (condition.field === "password") return condition.value === "unset" ? !row.passwordSet : row.passwordSet;
-  const value = row[condition.field as keyof MemberRow];
+  const value = condition.field === "role" ? row.orgRole : row[condition.field as keyof MemberRow];
   switch (condition.operator) {
     case "eq":
       return value === condition.value;
@@ -103,9 +101,11 @@ async function UsersData({ searchParams }: { searchParams: SearchParams }) {
   const sp = await searchParams;
 
   const sort = parseSort(sp, ["name", "email", "role", "status"], { column: "email", dir: "asc" });
-  const SORT_COLUMNS = { name: "name", email: "email", role: "role", status: "status" } as const;
+  const SORT_COLUMNS = { name: "name", email: "email", role: "orgRole", status: "status" } as const;
 
-  const { condition, page } = parseFilterState(SPEC, sp);
+  const { organizationId: activeOrgId, options, canGrantOwner } = await getRoleChoices();
+  const spec = buildSpec(options);
+  const { condition, page } = parseFilterState(spec, sp);
 
   const visibleOrgIds = await resolveSessionVisibleOrgIds(session);
   const orgIds = visibleOrgIds === "all" ? (await listOrganizations()).map((o) => o.id) : visibleOrgIds;
@@ -123,8 +123,16 @@ async function UsersData({ searchParams }: { searchParams: SearchParams }) {
   return (
     <>
       <StatCards items={memberStats(allRows)} />
-      <MembersCard>
-        <UsersList spec={SPEC} rows={rows} total={total} page={page.page} size={page.size} sort={sort} />
+      <MembersCard inviteRoles={options}>
+        <UsersList
+          spec={spec}
+          rows={rows}
+          total={total}
+          page={page.page}
+          size={page.size}
+          sort={sort}
+          roleCtx={{ activeOrgId, options, canGrantOwner }}
+        />
       </MembersCard>
     </>
   );
