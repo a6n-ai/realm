@@ -50,6 +50,14 @@ describe("org guards", () => {
     await expect(requirePermission({ menu: ["read"] })).rejects.toBeInstanceOf(ForbiddenError);
   });
 
+  it("a customer account with a member row gets no staff access", async () => {
+    session.mockResolvedValue({ user: { id: "c1", platformRole: null, role: "user" }, session: { activeOrganizationId: "o1" } });
+    dbRows.mockResolvedValue([{ role: "admin" }]);
+    expect(await can({ menu: ["read"] })).toBe(false);
+    await expect(requirePermission({ menu: ["read"] })).rejects.toBeInstanceOf(ForbiddenError);
+    dbRows.mockReset();
+  });
+
   it("no session throws AuthError", async () => {
     session.mockResolvedValue(null);
     await expect(requirePermission({ menu: ["read"] })).rejects.toBeInstanceOf(AuthError);

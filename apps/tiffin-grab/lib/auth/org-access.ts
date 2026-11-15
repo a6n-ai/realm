@@ -7,6 +7,7 @@ import { member, organizationRole } from "@/db/schema";
 import { userIdByPublicId } from "@/lib/identity/user-ids";
 import { ac, appStatement, orgRoles } from "./permissions";
 import { getSession } from "./session";
+import { isCustomerRole } from "@/lib/roles";
 
 /** Access in one specific org: the caller's own member row there, never the active org's. */
 export const getOrgAccessFor = cache(async (organizationId: string): Promise<OrgAccess> => {
@@ -22,6 +23,9 @@ export const getOrgAccessFor = cache(async (organizationId: string): Promise<Org
   if (session.user.platformRole === "super_admin") {
     return resolveOrgAccess({ ...base, memberRole: null, customRoles: {} });
   }
+  // users.role stays the staff/customer marker: a customer holding a member row (the old seed wrote
+  // one for everyone) must not reach staff actions through it.
+  if (isCustomerRole(session.user.role)) return { kind: "none" };
   const dbUserId = await userIdByPublicId(session.user.id);
   if (!dbUserId) return { kind: "none" };
   const [row] = await db
