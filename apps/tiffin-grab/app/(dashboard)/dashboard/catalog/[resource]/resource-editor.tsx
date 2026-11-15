@@ -26,6 +26,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@foundry/ui/input";
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
+import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from "@foundry/ui/input-group";
 
 import { Switch } from "@foundry/ui/switch";
 
@@ -148,7 +149,6 @@ function FieldControl({
             {f.label}
             {f.optional ? <span className="text-muted-foreground font-normal"> optional</span> : null}
           </FormLabel>
-          {f.help ? <p className="text-muted-foreground text-xs">{f.help}</p> : null}
           {f.type === "select" ? (
             <Select
               value={(field.value as string) ?? ""}
@@ -161,7 +161,7 @@ function FieldControl({
               disabled={parentValue === ""}
             >
               <FormControl>
-                <SelectTrigger>
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder={parentValue === "" ? `Pick a ${parent!.label.toLowerCase()} first` : `Select ${f.label.toLowerCase()}`} />
                 </SelectTrigger>
               </FormControl>
@@ -254,10 +254,10 @@ function FieldControl({
           ) : f.type === "date" ? (
             <FormControl><DateInput value={(field.value as string) ?? ""} onChange={field.onChange} /></FormControl>
           ) : (
-            <div className="flex items-center gap-1.5">
-              {unit === "$" ? <span className="text-muted-foreground text-sm">$</span> : null}
+            <InputGroup>
+              {unit === "$" ? <InputGroupAddon><InputGroupText>$</InputGroupText></InputGroupAddon> : null}
               <FormControl>
-                <Input
+                <InputGroupInput
                   className={isNumberType(f) ? "nums" : undefined}
                   type={isNumberType(f) ? "number" : "text"}
                   disabled={keyFrozen}
@@ -265,9 +265,10 @@ function FieldControl({
                   onChange={field.onChange}
                 />
               </FormControl>
-              {unit && unit !== "$" ? <span className="text-muted-foreground text-sm">{unit}</span> : null}
-            </div>
+              {unit && unit !== "$" ? <InputGroupAddon align="inline-end"><InputGroupText>{unit}</InputGroupText></InputGroupAddon> : null}
+            </InputGroup>
           )}
+          {f.help ? <p className="text-muted-foreground text-xs">{f.help}</p> : null}
           <FormMessage />
         </FormItem>
       )}
@@ -323,12 +324,12 @@ function EditorDialog({
       open
       onOpenChange={(o) => !o && onClose()}
       title={isNew ? `New ${def.singular}` : `Edit ${def.singular}`}
-      description={def.fields.some((f) => f.section) ? undefined : "Typed fields, validated before saving."}
+      description={def.fields.some((f) => f.section) || def.internal ? undefined : "Typed fields, validated before saving."}
       contentClassName={cn("flex max-h-[85vh] flex-col gap-0 overflow-hidden p-0", def.wideDialog ? "sm:max-w-3xl" : "sm:max-w-2xl")}
       footer={
         <div className="flex justify-end gap-2">
-          <Button type="button" variant="outline" onClick={onClose} disabled={submitting} className="min-h-11 sm:min-h-9">Cancel</Button>
-          <Button type="submit" form="resource-editor-form" disabled={submitting} className="min-h-11 sm:min-h-9 active:scale-[0.96]">
+          <Button type="button" variant="outline" onClick={onClose} disabled={submitting}>Cancel</Button>
+          <Button type="submit" form="resource-editor-form" disabled={submitting}>
             {submitting ? <Loader2Icon className="size-4 animate-spin" /> : null}
             {submitting ? "Saving…" : "Save"}
           </Button>
@@ -384,7 +385,7 @@ function EditorDialog({
                 {form.formState.errors.root.message as string}
               </p>
             ) : null}
-            <WebsitePreview resource={resource} values={watched} />
+            {def.internal ? null : <WebsitePreview resource={resource} values={watched} />}
           </div>
         </form>
       </Form>

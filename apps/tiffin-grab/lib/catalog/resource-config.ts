@@ -42,6 +42,8 @@ export interface ResourceDef {
   wideDialog?: boolean;
   // Which central discount kind this resource's rows get a "Discounts" panel for.
   discountKind?: "delivery" | "duration" | "meal_size";
+  // Staff-only data (never on the website): no website preview, no generic description.
+  internal?: boolean;
 }
 
 export const WEEKDAY_LABELS: Record<string, string> = DAY_NAME;
@@ -334,7 +336,7 @@ export const RESOURCES: Record<string, ResourceDef> = {
     ],
   },
   "cost-rates": {
-    key: "cost-rates", label: "Cost rates", singular: "cost rate", keyed: false, schema: costRatesSchema,
+    key: "cost-rates", label: "Cost rates", singular: "cost rate", keyed: false, internal: true, schema: costRatesSchema,
     note: "Internal food cost per pick = cost per pick + cost per TU × the slot's TU. The most specific rate wins: this plan over all plans. Staff only, never shown on the website.",
     fields: [
       { key: "category", label: "Category", type: "select", optionsSource: "categories" },
