@@ -67,7 +67,6 @@ export function OrderWeeksTable({ weeks }: { weeks: OrderWeek[] }) {
       <DataTable
         pagination="client"
         pageSize={25}
-        serial={false}
         columns={COLUMNS}
         rows={rows}
         rowKey={(r: Row) => `${r.weekKey}:${r.orderPublicId}`}
