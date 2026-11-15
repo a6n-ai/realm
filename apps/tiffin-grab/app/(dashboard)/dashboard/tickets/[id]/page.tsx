@@ -43,7 +43,8 @@ const AUTHOR_LABEL: Record<string, string> = {
 const ensureStaff = cache(() => requirePagePermission({ ticket: ["read"] }));
 const loadTicket = cache((id: string) => ticketsService.readForStaff(id));
 
-export default function TicketDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function TicketDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  await ensureStaff();
   return (
     <PageShell>
       <Suspense fallback={<PageHeader icon={LifeBuoyIcon} title="Ticket" />}>

@@ -5,6 +5,7 @@ import { Button } from "@foundry/ui/button";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { SectionCard } from "@/components/ds";
 import { Alert, AlertDescription } from "@/components/reui/alert";
+import { requirePagePermission } from "@/lib/auth/guards";
 import { loadEmailTypes, trackingAvailable } from "./data";
 import { trackedStatus } from "./event-names";
 
@@ -15,7 +16,8 @@ const STEPS = [
   "Login and security emails are never tracked, so they don't land in spam.",
 ];
 
-export default function EmailTrackingHowPage() {
+export default async function EmailTrackingHowPage() {
+  await requirePagePermission({ settings: ["read"] });
   return (
     <SectionCard title="How email tracking works">
       <div className="flex flex-col gap-4">

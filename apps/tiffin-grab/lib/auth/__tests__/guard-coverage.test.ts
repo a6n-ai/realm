@@ -1,5 +1,5 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
-import { basename, dirname, join, relative, resolve, sep } from "node:path";
+import { dirname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
@@ -8,7 +8,7 @@ const APP = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 
 // Guard calls only. A bare word (getSession, CRON_SECRET, a type name) is not a guard.
 const ACTION_GUARD =
-  /\b(staffAction|orderAction|guard|requirePermission|requirePermissionIn|assertStaffSession|requireCustomer|requireCustomerId|requireCustomerSession|requireCustomerIdOrRedirect|requireActiveUser|guardPublicWrite|assertCanManage\w*|assertOwn\w*|callerIsStaff|isStaffRole)\(/;
+  /\b(staffAction|orderAction|requirePermission|requirePermissionIn|assertStaffSession|requireCustomer|requireCustomerId|requireCustomerSession|requireCustomerIdOrRedirect|requireActiveUser|guardPublicWrite|publicWriteRefusal|assertCanManage\w*|assertOwn\w*|callerIsStaff|isStaffRole)\(/;
 const ROUTE_GUARD =
   /\b(requirePermission|requirePermissionIn|assertStaffSession|adminRoute|adminIdRoute|withCronAuth|cronRoutes|cronJobRoute|verify\w*(Secret|Signature|Webhook|Captcha|Challenge|SnsMessage)\w*|constructEvent|parseStripeEvent|captchaPasses|requireCustomer\w*|requireActiveUser|requireAccountUser)\(/;
 // A page guard is its own call. `<Can>` only hides UI; the RSC payload still ships what the page loads.
@@ -152,16 +152,6 @@ function closure(file: string, depth = 2, seen = new Set<string>()): string {
   return [src, ...deps.map((d) => closure(d, depth - 1, seen))].join("\n");
 }
 
-/** A page plus its own data helpers: imports from the same folder, never an actions file. Layouts never count. */
-function pageSource(page: string): string {
-  const dir = dirname(page);
-  const src = code(page);
-  const helpers = [...src.matchAll(/from\s+["']([^"']+)["']/g)]
-    .map((m) => resolveLocal(m[1]!, page))
-    .filter((p): p is string => !!p && dirname(p) === dir && !/(^|[-.])actions?\.tsx?$/.test(basename(p)));
-  return [src, ...helpers.map(code)].join("\n");
-}
-
 type Decl = { name: string; exported: boolean; isFn: boolean; body: string };
 
 /** Top-level function-ish declarations, split on their starting lines. */
@@ -192,7 +182,15 @@ function scanActions(source: string): { name: string; guarded: boolean }[] {
   return decls.filter((d) => d.exported && d.isFn).map((d) => ({ name: d.name, guarded: exportGuarded(d, decls) }));
 }
 
-const pageGuarded = (source: string) => PAGE_GUARD.test(stripComments(source));
+/** The default export reaches a guard itself: in its body, or in a same-file helper it uses. Imported helpers do not count. */
+const pageGuarded = (source: string) => {
+  const decls = declarations(stripComments(source).replace(/^export default /m, "export const DefaultPage = "));
+  const page = decls.find((d) => d.name === "DefaultPage");
+  if (!page) return false;
+  if (PAGE_GUARD.test(page.body)) return true;
+  return decls.some((d) => !d.exported && d.name !== page.name && new RegExp(`\\b${d.name}\\b`).test(page.body) && PAGE_GUARD.test(d.body));
+};
+
 const routeGuarded = (source: string) => ROUTE_GUARD.test(stripComments(source));
 
 const isServerFile = (src: string) => /^["']use server["']/m.test(src.slice(0, 300));
@@ -242,7 +240,7 @@ describe("guard coverage", () => {
     for (const page of pages) {
       const r = rel(page);
       if (REDIRECT_ONLY_PAGES[r]) continue;
-      if (!pageGuarded(pageSource(page))) bad.push(r);
+      if (!pageGuarded(code(page))) bad.push(r);
     }
     console.info(`[guard-coverage] dashboard pages scanned: ${pages.length}`);
     expect(pages.length).toBeGreaterThan(0);
@@ -333,5 +331,34 @@ export default async function Page() {
   return Response.json(await db.run());
 }`;
     expect(routeGuarded(guarded)).toBe(true);
+  });
+
+  it("a local function named guard does not count as a guard", () => {
+    const localGuard = `"use server";
+function guard() {}
+export async function updateOrder(id: string) {
+  await guard();
+  return db.orders.update(id);
+}`;
+    expect(scanActions(localGuard)).toEqual([{ name: "updateOrder", guarded: false }]);
+  });
+
+  it("page whose guard lives only in an imported helper is flagged", () => {
+    const viaImport = `import { loadOrder } from "./data";
+export default async function Page() {
+  return <Export data={await loadOrder()} />;
+}`;
+    expect(pageGuarded(viaImport)).toBe(false);
+  });
+
+  it("page whose same-file helper calls the guard passes", () => {
+    const viaHelper = `export default async function Page() {
+  return <Body />;
+}
+async function Body() {
+  await requirePagePermission({ order: ["read"] });
+  return <Export />;
+}`;
+    expect(pageGuarded(viaHelper)).toBe(true);
   });
 });
