@@ -366,7 +366,9 @@ export async function listCustomersPage(
     latestOrder: sql`max(${orders.createdAt})`,
     lastDelivered,
   } as const;
-  const col = SORT_COL[sort.column] ?? users.name;
+  // Ranking by lifetime spend leaks finance data, so a viewer without finance:read sorts by latest order instead.
+  const sortKey = !opts.withPayments && sort.column === "paid" ? "latestOrder" : sort.column;
+  const col = SORT_COL[sortKey] ?? users.name;
 
   // Page ids first: only the sort column runs for every customer. The correlated columns below
   // (paid, last delivered, invite, reminder) then run for the page's rows instead of all of them.

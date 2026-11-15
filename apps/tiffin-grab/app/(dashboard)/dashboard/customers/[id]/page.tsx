@@ -3,7 +3,7 @@ import { formatMoney } from "@foundry/commons";
 import { AdminContactForm } from "@/components/dashboard/admin-contact-form";
 import { Badge } from "@foundry/ui/badge";
 import { SectionCard } from "@/components/ds";
-import { can } from "@/lib/auth/guards";
+import { can, requirePagePermission } from "@/lib/auth/guards";
 import { formatEpoch } from "@/lib/format/datetime";
 import { addressScopeFor, addressService } from "@/lib/services/addresses.service";
 import { CustomerInquiriesTable } from "./customer-inquiries-table";
@@ -12,9 +12,11 @@ import { overviewSections } from "./overview-sections";
 
 /** Overview tab: money, account basics, contact on file, and inquiries. Orders, renewals and the rest have their own tabs. */
 export default async function CustomerOverviewPage({ params }: { params: Promise<{ id: string }> }) {
+  await requirePagePermission({ customer: ["read"] });
   const { id } = await params;
-  const [{ profile }, { timezone }, saved, shown] = await Promise.all([
-    loadCustomer(id),
+  // The customer:read check runs first, so a denied viewer never reaches the address query.
+  const { profile } = await loadCustomer(id);
+  const [{ timezone }, saved, shown] = await Promise.all([
     loadViewer(),
     addressService.list(await addressScopeFor(id)),
     overviewSections(can),

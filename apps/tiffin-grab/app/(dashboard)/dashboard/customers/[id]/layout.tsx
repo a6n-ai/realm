@@ -40,7 +40,7 @@ export default async function CustomerLayout({ children, params }: { children: R
 }
 
 async function CustomerHeader({ id }: { id: string }) {
-  const [{ profile }, { canGive, canWallet, canOrder, canFinance, timezone }] = await Promise.all([loadCustomer(id), loadViewer()]);
+  const [{ profile }, { canGive, canWallet, canOrder, canFinance, canInvite, timezone }] = await Promise.all([loadCustomer(id), loadViewer()]);
   // Each stat reads only its own section's data, and only when the viewer may see that section.
   const [coinBalance, rate, { currency }, [{ planEnd }], orderList, spend] = await Promise.all([
     canWallet ? walletService.balance(profile.id) : 0,
@@ -81,7 +81,7 @@ async function CustomerHeader({ id }: { id: string }) {
         subtitle={contact || undefined}
         actions={
           <div className="flex flex-wrap gap-2">
-            <ResendInviteButton email={profile.email} />
+            {canInvite ? <ResendInviteButton email={profile.email} /> : null}
             {canGive ? <AdjustCoins customerPublicId={id} balance={coinBalance} who={who} /> : null}
             {canGive ? <AttachReferral customerPublicId={id} /> : null}
           </div>

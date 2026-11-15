@@ -56,4 +56,12 @@ describe("listCustomersPage", () => {
     const shown = await listCustomersPage(scope, { page: 0, size: 5 }, undefined, undefined, { withPayments: true });
     expect(shown.items[0].totalPaid).toBe("0");
   });
+
+  it("paid sort falls back to latest order without finance:read", async () => {
+    const scope = cLike("name", `${PREFIX}%`);
+    const sort = { column: "paid" as const, dir: "asc" as const };
+    const hidden = await listCustomersPage(scope, { page: 0, size: 50 }, sort);
+    const latest = await listCustomersPage(scope, { page: 0, size: 50 }, { column: "latestOrder", dir: "asc" });
+    expect(hidden.items.map((r) => r.publicId)).toEqual(latest.items.map((r) => r.publicId));
+  });
 });
