@@ -99,13 +99,12 @@ export function CustomerOrdersTable({ orders }: { orders: CustomerOrderRow[] }) 
           </TableCell>
           <TableCell className="text-right tabular-nums">{o.startDate}</TableCell>
           <TableCell className="text-right tabular-nums">{fmt(Number(o.total))}</TableCell>
+          {/* Separate cells, not a fragment: DataTable counts top-level cells to match columns. */}
+          {showPayments ? <TableCell className="text-right tabular-nums">{fmt(o.paid ?? 0)}</TableCell> : null}
           {showPayments ? (
-            <>
-              <TableCell className="text-right tabular-nums">{fmt(o.paid ?? 0)}</TableCell>
-              <TableCell className={cn("text-right tabular-nums", (o.due ?? 0) > 0 ? "text-destructive font-medium" : "text-muted-foreground")}>
-                {o.due == null ? "—" : fmt(o.due)}
-              </TableCell>
-            </>
+            <TableCell className={cn("text-right tabular-nums", (o.due ?? 0) > 0 ? "text-destructive font-medium" : "text-muted-foreground")}>
+              {o.due == null ? "—" : fmt(o.due)}
+            </TableCell>
           ) : null}
           <TableCell className="text-right tabular-nums">
             {formatEpoch(o.createdAt, { mode: "date", timeZone: tz })}

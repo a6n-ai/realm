@@ -6,6 +6,7 @@ import Link from "next/link";
 import { UsersIcon } from "lucide-react";
 import { formatMoney, formatPhone } from "@foundry/commons";
 import { Badge } from "@/components/reui/badge";
+import { cn } from "@foundry/ui/cn";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@foundry/design-system/timezone-provider";
 import { DataTable, ListPagination, type Column, type FacetDef } from "@/components/ds";
@@ -77,6 +78,8 @@ export function CustomersList({
             </TableCell>
             <TableCell>
               <Badge variant={statusOf(c.latestStatus).variant}>{statusOf(c.latestStatus).label}</Badge>
+              {/* Joined = they've used the account (verified email); until then the invite actions show. */}
+              <p className={cn("mt-1 text-xs", c.joined ? "text-muted-foreground" : "text-warning")}>{c.joined ? "Joined" : "Not joined"}</p>
             </TableCell>
             <TableCell className="text-right tabular-nums">{c.orderCount}</TableCell>
             <TableCell className="text-right tabular-nums">

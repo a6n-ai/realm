@@ -104,7 +104,8 @@ export function CustomerInviteCell({
   const { send, copy, pending } = useCustomerInvite(email);
   const tz = useTimezone();
   if (!email) return <span className="text-muted-foreground">—</span>;
-  if (joined && !hasActivePlan) return <span className="text-muted-foreground text-xs">Joined</span>;
+  // Joined shows in the Status column; nothing left to do here.
+  if (joined && !hasActivePlan) return <span className="text-muted-foreground">—</span>;
   const invite = sendTone(lastInvite, (ms) => formatEpoch(ms, { mode: "datetime", timeZone: tz }));
   return (
     <RowActions>
