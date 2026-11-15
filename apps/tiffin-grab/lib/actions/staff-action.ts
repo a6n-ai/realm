@@ -10,7 +10,8 @@ export type Guard = { readonly [K in keyof Perms]: readonly string[] };
 export type RevalidateTarget = string | readonly [path: string, type: "layout" | "page"];
 
 export type StaffActionOpts = {
-  guard: Guard;
+  /** Omit only when the action authorizes itself (target-dependent permission). */
+  guard?: Guard;
   revalidate?: readonly RevalidateTarget[];
   /** The write changes data the public catalog snapshot caches (plans, sizes, settings the wizard reads). */
   catalog?: boolean;
@@ -53,7 +54,7 @@ export async function staffAction(
   fn: () => Promise<void | string | Record<string, unknown>>,
 ): Promise<ActionResult<Record<string, unknown>>> {
   const res = await runAction(async () => {
-    await guard(opts.guard);
+    if (opts.guard) await guard(opts.guard);
     const out = await fn();
     // Loaded only when needed, so actions that never touch the catalog do not pull in its services.
     if (opts.catalog) await (await import("@/lib/catalog/load")).invalidateCatalogSnapshot();

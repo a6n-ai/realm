@@ -6,6 +6,7 @@ import { and, desc, eq, ilike, or, type Column } from "drizzle-orm";
 import { Role } from "@foundry/commons";
 import { db } from "@/db/client";
 import { inquiries, orders, tickets, users } from "@/db/schema";
+import { can } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 
@@ -36,25 +37,32 @@ export async function globalSearch(query: string): Promise<SearchResults> {
 
   const visible = await resolveSessionVisibleOrgIds(session);
   const like = `%${q}%`;
+  const [canOrders, canCustomers, canInquiries, canTickets] = await Promise.all([
+    can({ order: ["read"] }),
+    can({ customer: ["read"] }),
+    can({ inquiry: ["read"] }),
+    can({ ticket: ["read"] }),
+  ]);
+  // Customers are global: the Customers listing applies no org scope, so neither does this group.
   const [ord, cust, inq, tkt] = await Promise.all([
-    db
+    !canOrders ? [] : db
       .select({ publicId: orders.publicId, fullName: orders.fullName, deploymentId: orders.deploymentId, status: orders.status })
       .from(orders)
       .where(and(orgScope(orders.organizationId, visible), or(idMatch(orders.publicId, q), ilike(orders.fullName, like), ilike(orders.deploymentId, like), ilike(orders.city, like))))
       .orderBy(desc(orders.createdAt))
       .limit(5),
-    db
+    !canCustomers ? [] : db
       .select({ publicId: users.publicId, email: users.email, phone: users.phone, name: users.name })
       .from(users)
       .where(and(eq(users.role, Role.USER), or(idMatch(users.publicId, q), ilike(users.email, like), ilike(users.phone, like), ilike(users.name, like))))
       .limit(5),
-    db
+    !canInquiries ? [] : db
       .select({ publicId: inquiries.publicId, fullName: inquiries.fullName, phone: inquiries.phone, stage: inquiries.stage })
       .from(inquiries)
       .where(and(orgScope(inquiries.organizationId, visible), or(idMatch(inquiries.publicId, q), ilike(inquiries.fullName, like), ilike(inquiries.phone, like), ilike(inquiries.email, like))))
       .orderBy(desc(inquiries.createdAt))
       .limit(5),
-    db
+    !canTickets ? [] : db
       .select({ publicId: tickets.publicId, subject: tickets.subject, status: tickets.status, category: tickets.category, raiser: users.name })
       .from(tickets)
       .leftJoin(users, eq(users.id, tickets.raisedBy))

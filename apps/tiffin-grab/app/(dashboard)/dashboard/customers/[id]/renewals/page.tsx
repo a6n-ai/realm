@@ -2,6 +2,7 @@ import Link from "next/link";
 import { RefreshCwIcon } from "lucide-react";
 import { zonedDateIso } from "@foundry/commons";
 import { EmptyState } from "@/components/ds";
+import { requirePermission } from "@/lib/auth/guards";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import { getCustomerRenewal } from "@/lib/renewals/renewals.service";
 import { RenewalActions, RenewalSections } from "../../../renewals/customers/[id]/renewal-body";
@@ -11,6 +12,7 @@ import { requestNow } from "@/lib/dates/request-now";
 /** Renewals tab: the same view as Renewals → customer, inside the customer page. */
 export default async function CustomerRenewalsTab({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  await requirePermission({ customer: ["read"], order: ["read"] });
   const { session, canGive, timezone } = await loadViewer();
   const data = await getCustomerRenewal(await resolveSessionVisibleOrgIds(session), id);
   if (!data) {

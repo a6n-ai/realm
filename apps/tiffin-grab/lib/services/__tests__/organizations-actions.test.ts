@@ -6,7 +6,7 @@ import { organization } from "@/db/schema";
 // requirePermission needs a real request-scoped session; stub it like the other action
 // tests (discounts-actions.test.ts) so the action runs outside a request. The
 // point under test is the depth guard and the org row it produces.
-vi.mock("@/lib/auth/guards", () => ({ requirePermission: async () => undefined }));
+vi.mock("@/lib/auth/guards", () => ({ requirePermission: async () => undefined, requirePermissionIn: async () => undefined, requireOwnerToGrant: async () => undefined }));
 vi.mock("next/cache", () => ({ revalidatePath: () => undefined }));
 
 const { createFranchise, updateOrganizationAction } = await import("../organizations-actions");

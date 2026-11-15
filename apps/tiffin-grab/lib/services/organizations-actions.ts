@@ -1,12 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { assertHierarchyDepth } from "@foundry/auth";
 import { db } from "@/db/client";
 import { member, organization } from "@/db/schema";
 import { systemUserId, userIdByPublicId } from "@/lib/identity/user-ids";
-import { requirePermission } from "@/lib/auth/guards";
+import { requireOwnerToGrant, requirePermission, requirePermissionIn } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import {
   addMember,
@@ -20,6 +20,17 @@ import {
   type UserSearchRow,
 } from "./organizations.service";
 import { evictPublicPages } from "@/lib/landing/public-cache";
+
+// The target member's current role, so removing or demoting an owner needs owner too.
+async function currentMemberRole(organizationId: string, userPublicId: string): Promise<string | null> {
+  const userId = await userIdByPublicId(userPublicId);
+  if (!userId) return null;
+  const [row] = await db
+    .select({ role: member.role })
+    .from(member)
+    .where(and(eq(member.organizationId, organizationId), eq(member.userId, userId)));
+  return row?.role ?? null;
+}
 
 export type CreateFranchiseResult = { ok: true; id: string } | { ok: false; error: string };
 
@@ -64,7 +75,7 @@ export async function createFranchise(
   name: string,
   clientCode: string,
 ): Promise<CreateFranchiseResult> {
-  await requirePermission({ organization: ["update"] });
+  await requirePermissionIn(brandOrganizationId, { organization: ["update"] });
   try {
     const actingUserId = await resolveActingUserId();
     if (!actingUserId) return { ok: false, error: "No user available to create this organization." };
@@ -100,7 +111,8 @@ export async function addMemberAction(
   userPublicId: string,
   role: MemberRole,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  await requirePermission({ member: ["update"] });
+  await requirePermissionIn(organizationId, { member: ["update"] });
+  await requireOwnerToGrant(organizationId, role);
   try {
     await addMember(organizationId, userPublicId, role);
     revalidatePath(`/dashboard/organization/settings/${organizationId}`);
@@ -114,7 +126,7 @@ export async function updateOrganizationAction(
   id: string,
   fields: UpdateOrganizationInput,
 ): Promise<UpdateOrganizationResult> {
-  await requirePermission({ organization: ["update"] });
+  await requirePermissionIn(id, { organization: ["update"] });
   const result = await updateOrganization(id, fields);
   if (result.ok) {
     revalidatePath(`/dashboard/organization/settings/${id}`);
@@ -124,7 +136,8 @@ export async function updateOrganizationAction(
 }
 
 export async function removeMemberAction(organizationId: string, userPublicId: string): Promise<void> {
-  await requirePermission({ member: ["update"] });
+  await requirePermissionIn(organizationId, { member: ["update"] });
+  await requireOwnerToGrant(organizationId, await currentMemberRole(organizationId, userPublicId));
   await removeMember(organizationId, userPublicId);
   revalidatePath(`/dashboard/organization/settings/${organizationId}`);
 }
@@ -139,7 +152,8 @@ export async function updateMemberRoleAction(
   userPublicId: string,
   role: MemberRole,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  await requirePermission({ member: ["update"] });
+  await requirePermissionIn(organizationId, { member: ["update"] });
+  await requireOwnerToGrant(organizationId, role, await currentMemberRole(organizationId, userPublicId));
   try {
     await updateMemberRole(organizationId, userPublicId, role);
     revalidatePath(`/dashboard/organization/settings/${organizationId}`);

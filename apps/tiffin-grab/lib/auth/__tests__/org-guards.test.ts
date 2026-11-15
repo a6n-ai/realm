@@ -4,22 +4,17 @@ import { AuthError, ForbiddenError } from "@foundry/commons";
 vi.mock("react", async (orig) => ({ ...(await orig<typeof import("react")>()), cache: <T>(fn: T) => fn }));
 vi.mock("next/headers", () => ({ headers: async () => new Headers() }));
 vi.mock("@/lib/auth/session", () => ({ getSession: vi.fn() }));
-vi.mock("@/lib/auth/index", () => ({
-  auth: { api: { getActiveMemberRole: vi.fn() } },
-}));
-const roleRows = vi.fn();
+const dbRows = vi.fn();
 vi.mock("@/db/client", () => ({
-  db: { select: () => ({ from: () => ({ where: () => roleRows() }) }) },
+  db: { select: () => ({ from: () => ({ where: () => dbRows() }) }) },
 }));
 vi.mock("@/lib/identity/audit", () => ({ recordAudit: vi.fn() }));
 vi.mock("@/lib/identity/user-ids", () => ({ userIdByPublicId: vi.fn(async () => 7n) }));
 
 const { getSession } = await import("@/lib/auth/session");
-const { auth } = await import("@/lib/auth/index");
 const { recordAudit } = await import("@/lib/identity/audit");
 const { can, requirePermission } = await import("../guards");
 const session = getSession as unknown as ReturnType<typeof vi.fn>;
-const api = auth.api as unknown as Record<"getActiveMemberRole", ReturnType<typeof vi.fn>>;
 
 const sess = (platformRole: string | null, org: string | null) => ({
   user: { id: "u1", platformRole },
@@ -31,9 +26,10 @@ beforeEach(() => vi.clearAllMocks());
 describe("org guards", () => {
   it("custom kitchen role: can menu:write, denied finance:read", async () => {
     session.mockResolvedValue(sess(null, "o1"));
-    api.getActiveMemberRole.mockResolvedValue({ role: "kitchen" });
-    // Better Auth stores permission as JSON text; read directly since listOrgRoles needs ac:read.
-    roleRows.mockResolvedValue([{ role: "kitchen", permission: JSON.stringify({ menu: ["write"] }) }]);
+    // Member row first, then the custom role; Better Auth stores permission as JSON text.
+    const kitchen = [{ role: "kitchen" }];
+    const custom = [{ role: "kitchen", permission: JSON.stringify({ menu: ["write"] }) }];
+    dbRows.mockResolvedValueOnce(kitchen).mockResolvedValueOnce(custom).mockResolvedValueOnce(kitchen).mockResolvedValueOnce(custom);
     expect(await can({ menu: ["write"] })).toBe(true);
     await expect(requirePermission({ finance: ["read"] })).rejects.toBeInstanceOf(ForbiddenError);
     expect(recordAudit).not.toHaveBeenCalled();
@@ -45,7 +41,7 @@ describe("org guards", () => {
     expect(recordAudit).toHaveBeenCalledWith(
       expect.objectContaining({ entity: "auth", operation: "update", changes: { _action: "platform_bypass", perms: { finance: ["read"] } } }),
     );
-    expect(api.getActiveMemberRole).not.toHaveBeenCalled();
+    expect(dbRows).not.toHaveBeenCalled();
   });
 
   it("no active org is denied", async () => {

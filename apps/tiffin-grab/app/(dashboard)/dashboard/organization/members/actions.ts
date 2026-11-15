@@ -3,17 +3,18 @@
 import { isCustomerRole } from "@/lib/roles";
 import { StaffInviteError } from "@foundry/auth";
 import type { RoleValue } from "@foundry/commons";
-import { ValidationError } from "@foundry/commons";
-import { eq } from "drizzle-orm";
+import { ForbiddenError, ValidationError } from "@foundry/commons";
+import { and, eq } from "drizzle-orm";
 import { headers } from "next/headers";
 import { db } from "@/db/client";
-import { users } from "@/db/schema";
+import { member, users } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import type { ActionResult } from "@/lib/actions/action-result";
 import { staffAction, type StaffActionOpts } from "@/lib/actions/staff-action";
 import { sendStaffInviteLink, sendStaffSetupLink } from "@/lib/auth/invite-links";
+import { requirePermission, requirePermissionIn } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
-import { getMemberOrganizations } from "@/lib/services/organizations.service";
+import { getBrandOrgId, getMemberOrganizations } from "@/lib/services/organizations.service";
 import { ContactTakenError, usersService } from "@/lib/services/users.service";
 import { inviteUser } from "@/lib/services/users-invite";
 
@@ -24,8 +25,32 @@ const MEMBER_UPDATE = { guard: { member: ["update"] }, revalidate: [MEMBERS] } a
 const INVITATION_CREATE = { guard: { invitation: ["create"] }, revalidate: [MEMBERS] } as const;
 const INVITATION_CANCEL = { guard: { invitation: ["cancel"] }, revalidate: [MEMBERS] } as const;
 
+/**
+ * users.* writes are global, so the permission follows the target: a member of the caller's active
+ * org needs member:update there, a customer needs customer:manage, anyone else is out of reach.
+ * super_admin passes the guard (audited) for any target.
+ */
+async function authorizeTarget(userPublicId: string): Promise<void> {
+  const session = await getSession();
+  if (session?.user.platformRole === "super_admin") return requirePermission({ member: ["update"] });
+  const [target] = await db.select({ id: users.id, role: users.role }).from(users).where(eq(users.publicId, userPublicId)).limit(1);
+  if (!target) throw new ForbiddenError();
+  const activeOrgId = session?.session.activeOrganizationId;
+  if (activeOrgId) {
+    const [row] = await db
+      .select({ id: member.id })
+      .from(member)
+      .where(and(eq(member.organizationId, activeOrgId), eq(member.userId, target.id)));
+    if (row) return requirePermission({ member: ["update"] });
+  }
+  // Customers are global (the customers pages apply no org scope), so customer:manage is the whole check.
+  if (isCustomerRole(target.role)) return requirePermission({ customer: ["manage"] });
+  throw new ForbiddenError();
+}
+
 export async function setUserStatus(userId: string, status: UserStatusValue): Promise<ActionResult> {
-  return staffAction(MEMBER_UPDATE, async () => {
+  return staffAction({ revalidate: [MEMBERS] }, async () => {
+    await authorizeTarget(userId);
     const session = await getSession();
     if ((session?.user as { publicId?: string })?.publicId === userId) {
       throw new ValidationError("Change your own account status from account settings.");
@@ -39,6 +64,10 @@ export async function setUserStatus(userId: string, status: UserStatusValue): Pr
 
 export async function setUserRole(userId: string, role: RoleValue): Promise<ActionResult> {
   return staffAction(MEMBER_UPDATE, async () => {
+    // syncStaffMembership writes the brand org's member row, so authorize there, not only in the active org.
+    const brandId = await getBrandOrgId();
+    if (!brandId) throw new ForbiddenError();
+    await requirePermissionIn(brandId, { member: ["update"] });
     // setRole, not update: demoting your own row out of admin locks you out of this
     // page, and the guard lives in the service so every caller inherits it.
     await usersService.setRole(userId, role);
@@ -59,7 +88,8 @@ export async function adminUpdateContact(
     [`/dashboard/customers/${userId}`, "layout"] as const,
     MEMBERS,
   ];
-  return staffAction({ guard: { member: ["update"] }, revalidate: targets }, async (): Promise<{ taken?: { message: string; holderHref: string } }> => {
+  return staffAction({ revalidate: targets }, async (): Promise<{ taken?: { message: string; holderHref: string } }> => {
+    await authorizeTarget(userId);
     try {
       await usersService.updateContact(userId, opts.removePhone ? { phone: "" } : input, { nameClash: true, ...opts });
     } catch (e) {
@@ -82,7 +112,8 @@ export async function adminUpdateContact(
 // to someone who never had a password read as a mistake, which is why this is
 // not one path.
 export async function sendStaffAccessEmail(userId: string): Promise<ActionResult<{ email: string; kind: "invite" | "reset" }>> {
-  return staffAction({ guard: { member: ["update"] } }, async (): Promise<{ email: string; kind: "invite" | "reset" }> => {
+  return staffAction({}, async (): Promise<{ email: string; kind: "invite" | "reset" }> => {
+    await authorizeTarget(userId);
     const email = await usersService.assertStaffEmail(userId);
     const [u] = await db
       .select({ role: users.role, passwordSet: users.passwordSet })
