@@ -1,12 +1,14 @@
 import { notFound } from "next/navigation";
 import { BackButton, SectionCard, UserAvatar } from "@/components/ds";
 import { Badge } from "@/components/reui/badge";
+import { canIn } from "@/lib/auth/guards";
 import { getOrganization, listFranchiseCities, listMembers, type MemberRole } from "@/lib/services/organizations.service";
 import { ClientDetailForm } from "./client-detail-form";
 import { MemberManagement } from "../member-management";
 
 export default async function ClientDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  if (!(await canIn(id, { member: ["update"] }))) notFound();
   const org = await getOrganization(id);
   if (!org) notFound();
   const [members, cities, parent] = await Promise.all([

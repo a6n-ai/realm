@@ -3,6 +3,7 @@ import { parseSort } from "@foundry/design-system/list-sort";
 import { SectionCard } from "@/components/ds";
 import { StatCards, StatCardsSkeleton } from "@/components/dashboard/stat-cards";
 import { clientStats } from "../org-stats";
+import { canIn } from "@/lib/auth/guards";
 import { listOrganizations } from "@/lib/services/organizations.service";
 import { ClientsList, ClientsListSkeleton, type ClientListRow } from "./clients-list";
 
@@ -39,7 +40,10 @@ async function ClientsData({ searchParams }: { searchParams: SearchParams }) {
     dir: "asc",
   });
 
-  const orgs = await listOrganizations();
+  const all = await listOrganizations();
+  // Only clients where the caller may manage members; a franchise admin must not read the brand's roster.
+  const allowed = await Promise.all(all.map((o) => canIn(o.id, { member: ["update"] })));
+  const orgs = all.filter((_, i) => allowed[i]);
   const nameById = new Map(orgs.map((o) => [o.id, o.name]));
 
   const rows: ClientListRow[] = orgs.map((o) => ({
