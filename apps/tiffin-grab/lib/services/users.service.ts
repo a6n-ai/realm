@@ -2,7 +2,7 @@ import { appPhoneCountry, parseEmail, parsePhone } from "@/lib/services/contact"
 import { isUniqueViolation } from "@/lib/db/errors";
 import { isCustomerRole, isStaffRole } from "@/lib/roles";
 import { UpdatableRepository } from "@foundry/database";
-import { AuthError, ValidationError, pinSchema, type RoleValue } from "@foundry/commons";
+import { AuthError, ValidationError, pinSchema } from "@foundry/commons";
 import { and, eq, ne, sql } from "drizzle-orm";
 import { db, type Tx } from "@/db/client";
 import { account, invitation, session, users } from "@/db/schema";
@@ -11,7 +11,6 @@ import { SessionUpdatableService } from "./session-service";
 import { requireUserId } from "@/lib/identity/user-ids";
 import { recordAudit } from "@/lib/identity/audit";
 import { pickUserWritable } from "./users-writable";
-import { syncStaffMembership } from "./organizations.service";
 import { createLogger } from "@foundry/commons/logger";
 
 // Never let credential hashes reach the audit trail (brute-forceable), and drop
@@ -48,25 +47,6 @@ class UsersService extends SessionUpdatableService<typeof users> {
   }
   async update(id: string, patch: Record<string, unknown>) {
     return super.update(id, pickUserWritable(patch));
-  }
-
-  /**
-   * Change a user's role, never your own.
-   *
-   * Demoting yourself out of `admin` locks you out of the users page that is the only
-   * way back, so recovery is a database edit. The rule lives here rather than in the
-   * server action so every caller inherits it — the same reason setStatus's self-guard
-   * exists. Mirrors puchkaman's setRole.
-   */
-  async setRole(userId: string, role: RoleValue) {
-    const actorId = await this.currentUserId();
-    const target = { id: await requireUserId(userId) };
-    if (actorId && target.id === actorId) {
-      throw new ValidationError("You cannot change your own role.");
-    }
-    const updated = await this.update(userId, { role });
-    await syncStaffMembership(target.id, role);
-    return updated;
   }
 
   /**

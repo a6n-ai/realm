@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("@/lib/auth/guards", () => ({ requirePermission: vi.fn(), requirePermissionIn: vi.fn(), requireOwnerToGrant: vi.fn() }));
+vi.mock("@/lib/auth/guards", () => ({ requirePermission: vi.fn(), requirePermissionIn: vi.fn(), requireOwnerToGrant: vi.fn(), requireCanAssignRole: vi.fn() }));
 vi.mock("@/lib/auth/session", () => ({ getSession: vi.fn().mockResolvedValue({ user: { id: "usr_me" }, session: { activeOrganizationId: "org_1" } }) }));
 vi.mock("@/lib/auth/role-options", () => ({
   getRoleOptions: vi.fn().mockResolvedValue([{ value: "owner", label: "owner" }, { value: "admin", label: "admin" }, { value: "member", label: "member" }]),
@@ -29,7 +29,7 @@ vi.mock("@/db/client", () => ({
 vi.mock("@/lib/auth", () => ({
   auth: {
     api: {
-      createInvitation: vi.fn().mockResolvedValue({ id: "inv_new" }),
+      createInvitation: vi.fn().mockResolvedValue({ id: "inv_new", role: "member" }),
       signInMagicLink: vi.fn().mockResolvedValue({ status: true }),
       updateMemberRole: vi.fn().mockResolvedValue({ member: {} }),
       cancelInvitation: vi.fn().mockResolvedValue({ id: "inv_1", status: "canceled" }),
@@ -52,6 +52,16 @@ describe("resendInvite", () => {
         body: expect.objectContaining({ callbackURL: "/accept-invitation/inv_new/complete" }),
       }),
     );
+  });
+});
+
+describe("inviteUserAction", () => {
+  it("refuses a role above the caller's own before creating the account", async () => {
+    const guards = await import("@/lib/auth/guards");
+    const { ForbiddenError } = await import("@foundry/commons");
+    vi.mocked(guards.requireCanAssignRole).mockRejectedValueOnce(new ForbiddenError("too much"));
+    const { inviteUserAction } = await import("../actions");
+    expect(await inviteUserAction({ email: "a@example.test", name: "A", role: "admin" })).toEqual(expect.objectContaining({ error: "too much" }));
   });
 });
 
@@ -97,6 +107,19 @@ describe("setMemberRole", () => {
       expect.objectContaining({ body: { memberId: "mem_3", role: "admin", organizationId: "org_1" } }),
     );
     expect(recordAudit).toHaveBeenCalledWith(expect.objectContaining({ entity: "member", entityPublicId: "mem_3" }));
+  });
+
+  it("refuses a role above the caller's own and never reaches Better Auth", async () => {
+    const svc = await import("@/lib/services/organizations.service");
+    vi.mocked(svc.getMemberInOrg).mockResolvedValue({ id: "mem_5", userId: 5n, role: "member" });
+    const guards = await import("@/lib/auth/guards");
+    const { ForbiddenError } = await import("@foundry/commons");
+    vi.mocked(guards.requireCanAssignRole).mockRejectedValueOnce(new ForbiddenError("too much"));
+    const { auth } = await import("@/lib/auth");
+    vi.mocked(auth.api.updateMemberRole).mockClear();
+    const { setMemberRole } = await import("../actions");
+    expect(await setMemberRole("mem_5", "admin")).toEqual(expect.objectContaining({ error: "too much" }));
+    expect(auth.api.updateMemberRole).not.toHaveBeenCalled();
   });
 
   it("returns a Better Auth refusal as action error text", async () => {

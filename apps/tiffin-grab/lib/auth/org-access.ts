@@ -93,3 +93,14 @@ export function effectivePermissions(access: OrgAccess): Permissions {
   }
   return Object.fromEntries(Object.entries(out).map(([k, v]) => [k, [...v]]));
 }
+
+/** What one role name grants in an org: built-in from `orgRoles`, custom from the organization_role table. */
+export async function rolePermissions(organizationId: string, role: string): Promise<Permissions> {
+  const builtIn = (orgRoles as Record<string, { statements: Permissions } | undefined>)[role];
+  if (Object.hasOwn(orgRoles, role) && builtIn) return builtIn.statements;
+  const [row] = await db
+    .select({ permission: organizationRole.permission })
+    .from(organizationRole)
+    .where(and(eq(organizationRole.organizationId, organizationId), eq(organizationRole.role, role)));
+  return row ? (JSON.parse(row.permission) as Permissions) : {};
+}

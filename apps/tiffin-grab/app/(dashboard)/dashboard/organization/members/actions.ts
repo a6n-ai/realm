@@ -11,7 +11,7 @@ import { auth } from "@/lib/auth";
 import type { ActionResult } from "@/lib/actions/action-result";
 import { staffAction, type StaffActionOpts } from "@/lib/actions/staff-action";
 import { sendStaffInviteLink, sendStaffSetupLink } from "@/lib/auth/invite-links";
-import { requireOwnerToGrant, requirePermission, requirePermissionIn } from "@/lib/auth/guards";
+import { requireCanAssignRole, requireOwnerToGrant, requirePermission, requirePermissionIn } from "@/lib/auth/guards";
 import { authApi } from "@/lib/auth/org-role-api";
 import { getRoleOptions } from "@/lib/auth/role-options";
 import { getSession } from "@/lib/auth/session";
@@ -25,7 +25,8 @@ export type UserStatusValue = "active" | "inactive" | "suspended" | "deleted";
 
 const MEMBERS = "/dashboard/organization/members";
 const MEMBER_UPDATE = { guard: { member: ["update"] }, revalidate: [MEMBERS] } as const;
-const INVITATION_CREATE = { guard: { invitation: ["create"] }, revalidate: [MEMBERS] } as const;
+const INVITE_PERMS = { invitation: ["create"], staff: ["invite"] };
+const INVITATION_CREATE = { guard: INVITE_PERMS, revalidate: [MEMBERS] } as const;
 const INVITATION_CANCEL = { guard: { invitation: ["cancel"] }, revalidate: [MEMBERS] } as const;
 
 /**
@@ -88,6 +89,7 @@ export async function setMemberRole(memberId: string, role: string): Promise<Act
     }
     if (!(await getRoleOptions(organizationId)).some((o) => o.value === role)) throw new ValidationError("Unknown role.");
     await requireOwnerToGrant(organizationId, role, target.role);
+    await requireCanAssignRole(organizationId, role);
     const wasOwner = target.role.split(",").some((r) => r.trim() === "owner");
     if (wasOwner && role !== "owner" && (await countOwners(organizationId)) <= 1) {
       throw new ValidationError("An organization needs at least one owner");
@@ -174,13 +176,17 @@ export async function resendInvite(userId: string, organizationId: string): Prom
       .where(and(eq(member.organizationId, organizationId), eq(member.userId, u.id)))
       .limit(1);
     const role = m?.role ?? "member";
+    await requirePermissionIn(organizationId, INVITE_PERMS);
+    await requireCanAssignRole(organizationId, role);
     const invitation = await authApi(async () =>
       auth.api.createInvitation({
         body: { email: u.email!, role: role as "member", organizationId, resend: true },
         headers: await headers(),
       }),
     );
-    await sendStaffInviteLink({ email: u.email, role, invitationId: invitation.id });
+    // BA keeps a pending invitation's own role, so the mail must say that one, within the same ceiling.
+    await requireCanAssignRole(organizationId, invitation.role);
+    await sendStaffInviteLink({ email: u.email, role: invitation.role, invitationId: invitation.id });
     return { email: u.email };
   });
 }
@@ -208,7 +214,9 @@ export async function inviteUserAction(input: { email: string; name: string; rol
     if (!(await getRoleOptions(organizationId)).some((o) => o.value === input.role)) {
       throw new ValidationError("Unknown role.");
     }
+    await requirePermissionIn(organizationId, INVITE_PERMS);
     await requireOwnerToGrant(organizationId, input.role);
+    await requireCanAssignRole(organizationId, input.role);
     try {
       await inviteUser({ email: input.email, name: input.name, role: input.role, organizationId });
     } catch (e) {

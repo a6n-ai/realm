@@ -1,7 +1,7 @@
 import { AuthError, ForbiddenError } from "@foundry/commons";
 import { createOrgPermissionGuards } from "@foundry/auth";
 import { getSession } from "./session";
-import { getOrgAccess, getOrgAccessFor } from "./org-access";
+import { effectivePermissions, getOrgAccess, getOrgAccessFor, rolePermissions } from "./org-access";
 import { orgRoles } from "./permissions";
 import { recordAudit } from "@/lib/identity/audit";
 import { userIdByPublicId } from "@/lib/identity/user-ids";
@@ -35,6 +35,28 @@ export async function requireOwnerToGrant(organizationId: string, ...roles: (str
   if (access.kind === "platform") return;
   if (access.kind === "member" && access.roles.includes(orgRoles.owner)) return;
   throw new ForbiddenError();
+}
+
+/** Can the caller hand out `role` (a comma list too) in that org? Owner and platform admins may hand out anything; others only what they hold. */
+export async function canAssignRole(organizationId: string, role: string): Promise<boolean> {
+  const access = await getOrgAccessFor(organizationId);
+  if (access.kind === "platform") return true;
+  if (access.kind === "member" && access.roles.includes(orgRoles.owner)) return true;
+  const held = effectivePermissions(access);
+  for (const name of role.split(",").map((r) => r.trim()).filter(Boolean)) {
+    const granted = await rolePermissions(organizationId, name);
+    for (const [resource, actions] of Object.entries(granted)) {
+      if (!(actions as string[]).every((a) => held[resource]?.includes(a))) return false;
+    }
+  }
+  return true;
+}
+
+/** A role may not grant more than the caller holds in that org (`owner` itself stays with requireOwnerToGrant). */
+export async function requireCanAssignRole(organizationId: string, role: string): Promise<void> {
+  if (!(await canAssignRole(organizationId, role))) {
+    throw new ForbiddenError(`You can't assign the role "${role}": it grants permissions you don't hold.`);
+  }
 }
 
 /** Signed-in staff account (not a customer). For routes with no domain permission, like generic uploads. */

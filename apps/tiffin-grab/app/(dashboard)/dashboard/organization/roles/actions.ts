@@ -16,7 +16,7 @@ import { userIdByPublicId } from "@/lib/identity/user-ids";
 import { getRoleHolderCounts } from "@/lib/services/organizations.service";
 
 const ROLES = "/dashboard/organization/roles";
-const ROLE_NAME = /^[a-z0-9-]+$/;
+const ROLE_NAME = /^[a-z0-9-]{1,40}$/;
 
 async function actingContext() {
   const session = await getSession();
@@ -27,7 +27,7 @@ async function actingContext() {
 
 function checkName(raw: string): string {
   const name = raw.trim();
-  if (!ROLE_NAME.test(name)) throw new ValidationError("Use lowercase letters, digits and hyphens only.");
+  if (!ROLE_NAME.test(name)) throw new ValidationError("Use 1-40 lowercase letters, digits or hyphens.");
   if (Object.hasOwn(orgRoles, name)) throw new ValidationError(`"${name}" is a built-in role. Choose another name.`);
   return name;
 }

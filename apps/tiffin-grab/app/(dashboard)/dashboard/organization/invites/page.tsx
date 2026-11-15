@@ -49,7 +49,7 @@ async function InvitesData({ searchParams }: { searchParams: SearchParams }) {
   const visible = await resolveSessionVisibleOrgIds(session);
   const orgIds = visible === "all" ? (await listOrganizations()).map((o) => o.id) : visible;
 
-  const [rows, directOrgs, { options }] = await Promise.all([
+  const [rows, directOrgs, { options, canInvite }] = await Promise.all([
     getInvitationsForOrgs(orgIds),
     getMemberOrganizations(session),
     getRoleChoices(),
@@ -64,7 +64,7 @@ async function InvitesData({ searchParams }: { searchParams: SearchParams }) {
   return (
     <>
       <StatCards items={inviteStats(rows, now)} />
-      <InvitesCard roles={options.filter((r) => !r.locked)}>
+      <InvitesCard roles={canInvite ? options.filter((r) => !r.locked) : []}>
         <InvitesList rows={shown} status={status ?? "all"} actionableOrgIds={directOrgs.map((o) => o.id)} />
       </InvitesCard>
     </>

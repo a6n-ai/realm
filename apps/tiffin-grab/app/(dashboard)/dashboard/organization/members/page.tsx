@@ -103,7 +103,7 @@ async function UsersData({ searchParams }: { searchParams: SearchParams }) {
   const sort = parseSort(sp, ["name", "email", "role", "status"], { column: "email", dir: "asc" });
   const SORT_COLUMNS = { name: "name", email: "email", role: "orgRole", status: "status" } as const;
 
-  const { organizationId: activeOrgId, options, canGrantOwner } = await getRoleChoices();
+  const { organizationId: activeOrgId, options, canGrantOwner, canInvite } = await getRoleChoices();
   const spec = buildSpec(options);
   const { condition, page } = parseFilterState(spec, sp);
 
@@ -123,7 +123,7 @@ async function UsersData({ searchParams }: { searchParams: SearchParams }) {
   return (
     <>
       <StatCards items={memberStats(allRows)} />
-      <MembersCard inviteRoles={options}>
+      <MembersCard inviteRoles={canInvite ? options : []}>
         <UsersList
           spec={spec}
           rows={rows}

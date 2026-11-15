@@ -138,7 +138,7 @@ describe("inviteUserAction (integration)", () => {
     await db.delete(member).where(and(eq(member.organizationId, other.id), eq(member.userId, admin.id)));
 
     expect(await inviteUserAction({ email: INVITEE, name: "Invitee", role: "member" })).toEqual(
-      expect.objectContaining({ error: expect.stringMatching(/do not have permission|can't invite staff/i) }),
+      expect.objectContaining({ error: expect.stringMatching(/do not have permission/i) }),
     );
 
     expect(await db.select({ id: users.id }).from(users).where(eq(users.email, INVITEE))).toHaveLength(0);
