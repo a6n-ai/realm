@@ -174,24 +174,6 @@ export async function getBrandOrgId(tx: { select: typeof db.select } = db): Prom
   return row?.id ?? null;
 }
 
-/**
- * Keep brand membership in step with the staff/customer split. Staff with no membership land in the
- * brand org as plain `member`; their org role is set through Better Auth, never copied from `users.role`.
- * Staff already in a franchise are left alone so a role change never widens their visibility.
- * Demotion to customer drops every membership.
- */
-export async function syncStaffMembership(userId: bigint, role: string): Promise<void> {
-  if (role !== "admin" && role !== "member") {
-    await db.delete(member).where(eq(member.userId, userId));
-    return;
-  }
-  const [existing] = await db.select({ id: member.id }).from(member).where(eq(member.userId, userId)).limit(1);
-  if (existing) return;
-  const brandId = await getBrandOrgId();
-  if (!brandId) return;
-  await db.insert(member).values({ organizationId: brandId, userId, role: "member" }).onConflictDoNothing();
-}
-
 export type UserSearchRow = { publicId: string; email: string };
 
 export async function searchUsersByEmail(query: string): Promise<UserSearchRow[]> {

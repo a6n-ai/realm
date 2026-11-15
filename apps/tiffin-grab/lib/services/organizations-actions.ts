@@ -6,7 +6,8 @@ import { assertHierarchyDepth } from "@foundry/auth";
 import { db } from "@/db/client";
 import { member, organization } from "@/db/schema";
 import { systemUserId, userIdByPublicId } from "@/lib/identity/user-ids";
-import { requireOwnerToGrant, requirePermission, requirePermissionIn } from "@/lib/auth/guards";
+import { requireCanAssignRole, requireOwnerToGrant, requirePermission, requirePermissionIn } from "@/lib/auth/guards";
+import { getRoleOptions } from "@/lib/auth/role-options";
 import { getSession } from "@/lib/auth/session";
 import {
   addMember,
@@ -111,7 +112,12 @@ export async function addMemberAction(
   role: MemberRole,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   await requirePermissionIn(organizationId, { member: ["update"] });
+  // `role` is only typed: a server action receives whatever the client sends.
+  if (!(await getRoleOptions(organizationId)).some((o) => o.value === role)) {
+    return { ok: false, error: "Unknown role." };
+  }
   await requireOwnerToGrant(organizationId, role);
+  await requireCanAssignRole(organizationId, role);
   try {
     await addMember(organizationId, userPublicId, role);
     revalidatePath(`/dashboard/organization/settings/${organizationId}`);
@@ -136,7 +142,10 @@ export async function updateOrganizationAction(
 
 export async function removeMemberAction(organizationId: string, userPublicId: string): Promise<void> {
   await requirePermissionIn(organizationId, { member: ["update"] });
-  await requireOwnerToGrant(organizationId, await currentMemberRole(organizationId, userPublicId));
+  const current = await currentMemberRole(organizationId, userPublicId);
+  await requireOwnerToGrant(organizationId, current);
+  // Removing someone who holds more than you is as much an escalation as granting it.
+  if (current) await requireCanAssignRole(organizationId, current);
   await removeMember(organizationId, userPublicId);
   revalidatePath(`/dashboard/organization/settings/${organizationId}`);
 }

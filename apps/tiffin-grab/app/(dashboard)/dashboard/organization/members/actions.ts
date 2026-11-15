@@ -90,6 +90,8 @@ export async function setMemberRole(memberId: string, role: string): Promise<Act
     if (!(await getRoleOptions(organizationId)).some((o) => o.value === role)) throw new ValidationError("Unknown role.");
     await requireOwnerToGrant(organizationId, role, target.role);
     await requireCanAssignRole(organizationId, role);
+    // Nor change someone whose current role holds more than you do (e.g. member:update demoting an admin).
+    await requireCanAssignRole(organizationId, target.role);
     const wasOwner = target.role.split(",").some((r) => r.trim() === "owner");
     if (wasOwner && role !== "owner" && (await countOwners(organizationId)) <= 1) {
       throw new ValidationError("An organization needs at least one owner");
@@ -182,7 +184,7 @@ export async function resendInvite(userId: string, organizationId: string): Prom
     const [pending] = await db
       .select({ role: invitation.role })
       .from(invitation)
-      .where(and(eq(invitation.organizationId, organizationId), eq(invitation.email, u.email), eq(invitation.status, "pending")))
+      .where(and(eq(invitation.organizationId, organizationId), eq(invitation.email, u.email.toLowerCase()), eq(invitation.status, "pending")))
       .limit(1);
     if (pending?.role) await requireCanAssignRole(organizationId, pending.role);
     const issued = await authApi(async () =>

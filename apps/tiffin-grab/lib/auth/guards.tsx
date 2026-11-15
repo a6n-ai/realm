@@ -45,6 +45,7 @@ export async function canAssignRole(organizationId: string, role: string): Promi
   const held = effectivePermissions(access);
   for (const name of role.split(",").map((r) => r.trim()).filter(Boolean)) {
     const granted = await rolePermissions(organizationId, name);
+    if (!granted) return false; // unknown role: never assignable
     for (const [resource, actions] of Object.entries(granted)) {
       if (!(actions as string[]).every((a) => held[resource]?.includes(a))) return false;
     }

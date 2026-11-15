@@ -37,4 +37,9 @@ describe("role ceiling", () => {
     dbRows.mockResolvedValueOnce([{ role: "owner" }]);
     expect(await canAssignRole("o1", "admin")).toBe(true);
   });
+
+  it("an unknown role name is never assignable", async () => {
+    dbRows.mockResolvedValueOnce([{ role: "admin" }]).mockResolvedValueOnce([]);
+    expect(await canAssignRole("o1", "ghost")).toBe(false);
+  });
 });
