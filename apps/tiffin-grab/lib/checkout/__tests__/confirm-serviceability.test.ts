@@ -1,4 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
+import { ValidationError } from "@foundry/commons";
 
 // The serviceability gate is the whole point: an out-of-zone checkout must never
 // call createOrder (no order, no payment) — it captures a waitlist inquiry instead.
@@ -24,6 +25,8 @@ const updateContact = vi.fn(async (..._a: unknown[]) => ({}));
 vi.mock("@/lib/services/users.service", () => ({ usersService: { updateContact: (...a: unknown[]) => updateContact(...a) } }));
 vi.mock("@foundry/places", () => ({ resolveAndPersist: (...a: unknown[]) => resolveAndPersist(...a) }));
 vi.mock("@/lib/landing/inquiry-intake", () => ({ recordWebsiteInquiry: (...a: unknown[]) => recordWebsiteInquiry(...a) }));
+const guardPublicWrite = vi.fn(async (..._a: unknown[]) => {});
+vi.mock("@/lib/auth/public-write-guard", () => ({ guardPublicWrite: (...a: unknown[]) => guardPublicWrite(...a) }));
 vi.mock("@/lib/auth/session", () => ({ getSession: async () => ({ user: { id: "usr_7", email: "j@x.com" } }) }));
 vi.mock("@/lib/services/customers.service", () => ({ sendAccountSetupEmail: vi.fn() }));
 vi.mock("@/lib/services/session-service", () => ({ currentUserId: async () => 7n }));
@@ -47,6 +50,7 @@ describe("confirmSubscription serviceability gate", () => {
     createOrder.mockClear();
     recordWebsiteInquiry.mockClear();
     resolveAndPersist.mockClear();
+    guardPublicWrite.mockClear();
   });
 
   it("out-of-zone → waitlist inquiry, NO order/payment", async () => {
@@ -55,6 +59,22 @@ describe("confirmSubscription serviceability gate", () => {
     expect(res).toEqual({ ok: true, waitlisted: true });
     expect(recordWebsiteInquiry).toHaveBeenCalledTimes(1);
     expect(createOrder).not.toHaveBeenCalled();
+  });
+
+  it("out-of-zone waitlist write is capped per IP; over the cap nothing is written", async () => {
+    matchZoneResult = null;
+    guardPublicWrite.mockRejectedValueOnce(new ValidationError("Too many attempts. Try again in an hour."));
+    const res = await confirmSubscription({ ...input, captchaToken: "tok" });
+    expect(res).toMatchObject({ error: "Too many attempts. Try again in an hour." });
+    expect(guardPublicWrite).toHaveBeenCalledWith("checkout-waitlist", "tok", 10);
+    expect(recordWebsiteInquiry).not.toHaveBeenCalled();
+    expect(createOrder).not.toHaveBeenCalled();
+  });
+
+  it("in-zone checkout does not spend the waitlist cap", async () => {
+    matchZoneResult = { name: "Downtown" };
+    await confirmSubscription(input);
+    expect(guardPublicWrite).not.toHaveBeenCalled();
   });
 
   it("in-zone → creates the order", async () => {

@@ -16,6 +16,7 @@ import { findZone } from "@/lib/catalog/zone-match";
 import { parseCanadianPostalCode } from "@/lib/catalog/postal";
 import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 import { recordWebsiteInquiry } from "@/lib/landing/inquiry-intake";
+import { guardPublicWrite } from "@/lib/auth/public-write-guard";
 import { runAction, type ActionResult } from "@/lib/actions/action-result";
 import type { CardSource, PayByCardResult } from "@/lib/payments/payment-stripe";
 import { captureMetaAttribution } from "@/lib/meta/request-context";
@@ -25,6 +26,8 @@ export type ConfirmInput = CreateOrderInput & {
   renewal?: boolean;
   /** Browser URL at submit — used for Meta event_source_url / fbclid fallback. */
   eventSourceUrl?: string | null;
+  /** Turnstile token; checked only when the address is out of zone and the waitlist write runs. */
+  captchaToken?: string | null;
   /**
    * True when this checkout continues an existing subscription (wizard origin
    * "renew" or quick-renew). Distinct from `renewal`, which only locks identity.
@@ -114,7 +117,7 @@ export async function payCheckout(
   input: PayCheckoutInput,
 ): Promise<ActionResult<{ paymentPublicId: string; deploymentId: string; result: PayByCardResult }>> {
   return runAction(async () => {
-    const { paymentPublicId: reuseId, source, acceptSurcharge, expectedAmountCents, ...order } = input;
+    const { paymentPublicId: reuseId, source, acceptSurcharge, expectedAmountCents, captchaToken, ...order } = input;
     if (order.paymentMethodId !== "stripe") throw new ValidationError("Choose card to pay now.");
     const session = await getSession();
     if (!session?.user) throw new ValidationError("Sign in to place your order.");
@@ -129,7 +132,7 @@ export async function payCheckout(
         ({ paymentPublicId, deploymentId } = reusable);
       } else {
         if (await replaceUnpaidCheckouts(userPublicId)) throw new ValidationError(PAY_IN_PROGRESS);
-        const placed = await placeSubscription(order);
+        const placed = await placeSubscription({ ...order, captchaToken });
         if (placed.waitlisted) throw new ValidationError("We do not deliver to that address yet. We have added you to our waitlist.");
         ({ paymentPublicId, deploymentId } = placed);
         await stampInputsFingerprint(paymentPublicId, order);
@@ -219,7 +222,7 @@ async function findReusableCheckout(paymentPublicId: string, userPublicId: strin
 async function placeSubscription(rawInput: ConfirmInput): Promise<ConfirmResult> {
   // Resolve the contact FIRST: serviceability, geocoding and tax below must all
   // run against the identity and address the order will actually be placed with.
-  const { renewal: _renewal = false, eventSourceUrl, planRenewal = false, ...rest } = rawInput;
+  const { renewal: _renewal = false, eventSourceUrl, planRenewal = false, captchaToken, ...rest } = rawInput;
   const contact = await resolveContact(rawInput);
   // A malformed postal code is a typo to fix, not a lead for the waitlist.
   const input: CreateOrderInput = { ...rest, contact: { ...contact, postalCode: parseCanadianPostalCode(contact.postalCode) } };
@@ -230,6 +233,7 @@ async function placeSubscription(rawInput: ConfirmInput): Promise<ConfirmResult>
   const { zones } = await loadCatalogSnapshot(orgId);
   const address = [input.contact.addressLine, input.contact.city, input.contact.postalCode].filter(Boolean).join(", ");
   if ((await findZone(zones, { postalCode: input.contact.postalCode, address }, orgId)) == null) {
+    await guardPublicWrite("checkout-waitlist", captchaToken, 10);
     await recordWebsiteInquiry({
       fullName: input.contact.fullName,
       phone: input.contact.phone,

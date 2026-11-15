@@ -23,6 +23,7 @@ const recordWebsiteInquiry = vi.fn();
 vi.mock("@/lib/landing/inquiry-intake", () => ({ recordWebsiteInquiry: (...a: unknown[]) => recordWebsiteInquiry(...a) }));
 vi.mock("@/lib/auth/session", () => ({ getSession: async () => (signedIn ? { user: { id: "usr_7", email: "priya@example.com" } } : null) }));
 vi.mock("@/lib/auth", () => ({ auth: { api: { sendVerificationEmail: vi.fn() } } }));
+vi.mock("@/lib/auth/public-write-guard", () => ({ guardPublicWrite: async () => {} }));
 vi.mock("@/lib/tenant/resolve-request-org", () => ({ resolveRequestOrg: async () => null }));
 vi.mock("@/lib/services/customers.service", () => ({ sendAccountSetupEmail: vi.fn() }));
 vi.mock("@/lib/services/session-service", () => ({ currentUserId: async () => userId }));

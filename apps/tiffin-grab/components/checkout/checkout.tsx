@@ -756,6 +756,7 @@ export function Checkout({
         coins: appliedCoins || undefined,
         paymentMethodId: paymentMethods.length > 0 ? paymentMethodId : null,
         eventSourceUrl: typeof window !== "undefined" ? window.location.href : undefined,
+        captchaToken: zone && !zone.served ? await getCaptchaToken() : undefined,
       });
       if ("error" in res) {
         toast.error(res.error);
@@ -813,6 +814,7 @@ export function Checkout({
       source,
       acceptSurcharge,
       eventSourceUrl: typeof window !== "undefined" ? window.location.href : undefined,
+      captchaToken: zone && !zone.served ? await getCaptchaToken() : undefined,
     });
     if ("error" in res) {
       // The server priced differently: show its total so the next Pay sends that one.
