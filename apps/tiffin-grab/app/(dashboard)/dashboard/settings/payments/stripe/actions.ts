@@ -16,7 +16,7 @@ import { ensurePaymentCatalog, getPaymentConfigFresh, setPaymentConfig } from "@
 import { getAppSettings } from "@/lib/settings";
 
 const READ: Guard = { settings: ["read"] };
-const WRITE: Guard = { settings: ["write"] };
+const WRITE: Guard = { finance: ["manage"] };
 
 const WRITE_OPTS = {
   guard: WRITE,

@@ -54,13 +54,13 @@ beforeEach(() => {
 });
 
 describe("stripe settings actions", () => {
-  it("require settings:write", async () => {
+  it("require finance:manage", async () => {
     const fd = new FormData();
     fd.set("secretKey", "rk_test_x");
     fd.set("publishableKey", "pk_test_x");
     const r = await a.connectStripeAction(fd);
     expect("error" in r).toBe(true);
-    expect(requirePermission).toHaveBeenCalledWith({ settings: ["write"] });
+    expect(requirePermission).toHaveBeenCalledWith({ finance: ["manage"] });
   });
 
   it("tax readiness needs settings:read", async () => {

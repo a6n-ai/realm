@@ -47,6 +47,7 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
   const resolved = await scopeOrAlert("/dashboard/analytics/products", await searchParams);
   if (!resolved.scope) return resolved.alert;
   const { scope } = resolved;
+  const canFinance = await can({ finance: ["read"] });
   return (
     <Can perms={{ order: ["read"] }} fallback={<NoAccessNote />}>
       <div className="flex flex-col gap-6">
@@ -125,7 +126,7 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
           <ChartCard
             title="What sells?"
             subtitle="Meal size and plan length, top 10 by orders"
-            info={`Orders ${DATE_BASIS_LABEL.orders}, cancelled orders left out. Revenue is net, ${DATE_BASIS_LABEL.money}, for the same size and length, so it can include payments on orders placed outside the range.`}
+            info={`Orders ${DATE_BASIS_LABEL.orders}, cancelled orders left out.${canFinance ? ` Revenue is net, ${DATE_BASIS_LABEL.money}, for the same size and length, so it can include payments on orders placed outside the range.` : ""}`}
           >
             <Suspense fallback={<ChartSkeleton height={340} />}>
               <ProductSalesList scope={scope} />
@@ -306,6 +307,7 @@ async function ProductSalesList({ scope }: { scope: AnalyticsScope }) {
   const money = await getMoneyFormatter();
   const all = await productSales(scope);
   if (all.length === 0) return <p className="text-muted-foreground py-8 text-center text-sm">No orders in this range.</p>;
+  const canFinance = await can({ finance: ["read"] });
   return (
     <div className="flex flex-col gap-3">
       <RankCards
@@ -314,11 +316,11 @@ async function ProductSalesList({ scope }: { scope: AnalyticsScope }) {
           rank: i + 1,
           title: `${r.size} · ${r.weeks} ${r.weeks === 1 ? "week" : "weeks"}`,
           value: plural(r.orders, "order", "orders"),
-          meta: [`${money(r.revenue)} net revenue`],
+          meta: canFinance ? [`${money(r.revenue)} net revenue`] : undefined,
         }))}
       />
       {all.length > 10 ? <p className="text-muted-foreground text-xs">Other · {all.length - 10} more products</p> : null}
-      <TotalLine label="Total" value={`${plural(sum(all, "orders"), "order", "orders")} · ${money(sum(all, "revenue"))}`} />
+      <TotalLine label="Total" value={canFinance ? `${plural(sum(all, "orders"), "order", "orders")} · ${money(sum(all, "revenue"))}` : plural(sum(all, "orders"), "order", "orders")} />
     </div>
   );
 }

@@ -15,7 +15,7 @@ const taxLineSchema = z.object({
 const provinceTaxesSchema = z.record(z.enum(PROVINCES), z.array(taxLineSchema).max(4));
 
 export async function setProvinceTaxesAction(input: unknown): Promise<ActionResult> {
-  return staffAction({ guard: { settings: ["write"] }, revalidate: ["/dashboard/settings/payments/checkout-rules"] }, async () => {
+  return staffAction({ guard: { finance: ["manage"] }, revalidate: ["/dashboard/settings/payments/checkout-rules"] }, async () => {
     await setProvinceTaxes(parseInput(provinceTaxesSchema, input));
   });
 }

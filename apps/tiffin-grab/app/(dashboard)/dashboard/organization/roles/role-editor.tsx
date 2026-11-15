@@ -19,6 +19,7 @@ import {
 } from "@foundry/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
 import { SaveBar } from "@/components/ds/switch-list";
+import { BreadcrumbLabel } from "@/components/dashboard/app-breadcrumbs";
 import { Badge } from "@/components/reui/badge";
 import { PermissionGroupsEditor, groupsWithAnyOn } from "@/components/ds/permission-groups-editor";
 import { setMemberRoles } from "../members/actions";
@@ -190,7 +191,8 @@ export function RoleEditor({
 
   return (
     <div className="grid content-start gap-6">
-      <Link href={ROLES} className="flex w-fit items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground">
+      <BreadcrumbLabel segment="roles" label={`Roles · ${role.name}`} />
+      <Link href={ROLES} className="flex w-fit items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground md:hidden">
         <ArrowLeftIcon className="size-4" /> All roles
       </Link>
 

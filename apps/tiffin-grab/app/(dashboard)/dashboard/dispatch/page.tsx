@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { TruckIcon } from "lucide-react";
 import { zonedDateIso } from "@foundry/commons";
 import { Skeleton } from "@foundry/ui/skeleton";
-import { requirePagePermission } from "@/lib/auth/guards";
+import { can, requirePagePermission } from "@/lib/auth/guards";
 import { getAppSettings } from "@/lib/settings";
 import { getOptimoRouteStatus } from "@/lib/optimoroute/config";
 import { buildDayLedger } from "@/lib/optimoroute/ledger";
@@ -66,6 +66,10 @@ async function DispatchData({ searchParams }: { searchParams: SearchParams }) {
   let ledger;
   try {
     ledger = await buildDayLedger(date, today, visible);
+    // Phones are not rendered (or searchable) client-side without customer:read, so they never reach the browser.
+    if (!(await can({ customer: ["read"] }))) {
+      ledger = { ...ledger, rows: ledger.rows.map((r) => ({ ...r, phone: null })) };
+    }
   } catch (e) {
     return (
       <>

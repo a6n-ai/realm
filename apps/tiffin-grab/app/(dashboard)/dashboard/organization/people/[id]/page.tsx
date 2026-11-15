@@ -5,13 +5,14 @@ import { ArrowLeftIcon } from "lucide-react";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { requirePagePermission } from "@/lib/auth/guards";
 import { RESOURCE_LABELS } from "@/lib/auth/permissions";
+import { BreadcrumbLabel } from "@/components/dashboard/app-breadcrumbs";
 import { loadMemberPanel } from "../../members/member-panel-data";
 import { MemberDetail } from "../../members/member-panel";
 
 export default function PersonPage({ params }: { params: Promise<{ id: string }> }) {
   return (
     <div className="grid gap-6">
-      <Link href="/dashboard/organization/people" className="inline-flex w-fit items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+      <Link href="/dashboard/organization/people" className="inline-flex w-fit items-center gap-1 text-sm text-muted-foreground hover:text-foreground md:hidden">
         <ArrowLeftIcon className="size-4" /> Back to People
       </Link>
       <Suspense fallback={<PersonSkeleton />}>
@@ -26,7 +27,12 @@ async function PersonData({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const data = await loadMemberPanel(id);
   if (!data) notFound();
-  return <MemberDetail data={data} resources={RESOURCE_LABELS} />;
+  return (
+    <>
+      <BreadcrumbLabel segment={id} label={data.member.name || data.member.email || "Person"} />
+      <MemberDetail data={data} resources={RESOURCE_LABELS} />
+    </>
+  );
 }
 
 function PersonSkeleton() {
