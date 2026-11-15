@@ -3,14 +3,13 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { LockIcon, PlusIcon, ShieldCheckIcon } from "lucide-react";
-import { OrgRoleDialog, type PermissionMap, type ResourceLabel } from "@foundry/crm";
-import { Button } from "@foundry/ui/button";
+import { LockIcon, ShieldCheckIcon } from "lucide-react";
+import type { PermissionMap, ResourceLabel } from "@foundry/crm";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
 import { TableCell } from "@foundry/ui/table";
 import { AreaBadge, DataTable, type Column } from "@/components/ds";
 import { Badge } from "@/components/reui/badge";
-import { createRole } from "./actions";
+import { NewRoleDialog } from "./role-dialogs";
 import { areasOf, countPermissions, memberCount, type RoleItem } from "./role-summary";
 
 const ROLES = "/dashboard/organization/roles";
@@ -39,21 +38,7 @@ export function RolesTable({
   const rows = roles.filter((r) => area === "all" || areasOf(r.permission, resources).some((a) => a.resource === area));
 
   const create = (
-    <OrgRoleDialog
-      resources={resources}
-      grantable={grantable}
-      trigger={
-        <Button size="sm">
-          <PlusIcon /> New role
-        </Button>
-      }
-      onSave={async (input) => {
-        const res = await createRole(input);
-        if ("error" in res) return { error: res.error };
-        router.push(roleHref(input.name.trim()));
-        return {};
-      }}
-    />
+    <NewRoleDialog resources={resources} grantable={grantable} onCreated={(name) => router.push(roleHref(name))} />
   );
 
   return (

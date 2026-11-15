@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeftIcon, LockIcon, Trash2Icon } from "lucide-react";
 import { toast } from "sonner";
-import { OrgRoleDialog, type PermissionMap, type ResourceLabel } from "@foundry/crm";
+import type { PermissionMap, ResourceLabel } from "@foundry/crm";
 import { Button } from "@foundry/ui/button";
 import {
   Dialog,
@@ -18,23 +18,13 @@ import {
   DialogTrigger,
 } from "@foundry/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
-import { SaveBar, SwitchList, type SwitchRow } from "@/components/ds/switch-list";
+import { SaveBar } from "@/components/ds/switch-list";
 import { Badge } from "@/components/reui/badge";
-import { GroupHeading } from "@/components/ds/group-heading";
-import { ActionIcon } from "@/components/ds/action-icon";
-import { groupResources } from "@/lib/auth/permission-groups";
+import { PermissionGroupsEditor, groupsWithAnyOn } from "@/components/ds/permission-groups-editor";
 import { setMemberRoles } from "../members/actions";
 import { deleteRole, updateRole } from "./actions";
-import { setPermission } from "./permission-toggle";
-import {
-  countOn,
-  countPermissions,
-  isGrantableAction,
-  memberCount,
-  samePermissions,
-  totalPermissions,
-  type RoleItem,
-} from "./role-summary";
+import { RenameRoleDialog } from "./role-dialogs";
+import { countPermissions, memberCount, samePermissions, totalPermissions, type RoleItem } from "./role-summary";
 
 const ROLES = "/dashboard/organization/roles";
 
@@ -193,28 +183,10 @@ export function RoleEditor({
     });
   }
 
-  // Renames through the shared role dialog. It saves the permissions it shows, so the draft seeds it.
-  async function rename(input: { name: string; permission: PermissionMap }): Promise<{ error?: string }> {
-    const res = await updateRole(role.id as string, { name: input.name, permission: input.permission });
-    if ("error" in res) return { error: res.error };
-    if (input.name !== role.name) router.replace(`${ROLES}?role=${encodeURIComponent(input.name)}`);
+  function renamed(name: string) {
+    router.replace(`${ROLES}?role=${encodeURIComponent(name)}`);
     router.refresh();
-    return {};
   }
-
-  const rowsFor = (r: ResourceLabel): SwitchRow[] =>
-    r.actions.map((a) => {
-      const allowed = isGrantableAction(grantable, r.resource, a.action);
-      return {
-        id: `${r.resource}.${a.action}`,
-        label: a.label,
-        icon: <ActionIcon action={a.action} />,
-        hint: !readOnly && !allowed ? "You don't have this permission" : undefined,
-        checked: draft[r.resource]?.includes(a.action) ?? false,
-        disabled: readOnly || !canUpdate || pending || !allowed,
-        onChange: (on: boolean) => setDraft((d) => setPermission(d, r.resource, a.action, on)),
-      };
-    });
 
   return (
     <div className="grid content-start gap-6">
@@ -230,12 +202,12 @@ export function RoleEditor({
           </Badge>
         ) : (
           <>
-            <OrgRoleDialog
-              resources={resources}
-              grantable={grantable}
-              initial={{ name: role.name, permission: draft }}
-              onSave={rename}
-              trigger={<Button variant="outline" size="sm" disabled={!canUpdate}>Rename</Button>}
+            <RenameRoleDialog
+              roleId={role.id as string}
+              current={role.name}
+              saved={role.permission}
+              disabled={!canUpdate}
+              onRenamed={renamed}
             />
             <DeleteRole role={role} id={role.id as string} disabled={!canDelete} />
           </>
@@ -256,28 +228,14 @@ export function RoleEditor({
         />
       )}
 
-      {groupResources(resources).map(({ group, items }) => {
-        const on = items.reduce((n, r) => n + countOn(draft, r), 0);
-        const total = items.reduce((n, r) => n + r.actions.length, 0);
-        return (
-          <section key={group.key} className="grid gap-4" aria-label={group.label}>
-            <GroupHeading group={group} trailing={<span className="text-xs text-muted-foreground tabular-nums">{on} of {total} on</span>} />
-            <div className="grid items-start gap-6 md:grid-cols-2">
-              {items.map((r) => (
-                <section key={r.resource} className="grid gap-2" aria-label={r.label}>
-                  <div className="flex items-baseline justify-between gap-2">
-                    <h4 className="text-sm font-medium">{r.label}</h4>
-                    <span className="text-xs text-muted-foreground tabular-nums">
-                      {countOn(draft, r)} of {r.actions.length} on
-                    </span>
-                  </div>
-                  <SwitchList rows={rowsFor(r)} />
-                </section>
-              ))}
-            </div>
-          </section>
-        );
-      })}
+      <PermissionGroupsEditor
+        value={draft}
+        onChange={setDraft}
+        resources={resources}
+        grantable={grantable}
+        readOnly={readOnly || !canUpdate || pending}
+        defaultOpen={groupsWithAnyOn(role.permission, resources)}
+      />
 
       {members && <RoleMembers roleName={role.name} members={members} />}
     </div>

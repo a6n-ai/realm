@@ -6,6 +6,7 @@ import { Button } from "@foundry/ui/button";
 import { Card } from "@foundry/ui/card";
 import { Separator } from "@foundry/ui/separator";
 import { Switch } from "@foundry/ui/switch";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@foundry/ui/tooltip";
 import { Field, FieldContent, FieldDescription, FieldGroup, FieldLabel, FieldTitle } from "@/components/ui/field";
 
 /** Save bar shared by the settings and roles editors: status on the left, Reset + Save on the right. */
@@ -52,6 +53,8 @@ export interface SwitchRow {
   hint?: string;
   checked: boolean;
   disabled?: boolean;
+  /** Shown on hover over the switch, for a disabled row that needs an explanation. */
+  tooltip?: string;
   onChange: (on: boolean) => void;
 }
 
@@ -69,7 +72,19 @@ export function SwitchList({ rows }: { rows: SwitchRow[] }) {
                   <FieldTitle className="flex items-center gap-2">{r.icon}{r.label}</FieldTitle>
                   {r.hint && <FieldDescription className="text-xs tabular-nums">{r.hint}</FieldDescription>}
                 </FieldContent>
-                <Switch checked={r.checked} disabled={r.disabled} onCheckedChange={r.onChange} />
+                {r.tooltip ? (
+                  <Tooltip>
+                    {/* A disabled button swallows pointer events, so the tooltip hangs off a wrapper span. */}
+                    <TooltipTrigger asChild>
+                      <span className="inline-flex">
+                        <Switch checked={r.checked} disabled={r.disabled} onCheckedChange={r.onChange} />
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent>{r.tooltip}</TooltipContent>
+                  </Tooltip>
+                ) : (
+                  <Switch checked={r.checked} disabled={r.disabled} onCheckedChange={r.onChange} />
+                )}
               </FieldLabel>
             </Field>
           </Fragment>
