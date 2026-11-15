@@ -33,7 +33,7 @@ export const ac = createAccessControl(statement);
 
 // Today's member plus what requireStaff admits; Task 11 confirms against staff pages.
 export const MEMBER_PERMISSIONS = {
-  order: ["read", "write"],
+  order: ["read", "write", "cancel"],
   subscription: ["read", "write", "pause"],
   menu: ["read"],
   finance: ["read"],

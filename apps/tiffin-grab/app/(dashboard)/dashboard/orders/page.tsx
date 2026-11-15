@@ -1,8 +1,7 @@
-import { isAdmin } from "@/lib/roles";
 import { Suspense } from "react";
 import { PackageIcon, ActivityIcon, CalendarClockIcon, CalendarOffIcon, RefreshCwIcon, CircleXIcon, FlagIcon, PlayCircleIcon, WalletIcon, ShieldCheckIcon, AlarmClockIcon, GiftIcon, TruckIcon, PackageCheckIcon, CalendarX2Icon, UsersIcon } from "lucide-react";
 import { formatMoney, zonedDateIso } from "@foundry/commons";
-import { requireStaff } from "@/lib/auth/guards";
+import { can, requirePermission } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { loadOrderFilterOptions, loadOwnerOptions } from "@/lib/list/facet-options";
 import { after } from "next/server";
@@ -127,7 +126,7 @@ export default async function OrdersPage({
 
 // Only while WordPress plans are waiting to be started; gone once the switch-over is done.
 async function StartMigratedAction() {
-  await requireStaff();
+  await requirePermission({ order: ["read"] });
   const waiting = await countMigratedWaiting();
   return waiting > 0 ? <StartMigratedDialog waiting={waiting} /> : null;
 }
@@ -144,7 +143,7 @@ async function freeRange(raw: Awaited<SearchParams>): Promise<FreeTiffinRange> {
 }
 
 async function OrdersViews({ searchParams }: { searchParams: SearchParams }) {
-  await requireStaff();
+  await requirePermission({ order: ["read"] });
   const visible = await resolveSessionVisibleOrgIds(await getSession());
   const [lookOutCount, missedCount, paymentReviewCount, freeCount] = await Promise.all([
     countLookOutOrders(visible),
@@ -156,7 +155,7 @@ async function OrdersViews({ searchParams }: { searchParams: SearchParams }) {
 }
 
 async function OrdersStats({ searchParams }: { searchParams: SearchParams }) {
-  await requireStaff();
+  await requirePermission({ order: ["read"] });
   const sp = await withDefaultMonth(await searchParams);
   const range = { from: Number(sp.from), to: Number(sp.to) };
   const visible = await resolveSessionVisibleOrgIds(await getSession());
@@ -276,7 +275,7 @@ async function OrdersStats({ searchParams }: { searchParams: SearchParams }) {
 }
 
 async function OrdersData({ searchParams }: { searchParams: SearchParams }) {
-  await requireStaff();
+  await requirePermission({ order: ["read"] });
   after(() => expireUnpaidStripeOrders({}));
 
   const raw = await searchParams;
@@ -290,7 +289,7 @@ async function OrdersData({ searchParams }: { searchParams: SearchParams }) {
       { kind: "select", field: "day", label: "Day", options: [...MISSED_DAYS] },
       { kind: "search", fields: ["customerName", "orderCode", "planName"] },
     ];
-    return <MissedList rows={rows} anyMissed={all.length > 0} spec={spec} isAdmin={isAdmin(session)} today={today} />;
+    return <MissedList rows={rows} anyMissed={all.length > 0} spec={spec} isAdmin={await can({ order: ["write"] })} today={today} />;
   }
   const lookOutOnly = raw.view === "lookout";
   const paymentReview = raw.view === "payment";
@@ -373,7 +372,7 @@ async function OrdersData({ searchParams }: { searchParams: SearchParams }) {
 }
 
 async function NewOrderAction() {
-  await requireStaff();
+  await requirePermission({ order: ["read"] });
 
   const [{ defaultCountry, currency }, sources, catalog, slots, planKeys] = await Promise.all([
     getAppSettings(),

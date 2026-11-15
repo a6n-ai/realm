@@ -10,7 +10,7 @@ import { orderAction } from "@/lib/orders/order-action";
 
 export async function reconcileMissedAction(): Promise<ActionResult> {
   return staffAction(
-    { guard: "staff", revalidate: ["/dashboard/orders", "/dashboard/dispatch", ["/me", "layout"]] },
+    { guard: { order: ["write"] }, revalidate: ["/dashboard/orders", "/dashboard/dispatch", ["/me", "layout"]] },
     async () => {
       const visible = await resolveSessionVisibleOrgIds(await getSession());
       const r = await reconcileMissedDeliveries(visible, await currentUserId());
@@ -22,7 +22,7 @@ export async function reconcileMissedAction(): Promise<ActionResult> {
 
 /** Did not go out: hold the day and move its tiffin to `date` (the order page's Move, same rules). */
 export async function moveMissedAction(deliveryPublicId: string, date: string): Promise<ActionResult> {
-  return orderAction({ delivery: deliveryPublicId, revalidate: [["/dashboard/orders", "layout"], ["/me", "layout"]] }, async () => {
+  return orderAction({ guard: { order: ["write"] }, delivery: deliveryPublicId, revalidate: [["/dashboard/orders", "layout"], ["/me", "layout"]] }, async () => {
     const { carriedOn } = await moveMissedDelivery(deliveryPublicId, date, await currentUserId());
     return `Moved to ${carriedOn}`;
   });

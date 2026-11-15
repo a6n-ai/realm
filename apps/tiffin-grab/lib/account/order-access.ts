@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { orders, payments } from "@/db/schema";
 import { isStaffRole } from "@/lib/roles";
+import { can } from "@/lib/auth/guards";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import { currentUserId } from "@/lib/services/session-service";
 import { sees } from "@/lib/tenant/org-scope";
@@ -16,7 +17,7 @@ export async function ownsOrder(order: OrderOwnership): Promise<boolean> {
 
 /** Staff may open an order only inside their own organizations; an unscoped order is "all"-only. */
 export async function staffSeesOrder(session: SessionLike, order: OrderOwnership): Promise<boolean> {
-  if (!isStaffRole(session.user.role)) return false;
+  if (!isStaffRole(session.user.role) || !(await can({ order: ["read"] }))) return false;
   const visible = await resolveSessionVisibleOrgIds(session);
   return visible === "all" || (order.organizationId != null && sees(visible, order.organizationId));
 }

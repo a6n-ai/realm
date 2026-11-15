@@ -3,7 +3,7 @@
 import { appTodayIso } from "@/lib/dates/today";
 import { and, eq, inArray } from "drizzle-orm";
 import { emailSchema, phoneSchema } from "@foundry/commons";
-import { requireStaff } from "@/lib/auth/guards";
+import { requirePermission } from "@/lib/auth/guards";
 import type { ActionResult } from "@/lib/actions/action-result";
 import { staffAction } from "@/lib/actions/staff-action";
 import { getSession } from "@/lib/auth/session";
@@ -62,7 +62,7 @@ export type RepCouponInfo =
 // the staff discount panel: the panel offers exactly this coupon and bounds the
 // amount to the server-computed ceiling. Reps cannot apply anyone else's coupon.
 export async function repCouponInfo(): Promise<RepCouponInfo> {
-  await requireStaff();
+  await requirePermission({ order: ["read"] });
   const policy = await getDiscountPolicy();
   if (!policy.repDaily.enabled) return { available: false, reason: "disabled" };
 
@@ -113,7 +113,7 @@ export async function repCouponInfo(): Promise<RepCouponInfo> {
 // longer validates falls back to the un-discounted preview — the authoritative
 // gate is createOrder.
 export async function trialFormSettings() {
-  await requireStaff();
+  await requirePermission({ order: ["read"] });
   return getTrialSettings(await resolveRequestOrg());
 }
 
@@ -151,7 +151,7 @@ async function knownCustomerAccounts(email: string, phone: string) {
 }
 
 export async function customerOrderContext(email: string, phone = ""): Promise<CustomerOrderContext> {
-  await requireStaff();
+  await requirePermission({ order: ["read"] });
   const { known, visible } = await knownCustomerAccounts(email, phone);
   if (known.length > 1) return { ...NO_CONTEXT, conflict: true };
   const userId = known[0];
@@ -175,7 +175,7 @@ export async function customerOrderContext(email: string, phone = ""): Promise<C
 
 // Address types and drop-off strategies with their fees, as checkout offers them.
 export async function orderFormDeliveryOptions() {
-  await requireStaff();
+  await requirePermission({ order: ["read"] });
   const client = toClientCatalog(await loadCatalogSnapshot());
   return { deliveryCharges: client.deliveryCharges ?? null, waivers: client.waivers ?? [] };
 }
@@ -188,7 +188,7 @@ export async function previewPrice(
   requestedAmount?: number,
   coins?: number | "max",
 ): Promise<ActionResult<StaffPricePreview>> {
-  return staffAction({ guard: "staff" }, () => quotePrice(input, couponCode, requestedAmount, coins));
+  return staffAction({ guard: { order: ["read"] } }, () => quotePrice(input, couponCode, requestedAmount, coins));
 }
 
 // The customer coupon lane as createOrder will resolve it: what landed on the price, why the
@@ -311,7 +311,7 @@ export async function convertInquiry(
   input: CreateOrderInput,
 ): Promise<ActionResult<{ publicId: string; deploymentId: string; paymentPublicId: string; payUrl: string | null }>> {
   const revalidate = ["/dashboard/orders", "/dashboard/inquiries", `/dashboard/inquiries/${inquiryId}`];
-  return staffAction({ guard: "staff", revalidate }, async () => {
+  return staffAction({ guard: { order: ["write"] }, revalidate }, async () => {
     await assertInquiriesVisible([inquiryId], await resolveSessionVisibleOrgIds(await getSession()));
     const result = await inquiriesService.convert(inquiryId, input);
     return { ...result, payUrl: await stripePayLink(result.paymentPublicId) };
@@ -321,7 +321,7 @@ export async function convertInquiry(
 // Optional, staff-clicked: emails the customer a sign-in link to pay this new order.
 // A Stripe order passes its paymentPublicId (the link is that payment's page); others default to the order's unpaid payment.
 export async function emailPaymentLinkAction(orderPublicId: string, paymentPublicId?: string): Promise<ActionResult> {
-  return orderAction({ order: orderPublicId, orderPage: orderPublicId }, async () => {
+  return orderAction({ guard: { order: ["write"] }, order: orderPublicId, orderPage: orderPublicId }, async () => {
     await sendPaymentReminder(orderPublicId, paymentPublicId ?? (await findUnpaidPayment(orderPublicId)), await currentUserId());
   });
 }

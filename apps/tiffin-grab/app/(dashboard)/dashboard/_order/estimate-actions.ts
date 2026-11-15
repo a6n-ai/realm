@@ -4,7 +4,7 @@ import { noVisibleOrgs } from "@/lib/tenant/org-scope";
 import { ValidationError } from "@foundry/commons";
 import { createShortLink } from "@foundry/shortlinks";
 import { db } from "@/db/client";
-import { requireStaff } from "@/lib/auth/guards";
+import { requirePermission } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { quoteQuery } from "@/lib/wizard/selections";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
@@ -22,7 +22,7 @@ import type { OrderFormInput } from "./order-schema";
 
 // Loaded when the estimate opens: the Create coupon dialog sits on every dashboard page.
 export async function estimateFormData() {
-  await requireStaff();
+  await requirePermission({ order: ["read"] });
   const [catalog, slots, { currency }] = await Promise.all([
     loadCatalogSnapshot(),
     dishCategoriesService.enabledCategories(),
@@ -38,7 +38,7 @@ export async function estimateFormData() {
 // The short /q/ link for an estimate. Only the quote params are kept, so the stored target is
 // always the subscribe stepper; created_by is the signed-in staff member, never client input.
 export async function createQuoteLink(query: string): Promise<ActionResult<{ code: string }>> {
-  return staffAction({ guard: "staff" }, async () => {
+  return staffAction({ guard: { order: ["write"] } }, async () => {
     const qs = quoteQuery(new URLSearchParams(query));
     if (!qs) throw new ValidationError("Nothing to link to yet");
     const publicId = (await getSession())?.user?.id;

@@ -8,7 +8,7 @@ import { deliveries, ledgerEntries, orders, payments, users } from "@/db/schema"
 
 const visible = vi.hoisted(() => ({ orgs: "all" as "all" | string[] }));
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
-vi.mock("@/lib/auth/guards", () => ({ requireStaff: async () => {}, requireAdmin: async () => {} }));
+vi.mock("@/lib/auth/guards", () => ({ requirePermission: async () => {}, can: async () => true }));
 vi.mock("@/lib/auth/session", () => ({ getSession: async () => ({ user: { id: "usr_staff" } }) }));
 vi.mock("next/cache", () => ({ revalidatePath: () => {} }));
 vi.mock("@/lib/auth/visible-orgs", () => ({ resolveSessionVisibleOrgIds: async () => visible.orgs }));

@@ -2,7 +2,7 @@ import { eq } from "@foundry/commons/model/condition";
 import { zonedDateIso } from "@foundry/commons";
 import { getSession } from "@/lib/auth/session";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
-import { requireStaff } from "@/lib/auth/guards";
+import { requirePermission } from "@/lib/auth/guards";
 import { getAppSettings } from "@/lib/settings";
 import { loadOwnerOptions } from "@/lib/list/facet-options";
 import { ALL_OWNERS, ME, resolveOwnerParam } from "@/lib/list/presets";
@@ -26,7 +26,7 @@ function hrefWith(sp: SearchParams, changes: Record<string, string | null>): str
 
 /** The Next order card: the order to act on for the card's owner, with Previous/Next and the up-next strip. */
 export async function NextOrderSection({ searchParams }: { searchParams: Promise<SearchParams> }) {
-  await requireStaff();
+  await requirePermission({ order: ["read"] });
   const sp = await searchParams;
   const session = await getSession();
   const viewer = session?.user.id;

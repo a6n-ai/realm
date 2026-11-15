@@ -12,14 +12,16 @@ import { ValidationError } from "@foundry/commons";
 import { z } from "zod";
 import { isBulkSettable, type SubStatus } from "@/lib/inquiries/status";
 import type { ActionResult } from "@/lib/actions/action-result";
-import { staffAction } from "@/lib/actions/staff-action";
+import { staffAction, type Guard } from "@/lib/actions/staff-action";
 import { QUICK_ADD_MAX, parsePastedPhones } from "./quick-add/parse-phones";
 
 const LIST = "/dashboard/inquiries";
 
-const listOpts = { guard: "staff", revalidate: [LIST] } as const;
+const INQUIRY_WRITE: Guard = { inquiry: ["write"] };
 
-const leadOpts = (id: string) => ({ guard: "staff", revalidate: [LIST, `${LIST}/${id}`] }) as const;
+const listOpts = { guard: INQUIRY_WRITE, revalidate: [LIST] } as const;
+
+const leadOpts = (id: string) => ({ guard: INQUIRY_WRITE, revalidate: [LIST, `${LIST}/${id}`] }) as const;
 
 /** Every lead touched must be in one of the viewer's organizations (franchise staff never reach another franchise's leads). */
 async function guardInquiries(...ids: string[]): Promise<void> {

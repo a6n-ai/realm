@@ -15,7 +15,8 @@ const svc = vi.hoisted(() => ({
   quoteOrderAddons: vi.fn(), addOrderAddons: vi.fn(),
   cancelOrderAndOpenPayments: vi.fn(),
 }));
-vi.mock("@/lib/auth/guards", () => ({ requireStaff: async () => {}, requireAdmin: async () => {} }));
+// requireStaff/requireAdmin stay for the payments actions (group b) this suite also drives.
+vi.mock("@/lib/auth/guards", () => ({ requirePermission: async () => {}, can: async () => true, requireStaff: async () => {}, requireAdmin: async () => {} }));
 vi.mock("@/lib/auth/session", () => ({ getSession: async () => ({ user: { id: "usr_staff" } }) }));
 vi.mock("next/cache", () => ({ revalidatePath: () => {} }));
 vi.mock("@/lib/realtime/bus", () => ({ realtimeBus: { publish: () => {} } }));

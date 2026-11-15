@@ -1,6 +1,6 @@
 import { handler, problem } from "@foundry/routes";
 import { phoneSchema, emailSchema, ValidationError } from "@foundry/commons";
-import { requireStaff } from "@/lib/auth/guards";
+import { requirePermission } from "@/lib/auth/guards";
 import { getAppSettings } from "@/lib/settings";
 import { inquiriesService } from "@/lib/inquiries/inquiries.service";
 import { loadLeadSourceAliases } from "@/lib/inquiries/lead-sources.service";
@@ -36,7 +36,7 @@ type RowResult =
   | { row: number; outcome: "error"; message: string };
 
 export const POST = handler(async (request: Request): Promise<Response> => {
-  await requireStaff();
+  await requirePermission({ inquiry: ["import"] });
 
   const form = await request.formData();
   const file = form.get("file");

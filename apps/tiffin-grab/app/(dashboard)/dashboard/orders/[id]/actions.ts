@@ -24,27 +24,27 @@ import { DayOfWeek } from "@/lib/deliveries/schedule/delivery-days";
 // payment) against the caller's organizations before anything runs.
 
 export async function activate(orderId: string): Promise<ActionResult> {
-  return orderAction({ order: orderId, orderPage: orderId }, () => ordersService.activate(orderId));
+  return orderAction({ guard: { order: ["write"] }, order: orderId, orderPage: orderId }, () => ordersService.activate(orderId));
 }
 
 export async function startMigrated(orderId: string, startDate: string): Promise<ActionResult> {
-  return orderAction({ order: orderId, orderPage: orderId }, () => ordersService.startMigrated(orderId, startDate));
+  return orderAction({ guard: { order: ["write"] }, order: orderId, orderPage: orderId }, () => ordersService.startMigrated(orderId, startDate));
 }
 
 export async function changeStartDateAction(orderId: string, startDate: string, force = false): Promise<ActionResult> {
-  return orderAction({ order: orderId, orderPage: orderId }, async () => {
+  return orderAction({ guard: { order: ["write"] }, order: orderId, orderPage: orderId }, async () => {
     if (force) await requirePermission({ order: ["write"] });
     await ordersService.changeStartDate(orderId, startDate, { force });
   });
 }
 
 export async function changeEatingDaysAction(orderId: string, days: DayOfWeek[]): Promise<ActionResult> {
-  return orderAction({ order: orderId, orderPage: orderId }, () => ordersService.changeEatingDays(orderId, days));
+  return orderAction({ guard: { order: ["write"] }, order: orderId, orderPage: orderId }, () => ordersService.changeEatingDays(orderId, days));
 }
 
 // Returns, not throws: production redacts thrown server-action errors, so the refusal message would be lost.
 export async function cancel(orderId: string): Promise<ActionResult> {
-  return orderAction({ order: orderId, orderPage: orderId }, async () => {
+  return orderAction({ guard: { order: ["cancel"] }, order: orderId, orderPage: orderId }, async () => {
     await cancelOrderAndOpenPayments(orderId, await currentUserId());
   });
 }
@@ -70,12 +70,12 @@ export async function quoteOrderAddonsAction(
   selections: AddonSelection[],
   methodId: string,
 ): Promise<ActionResult<{ quote: AddonQuote }>> {
-  return orderAction({ order: orderId }, async () => ({ quote: await quoteOrderAddons(orderId, selections, methodId) }));
+  return orderAction({ guard: { order: ["read"] }, order: orderId }, async () => ({ quote: await quoteOrderAddons(orderId, selections, methodId) }));
 }
 
 // FormData: selections (JSON), method, expected_amount_due (the quote on screen), reference (optional), proof + proof_thumb (images).
 export async function addOrderAddonsAction(orderId: string, form: FormData): Promise<ActionResult> {
-  return orderAction({ order: orderId, orderPage: orderId, reach: { payments: true } }, async () => {
+  return orderAction({ guard: { order: ["write"] }, order: orderId, orderPage: orderId, reach: { payments: true } }, async () => {
     const selections = parseAddonSelections(form.get("selections"));
     const method = form.get("method");
     const methodId = typeof method === "string" ? method : "";
@@ -101,25 +101,25 @@ export async function addOrderAddonsAction(orderId: string, form: FormData): Pro
 
 /** Any staff member marks, re-notes or unmarks an order on the Look out for tab. */
 export async function setLookOutAction(orderId: string, on: boolean, note: string): Promise<ActionResult> {
-  return orderAction({ order: orderId, orderPage: orderId, reach: { orderList: true } }, async () =>
+  return orderAction({ guard: { order: ["write"] }, order: orderId, orderPage: orderId, reach: { orderList: true } }, async () =>
     setOrderLookOut(orderId, on, note, await currentUserId()),
   );
 }
 
 export async function regenerateAddonLinkAction(orderId: string, paymentPublicId: string): Promise<ActionResult<{ paymentPublicId: string }>> {
-  return orderAction({ order: orderId, payment: paymentPublicId, orderPage: orderId }, async () => ({
+  return orderAction({ guard: { order: ["write"] }, order: orderId, payment: paymentPublicId, orderPage: orderId }, async () => ({
     paymentPublicId: (await regenerateAddonPayment(paymentPublicId, await currentUserId())).paymentPublicId,
   }));
 }
 
 export async function cancelAddonLinkAction(orderId: string, paymentPublicId: string): Promise<ActionResult> {
-  return orderAction({ order: orderId, payment: paymentPublicId, orderPage: orderId }, async () =>
+  return orderAction({ guard: { order: ["write"] }, order: orderId, payment: paymentPublicId, orderPage: orderId }, async () =>
     cancelAddonPayment(paymentPublicId, await currentUserId()),
   );
 }
 
 export async function pushDeliveryToOptimoAction(orderId: string, deliveryPublicId: string, date: string): Promise<ActionResult> {
-  return orderAction({ delivery: deliveryPublicId, orderPage: orderId }, async () => {
+  return orderAction({ guard: { order: ["write"] }, delivery: deliveryPublicId, orderPage: orderId }, async () => {
     await pushOneDelivery(deliveryPublicId, date, await currentUserId());
   });
 }
@@ -127,7 +127,7 @@ export async function pushDeliveryToOptimoAction(orderId: string, deliveryPublic
 /** Manual removal — deletes this one delivery's stop from OptimoRoute regardless of whether
  *  the day-level stale check has caught up to it yet. */
 export async function removeDeliveryFromOptimoAction(orderId: string, deliveryPublicId: string, date: string): Promise<ActionResult> {
-  return orderAction({ delivery: deliveryPublicId, orderPage: orderId }, async () => {
+  return orderAction({ guard: { order: ["write"] }, delivery: deliveryPublicId, orderPage: orderId }, async () => {
     await removeOneDelivery(deliveryPublicId, date, await currentUserId());
   });
 }
@@ -137,7 +137,7 @@ export async function setDeliveryStatusAction(
   deliveryPublicId: string,
   status: string,
 ): Promise<ActionResult> {
-  const res = await orderAction({ guard: "admin", delivery: deliveryPublicId }, async () => {
+  const res = await orderAction({ guard: { order: ["write"] }, delivery: deliveryPublicId }, async () => {
     if (!isAdminDeliveryStatus(status)) throw new ValidationError("Unknown delivery status");
     await adminSetDeliveryStatus(deliveryPublicId, status, await currentUserId());
     return "Delivery status updated";
@@ -158,7 +158,7 @@ export async function setDeliveryStatusAction(
 
 /** Driver could not deliver: moves the whole trip to the next delivery day (merging there); the pool is untouched. */
 export async function redeliverTripAction(orderId: string, deliveryPublicId: string): Promise<ActionResult> {
-  return orderAction({ delivery: deliveryPublicId, orderPage: orderId }, async () => {
+  return orderAction({ guard: { order: ["write"] }, delivery: deliveryPublicId, orderPage: orderId }, async () => {
     const { targetDate } = await redeliverTrip(deliveryPublicId, await currentUserId());
     return `Re-delivering on ${targetDate}`;
   });
@@ -168,7 +168,7 @@ export async function grantComplimentaryAction(
   orderId: string,
   input: { date: string; note: string; notify: boolean; forDeliveryPublicId?: string | null },
 ): Promise<ActionResult> {
-  return orderAction({ guard: "admin", order: orderId, orderPage: orderId }, async () => {
+  return orderAction({ guard: { order: ["write"] }, order: orderId, orderPage: orderId }, async () => {
     const { reopened } = await grantComplimentaryTiffin(
       orderId,
       {

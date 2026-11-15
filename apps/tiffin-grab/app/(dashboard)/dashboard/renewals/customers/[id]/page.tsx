@@ -1,9 +1,8 @@
-import { isAdmin } from "@/lib/roles";
 import { notFound } from "next/navigation";
 import { RefreshCwIcon } from "lucide-react";
 import { zonedDateIso } from "@foundry/commons";
 import { PageShell, PageHeader } from "@/components/ds";
-import { requirePermission } from "@/lib/auth/guards";
+import { can, requirePermission } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { getAppSettings } from "@/lib/settings";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
@@ -29,7 +28,7 @@ export default async function CustomerRenewalPage({ params }: { params: Promise<
         icon={RefreshCwIcon}
         title={customer.name || "Unnamed customer"}
         subtitle={[customer.phone, customer.email].filter(Boolean).join(" · ") || undefined}
-        actions={<RenewalActions data={data} isAdmin={isAdmin(session)} />}
+        actions={<RenewalActions data={data} isAdmin={await can({ wallet: ["give"] })} />}
       />
       <RenewalSections data={data} today={today} now={now} timezone={timezone} />
     </PageShell>

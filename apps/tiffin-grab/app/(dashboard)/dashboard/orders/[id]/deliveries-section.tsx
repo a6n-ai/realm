@@ -1,8 +1,7 @@
 import { appTodayIso } from "@/lib/dates/today";
 import { RUNNING, inOrderStatuses } from "@/lib/orders/status";
-import { isAdmin } from "@/lib/roles";
 import { eq } from "drizzle-orm";
-import { getSession } from "@/lib/auth/session";
+import { can } from "@/lib/auth/guards";
 import type { OrderDetail } from "@/lib/orders/orders.service";
 import { loadOrderWeek, type OrderWeek } from "@/lib/deliveries/view/order-week.service";
 import { OrderWeekHub } from "@/app/(dashboard)/dashboard/orders/[id]/order-week/order-week-hub";
@@ -87,9 +86,8 @@ export async function loadSubscription(
       ? await loadOrderWeek(order.userId, subscription, weekParam)
       : null;
 
-  const session = await getSession();
   // Under payment review staff can check the schedule, but nothing changes until the money is verified.
-  return { order, paymentReview, week, readOnly: finished || paymentReview, canEditDeliveryStatus: isAdmin(session) };
+  return { order, paymentReview, week, readOnly: finished || paymentReview, canEditDeliveryStatus: await can({ order: ["write"] }) };
 }
 
 export function DeliveriesSection({ data, routing = [] }: { data: SubscriptionData; routing?: OptimoRouteRow[] }) {

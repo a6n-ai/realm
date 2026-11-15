@@ -9,7 +9,7 @@ const assertInquiriesVisible = vi.fn(async () => {
 
 vi.mock("next/cache", () => ({ revalidatePath: () => undefined }));
 vi.mock("@/lib/auth/guards", () => ({
-  requireStaff: async () => {
+  requirePermission: async () => {
     if (!guard.staff) throw new Error("forbidden");
   },
 }));

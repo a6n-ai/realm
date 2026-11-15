@@ -52,6 +52,8 @@ async function resolveOrderLead(input: {
   return { inquiryId, email };
 }
 
+const ORDER_WRITE: Guard = { order: ["write"] };
+
 // Step 1 of New order: save (or reuse) the lead so it is searchable in
 // Inquiries even if the order is never finished. Create converts this inquiry;
 // the customer, order and payment are only written there.
@@ -62,7 +64,7 @@ export async function saveOrderLeadAction(input: {
   /** false: skip the page refresh (see createOrderFlow's revalidate). */
   revalidate?: boolean;
 }): Promise<ActionResult<{ inquiryId: string }>> {
-  const opts = input.revalidate === false ? { guard: "staff" as const } : { guard: "staff" as const, revalidate: ["/dashboard/inquiries"] };
+  const opts = input.revalidate === false ? { guard: ORDER_WRITE } : { guard: ORDER_WRITE, revalidate: ["/dashboard/inquiries"] };
   return staffAction(opts, async () => ({ inquiryId: (await resolveOrderLead(input)).inquiryId }));
 }
 
@@ -79,8 +81,8 @@ export async function createOrderFlow(input: {
   revalidate?: boolean;
 }): Promise<ActionResult<{ publicId: string; deploymentId: string; paymentPublicId: string; payUrl: string | null }>> {
   const opts = input.revalidate === false
-    ? { guard: "staff" as const }
-    : { guard: "staff" as const, revalidate: ["/dashboard/orders", "/dashboard/inquiries"] };
+    ? { guard: ORDER_WRITE }
+    : { guard: ORDER_WRITE, revalidate: ["/dashboard/orders", "/dashboard/inquiries"] };
   return staffAction(opts, async () => {
     const { inquiryId, email } = await resolveOrderLead(input);
     // Custom meals are created by the backend only (2026-10-07); staff orders use catalog sizes.
@@ -101,7 +103,7 @@ export async function createOrderFlow(input: {
 // attach it and approve the payment so the plan starts right away.
 // FormData: proof (image), proof_thumb (image), reference (optional).
 export async function settleNewOrderWithProofAction(orderPublicId: string, form: FormData): Promise<ActionResult> {
-  return orderAction({ order: orderPublicId, orderPage: orderPublicId, reach: { orderList: true, payments: true } }, async () => {
+  return orderAction({ guard: ORDER_WRITE, order: orderPublicId, orderPage: orderPublicId, reach: { orderList: true, payments: true } }, async () => {
     const [internalId, session] = await Promise.all([currentUserId(), getSession()]);
     const paymentPublicId = await findUnpaidPayment(orderPublicId);
     const proof = await uploadPaymentProof(paymentPublicId, form.get("proof"), form.get("proof_thumb"));
@@ -114,8 +116,6 @@ export async function settleNewOrderWithProofAction(orderPublicId: string, form:
     );
   });
 }
-
-const ORDER_WRITE: Guard = { order: ["write"] };
 
 const orderNoteSchema = z.string().trim().min(1, "Write a note first").max(2000, "Keep the note under 2000 characters");
 
@@ -140,7 +140,7 @@ export async function addOrderNoteAction(orderPublicId: string, note: string): P
 }
 
 export async function reassignOrderAction(orderId: string, ownerId: string): Promise<ActionResult> {
-  return orderAction({ order: orderId, orderPage: orderId, reach: { orderList: true } }, async () => {
+  return orderAction({ guard: ORDER_WRITE, order: orderId, orderPage: orderId, reach: { orderList: true } }, async () => {
     await ordersService.reassign(orderId, ownerId);
   });
 }
@@ -150,5 +150,5 @@ export async function reassignOrderAction(orderId: string, ownerId: string): Pro
 export async function startAllMigratedAction(
   fromDate: string,
 ): Promise<ActionResult<{ started: number; failed: { deploymentId: string; error: string }[] }>> {
-  return staffAction({ guard: "admin", revalidate: ["/dashboard/orders"] }, () => ordersService.startAllMigrated(fromDate));
+  return staffAction({ guard: ORDER_WRITE, revalidate: ["/dashboard/orders"] }, () => ordersService.startAllMigrated(fromDate));
 }

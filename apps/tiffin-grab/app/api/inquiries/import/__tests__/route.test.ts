@@ -7,7 +7,8 @@ import { inquiries } from "@/db/schema";
 import { insertTestInquiry, resetInquiryData } from "@/lib/inquiries/__tests__/helpers/inquiry-fixtures";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
-vi.mock("@/lib/auth/guards", () => ({ requireStaff: async () => undefined }));
+const requirePermission = vi.hoisted(() => vi.fn(async () => undefined));
+vi.mock("@/lib/auth/guards", () => ({ requirePermission }));
 vi.mock("@/lib/auth/session", () => ({ getSession: async () => null }));
 
 const { POST } = await import("../route");
@@ -44,6 +45,7 @@ describe("POST /api/inquiries/import", () => {
     );
     const body = await res.json();
     expect(body).toMatchObject({ created: 1, matched: 1, reopened: 1 });
+    expect(requirePermission).toHaveBeenCalledWith({ inquiry: ["import"] });
     expect((await row(open.id)).createdAt).toBe(open.createdAt);
     expect((await row(open.id)).stage).toBe("contacted");
     expect((await row(lost.id)).stage).toBe("new");

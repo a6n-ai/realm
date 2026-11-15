@@ -5,7 +5,7 @@ import { eq } from "drizzle-orm";
 import type { Country as CountryCode } from "react-phone-number-input";
 import { db } from "@/db/client";
 import { deliveryZones } from "@/db/schema";
-import { requireStaff } from "@/lib/auth/guards";
+import { requirePermission } from "@/lib/auth/guards";
 import { getAppSettings } from "@/lib/settings";
 import { listActiveLeadSources } from "@/lib/inquiries/lead-sources.service";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
@@ -40,7 +40,7 @@ export type QuickAddData = {
 // taxes a normal page render. Also the single source the order/inquiry/customer
 // pages could adopt to drop their duplicate loaders.
 export async function loadQuickAddData(): Promise<QuickAddData> {
-  await requireStaff();
+  await requirePermission({ inquiry: ["read"] });
 
   const [{ defaultCountry, currency, timezone }, sources, zones, catalog, slots, planKeys] = await Promise.all([
     getAppSettings(),

@@ -1,5 +1,4 @@
 import { ONGOING, RUNNING, inOrderStatuses } from "@/lib/orders/status";
-import { isAdmin } from "@/lib/roles";
 import { inStatuses, PAID, UNPAID } from "@/lib/payments/status";
 import { isWordpressImport } from "@/lib/orders/wordpress-import";
 import { Suspense } from "react";
@@ -11,7 +10,7 @@ import { enabledMethods, findMethod } from "@foundry/payments";
 import { after } from "next/server";
 import { expireUnpaidStripeOrders } from "@/lib/orders/unpaid-checkouts";
 import { mealSizeAddons } from "@/lib/catalog/types";
-import { requireStaff, roleCan } from "@/lib/auth/guards";
+import { can, requirePermission } from "@/lib/auth/guards";
 import { settleStaleOnView } from "@/lib/payments/payment-stripe";
 import { getSession } from "@/lib/auth/session";
 import { readOrder, listOrderActivities, ordersService } from "@/lib/orders/orders.service";
@@ -100,7 +99,7 @@ async function OrderDetail({
   params: Promise<{ id: string }>;
   searchParams: SearchParams;
 }) {
-  await requireStaff();
+  await requirePermission({ order: ["read"] });
   const { id } = await params;
   const { week, free } = await searchParams;
 
@@ -144,7 +143,6 @@ async function OrderDetail({
   // Lazy status check on view (no cron): settle card payments the webhook may have missed.
   after(() => settleStaleOnView(order.payments));
   after(() => expireUnpaidStripeOrders({ orderId: order.id }));
-  const role = session?.user.role ?? "";
 
   const settingsToday = zonedDateIso(requestNow(), settings.timezone);
   const fullyPaused = inOrderStatuses(RUNNING, order.status) && (await isOrderFullyPaused(db, order.id, settingsToday));
@@ -341,7 +339,7 @@ async function OrderDetail({
     .sort((a, b) => b.deliveryDate.localeCompare(a.deliveryDate))
     .map((r) => ({ publicId: r.publicId, label: `${humanDate(r.deliveryDate)} · ${deliveryState(r)}` }));
   // Admin only; a payment-pending or a cancelled plan can't get one (grantComplimentaryTiffin enforces it too).
-  const canGiveFree = isAdmin(session)
+  const canGiveFree = (await can({ order: ["write"] }))
     && complimentaryBlocker(order.status, order.payments.filter((p) => !p.addonRequest).map((p) => p.status)) == null;
   // Owner changes live here, not in the orders table (a row dropdown shifted row heights).
   const [ownerRow, mayReassign] = await Promise.all([
@@ -521,9 +519,9 @@ async function OrderDetail({
                 payLinks={Object.fromEntries(order.payments.filter((p) => p.method === "stripe").map((p) => [p.publicId, payLink(p.publicId)]))}
                 now={requestNow()}
                 claimContexts={claimContexts}
-                canCheck={roleCan(role, { finance: ["charge"] })}
-                canRefund={roleCan(role, { finance: ["refund"] })}
-                canCharge={roleCan(role, { finance: ["charge"] }) && !!customer?.stripeCustomerId}
+                canCheck={await can({ finance: ["charge"] })}
+                canRefund={await can({ finance: ["refund"] })}
+                canCharge={(await can({ finance: ["charge"] })) && !!customer?.stripeCustomerId}
               />
             </SectionCard>
           ),

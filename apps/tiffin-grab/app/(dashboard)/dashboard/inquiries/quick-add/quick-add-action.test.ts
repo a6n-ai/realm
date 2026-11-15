@@ -4,7 +4,7 @@ import { db } from "@/db/client";
 import { inquiries, inquiryActivities, leadCounters } from "@/db/schema";
 
 vi.mock("next/cache", () => ({ revalidatePath: () => undefined }));
-vi.mock("@/lib/auth/guards", () => ({ requireStaff: async () => undefined }));
+vi.mock("@/lib/auth/guards", () => ({ requirePermission: async () => undefined }));
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
 const { quickAddInquiries } = await import("../actions");

@@ -1,18 +1,18 @@
 "use server";
 
-import { requireStaff } from "@/lib/auth/guards";
+import { requirePermission } from "@/lib/auth/guards";
 import { inquiriesService } from "@/lib/inquiries/inquiries.service";
 import { searchCustomers as searchCustomersQuery, findExistingByContact } from "@/lib/services/customers.service";
 
 export async function findInquiryMatches(phone: string) {
-  await requireStaff();
+  await requirePermission({ inquiry: ["read"] });
   if (!phone || phone.trim().length < 6) return [];
   return inquiriesService.findOpenByPhone(phone);
 }
 
 /** Interest snapshot for order-form prefill when reusing an open inquiry. */
 export async function getInquiryInterestForPrefill(publicId: string) {
-  await requireStaff();
+  await requirePermission({ inquiry: ["read"] });
   const inq = await inquiriesService.read(publicId);
   return {
     planInterest: inq.planInterest,
@@ -29,7 +29,7 @@ export async function getInquiryInterestForPrefill(publicId: string) {
 export type CustomerHit = { publicId: string; fullName: string | null; phone: string | null; email: string | null };
 
 export async function searchCustomers(query: string): Promise<CustomerHit[]> {
-  await requireStaff();
+  await requirePermission({ inquiry: ["read"] });
   if (!query || query.trim().length < 2) return [];
   return searchCustomersQuery(query);
 }
@@ -40,7 +40,7 @@ export async function findCustomerByContact(
   phone: string,
   email?: string,
 ): Promise<{ publicId: string; fullName: string } | null> {
-  await requireStaff();
+  await requirePermission({ inquiry: ["read"] });
   const p = phone.trim();
   const e = email?.trim();
   if (p.length < 6 && !(e && e.length > 2)) return null;

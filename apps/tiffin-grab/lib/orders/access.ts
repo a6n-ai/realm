@@ -4,15 +4,16 @@ import { NotFoundError, ValidationError } from "@foundry/commons";
 import { db } from "@/db/client";
 import { deliveries, orders, payments } from "@/db/schema";
 import { getSession } from "@/lib/auth/session";
+import { can } from "@/lib/auth/guards";
 import { isStaffRole } from "@/lib/roles";
 import { REJECTED } from "@/lib/payments/status";
 import { currentUserId } from "@/lib/services/session-service";
 import { isPaymentReviewStatus } from "./display-status";
 
-// Staff (admin or member) may manage ANY customer order/delivery; a plain customer only their own.
+// Staff (admin or member) with order:read may manage ANY customer order/delivery; a plain customer only their own.
 async function callerIsStaff(): Promise<boolean> {
   const session = await getSession();
-  return session != null && isStaffRole(session.user.role);
+  return session != null && isStaffRole(session.user.role) && (await can({ order: ["read"] }));
 }
 
 // Passes if the caller is staff, or owns the order. Not-owned and not-existent both throw the same

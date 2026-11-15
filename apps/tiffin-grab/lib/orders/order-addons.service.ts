@@ -186,7 +186,7 @@ async function applyAddons(tx: Tx, order: Order, addons: ResolvedAddon[], openTi
   });
 }
 
-/** What adding these add-ons would cost right now. No writes. Callers MUST requireStaff first. */
+/** What adding these add-ons would cost right now. No writes. Callers MUST check the order permission first. */
 export async function quoteOrderAddons(orderPublicId: string, selections: AddonSelection[], methodId: string): Promise<AddonQuote> {
   return toQuote(await priceAddons(db, orderPublicId, selections, methodId));
 }
@@ -233,7 +233,7 @@ async function insertAddonLink(tx: Tx, p: Priced, actorId: bigint | null): Promi
  * Staff add add-ons to a running plan and record the money they already hold for them.
  * The payment is written as paid, never awaiting: an open payment on an order holds kitchen
  * and dispatch (lib/orders/fulfillment.ts) and locks the customer's calendar, and
- * verifyPayment would re-queue the plan's past deliveries. Callers MUST requireStaff first.
+ * verifyPayment would re-queue the plan's past deliveries. Callers MUST check the order permission first.
  *
  * Stripe is the exception: nothing is applied yet. One awaiting add-on payment carries the
  * priced request until the next cutoff; settleAddonPayment applies it when the card is charged.
@@ -357,7 +357,7 @@ async function notifyStaff(tx: Tx, order: { publicId: string; deploymentId: stri
   });
 }
 
-/** Staff cancel an open add-on link. Callers MUST requireStaff first. */
+/** Staff cancel an open add-on link. Callers MUST check the order permission first. */
 export async function cancelAddonPayment(paymentPublicId: string, actorId: bigint | null): Promise<void> {
   await db.transaction(async (tx) => {
     const pay = await lockOpenLink(tx, paymentPublicId);
@@ -368,7 +368,7 @@ export async function cancelAddonPayment(paymentPublicId: string, actorId: bigin
 
 /**
  * Replaces an expired add-on link with a new one priced for the tiffins open today (same add-ons, current
- * prices and tax). The old row is void. Callers MUST requireStaff first.
+ * prices and tax). The old row is void. Callers MUST check the order permission first.
  */
 export async function regenerateAddonPayment(paymentPublicId: string, actorId: bigint | null): Promise<{ paymentPublicId: string; amountDue: number }> {
   const [old] = await db
