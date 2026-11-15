@@ -1,3 +1,4 @@
+import { requirePagePermission } from "@/lib/auth/guards";
 import { Suspense } from "react";
 import { notificationOutbox } from "@/db/schema";
 import { AnalyticsStatCards, AnalyticsStatCardsSkeleton, type AnalyticsStatCardItem } from "@/components/dashboard/stat-cards";
@@ -17,7 +18,8 @@ async function createdWhere(searchParams: SearchParams) {
   return epochBoundsWhere(notificationOutbox.createdAt, await withDefaultMonth(await searchParams));
 }
 
-export default function NotificationAnalyticsPage({ searchParams }: { searchParams: SearchParams }) {
+export default async function NotificationAnalyticsPage({ searchParams }: { searchParams: SearchParams }) {
+  await requirePagePermission({ notification: ["read"] });
   return (
     <div className="flex flex-col gap-6">
       <Suspense fallback={<AnalyticsStatCardsSkeleton rows={1} />}>

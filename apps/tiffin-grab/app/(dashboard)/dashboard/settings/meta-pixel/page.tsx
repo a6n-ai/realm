@@ -1,3 +1,4 @@
+import { requirePagePermission } from "@/lib/auth/guards";
 import { MegaphoneIcon } from "lucide-react";
 import { PageHeader, SectionCard } from "@/components/ds";
 import { Alert, AlertDescription, AlertTitle } from "@/components/reui/alert";
@@ -23,6 +24,7 @@ const EVENTS = [
 ];
 
 export default async function MetaPixelSettingsPage() {
+  await requirePagePermission({ settings: ["read"] });
   const s = await getMetaPixelStatus();
 
   const connection = !s.pixelId ? (

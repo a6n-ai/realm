@@ -1,3 +1,4 @@
+import { requirePagePermission } from "@/lib/auth/guards";
 import { Suspense } from "react";
 import { latestCoinRateValue } from "@/lib/wallet/wallet-balances.service";
 import { getAppSettings } from "@/lib/settings";
@@ -8,7 +9,8 @@ import { EarnPctForm } from "./earn-pct-form";
 import { CoinCapForm } from "./coin-cap-form";
 import { WalletRedeemCapForm } from "./wallet-redeem-cap-form";
 
-export default function WalletSettingsPage() {
+export default async function WalletSettingsPage() {
+  await requirePagePermission({ wallet: ["read"] });
   return (
     <Suspense fallback={<CoinRateFormSkeleton />}>
       <WalletSettingsData />

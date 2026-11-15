@@ -1,3 +1,4 @@
+import { requirePagePermission } from "@/lib/auth/guards";
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { ClockIcon } from "lucide-react";
@@ -15,6 +16,7 @@ import { requestNow } from "@/lib/dates/request-now";
 type SearchParams = Promise<Record<string, string | undefined>>;
 
 export default async function ScheduledJobPage({ params, searchParams }: { params: Promise<{ job: string }>; searchParams: SearchParams }) {
+  await requirePagePermission({ settings: ["read"] });
   const { job: key } = await params;
   const job = CRON_JOBS.find((j) => j.key === key);
   if (!job) notFound();

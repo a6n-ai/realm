@@ -1,3 +1,4 @@
+import { requirePagePermission } from "@/lib/auth/guards";
 import { Suspense } from "react";
 import { SectionCard, parseFilterState } from "@/components/ds";
 import { Can, NoAccessNote } from "@/components/auth/can";
@@ -13,7 +14,8 @@ type SearchParams = Promise<Record<string, string | undefined>>;
 
 const SORT_COLUMNS = ["time"] as const satisfies readonly CustomerActivitySortColumn[];
 
-export default function CustomerLogsPage({ searchParams }: { searchParams: SearchParams }) {
+export default async function CustomerLogsPage({ searchParams }: { searchParams: SearchParams }) {
+  await requirePagePermission({ settings: ["read"] });
   return (
     <Can perms={{ customer: ["read"] }} fallback={<NoAccessNote />}>
       <SectionCard

@@ -1,3 +1,4 @@
+import { requirePagePermission } from "@/lib/auth/guards";
 import { Suspense } from "react";
 import { CoinsIcon, TrendingDownIcon, TrendingUpIcon, WalletIcon, BanknoteIcon } from "lucide-react";
 import { parseFilterState, SectionCard, type FacetDef } from "@/components/ds";
@@ -32,7 +33,8 @@ const SPEC: FacetDef[] = [
   { kind: "search", fields: ["name", "email", "phone"] },
 ];
 
-export default function WalletBalancesPage({ searchParams }: { searchParams: SearchParams }) {
+export default async function WalletBalancesPage({ searchParams }: { searchParams: SearchParams }) {
+  await requirePagePermission({ wallet: ["read"] });
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-3">

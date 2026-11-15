@@ -1,3 +1,4 @@
+import { requirePagePermission } from "@/lib/auth/guards";
 import { SectionCard } from "@/components/ds";
 import { Suspense } from "react";
 import { eq } from "drizzle-orm";
@@ -11,7 +12,8 @@ import { RequestsTable, RequestsTableSkeleton } from "./requests-table";
 
 type SearchParams = Promise<Record<string, string | undefined>>;
 
-export default function RequestsPage({ searchParams }: { searchParams: SearchParams }) {
+export default async function RequestsPage({ searchParams }: { searchParams: SearchParams }) {
+  await requirePagePermission({ finance: ["manage"] });
   return (
     <>
       <PaymentsTop tab="etransfer" searchParams={searchParams} />

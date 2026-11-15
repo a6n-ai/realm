@@ -1,3 +1,4 @@
+import { requirePagePermission } from "@/lib/auth/guards";
 import { Can, NoAccessNote } from "@/components/auth/can";
 import { round2 } from "@foundry/commons/util/money";
 import { TotalLine } from "@/components/dashboard/analytics/total-line";
@@ -39,6 +40,7 @@ type SearchParams = Promise<Record<string, string | undefined>>;
 const loadReport = cache((scope: AnalyticsScope) => getRevenueReport(scope));
 
 export default async function RevenueAnalyticsPage({ searchParams }: { searchParams: SearchParams }) {
+  await requirePagePermission({ analytics: ["read"] });
   const resolved = await scopeOrAlert("/dashboard/analytics/revenue", await searchParams);
   if (!resolved.scope) return resolved.alert;
   const { scope } = resolved;

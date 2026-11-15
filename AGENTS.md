@@ -60,6 +60,12 @@ Two things `tsc` cannot catch — verify by eye when touching client components:
 - `rg`/`fd` over `grep`/`find`.
 - Pricing/totals computed **server-side only** — never trust client-submitted amounts.
 - Audit fields (`created_by`/`updated_by`) stamped from the session, never from input.
+- **Permission-gated data never leaves the server for a viewer without the permission.** Strip it in
+  the loader or service (field `null`/omitted, query not run, export column dropped: deny by default).
+  `<Can>`, hidden columns and disabled buttons are UI only; the RSC payload still ships whatever the
+  page passes to a client component. Every page and action calls its own `requirePermission` (a
+  layout guard does not re-run on soft navigation). Never pass functions or components from a server
+  component to a client component (prod outage, 2026-11-15).
 - **Next.js 16:** route protection lives in `proxy.ts` (renamed `middleware.ts`).
   Read `node_modules/next/dist/docs/` before writing framework code.
 

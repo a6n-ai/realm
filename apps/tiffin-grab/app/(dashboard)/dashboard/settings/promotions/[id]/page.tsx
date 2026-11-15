@@ -1,3 +1,4 @@
+import { requirePagePermission } from "@/lib/auth/guards";
 import { notFound } from "next/navigation";
 import { MegaphoneIcon } from "lucide-react";
 import { NotFoundError } from "@foundry/commons";
@@ -10,6 +11,7 @@ import { promotionsService, type Promotion } from "@/lib/promotions/promotions.s
 import { PromotionForm } from "../promotion-form";
 
 export default async function PromotionPage({ params }: { params: Promise<{ id: string }> }) {
+  await requirePagePermission({ settings: ["read"] });
   const { id } = await params;
   let promotion: Promotion | null = null;
   if (id !== "new") {

@@ -1,3 +1,4 @@
+import { requirePagePermission } from "@/lib/auth/guards";
 import { Can, NoAccessNote } from "@/components/auth/can";
 import { cache, Suspense } from "react";
 import { AnalyticsIntro } from "@/components/dashboard/analytics/analytics-intro";
@@ -23,6 +24,7 @@ const loadStats = cache((scope: AnalyticsScope) => getOperationsStats(scope));
 type SearchParams = Promise<Record<string, string | undefined>>;
 
 export default async function OperationsAnalyticsPage({ searchParams }: { searchParams: SearchParams }) {
+  await requirePagePermission({ analytics: ["read"] });
   const resolved = await scopeOrAlert("/dashboard/analytics/operations", await searchParams);
   if (!resolved.scope) return resolved.alert;
   const { scope } = resolved;

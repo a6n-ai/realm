@@ -1,3 +1,4 @@
+import { requirePagePermission } from "@/lib/auth/guards";
 import { Suspense } from "react";
 import { UtensilsCrossedIcon } from "lucide-react";
 import { PageHeader, PageShell, SectionCard } from "@/components/ds";
@@ -9,7 +10,8 @@ import { CatalogTabs } from "./catalog-tabs";
 // (Task 5): both remain distinct RESOURCES entries with their own schema and
 // service, and both editors reuse the existing per-resource CatalogData loader
 // and ResourceEditor — only the page shell is new.
-export default function DishesAndCategoriesPage({ searchParams }: { searchParams: SearchParams }) {
+export default async function DishesAndCategoriesPage({ searchParams }: { searchParams: SearchParams }) {
+  await requirePagePermission({ catalog: ["read"] });
   return (
     <PageShell>
       <PageHeader icon={UtensilsCrossedIcon} title="Dishes & Categories" />

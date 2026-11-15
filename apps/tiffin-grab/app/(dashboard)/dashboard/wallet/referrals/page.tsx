@@ -1,3 +1,4 @@
+import { requirePagePermission } from "@/lib/auth/guards";
 import { Suspense } from "react";
 import { parseFilterState, SectionCard, type FacetDef } from "@/components/ds";
 import { StatCards, StatCardsSkeleton, type StatCardItem } from "@/components/dashboard/stat-cards";
@@ -20,7 +21,8 @@ const LIST_SUBTITLE = "Who referred whom, and what each side was paid.";
 type SearchParams = Promise<Record<string, string | undefined>>;
 
 // Stat cards, the rewards settings, then the list.
-export default function DiscountReferralsPage({ searchParams }: { searchParams: SearchParams }) {
+export default async function DiscountReferralsPage({ searchParams }: { searchParams: SearchParams }) {
+  await requirePagePermission({ wallet: ["read"] });
   return (
     <div className="grid grid-cols-1 gap-6">
       <Suspense

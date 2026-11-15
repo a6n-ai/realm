@@ -1,3 +1,4 @@
+import { requirePagePermission } from "@/lib/auth/guards";
 import { Suspense } from "react";
 import { SectionCard, parseFilterState } from "@/components/ds";
 import { SETTINGS_ACTIVITY_FACETS } from "@/lib/order-activity/log-facets";
@@ -17,7 +18,8 @@ const SORT_COLUMNS = [
   "actor",
 ] as const satisfies readonly ActivitySortColumn[];
 
-export default function SettingsLogsPage({ searchParams }: { searchParams: SearchParams }) {
+export default async function SettingsLogsPage({ searchParams }: { searchParams: SearchParams }) {
+  await requirePagePermission({ settings: ["read"] });
   return (
     <SectionCard title="Activity">
       <Suspense fallback={<LogsTableSkeleton />}>

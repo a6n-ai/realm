@@ -1,3 +1,4 @@
+import { requirePagePermission } from "@/lib/auth/guards";
 import { pageOffset } from "@foundry/design-system/filters/parse-filter-state";
 import { couponStatus } from "@/lib/coupons/status";
 import { Suspense } from "react";
@@ -22,7 +23,8 @@ const STATUS_OPTIONS = [
 
 type SearchParams = Promise<Record<string, string | undefined>>;
 
-export default function StaffCodesPage({ searchParams }: { searchParams: SearchParams }) {
+export default async function StaffCodesPage({ searchParams }: { searchParams: SearchParams }) {
+  await requirePagePermission({ discount: ["read"] });
   return (
     <Suspense fallback={<StaffCodesSkeleton />}>
       <StaffCodesData searchParams={searchParams} />

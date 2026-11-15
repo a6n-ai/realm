@@ -1,3 +1,4 @@
+import { requirePagePermission } from "@/lib/auth/guards";
 import { couponLiveSql } from "@/lib/coupons/status-sql";
 import { Suspense } from "react";
 import { desc, eq, sql } from "drizzle-orm";
@@ -19,7 +20,8 @@ const SPEC: FacetDef[] = [
 
 type SearchParams = Promise<Record<string, string | undefined>>;
 
-export default function KindsPage({ searchParams }: { searchParams: SearchParams }) {
+export default async function KindsPage({ searchParams }: { searchParams: SearchParams }) {
+  await requirePagePermission({ discount: ["read"] });
   return (
     <Suspense
       fallback={

@@ -1,3 +1,4 @@
+import { requirePagePermission } from "@/lib/auth/guards";
 import Link from "next/link";
 import { Suspense } from "react";
 import { ExternalLinkIcon, StarIcon } from "lucide-react";
@@ -103,6 +104,7 @@ function PreviewSkeleton() {
 }
 
 export default async function GoogleReviewsSettingsPage() {
+  await requirePagePermission({ settings: ["read"] });
   const cfg = await getGoogleReviewsConfig(integrationsConfigStore);
   const apiKeyConfigured = Boolean(loadPlacesApiKeyFromEnv());
   const placeId = cfg.placeId ?? "";

@@ -1,3 +1,4 @@
+import { requirePagePermission } from "@/lib/auth/guards";
 import { Suspense } from "react";
 import { UtensilsCrossedIcon } from "lucide-react";
 import { PageHeader, PageShell, SectionCard } from "@/components/ds";
@@ -11,6 +12,7 @@ export default async function CatalogResourcePage({
   params: Promise<{ resource: string }>;
   searchParams: SearchParams;
 }) {
+  await requirePagePermission({ catalog: ["read"] });
   const { resource } = await params;
   const def: ResourceDef | undefined = RESOURCES[resource];
   return (

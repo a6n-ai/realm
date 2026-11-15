@@ -1,3 +1,4 @@
+import { requirePagePermission } from "@/lib/auth/guards";
 import { Suspense } from "react";
 import { AnalyticsIntro } from "@/components/dashboard/analytics/analytics-intro";
 import { calendarSkeletonHeight } from "@/lib/analytics/calendar-height";
@@ -47,6 +48,7 @@ function ticketsHref(filters: ComplaintFilters, extra: Partial<ComplaintFilters>
 }
 
 export default async function ComplaintsAnalyticsPage({ searchParams }: { searchParams: SearchParams }) {
+  await requirePagePermission({ analytics: ["read"] });
   const sp = await searchParams;
   const resolved = await scopeOrAlert("/dashboard/analytics/complaints", sp);
   if (!resolved.scope) return resolved.alert;

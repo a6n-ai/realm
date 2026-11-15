@@ -1,3 +1,4 @@
+import { requirePagePermission } from "@/lib/auth/guards";
 import { Suspense } from "react";
 import { SectionCard } from "@/components/ds";
 import { loadSuppressedAddresses, suppressionSummary, SUPPRESSED_SPEC } from "@/lib/notifications/logs-query";
@@ -8,6 +9,7 @@ type SearchParams = Promise<Record<string, string | undefined>>;
 const LABELS = { unsubscribe: "Unsubscribed", bounce: "Bounced", complaint: "Complained", manual: "Blocked by staff" } as const;
 
 export default async function UnsubscribedPage({ searchParams }: { searchParams: SearchParams }) {
+  await requirePagePermission({ notification: ["read"] });
   // Not left to the layout: a layout is not re-run on client navigation.
   const [summary, sp] = await Promise.all([suppressionSummary(), searchParams]);
   const query = new URLSearchParams(Object.entries(sp).filter((e): e is [string, string] => !!e[1])).toString();

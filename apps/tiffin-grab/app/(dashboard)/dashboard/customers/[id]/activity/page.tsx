@@ -1,5 +1,5 @@
 import { SectionCard } from "@/components/ds";
-import { can } from "@/lib/auth/guards";
+import { can, requirePagePermission } from "@/lib/auth/guards";
 import { inquiryTimeline } from "@/lib/services/customers.service";
 import { OrderActivityLog, type OrderActivityLogRow } from "../../../orders/[id]/order-activity-log";
 import { CUSTOMER_ACTIVITY_FACETS } from "../../../orders/[id]/activity-facets";
@@ -15,6 +15,7 @@ const ACCOUNT_TYPE = { address: "account_address", wallet: "account_wallet", inq
 
 /** Activity tab: the order page's log across every order of this customer, plus account events (addresses, coins, inquiries). Each part needs its own permission. */
 export default async function CustomerActivityPage({ params }: { params: Promise<{ id: string }> }) {
+  await requirePagePermission({ customer: ["read"] });
   const { id } = await params;
   const [canOrder, canInquiry, canWallet] = await Promise.all([can({ order: ["read"] }), can({ inquiry: ["read"] }), can({ wallet: ["read"] })]);
   const [orderRows, planAddress, inquiryEvents, walletEvents, addressEvents] = await Promise.all([

@@ -1,3 +1,4 @@
+import { requirePagePermission } from "@/lib/auth/guards";
 import Link from "next/link";
 import { MegaphoneIcon, PlusIcon } from "lucide-react";
 import { TableBody, TableCell, TableHead, TableHeader, TableRow, Table } from "@foundry/ui/table";
@@ -19,6 +20,7 @@ const STATUS: Record<PromotionStatus, { label: string; variant: "success-light" 
 };
 
 export default async function PromotionsPage() {
+  await requirePagePermission({ settings: ["read"] });
   const [{ timezone }, rows] = await Promise.all([getAppSettings(), promotionsService.listAll()]);
   const now = requestNow();
   const day = (ms: number) => formatEpoch(ms, { mode: "date", timeZone: timezone });

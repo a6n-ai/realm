@@ -1,3 +1,4 @@
+import { requirePagePermission } from "@/lib/auth/guards";
 import { Suspense } from "react";
 import { LayersIcon, CheckCircleIcon, CircleSlashIcon } from "lucide-react";
 import { appEvent } from "@/db/schema";
@@ -48,7 +49,8 @@ async function loadTemplateItems(): Promise<{ items: TemplateStatus[]; configure
   return { items, configured };
 }
 
-export default function NotificationTemplatesPage({ searchParams }: { searchParams: SearchParams }) {
+export default async function NotificationTemplatesPage({ searchParams }: { searchParams: SearchParams }) {
+  await requirePagePermission({ notification: ["read"] });
   return (
     <div className="space-y-6">
       <Suspense fallback={<SkeletonStatCards count={3} className="grid-cols-2 sm:grid-cols-3" />}>

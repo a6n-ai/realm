@@ -3,7 +3,7 @@ import { parseSort } from "@foundry/design-system/list-sort";
 import { SectionCard } from "@/components/ds";
 import { StatCards, StatCardsSkeleton } from "@/components/dashboard/stat-cards";
 import { clientStats } from "../org-stats";
-import { canIn } from "@/lib/auth/guards";
+import { canIn, requirePagePermission } from "@/lib/auth/guards";
 import { listOrganizations } from "@/lib/services/organizations.service";
 import { ClientsList, ClientsListSkeleton, type ClientListRow } from "./clients-list";
 
@@ -17,7 +17,8 @@ function ClientsCard({ children }: { children: React.ReactNode }) {
   );
 }
 
-export default function ClientsPage({ searchParams }: { searchParams: SearchParams }) {
+export default async function ClientsPage({ searchParams }: { searchParams: SearchParams }) {
+  await requirePagePermission({ member: ["update"] });
   return (
     <Suspense
       fallback={

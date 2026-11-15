@@ -1,3 +1,4 @@
+import { requirePagePermission } from "@/lib/auth/guards";
 import { Suspense } from "react";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/reui/alert";
@@ -5,7 +6,8 @@ import { saveTrackedTypes } from "../actions";
 import { loadEmailTypes, trackingAvailable } from "../data";
 import { LoadErrorAlert, TrackedEmailsForm } from "../email-tracking-section";
 
-export default function TrackedEmailsPage() {
+export default async function TrackedEmailsPage() {
+  await requirePagePermission({ settings: ["read"] });
   return (
     <div className="flex flex-col gap-6">
       <p className="text-sm text-muted-foreground">

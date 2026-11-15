@@ -1,18 +1,18 @@
-import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
-import { dirname, join, relative, resolve, sep } from "node:path";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { basename, dirname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 // Static scan: every entry point must reach a guard. No DB, no request.
 const APP = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 
+// Guard calls only. A bare word (getSession, CRON_SECRET, a type name) is not a guard.
 const ACTION_GUARD =
   /\b(staffAction|orderAction|guard|requirePermission|requirePermissionIn|assertStaffSession|requireCustomer|requireCustomerId|requireCustomerSession|requireCustomerIdOrRedirect|requireActiveUser|guardPublicWrite|assertCanManage\w*|assertOwn\w*|callerIsStaff|isStaffRole)\(/;
 const ROUTE_GUARD =
-  /\b(requirePermission|requirePermissionIn|requirePagePermission|assertStaffSession|adminRoute|adminIdRoute|withCronAuth|cronRoutes|cronJobRoute|CRON_SECRET|captcha\w*|constructEvent|stripe-signature|verifySignature\w*|verifyWebhook\w*|getSession|requireCustomer\w*|requireActiveUser)\b/;
-const PAGE_GUARD = /\b(requirePagePermission|requirePermission|requirePermissionIn|assertStaffSession)\(|<Can\b/;
-
-const HTTP = ["GET", "POST", "PUT", "PATCH", "DELETE"] as const;
+  /\b(requirePermission|requirePermissionIn|assertStaffSession|adminRoute|adminIdRoute|withCronAuth|cronRoutes|cronJobRoute|verify\w*(Secret|Signature|Webhook|Captcha|Challenge|SnsMessage)\w*|constructEvent|parseStripeEvent|captchaPasses|requireCustomer\w*|requireActiveUser|requireAccountUser)\(/;
+// A page guard is its own call. `<Can>` only hides UI; the RSC payload still ships what the page loads.
+const PAGE_GUARD = /\b(requirePagePermission|requirePermission|requirePermissionIn|assertStaffSession|requireAccountUser)\(/;
 
 // Entry points that are public or self-authenticating by design. Each needs a reason.
 const PUBLIC_ROUTES: Record<string, string> = {
@@ -40,6 +40,14 @@ const PUBLIC_ROUTES: Record<string, string> = {
   "app/api/realtime/route.ts": "realtime handshake, channel authorization is checked by authorizeChannel",
   "app/api/public/mcp/route.ts": "public MCP endpoint, no auth by design and only public data (see the route comment)",
   "app/api/public/v1/referral/route.ts": "public referral program copy, read-only",
+  "app/api/files/[...key]/route.ts": "secured files need an ak token that filesSecuredAccess.validate checks; other files are served as-is",
+};
+
+// Session-scoped routes: the proxy 401s signed-out callers (not in PUBLIC_API), and the handler scopes data to the caller.
+const SESSION_SCOPED_ROUTES: Record<string, string> = {
+  "app/api/notifications/route.ts": "returns 401 without a session, feed and read state are the caller's own",
+  "app/api/address/resolve/route.ts": "session-only via the proxy, always 200 by design (throttled results are not errors)",
+  "app/api/address/suggest/route.ts": "session-only via the proxy, always 200 by design (throttled results are not errors)",
 };
 
 // Customer self-service exports: the caller's own session scopes every read and write, but no guard call
@@ -82,13 +90,27 @@ const PUBLIC_ACTIONS: Record<string, string> = {
   "lib/meta/actions.ts:sendMetaClientEvent": "browser pixel relay, returns nothing sensitive",
 };
 
-// Dashboard pages that only redirect and render no data.
+// Dashboard pages that only redirect and render no data (or re-export a page that guards itself).
 const REDIRECT_ONLY_PAGES: Record<string, string> = {
   "app/(dashboard)/dashboard/payments/page.tsx": "redirects to a sub-page",
   "app/(dashboard)/dashboard/analytics/page.tsx": "redirects to a sub-page",
+  "app/(dashboard)/dashboard/delivery/page.tsx": "redirects to delivery/charges",
+  "app/(dashboard)/dashboard/notifications/page.tsx": "redirects to notifications/templates",
+  "app/(dashboard)/dashboard/notifications/campaigns/new/page.tsx": "redirects to the campaigns list",
+  "app/(dashboard)/dashboard/notifications/logs/suppressed/page.tsx": "redirects to notifications/unsubscribed",
+  "app/(dashboard)/dashboard/organization/page.tsx": "redirects to organization/overview",
+  "app/(dashboard)/dashboard/organization/access/page.tsx": "redirects to organization/people",
+  "app/(dashboard)/dashboard/organization/members/page.tsx": "redirects to organization/people",
+  "app/(dashboard)/dashboard/organization/invites/page.tsx": "redirects to organization/people",
+  "app/(dashboard)/dashboard/catalog/addons/page.tsx": "redirects to catalog/dishes",
+  "app/(dashboard)/dashboard/customer-groups/new/page.tsx": "redirects to customer-groups",
+  "app/(dashboard)/dashboard/inquiries/renewals/page.tsx": "redirects to inquiries",
+  "app/(dashboard)/dashboard/inquiries/renewals/[id]/page.tsx": "re-exports renewals/customers/[id]/page, which guards itself",
+  "app/(dashboard)/dashboard/settings/integrations/payments/page.tsx": "redirects to settings/payments",
+  "app/(dashboard)/dashboard/settings/integrations/plugins/page.tsx": "redirects to settings/integrations",
 };
 
-// Real gaps the scan found, keyed file:export. Empty: every public write checks captcha and a per-IP cap first.
+// Real gaps the scan found, keyed file:export (actions), file (pages, routes). Empty: every public write checks captcha and a per-IP cap first.
 const KNOWN_GAPS: string[] = [];
 
 const rel = (p: string) => relative(APP, p).split(sep).join("/");
@@ -103,7 +125,11 @@ function walk(dir: string, out: string[] = []): string[] {
   return out;
 }
 
-const read = (p: string) => readFileSync(p, "utf8");
+/** Blanks comments but keeps newlines, so declaration line starts survive. `//` after `:` or a quote is a URL or string, not a comment. */
+const stripComments = (src: string) =>
+  src.replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, " ")).replace(/(^|[^:"'`\\])\/\/[^\n]*/gm, "$1");
+
+const code = (p: string) => stripComments(readFileSync(p, "utf8"));
 
 /** Resolves `@/x` and relative imports to a file on disk; package imports return null. */
 function resolveLocal(spec: string, from: string): string | null {
@@ -119,11 +145,21 @@ function resolveLocal(spec: string, from: string): string | null {
 function closure(file: string, depth = 2, seen = new Set<string>()): string {
   if (seen.has(file)) return "";
   seen.add(file);
-  const src = read(file);
+  const src = code(file);
   if (depth === 0) return src;
   const specs = [...src.matchAll(/from\s+["']([^"']+)["']/g)].map((m) => m[1]!);
   const deps = specs.map((s) => resolveLocal(s, file)).filter((p): p is string => !!p);
   return [src, ...deps.map((d) => closure(d, depth - 1, seen))].join("\n");
+}
+
+/** A page plus its own data helpers: imports from the same folder, never an actions file. Layouts never count. */
+function pageSource(page: string): string {
+  const dir = dirname(page);
+  const src = code(page);
+  const helpers = [...src.matchAll(/from\s+["']([^"']+)["']/g)]
+    .map((m) => resolveLocal(m[1]!, page))
+    .filter((p): p is string => !!p && dirname(p) === dir && !/(^|[-.])actions?\.tsx?$/.test(basename(p)));
+  return [src, ...helpers.map(code)].join("\n");
 }
 
 type Decl = { name: string; exported: boolean; isFn: boolean; body: string };
@@ -145,33 +181,43 @@ function declarations(src: string): Decl[] {
 }
 
 /** Exported function declared in this file, guarded in its own body or through one same-file helper. */
-function exportGuarded(src: string, decl: Decl, all: Decl[]): boolean {
+function exportGuarded(decl: Decl, all: Decl[]): boolean {
   if (ACTION_GUARD.test(decl.body)) return true;
   return all.some((d) => !d.exported && d.name !== decl.name && new RegExp(`\\b${d.name}\\(`).test(decl.body) && ACTION_GUARD.test(d.body));
 }
 
+/** Exported functions in one server file, each with whether a guard reaches it. */
+function scanActions(source: string): { name: string; guarded: boolean }[] {
+  const decls = declarations(stripComments(source));
+  return decls.filter((d) => d.exported && d.isFn).map((d) => ({ name: d.name, guarded: exportGuarded(d, decls) }));
+}
+
+const pageGuarded = (source: string) => PAGE_GUARD.test(stripComments(source));
+const routeGuarded = (source: string) => ROUTE_GUARD.test(stripComments(source));
+
 const isServerFile = (src: string) => /^["']use server["']/m.test(src.slice(0, 300));
+
+const expectKnownGapsFixed = (bad: string[]) => {
+  for (const gap of KNOWN_GAPS) expect(bad, `known gap ${gap} is fixed, drop it from KNOWN_GAPS`).toContain(gap);
+};
 
 describe("guard coverage", () => {
   it("every server action export reaches a guard", () => {
-    const files = walk(join(APP, "app")).concat(walk(join(APP, "lib"))).filter((f) => isServerFile(read(f)));
+    const files = walk(join(APP, "app")).concat(walk(join(APP, "lib"))).filter((f) => isServerFile(code(f)));
     const bad: string[] = [];
     let exports = 0;
     for (const file of files) {
       const r = rel(file);
-      const src = read(file);
-      const decls = declarations(src);
-      for (const d of decls) {
-        if (!d.exported || !d.isFn) continue;
+      for (const { name, guarded } of scanActions(code(file))) {
         exports++;
-        const key = `${r}:${d.name}`;
+        const key = `${r}:${name}`;
         if (PUBLIC_ACTIONS[key] || CUSTOMER_SELF_SERVICE_ACTIONS[key]) continue;
-        if (!exportGuarded(src, d, decls)) bad.push(key);
+        if (!guarded) bad.push(key);
       }
     }
     console.info(`[guard-coverage] server action exports scanned: ${exports} in ${files.length} files`);
     expect(exports).toBeGreaterThan(0);
-    for (const gap of KNOWN_GAPS) expect(bad, `known gap ${gap} is fixed, drop it from KNOWN_GAPS`).toContain(gap);
+    expectKnownGapsFixed(bad);
     expect(bad.filter((b) => !KNOWN_GAPS.includes(b))).toEqual([]);
   });
 
@@ -180,53 +226,112 @@ describe("guard coverage", () => {
     const bad: string[] = [];
     for (const file of routes) {
       const r = rel(file);
-      if (PUBLIC_ROUTES[r]) continue;
-      if (!ROUTE_GUARD.test(closure(file))) bad.push(r);
+      if (PUBLIC_ROUTES[r] || SESSION_SCOPED_ROUTES[r]) continue;
+      if (!routeGuarded(closure(file))) bad.push(r);
     }
     console.info(`[guard-coverage] route files scanned: ${routes.length}`);
     expect(routes.length).toBeGreaterThan(0);
+    expectKnownGapsFixed(bad);
     expect(bad.filter((b) => !KNOWN_GAPS.includes(b))).toEqual([]);
   });
 
-  it("every dashboard page calls a permission guard or sits under a guarded layout", () => {
+  it("every dashboard page calls its own permission guard", () => {
     const dashRoot = join(APP, "app", "(dashboard)", "dashboard");
     const pages = walk(dashRoot).filter((f) => /\/page\.tsx$/.test(f));
     const bad: string[] = [];
     for (const page of pages) {
       const r = rel(page);
       if (REDIRECT_ONLY_PAGES[r]) continue;
-      if (PAGE_GUARD.test(closure(page, 1))) continue;
-      // Ancestor layouts from the page's directory up to the dashboard root.
-      let dir = dirname(page);
-      let covered = false;
-      while (dir.startsWith(dashRoot)) {
-        const layout = join(dir, "layout.tsx");
-        if (existsSync(layout) && PAGE_GUARD.test(closure(layout, 1))) {
-          covered = true;
-          break;
-        }
-        dir = dirname(dir);
-      }
-      if (!covered) bad.push(r);
+      if (!pageGuarded(pageSource(page))) bad.push(r);
     }
     console.info(`[guard-coverage] dashboard pages scanned: ${pages.length}`);
     expect(pages.length).toBeGreaterThan(0);
+    expectKnownGapsFixed(bad);
     expect(bad.filter((b) => !KNOWN_GAPS.includes(b))).toEqual([]);
   });
 
-  it("allowlists and known gaps point at files that still exist", () => {
+  it("allowlists and known gaps point at files that still exist and still declare the export", () => {
     const files = [
       ...Object.keys(PUBLIC_ROUTES),
+      ...Object.keys(SESSION_SCOPED_ROUTES),
       ...Object.keys(CUSTOMER_SELF_SERVICE_ACTIONS).map((k) => k.split(":")[0]!),
       ...Object.keys(REDIRECT_ONLY_PAGES),
       ...Object.keys(PUBLIC_ACTIONS).map((k) => k.split(":")[0]!),
     ];
     const missing = files.filter((f) => !existsSync(join(APP, f)));
     expect(missing).toEqual([]);
-    const staleExports = Object.keys(CUSTOMER_SELF_SERVICE_ACTIONS).filter((k) => {
+    const staleExports = [...Object.keys(CUSTOMER_SELF_SERVICE_ACTIONS), ...Object.keys(PUBLIC_ACTIONS)].filter((k) => {
       const [file, name] = k.split(":") as [string, string];
-      return !read(join(APP, file)).includes(`function ${name}(`);
+      const path = join(APP, file);
+      return !existsSync(path) || !declarations(code(path)).some((d) => d.exported && d.name === name);
     });
     expect(staleExports).toEqual([]);
+  });
+});
+
+describe("guard scanner flags unguarded entry points", () => {
+  it("action without a guard, or with one only in a comment", () => {
+    const bare = `"use server";
+export async function updateOrder(id: string) {
+  return db.orders.update(id);
+}`;
+    const commented = `"use server";
+export async function updateOrder(id: string) {
+  // await requirePermission({ order: ["write"] });
+  return db.orders.update(id);
+}`;
+    expect(scanActions(bare)).toEqual([{ name: "updateOrder", guarded: false }]);
+    expect(scanActions(commented)).toEqual([{ name: "updateOrder", guarded: false }]);
+  });
+
+  it("action with a guard call passes", () => {
+    const guarded = `"use server";
+export async function updateOrder(id: string) {
+  await requirePermission({ order: ["write"] });
+  return db.orders.update(id);
+}`;
+    expect(scanActions(guarded)).toEqual([{ name: "updateOrder", guarded: true }]);
+  });
+
+  it("page without its own guard, even with <Can> or a comment, is flagged", () => {
+    const withCan = `export default async function Page() {
+  return <Can perms={{ finance: ["manage"] }}><Export /></Can>;
+}`;
+    const commented = `/* requirePagePermission({ finance: ["read"] }) */
+export default async function Page() {
+  return <Export />;
+}`;
+    expect(pageGuarded(withCan)).toBe(false);
+    expect(pageGuarded(commented)).toBe(false);
+  });
+
+  it("page with its own requirePagePermission passes", () => {
+    const guarded = `export default async function Page() {
+  await requirePagePermission({ finance: ["read"] });
+  return <Export />;
+}`;
+    expect(pageGuarded(guarded)).toBe(true);
+  });
+
+  it("route with bare words but no guard call is flagged", () => {
+    const bare = `export async function GET(req: Request) {
+  const session = await getSession();
+  if (req.headers.get("x-key") !== CRON_SECRET) return new Response(null, { status: 401 });
+  return Response.json(await db.list());
+}`;
+    const commented = `export async function POST(req: Request) {
+  // verifyCronSecret(req) belongs here
+  return Response.json(await db.run());
+}`;
+    expect(routeGuarded(bare)).toBe(false);
+    expect(routeGuarded(commented)).toBe(false);
+  });
+
+  it("route with a real guard call passes", () => {
+    const guarded = `export async function POST(req: Request) {
+  if (!verifyCronSecret(req)) return new Response(null, { status: 401 });
+  return Response.json(await db.run());
+}`;
+    expect(routeGuarded(guarded)).toBe(true);
   });
 });

@@ -1,3 +1,4 @@
+import { requirePagePermission } from "@/lib/auth/guards";
 import { Suspense } from "react";
 import { CreditCardIcon } from "lucide-react";
 import {
@@ -13,6 +14,7 @@ import { integrationsConfigStore } from "@/lib/payments/integrations-config";
 import { CloverPanel } from "./clover-panel";
 
 export default async function CloverSettingsPage() {
+  await requirePagePermission({ settings: ["read"] });
   return (
     <div className="grid gap-6">
       <PageHeader

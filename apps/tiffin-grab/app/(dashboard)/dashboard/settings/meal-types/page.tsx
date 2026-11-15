@@ -1,10 +1,12 @@
+import { requirePagePermission } from "@/lib/auth/guards";
 import { Suspense } from "react";
 import { UtensilsCrossedIcon } from "lucide-react";
 import { getMealTypes } from "@/lib/menu/meal-types-settings";
 import { PageHeader, SectionCard } from "@/components/ds";
 import { MealTypesForm, MealTypesFormSkeleton } from "../meal-types-form";
 
-export default function MealTypesPage() {
+export default async function MealTypesPage() {
+  await requirePagePermission({ settings: ["read"] });
   return (
     <div className="grid gap-6">
       <PageHeader icon={UtensilsCrossedIcon} title="Meal types" />

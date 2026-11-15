@@ -1,10 +1,12 @@
+import { requirePagePermission } from "@/lib/auth/guards";
 import { Suspense } from "react";
 import { SettingsIcon } from "lucide-react";
 import { getAppSettings, getDefaultCountrySetting, getPauseDefaultsSetting } from "@/lib/settings";
 import { PageHeader, SectionCard } from "@/components/ds";
 import { SettingsForm, SettingsFormSkeleton } from "./settings-form";
 
-export default function GeneralSettingsPage() {
+export default async function GeneralSettingsPage() {
+  await requirePagePermission({ settings: ["read"] });
   return (
     <div className="grid gap-6">
       <PageHeader icon={SettingsIcon} title="General" />

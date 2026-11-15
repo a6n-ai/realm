@@ -1,3 +1,4 @@
+import { requirePagePermission } from "@/lib/auth/guards";
 import { Suspense } from "react";
 import { SectionCard, parseFilterState } from "@/components/ds";
 import { CUSTOMER_ACTIVITY_FACETS } from "@/lib/customer-activity/log-facets";
@@ -16,11 +17,12 @@ type SearchParams = Promise<Record<string, string | undefined>>;
 
 const SORT_COLUMNS = ["time"] as const satisfies readonly CustomerActivitySortColumn[];
 
-export default function NotificationActivityLogsPage({
+export default async function NotificationActivityLogsPage({
   searchParams,
 }: {
   searchParams: SearchParams;
 }) {
+  await requirePagePermission({ notification: ["read"] });
   return (
     <SectionCard
       title="Customer activity"

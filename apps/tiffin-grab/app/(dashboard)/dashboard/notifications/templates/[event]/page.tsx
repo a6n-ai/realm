@@ -1,3 +1,4 @@
+import { requirePagePermission } from "@/lib/auth/guards";
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { buildUnsubscribeUrl } from "@relay/engine";
@@ -12,7 +13,8 @@ import { BackButton } from "@foundry/design-system";
 import { SectionCard } from "@/components/ds";
 import { Skeleton } from "@foundry/ui/skeleton";
 
-export default function Page({ params }: { params: Promise<{ event: string }> }) {
+export default async function Page({ params }: { params: Promise<{ event: string }> }) {
+  await requirePagePermission({ notification: ["read"] });
   return (
     <div className="space-y-6">
       <BackButton href="/dashboard/notifications/templates" label="All templates" />

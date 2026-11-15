@@ -1,3 +1,4 @@
+import { requirePagePermission } from "@/lib/auth/guards";
 import { Suspense } from "react";
 import { CoinsIcon, GiftIcon, UserCheckIcon, UsersIcon, WalletIcon } from "lucide-react";
 import { Skeleton } from "@foundry/ui/skeleton";
@@ -18,6 +19,7 @@ import { GiveOneCustomerDialog } from "./give-one-customer-dialog";
 type SearchParams = Promise<Record<string, string | undefined>>;
 
 export default async function GiveCoinsPage({ searchParams }: { searchParams: SearchParams }) {
+  await requirePagePermission({ wallet: ["read"] });
   const sp = await searchParams;
   const query = new URLSearchParams(Object.entries(sp).filter((e): e is [string, string] => !!e[1])).toString();
   return (

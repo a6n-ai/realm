@@ -1,3 +1,4 @@
+import { requirePagePermission } from "@/lib/auth/guards";
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { and, desc, eq, inArray } from "drizzle-orm";
@@ -46,6 +47,7 @@ export default async function CampaignPage({
   params: Promise<{ id: string }>;
   searchParams: SearchParams;
 }) {
+  await requirePagePermission({ notification: ["read"] });
   const { id } = await params;
 
   const [row] = await db

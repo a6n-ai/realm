@@ -1,3 +1,4 @@
+import { requirePagePermission } from "@/lib/auth/guards";
 import { ChartLineIcon } from "lucide-react";
 import { PageHeader, SectionCard } from "@/components/ds";
 import { Alert, AlertDescription, AlertTitle } from "@/components/reui/alert";
@@ -20,6 +21,7 @@ const EVENTS = [
 ];
 
 export default async function GoogleAnalyticsSettingsPage() {
+  await requirePagePermission({ settings: ["read"] });
   const s = await getGaStatus();
 
   const connection = !s.measurementId ? (

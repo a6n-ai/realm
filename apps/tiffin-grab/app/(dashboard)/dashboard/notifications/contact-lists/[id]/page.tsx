@@ -1,3 +1,4 @@
+import { requirePagePermission } from "@/lib/auth/guards";
 import { CONSENT_LABEL } from "@/lib/notifications/consent-labels";
 import { eq } from "drizzle-orm";
 import { notFound } from "next/navigation";
@@ -16,6 +17,7 @@ import { campaignDeps } from "@/lib/notifications/deps";
 export const dynamic = "force-dynamic";
 
 export default async function ContactListPage({ params }: { params: Promise<{ id: string }> }) {
+  await requirePagePermission({ notification: ["read"] });
   const { id } = await params;
 
   const [[list], { timezone }] = await Promise.all([

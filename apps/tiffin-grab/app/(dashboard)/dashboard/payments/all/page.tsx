@@ -1,3 +1,4 @@
+import { requirePagePermission } from "@/lib/auth/guards";
 import { SectionCard } from "@/components/ds";
 import { Suspense } from "react";
 import { loadOwnerOptions } from "@/lib/list/facet-options";
@@ -8,7 +9,8 @@ import { PaymentsTable, PaymentsTableSkeleton } from "../payments-table";
 
 type SearchParams = Promise<Record<string, string | undefined>>;
 
-export default function AllPaymentsPage({ searchParams }: { searchParams: SearchParams }) {
+export default async function AllPaymentsPage({ searchParams }: { searchParams: SearchParams }) {
+  await requirePagePermission({ finance: ["manage"] });
   return (
     <>
       <PaymentsTop tab="all" searchParams={searchParams} />

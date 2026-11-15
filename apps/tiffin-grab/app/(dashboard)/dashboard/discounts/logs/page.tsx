@@ -11,7 +11,7 @@ import { ALL_KINDS, KIND_LABELS } from "@/lib/coupons/kind-labels";
 import { epochBoundsWhere, withListDates } from "@/lib/list/default-month";
 import { DiscountLogs, DiscountLogsSkeleton } from "./discount-logs";
 import { getMoneyFormatter } from "@/lib/settings";
-import { can } from "@/lib/auth/guards";
+import { can, requirePagePermission } from "@/lib/auth/guards";
 
 const customer = alias(users, "customer");
 const redeemer = alias(users, "redeemer");
@@ -34,7 +34,8 @@ const SPEC: FacetDef[] = [
 
 type SearchParams = Promise<Record<string, string | undefined>>;
 
-export default function DiscountLogsPage({ searchParams }: { searchParams: SearchParams }) {
+export default async function DiscountLogsPage({ searchParams }: { searchParams: SearchParams }) {
+  await requirePagePermission({ discount: ["read"] });
   return (
     <div className="grid grid-cols-1 gap-6">
       <Suspense fallback={<DiscountLogsSkeleton />}>

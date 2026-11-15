@@ -1,3 +1,4 @@
+import { requirePagePermission } from "@/lib/auth/guards";
 import Link from "next/link";
 import { ChevronRightIcon, ClockIcon } from "lucide-react";
 import { PageHeader } from "@/components/ds";
@@ -9,6 +10,7 @@ import { RunStatus, scheduleLabel } from "./run-parts";
 import { requestNow } from "@/lib/dates/request-now";
 
 export default async function ScheduledJobsPage() {
+  await requirePagePermission({ settings: ["read"] });
   const { timezone } = await getAppSettings();
   const runs = await recentCronRuns(CRON_JOBS.map((j) => j.key), 1);
   const now = requestNow();

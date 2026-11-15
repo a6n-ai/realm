@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { BackButton, SectionCard, UserAvatar } from "@/components/ds";
 import { Badge } from "@/components/reui/badge";
-import { canIn } from "@/lib/auth/guards";
+import { canIn, requirePagePermission } from "@/lib/auth/guards";
 import { getOrganization, listFranchiseCities, listMembers } from "@/lib/services/organizations.service";
 import { getRoleChoicesFor } from "@/lib/auth/role-options";
 import { getSession } from "@/lib/auth/session";
@@ -9,6 +9,7 @@ import { ClientDetailForm } from "./client-detail-form";
 import { StaffSection } from "./staff-section";
 
 export default async function ClientDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  await requirePagePermission({ member: ["update"] });
   const { id } = await params;
   if (!(await canIn(id, { member: ["update"] }))) notFound();
   const org = await getOrganization(id);

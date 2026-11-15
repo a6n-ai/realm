@@ -4,6 +4,8 @@ import { nextWeekday } from "@foundry/commons";
 
 const session: { user: { id: string; role: string } | null } = { user: null };
 vi.mock("@/lib/auth/session", () => ({ getSession: async () => (session.user ? session : null) }));
+// Staff access to a customer's order is an org permission (order:read); org roles are covered in lib/auth tests.
+vi.mock("@/lib/auth/guards", async (orig) => ({ ...(await orig<typeof import("@/lib/auth/guards")>()), can: async () => true }));
 vi.mock("next/cache", () => ({ revalidatePath: () => undefined }));
 // Saving an address geocodes it; tests must not call AWS.
 vi.mock("@foundry/places", async (orig) => ({ ...(await orig<object>()), resolveAndPersist: async () => null }));

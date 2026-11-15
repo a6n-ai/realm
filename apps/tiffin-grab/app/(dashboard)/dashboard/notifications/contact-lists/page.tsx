@@ -1,3 +1,4 @@
+import { requirePagePermission } from "@/lib/auth/guards";
 import { pageOffset } from "@foundry/design-system/filters/parse-filter-state";
 import { Suspense } from "react";
 import Link from "next/link";
@@ -34,7 +35,8 @@ const SPEC: FacetDef[] = [
 
 type SearchParams = Promise<Record<string, string | undefined>>;
 
-export default function ContactListsPage({ searchParams }: { searchParams: SearchParams }) {
+export default async function ContactListsPage({ searchParams }: { searchParams: SearchParams }) {
+  await requirePagePermission({ notification: ["read"] });
   return (
     <div className="space-y-6">
       <Suspense fallback={<StatsSkeleton />}>

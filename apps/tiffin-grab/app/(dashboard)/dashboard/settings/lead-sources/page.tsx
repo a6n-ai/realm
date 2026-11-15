@@ -1,3 +1,4 @@
+import { requirePagePermission } from "@/lib/auth/guards";
 import { Suspense } from "react";
 import { asc } from "drizzle-orm";
 import { Webhook } from "lucide-react";
@@ -6,7 +7,8 @@ import { leadSources, leadSubsources } from "@/db/schema";
 import { PageHeader } from "@/components/ds";
 import { LeadSourcesManager, LeadSourcesManagerSkeleton } from "./manager";
 
-export default function LeadSourcesSettingsPage() {
+export default async function LeadSourcesSettingsPage() {
+  await requirePagePermission({ settings: ["read"] });
   return (
     <div className="grid gap-6">
       <PageHeader icon={Webhook} title="Lead sources" />

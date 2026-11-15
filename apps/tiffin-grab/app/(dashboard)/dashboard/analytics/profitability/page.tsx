@@ -1,3 +1,4 @@
+import { requirePagePermission } from "@/lib/auth/guards";
 import { Can, NoAccessNote } from "@/components/auth/can";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { cache, Suspense } from "react";
@@ -42,6 +43,7 @@ function parseMonth(raw: string | undefined, fallback: string): string {
 type SearchParams = Promise<Record<string, string | undefined>>;
 
 export default async function ProfitabilityAnalyticsPage({ searchParams }: { searchParams: SearchParams }) {
+  await requirePagePermission({ analytics: ["read"] });
   const sp = await searchParams;
   const resolved = await scopeOrAlert("/dashboard/analytics/profitability", sp);
   if (!resolved.scope) return resolved.alert;

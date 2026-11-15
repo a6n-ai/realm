@@ -1,3 +1,4 @@
+import { requirePagePermission } from "@/lib/auth/guards";
 import { Suspense } from "react";
 import { CoinsIcon, ScaleIcon, ScrollTextIcon, ShoppingBagIcon, WalletIcon } from "lucide-react";
 import { db } from "@/db/client";
@@ -16,7 +17,8 @@ import { walletLedgerRows, walletLedgerStats, type WalletSortColumn } from "@/li
 
 type SearchParams = Promise<Record<string, string | undefined>>;
 
-export default function WalletLedgerPage({ searchParams }: { searchParams: SearchParams }) {
+export default async function WalletLedgerPage({ searchParams }: { searchParams: SearchParams }) {
+  await requirePagePermission({ wallet: ["read"] });
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-3">

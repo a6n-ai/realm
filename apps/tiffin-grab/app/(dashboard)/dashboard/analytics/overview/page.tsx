@@ -1,3 +1,4 @@
+import { requirePagePermission } from "@/lib/auth/guards";
 import { Can, NoAccessNote } from "@/components/auth/can";
 import { cache, Suspense } from "react";
 import { AnalyticsIntro } from "@/components/dashboard/analytics/analytics-intro";
@@ -34,6 +35,7 @@ const loadProfit = cache((scope: AnalyticsScope) => getProfitabilityReport({ mon
 const loadTrial = cache((scope: AnalyticsScope) => getTrialToPlanConversion(scope));
 
 export default async function OverviewAnalyticsPage({ searchParams }: { searchParams: SearchParams }) {
+  await requirePagePermission({ analytics: ["read"] });
   const sp = await searchParams;
   const resolved = await scopeOrAlert("/dashboard/analytics/overview", sp);
   if (!resolved.scope) return resolved.alert;

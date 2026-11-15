@@ -1,3 +1,4 @@
+import { requirePagePermission } from "@/lib/auth/guards";
 import { pageOffset } from "@foundry/design-system/filters/parse-filter-state";
 import { Suspense } from "react";
 import { asc, desc, eq, ilike, inArray, and, or, sql } from "drizzle-orm";
@@ -14,7 +15,8 @@ import { LogsTable, LogsTableSkeleton } from "./logs-table";
 
 type SearchParams = Promise<Record<string, string | undefined>>;
 
-export default function ProviderLogsPage({ searchParams }: { searchParams: SearchParams }) {
+export default async function ProviderLogsPage({ searchParams }: { searchParams: SearchParams }) {
+  await requirePagePermission({ finance: ["manage"] });
   return (
     <>
       <PaymentsTop tab="logs" searchParams={searchParams} />

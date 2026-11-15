@@ -1,3 +1,4 @@
+import { requirePagePermission } from "@/lib/auth/guards";
 import { pageOffset } from "@foundry/design-system/filters/parse-filter-state";
 import { Suspense } from "react";
 import { and, eq, ilike, inArray, or, sql } from "drizzle-orm";
@@ -22,7 +23,8 @@ const SORT_COL = {
   amount: ledgerEntries.amount,
 } as const;
 
-export default function MoneyLedgerPage({ searchParams }: { searchParams: SearchParams }) {
+export default async function MoneyLedgerPage({ searchParams }: { searchParams: SearchParams }) {
+  await requirePagePermission({ finance: ["manage"] });
   return (
     <>
       <PaymentsTop tab="ledger" searchParams={searchParams} />

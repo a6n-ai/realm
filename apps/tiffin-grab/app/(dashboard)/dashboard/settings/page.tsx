@@ -1,3 +1,4 @@
+import { requirePagePermission } from "@/lib/auth/guards";
 import { Suspense } from "react";
 import { SettingsIcon } from "lucide-react";
 import { resolveStatuses } from "@foundry/crm/server";
@@ -6,6 +7,7 @@ import { PLUGINS } from "@/lib/plugins.server";
 import { SettingsDirectory, SettingsDirectorySkeleton } from "./settings-directory";
 
 export default async function SettingsPage() {
+  await requirePagePermission({ settings: ["read"] });
   return (
     <>
       <PageHeader icon={SettingsIcon} title="Settings" subtitle="Configure how the platform runs." />

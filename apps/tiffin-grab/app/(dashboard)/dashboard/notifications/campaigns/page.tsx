@@ -1,3 +1,4 @@
+import { requirePagePermission } from "@/lib/auth/guards";
 import { pageOffset } from "@foundry/design-system/filters/parse-filter-state";
 import { Suspense } from "react";
 import { columnResolver, conditionToSql } from "@foundry/database";
@@ -40,7 +41,8 @@ type SearchParams = Promise<Record<string, string | undefined>>;
 // page was last built.
 export const dynamic = "force-dynamic";
 
-export default function CampaignsPage({ searchParams }: { searchParams: SearchParams }) {
+export default async function CampaignsPage({ searchParams }: { searchParams: SearchParams }) {
+  await requirePagePermission({ notification: ["read"] });
   return (
     <div className="space-y-6">
       <Suspense fallback={null}>

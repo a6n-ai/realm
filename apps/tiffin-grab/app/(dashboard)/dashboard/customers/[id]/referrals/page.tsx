@@ -1,3 +1,4 @@
+import { requirePagePermission } from "@/lib/auth/guards";
 import Link from "next/link";
 import { GiftIcon } from "lucide-react";
 import { EmptyState, SectionCard } from "@/components/ds";
@@ -10,6 +11,7 @@ import { loadCustomer, loadViewer } from "../data";
 
 /** Referrals tab: their code, who referred them, and the friends who joined with their code. */
 export default async function CustomerReferralsPage({ params }: { params: Promise<{ id: string }> }) {
+  await requirePagePermission({ customer: ["read"] });
   const { id } = await params;
   const [{ profile }, { timezone }] = await Promise.all([loadCustomer(id), loadViewer()]);
   const referral = await getReferralInfo(profile.id);

@@ -1,3 +1,4 @@
+import { requirePagePermission } from "@/lib/auth/guards";
 import { Can, NoAccessNote } from "@/components/auth/can";
 import { ratePct } from "@/lib/money";
 import { scopeOrAlert } from "@/components/dashboard/analytics/franchise-unavailable";
@@ -21,6 +22,7 @@ import { getMoneyFormatter } from "@/lib/settings";
 type SearchParams = Promise<Record<string, string | undefined>>;
 
 export default async function EmployeesAnalyticsPage({ searchParams }: { searchParams: SearchParams }) {
+  await requirePagePermission({ analytics: ["read"] });
   const resolved = await scopeOrAlert("/dashboard/analytics/employees", await searchParams);
   if (!resolved.scope) return resolved.alert;
   const { scope } = resolved;

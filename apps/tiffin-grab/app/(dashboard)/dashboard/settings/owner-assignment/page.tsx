@@ -1,3 +1,4 @@
+import { requirePagePermission } from "@/lib/auth/guards";
 import { activeStaffWhere } from "@/lib/staff/staff-roster";
 import { Suspense } from "react";
 import { and, eq } from "drizzle-orm";
@@ -17,7 +18,8 @@ type SearchParams = Promise<Record<string, string | undefined>>;
 
 const ENTITIES: OwnerEntity[] = ["inquiry", "order", "ticket"];
 
-export default function OwnerAssignmentPage({ searchParams }: { searchParams: SearchParams }) {
+export default async function OwnerAssignmentPage({ searchParams }: { searchParams: SearchParams }) {
+  await requirePagePermission({ settings: ["read"] });
   return (
     <div className="grid gap-6">
       <PageHeader icon={UsersIcon} title="Owner assignment" subtitle="Who new leads, orders and tickets go to." />

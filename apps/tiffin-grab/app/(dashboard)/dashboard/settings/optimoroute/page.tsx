@@ -1,3 +1,4 @@
+import { requirePagePermission } from "@/lib/auth/guards";
 import { TruckIcon } from "lucide-react";
 import { Badge } from "@foundry/ui/badge";
 import { getOptimoRouteConfig, getOptimoRouteStatus } from "@/lib/optimoroute/config";
@@ -5,6 +6,7 @@ import { PageHeader } from "@/components/ds";
 import { SendLoadToggle } from "./send-load-toggle";
 
 export default async function OptimoRouteSettingsPage() {
+  await requirePagePermission({ settings: ["read"] });
   const [status, cfg] = await Promise.all([getOptimoRouteStatus(), getOptimoRouteConfig()]);
   const driverCodes = Object.entries(cfg.driverCodes);
 

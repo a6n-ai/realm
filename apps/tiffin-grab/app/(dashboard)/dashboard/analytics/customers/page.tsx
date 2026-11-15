@@ -1,3 +1,4 @@
+import { requirePagePermission } from "@/lib/auth/guards";
 import { Can, NoAccessNote } from "@/components/auth/can";
 import { Suspense } from "react";
 import { AnalyticsIntro } from "@/components/dashboard/analytics/analytics-intro";
@@ -24,6 +25,7 @@ import {
 type SearchParams = Promise<Record<string, string | undefined>>;
 
 export default async function CustomersAnalyticsPage({ searchParams }: { searchParams: SearchParams }) {
+  await requirePagePermission({ analytics: ["read"] });
   const resolved = await scopeOrAlert("/dashboard/analytics/customers", await searchParams);
   if (!resolved.scope) return resolved.alert;
   const { scope } = resolved;

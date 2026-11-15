@@ -1,3 +1,4 @@
+import { requirePagePermission } from "@/lib/auth/guards";
 import { Can, NoAccessNote } from "@/components/auth/can";
 import { scopeOrAlert } from "@/components/dashboard/analytics/franchise-unavailable";
 import Link from "next/link";
@@ -25,6 +26,7 @@ import { type AnalyticsScope } from "@/lib/analytics/scope-types";
 type SearchParams = Promise<Record<string, string | undefined>>;
 
 export default async function LeadsAnalyticsPage({ searchParams }: { searchParams: SearchParams }) {
+  await requirePagePermission({ analytics: ["read"] });
   const resolved = await scopeOrAlert("/dashboard/analytics/leads", await searchParams);
   if (!resolved.scope) return resolved.alert;
   const { scope } = resolved;

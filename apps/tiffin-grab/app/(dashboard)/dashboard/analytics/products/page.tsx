@@ -29,7 +29,7 @@ import { buildSizeTreemap, type SizeMetric } from "@/lib/analytics/size-treemap"
 import { DATE_BASIS_LABEL } from "@/lib/analytics/metrics/scope";
 import { type AnalyticsScope } from "@/lib/analytics/scope-types";
 import { getMoneyFormatter } from "@/lib/settings";
-import { can } from "@/lib/auth/guards";
+import { can, requirePagePermission } from "@/lib/auth/guards";
 
 // Several cards read the same numbers; React's cache shares one query per request (the scope object is the key).
 const productStats = cache(getProductStats);
@@ -44,6 +44,7 @@ const metricFormat = (m: SizeMetric) => (m === "revenue" ? "currency" : "number"
 type SearchParams = Promise<Record<string, string | undefined>>;
 
 export default async function ProductsAnalyticsPage({ searchParams }: { searchParams: SearchParams }) {
+  await requirePagePermission({ analytics: ["read"] });
   const resolved = await scopeOrAlert("/dashboard/analytics/products", await searchParams);
   if (!resolved.scope) return resolved.alert;
   const { scope } = resolved;

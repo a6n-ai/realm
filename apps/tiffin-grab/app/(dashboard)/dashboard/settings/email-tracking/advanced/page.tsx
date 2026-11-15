@@ -1,10 +1,12 @@
+import { requirePagePermission } from "@/lib/auth/guards";
 import { Suspense } from "react";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { saveStreamRouting } from "../actions";
 import { loadStreams } from "../data";
 import { SesRoutingSection } from "../ses-routing-section";
 
-export default function EmailTrackingAdvancedPage() {
+export default async function EmailTrackingAdvancedPage() {
+  await requirePagePermission({ settings: ["read"] });
   return (
     <Suspense
       fallback={

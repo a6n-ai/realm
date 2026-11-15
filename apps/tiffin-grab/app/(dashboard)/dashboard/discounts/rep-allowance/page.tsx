@@ -1,3 +1,4 @@
+import { requirePagePermission } from "@/lib/auth/guards";
 import { activeStaffWhere } from "@/lib/staff/staff-roster";
 import { Suspense } from "react";
 import { parseFilterState, type FacetDef } from "@/components/ds";
@@ -16,7 +17,8 @@ const REP_SPEC: FacetDef[] = [
 
 type SearchParams = Promise<Record<string, string | undefined>>;
 
-export default function RepAllowancePage({ searchParams }: { searchParams: SearchParams }) {
+export default async function RepAllowancePage({ searchParams }: { searchParams: SearchParams }) {
+  await requirePagePermission({ discount: ["read"] });
   return (
     <Suspense fallback={<RepAllowanceFormSkeleton />}>
       <RepAllowanceData searchParams={searchParams} />

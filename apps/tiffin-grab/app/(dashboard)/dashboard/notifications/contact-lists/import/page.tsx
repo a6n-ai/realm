@@ -1,3 +1,4 @@
+import { requirePagePermission } from "@/lib/auth/guards";
 import Link from "next/link";
 import { ArrowLeftIcon, UploadIcon } from "lucide-react";
 import { PageHeader } from "@foundry/design-system";
@@ -8,6 +9,7 @@ import { ContactListUpload } from "@relay/engine/ui/contact-list-upload";
 export const dynamic = "force-dynamic";
 
 export default async function ContactListImportPage() {
+  await requirePagePermission({ notification: ["read"] });
   return (
     <div className="space-y-6">
       <PageHeader

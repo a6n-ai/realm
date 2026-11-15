@@ -8,7 +8,7 @@ import { coupons, customerGroups } from "@/db/schema";
 import { Alert, AlertDescription } from "@/components/reui/alert";
 import { findCustomerGroup } from "@/lib/customer-groups/customer-groups.service";
 import { getPaymentConfig } from "@/lib/payments/payment-config";
-import { can } from "@/lib/auth/guards";
+import { can, requirePagePermission } from "@/lib/auth/guards";
 import { parseSort, type SortState } from "@foundry/design-system/list-sort";
 import { epochBoundsWhere, withDefaultMonth } from "@/lib/list/default-month";
 import { CREATABLE_KINDS, KIND_LABELS } from "@/lib/coupons/kind-labels";
@@ -40,7 +40,8 @@ type CouponSortColumn = keyof typeof SORT_COL;
 
 type SearchParams = Promise<Record<string, string | undefined>>;
 
-export default function CouponsPage({ searchParams }: { searchParams: SearchParams }) {
+export default async function CouponsPage({ searchParams }: { searchParams: SearchParams }) {
+  await requirePagePermission({ discount: ["read"] });
   return (
     <Suspense fallback={<CouponsManagerSkeleton />}>
       <CouponsData searchParams={searchParams} />

@@ -1,3 +1,4 @@
+import { requirePagePermission } from "@/lib/auth/guards";
 import { Suspense } from "react";
 import { SectionCard } from "@/components/ds";
 import { loadNotificationLogs, LOGS_SPEC } from "@/lib/notifications/logs-query";
@@ -5,7 +6,8 @@ import { LogsTable, LogsTableSkeleton } from "./logs-table";
 
 type SearchParams = Promise<Record<string, string | undefined>>;
 
-export default function NotificationLogsPage({ searchParams }: { searchParams: SearchParams }) {
+export default async function NotificationLogsPage({ searchParams }: { searchParams: SearchParams }) {
+  await requirePagePermission({ notification: ["read"] });
   return (
     <SectionCard title="Notification log" subtitle="Every event-driven send, newest first.">
       <Suspense fallback={<LogsTableSkeleton />}>
