@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { groupOrderWeeks } from "../order-weeks.service";
 
-const order = (n: string) => ({ orderPublicId: `ord_${n}`, deploymentId: `TG-${n}`, customer: `C ${n}`, mealSize: "Small thali" });
+const order = (n: string) => ({ orderPublicId: `ord_${n}`, deploymentId: `TG-${n}`, customer: `C ${n}`, mealSize: "Small thali", pricePerTiffin: 12 });
 
 describe("groupOrderWeeks", () => {
   it("sums each order per Monday week, profit = revenue - food - driver, newest week first", () => {

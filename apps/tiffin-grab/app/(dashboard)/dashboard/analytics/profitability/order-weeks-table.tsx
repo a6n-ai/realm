@@ -14,11 +14,12 @@ import type { OrderCostRow, OrderWeek } from "@/lib/analytics/order-weeks.servic
 
 type Row = OrderCostRow & { week: string; weekKey: string };
 
-const COLUMNS: readonly Column<"week" | "order" | "customer" | "meal" | "tiffins" | "revenue" | "food" | "driver" | "profit">[] = [
+const COLUMNS: readonly Column<"week" | "order" | "customer" | "meal" | "price" | "tiffins" | "revenue" | "food" | "driver" | "profit">[] = [
   { key: "week", label: "Week" },
   { key: "order", label: "Order" },
   { key: "customer", label: "Customer" },
   { key: "meal", label: "Meal size" },
+  { key: "price", label: "Price / tiffin", align: "right" },
   { key: "tiffins", label: "Tiffins", align: "right" },
   { key: "revenue", label: "Revenue", align: "right" },
   { key: "food", label: "Food", align: "right" },
@@ -76,12 +77,13 @@ export function OrderWeeksTable({ weeks }: { weeks: OrderWeek[] }) {
           <>
             <TableCell className="text-muted-foreground whitespace-nowrap">{r.week}</TableCell>
             <TableCell className="font-medium">
-              <Link href={`/dashboard/orders/${r.orderPublicId}`} className="hover:underline">
+              <Link href={`/dashboard/orders/${r.orderPublicId}`} prefetch={false} className="text-primary underline-offset-4 hover:underline">
                 {r.deploymentId}
               </Link>
             </TableCell>
             <TableCell>{r.customer}</TableCell>
             <TableCell>{r.mealSize}</TableCell>
+            <TableCell className="text-right tabular-nums">{money(r.pricePerTiffin)}</TableCell>
             <TableCell className="text-right tabular-nums">{r.tiffins}</TableCell>
             <TableCell className="text-right tabular-nums">{money(r.revenue)}</TableCell>
             <TableCell className="text-right tabular-nums">

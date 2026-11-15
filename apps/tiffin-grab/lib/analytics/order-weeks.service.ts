@@ -15,6 +15,8 @@ export type OrderCostRow = {
   deploymentId: string;
   customer: string;
   mealSize: string;
+  /** What the order sold for per tiffin: order total ex tax / its tiffin count, paid or not. */
+  pricePerTiffin: number;
   tiffins: number;
   revenue: number;
   food: number;
@@ -86,6 +88,8 @@ export async function getOrderWeeks(scope: AnalyticsScope, from: string, to: str
         deploymentId: orders.deploymentId,
         customer: orders.fullName,
         mealSize: mealSizes.name,
+        pricePerTiffin: sql<number>`coalesce(round((${orders.total}::numeric - coalesce((${orders.pricingSnapshot}->>'taxTotal')::numeric, 0))
+          / nullif(${orders.tiffinCount}, 0), 2), 0)::float`,
       })
       .from(deliveries)
       .innerJoin(orders, eq(deliveries.orderId, orders.id))
@@ -104,7 +108,7 @@ export async function getOrderWeeks(scope: AnalyticsScope, from: string, to: str
         revenue: Number(e.revenue),
         food: f?.foodCost ?? 0,
         unrated: (f?.tiffinsWithoutRate ?? 0) > 0,
-        order: { orderPublicId: e.orderPublicId, deploymentId: e.deploymentId, customer: e.customer, mealSize: e.mealSize },
+        order: { orderPublicId: e.orderPublicId, deploymentId: e.deploymentId, customer: e.customer, mealSize: e.mealSize, pricePerTiffin: Number(e.pricePerTiffin) },
       };
     }),
     assumptions.driverCostPerTiffin,
