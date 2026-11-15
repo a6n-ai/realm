@@ -111,7 +111,7 @@ export default async function ProfitabilityAnalyticsPage({ searchParams }: { sea
 
         <ChartCard
           title="Orders by week"
-          subtitle="Each order's revenue, food and driver cost, by delivery week"
+          subtitle="Each order's revenue, food and driver cost. Pick a delivery week."
           info="Revenue is the order's earned share per delivered tiffin, the same as above. Food comes from Catalog → Cost rates; driver from the per-tiffin assumption. Marketing and salaries stay in the page totals, not on orders. Losing orders are listed first."
         >
           <Suspense fallback={<ChartSkeleton height={320} />}>
