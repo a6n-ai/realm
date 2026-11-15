@@ -189,7 +189,7 @@ describe("payCheckout", () => {
     });
     const results = await Promise.all([pay(), pay()]);
     expect(results.filter((r) => "ok" in r)).toHaveLength(1);
-    expect(results.filter((r) => "error" in r)).toEqual([{ error: "A payment is already in progress." }]);
+    expect(results.filter((r) => "error" in r)).toEqual([{ error: "A payment is already in progress.", status: 400 }]);
     expect(await allOrders()).toHaveLength(1);
     expect(payByCard).toHaveBeenCalledTimes(1);
   });
