@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { like } from "drizzle-orm";
+import { eq, like } from "drizzle-orm";
 import { db } from "@/db/client";
 import { otpThrottle } from "@/db/schema";
 import { allowOtpTo } from "../otp-throttle";
@@ -32,5 +32,11 @@ describe("otp caps hold across two calls on the DB path", () => {
     for (let i = 0; i < 6; i++) await allowOtpTo("t6-c@target.ca", "6.6.6.6");
     await db.update(otpThrottle).set({ windowStart: 1 }).where(like(otpThrottle.key, "t6-c%"));
     expect(await allowOtpTo("t6-c@target.ca", "6.6.6.6")).toBe(true);
+  });
+
+  it("purges windows that have expired on the next write", async () => {
+    await db.insert(otpThrottle).values({ key: "t6-stale", count: 3, windowStart: 1 }).onConflictDoNothing();
+    await allowOtpTo("t6-purge@target.ca", "9.9.9.9");
+    expect(await db.select().from(otpThrottle).where(eq(otpThrottle.key, "t6-stale"))).toHaveLength(0);
   });
 });

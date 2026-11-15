@@ -16,6 +16,7 @@ import { STATUS_OPTIONS } from "@/lib/support/complaint-filters";
 import { getSession } from "@/lib/auth/session";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import { AnalyticsTabs } from "./analytics-tabs";
+import { TAB_PERMS } from "./tab-perms";
 
 const REVENUE_FACETS: FacetDef[] = [
   {
@@ -26,18 +27,6 @@ const REVENUE_FACETS: FacetDef[] = [
   },
 ];
 
-/** Each tab shows only when the viewer holds the permissions its page reads. */
-const TAB_PERMS: [string, Record<string, string[]>][] = [
-  ["/dashboard/analytics/overview", { finance: ["read"], order: ["read"], customer: ["read"], ticket: ["read"] }],
-  ["/dashboard/analytics/leads", { inquiry: ["read"] }],
-  ["/dashboard/analytics/revenue", { finance: ["read"] }],
-  ["/dashboard/analytics/profitability", { finance: ["read"] }],
-  ["/dashboard/analytics/products", { order: ["read"] }],
-  ["/dashboard/analytics/customers", { customer: ["read"], order: ["read"] }],
-  ["/dashboard/analytics/operations", { delivery: ["read"] }],
-  ["/dashboard/analytics/complaints", { ticket: ["read"] }],
-  ["/dashboard/analytics/employees", { finance: ["read"] }],
-];
 
 /** Only categories and sub-categories that have tickets in the viewer's franchises. */
 function complaintFacets(tickets: AnalyticsFilterOptions["tickets"]): FacetDef[] {

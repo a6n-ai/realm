@@ -21,10 +21,16 @@ function recent(key: string, now: number): number[] {
 
 const NOW_MS = sql`(extract(epoch from clock_timestamp()) * 1000)::bigint`;
 
+
+// shortcut: purged on each DB write, not by cron (no Workers cron wired), so a quiet table keeps its stale rows until the next write.
+const purgeExpired = (tx: Pick<typeof db, "execute">) =>
+  tx.execute(sql`DELETE FROM otp_throttle WHERE window_start < ${NOW_MS} - ${WINDOW_MS}`);
+
 // Rows are locked address-then-pair (key order: the address is a prefix of its pair
 // key), so concurrent calls can't deadlock; counters advance only when both pass.
 async function allowOtpToDb(addr: string, pairKey: string): Promise<boolean> {
   return db.transaction(async (tx) => {
+    await purgeExpired(tx);
     await tx.execute(sql`
       INSERT INTO otp_throttle (key, count, window_start)
       VALUES (${addr}, 0, ${NOW_MS}), (${pairKey}, 0, ${NOW_MS})
@@ -65,6 +71,7 @@ export async function allowOtpTo(email: string, ip: string | null, now = Date.no
 
 async function allowHourlyDb(key: string, max: number): Promise<boolean> {
   return db.transaction(async (tx) => {
+    await purgeExpired(tx);
     await tx.execute(sql`
       INSERT INTO otp_throttle (key, count, window_start)
       VALUES (${key}, 0, ${NOW_MS})
