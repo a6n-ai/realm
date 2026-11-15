@@ -1,4 +1,5 @@
 import { lockUser } from "@/lib/identity/lock-user";
+import { withoutPaymentActivity } from "@/lib/order-activity/log-facets";
 import { orgScope, type Visible } from "@/lib/tenant/org-scope";
 import { parseIsoDate } from "@/lib/dates/iso-date";
 import { appTodayIso } from "@/lib/dates/today";
@@ -318,7 +319,7 @@ export async function readOrder(publicId: string, visible: Visible): Promise<Ord
   };
 }
 
-export async function listOrderActivities(orderId: bigint) {
+export async function listOrderActivities(orderId: bigint, { finance }: { finance: boolean }) {
   const rows = await db
     .select({
       publicId: orderActivities.publicId,
@@ -337,10 +338,10 @@ export async function listOrderActivities(orderId: bigint) {
     .leftJoin(users, eq(orderActivities.createdBy, users.id))
     .where(eq(orderActivities.orderId, orderId))
     .orderBy(desc(orderActivities.createdAt));
-  return rows;
+  return withoutPaymentActivity(rows, finance);
 }
 
-export async function listCustomerOrderActivities(userId: bigint) {
+export async function listCustomerOrderActivities(userId: bigint, { finance }: { finance: boolean }) {
   return db
     .select({
       publicId: orderActivities.publicId,
@@ -360,7 +361,8 @@ export async function listCustomerOrderActivities(userId: bigint) {
     .innerJoin(orders, eq(orders.id, orderActivities.orderId))
     .leftJoin(users, eq(orderActivities.createdBy, users.id))
     .where(eq(orders.userId, userId))
-    .orderBy(desc(orderActivities.createdAt));
+    .orderBy(desc(orderActivities.createdAt))
+    .then((rows) => withoutPaymentActivity(rows, finance));
 }
 
 // Entity update and activity create are sequential writes: commons repositories each hold their own connection.

@@ -347,7 +347,7 @@ export async function giveFilterOptions() {
   return { givers, groups };
 }
 
-export async function customerGroupStats(r: EpochRange, { wallet = true }: { wallet?: boolean } = {}) {
+export async function customerGroupStats(r: EpochRange, { wallet }: { wallet: boolean }) {
   const [{ groups, members }, [a]] = await Promise.all([
     groupsInRange(r),
     db
@@ -452,10 +452,8 @@ export async function giveHistoryCsv(
   return { ok: true, csv: lines.map((r) => r.map(csvCell).join(",")).join("\r\n") + "\r\n" };
 }
 
-/** Group page cards. Coins given counts every coins action, legacy backfilled ones included. */
-export async function groupStats(groupPublicId: string, { wallet = true }: { wallet?: boolean } = {}) {
-  const [detail, actions] = await Promise.all([getCustomerGroup(groupPublicId, { wallet: false, finance: false }), listGroupActions(groupPublicId)]);
-  if (!detail) throw new ValidationError("Group not found");
+/** Group page cards. Coins given counts every coins action, legacy backfilled ones included. Callers pass the loaded detail and actions. */
+export function groupStats(detail: { members: GroupMember[] }, actions: GroupActionRow[], { wallet }: { wallet: boolean }) {
   const count = (a: GroupActionRow) => (Array.isArray(a.result.awardedUserIds) ? a.result.awardedUserIds.length : 0);
   const last = actions[0] ?? null;
   return {
@@ -467,7 +465,13 @@ export async function groupStats(groupPublicId: string, { wallet = true }: { wal
   };
 }
 
-export async function listGroupActions(groupPublicId: string): Promise<GroupActionRow[]> {
+// Coin actions carry coin amounts and awarded customers: viewers without wallet:read never get them.
+export async function listGroupActions(groupPublicId: string, { wallet }: { wallet: boolean }): Promise<GroupActionRow[]> {
+  const rows = await listAllGroupActions(groupPublicId);
+  return wallet ? rows : rows.filter((a) => a.kind !== "coins");
+}
+
+async function listAllGroupActions(groupPublicId: string): Promise<GroupActionRow[]> {
   const g = await groupByPublicId(groupPublicId);
   const actions = await db
     .select({

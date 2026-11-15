@@ -66,11 +66,11 @@ export const loadCustomerPlanAddressEvents = cache(async (id: string) => {
 
 export const loadCustomerOrderActivity = cache(async (id: string) => {
   await requirePagePermission({ order: ["read"] });
-  return listCustomerOrderActivities(await customerId(id));
+  return listCustomerOrderActivities(await customerId(id), { finance: await can({ finance: ["read"] }) });
 });
 
 export const loadViewer = cache(async () => {
-  const [session, { timezone }, canEdit, canWallet, canGive, canOrder, canFinance] = await Promise.all([
+  const [session, { timezone }, canEdit, canWallet, canGive, canOrder, canFinance, canInvite] = await Promise.all([
     getSession(),
     getAppSettings(),
     can({ customer: ["manage"] }),
@@ -78,7 +78,9 @@ export const loadViewer = cache(async () => {
     can({ wallet: ["give"] }),
     can({ order: ["read"] }),
     can({ finance: ["read"] }),
+    // Mirrors resendCustomerInvite: customer:write plus the notification write it sends with.
+    Promise.all([can({ customer: ["write"] }), can({ notification: ["write"] })]).then(([a, b]) => a && b),
   ]);
-  // Email is the login identity and coins are money: gated by customer:manage and the wallet verbs.
-  return { session, canEdit, canWallet, canGive, canOrder, canFinance, timezone };
+  // Coins are money: gated by the wallet verbs. Email is shown to every customer:read viewer (Overview contact card).
+  return { session, canEdit, canWallet, canGive, canOrder, canFinance, canInvite, timezone };
 });

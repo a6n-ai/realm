@@ -4,6 +4,7 @@ import {
   ACTIVITY_TYPE_LABELS,
   ACTIVITY_TYPE_VALUES,
   LOG_ACTIVITY_CATEGORY_TYPES,
+  withoutPaymentActivity,
 } from "@/lib/order-activity/log-facets";
 
 describe("settings log facets", () => {
@@ -22,5 +23,17 @@ describe("settings log facets", () => {
     for (const t of orderActivityType.enumValues) {
       expect(ACTIVITY_TYPE_LABELS[t]).toBeTruthy();
     }
+  });
+});
+
+describe("withoutPaymentActivity", () => {
+  const rows = [{ type: "payment_claimed" }, { type: "note" }, { type: "payment_refunded" }, { type: "skipped" }];
+
+  it("keeps every row for a finance:read viewer", () => {
+    expect(withoutPaymentActivity(rows, true)).toEqual(rows);
+  });
+
+  it("drops every payment row for a viewer without finance:read", () => {
+    expect(withoutPaymentActivity(rows, false).map((r) => r.type)).toEqual(["note", "skipped"]);
   });
 });

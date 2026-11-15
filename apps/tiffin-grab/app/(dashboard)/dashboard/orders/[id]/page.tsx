@@ -118,7 +118,7 @@ async function OrderDetail({
   if (inOrderStatuses(RUNNING, order.status)) await lapseElapsedPausesSafe(order.id);
 
   const [activities, settings, planRow, customer, paymentCfg, deliveryRows, zone, lookOutBy] = await Promise.all([
-    listOrderActivities(order.id),
+    listOrderActivities(order.id, { finance: await can({ finance: ["read"] }) }),
     settingsP,
     db.select({ planType: plans.planType, allowedStartDays: plans.allowedStartDays }).from(plans).where(eq(plans.id, order.planId)).limit(1).then((r) => r[0]),
     order.userId != null

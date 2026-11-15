@@ -63,6 +63,10 @@ const groupIds: bigint[] = [];
 
 const run = Date.now();
 const ALL = { wallet: true, finance: true };
+const statsFor = async (publicId: string, wallet = true) => {
+  const detail = await getCustomerGroup(publicId, { wallet: false, finance: false });
+  return groupStats(detail!, await listGroupActions(publicId, { wallet }), { wallet });
+};
 
 beforeAll(async () => {
   const rows = await db.insert(users).values([
@@ -155,10 +159,18 @@ describe("customer groups", () => {
 
     await giveGroupCoins(g.publicId, { coins: 5, memo: "again" }, uOk);
     expect((await getCoinsActionMembers(r.actionPublicId)).map((m) => m.status).sort()).toEqual(["awarded", "capped"]);
-    const actions = await listGroupActions(g.publicId);
+    const actions = await listGroupActions(g.publicId, { wallet: true });
     expect(actions).toHaveLength(2);
     expect(actions[0].createdAt).toBeGreaterThanOrEqual(actions[1].createdAt);
     expect((await getCustomerGroup(g.publicId, ALL))?.group.lastAction?.kind).toBe("coins");
+  });
+
+  it("coin actions are withheld from viewers without wallet:read", async () => {
+    const g = await mk("g-coin-hidden", [uOk]);
+    await giveGroupCoins(g.publicId, { coins: 5 }, uOk);
+    expect((await listGroupActions(g.publicId, { wallet: true })).map((a) => a.kind)).toEqual(["coins"]);
+    expect(await listGroupActions(g.publicId, { wallet: false })).toEqual([]);
+    expect((await statsFor(g.publicId, false)).coinsGiven).toBe(0);
   });
 
   it("zero coins rejected", async () => {
@@ -175,9 +187,9 @@ describe("customer groups", () => {
     expect(listIds).toHaveLength(1);
     // Capped was removed, NoEmail has notifyEmail=false: only Ok is on the list.
     expect(await listMemberCount(listIds[0])).toBe(1);
-    expect((await listGroupActions(g.publicId)).map((a) => a.kind)).toEqual(["email"]);
+    expect((await listGroupActions(g.publicId, { wallet: true })).map((a) => a.kind)).toEqual(["email"]);
     await emailGroup(g.publicId, uOk);
-    expect((await listGroupActions(g.publicId)).filter((a) => a.kind === "email")).toHaveLength(2);
+    expect((await listGroupActions(g.publicId, { wallet: true })).filter((a) => a.kind === "email")).toHaveLength(2);
     // The synced group list is reused, not rebuilt per send.
     const [row] = await db.select().from(customerGroups).where(eq(customerGroups.id, g.id));
     expect(listIds[0]).toBe(row.contactListPublicId);
@@ -243,11 +255,11 @@ describe("customer groups", () => {
       .insert(campaigns)
       .values({ name: `cg-audience-${run}`, channels: ["email"], audience: { listIds: [contactListPublicId] } })
       .returning();
-    const viaPicker = (await listGroupActions(g.publicId)).filter((a) => a.kind === "campaign");
+    const viaPicker = (await listGroupActions(g.publicId, { wallet: true })).filter((a) => a.kind === "campaign");
     expect(viaPicker).toHaveLength(1);
     expect(viaPicker[0].result.campaignPublicId).toBe(c.publicId);
     await emailGroup(g.publicId, uOk);
-    const all = await listGroupActions(g.publicId);
+    const all = await listGroupActions(g.publicId, { wallet: true });
     expect(all.filter((a) => a.kind === "campaign")).toHaveLength(1);
     expect(all.filter((a) => a.kind === "email")).toHaveLength(1);
   });
@@ -269,7 +281,7 @@ describe("customer groups", () => {
     const listIds = (c.audience as { listIds: string[] }).listIds;
     expect(listIds).toHaveLength(1);
     expect(await listMemberCount(listIds[0])).toBe(1);
-    const email = (await listGroupActions(g.publicId)).find((a) => a.kind === "email");
+    const email = (await listGroupActions(g.publicId, { wallet: true })).find((a) => a.kind === "email");
     expect(email?.params).toMatchObject({ fromAction: r.actionPublicId });
     // one-off list is cleaned up via the campaign delete + list sweep below
     const [l] = await db.select().from(contactList).where(eq(contactList.publicId, listIds[0]));
@@ -388,13 +400,13 @@ describe("customer groups", () => {
 
   it("groupStats: members, email-on, coins given (legacy too), actions and last action", async () => {
     const g = await mk("gstats", [uOk, uCapped, uNoEmail]);
-    const empty = await groupStats(g.publicId);
+    const empty = await statsFor(g.publicId);
     expect(empty).toEqual({ members: 3, emailOn: 2, coinsGiven: 0, actionsRun: 0, lastAction: null });
     await db.insert(customerGroupActions).values({
       groupId: g.id, kind: "coins", params: { coins: 7, legacy: true }, result: { awardedUserIds: ["1", "2"], cappedUserIds: [] },
     });
     const r = await giveGroupCoins(g.publicId, { coins: 5 }, uOk);
-    const s = await groupStats(g.publicId);
+    const s = await statsFor(g.publicId);
     expect(s.coinsGiven).toBe(14 + 5 * r.awarded);
     expect(s.actionsRun).toBe(2);
     expect(s.lastAction?.kind).toBe("coins");
@@ -467,12 +479,12 @@ describe("customer groups", () => {
   it("stats count only what happened inside the range", async () => {
     const t0 = Date.now() - 1;
     const range = { from: t0, to: t0 + 3_600_000 };
-    const before = { give: await giveCoinsStats(range), groups: await customerGroupStats(range) };
+    const before = { give: await giveCoinsStats(range), groups: await customerGroupStats(range, { wallet: true }) };
     const g = await mk("stats-group", [uOk, uCapped]);
     await giveGroupCoins(g.publicId, { coins: 10 }, uOk);
     await emailGroup(g.publicId, uOk);
     const give = await giveCoinsStats(range);
-    const groups = await customerGroupStats(range);
+    const groups = await customerGroupStats(range, { wallet: true });
     expect(give.coinsGiven - before.give.coinsGiven).toBe(10);
     expect(give.customersRewarded - before.give.customersRewarded).toBe(1);
     expect(give.grants - before.give.grants).toBe(1);
@@ -484,7 +496,7 @@ describe("customer groups", () => {
     expect(groups.coinsViaGroups - before.groups.coinsViaGroups).toBe(10);
     expect(groups.emailsSent - before.groups.emailsSent).toBe(1);
 
-    const past = await customerGroupStats({ from: 0, to: 1000 });
+    const past = await customerGroupStats({ from: 0, to: 1000 }, { wallet: true });
     expect(past).toEqual({ groups: 0, members: 0, actions: 0, coinsViaGroups: 0, emailsSent: 0 });
   });
 

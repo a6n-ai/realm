@@ -32,7 +32,8 @@ async function GroupData({ params }: { params: Promise<{ id: string }> }) {
   const [canWallet, canFinance] = await Promise.all([can({ wallet: ["read"] }), can({ finance: ["read"] })]);
   const detail = await getCustomerGroup(id, { wallet: canWallet, finance: canFinance });
   if (!detail) notFound();
-  const [actions, s, { timezone }] = await Promise.all([listGroupActions(id), groupStats(id, { wallet: canWallet }), getAppSettings()]);
+  const [actions, { timezone }] = await Promise.all([listGroupActions(id, { wallet: canWallet }), getAppSettings()]);
+  const s = groupStats(detail, actions, { wallet: canWallet });
   const base = `/dashboard/customer-groups/${id}`;
   const cards: StatCardItem[] = [
     { label: "Members", value: s.members.toLocaleString(), icon: UsersIcon, hint: "customers in this group", href: base },

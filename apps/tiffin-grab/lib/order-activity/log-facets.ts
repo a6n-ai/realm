@@ -20,6 +20,13 @@ export const LOG_ACTIVITY_CATEGORY_TYPES = {
 
 export type LogActivityCategory = keyof typeof LOG_ACTIVITY_CATEGORY_TYPES;
 
+/** Payment rows carry the method and reference in `note`, so viewers without finance:read get none of them. */
+export function withoutPaymentActivity<T extends { type: string }>(rows: T[], canFinance: boolean): T[] {
+  if (canFinance) return rows;
+  const payments: readonly string[] = LOG_ACTIVITY_CATEGORY_TYPES.payments;
+  return rows.filter((r) => !payments.includes(r.type));
+}
+
 const CATEGORY_LABELS: Record<LogActivityCategory, string> = {
   meals: "Meals",
   address: "Address",

@@ -44,7 +44,7 @@ describe("order lifecycle (integration)", () => {
     await svc.ordersService.activate(id);
     const [o] = await db.select().from(orders).where(eq(orders.publicId, id));
     expect(o.status).toBe("active");
-    const acts = await svc.listOrderActivities(o.id);
+    const acts = await svc.listOrderActivities(o.id, { finance: true });
     expect(acts[0].type).toBe("activated");
     expect(acts[0].toStatus).toBe("active");
   });
@@ -54,7 +54,7 @@ describe("order lifecycle (integration)", () => {
     await svc.ordersService.cancel(id);
     const [o] = await db.select().from(orders).where(eq(orders.publicId, id));
     expect(o.status).toBe("cancelled");
-    const acts = await svc.listOrderActivities(o.id);
+    const acts = await svc.listOrderActivities(o.id, { finance: true });
     expect(acts[0].type).toBe("cancelled");
     expect(acts[0].toStatus).toBe("cancelled");
   });
