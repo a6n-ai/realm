@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { CalendarIcon } from "lucide-react";
-import { requirePermission } from "@/lib/auth/guards";
+import { can, requirePermission } from "@/lib/auth/guards";
 import { menuService } from "@/lib/menu/menu.service";
 import { getAppSettings } from "@/lib/settings";
 import { PageHeader, PageShell, SectionCard } from "@/components/ds";
@@ -36,7 +36,8 @@ export default function MenusPage() {
 }
 
 async function MenusData() {
-  await requirePermission({ menu: ["write"] });
+  await requirePermission({ menu: ["read"] });
+  const canEdit = await can({ menu: ["write"] });
 
   const [appSettings, weeks] = await Promise.all([
     getAppSettings(),
@@ -55,11 +56,11 @@ async function MenusData() {
   return (
     <SectionCard
       title="Weeks"
-      subtitle="Open a week to fill it, release it, or change a live menu."
-      action={<NewWeekButton takenWeekStarts={weeks.map((w) => w.weekStart)} />}
+      subtitle={canEdit ? "Open a week to fill it, release it, or change a live menu." : "Open a week to see what is on it."}
+      action={canEdit ? <NewWeekButton takenWeekStarts={weeks.map((w) => w.weekStart)} /> : undefined}
     >
       {weeks.length === 0 ? (
-        <p className="text-muted-foreground text-sm">No menus yet. Use New week to start one.</p>
+        <p className="text-muted-foreground text-sm">No menus yet.{canEdit ? " Use New week to start one." : ""}</p>
       ) : (
         <ul className="divide-y rounded-xl border">
           {ordered.map((w) => (

@@ -13,7 +13,7 @@ const NAV_PERMISSIONS: Record<string, Perms> = {
   "/dashboard/customers": { customer: ["read"] },
   "/dashboard/tickets": { ticket: ["read"] },
   "/dashboard/catalog": { catalog: ["read"] },
-  "/dashboard/menus": { menu: ["write"] },
+  "/dashboard/menus": { menu: ["read"] },
   "/dashboard/payments": { finance: ["manage"] },
   "/dashboard/wallet": { wallet: ["read"] },
   "/dashboard/discounts": { discount: ["read"] },

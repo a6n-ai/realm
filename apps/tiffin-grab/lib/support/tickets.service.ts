@@ -214,6 +214,7 @@ class TicketsService extends SessionUpdatableService<typeof tickets> {
   async reply(publicId: string, body: string, attachments: Attachment[] = []): Promise<void> {
     const ticket = await this.read(publicId);
     const actor = await this.assertAccess(ticket);
+    if (actor.isStaff && !(await can({ ticket: ["write"] }))) throw new ForbiddenError();
 
     // Resolved/closed tickets are locked for everyone (customer and staff).
     // Staff must reopen (changeStatus → open) before the thread resumes.

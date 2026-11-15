@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, CalendarIcon } from "lucide-react";
-import { requirePermission } from "@/lib/auth/guards";
+import { can, requirePermission } from "@/lib/auth/guards";
 import { menuService } from "@/lib/menu/menu.service";
 import { getMealTypes } from "@/lib/menu/meal-types-settings";
 import { dishCategoriesService } from "@/lib/menu/dish-categories.service";
@@ -14,6 +14,7 @@ import { MenuReminderButton } from "./menu-reminder-button";
 import { menuSidesService } from "@/lib/menu/menu-sides.service";
 import type { Slot } from "../menu-grid";
 import { addDaysIso } from "@foundry/commons/util/dates";
+import { WEEK_DAYS } from "@/lib/deliveries/schedule/delivery-days";
 
 type Params = Promise<{ week: string }>;
 
@@ -45,13 +46,16 @@ export default function MenuWeekPage({ params }: { params: Params }) {
 }
 
 async function WeekData({ params }: { params: Params }) {
-  await requirePermission({ menu: ["write"] });
+  await requirePermission({ menu: ["read"] });
+  const canEdit = await can({ menu: ["write"] });
   const { week: weekPublicId } = await params;
 
   const result = await menuService.weekWithItems(weekPublicId);
   // A menu id that names nothing is a 404, not an empty builder — the old
   // ?week=<bogus> silently fell back to "create a new week", which read as data loss.
   if (!result.week) notFound();
+
+  if (!canEdit) return <ReadOnlyWeek week={result.week} items={result.items} />;
 
   const [mealTypes, activeDishes, weeks, categories, planRows, sizeItemRows, problems] = await Promise.all([
     getMealTypes(),
@@ -135,6 +139,31 @@ async function WeekData({ params }: { params: Params }) {
         problems={problems}
         sides={{ weekId: week.id, slots: sideSlots, categories: categories.map((c) => ({ key: c.key, label: c.label })), daySides }}
       />
+    </SectionCard>
+  );
+}
+
+async function ReadOnlyWeek({ week, items }: { week: NonNullable<Awaited<ReturnType<typeof menuService.weekWithItems>>["week"]>; items: Awaited<ReturnType<typeof menuService.weekWithItems>>["items"] }) {
+  const [dishes, byId] = await Promise.all([menuService.activeDishes(), menuService.dishPublicIds()]);
+  const nameByPublicId = new Map(dishes.map((d) => [d.id, d.name]));
+  return (
+    <SectionCard title={weekRange(week.weekStart)} subtitle={`${week.status === "released" ? "Released" : "Not released"} · read only`}>
+      <ul className="divide-y rounded-xl border">
+        {WEEK_DAYS.map((day) => {
+          const names = items
+            .filter((i) => i.dayOfWeek === day)
+            .flatMap((i) => {
+              const id = byId.get(i.dishId);
+              return id ? [nameByPublicId.get(id) ?? "Inactive dish"] : [];
+            });
+          return (
+            <li key={day} className="flex gap-4 px-4 py-3 text-sm">
+              <span className="w-24 shrink-0 font-medium capitalize">{day}</span>
+              <span className="text-muted-foreground">{names.length ? names.join(", ") : "Nothing planned"}</span>
+            </li>
+          );
+        })}
+      </ul>
     </SectionCard>
   );
 }
