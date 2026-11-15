@@ -6,13 +6,12 @@ import { currentUserId } from "@/lib/services/session-service";
 import { sendPaymentReminder } from "@/lib/payments/payment-reminder";
 import type { ActionResult } from "@/lib/actions/action-result";
 import { orderAction } from "@/lib/orders/order-action";
-import type { Guard } from "@/lib/actions/staff-action";
 import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { orders, users } from "@/db/schema";
 import { publishUserRefresh } from "@/lib/realtime/publish-inbox";
 
-const FINANCE_CHARGE: Guard = { finance: ["charge"] };
+const ORDER_WRITE = { order: ["write"] };
 
 /** Tells the customer's open tabs to refresh after their payment changed. */
 async function refreshCustomerOf(orderId: string) {
@@ -27,7 +26,7 @@ async function refreshCustomerOf(orderId: string) {
 
 export async function verifyPaymentAction(orderId: string, paymentPublicId: string): Promise<ActionResult> {
   const res = await orderAction(
-    { guard: FINANCE_CHARGE, payment: paymentPublicId, orderPage: orderId, reach: { payments: true, wallet: true, dashboard: true, orderList: true } },
+    { guard: ORDER_WRITE, payment: paymentPublicId, orderPage: orderId, reach: { payments: true, wallet: true, dashboard: true, orderList: true } },
     async () => {
       const session = await getSession();
       await verifyPayment(paymentPublicId, { actorId: session?.user?.id ?? null });
@@ -39,7 +38,7 @@ export async function verifyPaymentAction(orderId: string, paymentPublicId: stri
 
 export async function rejectPaymentAction(orderId: string, paymentPublicId: string, note: string): Promise<ActionResult> {
   const res = await orderAction(
-    { guard: FINANCE_CHARGE, payment: paymentPublicId, orderPage: orderId, reach: { payments: true, wallet: true } },
+    { guard: ORDER_WRITE, payment: paymentPublicId, orderPage: orderId, reach: { payments: true, wallet: true } },
     async () => rejectPayment(paymentPublicId, note, await currentUserId()),
   );
   if ("ok" in res) await refreshCustomerOf(orderId);
@@ -47,13 +46,13 @@ export async function rejectPaymentAction(orderId: string, paymentPublicId: stri
 }
 
 export async function updatePaymentReferenceAction(orderId: string, paymentPublicId: string, reference: string): Promise<ActionResult> {
-  return orderAction({ guard: FINANCE_CHARGE, order: orderId, orderPage: orderId, reach: { payments: true } }, async () =>
+  return orderAction({ guard: ORDER_WRITE, order: orderId, orderPage: orderId, reach: { payments: true } }, async () =>
     updatePaymentReference(orderId, paymentPublicId, reference, await currentUserId()),
   );
 }
 
 export async function sendPaymentReminderAction(orderId: string, paymentPublicId: string): Promise<ActionResult> {
-  return orderAction({ guard: FINANCE_CHARGE, order: orderId, orderPage: orderId }, async () =>
+  return orderAction({ guard: ORDER_WRITE, order: orderId, orderPage: orderId }, async () =>
     sendPaymentReminder(orderId, paymentPublicId, await currentUserId()),
   );
 }

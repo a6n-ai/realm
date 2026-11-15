@@ -66,7 +66,7 @@ export async function replyTicket(ticketId: string, form: FormData): Promise<Act
 /** Support days, hours and usual reply time, shown to customers in Support. */
 export async function saveSupportHours(input: unknown): Promise<ActionResult> {
   return staffAction(
-    { guard: TICKET_WRITE, revalidate: ["/dashboard/tickets", ["/me/support", "layout"]] },
+    { guard: { settings: ["write"] }, revalidate: ["/dashboard/tickets", ["/me/support", "layout"]] },
     async () => {
       await setSupportHours(input);
     },

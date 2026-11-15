@@ -4,7 +4,7 @@ import { requirePermission } from "@/lib/auth/guards";
 import { PageShell, PageHeader } from "@/components/ds";
 
 export default async function PaymentsLayout({ children }: { children: ReactNode }) {
-  await requirePermission({ finance: ["read"] });
+  await requirePermission({ finance: ["manage"] });
 
   return (
     <PageShell>

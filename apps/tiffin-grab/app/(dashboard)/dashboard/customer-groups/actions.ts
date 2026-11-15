@@ -27,7 +27,7 @@ import { listPayoutCandidates, type PayoutCandidate, type PayoutCandidateFilters
 import { walletBalanceSql } from "@/lib/wallet/balance-sql";
 
 export async function searchAccounts(query: string) {
-  await requirePermission({ customer: ["read"] });
+  await requirePermission({ customer: ["read"], wallet: ["read"] });
   const rows = await searchCustomers(query);
   if (rows.length === 0) return [];
   // Spendable balance for the review table when staff add someone by hand.
@@ -48,6 +48,7 @@ const CUSTOMER_READ: Guard = { customer: ["read"] };
 const CUSTOMER_EXPORT: Guard = { customer: ["export"] };
 const GROUPS: StaffActionOpts = { guard: { customer: ["write"] }, revalidate: ["/dashboard/customer-groups"] };
 const READ: StaffActionOpts = { guard: CUSTOMER_READ };
+const READ_WALLET: StaffActionOpts = { guard: { customer: ["read"], wallet: ["read"] } };
 
 export async function searchGroupsAction(query: string): Promise<ActionResult<{ groups: { publicId: string; name: string; memberCount: number }[] }>> {
   return staffAction(READ, async () => ({ groups: await searchCustomerGroups(parseInput(z.string().max(120), query)) }));
@@ -68,7 +69,7 @@ const payoutFiltersSchema = z.object({
 });
 
 export async function getPayoutCandidates(input: unknown): Promise<ActionResult<{ rows: PayoutCandidate[]; total: number }>> {
-  return staffAction(READ, async () => {
+  return staffAction(READ_WALLET, async () => {
     const filters = parseInput(payoutFiltersSchema, input) satisfies PayoutCandidateFilters;
     return listPayoutCandidates(filters);
   });
@@ -123,7 +124,7 @@ export async function giveGroupCoinsAction(input: unknown): Promise<ActionResult
 export async function getCoinsActionMembersAction(
   actionPublicId: string,
 ): Promise<ActionResult<{ rows: Awaited<ReturnType<typeof getCoinsActionMembers>> }>> {
-  return staffAction(READ, async () => ({ rows: await getCoinsActionMembers(parseInput(idSchema, actionPublicId)) }));
+  return staffAction(READ_WALLET, async () => ({ rows: await getCoinsActionMembers(parseInput(idSchema, actionPublicId)) }));
 }
 
 export async function emailGroupAction(groupPublicId: string): Promise<ActionResult<{ campaignPublicId: string }>> {

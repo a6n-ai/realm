@@ -6,7 +6,7 @@ import type { ActionResult } from "@/lib/actions/action-result";
 import { saveCoinRate as saveCoinRateValue } from "@/lib/wallet/wallet-balances.service";
 import { setCoinEarnPct, setMaxCoinPctOfSubtotal, setMaxCoinRedeemPctOfBalance, setMaxWalletBalance } from "@/lib/wallet/wallet-settings";
 
-const WALLET: StaffActionOpts = { guard: { wallet: ["give"] }, revalidate: [["/dashboard/wallet", "layout"]] };
+const WALLET: StaffActionOpts = { guard: { wallet: ["manage"] }, revalidate: [["/dashboard/wallet", "layout"]] };
 
 const coinRateSchema = z.object({
   currency: z.string().trim().min(1).max(10),

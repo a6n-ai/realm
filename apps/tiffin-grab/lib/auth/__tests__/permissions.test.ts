@@ -57,6 +57,21 @@ describe("tiffin-grab permission map", () => {
     expect(orgRoles.admin.authorize({ order: ["manage"] }).success).toBe(true);
   });
 
+  it("org member holds none of the admin-only verbs; org admin holds them", () => {
+    const adminOnly = [
+      { finance: ["charge"] },
+      { finance: ["manage"] },
+      { customer: ["manage"] },
+      { wallet: ["manage"] },
+      { wallet: ["read"] },
+      { wallet: ["give"] },
+    ];
+    for (const perm of adminOnly) {
+      expect(orgRoles.member.authorize(perm).success).toBe(false);
+      expect(orgRoles.admin.authorize(perm).success).toBe(true);
+    }
+  });
+
   it("org admin allows every app action", () => {
     expect(orgRoles.admin.authorize(appStatement as unknown as Record<string, string[]>).success).toBe(true);
   });

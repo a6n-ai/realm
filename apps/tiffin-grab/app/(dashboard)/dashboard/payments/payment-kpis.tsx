@@ -227,6 +227,6 @@ async function cardsFor(tab: PaymentsTab, sp: Record<string, string | undefined>
 }
 
 async function PaymentKpisData({ tab, searchParams }: { tab: PaymentsTab; searchParams: SearchParams }): Promise<ReactNode> {
-  await requirePermission({ finance: ["read"] });
+  await requirePermission({ finance: ["manage"] });
   return <StatCards items={await cardsFor(tab, await searchParams, Date.now())} />;
 }

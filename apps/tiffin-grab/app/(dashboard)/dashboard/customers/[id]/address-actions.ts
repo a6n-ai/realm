@@ -8,7 +8,7 @@ import type { ActionResult } from "@/lib/actions/action-result";
 
 // Admin-only, always scoped to the customer whose page this is.
 const opts = (customerPublicId: string): StaffActionOpts =>
-  ({ guard: { customer: ["write"] }, revalidate: [[`/dashboard/customers/${customerPublicId}`, "layout"]] });
+  ({ guard: { customer: ["manage"] }, revalidate: [[`/dashboard/customers/${customerPublicId}`, "layout"]] });
 
 export async function staffCreateAddress(customerPublicId: string, input: AddressInput): Promise<ActionResult<SavedAddress>> {
   return staffAction(opts(customerPublicId), async () => {

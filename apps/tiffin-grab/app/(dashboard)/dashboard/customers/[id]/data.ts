@@ -21,10 +21,10 @@ export const loadViewer = cache(async () => {
   const [session, { timezone }, canEdit, canWallet, canGive] = await Promise.all([
     getSession(),
     getAppSettings(),
-    can({ customer: ["write"] }),
+    can({ customer: ["manage"] }),
     can({ wallet: ["read"] }),
     can({ wallet: ["give"] }),
   ]);
-  // Email is the login identity and coins are money: gated by customer:write and the wallet verbs.
+  // Email is the login identity and coins are money: gated by customer:manage and the wallet verbs.
   return { session, canEdit, canWallet, canGive, timezone };
 });

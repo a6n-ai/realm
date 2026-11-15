@@ -10,13 +10,13 @@ export const appStatement = {
   order: ["read", "write", "cancel", "manage"],
   subscription: ["read", "write", "pause"],
   menu: ["read", "write", "publish"],
-  finance: ["read", "refund", "charge"],
+  finance: ["read", "refund", "charge", "manage"],
   holiday: ["read", "write"],
   // Open many private files with one link: one folder token covers a whole ticket/payment.
   files: ["bulkAccess"],
   settings: ["read", "write"],
   audit: ["read"],
-  customer: ["read", "write", "export"],
+  customer: ["read", "write", "export", "manage"],
   inquiry: ["read", "write", "import"],
   catalog: ["read", "write"],
   delivery: ["read", "write"],
@@ -24,7 +24,7 @@ export const appStatement = {
   ticket: ["read", "write"],
   analytics: ["read"],
   notification: ["read", "write", "send"],
-  wallet: ["read", "give"],
+  wallet: ["read", "give", "manage"],
 } as const;
 
 export const statement = createOrgStatement(appStatement);
@@ -36,7 +36,7 @@ export const MEMBER_PERMISSIONS = {
   order: ["read", "write", "cancel"],
   subscription: ["read", "write", "pause"],
   menu: ["read"],
-  finance: ["read", "charge"],
+  finance: ["read"],
   inquiry: ["read", "write"],
   customer: ["read", "write", "export"],
   delivery: ["read"],
@@ -56,7 +56,8 @@ export const RESOURCE_LABELS: ResourceLabel[] = [
   { resource: "menu", label: "Menu", actions: [
     { action: "read", label: "View menu" }, { action: "write", label: "Edit menu" }, { action: "publish", label: "Publish menu" } ] },
   { resource: "finance", label: "Finance", actions: [
-    { action: "read", label: "View finances" }, { action: "refund", label: "Issue refunds" }, { action: "charge", label: "Charge payments" } ] },
+    { action: "read", label: "View finances" }, { action: "refund", label: "Issue refunds" }, { action: "charge", label: "Charge payments" },
+    { action: "manage", label: "Open the payments desk and KPIs" } ] },
   { resource: "holiday", label: "Holidays", actions: [
     { action: "read", label: "View holidays" }, { action: "write", label: "Edit holidays" } ] },
   { resource: "files", label: "Files", actions: [
@@ -66,7 +67,8 @@ export const RESOURCE_LABELS: ResourceLabel[] = [
   { resource: "audit", label: "Audit log", actions: [
     { action: "read", label: "View audit log" } ] },
   { resource: "customer", label: "Customers", actions: [
-    { action: "read", label: "View customers" }, { action: "write", label: "Edit customers" }, { action: "export", label: "Export customers" } ] },
+    { action: "read", label: "View customers" }, { action: "write", label: "Edit customers" }, { action: "export", label: "Export customers" },
+    { action: "manage", label: "Edit addresses and contacts, bulk invite" } ] },
   { resource: "inquiry", label: "Inquiries", actions: [
     { action: "read", label: "View inquiries" }, { action: "write", label: "Edit inquiries" }, { action: "import", label: "Import inquiries" } ] },
   { resource: "catalog", label: "Catalog", actions: [
@@ -82,7 +84,8 @@ export const RESOURCE_LABELS: ResourceLabel[] = [
   { resource: "notification", label: "Notifications", actions: [
     { action: "read", label: "View notifications" }, { action: "write", label: "Edit notifications" }, { action: "send", label: "Send notifications" } ] },
   { resource: "wallet", label: "Wallet", actions: [
-    { action: "read", label: "View wallets" }, { action: "give", label: "Give coins" } ] },
+    { action: "read", label: "View wallets" }, { action: "give", label: "Give coins" },
+    { action: "manage", label: "Configure wallet and referral settings" } ] },
 ];
 
 // Unlike puchkaman, `user` exists here — checkout provisions customer accounts. It

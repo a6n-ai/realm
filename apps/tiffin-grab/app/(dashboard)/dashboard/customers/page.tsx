@@ -121,7 +121,7 @@ async function InvitePendingButtonLoader() {
 }
 
 async function InvitePendingAction() {
-  if (!(await can(CUSTOMER_WRITE))) return null;
+  if (!(await can({ customer: ["manage"] }))) return null;
   return <InvitePendingButtonLoader />;
 }
 

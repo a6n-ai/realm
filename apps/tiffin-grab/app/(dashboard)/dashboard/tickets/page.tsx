@@ -83,7 +83,7 @@ async function SupportHoursDialogLoader() {
 }
 
 async function SupportHoursAction() {
-  if (!(await can({ ticket: ["write"] }))) return null;
+  if (!(await can({ settings: ["write"] }))) return null;
   return <SupportHoursDialogLoader />;
 }
 

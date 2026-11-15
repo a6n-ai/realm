@@ -6,7 +6,7 @@ import { setReferralSettings } from "@/lib/referrals/referral-settings";
 
 // Validated again in the service; this is the admin gate.
 export async function setReferralSettingsAction(input: unknown): Promise<ActionResult> {
-  return staffAction({ guard: { wallet: ["give"] }, revalidate: ["/dashboard/wallet/referrals"] }, async () => {
+  return staffAction({ guard: { wallet: ["manage"] }, revalidate: ["/dashboard/wallet/referrals"] }, async () => {
     await setReferralSettings(input);
   });
 }

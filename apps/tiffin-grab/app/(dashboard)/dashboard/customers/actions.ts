@@ -81,5 +81,5 @@ export async function sendCustomerMenuReminder(customerPublicId: string): Promis
 
 /** "Invite all pending": welcome email to every pending customer. Admin only: one press mails them all. */
 export async function inviteAllPendingCustomers(): Promise<ActionResult<{ sent: number; failed: number }>> {
-  return staffAction({ guard: CUSTOMER_WRITE, revalidate: ["/dashboard/customers"] }, () => invitePendingCustomers());
+  return staffAction({ guard: { customer: ["manage"] }, revalidate: ["/dashboard/customers"] }, () => invitePendingCustomers());
 }
