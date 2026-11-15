@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const requirePermission = vi.fn();
-vi.mock("@/lib/auth/guards", () => ({ requirePermission, requirePermissionIn: vi.fn() }));
+vi.mock("@/lib/auth/guards", () => ({ requirePermission, requirePermissionIn: vi.fn(), assertStaffSession: vi.fn() }));
 vi.mock("@/lib/catalog/load", () => ({ invalidateCatalogSnapshot: async () => undefined }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("next/headers", () => ({ headers: vi.fn().mockResolvedValue(new Headers()) }));

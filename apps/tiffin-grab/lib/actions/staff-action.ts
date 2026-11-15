@@ -1,7 +1,7 @@
 import { revalidatePath } from "next/cache";
 import type { z } from "zod";
 import { ValidationError } from "@foundry/commons";
-import { requirePermission } from "@/lib/auth/guards";
+import { assertStaffSession, requirePermission } from "@/lib/auth/guards";
 import { runAction, type ActionResult } from "./action-result";
 
 type Perms = Parameters<typeof requirePermission>[0];
@@ -54,7 +54,9 @@ export async function staffAction(
   fn: () => Promise<void | string | Record<string, unknown>>,
 ): Promise<ActionResult<Record<string, unknown>>> {
   const res = await runAction(async () => {
+    // No guard still means staff only: a self-authorizing action must never run for anyone signed in.
     if (opts.guard) await guard(opts.guard);
+    else await assertStaffSession();
     const out = await fn();
     // Loaded only when needed, so actions that never touch the catalog do not pull in its services.
     if (opts.catalog) await (await import("@/lib/catalog/load")).invalidateCatalogSnapshot();
