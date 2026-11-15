@@ -38,7 +38,7 @@ export function overviewStats(clients: Client[], members: MemberRow[], pendingIn
     { label: "Clients", value: clients.length, icon: Building2Icon, hint: "brand and franchises", href: CLIENTS },
     { label: "Franchises", value: count(clients, (c) => !c.isBrand), icon: StoreIcon, hint: "shops under the brand", href: `${CLIENTS}?type=franchise` },
     { label: "Staff", value: staff.length, icon: UsersIcon, hint: "people with console access", href: PEOPLE },
-    { label: "Admins", value: count(staff, (m) => m.role === "admin"), icon: ShieldIcon, hint: "full access", href: `${PEOPLE}?role=admin` },
+    { label: "Admins", value: count(staff, (m) => m.role.split(",").some((r) => r.trim() === "admin")), icon: ShieldIcon, hint: "full access", href: `${PEOPLE}?role=admin` },
     { label: "Pending invites", value: pendingInvites, icon: MailIcon, hint: "waiting to be accepted", href: `${INVITES}?invite=pending` },
   ];
 }

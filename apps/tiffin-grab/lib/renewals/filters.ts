@@ -153,6 +153,12 @@ const STATUS_LABEL: Record<RenewalStatusFilter, string> = {
 /** A row is never the combined `booked_unpaid` bucket; that exists only as a list filter. */
 export type RenewalRowStatus = Exclude<RenewalStatusFilter, "booked_unpaid">;
 
+/** Without finance:read an unpaid next plan reads as renewed: the customer has a later plan either way. */
+export function hideUnpaidStatus<T extends { status: RenewalStatus }>(rows: T[], canFinance: boolean): T[] {
+  if (canFinance) return rows;
+  return rows.map((r) => (r.status === "unpaid" ? { ...r, status: "renewed" as const } : r));
+}
+
 /** A row's renewal status: "none" reads Not renewed while the plan runs and Lapsed once its last tiffin has passed. */
 export const rowStatus = (s: RenewalStatus, lastTiffin: string | null, today: string): RenewalRowStatus =>
   s !== "none" ? s : lastTiffin != null && lastTiffin < today ? "lapsed" : "not_renewed";

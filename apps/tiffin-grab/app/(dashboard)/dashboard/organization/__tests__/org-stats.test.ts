@@ -112,4 +112,10 @@ describe("org stats", () => {
       "Pending invites": 4,
     });
   });
+
+  it("overview counts a multi-role member as an admin, like People does", () => {
+    const clients = [{ memberCount: 1, isBrand: true }];
+    const multi = member("a", { role: "owner,admin" as MemberRow["role"] });
+    expect(values(overviewStats(clients, [multi], 0)).Admins).toBe(1);
+  });
 });

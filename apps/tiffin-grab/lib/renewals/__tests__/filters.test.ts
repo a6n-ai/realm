@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseRenewalsFilter, renewalsQuery, statusLabel, type RenewalsFilter } from "../filters";
+import { hideUnpaidStatus, parseRenewalsFilter, renewalsQuery, statusLabel, type RenewalsFilter } from "../filters";
 
 const base: RenewalsFilter = {
   tab: "renewals", type: "regular", track: null, followUp: null, dateBy: "last", ending: null, ended: null, status: null, renewed: null, from: null, to: null, q: "",
@@ -56,5 +56,11 @@ describe("renewals filter", () => {
     expect(f.owner).toBe("usr_1");
     expect(renewalsQuery(f)).toContain("owner=usr_1");
     expect(parseRenewalsFilter({ tab: "customers", owner: "usr_1" }).owner).toBeUndefined();
+  });
+
+  it("reads unpaid as renewed without finance:read", () => {
+    const rows = [{ status: "unpaid" as const, id: 1 }, { status: "waitlisted" as const, id: 2 }];
+    expect(hideUnpaidStatus(rows, false).map((r) => r.status)).toEqual(["renewed", "waitlisted"]);
+    expect(hideUnpaidStatus(rows, true)).toBe(rows);
   });
 });

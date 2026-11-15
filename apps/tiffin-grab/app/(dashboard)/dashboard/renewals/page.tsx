@@ -17,7 +17,7 @@ import { countRenewals, listRenewals, listRenewedCustomers } from "@/lib/renewal
 import { SectionDateRange } from "@/components/filters/section-date-range";
 import { withListDates } from "@/lib/list/default-month";
 import { DateByPicker } from "@/components/filters/date-by-picker";
-import { DATE_BY, ENDED_DAYS, ENDING_DAYS, RENEWAL_STATUSES, RENEWED_DAYS, resolveRange, statusLabel, parseRenewalsFilter, renewalsQuery, type RenewalsFilter } from "@/lib/renewals/filters";
+import { DATE_BY, ENDED_DAYS, ENDING_DAYS, RENEWAL_STATUSES, RENEWED_DAYS, hideUnpaidStatus, resolveRange, statusLabel, parseRenewalsFilter, renewalsQuery, type RenewalsFilter } from "@/lib/renewals/filters";
 import { RenewalFactsLegend } from "./fact-tags";
 import { RenewalsExportButton } from "./renewals-export-button";
 import { RenewalsList, RenewalsListSkeleton, RenewedCustomersList, RenewedCustomersListSkeleton } from "./renewals-list";
@@ -169,7 +169,8 @@ async function RenewalsData({ f, page, size, spec, canFinance }: { f: RenewalsFi
   const owner = resolveOwnerParam(f.owner ?? undefined, viewer) ?? null;
   const unpaidHidden = !canFinance && (f.status === "unpaid" || f.status === "booked_unpaid");
   const result = await listRenewals(visible, { ...f, owner, status: unpaidHidden ? null : f.status }, today, { page, size }, resolveRange(f, timezone), day);
-  return <RenewalsList rows={result.items} total={result.total} page={page} size={size} trial={f.type === "trial"} today={today} spec={spec} />;
+  const rows = hideUnpaidStatus(result.items, canFinance);
+  return <RenewalsList rows={rows} total={result.total} page={page} size={size} trial={f.type === "trial"} today={today} spec={spec} />;
 }
 
 async function RenewedCustomersData({ f, page, size, spec }: { f: RenewalsFilter; page: number; size: number; spec: FacetDef[] }) {
