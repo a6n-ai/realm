@@ -21,6 +21,7 @@ export default async function CustomerRenewalPage({ params }: { params: Promise<
   const now = requestNow();
   const today = zonedDateIso(now, timezone);
   const { customer } = data;
+  const [canWallet, canFinance] = await Promise.all([can({ wallet: ["read"] }), can({ finance: ["read"] })]);
 
   return (
     <PageShell>
@@ -30,7 +31,7 @@ export default async function CustomerRenewalPage({ params }: { params: Promise<
         subtitle={[customer.phone, customer.email].filter(Boolean).join(" · ") || undefined}
         actions={<RenewalActions data={data} isAdmin={await can({ wallet: ["give"] })} />}
       />
-      <RenewalSections data={data} today={today} now={now} timezone={timezone} />
+      <RenewalSections data={data} today={today} now={now} timezone={timezone} canWallet={canWallet} canFinance={canFinance} />
     </PageShell>
   );
 }

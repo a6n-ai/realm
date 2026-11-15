@@ -12,7 +12,7 @@ import { PaymentsBackLink } from "../back-link";
 import { StripeSettingsForm, type StripeView } from "./stripe-settings-form";
 
 export default async function StripeSettingsPage() {
-  await requirePagePermission({ settings: ["read"] });
+  await requirePagePermission({ finance: ["manage"] });
   const blob = await getIntegrationsConfig();
   const raw = blob["stripe"] as { installed?: boolean } | undefined;
   if (!raw?.installed) notFound();

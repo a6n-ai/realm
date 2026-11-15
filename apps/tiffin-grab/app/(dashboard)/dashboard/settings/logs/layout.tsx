@@ -2,8 +2,10 @@ import type { ReactNode } from "react";
 import { ScrollTextIcon } from "lucide-react";
 import { RoutedTabNav } from "@foundry/design-system";
 import { PageHeader } from "@/components/ds";
+import { can } from "@/lib/auth/guards";
 
-export default function SettingsLogsLayout({ children }: { children: ReactNode }) {
+export default async function SettingsLogsLayout({ children }: { children: ReactNode }) {
+  const canCustomer = await can({ customer: ["read"] });
   return (
     <div className="grid gap-6">
       <PageHeader
@@ -15,7 +17,7 @@ export default function SettingsLogsLayout({ children }: { children: ReactNode }
         ariaLabel="Activity log sections"
         tabs={[
           { href: "/dashboard/settings/logs", label: "All activity" },
-          { href: "/dashboard/settings/logs/customers", label: "Customer logs" },
+          ...(canCustomer ? [{ href: "/dashboard/settings/logs/customers", label: "Customer logs" }] : []),
         ]}
       />
       {children}

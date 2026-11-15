@@ -7,7 +7,7 @@ import { Tabs, TabsList, TabsTrigger } from "@foundry/ui/tabs";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { PageShell, PageHeader, SectionCard, parseFilterState, type FacetDef } from "@/components/ds";
 import { StatCards, StatCardsSkeleton } from "@/components/dashboard/stat-cards";
-import { requirePagePermission } from "@/lib/auth/guards";
+import { can, requirePagePermission } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { loadOwnerOptions } from "@/lib/list/facet-options";
 import { UNASSIGNED_OWNER, resolveOwnerParam } from "@/lib/list/presets";
@@ -40,7 +40,8 @@ export default async function RenewalsPage({ searchParams }: { searchParams: Sea
   const sp = await withListDates(await searchParams);
   const f = parseRenewalsFilter(sp);
   const ownerOptions = f.tab === "customers" ? [] : await loadOwnerOptions();
-  const spec = facetSpec(f, ownerOptions);
+  const canFinance = await can({ finance: ["read"] });
+  const spec = facetSpec(f, ownerOptions, canFinance);
   // Same page/size rules as every other list (default 25, sizes 10/25/50/100).
   const { page } = parseFilterState(spec, sp);
   const tab = f.tab === "customers" ? "customers" : f.type === "trial" ? "trials" : "renewals";
@@ -63,7 +64,7 @@ export default async function RenewalsPage({ searchParams }: { searchParams: Sea
           <SectionDateRange />
         </div>
         <Suspense key={`${f.tab}:${f.type}:${f.dateBy}:${f.from}:${f.to}`} fallback={<StatCardsSkeleton count={5} />}>
-          <RenewalsCards f={f} />
+          <RenewalsCards f={f} canFinance={canFinance} />
         </Suspense>
       </div>
       <Tabs value={tab}>
@@ -90,7 +91,7 @@ export default async function RenewalsPage({ searchParams }: { searchParams: Sea
           {f.tab === "customers" ? (
             <RenewedCustomersData f={f} page={page.page} size={page.size} spec={spec} />
           ) : (
-            <RenewalsData f={f} page={page.page} size={page.size} spec={spec} />
+            <RenewalsData f={f} page={page.page} size={page.size} spec={spec} canFinance={canFinance} />
           )}
         </Suspense>
       </SectionCard>
@@ -99,7 +100,7 @@ export default async function RenewalsPage({ searchParams }: { searchParams: Sea
 }
 
 /** The standard facet bar under the top date range: Ending / Ended windows, Status, Owner and search. */
-function facetSpec(f: RenewalsFilter, ownerOptions: { value: string; label: string }[]): FacetDef[] {
+function facetSpec(f: RenewalsFilter, ownerOptions: { value: string; label: string }[], canFinance: boolean): FacetDef[] {
   if (f.tab === "customers") {
     return [
       { kind: "select", field: "renewed", label: "Renewed in last", options: RENEWED_DAYS.map((d) => ({ value: String(d), label: `${d} days` })) },
@@ -110,14 +111,14 @@ function facetSpec(f: RenewalsFilter, ownerOptions: { value: string; label: stri
   return [
     { kind: "select", field: "ending", label: "Ending within", options: ENDING_DAYS.map((d) => ({ value: String(d), label: d === 0 ? "Today" : `${d} ${d === 1 ? "day" : "days"}` })) },
     { kind: "select", field: "ended", label: "Ended in last", options: ENDED_DAYS.map((d) => ({ value: String(d), label: `${d} days` })) },
-    { kind: "pills", field: "status", label: "Status", options: RENEWAL_STATUSES.map((s) => ({ value: s, label: statusLabel(s, trial) })) },
+    { kind: "pills", field: "status", label: "Status", options: RENEWAL_STATUSES.filter((s) => canFinance || s !== "unpaid").map((s) => ({ value: s, label: statusLabel(s, trial) })) },
     ...(ownerOptions.length
       ? [{ kind: "select" as const, field: "owner", label: "Owner", options: [{ value: UNASSIGNED_OWNER, label: "Unassigned" }, ...ownerOptions] }]
       : []),
     { kind: "search", fields: ["fullName", "deploymentId", "phone"] },
   ];
 }
-async function RenewalsCards({ f }: { f: RenewalsFilter }) {
+async function RenewalsCards({ f, canFinance }: { f: RenewalsFilter; canFinance: boolean }) {
   const { visible, today, timezone } = await scope();
   // The renewed-customers tab keeps the regular-plan cards above it.
   const type = f.type ?? "regular";
@@ -146,7 +147,9 @@ async function RenewalsCards({ f }: { f: RenewalsFilter }) {
       items={[
         { label: trial ? "Trials" : "Plans", value: c.plans, icon: PackageIcon, hint: `Running or finished ${noun} in this range`, href: href(null) },
         { label: trial ? "Converted" : "Renewed", value: c.renewed, icon: CalendarCheckIcon, hint: "Next plan paid or running", href: href("renewed") },
-        { label: "Booked, not paid", value: c.renewedNotPaid, icon: WalletIcon, hint: "Next plan unpaid or waitlisted", href: href("booked_unpaid") },
+        ...(canFinance
+          ? [{ label: "Booked, not paid", value: c.renewedNotPaid, icon: WalletIcon, hint: "Next plan unpaid or waitlisted", href: href("booked_unpaid") }]
+          : []),
         { label: trial ? "Not converted" : "Not renewed", value: c.notRenewed, icon: HourglassIcon, hint: "Still running, nothing booked after", href: href("not_renewed") },
         {
           label: "Lapsed",
@@ -161,10 +164,11 @@ async function RenewalsCards({ f }: { f: RenewalsFilter }) {
   );
 }
 
-async function RenewalsData({ f, page, size, spec }: { f: RenewalsFilter; page: number; size: number; spec: FacetDef[] }) {
+async function RenewalsData({ f, page, size, spec, canFinance }: { f: RenewalsFilter; page: number; size: number; spec: FacetDef[]; canFinance: boolean }) {
   const { visible, today, timezone, viewer, day } = await scope();
   const owner = resolveOwnerParam(f.owner ?? undefined, viewer) ?? null;
-  const result = await listRenewals(visible, { ...f, owner }, today, { page, size }, resolveRange(f, timezone), day);
+  const unpaidHidden = !canFinance && (f.status === "unpaid" || f.status === "booked_unpaid");
+  const result = await listRenewals(visible, { ...f, owner, status: unpaidHidden ? null : f.status }, today, { page, size }, resolveRange(f, timezone), day);
   return <RenewalsList rows={result.items} total={result.total} page={page} size={size} trial={f.type === "trial"} today={today} spec={spec} />;
 }
 

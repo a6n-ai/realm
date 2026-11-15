@@ -9,7 +9,8 @@ import { NotFoundError } from "@foundry/commons";
 import { db } from "@/db/client";
 import { mealSizes, orders, plans, tickets, users } from "@/db/schema";
 import { formatEpoch } from "@/lib/format/datetime";
-import { requirePagePermission } from "@/lib/auth/guards";
+import { can, requirePagePermission } from "@/lib/auth/guards";
+import { NoAccessNote } from "@/components/auth/can";
 import { getAppSettings } from "@/lib/settings";
 import {
   ticketsService,
@@ -204,37 +205,47 @@ async function CustomerData({ params }: { params: Promise<{ id: string }> }) {
     if (e instanceof NotFoundError) notFound();
     throw e;
   }
-  const [[customer], [order]] = await Promise.all([
-    db
-      .select({ publicId: users.publicId, name: users.name, email: users.email, phone: users.phone, addressLine: users.addressLine, city: users.city, postalCode: users.postalCode })
-      .from(users)
-      .where(eq(users.id, ticket.raisedBy))
-      .limit(1),
-    db
-      .select({ publicId: orders.publicId, deploymentId: orders.deploymentId, status: orders.status, startDate: orders.startDate, mealSize: mealSizes.name, plan: plans.name })
-      .from(orders)
-      .innerJoin(mealSizes, eq(mealSizes.id, orders.mealSizeId))
-      .innerJoin(plans, eq(plans.id, orders.planId))
-      // The order the ticket was raised about; else the customer's latest live one.
-      .where(ticket.orderId ? eq(orders.id, ticket.orderId) : and(eq(orders.userId, ticket.raisedBy), orderStatusIn(ONGOING)))
-      .orderBy(desc(orders.createdAt))
-      .limit(1),
+  const [canCustomer, canOrder] = await Promise.all([can({ customer: ["read"] }), can({ order: ["read"] })]);
+  if (!canCustomer && !canOrder) return <NoAccessNote />;
+  const [customerRows, orderRows] = await Promise.all([
+    canCustomer
+      ? db
+          .select({ publicId: users.publicId, name: users.name, email: users.email, phone: users.phone, addressLine: users.addressLine, city: users.city, postalCode: users.postalCode })
+          .from(users)
+          .where(eq(users.id, ticket.raisedBy))
+          .limit(1)
+      : [],
+    canOrder
+      ? db
+          .select({ publicId: orders.publicId, deploymentId: orders.deploymentId, status: orders.status, startDate: orders.startDate, mealSize: mealSizes.name, plan: plans.name })
+          .from(orders)
+          .innerJoin(mealSizes, eq(mealSizes.id, orders.mealSizeId))
+          .innerJoin(plans, eq(plans.id, orders.planId))
+          // The order the ticket was raised about; else the customer's latest live one.
+          .where(ticket.orderId ? eq(orders.id, ticket.orderId) : and(eq(orders.userId, ticket.raisedBy), orderStatusIn(ONGOING)))
+          .orderBy(desc(orders.createdAt))
+          .limit(1)
+      : [],
   ]);
-  if (!customer) return <p className="text-muted-foreground text-sm">Customer not found.</p>;
-  const address = [customer.addressLine, customer.city, customer.postalCode].filter(Boolean).join(", ");
+  const customer = customerRows[0];
+  const order = orderRows[0];
+  const address = customer ? [customer.addressLine, customer.city, customer.postalCode].filter(Boolean).join(", ") : "";
   return (
     <div className="space-y-3 text-sm">
-      <div>
-        <Link href={`/dashboard/customers/${customer.publicId}`} className="font-semibold hover:underline">
-          {customer.name ?? customer.email ?? "Customer"}
-        </Link>
-        <dl className="text-muted-foreground mt-1 space-y-0.5">
-          {customer.email ? <dd><a href={`mailto:${customer.email}`} className="hover:text-foreground hover:underline">{customer.email}</a></dd> : null}
-          {customer.phone ? <dd><a href={`tel:${customer.phone}`} className="hover:text-foreground hover:underline nums">{customer.phone}</a></dd> : null}
-          {address ? <dd>{address}</dd> : null}
-        </dl>
-      </div>
-      {order ? (
+      {canCustomer && !customer ? <p className="text-muted-foreground text-sm">Customer not found.</p> : null}
+      {customer ? (
+        <div>
+          <Link href={`/dashboard/customers/${customer.publicId}`} className="font-semibold hover:underline">
+            {customer.name ?? customer.email ?? "Customer"}
+          </Link>
+          <dl className="text-muted-foreground mt-1 space-y-0.5">
+            {customer.email ? <dd><a href={`mailto:${customer.email}`} className="hover:text-foreground hover:underline">{customer.email}</a></dd> : null}
+            {customer.phone ? <dd><a href={`tel:${customer.phone}`} className="hover:text-foreground hover:underline nums">{customer.phone}</a></dd> : null}
+            {address ? <dd>{address}</dd> : null}
+          </dl>
+        </div>
+      ) : null}
+      {canOrder && (order ? (
         <Link href={`/dashboard/orders/${order.publicId}`} className="hover:bg-muted block rounded-md border p-2.5">
           <span className="text-muted-foreground block text-xs font-semibold tracking-wider uppercase">{ticket.orderId ? "Order on this ticket" : "Current plan"}</span>
           <span className="mt-1 flex items-center justify-between gap-2">
@@ -245,7 +256,7 @@ async function CustomerData({ params }: { params: Promise<{ id: string }> }) {
         </Link>
       ) : (
         <p className="text-muted-foreground text-xs">No live plan.</p>
-      )}
+      ))}
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { PackageIcon, ActivityIcon, CalendarClockIcon, CalendarOffIcon, RefreshCwIcon, CircleXIcon, FlagIcon, PlayCircleIcon, WalletIcon, ShieldCheckIcon, AlarmClockIcon, GiftIcon, TruckIcon, PackageCheckIcon, CalendarX2Icon, UsersIcon } from "lucide-react";
 import { formatMoney, zonedDateIso } from "@foundry/commons";
 import { can, requirePagePermission } from "@/lib/auth/guards";
+import { NoAccessNote } from "@/components/auth/can";
 import { getSession } from "@/lib/auth/session";
 import { loadOrderFilterOptions, loadOwnerOptions } from "@/lib/list/facet-options";
 import { after } from "next/server";
@@ -145,13 +146,22 @@ async function freeRange(raw: Awaited<SearchParams>): Promise<FreeTiffinRange> {
 async function OrdersViews({ searchParams }: { searchParams: SearchParams }) {
   await requirePagePermission({ order: ["read"] });
   const visible = await resolveSessionVisibleOrgIds(await getSession());
+  const canFinance = await can({ finance: ["read"] });
   const [lookOutCount, missedCount, paymentReviewCount, freeCount] = await Promise.all([
     countLookOutOrders(visible),
     countMissedDeliveries(visible),
-    countPaymentReviewOrders(visible),
+    canFinance ? countPaymentReviewOrders(visible) : 0,
     countFreeTiffinOrders(visible, await withListDates(await searchParams)),
   ]);
-  return <OrdersViewTabs lookOutCount={lookOutCount} missedCount={missedCount} paymentReviewCount={paymentReviewCount} freeCount={freeCount} />;
+  return (
+    <OrdersViewTabs
+      lookOutCount={lookOutCount}
+      missedCount={missedCount}
+      paymentReviewCount={paymentReviewCount}
+      freeCount={freeCount}
+      showPayment={canFinance}
+    />
+  );
 }
 
 async function OrdersStats({ searchParams }: { searchParams: SearchParams }) {
@@ -161,6 +171,7 @@ async function OrdersStats({ searchParams }: { searchParams: SearchParams }) {
   const visible = await resolveSessionVisibleOrgIds(await getSession());
   const view = (await searchParams).view;
   const dates = { from: sp.from, to: sp.to };
+  if (view === "payment" && !(await can({ finance: ["read"] }))) return <NoAccessNote />;
   if (view === "lookout") {
     const l = await getLookOutStats(visible, range);
     return (
@@ -279,6 +290,7 @@ async function OrdersData({ searchParams }: { searchParams: SearchParams }) {
   after(() => expireUnpaidStripeOrders({}));
 
   const raw = await searchParams;
+  if (raw.view === "payment" && !(await can({ finance: ["read"] }))) return <NoAccessNote />;
   if (raw.view === "missed") {
     const [session, { timezone }] = await Promise.all([getSession(), getAppSettings()]);
     const all = await listMissedDeliveries(await resolveSessionVisibleOrgIds(session));

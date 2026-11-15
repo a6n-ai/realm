@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { BanknoteIcon } from "lucide-react";
 import { PageHeader } from "@/components/ds";
+import { Can, NoAccessNote } from "@/components/auth/can";
 
 // Admin gate lives on settings/layout — no second guard here.
 export default async function PaymentsSettingsLayout({ children }: { children: ReactNode }) {
@@ -11,7 +12,9 @@ export default async function PaymentsSettingsLayout({ children }: { children: R
         title="Payment"
         subtitle="How customers pay at checkout, and the tax rules every order follows."
       />
-      <div className="min-w-0">{children}</div>
+      <Can perms={{ finance: ["manage"] }} fallback={<NoAccessNote />}>
+        <div className="min-w-0">{children}</div>
+      </Can>
     </div>
   );
 }

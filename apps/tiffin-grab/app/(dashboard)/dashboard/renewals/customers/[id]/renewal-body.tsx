@@ -32,7 +32,21 @@ export function RenewalActions({ data, isAdmin, giveCoins = true }: { data: Cust
 }
 
 /** How often and how fast one customer renews, each plan and what followed it, and the reminders sent. */
-export function RenewalSections({ data, today, now, timezone }: { data: CustomerRenewal; today: string; now: number; timezone: string }) {
+export function RenewalSections({
+  data,
+  today,
+  now,
+  timezone,
+  canWallet,
+  canFinance,
+}: {
+  data: CustomerRenewal;
+  today: string;
+  now: number;
+  timezone: string;
+  canWallet: boolean;
+  canFinance: boolean;
+}) {
   const { customer, plans, reminders } = data;
   const paid = plans.filter((p) => !p.trial);
   // One renewal per plan that something followed: the same rule as the Next plan badge.
@@ -60,7 +74,9 @@ export function RenewalSections({ data, today, now, timezone }: { data: Customer
             hint: current ? `${current.mealSize} · ${current.next === "none" ? "not renewed yet" : "next plan booked"}` : "No plan running",
             ...(current && current.next === "none" ? { tone: "bad" as const } : {}),
           },
-          { label: "Wallet", value: `${data.walletCoins} coins`, icon: CoinsIcon, hint: `${fmt(Number(data.totalSpent))} spent in total` },
+          ...(canWallet
+            ? [{ label: "Wallet", value: `${data.walletCoins} coins`, icon: CoinsIcon, hint: canFinance ? `${fmt(Number(data.totalSpent))} spent in total` : "Coin balance" }]
+            : []),
         ]}
       />
       <SectionCard title="Follow-up" subtitle={`${focus.mealSize} · ${focus.code}. The plan that is running, or the last one.`}>

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { RefreshCwIcon } from "lucide-react";
 import { zonedDateIso } from "@foundry/commons";
 import { EmptyState } from "@/components/ds";
-import { requirePagePermission } from "@/lib/auth/guards";
+import { can, requirePagePermission } from "@/lib/auth/guards";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import { getCustomerRenewal } from "@/lib/renewals/renewals.service";
 import { RenewalActions, RenewalSections } from "../../../renewals/customers/[id]/renewal-body";
@@ -25,11 +25,12 @@ export default async function CustomerRenewalsTab({ params }: { params: Promise<
     );
   }
   const now = requestNow();
+  const [canWallet, canFinance] = await Promise.all([can({ wallet: ["read"] }), can({ finance: ["read"] })]);
   return (
     <>
       {/* Adjust coins already sits in the page header, so no second coins button here. */}
       <RenewalActions data={data} isAdmin={canGive} giveCoins={false} />
-      <RenewalSections data={data} today={zonedDateIso(now, timezone)} now={now} timezone={timezone} />
+      <RenewalSections data={data} today={zonedDateIso(now, timezone)} now={now} timezone={timezone} canWallet={canWallet} canFinance={canFinance} />
     </>
   );
 }

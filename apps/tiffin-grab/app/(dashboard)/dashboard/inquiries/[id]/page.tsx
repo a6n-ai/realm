@@ -9,7 +9,7 @@ import { leadSources, orders, users } from "@/db/schema";
 import { canReassign } from "@/lib/staff/reassign";
 import { listAssignableStaff } from "@/lib/staff/assignable-staff";
 import { reassignInquiry } from "../actions";
-import { requirePagePermission } from "@/lib/auth/guards";
+import { can, requirePagePermission } from "@/lib/auth/guards";
 import { assertInquiriesVisible, inquiriesService } from "@/lib/inquiries/inquiries.service";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import { getAppSettings } from "@/lib/settings";
@@ -97,7 +97,7 @@ async function InquiryDetail({ params }: { params: Promise<{ id: string }> }) {
   let convertedOrderHref: string | undefined;
   // currentOrderId is the round's order; convertedOrderId is only set on rows converted before it existed.
   const linkedOrderId = inq.currentOrderId ?? inq.convertedOrderId;
-  if (linkedOrderId != null) {
+  if (linkedOrderId != null && (await can({ order: ["read"] }))) {
     const [ord] = await db
       .select({ publicId: orders.publicId })
       .from(orders)

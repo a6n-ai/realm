@@ -69,22 +69,26 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
               <SizeTreemap scope={scope} />
             </Suspense>
           </ChartCard>
-          <ChartCard title="Which meal size tier earns the most?" subtitle="Net revenue by size tier" info={`Counted ${DATE_BASIS_LABEL.money}. Budget, medium, and premium; custom sizes are grouped as Custom.`}>
-            <Suspense fallback={<ChartSkeleton />}>
-              <TierDonut scope={scope} />
-            </Suspense>
-          </ChartCard>
+          <Can perms={{ finance: ["read"] }}>
+            <ChartCard title="Which meal size tier earns the most?" subtitle="Net revenue by size tier" info={`Counted ${DATE_BASIS_LABEL.money}. Budget, medium, and premium; custom sizes are grouped as Custom.`}>
+              <Suspense fallback={<ChartSkeleton />}>
+                <TierDonut scope={scope} />
+              </Suspense>
+            </ChartCard>
+          </Can>
         </div>
 
         <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
-          <ChartCard
-            title="Which sizes sell in which diet?"
-            subtitle="Net revenue by size tier and plan" info={`Counted ${DATE_BASIS_LABEL.money}. Custom sizes are grouped as Custom.`}
-          >
-            <Suspense fallback={<ChartSkeleton />}>
-              <TierByDietChart scope={scope} />
-            </Suspense>
-          </ChartCard>
+          <Can perms={{ finance: ["read"] }}>
+            <ChartCard
+              title="Which sizes sell in which diet?"
+              subtitle="Net revenue by size tier and plan" info={`Counted ${DATE_BASIS_LABEL.money}. Custom sizes are grouped as Custom.`}
+            >
+              <Suspense fallback={<ChartSkeleton />}>
+                <TierByDietChart scope={scope} />
+              </Suspense>
+            </ChartCard>
+          </Can>
           <ChartCard title="Veg or non-veg?" subtitle="Net revenue or tiffins delivered" info="Plans compared by net revenue or by tiffins delivered. Custom sizes are included.">
             <Suspense fallback={<ChartSkeleton />}>
               <PlanSplit scope={scope} />
@@ -93,24 +97,28 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
         </div>
 
         <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
-          <ChartCard
-            title="Add-ons sold"
-            subtitle="Add-on sales, top four and the rest"
-            info={`Pre-tax line amount saved on each order, orders ${DATE_BASIS_LABEL.orders}; cancelled orders left out. The list shows quantity sold.`}
-          >
-            <Suspense fallback={<ChartSkeleton />}>
-              <AddonDonut scope={scope} />
-            </Suspense>
-          </ChartCard>
-          <ChartCard
-            title="How long do they buy for?"
-            subtitle="Orders by plan length"
-            info={`Orders ${DATE_BASIS_LABEL.orders}, cancelled orders left out. The list shows net revenue ${DATE_BASIS_LABEL.money} for each length.`}
-          >
-            <Suspense fallback={<ChartSkeleton />}>
-              <PlanLengthDonut scope={scope} />
-            </Suspense>
-          </ChartCard>
+          <Can perms={{ finance: ["read"] }}>
+            <ChartCard
+              title="Add-ons sold"
+              subtitle="Add-on sales, top four and the rest"
+              info={`Pre-tax line amount saved on each order, orders ${DATE_BASIS_LABEL.orders}; cancelled orders left out. The list shows quantity sold.`}
+            >
+              <Suspense fallback={<ChartSkeleton />}>
+                <AddonDonut scope={scope} />
+              </Suspense>
+            </ChartCard>
+          </Can>
+          <Can perms={{ finance: ["read"] }}>
+            <ChartCard
+              title="How long do they buy for?"
+              subtitle="Orders by plan length"
+              info={`Orders ${DATE_BASIS_LABEL.orders}, cancelled orders left out. The list shows net revenue ${DATE_BASIS_LABEL.money} for each length.`}
+            >
+              <Suspense fallback={<ChartSkeleton />}>
+                <PlanLengthDonut scope={scope} />
+              </Suspense>
+            </ChartCard>
+          </Can>
         </div>
 
         <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
