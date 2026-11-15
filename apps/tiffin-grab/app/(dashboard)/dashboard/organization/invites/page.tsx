@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { getSession } from "@/lib/auth/session";
+import { requirePermission } from "@/lib/auth/guards";
 import { getRoleChoices } from "@/lib/auth/role-options";
 import { getMemberOrganizations, listOrganizations } from "@/lib/services/organizations.service";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
@@ -52,6 +53,7 @@ export default function InvitesPage({ searchParams }: { searchParams: SearchPara
 }
 
 async function InvitesData({ searchParams }: { searchParams: SearchParams }) {
+  await requirePermission({ member: ["update"] });
   const session = await getSession();
   const visible = await resolveSessionVisibleOrgIds(session);
   const orgIds = visible === "all" ? (await listOrganizations()).map((o) => o.id) : visible;

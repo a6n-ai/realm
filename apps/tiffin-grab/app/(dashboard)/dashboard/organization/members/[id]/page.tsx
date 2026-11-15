@@ -10,6 +10,7 @@ import { SectionCard, UserAvatar } from "@/components/ds";
 import { Badge } from "@/components/reui/badge";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { ResetPasswordButton, StatusSelect } from "../user-row";
+import { requirePermission } from "@/lib/auth/guards";
 import { getRoleChoices } from "@/lib/auth/role-options";
 import { AdminContactForm } from "@/components/dashboard/admin-contact-form";
 import { StatusBadge } from "../../status-badge";
@@ -35,6 +36,7 @@ function Field({ label, value }: { label: string; value: React.ReactNode }) {
 }
 
 async function UserDetailData({ params }: { params: Promise<{ id: string }> }) {
+  await requirePermission({ member: ["update"] });
   const { id } = await params;
 
   let user;

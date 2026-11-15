@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import { invitation, member, users } from "@/db/schema";
-import { canIn } from "@/lib/auth/guards";
+import { canIn, requirePermission } from "@/lib/auth/guards";
 import { orgRoles } from "@/lib/auth/permissions";
 import { getSession } from "@/lib/auth/session";
 import { listOrganizations } from "@/lib/services/organizations.service";
@@ -44,6 +44,7 @@ export default function OrganizationOverviewPage() {
 }
 
 async function OverviewData() {
+  await requirePermission({ member: ["update"] });
   const session = await getSession();
   const visible = await resolveSessionVisibleOrgIds(session);
   const allOrgs = await listOrganizations();

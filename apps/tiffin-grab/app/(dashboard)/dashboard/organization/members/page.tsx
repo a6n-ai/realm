@@ -1,9 +1,7 @@
 import { pageOffset } from "@foundry/design-system/filters/parse-filter-state";
 import { Suspense } from "react";
-import type { Condition } from "@foundry/commons/model/condition";
 import { getSession } from "@/lib/auth/session";
-import { listOrganizations } from "@/lib/services/organizations.service";
-import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
+import { requirePermission } from "@/lib/auth/guards";
 import { getRoleChoices, type RoleChoice } from "@/lib/auth/role-options";
 import { parseSort } from "@foundry/design-system/list-sort";
 import { SectionCard, parseFilterState, type FacetDef } from "@/components/ds";
@@ -11,7 +9,8 @@ import { StatCards, StatCardsSkeleton } from "@/components/dashboard/stat-cards"
 import { InviteUserButton } from "./invite-user-button";
 import { memberStats } from "../org-stats";
 import { UsersList, UsersListSkeleton } from "./users-list";
-import { getMembersForOrgs, type MemberRow } from "./members-query";
+import { getMembersForOrgs } from "./members-query";
+import { matchesCondition } from "./member-filter";
 import type { UserStatusValue } from "./actions";
 import { loadMemberPanel } from "./member-panel-data";
 import { MemberSheet } from "./member-panel";
@@ -77,29 +76,8 @@ export default function UsersPage({ searchParams }: { searchParams: SearchParams
 // Small dataset (org-scoped staff count, not customer count) — filter/sort/
 // paginate in memory instead of a second SQL query, same precedent as
 // clients-list.tsx.
-function matchesCondition(row: MemberRow, condition: Condition): boolean {
-  if (condition.type === "complex") {
-    return condition.operator === "and"
-      ? condition.conditions.every((c) => matchesCondition(row, c))
-      : condition.conditions.some((c) => matchesCondition(row, c));
-  }
-  if (condition.field === "password") return condition.value === "unset" ? !row.passwordSet : row.passwordSet;
-  const value = condition.field === "role" ? row.orgRole : row[condition.field as keyof MemberRow];
-  switch (condition.operator) {
-    case "eq":
-      return value === condition.value;
-    case "in":
-      return (condition.value as unknown[]).includes(value);
-    case "like": {
-      const needle = String(condition.value).replace(/%/g, "").toLowerCase();
-      return String(value ?? "").toLowerCase().includes(needle);
-    }
-    default:
-      return true;
-  }
-}
-
 async function UsersData({ searchParams }: { searchParams: SearchParams }) {
+  await requirePermission({ member: ["update"] });
   const session = await getSession();
   const sp = await searchParams;
 
@@ -110,9 +88,9 @@ async function UsersData({ searchParams }: { searchParams: SearchParams }) {
   const spec = buildSpec(options);
   const { condition, page } = parseFilterState(spec, sp);
 
-  const visibleOrgIds = await resolveSessionVisibleOrgIds(session);
-  const orgIds = visibleOrgIds === "all" ? (await listOrganizations()).map((o) => o.id) : visibleOrgIds;
-  const allRows = await getMembersForOrgs(orgIds);
+  // Active org only: Members, Access and Roles never list other clients.
+  const activeOrgId = session?.session.activeOrganizationId;
+  const allRows = activeOrgId ? await getMembersForOrgs([activeOrgId]) : [];
 
   const filtered = condition ? allRows.filter((r) => matchesCondition(r, condition)) : allRows;
 
