@@ -1,3 +1,4 @@
+import { Can, NoAccessNote } from "@/components/auth/can";
 import { cache, Suspense } from "react";
 import { AnalyticsIntro } from "@/components/dashboard/analytics/analytics-intro";
 import { ChartCard } from "@/components/dashboard/analytics/chart-card";
@@ -39,54 +40,56 @@ export default async function OverviewAnalyticsPage({ searchParams }: { searchPa
   const { scope } = resolved;
   const unit = grainUnitForRange(scope.fromMs, scope.toMs, scope.tz);
   return (
-    <div className="flex flex-col gap-6">
-      <AnalyticsIntro description="Sales, profit, customers, and tickets for the selected range." />
+    <Can perms={{ finance: ["read"], order: ["read"], customer: ["read"], ticket: ["read"] }} fallback={<NoAccessNote />}>
+      <div className="flex flex-col gap-6">
+        <AnalyticsIntro description="Sales, profit, customers, and tickets for the selected range." />
 
-      <Suspense fallback={<AnalyticsStatCardsSkeleton rows={2} />}>
-        <StatsData sp={sp} scope={scope} />
-      </Suspense>
-
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
-        <ChartCard
-          title={`Net revenue by ${unit}`}
-          subtitle="Ex tax and surcharge, after refunds" info={`Counted ${DATE_BASIS_LABEL.money}.${unit === "day" ? " Line is the 7-day average." : ""}`}
-        >
-          <Suspense fallback={<ChartSkeleton />}>
-            <RevenueChart scope={scope} daily={unit === "day"} />
-          </Suspense>
-        </ChartCard>
-        <ChartCard
-          title="Revenue mix"
-          subtitle="Renewals, new plans and trials" info={`Net revenue, counted ${DATE_BASIS_LABEL.money}.`}
-        >
-          <Suspense fallback={<ChartSkeleton />}>
-            <CohortChart scope={scope} />
-          </Suspense>
-        </ChartCard>
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
-        <ChartBoundary>
-          <Suspense fallback={<ChartSkeleton height={300} />}>
-            <TrialRate scope={scope} />
-          </Suspense>
-        </ChartBoundary>
-        <ChartCard title="Customer status" subtitle="Orders by status" info={`Counted ${DATE_BASIS_LABEL.orders}. Open a status to see those orders.`}>
-          <Suspense fallback={<ChartSkeleton />}>
-            <StatusSplit scope={scope} />
-          </Suspense>
-        </ChartCard>
-      </div>
-
-      <ChartCard
-        title="Day by day"
-        subtitle="Each day: revenue, costs and profit" info="Each column is shaded on its own scale. Weekends and days without deliveries are muted. Open a day to see its orders. Monthly costs are company-wide."
-      >
-        <Suspense fallback={<ChartSkeleton height={320} />}>
-          <Scorecard scope={scope} />
+        <Suspense fallback={<AnalyticsStatCardsSkeleton rows={2} />}>
+          <StatsData sp={sp} scope={scope} />
         </Suspense>
-      </ChartCard>
-    </div>
+
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
+          <ChartCard
+            title={`Net revenue by ${unit}`}
+            subtitle="Ex tax and surcharge, after refunds" info={`Counted ${DATE_BASIS_LABEL.money}.${unit === "day" ? " Line is the 7-day average." : ""}`}
+          >
+            <Suspense fallback={<ChartSkeleton />}>
+              <RevenueChart scope={scope} daily={unit === "day"} />
+            </Suspense>
+          </ChartCard>
+          <ChartCard
+            title="Revenue mix"
+            subtitle="Renewals, new plans and trials" info={`Net revenue, counted ${DATE_BASIS_LABEL.money}.`}
+          >
+            <Suspense fallback={<ChartSkeleton />}>
+              <CohortChart scope={scope} />
+            </Suspense>
+          </ChartCard>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
+          <ChartBoundary>
+            <Suspense fallback={<ChartSkeleton height={300} />}>
+              <TrialRate scope={scope} />
+            </Suspense>
+          </ChartBoundary>
+          <ChartCard title="Customer status" subtitle="Orders by status" info={`Counted ${DATE_BASIS_LABEL.orders}. Open a status to see those orders.`}>
+            <Suspense fallback={<ChartSkeleton />}>
+              <StatusSplit scope={scope} />
+            </Suspense>
+          </ChartCard>
+        </div>
+
+        <ChartCard
+          title="Day by day"
+          subtitle="Each day: revenue, costs and profit" info="Each column is shaded on its own scale. Weekends and days without deliveries are muted. Open a day to see its orders. Monthly costs are company-wide."
+        >
+          <Suspense fallback={<ChartSkeleton height={320} />}>
+            <Scorecard scope={scope} />
+          </Suspense>
+        </ChartCard>
+      </div>
+    </Can>
   );
 }
 

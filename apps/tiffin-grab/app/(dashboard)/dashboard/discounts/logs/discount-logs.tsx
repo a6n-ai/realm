@@ -45,7 +45,9 @@ export function DiscountLogs({
   total,
   page,
   size,
+  canCustomer,
 }: {
+  canCustomer: boolean;
   stats: Stat[];
   rows: DiscountLogRow[];
   spec: FacetDef[];
@@ -63,7 +65,7 @@ export function DiscountLogs({
 
       <DataTable
         serialOffset={pageOffset(page, size)}
-        columns={COLUMNS}
+        columns={canCustomer ? COLUMNS : COLUMNS.filter((c) => c.key !== "user" && c.key !== "redeemedBy")}
         rows={rows}
         rowKey={(r) => r.publicId}
         sort={sort}
@@ -75,7 +77,7 @@ export function DiscountLogs({
           <>
             <TableCell className="whitespace-nowrap tabular-nums text-muted-foreground">{fmt(r.createdAt)}</TableCell>
             <TableCell className="font-mono text-xs">{r.code ?? "—"}</TableCell>
-            <TableCell className="text-muted-foreground">{r.email ?? "—"}</TableCell>
+            {canCustomer && <TableCell className="text-muted-foreground">{r.email ?? "—"}</TableCell>}
             <TableCell className="text-right tabular-nums text-ok">−{fmtMoney(Number(r.amountApplied))}</TableCell>
             <TableCell>
               {r.orderPublicId ? (
@@ -86,7 +88,7 @@ export function DiscountLogs({
                 <span className="text-muted-foreground">—</span>
               )}
             </TableCell>
-            <TableCell className="text-muted-foreground">{r.redeemedByEmail ?? "—"}</TableCell>
+            {canCustomer && <TableCell className="text-muted-foreground">{r.redeemedByEmail ?? "—"}</TableCell>}
           </>
         )}
       />

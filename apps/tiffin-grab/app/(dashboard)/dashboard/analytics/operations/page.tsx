@@ -1,3 +1,4 @@
+import { Can, NoAccessNote } from "@/components/auth/can";
 import { cache, Suspense } from "react";
 import { AnalyticsIntro } from "@/components/dashboard/analytics/analytics-intro";
 import { calendarSkeletonHeight } from "@/lib/analytics/calendar-height";
@@ -26,38 +27,40 @@ export default async function OperationsAnalyticsPage({ searchParams }: { search
   if (!resolved.scope) return resolved.alert;
   const { scope } = resolved;
   return (
-    <div className="flex flex-col gap-6">
-      <AnalyticsIntro description="Deliveries by status, and how many stops each driver is carrying." />
-      <Suspense fallback={<AnalyticsStatCardsSkeleton rows={1} />}>
-        <StatsData scope={scope} />
-      </Suspense>
+    <Can perms={{ delivery: ["read"] }} fallback={<NoAccessNote />}>
+      <div className="flex flex-col gap-6">
+        <AnalyticsIntro description="Deliveries by status, and how many stops each driver is carrying." />
+        <Suspense fallback={<AnalyticsStatCardsSkeleton rows={1} />}>
+          <StatsData scope={scope} />
+        </Suspense>
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
-        <ChartCard title="Deliveries calendar" subtitle="Deliveries per day" info={`Counted ${DATE_BASIS_LABEL.deliveries}. Hover a day to see scheduled, skipped and cancelled.`}>
-          <Suspense fallback={<ChartSkeleton height={calendarSkeletonHeight(scope, false)} />}>
-            <DeliveriesCalendar scope={scope} />
-          </Suspense>
-        </ChartCard>
-        <ChartCard title="Route load per driver" subtitle="Deliveries synced from OptimoRoute" info={`Counted ${DATE_BASIS_LABEL.deliveries}.`}>
-          <Suspense fallback={<ChartSkeleton />}>
-            <DriverChart scope={scope} />
-          </Suspense>
-        </ChartCard>
-      </div>
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
+          <ChartCard title="Deliveries calendar" subtitle="Deliveries per day" info={`Counted ${DATE_BASIS_LABEL.deliveries}. Hover a day to see scheduled, skipped and cancelled.`}>
+            <Suspense fallback={<ChartSkeleton height={calendarSkeletonHeight(scope, false)} />}>
+              <DeliveriesCalendar scope={scope} />
+            </Suspense>
+          </ChartCard>
+          <ChartCard title="Route load per driver" subtitle="Deliveries synced from OptimoRoute" info={`Counted ${DATE_BASIS_LABEL.deliveries}.`}>
+            <Suspense fallback={<ChartSkeleton />}>
+              <DriverChart scope={scope} />
+            </Suspense>
+          </ChartCard>
+        </div>
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
-        <ChartCard title="What share of deliveries was skipped?" subtitle="Skipped out of all scheduled" info={`Counted ${DATE_BASIS_LABEL.deliveries}.`}>
-          <Suspense fallback={<ChartSkeleton />}>
-            <SkipRateChart scope={scope} />
-          </Suspense>
-        </ChartCard>
-        <ChartCard title="Delivery status" subtitle="Every delivery in range" info={`Counted ${DATE_BASIS_LABEL.deliveries}.`}>
-          <Suspense fallback={<ChartSkeleton />}>
-            <StatusSplit scope={scope} />
-          </Suspense>
-        </ChartCard>
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
+          <ChartCard title="What share of deliveries was skipped?" subtitle="Skipped out of all scheduled" info={`Counted ${DATE_BASIS_LABEL.deliveries}.`}>
+            <Suspense fallback={<ChartSkeleton />}>
+              <SkipRateChart scope={scope} />
+            </Suspense>
+          </ChartCard>
+          <ChartCard title="Delivery status" subtitle="Every delivery in range" info={`Counted ${DATE_BASIS_LABEL.deliveries}.`}>
+            <Suspense fallback={<ChartSkeleton />}>
+              <StatusSplit scope={scope} />
+            </Suspense>
+          </ChartCard>
+        </div>
       </div>
-    </div>
+    </Can>
   );
 }
 

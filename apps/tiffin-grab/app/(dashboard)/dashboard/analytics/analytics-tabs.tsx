@@ -38,17 +38,17 @@ function sharedQuery(params: URLSearchParams): string {
   return sp.toString();
 }
 
-export function AnalyticsTabs() {
+export function AnalyticsTabs({ allowed }: { allowed: string[] }) {
   const pathname = usePathname();
   const params = useSearchParams();
   const qs = sharedQuery(params);
-  const active =
-    SUBTABS.find((t) => pathname === t.href || pathname.startsWith(`${t.href}/`))?.href ?? SUBTABS[0]?.href;
+  const tabs = SUBTABS.filter((t) => allowed.includes(t.href));
+  const active = tabs.find((t) => pathname === t.href || pathname.startsWith(`${t.href}/`))?.href ?? tabs[0]?.href;
 
   return (
     <Tabs value={active}>
       <TabsList variant="line" aria-label="Analytics sections" className="max-w-full overflow-x-auto">
-        {SUBTABS.map((t) => (
+        {tabs.map((t) => (
           <TabsTrigger key={t.href} value={t.href} asChild>
             <Link href={qs ? `${t.href}?${qs}` : t.href} prefetch={false}>
               <t.icon aria-hidden />

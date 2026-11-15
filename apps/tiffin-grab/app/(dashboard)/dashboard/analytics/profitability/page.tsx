@@ -1,3 +1,4 @@
+import { Can, NoAccessNote } from "@/components/auth/can";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { cache, Suspense } from "react";
 import { BanknoteIcon, TrendingUpIcon } from "lucide-react";
@@ -50,53 +51,55 @@ export default async function ProfitabilityAnalyticsPage({ searchParams }: { sea
   const scope = navScope(resolved.scope, sp.from != null || sp.to != null, month, grain);
   const view = { month, grain, scope };
   return (
-    <div className="flex flex-col gap-6">
-      <AnalyticsIntro
-        description="Earned revenue minus variable and allocated costs under your assumptions."
-        action={
-          <Suspense fallback={<Skeleton className="h-10 w-full max-w-xl" />}>
-            <Nav view={view} />
-          </Suspense>
-        }
-      />
+    <Can perms={{ finance: ["read"] }} fallback={<NoAccessNote />}>
+      <div className="flex flex-col gap-6">
+        <AnalyticsIntro
+          description="Earned revenue minus variable and allocated costs under your assumptions."
+          action={
+            <Suspense fallback={<Skeleton className="h-10 w-full max-w-xl" />}>
+              <Nav view={view} />
+            </Suspense>
+          }
+        />
 
-      <Suspense fallback={<Skeleton className="h-8 w-full max-w-3xl" />}>
-        <Assumptions view={view} />
-      </Suspense>
-
-      <Suspense fallback={<AnalyticsStatCardsSkeleton rows={1} />}>
-        <Headline view={view} />
-      </Suspense>
-
-      <Suspense fallback={null}>
-        <MigratedNote view={view} />
-      </Suspense>
-
-      <ChartCard
-        title={CARDS_TITLE[grain]}
-        subtitle="Each day: revenue, costs and profit" info="Revenue is allocated to the day the tiffin went out, not the day the customer paid. Open a card for its cost breakdown. Each column is shaded on its own scale; weekends and days without deliveries are muted. Monthly costs are company-wide."
-      >
-        <Suspense fallback={<ChartSkeleton height={320} />}>
-          <Cards view={view} />
+        <Suspense fallback={<Skeleton className="h-8 w-full max-w-3xl" />}>
+          <Assumptions view={view} />
         </Suspense>
-      </ChartCard>
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
+        <Suspense fallback={<AnalyticsStatCardsSkeleton rows={1} />}>
+          <Headline view={view} />
+        </Suspense>
+
+        <Suspense fallback={null}>
+          <MigratedNote view={view} />
+        </Suspense>
+
         <ChartCard
-          title={`Profit by ${PERIOD[grain]}`}
-          subtitle="Earned revenue minus costs, not cash" info="Earned revenue minus variable and allocated costs. Not cash collected. Green above zero, red below."
+          title={CARDS_TITLE[grain]}
+          subtitle="Each day: revenue, costs and profit" info="Revenue is allocated to the day the tiffin went out, not the day the customer paid. Open a card for its cost breakdown. Each column is shaded on its own scale; weekends and days without deliveries are muted. Monthly costs are company-wide."
         >
-          <Suspense fallback={<ChartSkeleton />}>
-            <Trend view={view} />
+          <Suspense fallback={<ChartSkeleton height={320} />}>
+            <Cards view={view} />
           </Suspense>
         </ChartCard>
-        <ChartCard title="Where the money goes" subtitle="Revenue less each cost, down to profit" info="Revenue in this range less kitchen, driver, marketing, salaries and other costs, under your assumptions. It ends at the profit shown above.">
-          <Suspense fallback={<ChartSkeleton />}>
-            <Costs view={view} />
-          </Suspense>
-        </ChartCard>
+
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
+          <ChartCard
+            title={`Profit by ${PERIOD[grain]}`}
+            subtitle="Earned revenue minus costs, not cash" info="Earned revenue minus variable and allocated costs. Not cash collected. Green above zero, red below."
+          >
+            <Suspense fallback={<ChartSkeleton />}>
+              <Trend view={view} />
+            </Suspense>
+          </ChartCard>
+          <ChartCard title="Where the money goes" subtitle="Revenue less each cost, down to profit" info="Revenue in this range less kitchen, driver, marketing, salaries and other costs, under your assumptions. It ends at the profit shown above.">
+            <Suspense fallback={<ChartSkeleton />}>
+              <Costs view={view} />
+            </Suspense>
+          </ChartCard>
+        </div>
       </div>
-    </div>
+    </Can>
   );
 }
 

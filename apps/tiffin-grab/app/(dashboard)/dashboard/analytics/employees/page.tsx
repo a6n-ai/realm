@@ -1,3 +1,4 @@
+import { Can, NoAccessNote } from "@/components/auth/can";
 import { ratePct } from "@/lib/money";
 import { scopeOrAlert } from "@/components/dashboard/analytics/franchise-unavailable";
 import { Suspense } from "react";
@@ -24,50 +25,52 @@ export default async function EmployeesAnalyticsPage({ searchParams }: { searchP
   if (!resolved.scope) return resolved.alert;
   const { scope } = resolved;
   return (
-    <div className="flex flex-col gap-6">
-      <AnalyticsIntro description="What each rep worked, converted, and closed." />
-      <Suspense fallback={<AnalyticsStatCardsSkeleton rows={1} />}>
-        <StatsData scope={scope} />
-      </Suspense>
-
-      <ChartCard title="Reps ranked by revenue" subtitle="Revenue owned, orders, renewals and activity" info="Revenue is net of tax and refunds for orders each rep owns, by payment date. Orders owned are by order date. Renewal rate is the share of those orders with a later plan by the same customer.">
-        <Suspense fallback={<Skeleton className="h-40 w-full" />}>
-          <RepCards scope={scope} />
+    <Can perms={{ finance: ["read"] }} fallback={<NoAccessNote />}>
+      <div className="flex flex-col gap-6">
+        <AnalyticsIntro description="What each rep worked, converted, and closed." />
+        <Suspense fallback={<AnalyticsStatCardsSkeleton rows={1} />}>
+          <StatsData scope={scope} />
         </Suspense>
-      </ChartCard>
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
-        <ChartCard title="Revenue by rep" subtitle="Net revenue on orders each rep owns" info="Net of tax and refunds, by payment date. Unassigned is revenue on orders with no owner, mostly migrated from the old site.">
-          <Suspense fallback={<ChartSkeleton />}>
-            <RevenueChart scope={scope} />
+        <ChartCard title="Reps ranked by revenue" subtitle="Revenue owned, orders, renewals and activity" info="Revenue is net of tax and refunds for orders each rep owns, by payment date. Orders owned are by order date. Renewal rate is the share of those orders with a later plan by the same customer.">
+          <Suspense fallback={<Skeleton className="h-40 w-full" />}>
+            <RepCards scope={scope} />
           </Suspense>
         </ChartCard>
-        <ChartCard title="Workload mix" subtitle="Order actions logged by each rep" info="Rows in the order activity log by who logged them, on orders in range.">
-          <Suspense fallback={<ChartSkeleton />}>
-            <WorkloadDonut scope={scope} />
+
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
+          <ChartCard title="Revenue by rep" subtitle="Net revenue on orders each rep owns" info="Net of tax and refunds, by payment date. Unassigned is revenue on orders with no owner, mostly migrated from the old site.">
+            <Suspense fallback={<ChartSkeleton />}>
+              <RevenueChart scope={scope} />
+            </Suspense>
+          </ChartCard>
+          <ChartCard title="Workload mix" subtitle="Order actions logged by each rep" info="Rows in the order activity log by who logged them, on orders in range.">
+            <Suspense fallback={<ChartSkeleton />}>
+              <WorkloadDonut scope={scope} />
+            </Suspense>
+          </ChartCard>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
+          <ChartCard title="Leads worked per rep" subtitle="Inquiries each rep touched">
+            <Suspense fallback={<ChartSkeleton />}>
+              <LeadsChart scope={scope} />
+            </Suspense>
+          </ChartCard>
+          <ChartCard title="Tickets resolved per rep" subtitle="Resolved or closed tickets" info="In this range, by resolved date.">
+            <Suspense fallback={<ChartSkeleton />}>
+              <TicketsChart scope={scope} />
+            </Suspense>
+          </ChartCard>
+        </div>
+
+        <ChartCard title="Per-rep breakdown" subtitle="Everything each rep owned and worked" info="Leads by inquiry date, tickets by resolved date, orders by order date, revenue by payment date. Open a count to see those inquiries or tickets.">
+          <Suspense fallback={<TableRowsSkeleton />}>
+            <RollupTable scope={scope} />
           </Suspense>
         </ChartCard>
       </div>
-
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
-        <ChartCard title="Leads worked per rep" subtitle="Inquiries each rep touched">
-          <Suspense fallback={<ChartSkeleton />}>
-            <LeadsChart scope={scope} />
-          </Suspense>
-        </ChartCard>
-        <ChartCard title="Tickets resolved per rep" subtitle="Resolved or closed tickets" info="In this range, by resolved date.">
-          <Suspense fallback={<ChartSkeleton />}>
-            <TicketsChart scope={scope} />
-          </Suspense>
-        </ChartCard>
-      </div>
-
-      <ChartCard title="Per-rep breakdown" subtitle="Everything each rep owned and worked" info="Leads by inquiry date, tickets by resolved date, orders by order date, revenue by payment date. Open a count to see those inquiries or tickets.">
-        <Suspense fallback={<TableRowsSkeleton />}>
-          <RollupTable scope={scope} />
-        </Suspense>
-      </ChartCard>
-    </div>
+    </Can>
   );
 }
 

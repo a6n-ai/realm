@@ -11,6 +11,7 @@ import { ALL_KINDS, KIND_LABELS } from "@/lib/coupons/kind-labels";
 import { epochBoundsWhere, withListDates } from "@/lib/list/default-month";
 import { DiscountLogs, DiscountLogsSkeleton } from "./discount-logs";
 import { getMoneyFormatter } from "@/lib/settings";
+import { can } from "@/lib/auth/guards";
 
 const customer = alias(users, "customer");
 const redeemer = alias(users, "redeemer");
@@ -45,10 +46,11 @@ export default function DiscountLogsPage({ searchParams }: { searchParams: Searc
 
 async function DiscountLogsData({ searchParams }: { searchParams: SearchParams }) {
   const usd = await getMoneyFormatter();
+  const canCustomer = await can({ customer: ["read"] });
   const sp = await withListDates(await searchParams);
   const sort: SortState<DiscountLogSortColumn> = parseSort(
     sp,
-    ["time", "coupon", "user", "amount", "order", "redeemedBy"],
+    canCustomer ? ["time", "coupon", "user", "amount", "order", "redeemedBy"] : ["time", "coupon", "amount", "order"],
     { column: "time", dir: "desc" },
   );
 
@@ -61,8 +63,8 @@ async function DiscountLogsData({ searchParams }: { searchParams: SearchParams }
     q
       ? or(
           ilike(coupons.code, `%${q}%`),
-          ilike(customer.email, `%${q}%`),
-          ilike(redeemer.email, `%${q}%`),
+          canCustomer ? ilike(customer.email, `%${q}%`) : undefined,
+          canCustomer ? ilike(redeemer.email, `%${q}%`) : undefined,
           ilike(orders.publicId, `%${q}%`),
         )
       : undefined,
@@ -88,8 +90,8 @@ async function DiscountLogsData({ searchParams }: { searchParams: SearchParams }
         createdAt: couponRedemptions.createdAt,
         amountApplied: couponRedemptions.amountApplied,
         code: coupons.code,
-        email: customer.email,
-        redeemedByEmail: redeemer.email,
+        email: canCustomer ? customer.email : sql<null>`null`,
+        redeemedByEmail: canCustomer ? redeemer.email : sql<null>`null`,
         orderPublicId: orders.publicId,
       })
       .from(couponRedemptions)
@@ -130,7 +132,7 @@ async function DiscountLogsData({ searchParams }: { searchParams: SearchParams }
     { label: "Customers", value: agg.customers.toLocaleString() },
   ];
 
-  return <DiscountLogs stats={stats} rows={rows} spec={SPEC} sort={sort} total={total} page={page.page} size={page.size} />;
+  return <DiscountLogs stats={stats} rows={rows} spec={SPEC} sort={sort} total={total} page={page.page} size={page.size} canCustomer={canCustomer} />;
 }
 
 export type { DiscountLogSortColumn };

@@ -9,8 +9,9 @@ import type { AnalyticsFilterOptions } from "./shared-filter-params";
 /** `visibleOrgIds` limits the franchise list (the session's visible set). */
 export async function getAnalyticsFilterOptions(
   visibleOrgIds: Visible,
+  { tickets: withTickets = true }: { tickets?: boolean } = {},
 ): Promise<AnalyticsFilterOptions> {
-  const hasNoOrgs = noOrgs({ orgIds: visibleOrgIds });
+  const hasNoOrgs = !withTickets || noOrgs({ orgIds: visibleOrgIds });
   const orderOrg = ticketOrgWhere(visibleOrgIds);
   const hasOrder = (col: typeof orders.mealSizeId | typeof orders.zoneId, id: typeof mealSizes.id | typeof deliveryZones.id) =>
     exists(db.select({ one: orders.id }).from(orders).where(and(eq(col, id), orderOrg)));

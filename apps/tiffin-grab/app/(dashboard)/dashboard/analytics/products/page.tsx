@@ -1,3 +1,4 @@
+import { Can, NoAccessNote } from "@/components/auth/can";
 import { round2 } from "@foundry/commons/util/money";
 import { TotalLine } from "@/components/dashboard/analytics/total-line";
 import { Skeleton } from "@foundry/ui/skeleton";
@@ -5,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@foundry/ui/tabs";
 import { cache, Suspense } from "react";
 import { AnalyticsIntro } from "@/components/dashboard/analytics/analytics-intro";
 import { ChartCard } from "@/components/dashboard/analytics/chart-card";
-import { AnalyticsStatCards, AnalyticsStatCardsSkeleton } from "@/components/dashboard/stat-cards";
+import { AnalyticsStatCards, AnalyticsStatCardsSkeleton, type AnalyticsStatCardItem } from "@/components/dashboard/stat-cards";
 import { ChartSkeleton } from "@/components/dashboard/analytics/skeletons";
 import { chartColor, slotTone } from "@/components/dashboard/analytics/chart-math";
 import { RankCards } from "@/components/dashboard/analytics/rank-cards";
@@ -28,6 +29,7 @@ import { buildSizeTreemap, type SizeMetric } from "@/lib/analytics/size-treemap"
 import { DATE_BASIS_LABEL } from "@/lib/analytics/metrics/scope";
 import { type AnalyticsScope } from "@/lib/analytics/scope-types";
 import { getMoneyFormatter } from "@/lib/settings";
+import { can } from "@/lib/auth/guards";
 
 // Several cards read the same numbers; React's cache shares one query per request (the scope object is the key).
 const productStats = cache(getProductStats);
@@ -46,87 +48,89 @@ export default async function ProductsAnalyticsPage({ searchParams }: { searchPa
   if (!resolved.scope) return resolved.alert;
   const { scope } = resolved;
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-2">
-        <AnalyticsIntro description="What sells, in which plan and size, and what customers pick." />
-        <Suspense fallback={<Skeleton className="h-5 w-full max-w-xl" />}>
-          <ContextLine scope={scope} />
+    <Can perms={{ order: ["read"] }} fallback={<NoAccessNote />}>
+      <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-2">
+          <AnalyticsIntro description="What sells, in which plan and size, and what customers pick." />
+          <Suspense fallback={<Skeleton className="h-5 w-full max-w-xl" />}>
+            <ContextLine scope={scope} />
+          </Suspense>
+        </div>
+        <Suspense fallback={<AnalyticsStatCardsSkeleton rows={1} />}>
+          <StatsData scope={scope} />
         </Suspense>
-      </div>
-      <Suspense fallback={<AnalyticsStatCardsSkeleton rows={1} />}>
-        <StatsData scope={scope} />
-      </Suspense>
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
-        <ChartCard
-          title="Sales by plan and size"
-          subtitle="Every meal size by plan" info={`Revenue is net, counted ${DATE_BASIS_LABEL.money}; tiffins are scheduled ${DATE_BASIS_LABEL.deliveries}. Custom sizes share one box per plan.`}
-        >
-          <Suspense fallback={<ChartSkeleton height={340} />}>
-            <SizeTreemap scope={scope} />
-          </Suspense>
-        </ChartCard>
-        <ChartCard title="Which meal size tier earns the most?" subtitle="Net revenue by size tier" info={`Counted ${DATE_BASIS_LABEL.money}. Budget, medium, and premium; custom sizes are grouped as Custom.`}>
-          <Suspense fallback={<ChartSkeleton />}>
-            <TierDonut scope={scope} />
-          </Suspense>
-        </ChartCard>
-      </div>
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
+          <ChartCard
+            title="Sales by plan and size"
+            subtitle="Every meal size by plan" info={`Revenue is net, counted ${DATE_BASIS_LABEL.money}; tiffins are scheduled ${DATE_BASIS_LABEL.deliveries}. Custom sizes share one box per plan.`}
+          >
+            <Suspense fallback={<ChartSkeleton height={340} />}>
+              <SizeTreemap scope={scope} />
+            </Suspense>
+          </ChartCard>
+          <ChartCard title="Which meal size tier earns the most?" subtitle="Net revenue by size tier" info={`Counted ${DATE_BASIS_LABEL.money}. Budget, medium, and premium; custom sizes are grouped as Custom.`}>
+            <Suspense fallback={<ChartSkeleton />}>
+              <TierDonut scope={scope} />
+            </Suspense>
+          </ChartCard>
+        </div>
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
-        <ChartCard
-          title="Which sizes sell in which diet?"
-          subtitle="Net revenue by size tier and plan" info={`Counted ${DATE_BASIS_LABEL.money}. Custom sizes are grouped as Custom.`}
-        >
-          <Suspense fallback={<ChartSkeleton />}>
-            <TierByDietChart scope={scope} />
-          </Suspense>
-        </ChartCard>
-        <ChartCard title="Veg or non-veg?" subtitle="Net revenue or tiffins delivered" info="Plans compared by net revenue or by tiffins delivered. Custom sizes are included.">
-          <Suspense fallback={<ChartSkeleton />}>
-            <PlanSplit scope={scope} />
-          </Suspense>
-        </ChartCard>
-      </div>
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
+          <ChartCard
+            title="Which sizes sell in which diet?"
+            subtitle="Net revenue by size tier and plan" info={`Counted ${DATE_BASIS_LABEL.money}. Custom sizes are grouped as Custom.`}
+          >
+            <Suspense fallback={<ChartSkeleton />}>
+              <TierByDietChart scope={scope} />
+            </Suspense>
+          </ChartCard>
+          <ChartCard title="Veg or non-veg?" subtitle="Net revenue or tiffins delivered" info="Plans compared by net revenue or by tiffins delivered. Custom sizes are included.">
+            <Suspense fallback={<ChartSkeleton />}>
+              <PlanSplit scope={scope} />
+            </Suspense>
+          </ChartCard>
+        </div>
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
-        <ChartCard
-          title="Add-ons sold"
-          subtitle="Add-on sales, top four and the rest"
-          info={`Pre-tax line amount saved on each order, orders ${DATE_BASIS_LABEL.orders}; cancelled orders left out. The list shows quantity sold.`}
-        >
-          <Suspense fallback={<ChartSkeleton />}>
-            <AddonDonut scope={scope} />
-          </Suspense>
-        </ChartCard>
-        <ChartCard
-          title="How long do they buy for?"
-          subtitle="Orders by plan length"
-          info={`Orders ${DATE_BASIS_LABEL.orders}, cancelled orders left out. The list shows net revenue ${DATE_BASIS_LABEL.money} for each length.`}
-        >
-          <Suspense fallback={<ChartSkeleton />}>
-            <PlanLengthDonut scope={scope} />
-          </Suspense>
-        </ChartCard>
-      </div>
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
+          <ChartCard
+            title="Add-ons sold"
+            subtitle="Add-on sales, top four and the rest"
+            info={`Pre-tax line amount saved on each order, orders ${DATE_BASIS_LABEL.orders}; cancelled orders left out. The list shows quantity sold.`}
+          >
+            <Suspense fallback={<ChartSkeleton />}>
+              <AddonDonut scope={scope} />
+            </Suspense>
+          </ChartCard>
+          <ChartCard
+            title="How long do they buy for?"
+            subtitle="Orders by plan length"
+            info={`Orders ${DATE_BASIS_LABEL.orders}, cancelled orders left out. The list shows net revenue ${DATE_BASIS_LABEL.money} for each length.`}
+          >
+            <Suspense fallback={<ChartSkeleton />}>
+              <PlanLengthDonut scope={scope} />
+            </Suspense>
+          </ChartCard>
+        </div>
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
-        <ChartCard
-          title="What sells?"
-          subtitle="Meal size and plan length, top 10 by orders"
-          info={`Orders ${DATE_BASIS_LABEL.orders}, cancelled orders left out. Revenue is net, ${DATE_BASIS_LABEL.money}, for the same size and length, so it can include payments on orders placed outside the range.`}
-        >
-          <Suspense fallback={<ChartSkeleton height={340} />}>
-            <ProductSalesList scope={scope} />
-          </Suspense>
-        </ChartCard>
-        <ChartCard title="Most-picked dishes" subtitle="Share of all dish picks, top 10" info={`On orders ${DATE_BASIS_LABEL.orders}. Dot colour is the dish's plan.`}>
-          <Suspense fallback={<ChartSkeleton height={340} />}>
-            <TopDishesList scope={scope} />
-          </Suspense>
-        </ChartCard>
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
+          <ChartCard
+            title="What sells?"
+            subtitle="Meal size and plan length, top 10 by orders"
+            info={`Orders ${DATE_BASIS_LABEL.orders}, cancelled orders left out. Revenue is net, ${DATE_BASIS_LABEL.money}, for the same size and length, so it can include payments on orders placed outside the range.`}
+          >
+            <Suspense fallback={<ChartSkeleton height={340} />}>
+              <ProductSalesList scope={scope} />
+            </Suspense>
+          </ChartCard>
+          <ChartCard title="Most-picked dishes" subtitle="Share of all dish picks, top 10" info={`On orders ${DATE_BASIS_LABEL.orders}. Dot colour is the dish's plan.`}>
+            <Suspense fallback={<ChartSkeleton height={340} />}>
+              <TopDishesList scope={scope} />
+            </Suspense>
+          </ChartCard>
+        </div>
       </div>
-    </div>
+    </Can>
   );
 }
 
@@ -142,19 +146,12 @@ async function ContextLine({ scope }: { scope: AnalyticsScope }) {
 
 async function StatsData({ scope }: { scope: AnalyticsScope }) {
   const money = await getMoneyFormatter();
-  const [sales, totals, pickers] = await Promise.all([sizeSales(scope), revenueTotals(scope), getPickers(scope)]);
+  const canFinance = await can({ finance: ["read"] });
+  const [sales, totals, pickers] = await Promise.all([sizeSales(scope), canFinance ? revenueTotals(scope) : null, getPickers(scope)]);
   const tiffins = sales.reduce((s, r) => s + r.tiffins, 0);
   const top = sales.filter((r) => !r.custom && r.revenue > 0).sort((a, b) => b.revenue - a.revenue)[0];
-  return (
-    <AnalyticsStatCards
-      items={[
-        {
-          label: "Tiffins delivered",
-          value: tiffins,
-          hint: `Scheduled tiffins, ${DATE_BASIS_LABEL.deliveries}`,
-          badge: "Units",
-          badgeTone: "neutral",
-        },
+  const perTiffin: AnalyticsStatCardItem[] = totals
+    ? [
         {
           label: "Net revenue per tiffin",
           value: tiffins === 0 ? "—" : money(totals.net / tiffins),
@@ -162,39 +159,51 @@ async function StatsData({ scope }: { scope: AnalyticsScope }) {
           badge: "Average",
           badgeTone: "neutral",
         },
-        {
-          label: "Top meal size",
-          value: top?.size ?? "—",
-          hint: `Most net revenue ${DATE_BASIS_LABEL.money}; custom sizes left out`,
-          valueSize: "label",
-          badge: "Top",
-          badgeTone: "ok",
-        },
-        {
-          label: "Customers who picked dishes",
-          value: `${pickers.pickers.toLocaleString()} of ${pickers.customers.toLocaleString()}`,
-          hint: `Customers with picks on orders ${DATE_BASIS_LABEL.orders} · customers with deliveries ${DATE_BASIS_LABEL.deliveries}`,
-          valueSize: "label",
-          badge: "Picks",
-          badgeTone: "brand",
-        },
-      ]}
-    />
-  );
+      ]
+    : [];
+  const items: AnalyticsStatCardItem[] = [
+      {
+        label: "Tiffins delivered",
+        value: tiffins,
+        hint: `Scheduled tiffins, ${DATE_BASIS_LABEL.deliveries}`,
+        badge: "Units",
+        badgeTone: "neutral",
+      },
+      ...perTiffin,
+      {
+        label: "Top meal size",
+        value: top?.size ?? "—",
+        hint: `Most net revenue ${DATE_BASIS_LABEL.money}; custom sizes left out`,
+        valueSize: "label",
+        badge: "Top",
+        badgeTone: "ok",
+      },
+      {
+        label: "Customers who picked dishes",
+        value: `${pickers.pickers.toLocaleString()} of ${pickers.customers.toLocaleString()}`,
+        hint: `Customers with picks on orders ${DATE_BASIS_LABEL.orders} · customers with deliveries ${DATE_BASIS_LABEL.deliveries}`,
+        valueSize: "label",
+        badge: "Picks",
+        badgeTone: "brand",
+      },
+  ];
+  return <AnalyticsStatCards items={items} />;
 }
 
 /** Same tab toggle as the Revenue page; both metrics render on the server so the toggle needs no fetch. */
-function MetricTabs({ render }: { render: (metric: SizeMetric) => React.ReactNode }) {
+async function MetricTabs({ render }: { render: (metric: SizeMetric) => React.ReactNode }) {
+  const canFinance = await can({ finance: ["read"] });
+  const metrics = METRICS.filter((m) => m.value !== "revenue" || canFinance);
   return (
-    <Tabs defaultValue="revenue" className="gap-4">
+    <Tabs defaultValue={metrics[0]?.value} className="gap-4">
       <TabsList>
-        {METRICS.map((m) => (
+        {metrics.map((m) => (
           <TabsTrigger key={m.value} value={m.value}>
             {m.label}
           </TabsTrigger>
         ))}
       </TabsList>
-      {METRICS.map((m) => (
+      {metrics.map((m) => (
         <TabsContent key={m.value} value={m.value}>
           {render(m.value)}
         </TabsContent>

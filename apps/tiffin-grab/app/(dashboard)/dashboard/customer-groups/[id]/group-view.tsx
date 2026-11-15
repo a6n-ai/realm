@@ -71,11 +71,15 @@ export function GroupView({
   members,
   actions,
   stats,
+  canWallet,
+  canFinance,
 }: {
   stats: ReactNode;
   group: CustomerGroupRow;
   members: GroupMember[];
   actions: GroupActionRow[];
+  canWallet: boolean;
+  canFinance: boolean;
 }) {
   const fmtMoney = useFormatMoney();
   const router = useRouter();
@@ -90,7 +94,7 @@ export function GroupView({
   const pathname = usePathname();
   const params = useSearchParams();
   const memberEmail = params.get("m_email");
-  const memberWallet = params.get("m_wallet");
+  const memberWallet = canWallet ? params.get("m_wallet") : null;
   const actionKind = params.get("a_kind");
   const actionBy = params.get("a_by");
   const clearFacets = (keys: readonly string[]) => {
@@ -210,12 +214,12 @@ export function GroupView({
                 />
               )}
               <DataTable
-                columns={MEMBER_COLUMNS}
+                columns={MEMBER_COLUMNS.filter((c) => (c.key !== "coins" || canWallet) && (c.key !== "revenue" || canFinance))}
                 rows={shownMembers}
                 filters={
                   <div className="flex flex-wrap items-center gap-2">
                     <SearchInput value={memberQ} onChange={setMemberQ} placeholder="Search by name, email or phone" shortPlaceholder="Search customers" />
-                    <ReuiFacetFilters spec={MEMBER_FACETS} />
+                    <ReuiFacetFilters spec={MEMBER_FACETS.filter((f) => canWallet || !("field" in f) || f.field !== "m_wallet")} />
                   </div>
                 }
                 rowKey={(m) => m.publicId}
@@ -236,8 +240,8 @@ export function GroupView({
                     <TableCell className="font-medium">
                       <Link href={`/dashboard/customers/${m.publicId}`} className="hover:underline">{m.name ?? "Unnamed"}</Link>
                     </TableCell>
-                    <TableCell className="text-right tabular-nums">{m.coins.toLocaleString()}</TableCell>
-                    <TableCell className="text-right tabular-nums">{fmtMoney(Number(m.revenue))}</TableCell>
+                    {canWallet && <TableCell className="text-right tabular-nums">{m.coins.toLocaleString()}</TableCell>}
+                    {canFinance && <TableCell className="text-right tabular-nums">{fmtMoney(Number(m.revenue))}</TableCell>}
                     <TableCell className="tabular-nums">{m.firstOrderDate ?? ""}</TableCell>
                     <TableCell className="tabular-nums">{m.lastTiffin ?? ""}</TableCell>
                     <TableCell className="text-right">

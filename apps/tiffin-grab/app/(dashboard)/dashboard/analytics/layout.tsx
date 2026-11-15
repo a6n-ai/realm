@@ -1,6 +1,6 @@
 import { type Visible, noVisibleOrgs } from "@/lib/tenant/org-scope";
 import { Suspense, type ReactNode } from "react";
-import { requirePagePermission } from "@/lib/auth/guards";
+import { can, requirePagePermission } from "@/lib/auth/guards";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/reui/alert";
 import { BarChart3Icon } from "lucide-react";
@@ -24,6 +24,19 @@ const REVENUE_FACETS: FacetDef[] = [
     label: "Payment method",
     options: REVENUE_METHODS.map((m) => ({ value: m, label: paymentMethodLabel(m) })),
   },
+];
+
+/** Each tab shows only when the viewer holds the permissions its page reads. */
+const TAB_PERMS: [string, Record<string, string[]>][] = [
+  ["/dashboard/analytics/overview", { finance: ["read"], order: ["read"], customer: ["read"], ticket: ["read"] }],
+  ["/dashboard/analytics/leads", { inquiry: ["read"] }],
+  ["/dashboard/analytics/revenue", { finance: ["read"] }],
+  ["/dashboard/analytics/profitability", { finance: ["read"] }],
+  ["/dashboard/analytics/products", { order: ["read"] }],
+  ["/dashboard/analytics/customers", { customer: ["read"], order: ["read"] }],
+  ["/dashboard/analytics/operations", { delivery: ["read"] }],
+  ["/dashboard/analytics/complaints", { ticket: ["read"] }],
+  ["/dashboard/analytics/employees", { finance: ["read"] }],
 ];
 
 /** Only categories and sub-categories that have tickets in the viewer's franchises. */
@@ -55,6 +68,11 @@ export default async function AnalyticsLayout({ children }: { children: ReactNod
   await requirePagePermission({ analytics: ["read"] });
   const visible = await resolveSessionVisibleOrgIds(await getSession());
   const noAccess = noVisibleOrgs(visible);
+  const [tabs, canFinance, canTicket] = await Promise.all([
+    Promise.all(TAB_PERMS.map(async ([href, perms]) => ((await can(perms)) ? href : null))),
+    can({ finance: ["read"] }),
+    can({ ticket: ["read"] }),
+  ]);
 
   return (
     <PageShell>
@@ -70,10 +88,10 @@ export default async function AnalyticsLayout({ children }: { children: ReactNod
       ) : (
         <>
           <Suspense fallback={null}>
-            <AnalyticsTabs />
+            <AnalyticsTabs allowed={tabs.filter((h): h is string => h !== null)} />
           </Suspense>
           <Suspense fallback={<Skeleton className="h-10 w-64" />}>
-            <SharedFilters visible={visible} />
+            <SharedFilters visible={visible} canFinance={canFinance} canTicket={canTicket} />
           </Suspense>
           <div className="flex min-w-0 flex-col gap-6">{children}</div>
         </>
@@ -82,13 +100,13 @@ export default async function AnalyticsLayout({ children }: { children: ReactNod
   );
 }
 
-async function SharedFilters({ visible }: { visible: Visible }) {
-  const options = await getAnalyticsFilterOptions(visible);
+async function SharedFilters({ visible, canFinance, canTicket }: { visible: Visible; canFinance: boolean; canTicket: boolean }) {
+  const options = await getAnalyticsFilterOptions(visible, { tickets: canTicket });
   return (
     <AnalyticsFilters
       options={options}
-      revenueFacets={REVENUE_FACETS}
-      complaintFacets={complaintFacets(options.tickets)}
+      revenueFacets={canFinance ? REVENUE_FACETS : []}
+      complaintFacets={canTicket ? complaintFacets(options.tickets) : []}
     />
   );
 }

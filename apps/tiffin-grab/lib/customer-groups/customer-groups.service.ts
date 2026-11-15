@@ -347,7 +347,7 @@ export async function giveFilterOptions() {
   return { givers, groups };
 }
 
-export async function customerGroupStats(r: EpochRange) {
+export async function customerGroupStats(r: EpochRange, { wallet = true }: { wallet?: boolean } = {}) {
   const [{ groups, members }, [a]] = await Promise.all([
     groupsInRange(r),
     db
@@ -359,10 +359,10 @@ export async function customerGroupStats(r: EpochRange) {
       .from(customerGroupActions)
       .where(and(gte(customerGroupActions.createdAt, r.from), lte(customerGroupActions.createdAt, r.to))),
   ]);
-  return { groups, members, actions: a.actions, coinsViaGroups: a.coins, emailsSent: a.emails };
+  return { groups, members, actions: a.actions, coinsViaGroups: wallet ? a.coins : 0, emailsSent: a.emails };
 }
 
-export async function getCustomerGroup(publicId: string): Promise<{
+export async function getCustomerGroup(publicId: string, perms: { wallet: boolean; finance: boolean } = { wallet: true, finance: true }): Promise<{
   group: CustomerGroupRow & { filters: Record<string, unknown>; contactListPublicId: string | null };
   members: GroupMember[];
 } | null> {
@@ -370,7 +370,7 @@ export async function getCustomerGroup(publicId: string): Promise<{
   if (!row) return null;
   return {
     group: { ...toRow(row), filters: row.filters, contactListPublicId: row.contactListPublicId },
-    members: await memberDetails(row.id),
+    members: await memberDetails(row.id, perms),
   };
 }
 
@@ -382,7 +382,7 @@ async function memberIds(groupId: bigint) {
   ).map((r) => r.userId);
 }
 
-async function memberDetails(groupId: bigint): Promise<GroupMember[]> {
+async function memberDetails(groupId: bigint, perms: { wallet: boolean; finance: boolean }): Promise<GroupMember[]> {
   const base = await db
     .select({ id: users.id, publicId: users.publicId, name: users.name, email: users.email, phone: users.phone, notifyEmail: users.notifyEmail })
     .from(customerGroupMembers)
@@ -391,7 +391,7 @@ async function memberDetails(groupId: bigint): Promise<GroupMember[]> {
     .orderBy(users.name);
   const { rows } = await listPayoutCandidates({ userIds: await memberIds(groupId) }, { limit: 1_000_000 });
   const stats = new Map(rows.map((r) => [r.publicId, r]));
-  const bal = base.length
+  const bal = perms.wallet && base.length
     ? await db
         .select({ userId: walletLedger.userId, balance: balanceSql() })
         .from(walletLedger)
@@ -401,7 +401,7 @@ async function memberDetails(groupId: bigint): Promise<GroupMember[]> {
   const coins = new Map(bal.map((b) => [b.userId, b.balance]));
   return base.map(({ id, ...u }) => {
     const s = stats.get(u.publicId);
-    return { ...u, coins: coins.get(id) ?? 0, revenue: s?.revenue ?? "0", firstOrderDate: s?.firstOrderDate ?? null, lastTiffin: s?.lastTiffin ?? null };
+    return { ...u, coins: coins.get(id) ?? 0, revenue: perms.finance ? (s?.revenue ?? "0") : "0", firstOrderDate: s?.firstOrderDate ?? null, lastTiffin: s?.lastTiffin ?? null };
   });
 }
 
@@ -452,15 +452,15 @@ export async function giveHistoryCsv(
 }
 
 /** Group page cards. Coins given counts every coins action, legacy backfilled ones included. */
-export async function groupStats(groupPublicId: string) {
-  const [detail, actions] = await Promise.all([getCustomerGroup(groupPublicId), listGroupActions(groupPublicId)]);
+export async function groupStats(groupPublicId: string, { wallet = true }: { wallet?: boolean } = {}) {
+  const [detail, actions] = await Promise.all([getCustomerGroup(groupPublicId, { wallet: false, finance: false }), listGroupActions(groupPublicId)]);
   if (!detail) throw new ValidationError("Group not found");
   const count = (a: GroupActionRow) => (Array.isArray(a.result.awardedUserIds) ? a.result.awardedUserIds.length : 0);
   const last = actions[0] ?? null;
   return {
     members: detail.members.length,
     emailOn: detail.members.filter((m) => m.notifyEmail && m.email).length,
-    coinsGiven: actions.filter((a) => a.kind === "coins").reduce((n, a) => n + (Number(a.params.coins) || 0) * count(a), 0),
+    coinsGiven: !wallet ? 0 : actions.filter((a) => a.kind === "coins").reduce((n, a) => n + (Number(a.params.coins) || 0) * count(a), 0),
     actionsRun: actions.length,
     lastAction: last ? { kind: last.kind, createdAt: last.createdAt } : null,
   };

@@ -2,7 +2,7 @@ import { ACTION_LABEL } from "@/lib/customer-groups/action-labels";
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { CoinsIcon, HistoryIcon, MailIcon, PlayIcon, UsersIcon } from "lucide-react";
-import { requirePagePermission } from "@/lib/auth/guards";
+import { can, requirePagePermission } from "@/lib/auth/guards";
 import { PageShell, PageHeader } from "@/components/ds";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { StatCards, type StatCardItem } from "@/components/dashboard/stat-cards";
@@ -29,14 +29,15 @@ export default function CustomerGroupPage({ params }: { params: Promise<{ id: st
 async function GroupData({ params }: { params: Promise<{ id: string }> }) {
   await requirePagePermission({ customer: ["manage"] });
   const { id } = await params;
-  const detail = await getCustomerGroup(id);
+  const [canWallet, canFinance] = await Promise.all([can({ wallet: ["read"] }), can({ finance: ["read"] })]);
+  const detail = await getCustomerGroup(id, { wallet: canWallet, finance: canFinance });
   if (!detail) notFound();
-  const [actions, s, { timezone }] = await Promise.all([listGroupActions(id), groupStats(id), getAppSettings()]);
+  const [actions, s, { timezone }] = await Promise.all([listGroupActions(id), groupStats(id, { wallet: canWallet }), getAppSettings()]);
   const base = `/dashboard/customer-groups/${id}`;
   const cards: StatCardItem[] = [
     { label: "Members", value: s.members.toLocaleString(), icon: UsersIcon, hint: "customers in this group", href: base },
     { label: "Email on", value: s.emailOn.toLocaleString(), icon: MailIcon, hint: "can be emailed", href: `${base}?m_email=on` },
-    { label: "Coins given", value: s.coinsGiven.toLocaleString(), icon: CoinsIcon, hint: "through this group" },
+    ...(canWallet ? [{ label: "Coins given", value: s.coinsGiven.toLocaleString(), icon: CoinsIcon, hint: "through this group" }] : []),
     { label: "Actions run", value: s.actionsRun.toLocaleString(), icon: PlayIcon, hint: "incl. campaigns", href: `${base}?tab=activity` },
     {
       label: "Last action",
@@ -45,5 +46,14 @@ async function GroupData({ params }: { params: Promise<{ id: string }> }) {
       hint: s.lastAction ? formatEpoch(s.lastAction.createdAt, { mode: "date", timeZone: timezone }) : "nothing done yet",
     },
   ];
-  return <GroupView group={detail.group} members={detail.members} actions={actions} stats={<StatCards items={cards} />} />;
+  return (
+    <GroupView
+      group={detail.group}
+      members={detail.members}
+      actions={actions}
+      stats={<StatCards items={cards} />}
+      canWallet={canWallet}
+      canFinance={canFinance}
+    />
+  );
 }

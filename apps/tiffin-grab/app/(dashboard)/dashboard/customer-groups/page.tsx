@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { CoinsIcon, MailIcon, UserRoundIcon, UsersIcon, ZapIcon } from "lucide-react";
-import { requirePagePermission } from "@/lib/auth/guards";
+import { can, requirePagePermission } from "@/lib/auth/guards";
 import { PageShell, PageHeader, SectionCard, parseFilterState, type FacetDef } from "@/components/ds";
 import { StatCards, StatCardsSkeleton, type StatCardItem } from "@/components/dashboard/stat-cards";
 import { SectionDateRange } from "@/components/filters/section-date-range";
@@ -45,7 +45,8 @@ const SPEC: FacetDef[] = [{ kind: "search", fields: ["name"] }];
 async function GroupsStats({ searchParams }: { searchParams: SearchParams }) {
   await requirePagePermission({ customer: ["manage"] });
   const sp = await withDefaultMonth(await searchParams);
-  const stats = await customerGroupStats(epochRange(sp));
+  const canWallet = await can({ wallet: ["read"] });
+  const stats = await customerGroupStats(epochRange(sp), { wallet: canWallet });
   const cards: StatCardItem[] = [
     { label: "Groups", value: stats.groups.toLocaleString(), icon: UsersIcon, hint: "created in selected range", href: `/dashboard/customer-groups?from=${sp.from}&to=${sp.to}` },
     {
@@ -54,8 +55,12 @@ async function GroupsStats({ searchParams }: { searchParams: SearchParams }) {
       icon: UserRoundIcon,
       hint: stats.groups ? `avg ${Math.round(stats.members / stats.groups)} per group` : "no groups in range",
     },
-    { label: "Actions", value: stats.actions.toLocaleString(), icon: ZapIcon, hint: "coins, emails and coupons" },
-    { label: "Coins via groups", value: stats.coinsViaGroups.toLocaleString(), icon: CoinsIcon, hint: "awarded to members" },
+    ...(canWallet
+      ? [
+          { label: "Actions", value: stats.actions.toLocaleString(), icon: ZapIcon, hint: "coins, emails and coupons" },
+          { label: "Coins via groups", value: stats.coinsViaGroups.toLocaleString(), icon: CoinsIcon, hint: "awarded to members" },
+        ]
+      : []),
     { label: "Emails sent", value: stats.emailsSent.toLocaleString(), icon: MailIcon, hint: "campaigns made from groups" },
   ];
 

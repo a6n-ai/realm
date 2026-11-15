@@ -35,6 +35,7 @@ import {
   getStatusMix,
 } from "@/lib/analytics/complaints.service";
 import { OPEN_STATUSES } from "@/lib/support/ticket-status";
+import { Can, NoAccessNote } from "@/components/auth/can";
 
 const TICKETS = "/dashboard/tickets";
 
@@ -51,63 +52,65 @@ export default async function ComplaintsAnalyticsPage({ searchParams }: { search
   if (!resolved.scope) return resolved.alert;
   const { scope } = resolved;
   return (
-    <div className="flex flex-col gap-6">
-      <AnalyticsIntro description="Tickets raised in this range, and which ones still need a reply." />
-      <Suspense fallback={<AnalyticsStatCardsSkeleton rows={1} />}>
-        <Kpis scope={scope} />
-      </Suspense>
+    <Can perms={{ ticket: ["read"] }} fallback={<NoAccessNote />}>
+      <div className="flex flex-col gap-6">
+        <AnalyticsIntro description="Tickets raised in this range, and which ones still need a reply." />
+        <Suspense fallback={<AnalyticsStatCardsSkeleton rows={1} />}>
+          <Kpis scope={scope} />
+        </Suspense>
 
-      <Suspense fallback={<ChartSkeleton />}>
-        <NeedsAttentionSection scope={scope} />
-      </Suspense>
+        <Suspense fallback={<ChartSkeleton />}>
+          <NeedsAttentionSection scope={scope} />
+        </Suspense>
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
-        <ChartCard title="Complaints calendar" subtitle="Complaints per day" info="The day is the last activity time on the ticket, in Toronto time — the same clock as the tickets list. Darker is more.">
-          <Suspense fallback={<ChartSkeleton height={calendarSkeletonHeight(scope)} />}>
-            <Trend scope={scope} />
-          </Suspense>
-        </ChartCard>
-        <ChartCard title="By delivery zone" subtitle="Tickets per zone of the linked order">
-          <Suspense fallback={<ChartSkeleton height={rankedHeight(9)} />}>
-            <Zones scope={scope} />
-          </Suspense>
-        </ChartCard>
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
+          <ChartCard title="Complaints calendar" subtitle="Complaints per day" info="The day is the last activity time on the ticket, in Toronto time — the same clock as the tickets list. Darker is more.">
+            <Suspense fallback={<ChartSkeleton height={calendarSkeletonHeight(scope)} />}>
+              <Trend scope={scope} />
+            </Suspense>
+          </ChartCard>
+          <ChartCard title="By delivery zone" subtitle="Tickets per zone of the linked order">
+            <Suspense fallback={<ChartSkeleton height={rankedHeight(9)} />}>
+              <Zones scope={scope} />
+            </Suspense>
+          </ChartCard>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
+          <ChartCard title="By category" subtitle="Tickets per category" info="Feedback is shown greyed out; it is not counted as a complaint. Select a bar to open those tickets.">
+            <Suspense fallback={<ChartSkeleton height={rankedHeight(9)} />}>
+              <Categories scope={scope} />
+            </Suspense>
+          </ChartCard>
+          <ChartCard title="By sub-category" subtitle="Top issues across every category" info="Each bar is a sub-category with its category after the dot. Feedback is left out. Select a bar to open those tickets.">
+            <Suspense fallback={<ChartSkeleton height={rankedHeight(11)} />}>
+              <Subcategories scope={scope} />
+            </Suspense>
+          </ChartCard>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
+          <ChartCard title="Status">
+            <Suspense fallback={<ChartSkeleton />}>
+              <Statuses scope={scope} />
+            </Suspense>
+          </ChartCard>
+          <ChartCard title="By plan">
+            <Suspense fallback={<ChartSkeleton />}>
+              <Plans scope={scope} />
+            </Suspense>
+          </ChartCard>
+        </div>
+
+        <div id="repeat-customers" className="scroll-mt-20">
+          <ChartCard title="Customers with repeat complaints" subtitle="Top 10 in this range">
+            <Suspense fallback={<ChartSkeleton />}>
+              <RepeatCustomers scope={scope} />
+            </Suspense>
+          </ChartCard>
+        </div>
       </div>
-
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
-        <ChartCard title="By category" subtitle="Tickets per category" info="Feedback is shown greyed out; it is not counted as a complaint. Select a bar to open those tickets.">
-          <Suspense fallback={<ChartSkeleton height={rankedHeight(9)} />}>
-            <Categories scope={scope} />
-          </Suspense>
-        </ChartCard>
-        <ChartCard title="By sub-category" subtitle="Top issues across every category" info="Each bar is a sub-category with its category after the dot. Feedback is left out. Select a bar to open those tickets.">
-          <Suspense fallback={<ChartSkeleton height={rankedHeight(11)} />}>
-            <Subcategories scope={scope} />
-          </Suspense>
-        </ChartCard>
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
-        <ChartCard title="Status">
-          <Suspense fallback={<ChartSkeleton />}>
-            <Statuses scope={scope} />
-          </Suspense>
-        </ChartCard>
-        <ChartCard title="By plan">
-          <Suspense fallback={<ChartSkeleton />}>
-            <Plans scope={scope} />
-          </Suspense>
-        </ChartCard>
-      </div>
-
-      <div id="repeat-customers" className="scroll-mt-20">
-        <ChartCard title="Customers with repeat complaints" subtitle="Top 10 in this range">
-          <Suspense fallback={<ChartSkeleton />}>
-            <RepeatCustomers scope={scope} />
-          </Suspense>
-        </ChartCard>
-      </div>
-    </div>
+    </Can>
   );
 }
 

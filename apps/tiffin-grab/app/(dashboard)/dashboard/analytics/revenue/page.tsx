@@ -1,3 +1,4 @@
+import { Can, NoAccessNote } from "@/components/auth/can";
 import { round2 } from "@foundry/commons/util/money";
 import { TotalLine } from "@/components/dashboard/analytics/total-line";
 import { Skeleton } from "@foundry/ui/skeleton";
@@ -43,84 +44,86 @@ export default async function RevenueAnalyticsPage({ searchParams }: { searchPar
   const { scope } = resolved;
   const unit = grainUnitForRange(scope.fromMs, scope.toMs, scope.tz);
   return (
-    <div className="flex flex-col gap-6">
-      <AnalyticsIntro
-        description="Money kept after refunds, excluding tax and card surcharge, by payment date."
-        action={
-          <Suspense fallback={<Skeleton className="h-8 w-64" />}>
-            <RangeAndLive scope={scope} />
-          </Suspense>
-        }
-      />
+    <Can perms={{ finance: ["read"] }} fallback={<NoAccessNote />}>
+      <div className="flex flex-col gap-6">
+        <AnalyticsIntro
+          description="Money kept after refunds, excluding tax and card surcharge, by payment date."
+          action={
+            <Suspense fallback={<Skeleton className="h-8 w-64" />}>
+              <RangeAndLive scope={scope} />
+            </Suspense>
+          }
+        />
 
-      <Suspense fallback={<AnalyticsStatCardsSkeleton rows={2} />}>
-        <Kpis scope={scope} />
-      </Suspense>
+        <Suspense fallback={<AnalyticsStatCardsSkeleton rows={2} />}>
+          <Kpis scope={scope} />
+        </Suspense>
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
-        <ChartCard
-          title={`Net revenue by ${unit}`}
-          subtitle="Ex tax and surcharge, after refunds" info={`Counted ${DATE_BASIS_LABEL.money}.${unit === "day" ? " Line is the 7-day average." : ""}`}
-        >
-          <Suspense fallback={<ChartSkeleton />}>
-            <NetByDay scope={scope} daily={unit === "day"} />
-          </Suspense>
-        </ChartCard>
-        <ChartCard title="Revenue calendar" subtitle="Net revenue per day" info={`Counted ${DATE_BASIS_LABEL.money}, in Toronto time — capture when present, else created; same clock the payments list shows when opened from here. Darker is more.`}>
-          <Suspense fallback={<ChartSkeleton height={calendarSkeletonHeight(scope)} />}>
-            <RevenueCalendar scope={scope} />
-          </Suspense>
-        </ChartCard>
-      </div>
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
+          <ChartCard
+            title={`Net revenue by ${unit}`}
+            subtitle="Ex tax and surcharge, after refunds" info={`Counted ${DATE_BASIS_LABEL.money}.${unit === "day" ? " Line is the 7-day average." : ""}`}
+          >
+            <Suspense fallback={<ChartSkeleton />}>
+              <NetByDay scope={scope} daily={unit === "day"} />
+            </Suspense>
+          </ChartCard>
+          <ChartCard title="Revenue calendar" subtitle="Net revenue per day" info={`Counted ${DATE_BASIS_LABEL.money}, in Toronto time — capture when present, else created; same clock the payments list shows when opened from here. Darker is more.`}>
+            <Suspense fallback={<ChartSkeleton height={calendarSkeletonHeight(scope)} />}>
+              <RevenueCalendar scope={scope} />
+            </Suspense>
+          </ChartCard>
+        </div>
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
-        <ChartCard
-          title="How much is still owed?"
-          subtitle="Collected out of everything billed" info="Collected out of collected plus awaiting payment and needs review."
-        >
-          <Suspense fallback={<ChartSkeleton />}>
-            <Owed scope={scope} />
-          </Suspense>
-        </ChartCard>
-        <ChartCard title="Payments" subtitle="Every payment, by amount" info={`Counted ${DATE_BASIS_LABEL.money}. Methods show net revenue, ex tax & surcharge.`}>
-          <Tabs defaultValue="status" className="gap-4">
-            <TabsList>
-              <TabsTrigger value="status">By status</TabsTrigger>
-              <TabsTrigger value="method">By method</TabsTrigger>
-            </TabsList>
-            <TabsContent value="status">
-              <Suspense fallback={<ChartSkeleton />}>
-                <Statuses scope={scope} />
-              </Suspense>
-            </TabsContent>
-            <TabsContent value="method">
-              <Suspense fallback={<ChartSkeleton />}>
-                <MethodChart scope={scope} />
-              </Suspense>
-            </TabsContent>
-          </Tabs>
-        </ChartCard>
-      </div>
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
+          <ChartCard
+            title="How much is still owed?"
+            subtitle="Collected out of everything billed" info="Collected out of collected plus awaiting payment and needs review."
+          >
+            <Suspense fallback={<ChartSkeleton />}>
+              <Owed scope={scope} />
+            </Suspense>
+          </ChartCard>
+          <ChartCard title="Payments" subtitle="Every payment, by amount" info={`Counted ${DATE_BASIS_LABEL.money}. Methods show net revenue, ex tax & surcharge.`}>
+            <Tabs defaultValue="status" className="gap-4">
+              <TabsList>
+                <TabsTrigger value="status">By status</TabsTrigger>
+                <TabsTrigger value="method">By method</TabsTrigger>
+              </TabsList>
+              <TabsContent value="status">
+                <Suspense fallback={<ChartSkeleton />}>
+                  <Statuses scope={scope} />
+                </Suspense>
+              </TabsContent>
+              <TabsContent value="method">
+                <Suspense fallback={<ChartSkeleton />}>
+                  <MethodChart scope={scope} />
+                </Suspense>
+              </TabsContent>
+            </Tabs>
+          </ChartCard>
+        </div>
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
-        <ChartCard title="Discounts given" subtitle="Across settled orders in this range">
-          <Suspense fallback={<ChartSkeleton />}>
-            <Discounts scope={scope} />
-          </Suspense>
-        </ChartCard>
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
+          <ChartCard title="Discounts given" subtitle="Across settled orders in this range">
+            <Suspense fallback={<ChartSkeleton />}>
+              <Discounts scope={scope} />
+            </Suspense>
+          </ChartCard>
+          <ChartBoundary>
+            <Suspense fallback={<ChartCard title="Free tiffins"><ChartSkeleton /></ChartCard>}>
+              <FreeTiffinsCard scope={scope} />
+            </Suspense>
+          </ChartBoundary>
+        </div>
+
         <ChartBoundary>
-          <Suspense fallback={<ChartCard title="Free tiffins"><ChartSkeleton /></ChartCard>}>
-            <FreeTiffinsCard scope={scope} />
+          <Suspense fallback={<ChartSkeleton height={160} />}>
+            <NeedsReview scope={scope} />
           </Suspense>
         </ChartBoundary>
       </div>
-
-      <ChartBoundary>
-        <Suspense fallback={<ChartSkeleton height={160} />}>
-          <NeedsReview scope={scope} />
-        </Suspense>
-      </ChartBoundary>
-    </div>
+    </Can>
   );
 }
 

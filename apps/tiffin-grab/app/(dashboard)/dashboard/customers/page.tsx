@@ -45,7 +45,8 @@ type SearchParams = Promise<Record<string, string | undefined>>;
 // and the action button and table fill in as their data resolves.
 export default async function CustomersPage({ searchParams }: { searchParams: SearchParams }) {
   const sp = await searchParams;
-  const tab = sp.tab === "payments" ? "payments" : "all";
+  const canFinance = await can({ finance: ["read"] });
+  const tab = sp.tab === "payments" && canFinance ? "payments" : "all";
   // Switching tabs keeps the date range and search; sort and page belong to the other table.
   const tabHref = (t: string) => {
     const qs = new URLSearchParams(Object.entries(sp).filter((e): e is [string, string] => e[1] != null && !["tab", "sort", "dir", "page"].includes(e[0])));
@@ -80,9 +81,11 @@ export default async function CustomersPage({ searchParams }: { searchParams: Se
           <TabsTrigger value="all" asChild>
             <Link href={tabHref("all")} prefetch={false}>All customers</Link>
           </TabsTrigger>
-          <TabsTrigger value="payments" asChild>
-            <Link href={tabHref("payments")} prefetch={false}>Payments</Link>
-          </TabsTrigger>
+          {canFinance && (
+            <TabsTrigger value="payments" asChild>
+              <Link href={tabHref("payments")} prefetch={false}>Payments</Link>
+            </TabsTrigger>
+          )}
         </TabsList>
       </Tabs>
       {tab === "payments" ? (
@@ -199,7 +202,11 @@ async function CustomersStats({ searchParams }: { searchParams: SearchParams }) 
 
 async function CustomersData({ searchParams, tab }: { searchParams: SearchParams; tab: "all" | "payments" }) {
   await requirePagePermission(CUSTOMER_READ);
-  const { sort, condition, page, custom } = await customerListQuery(await searchParams);
+  if (tab === "payments") await requirePagePermission({ finance: ["read"] });
+  const query = await customerListQuery(await searchParams);
+  const canFinance = await can({ finance: ["read"] });
+  const { condition, page, custom } = query;
+  const sort = !canFinance && query.sort.column === "paid" ? { column: "latestOrder" as const, dir: "desc" as const } : query.sort;
   const result = await listCustomersPage(condition, page, sort, custom);
   const List = tab === "payments" ? CustomerPaymentsList : CustomersList;
   return <List spec={CUSTOMER_SPEC} rows={result.items} total={result.total} page={page.page} size={page.size} sort={sort} />;

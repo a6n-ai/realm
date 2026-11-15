@@ -8,6 +8,7 @@ import { coupons, customerGroups } from "@/db/schema";
 import { Alert, AlertDescription } from "@/components/reui/alert";
 import { findCustomerGroup } from "@/lib/customer-groups/customer-groups.service";
 import { getPaymentConfig } from "@/lib/payments/payment-config";
+import { can } from "@/lib/auth/guards";
 import { parseSort, type SortState } from "@foundry/design-system/list-sort";
 import { epochBoundsWhere, withDefaultMonth } from "@/lib/list/default-month";
 import { CREATABLE_KINDS, KIND_LABELS } from "@/lib/coupons/kind-labels";
@@ -133,7 +134,10 @@ async function CouponsData({ searchParams }: { searchParams: SearchParams }) {
     { label: "Expiring in 7 days", value: live.filter(isExpiring).length.toLocaleString(), href: href({ expiring: "1" }) },
     { label: "Redemptions", value: couponRows.reduce((n, c) => n + c.redemptionCount, 0).toLocaleString() },
   ];
-  const paymentMethods = (await getPaymentConfig()).methods.map((m) => ({ value: m.id, label: m.id === "stripe" ? "Card" : m.label }));
+  const canFinance = await can({ finance: ["read"] });
+  const paymentMethods = canFinance
+    ? (await getPaymentConfig()).methods.map((m) => ({ value: m.id, label: m.id === "stripe" ? "Card" : m.label }))
+    : [];
   const groupId = sp.newForGroup;
   const presetGroup = groupId ? await findCustomerGroup(groupId) : null;
   return (

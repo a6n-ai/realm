@@ -1,3 +1,4 @@
+import { Can, NoAccessNote } from "@/components/auth/can";
 import { scopeOrAlert } from "@/components/dashboard/analytics/franchise-unavailable";
 import Link from "next/link";
 import { Suspense } from "react";
@@ -28,43 +29,45 @@ export default async function LeadsAnalyticsPage({ searchParams }: { searchParam
   if (!resolved.scope) return resolved.alert;
   const { scope } = resolved;
   return (
-    <div className="flex flex-col gap-6">
-      <AnalyticsIntro description="Inquiries by stage, why they were lost, and which sources convert." />
-      <Suspense fallback={<AnalyticsStatCardsSkeleton rows={1} />}>
-        <StatsData scope={scope} />
-      </Suspense>
-
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
-        <ChartCard title="Lead stages" subtitle="How far leads got in the pipeline" info="Each step counts leads that reached at least that stage: a converted lead passed through every earlier one. Lost leads count only in All leads, since we do not know where they dropped out.">
-          <Suspense fallback={<ChartSkeleton />}>
-            <StageChart scope={scope} />
-          </Suspense>
-        </ChartCard>
-        <ChartCard title="Where each source's leads went" subtitle="Source to converted, lost or still open" info="Leads in range by source and where they are now. Top 5 sources, the rest folded into Other. Overall conversion is in the cards above.">
-          <Suspense fallback={<ChartSkeleton />}>
-            <ConversionChart scope={scope} />
-          </Suspense>
-        </ChartCard>
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
-        <ChartCard title="Source performance" subtitle="Leads and conversion rate by source" info="Open a source to see those inquiries.">
-          <Suspense fallback={<ChartSkeleton />}>
-            <SourceTable scope={scope} />
-          </Suspense>
-        </ChartCard>
-        <ChartCard title="Lost reasons" subtitle="Leads marked lost, and renewals not renewed">
-          <Suspense fallback={<ChartSkeleton />}>
-            <LostReasonChart scope={scope} />
-          </Suspense>
-        </ChartCard>
-      </div>
-      <ChartCard title="Renewals by round" subtitle="Renewals due and renewed in each round" info="Each renewal of a plan: due when the plan nears its end, renewed when the next plan is booked. Renewal 4 counts every renewal from the 4th on.">
-        <Suspense fallback={<ChartSkeleton />}>
-          <RenewalRoundsList scope={scope} />
+    <Can perms={{ inquiry: ["read"] }} fallback={<NoAccessNote />}>
+      <div className="flex flex-col gap-6">
+        <AnalyticsIntro description="Inquiries by stage, why they were lost, and which sources convert." />
+        <Suspense fallback={<AnalyticsStatCardsSkeleton rows={1} />}>
+          <StatsData scope={scope} />
         </Suspense>
-      </ChartCard>
-    </div>
+
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
+          <ChartCard title="Lead stages" subtitle="How far leads got in the pipeline" info="Each step counts leads that reached at least that stage: a converted lead passed through every earlier one. Lost leads count only in All leads, since we do not know where they dropped out.">
+            <Suspense fallback={<ChartSkeleton />}>
+              <StageChart scope={scope} />
+            </Suspense>
+          </ChartCard>
+          <ChartCard title="Where each source's leads went" subtitle="Source to converted, lost or still open" info="Leads in range by source and where they are now. Top 5 sources, the rest folded into Other. Overall conversion is in the cards above.">
+            <Suspense fallback={<ChartSkeleton />}>
+              <ConversionChart scope={scope} />
+            </Suspense>
+          </ChartCard>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:gap-5">
+          <ChartCard title="Source performance" subtitle="Leads and conversion rate by source" info="Open a source to see those inquiries.">
+            <Suspense fallback={<ChartSkeleton />}>
+              <SourceTable scope={scope} />
+            </Suspense>
+          </ChartCard>
+          <ChartCard title="Lost reasons" subtitle="Leads marked lost, and renewals not renewed">
+            <Suspense fallback={<ChartSkeleton />}>
+              <LostReasonChart scope={scope} />
+            </Suspense>
+          </ChartCard>
+        </div>
+        <ChartCard title="Renewals by round" subtitle="Renewals due and renewed in each round" info="Each renewal of a plan: due when the plan nears its end, renewed when the next plan is booked. Renewal 4 counts every renewal from the 4th on.">
+          <Suspense fallback={<ChartSkeleton />}>
+            <RenewalRoundsList scope={scope} />
+          </Suspense>
+        </ChartCard>
+      </div>
+    </Can>
   );
 }
 
