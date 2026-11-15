@@ -103,7 +103,7 @@ export const roles = {
     // endpoint would page through every customer's PII without touching audit_log.
     // Nothing here needs them: the users page queries the database directly, so the
     // only effect of granting them would be an unaudited read channel.
-    user: ["create", "set-role"],
+    user: ["create"],
     session: ["list", "revoke", "delete"],
     staff: ["invite", "suspend", "remove"],
     settings: ["read", "write"],

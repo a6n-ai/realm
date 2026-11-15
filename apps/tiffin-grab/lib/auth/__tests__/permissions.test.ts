@@ -11,8 +11,9 @@ describe("tiffin-grab permission map", () => {
     expect(INVITABLE_ROLES).toEqual(["admin", "member"]);
   });
 
-  it("lets admin create users and set roles", () => {
-    expect(roles.admin.authorize({ user: ["create", "set-role"] }).success).toBe(true);
+  it("lets admin create users but not set roles", () => {
+    expect(roles.admin.authorize({ user: ["create"] }).success).toBe(true);
+    expect(roles.admin.authorize({ user: ["set-role"] }).success).toBe(false);
     expect(roles.admin.authorize({ staff: ["invite", "suspend", "remove"] }).success).toBe(true);
   });
 

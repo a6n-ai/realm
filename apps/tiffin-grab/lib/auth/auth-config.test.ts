@@ -25,3 +25,23 @@ describe("auth config", () => {
     expect(trusted).toEqual(["cf-connecting-ip"]);
   });
 });
+
+describe("disabled HTTP paths", () => {
+  it("404s every org/admin mutation over the HTTP handler", async () => {
+    const { auth } = await loadAuth(false);
+    const { DISABLED_PATHS } = await import("./index");
+    for (const path of DISABLED_PATHS.filter((p) => p !== "/sign-in/magic-link")) {
+      const res = await auth.handler(
+        new Request(`http://localhost:3000/api/auth${path}`, { method: "POST", headers: { "content-type": "application/json" }, body: "{}" }),
+      );
+      expect(res.status, path).toBe(404);
+    }
+  });
+
+  it("keeps client-used routes mounted", async () => {
+    const { DISABLED_PATHS } = await import("./index");
+    for (const p of ["/organization/set-active", "/organization/accept-invitation", "/get-session"]) {
+      expect(DISABLED_PATHS).not.toContain(p);
+    }
+  });
+});

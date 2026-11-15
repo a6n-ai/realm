@@ -15,7 +15,6 @@ import { db } from "@/db/client";
 import { account, invitation, member, organization, organizationRole, rateLimit, session, users, verification } from "@/db/schema";
 import { betterAuthPassword } from "./password";
 import { ac, orgRoles, roles } from "./permissions";
-import { isCustomerRole } from "@/lib/roles";
 import {
   notifyNewLoginIfNewDevice,
   notifyPasswordChanged,
@@ -32,6 +31,35 @@ import { authBaseUrl, authSecret, cookieDomain, e2eBaseUrl, isProduction } from 
 
 const log = createLogger("auth");
 
+export const DISABLED_PATHS = [
+  "/sign-in/magic-link",
+  "/organization/create",
+  "/organization/update",
+  "/organization/delete",
+  "/organization/update-member-role",
+  "/organization/remove-member",
+  "/organization/invite-member",
+  "/organization/cancel-invitation",
+  "/organization/leave",
+  "/organization/create-role",
+  "/organization/update-role",
+  "/organization/delete-role",
+  "/admin/ban-user",
+  "/admin/unban-user",
+  "/admin/create-user",
+  "/admin/get-user",
+  "/admin/impersonate-user",
+  "/admin/stop-impersonating",
+  "/admin/list-user-sessions",
+  "/admin/list-users",
+  "/admin/remove-user",
+  "/admin/revoke-user-session",
+  "/admin/revoke-user-sessions",
+  "/admin/set-role",
+  "/admin/set-user-password",
+  "/admin/update-user",
+];
+
 const SESSION_MAX_AGE_S = 30 * 24 * 60 * 60;
 
 export const auth = betterAuth({
@@ -47,7 +75,12 @@ export const auth = betterAuth({
   // (auth.api calls skip the HTTP router, so they are unaffected). Public
   // sign-in stays email-code / password; an open magic-link route would be a
   // second, unreviewed way to mail a sign-in token to any address.
-  disabledPaths: ["/sign-in/magic-link"],
+  // disabledPaths gates only the HTTP router (better-auth api/index.mjs onRequest);
+  // server actions call auth.api.* and keep working. Every org/admin mutation below is
+  // done through a guarded server action (ceiling, owner and audit rules), so the raw
+  // HTTP twins would bypass those rules. Client-used routes (set-active, accept/reject
+  // invitation, reads) stay open.
+  disabledPaths: DISABLED_PATHS,
   database: drizzleAdapter(db, {
     provider: "pg",
     // organization/member/invitation must be listed too — the organization plugin's
@@ -226,7 +259,7 @@ export const auth = betterAuth({
       ac,
       roles: orgRoles,
       dynamicAccessControl: { enabled: true, maximumRolesPerOrganization: 20 },
-      allowUserToCreateOrganization: (user) => !isCustomerRole(user.role),
+      allowUserToCreateOrganization: () => false,
       // No sendInvitationEmail: the invite mail carries a magic link, which needs
       // auth.api — unreachable from inside this config. Every createInvitation
       // caller sends it via sendStaffInviteLink instead.
