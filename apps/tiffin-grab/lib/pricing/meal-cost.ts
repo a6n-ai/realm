@@ -79,11 +79,6 @@ export function orderCosting(
   return { cost, floor: grossUp(cost, a.minMarginPct), target: grossUp(cost, a.targetMarginPct), targetMarginPct: a.targetMarginPct, minMarginPct: a.minMarginPct };
 }
 
-/** Below-cost floor for the discount lane (cost grossed up by the minimum margin). Null when no cost is known. */
-export async function loadMealCostFloor(mealSizePublicId: string, tiffinCount: number): Promise<number | null> {
-  return (await loadOrderCosting(mealSizePublicId, tiffinCount))?.floor ?? null;
-}
-
 /** Plan cost (food + driver + other per tiffin × tiffins) for each order on a listing page. Null = no cost known. */
 export async function planCostsForOrders(orderPublicIds: string[]): Promise<Record<string, number | null>> {
   if (orderPublicIds.length === 0) return {};

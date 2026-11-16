@@ -18,8 +18,8 @@ const FIELDS: { key: Key; label: string }[] = [
   { key: "marketingMonthly", label: "Marketing / month" },
   { key: "salaryMonthly", label: "Salaries / month" },
   { key: "otherMonthly", label: "Other expenses / month" },
-  { key: "targetMarginPct", label: "Target margin" },
-  { key: "minMarginPct", label: "Minimum margin" },
+  { key: "targetMarginPct", label: "Recommended margin" },
+  { key: "minMarginPct", label: "Loss warning below" },
 ];
 
 function asFields(current: ProfitabilityAssumptions): Record<Key, string> {
@@ -44,7 +44,7 @@ export function AssumptionsForm({
       return;
     }
     if (parsed.targetMarginPct > 95 || parsed.minMarginPct > parsed.targetMarginPct) {
-      toast.error("Margins go up to 95%, and the minimum cannot be above the target");
+      toast.error("Margins go up to 95%, and the loss warning cannot be above the recommended margin");
       return;
     }
     start(async () => {

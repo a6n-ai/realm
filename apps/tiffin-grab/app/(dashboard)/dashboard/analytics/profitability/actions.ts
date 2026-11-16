@@ -18,7 +18,7 @@ const schema = z.object({
   otherMonthly: money,
   targetMarginPct: z.number().min(0).max(95),
   minMarginPct: z.number().min(0).max(95),
-}).refine((v) => v.minMarginPct <= v.targetMarginPct, { message: "The minimum margin cannot be above the target" });
+}).refine((v) => v.minMarginPct <= v.targetMarginPct, { message: "The loss warning margin cannot be above the recommended margin" });
 
 export async function saveAssumptionsAction(input: unknown): Promise<ActionResult> {
   return staffAction({ guard: { settings: ["write"] }, revalidate: [PATH, SETTINGS_PATH] }, async () => {

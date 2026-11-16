@@ -17,7 +17,7 @@ export type ProfitabilityAssumptions = {
   otherMonthly: number;
   /** Margin the Estimate recommends staying at or above, as a % of the pre-tax total after discounts. */
   targetMarginPct: number;
-  /** Discounts may not go below this margin (0 = sell at cost at worst). */
+  /** Below this margin staff see a loss warning; it never blocks a discount. */
   minMarginPct: number;
 };
 

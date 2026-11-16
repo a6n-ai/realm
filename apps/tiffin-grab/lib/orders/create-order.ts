@@ -53,7 +53,6 @@ import { eatingDaysError, orderDeliveryDays, planDaysError, type DayOfWeek } fro
 import { getAppSettings } from "@/lib/settings";
 import { getPaymentConfig } from "@/lib/payments/payment-config";
 import { coinQuote, loadCoinConfig } from "./quote";
-import { loadMealCostFloor } from "@/lib/pricing/meal-cost";
 import { applyDiscountLane } from "@/lib/coupons/discount-lane";
 import { isProduction } from "@/lib/runtime/env";
 import { lockUser } from "@/lib/identity/lock-user";
@@ -437,12 +436,9 @@ export async function createOrder(
     const postCatalog = postCatalogSubtotal(basePricing.subtotal, basePricing.adjustments);
     const adjustments: PricingLine[] = [];
     const redemptions: { coupon: typeof coupons.$inferSelect; amount: number; redeemedBy: bigint | null }[] = [];
-    // Below-cost guard is a staff control; customers apply admin-issued coupons as published.
-    const costFloor = staffCreated ? await loadMealCostFloor(mealSize.publicId, basePricing.tiffinCount) : null;
 
     // Customer lane then the staff lane, shared with the staff price preview. An explicitly
     // entered code that is invalid fails the order with the reason; auto-apply coupons never do.
-    // costFloor refuses staff/manual coupons that would sell the plan below kitchen cost.
     const lane = await applyDiscountLane({
       postCatalog,
       planType: plan.planType,
@@ -451,7 +447,6 @@ export async function createOrder(
       manualCode: input.couponCode,
       manualCodes: input.couponCodes,
       rep: input.repCoupon ? { code: input.repCoupon.code, requestedAmount: input.repCoupon.requestedAmount, actorId: createdBy } : undefined,
-      costFloor,
       strict: true,
     });
     adjustments.push(...lane.lines);

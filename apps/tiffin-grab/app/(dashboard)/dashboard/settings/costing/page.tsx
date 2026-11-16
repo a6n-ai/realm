@@ -38,7 +38,7 @@ export default async function CostingSettingsPage() {
               . A meal size with a Cost price uses that instead.
             </p>
             <p>Plan cost = (food + driver + other per tiffin) × tiffins. Marketing and salaries stay in Profitability only.</p>
-            <p>Staff see the cost and margin on every quote. Discounts past the target margin get a warning; past the minimum margin they are refused.</p>
+            <p>Staff see the cost, margin and a recommended max discount on every quote. These are recommendations only: discounts past them get a warning but still apply. Customers never see cost or margin.</p>
           </CardContent>
         </Card>
       </div>

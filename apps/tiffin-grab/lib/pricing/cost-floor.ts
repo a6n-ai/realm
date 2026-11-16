@@ -11,5 +11,3 @@ export function maxDiscountAboveCost(postCatalog: number, costFloor: number | nu
   if (costFloor == null) return null;
   return Math.max(0, round2(postCatalog - costFloor));
 }
-
-export const BELOW_COST_ERROR = "This discount would sell below cost";

@@ -51,13 +51,10 @@ export function CustomerCodeField({
     if (issued && apply) apply(issued.code);
   }, [issued, apply]);
 
-  // Allowance dual ceiling, then the cost floor so a code can't sell the plan at a loss.
-  const allowanceCeiling = allowance ? round2(Math.min(allowance.capAmount, (subtotal * allowance.capPct) / 100)) : 0;
-  const ceiling = maxStaffDiscount == null
-    ? allowanceCeiling
-    : round2(Math.min(allowanceCeiling, maxStaffDiscount));
-  const limitedByCost = maxStaffDiscount != null && maxStaffDiscount < allowanceCeiling;
+  // Allowance dual ceiling. Cost only warns: staff may still sell below it.
+  const ceiling = allowance ? round2(Math.min(allowance.capAmount, (subtotal * allowance.capPct) / 100)) : 0;
   const value = Number(amount);
+  const belowCost = maxStaffDiscount != null && value > maxStaffDiscount;
   const valid = allowance != null && allowance.left > 0 && value > 0 && value <= ceiling;
 
   const generate = async () => {
@@ -115,9 +112,14 @@ export function CustomerCodeField({
           </div>
           <p className="text-muted-foreground text-xs tabular-nums">
             {subtotal > 0
-              ? `Up to ${fmtMoney(ceiling)} on this order${limitedByCost ? " (keeps price above cost)" : ""}`
+              ? `Up to ${fmtMoney(ceiling)} on this order`
               : "Price the order first"} · {allowance.left} of {allowance.total} left today
           </p>
+          {belowCost ? (
+            <p className="text-warning text-xs tabular-nums">
+              Sells below cost: more than {fmtMoney(maxStaffDiscount ?? 0)} off loses money on this order.
+            </p>
+          ) : null}
           <Button type="button" variant="outline" disabled={!valid || busy} onClick={() => void generate()}>
             {busy ? "Creating…" : "Generate code"}
           </Button>

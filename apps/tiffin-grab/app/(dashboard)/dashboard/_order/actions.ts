@@ -272,7 +272,6 @@ async function quotePrice(
     manualCode: input.couponCode,
     manualCodes: input.couponCodes,
     rep: code ? { code, requestedAmount: repAmount, actorId } : undefined,
-    costFloor,
     strict: false,
   });
   const { best, error, lines } = lane;

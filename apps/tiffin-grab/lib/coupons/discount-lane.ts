@@ -1,7 +1,6 @@
 import { round2 } from "@foundry/commons/util/money";
 import { ValidationError } from "@foundry/commons";
 import type { PricingLine } from "@/lib/pricing";
-import { BELOW_COST_ERROR } from "@/lib/pricing/cost-floor";
 import { couponsService, type BestCouponsResult } from "@/lib/coupons/coupons.service";
 import type { coupons } from "@/db/schema";
 
@@ -23,10 +22,6 @@ const ONE_STAFF_DISCOUNT = "Only one staff discount per order: remove the staff 
  * Coupons then the rep discount, resolved against the post-catalog subtotal: the one lane
  * createOrder (strict: rejects) and the staff price preview (lenient: reports) both price through.
  * Coins come after, sized with coinLimits.
- *
- * When `costFloor` is set (meal cost × tiffin count), staff-applied coupons and the rep
- * discount are refused if they would leave the post-catalog total below that floor. Auto
- * coupons stay — those are admin catalog policy, not a sales-agent giveaway.
  */
 export async function applyDiscountLane(args: {
   postCatalog: number;
@@ -36,11 +31,9 @@ export async function applyDiscountLane(args: {
   manualCode?: string | null;
   manualCodes?: readonly string[] | null;
   rep?: RepDiscountInput;
-  /** Kitchen COGS for the plan; null/omit skips the below-cost guard. */
-  costFloor?: number | null;
   strict: boolean;
 }): Promise<DiscountLaneResult> {
-  const { postCatalog, strict, costFloor = null } = args;
+  const { postCatalog, strict } = args;
   const best = await couponsService.resolveBestCoupons({
     subtotal: postCatalog,
     planType: args.planType,
@@ -88,46 +81,5 @@ export async function applyDiscountLane(args: {
     }
   }
 
-  return enforceCostFloor(result, postCatalog, costFloor, strict);
-}
-
-/** Drop staff-applied discounts that would sell the plan below kitchen cost. */
-function enforceCostFloor(
-  result: DiscountLaneResult,
-  postCatalog: number,
-  costFloor: number | null,
-  strict: boolean,
-): DiscountLaneResult {
-  if (costFloor == null) return result;
-  const total = () => result.lines.reduce((sum, a) => sum + a.amount, 0);
-  if (round2(postCatalog - total()) >= costFloor) return result;
-
-  const keep = result.applied.filter((a) => a.coupon.autoApply);
-  const dropped = result.applied.filter((a) => !a.coupon.autoApply);
-  const hadRep = result.rep != null;
-  if (dropped.length === 0 && !hadRep) return result;
-
-  const lines: PricingLine[] = keep.map((a) => ({ label: `${a.coupon.name} (${a.coupon.code})`, amount: a.amount }));
-  const manualErrors: typeof result.best.manualErrors = [
-    ...result.best.manualErrors,
-    ...dropped.map((d) => ({ code: d.coupon.code, error: BELOW_COST_ERROR })),
-  ];
-  if (strict) {
-    if (dropped[0]) throw new ValidationError(`${dropped[0].coupon.code}: ${BELOW_COST_ERROR}`);
-    throw new ValidationError(BELOW_COST_ERROR);
-  }
-  return {
-    best: {
-      ...result.best,
-      lines,
-      redemptions: keep,
-      manualError: manualErrors[0]?.error ?? result.best.manualError,
-      manualErrorCode: manualErrors[0]?.errorCode,
-      manualErrors,
-    },
-    lines,
-    applied: keep,
-    rep: null,
-    error: hadRep ? BELOW_COST_ERROR : result.error,
-  };
+  return result;
 }

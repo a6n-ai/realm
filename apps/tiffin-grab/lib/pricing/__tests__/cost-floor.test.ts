@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BELOW_COST_ERROR, maxDiscountAboveCost, mealCostFloor } from "../cost-floor";
+import { maxDiscountAboveCost, mealCostFloor } from "../cost-floor";
 
 describe("mealCostFloor", () => {
   it("multiplies cost per tiffin by count", () => {
@@ -19,11 +19,5 @@ describe("maxDiscountAboveCost", () => {
     expect(maxDiscountAboveCost(100, 70)).toBe(30);
     expect(maxDiscountAboveCost(100, 120)).toBe(0);
     expect(maxDiscountAboveCost(100, null)).toBeNull();
-  });
-});
-
-describe("BELOW_COST_ERROR", () => {
-  it("is the staff-facing reject reason", () => {
-    expect(BELOW_COST_ERROR).toMatch(/below cost/i);
   });
 });
