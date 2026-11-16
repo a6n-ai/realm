@@ -437,7 +437,8 @@ export async function createOrder(
     const postCatalog = postCatalogSubtotal(basePricing.subtotal, basePricing.adjustments);
     const adjustments: PricingLine[] = [];
     const redemptions: { coupon: typeof coupons.$inferSelect; amount: number; redeemedBy: bigint | null }[] = [];
-    const costFloor = await loadMealCostFloor(mealSize.publicId, basePricing.tiffinCount);
+    // Below-cost guard is a staff control; customers apply admin-issued coupons as published.
+    const costFloor = staffCreated ? await loadMealCostFloor(mealSize.publicId, basePricing.tiffinCount) : null;
 
     // Customer lane then the staff lane, shared with the staff price preview. An explicitly
     // entered code that is invalid fails the order with the reason; auto-apply coupons never do.

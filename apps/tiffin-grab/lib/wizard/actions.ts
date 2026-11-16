@@ -9,7 +9,6 @@ import { emailSchema, ValidationError } from "@foundry/commons";
 import { findZone } from "@/lib/catalog/zone-match";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
-import { loadMealCostFloor } from "@/lib/pricing/meal-cost";
 import { type PricingResult, type PricingSelections } from "@/lib/pricing";
 import { applyDiscountLane } from "@/lib/coupons/discount-lane";
 import { userIdByPublicId } from "@/lib/identity/user-ids";
@@ -142,14 +141,12 @@ async function quote(
   const session = await getSession();
   const userId = session?.user?.id ? await userIdByPublicId(session.user.id) : null;
 
-  const costFloor = await loadMealCostFloor(selections.mealSizeId, base.tiffinCount);
   const lane = await applyDiscountLane({
     postCatalog,
     planType,
     userId,
     paymentMethodId: methodId,
     manualCodes: typeof couponCodes === "string" ? [couponCodes] : couponCodes,
-    costFloor,
     strict: false,
   });
   const { best } = lane;
