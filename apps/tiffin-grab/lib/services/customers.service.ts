@@ -368,9 +368,28 @@ export async function listCustomersPage(
   } as const;
   const col = SORT_COL[sort.column] ?? users.name;
 
-  const [rows, [{ count }]] = await Promise.all([
+  // Page ids first: only the sort column runs for every customer. The correlated columns below
+  // (paid, last delivered, invite, reminder) then run for the page's rows instead of all of them.
+  const [pageIds, [{ count }]] = await Promise.all([
     db
+      .select({ id: users.id })
+      .from(users)
+      .leftJoin(orders, eq(orders.userId, users.id))
+      .where(where)
+      .groupBy(users.id)
+      .orderBy(...pageOrder(sort.dir, col, users.id))
+      .limit(page.size)
+      .offset(pageOffset(page.page, page.size)),
+    db
+      .select({ count: sql<number>`cast(count(*) as int)` })
+      .from(users)
+      .where(where),
+  ]);
+  if (pageIds.length === 0) return { items: [], page: page.page, size: page.size, total: count };
+
+  const detail = await db
       .select({
+        id: users.id,
         publicId: users.publicId,
         name: users.name,
         email: users.email,
@@ -394,18 +413,12 @@ export async function listCustomersPage(
       })
       .from(users)
       .leftJoin(orders, eq(orders.userId, users.id))
-      .where(where)
-      .groupBy(users.id, users.publicId, users.name, users.email, users.phone)
-      .orderBy(...pageOrder(sort.dir, col, users.id))
-      .limit(page.size)
-      .offset(pageOffset(page.page, page.size)),
-    db
-      .select({ count: sql<number>`cast(count(*) as int)` })
-      .from(users)
-      .where(where),
-  ]);
+      .where(inArray(users.id, pageIds.map((r) => r.id)))
+      .groupBy(users.id, users.publicId, users.name, users.email, users.phone);
+  const byId = new Map(detail.map(({ id, ...row }) => [id, row]));
+  const items = pageIds.flatMap((r) => byId.get(r.id) ?? []);
 
-  return { items: rows, page: page.page, size: page.size, total: count };
+  return { items, page: page.page, size: page.size, total: count };
 }
 
 // Serializable order row for the customer's own dashboard. Carries plan + meal

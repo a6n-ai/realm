@@ -1,4 +1,5 @@
-import { asc, eq, inArray } from "drizzle-orm";
+import { cache } from "react";
+import { asc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { categoryCostRates, deliveries, deliveryCategorySwaps, dishCategories, mealSizeItems, orderAddons, orders } from "@/db/schema";
 import { coveredDates } from "@/lib/deliveries/schedule/coverage";
@@ -11,7 +12,8 @@ import { tiffinFoodCost, type CostPick, type CostRate } from "./food-cost";
 import { deliveredWhere } from "./delivered-where";
 import { noOrgs } from "./metrics/scope";
 
-export type FoodCostDay = { foodCost: number; tiffinsWithoutRate: number; unratedCategories: string[] };
+/** `freeFood`/`freeTiffins`: the part of the day that went out as free (complimentary) tiffins. */
+export type FoodCostDay = { foodCost: number; tiffinsWithoutRate: number; unratedCategories: string[]; freeFood: number; freeTiffins: number };
 
 /** One tiffin's picks for one eating day: the meal's rows plus add-on rows, folded through that day's swaps like the kitchen sheet. */
 export function deliveryPicks(input: {
@@ -58,9 +60,11 @@ export function deliveryPicks(input: {
 export async function foodCostByDate(scope: AnalyticsScope, from: string, to: string): Promise<Map<string, FoodCostDay>> {
   const out = new Map<string, FoodCostDay>();
   for (const t of await foodCostByTrip(scope, from, to)) {
-    const day = out.get(t.deliveryDate) ?? { foodCost: 0, tiffinsWithoutRate: 0, unratedCategories: [] };
+    const day = out.get(t.deliveryDate) ?? { foodCost: 0, tiffinsWithoutRate: 0, unratedCategories: [], freeFood: 0, freeTiffins: 0 };
     day.foodCost += t.foodCost;
     day.tiffinsWithoutRate += t.tiffinsWithoutRate;
+    day.freeFood += t.freeFood;
+    day.freeTiffins += t.freeTiffins;
     day.unratedCategories = [...new Set([...day.unratedCategories, ...t.unratedCategories])].sort();
     out.set(t.deliveryDate, day);
   }
@@ -69,8 +73,13 @@ export async function foodCostByDate(scope: AnalyticsScope, from: string, to: st
 
 export type FoodCostTrip = FoodCostDay & { deliveryId: bigint; orderId: bigint; deliveryDate: string };
 
-/** Food cost of each delivered trip in the window (every eating day it carries). */
-export async function foodCostByTrip(scope: AnalyticsScope, from: string, to: string): Promise<FoodCostTrip[]> {
+/**
+ * Food cost of each delivered trip in the window (every eating day it carries). Cached per request,
+ * so Profitability's report and its Orders by week table share one pass over the same range.
+ */
+export const foodCostByTrip = cache(loadFoodCostByTrip);
+
+async function loadFoodCostByTrip(scope: AnalyticsScope, from: string, to: string): Promise<FoodCostTrip[]> {
   const out: FoodCostTrip[] = [];
   if (noOrgs(scope)) return out;
 
@@ -80,6 +89,7 @@ export async function foodCostByTrip(scope: AnalyticsScope, from: string, to: st
       deliveryDate: deliveries.deliveryDate,
       coversDates: deliveries.coversDates,
       tiffinUnits: deliveries.tiffinUnits,
+      free: sql<boolean>`${deliveries.complimentaryNote} is not null`,
       orderId: orders.id,
       mealSizeId: orders.mealSizeId,
       planId: orders.planId,
@@ -159,7 +169,7 @@ export async function foodCostByTrip(scope: AnalyticsScope, from: string, to: st
   for (const trip of trips) {
     const days = coveredDates({ deliveryDate: trip.deliveryDate, coversDates: trip.coversDates });
     const persons = trip.tiffinUnits / days.length;
-    const cost: FoodCostTrip = { deliveryId: trip.id, orderId: trip.orderId, deliveryDate: trip.deliveryDate, foodCost: 0, tiffinsWithoutRate: 0, unratedCategories: [] };
+    const cost: FoodCostTrip = { deliveryId: trip.id, orderId: trip.orderId, deliveryDate: trip.deliveryDate, foodCost: 0, tiffinsWithoutRate: 0, unratedCategories: [], freeFood: 0, freeTiffins: 0 };
     const unrated = new Set<string>();
     const mealItems = itemsByMeal.get(trip.mealSizeId) ?? [];
     for (const eatingDay of days) {
@@ -179,6 +189,10 @@ export async function foodCostByTrip(scope: AnalyticsScope, from: string, to: st
       }
     }
     cost.unratedCategories = [...unrated].sort();
+    if (trip.free) {
+      cost.freeFood = cost.foodCost;
+      cost.freeTiffins = trip.tiffinUnits;
+    }
     out.push(cost);
   }
   return out;

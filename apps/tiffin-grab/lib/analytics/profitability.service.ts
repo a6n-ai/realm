@@ -3,7 +3,7 @@ import { and, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, ledgerEntries, orders, payments } from "@/db/schema";
 import { getProfitabilityAssumptions } from "@/lib/analytics/profitability-settings";
-import { costBreakdown, decorateDay, kpis, rollup, type CostPart, type Grain, type ProfitabilityAssumptions, type ProfitabilityKpis, type ProfitRow } from "@/lib/analytics/profitability";
+import { costBreakdown, decorateDay, freeTiffinCost, type FreeTiffinCost, kpis, rollup, type CostPart, type Grain, type ProfitabilityAssumptions, type ProfitabilityKpis, type ProfitRow } from "@/lib/analytics/profitability";
 import { chartPeriod } from "@/lib/analytics/buckets";
 import { foodCostByDate } from "./food-cost.service";
 import { deliveredBase, deliveredWhere } from "./delivered-where";
@@ -30,6 +30,8 @@ export type ProfitabilityReport = {
   kpis: ProfitabilityKpis;
   rows: ProfitRow[];
   costParts: CostPart[];
+  /** Free (complimentary) tiffins delivered: no revenue, and this share of food, driver and other cost. */
+  free: FreeTiffinCost;
   /** Delivered tiffins on WP-migrated orders (no stored price, no payment here): left out of revenue and per-tiffin costs. */
   migratedTiffinsExcluded: number;
   /** Captured add-on payments on migrated orders in range: their money is not in earned revenue either. */
@@ -178,6 +180,7 @@ export async function getProfitabilityReport(opts: {
     kpis: stats,
     rows,
     costParts: costBreakdown(rows),
+    free: freeTiffinCost(foodDays, assumptions),
     migratedTiffinsExcluded: Number(migrated?.n ?? 0),
     migratedAddonPayments: Number(migratedAddons?.n ?? 0),
     trend: rows.map((r) => ({

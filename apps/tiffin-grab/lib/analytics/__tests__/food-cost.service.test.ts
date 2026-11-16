@@ -211,6 +211,6 @@ describe("foodCostByDate", () => {
 
   it("counts a tiffin whose meal size has no items as unrated", async () => {
     const byDate = await foodCostByDate(scope, FROM, TO);
-    expect(byDate.get("2036-03-10")).toEqual({ foodCost: 1, tiffinsWithoutRate: 1, unratedCategories: [] });
+    expect(byDate.get("2036-03-10")).toEqual({ foodCost: 1, tiffinsWithoutRate: 1, unratedCategories: [], freeFood: 0, freeTiffins: 0 });
   });
 });

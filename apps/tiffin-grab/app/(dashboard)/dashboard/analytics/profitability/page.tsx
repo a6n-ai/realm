@@ -252,7 +252,7 @@ async function Cards({ view }: { view: View }) {
 
 async function Costs({ view }: { view: View }) {
   const report = await reportFrom(view);
-  return <WaterfallChart format="currency" {...buildProfitWaterfall(report.kpis, report.costParts)} />;
+  return <WaterfallChart format="currency" {...buildProfitWaterfall(report.kpis, report.costParts, report.free)} />;
 }
 
 async function MigratedNote({ view }: { view: View }) {

@@ -33,6 +33,15 @@ describe("buildProfitWaterfall", () => {
   });
 });
 
+describe("buildProfitWaterfall free tiffins", () => {
+  it("moves free tiffin cost out of food, driver and other into its own bar, same profit", () => {
+    const rows = [row({ revenue: 100, cashCollected: 100, food: 40, driver: 20, other: 5, costs: 65, profit: 35 })];
+    const w = buildProfitWaterfall(kpis(rows), costBreakdown(rows), { tiffins: 2, food: 8, driver: 4, other: 1 });
+    expect(w.steps.map((s) => [s.label, s.value])).toEqual([["Revenue", 100], ["Free tiffins (2)", -13], ["Food", -32], ["Driver", -16], ["Other", -4]]);
+    expect(w.steps.reduce((t, x) => (x.total ? x.value : t + x.value), w.start.value)).toBeCloseTo(w.end.value, 2);
+  });
+});
+
 describe("buildSourceFlow", () => {
   const src = (key: string, total: number, converted: number, lost: number) => ({ key, source: key, total, converted, lost });
   it("splits each source into converted, lost and still open, and folds the tail", () => {

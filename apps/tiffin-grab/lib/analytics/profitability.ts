@@ -247,6 +247,22 @@ export function kpis(rows: ProfitRow[]): ProfitabilityKpis {
 export type CostPart = { label: string; value: number };
 
 /** Total costs by kind (five parts, so the donut never folds). */
+export type FreeTiffinCost = { tiffins: number; food: number; driver: number; other: number };
+
+/** Cost of the free tiffins, already inside Food, Driver and Other; the waterfall pulls it out as its own bar. */
+export function freeTiffinCost(
+  days: { freeFood: number; freeTiffins: number }[],
+  a: Pick<ProfitabilityAssumptions, "driverCostPerTiffin" | "otherCostPerTiffin">,
+): FreeTiffinCost {
+  const tiffins = round2(days.reduce((s, d) => s + d.freeTiffins, 0));
+  return {
+    tiffins,
+    food: round2(days.reduce((s, d) => s + d.freeFood, 0)),
+    driver: round2(tiffins * a.driverCostPerTiffin),
+    other: round2(tiffins * a.otherCostPerTiffin),
+  };
+}
+
 export function costBreakdown(rows: ProfitRow[]): CostPart[] {
   const sum = (k: "food" | "driver" | "marketing" | "salaries" | "other") => round2(rows.reduce((s, r) => s + r[k], 0));
   return [
