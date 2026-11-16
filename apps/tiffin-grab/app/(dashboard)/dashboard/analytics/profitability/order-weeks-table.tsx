@@ -12,8 +12,8 @@ import { cn } from "@foundry/ui/cn";
 import type { OrderCostRow, OrderWeek } from "@/lib/analytics/order-weeks.service";
 
 type Row = OrderCostRow;
-type Sum = "tiffins" | "selling" | "deductions" | "revenue" | "food" | "driver" | "profit";
-const SUMS: Sum[] = ["tiffins", "selling", "deductions", "revenue", "food", "driver", "profit"];
+type Sum = "tiffins" | "free" | "selling" | "deductions" | "revenue" | "food" | "driver" | "profit";
+const SUMS: Sum[] = ["tiffins", "free", "selling", "deductions", "revenue", "food", "driver", "profit"];
 
 /** One row per order: All weeks folds an order's weekly rows into one. */
 function byOrder(rows: Row[]): Row[] {
@@ -73,7 +73,7 @@ export function OrderWeeksTable({ weeks }: { weeks: OrderWeek[] }) {
           </SelectContent>
         </Select>
         <p className="text-muted-foreground text-xs tabular-nums">
-          {`${orders} ${orders === 1 ? "order" : "orders"} · ${total("tiffins")} tiffins · Selling ${money(total("selling"))} · Deductions ${money(total("deductions"))} · Revenue ${money(total("revenue"))} · Food ${money(total("food"))} · Driver ${money(total("driver"))} · Cost ${money(round2(total("food") + total("driver")))} · Profit ${money(total("profit"))}`}
+          {`${orders} ${orders === 1 ? "order" : "orders"} · ${total("tiffins")} tiffins${total("free") > 0 ? ` (${total("free")} free)` : ""} · Selling ${money(total("selling"))} · Deductions ${money(total("deductions"))} · Revenue ${money(total("revenue"))} · Food ${money(total("food"))} · Driver ${money(total("driver"))} · Cost ${money(round2(total("food") + total("driver")))} · Profit ${money(total("profit"))}`}
         </p>
       </div>
       <DataTable
@@ -96,7 +96,12 @@ export function OrderWeeksTable({ weeks }: { weeks: OrderWeek[] }) {
                 </span>
               </div>
             </TableCell>
-            <TableCell className="text-right tabular-nums">{r.tiffins}</TableCell>
+            <TableCell className="text-right tabular-nums">
+              <div className="flex flex-col items-end">
+                {r.tiffins}
+                {r.free > 0 ? <span className="text-warning text-xs">{r.free} free</span> : null}
+              </div>
+            </TableCell>
             <TableCell className="text-right tabular-nums">{money(r.selling)}</TableCell>
             <TableCell className="text-muted-foreground text-right tabular-nums">{r.deductions > 0 ? `−${money(r.deductions)}` : money(0)}</TableCell>
             <TableCell className="text-right tabular-nums">{money(r.revenue)}</TableCell>

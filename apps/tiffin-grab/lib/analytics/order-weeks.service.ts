@@ -16,6 +16,8 @@ export type OrderCostRow = {
   customer: string;
   mealSize: string;
   tiffins: number;
+  /** Of `tiffins`, the free ones staff added (complimentary): no selling price and no revenue. */
+  free: number;
   /** List price of these tiffins before any discount (order subtotal share). */
   selling: number;
   /** Coupons, staff and catalog discounts on these tiffins (selling minus the net price, ex tax). */
@@ -32,22 +34,23 @@ export type OrderWeek = {
   key: string;
   label: string;
   orders: OrderCostRow[];
-  totals: { orders: number; tiffins: number; selling: number; deductions: number; revenue: number; food: number; driver: number; profit: number };
+  totals: { orders: number; tiffins: number; free: number; selling: number; deductions: number; revenue: number; food: number; driver: number; profit: number };
 };
 
 type Acc = Omit<OrderCostRow, "profit">;
 type OrderInfo = Pick<OrderCostRow, "orderPublicId" | "deploymentId" | "customer" | "mealSize">;
 
 export function groupOrderWeeks(
-  trips: { orderId: bigint; deliveryDate: string; tiffins: number; selling: number; deductions: number; revenue: number; food: number; unrated: boolean; order: OrderInfo }[],
+  trips: { orderId: bigint; deliveryDate: string; tiffins: number; free: number; selling: number; deductions: number; revenue: number; food: number; unrated: boolean; order: OrderInfo }[],
   driverPerTiffin: number,
 ): OrderWeek[] {
   const weeks = new Map<string, Map<bigint, Acc>>();
   for (const t of trips) {
     const key = periodKey(t.deliveryDate, "weekly");
     const byOrder = weeks.get(key) ?? new Map<bigint, Acc>();
-    const acc = byOrder.get(t.orderId) ?? { ...t.order, tiffins: 0, selling: 0, deductions: 0, revenue: 0, food: 0, driver: 0, unrated: false };
+    const acc = byOrder.get(t.orderId) ?? { ...t.order, tiffins: 0, free: 0, selling: 0, deductions: 0, revenue: 0, food: 0, driver: 0, unrated: false };
     acc.tiffins += t.tiffins;
+    acc.free += t.free;
     acc.selling += t.selling;
     acc.deductions += t.deductions;
     acc.revenue += t.revenue;
@@ -63,12 +66,12 @@ export function groupOrderWeeks(
       const rows = [...byOrder.values()]
         .map((a) => ({ ...a, selling: round2(a.selling), deductions: round2(a.deductions), revenue: round2(a.revenue), food: round2(a.food), driver: round2(a.driver), profit: round2(a.revenue - a.food - a.driver) }))
         .sort((a, b) => a.profit - b.profit);
-      const sum = (k: "tiffins" | "selling" | "deductions" | "revenue" | "food" | "driver" | "profit") => round2(rows.reduce((s, r) => s + r[k], 0));
+      const sum = (k: "tiffins" | "free" | "selling" | "deductions" | "revenue" | "food" | "driver" | "profit") => round2(rows.reduce((s, r) => s + r[k], 0));
       return {
         key,
         label: periodLabel(key, "weekly"),
         orders: rows,
-        totals: { orders: rows.length, tiffins: sum("tiffins"), selling: sum("selling"), deductions: sum("deductions"), revenue: sum("revenue"), food: sum("food"), driver: sum("driver"), profit: sum("profit") },
+        totals: { orders: rows.length, tiffins: sum("tiffins"), free: sum("free"), selling: sum("selling"), deductions: sum("deductions"), revenue: sum("revenue"), food: sum("food"), driver: sum("driver"), profit: sum("profit") },
       };
     });
 }
@@ -87,6 +90,7 @@ export async function getOrderWeeks(scope: AnalyticsScope, from: string, to: str
         orderId: orders.id,
         deliveryDate: deliveries.deliveryDate,
         tiffins: deliveries.tiffinUnits,
+        free: sql<boolean>`${deliveries.complimentaryNote} is not null`,
         revenue: sql<number>`coalesce(case when ${HAS_CAPTURED} and ${deliveries.complimentaryNote} is null
           then ${deliveries.tiffinUnits}::numeric * ${EARNED_PER_TIFFIN} end, 0)::float`,
         orderPublicId: orders.publicId,
@@ -113,8 +117,10 @@ export async function getOrderWeeks(scope: AnalyticsScope, from: string, to: str
         orderId: e.orderId,
         deliveryDate: String(e.deliveryDate).slice(0, 10),
         tiffins: e.tiffins,
-        selling: Number(e.listPerTiffin) * e.tiffins,
-        deductions: Math.max(0, Number(e.listPerTiffin) - Number(e.netPerTiffin)) * e.tiffins,
+        free: e.free ? e.tiffins : 0,
+        // A free tiffin was never sold, so it carries no list price or discount, only cost.
+        selling: e.free ? 0 : Number(e.listPerTiffin) * e.tiffins,
+        deductions: e.free ? 0 : Math.max(0, Number(e.listPerTiffin) - Number(e.netPerTiffin)) * e.tiffins,
         revenue: Number(e.revenue),
         food: f?.foodCost ?? 0,
         unrated: (f?.tiffinsWithoutRate ?? 0) > 0,
