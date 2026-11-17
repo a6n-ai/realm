@@ -65,23 +65,37 @@ function MetaRow({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
+const sum = (rows: OrderPaymentDetail[], pick: (p: OrderPaymentDetail) => number) =>
+  Math.round(rows.reduce((s, p) => s + pick(p), 0) * 100) / 100;
+
 function PaymentSummary({
   orderTotal,
   currency,
   checkoutMethodLabel,
-  pendingRedemptions,
+  snap,
   payments,
 }: {
   orderTotal: number;
   currency: string;
   checkoutMethodLabel: string | null;
-  pendingRedemptions: OrderPricingSnapshot["pendingRedemptions"];
+  snap: OrderPricingSnapshot | null;
   payments: OrderPaymentDetail[];
 }) {
-  const paidTotal = payments
-    .filter((p) => inStatuses(PAID, p.status))
-    .reduce((sum, p) => sum + Number(p.amount), 0);
+  const pendingRedemptions = snap?.pendingRedemptions;
+  const paid = payments.filter((p) => inStatuses(PAID, p.status));
+  // `amount` excludes the card surcharge; the customer was charged both.
+  const paidTotal = sum(paid, (p) => Number(p.amount));
+  const surcharge = sum(paid, (p) => Number(p.surchargeAmount));
+  const refunded = sum(payments.filter((p) => p.status === "refunded"), (p) => Number(p.amount) + Number(p.surchargeAmount));
   const outstanding = Math.max(0, orderTotal - paidTotal);
+  // Older orders can carry a partial snapshot; every field is optional here.
+  const discounts = Math.round((snap?.adjustments ?? []).reduce((s, a) => s + a.amount, 0) * 100) / 100;
+  const addons = snap?.appliedAddons;
+  const row = (label: string, value: number, sign = "") => (
+    <MetaRow label={label}>
+      <span className="tabular-nums">{sign}{formatMoney(value, currency)}</span>
+    </MetaRow>
+  );
   const openPayment = payments.find(
     (p) =>
       p.status === "awaiting_payment" ||
@@ -98,9 +112,20 @@ function PaymentSummary({
         </div>
         <div className="text-right">
           <p className="text-muted-foreground text-xs">Received</p>
-          <p className="font-medium tabular-nums text-ok">{formatMoney(paidTotal, currency)}</p>
+          <p className="font-medium tabular-nums text-ok">{formatMoney(paidTotal + surcharge, currency)}</p>
         </div>
       </div>
+      <Separator />
+      <dl className="space-y-1.5">
+        {snap?.subtotal != null && row("Subtotal", snap.subtotal - (addons?.addonSubtotal ?? 0))}
+        {discounts > 0 && row("Discounts", discounts, "−")}
+        {addons && addons.addonSubtotal > 0 && row("Add-ons", addons.addonSubtotal)}
+        {(snap?.taxTotal ?? 0) > 0 && row("Tax", snap!.taxTotal)}
+        {row("Order total", orderTotal)}
+        {surcharge > 0 && row("Card surcharge", surcharge)}
+        {row("Paid", paidTotal + surcharge)}
+        {refunded > 0 && row("Refunded", refunded, "−")}
+      </dl>
       <Separator />
       <dl className="space-y-1.5">
         {checkoutMethodLabel && (
@@ -550,8 +575,6 @@ export function PaymentsPanel({
   canCharge?: boolean;
 }) {
   const snap = pricingSnapshot as OrderPricingSnapshot | null;
-  const pendingRedemptions = snap?.pendingRedemptions;
-
   if (payments.length === 0) {
     return (
       <div className="space-y-3">
@@ -559,7 +582,7 @@ export function PaymentsPanel({
           orderTotal={orderTotal}
           currency={currency}
           checkoutMethodLabel={checkoutMethodLabel}
-          pendingRedemptions={pendingRedemptions}
+          snap={snap}
           payments={[]}
         />
         <p className="text-muted-foreground text-sm">No payments recorded.</p>
@@ -573,7 +596,7 @@ export function PaymentsPanel({
         orderTotal={orderTotal}
         currency={currency}
         checkoutMethodLabel={checkoutMethodLabel}
-        pendingRedemptions={pendingRedemptions}
+        snap={snap}
         payments={payments}
       />
       <div className="space-y-3">

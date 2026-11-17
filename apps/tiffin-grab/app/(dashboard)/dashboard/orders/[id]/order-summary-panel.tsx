@@ -169,9 +169,8 @@ export function OrderOverview({
         </SectionCard>
 
         {inquiryCard}
-      </div>
 
-      <SectionCard title="Pricing" subtitle="Snapshot taken at checkout. Totals are computed server-side.">
+        <SectionCard title="Pricing" subtitle="Snapshot taken at checkout. Totals are computed server-side.">
         {isPricingSnapshot(snap) ? (
           <OrderPricingBreakdown result={snap} currency={currency} />
         ) : (
@@ -185,7 +184,8 @@ export function OrderOverview({
             </p>
           </div>
         )}
-      </SectionCard>
+        </SectionCard>
+      </div>
     </>
   );
 }

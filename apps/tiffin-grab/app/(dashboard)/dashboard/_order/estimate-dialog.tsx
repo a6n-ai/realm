@@ -191,6 +191,8 @@ export function EstimateDialog({ open, onOpenChange, fromOrder }: { open: boolea
               )}
             </section>
 
+            {estimate?.preview ? <CostingNote costing={estimate.costing} /> : null}
+
             {estimate && <CouponsField estimate={estimate} />}
 
             {estimate?.coins ? (
@@ -208,7 +210,6 @@ export function EstimateDialog({ open, onOpenChange, fromOrder }: { open: boolea
               apply={estimate?.apply}
               note={who?.fullName ? `Estimate: ${who.fullName}` : "Order estimate"}
             />
-            {estimate?.preview ? <CostingNote costing={estimate.costing} /> : null}
 
             <Button type="button" className="mt-auto" disabled={!estimate?.copyText} onClick={() => void copy()}>
               <CopyIcon className="size-4" /> Copy WhatsApp message
