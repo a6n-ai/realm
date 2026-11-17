@@ -495,7 +495,9 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
    * from a new start without losing anything. Whole-day pauses are allowed:
    * changeStartDate carries them over by date.
    */
-  async startChangeBlocker(orderId: bigint, status: string, tx: Pick<typeof db, "select"> = db): Promise<string | null> {
+  // `reset` (staff override) checks only what can't be undone: a started plan. The customer's
+  // moves, swaps, extras and dish picks are then wiped by changeStartDate.
+  async startChangeBlocker(orderId: bigint, status: string, tx: Pick<typeof db, "select"> = db, reset = false): Promise<string | null> {
     if (status !== "active" && status !== "pending" && status !== "waitlisted") return "Only a plan that hasn't started can move its start date";
     const all = await tx.select({ id: deliveries.id, status: deliveries.status, cutoffAt: deliveries.cutoffAt, holidayId: deliveries.holidayId })
       .from(deliveries).where(eq(deliveries.orderId, orderId));
@@ -503,6 +505,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
     // A row a holiday closed was paused by the kitchen, not the customer; the rebuild re-applies holidays.
     const rows = all.filter((d) => !(d.status === "paused" && d.holidayId != null));
     if (rows.some((d) => isCutoffPassed(d.cutoffAt, now))) return "This plan has started: its first delivery is past the cutoff";
+    if (reset) return null;
     if (rows.some((d) => d.status !== "scheduled" && d.status !== "paused")) return "The customer has already held or moved a delivery";
     const ids = all.map((d) => d.id);
     // A partial-day pause leaves a delivery move behind, so it is still caught below.
@@ -561,16 +564,20 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
   // so weeks x days no longer equals what was bought.
   // `force` (staff with order:write, gated in the action) ignores the cutoff: the earliest day
   // counts from today's calendar date and the first delivery may already be past its cutoff.
-  async changeStartDate(publicId: string, startDate: string, opts: { force?: boolean } = {}): Promise<void> {
+  // `reset` (staff with order:write) moves it even after the customer moved, swapped, added or picked
+  // dishes: those are wiped (swaps, extras and moves go with the deleted deliveries; dish picks below).
+  async changeStartDate(publicId: string, startDate: string, opts: { force?: boolean; reset?: boolean } = {}): Promise<void> {
     const force = opts.force === true;
+    const reset = opts.reset === true;
     const actorId = await this.currentUserId();
     const { timezone, cutoffHour } = await getAppSettings();
     await withOrderLock(publicId, async (tx) => {
       const [order] = await tx.select().from(orders).where(eq(orders.publicId, publicId)).for("update").limit(1);
       if (!order) throw new NotFoundError(`Order not found: ${publicId}`);
-      const blocker = await this.startChangeBlocker(order.id, order.status, tx);
+      const blocker = await this.startChangeBlocker(order.id, order.status, tx, reset);
       if (blocker) throw new ValidationError(blocker);
       if (startDate === order.startDate) return;
+      if (reset) await tx.delete(mealSelections).where(eq(mealSelections.orderId, order.id));
       const today = force ? appToday(timezone) : appToday(timezone, cutoffHour);
       if (order.trialLength != null) {
         assertTrialStart(startDate, order.trialWeekdays ?? [], today);
@@ -623,7 +630,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
       await tx.insert(orderActivities).values({
         orderId: order.id,
         type: "note",
-        note: `Start date moved from ${order.startDate} to ${startDate}${force ? " (forced past cutoff)" : ""}`,
+        note: `Start date moved from ${order.startDate} to ${startDate}${force ? " (forced past cutoff)" : ""}${reset ? " (customer's moves, swaps, extras and dish picks reset)" : ""}`,
         createdBy: actorId,
         organizationId: order.organizationId,
       });

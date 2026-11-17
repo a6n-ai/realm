@@ -162,14 +162,16 @@ async function OrderDetail({
   // Ended plans get no subscription week, so their counts come straight from the delivery rows.
   const ended = order.status === "completed" || order.status === "cancelled";
   const running = inOrderStatuses(RUNNING, order.status);
-  const [categoryRows, catalogSnapshot, sub, startBlocker, otherPlanEnd, endedCounts, customerPlans, holds] = await Promise.all([
+  const [categoryRows, catalogSnapshot, sub, [startBlocker, startResetReason], otherPlanEnd, endedCounts, customerPlans, holds] = await Promise.all([
     dishCategoriesService.forPlanType(planType),
     loadCatalogSnapshot(order.organizationId),
     loadSubscription(order, week),
     // A WordPress plan waiting to start has its own Start plan flow.
     migratedWaiting
-      ? "Use Start plan to set when this WordPress plan begins"
-      : ordersService.startChangeBlocker(order.id, order.status),
+      ? (["Use Start plan to set when this WordPress plan begins", null] as const)
+      // Hard blocker (plan started) vs. one staff can override by resetting the customer's changes.
+      : Promise.all([ordersService.startChangeBlocker(order.id, order.status, db, true), ordersService.startChangeBlocker(order.id, order.status)])
+        .then(([hard, any]) => [hard, hard ? null : any] as const),
     // Moving the start must not land inside another running plan of this customer.
     order.userId != null ? earliestNewPlanStart(db, order.userId, order.id) : null,
     ended ? orderTiffinCounts(order.publicId) : null,
@@ -242,6 +244,7 @@ async function OrderDetail({
   const startAction = (
     <StartDateControl
       blockedReason={startBlocker}
+      resetReason={startResetReason}
       orderId={order.publicId}
       startDate={order.startDate}
       minDate={order.trialLength != null ? earliestTrialIso(startToday, startDays) : utcIso(nextWeekday(startToday))}

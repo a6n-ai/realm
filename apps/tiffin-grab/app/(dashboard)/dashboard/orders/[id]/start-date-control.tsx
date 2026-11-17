@@ -22,8 +22,11 @@ export function StartDateControl({
   forceMinDate = minDate,
   allowedDays,
   blockedReason = null,
+  resetReason = null,
   otherPlanEnd = null,
 }: {
+  /** The customer already changed this plan: saving wipes those changes, so it needs confirming. */
+  resetReason?: string | null;
   /** Earliest start when the cutoff is ignored (today's calendar date, not tomorrow's after cutoff). */
   forceMinDate?: string;
   /** First free day after the customer's other running plans, when they have any. */
@@ -61,7 +64,7 @@ export function StartDateControl({
     start(async () => {
       setError(null);
       try {
-        await unwrapAction(changeStartDateAction(orderId, value, force));
+        await unwrapAction(changeStartDateAction(orderId, value, force, !!resetReason));
         setOpen(false);
         router.refresh();
       } catch (e) {
@@ -78,7 +81,9 @@ export function StartDateControl({
       }}
       trigger={<Button size="sm" variant="ghost" className="-my-1 h-7 px-2">Edit</Button>}
       title="Change start date"
-      description="The plan hasn't started, so its deliveries are rescheduled from the new date. Nothing else changes."
+      description={resetReason
+        ? "The plan hasn't started, so its deliveries are rescheduled from the new date."
+        : "The plan hasn't started, so its deliveries are rescheduled from the new date. Nothing else changes."}
       footer={
         <div className="flex justify-end gap-2">
           {force ? (
@@ -92,7 +97,9 @@ export function StartDateControl({
             <>
               <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
               <Button variant="destructive" onClick={() => { setForce(true); setError(null); }}>Force change</Button>
-              <Button disabled={pending || !value || value === startDate} onClick={save}>{pending ? "Saving…" : "Save"}</Button>
+              <Button variant={resetReason ? "destructive" : undefined} disabled={pending || !value || value === startDate} onClick={save}>
+                {pending ? "Saving…" : resetReason ? "Reset changes and save" : "Save"}
+              </Button>
             </>
           )}
         </div>
@@ -102,6 +109,19 @@ export function StartDateControl({
         <Label htmlFor="order-start-date">Start date</Label>
         <DateInput id="order-start-date" min={earliest} value={value} onChange={setValue} className="w-48" />
         <p className="text-muted-foreground text-xs">Earliest {earliest} · starts on {allowedDays.map(dayName).join(", ")}</p>
+        {resetReason && (
+          <Alert variant="warning">
+            <TriangleAlertIcon />
+            <AlertTitle>{resetReason}</AlertTitle>
+            <AlertDescription>
+              <ul className="list-disc ps-4">
+                <li>Saving resets their moved days, meal swaps, extra tiffins and picked dishes.</li>
+                <li>Paused days stay paused if they are still on the new schedule.</li>
+                <li>The tiffin count stays the same. The customer is not notified.</li>
+              </ul>
+            </AlertDescription>
+          </Alert>
+        )}
         {force && (
           <Alert variant="warning">
             <TriangleAlertIcon />

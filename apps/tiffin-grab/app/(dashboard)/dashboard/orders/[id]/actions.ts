@@ -31,10 +31,10 @@ export async function startMigrated(orderId: string, startDate: string): Promise
   return orderAction({ guard: { order: ["write"] }, order: orderId, orderPage: orderId }, () => ordersService.startMigrated(orderId, startDate));
 }
 
-export async function changeStartDateAction(orderId: string, startDate: string, force = false): Promise<ActionResult> {
+export async function changeStartDateAction(orderId: string, startDate: string, force = false, reset = false): Promise<ActionResult> {
   return orderAction({ guard: { order: ["write"] }, order: orderId, orderPage: orderId }, async () => {
-    if (force) await requirePermission({ order: ["write"] });
-    await ordersService.changeStartDate(orderId, startDate, { force });
+    if (force || reset) await requirePermission({ order: ["write"] });
+    await ordersService.changeStartDate(orderId, startDate, { force, reset });
   });
 }
 

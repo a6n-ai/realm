@@ -6,9 +6,10 @@ import { asc, eq } from "drizzle-orm";
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
 const { db } = await import("@/db/client");
-const { deliveries, subscriptionPauses } = await import("@/db/schema");
+const { deliveries, deliveryMoves, subscriptionPauses } = await import("@/db/schema");
 const { ordersService } = await import("../orders.service");
 const { pauseDays } = await import("@/lib/deliveries/pause-days.service");
+const { rescheduleDelivery } = await import("@/lib/deliveries/deliveries.service");
 const { getPauseUsage } = await import("@/lib/deliveries/pause-limits.service");
 const { makeTripOrder, resetTrips } = await import("../../services/__tests__/trip-fixture");
 
@@ -38,5 +39,18 @@ describe("changeStartDate with customer pauses", () => {
       .where(eq(subscriptionPauses.orderId, order.id));
     expect(log!.releasedDates).toEqual(["2030-01-09"]);
     expect((await getPauseUsage(order.id)).daysUsed).toBe(1);
+  });
+
+  it("staff reset moves the start after a customer move and wipes the move", async () => {
+    const { order, wed } = await makeTripOrder(DEPLOYMENT, PREFIX);
+    await rescheduleDelivery(wed.publicId, "2030-01-21", null, "2030-01-09", 1);
+
+    await expect(ordersService.changeStartDate(order.publicId, "2030-01-14")).rejects.toThrow("already changed");
+    expect(await ordersService.startChangeBlocker(order.id, "active", db, true)).toBeNull();
+    await ordersService.changeStartDate(order.publicId, "2030-01-14", { reset: true });
+
+    const rows = await db.select({ date: deliveries.deliveryDate }).from(deliveries).where(eq(deliveries.orderId, order.id)).orderBy(asc(deliveries.deliveryDate));
+    expect(rows[0]!.date).toBe("2030-01-14");
+    expect(await db.select().from(deliveryMoves).where(eq(deliveryMoves.orderId, order.id))).toHaveLength(0);
   });
 });
