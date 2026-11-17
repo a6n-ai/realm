@@ -4,7 +4,8 @@ import { noVisibleOrgs } from "@/lib/tenant/org-scope";
 import { ValidationError } from "@foundry/commons";
 import { createShortLink } from "@foundry/shortlinks";
 import { db } from "@/db/client";
-import { requirePermission } from "@/lib/auth/guards";
+import { can, requirePermission } from "@/lib/auth/guards";
+import { walletService } from "@/lib/wallet/wallet.service";
 import { getSession } from "@/lib/auth/session";
 import { quoteQuery } from "@/lib/wizard/selections";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
@@ -33,6 +34,14 @@ export async function estimateFormData() {
     enabledSlots: slots.map((s) => ({ key: s.key, label: s.label })),
     currency,
   };
+}
+
+/** Coins in the picked customer's wallet; null without wallet access or for an unknown customer. */
+export async function customerCoinBalance(customerPublicId: string): Promise<number | null> {
+  await requirePermission({ order: ["read"] });
+  if (!(await can({ wallet: ["read"] }))) return null;
+  const userId = await userIdByPublicId(customerPublicId);
+  return userId == null ? null : walletService.balance(userId);
 }
 
 // The short /q/ link for an estimate. Only the quote params are kept, so the stored target is

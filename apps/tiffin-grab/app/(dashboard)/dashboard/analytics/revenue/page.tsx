@@ -13,7 +13,7 @@ import { CalendarHeatmap, GaugeChart, PartsDonut, TrendLineChart } from "@/compo
 import { AnalyticsStatCards, AnalyticsStatCardsSkeleton, type AnalyticsStatCardItem } from "@/components/dashboard/stat-cards";
 import { ManualRefresh } from "@/components/dashboard/analytics/manual-refresh";
 import { scopeOrAlert } from "@/components/dashboard/analytics/franchise-unavailable";
-import { paymentsHref } from "@/lib/analytics/drill";
+import { discountLogsHref, freeTiffinOrdersHref, paymentsHref } from "@/lib/analytics/drill";
 import { getRevenueReport } from "@/lib/analytics/revenue.service";
 import { DATE_BASIS_LABEL } from "@/lib/analytics/metrics/scope";
 import { type AnalyticsScope } from "@/lib/analytics/scope-types";
@@ -164,7 +164,7 @@ async function Kpis({ scope }: { scope: AnalyticsScope }) {
       label: "Discounts",
       value: money(k.discounts),
       hint: k.discountRatePct == null ? "No sales in range" : `${k.discountRatePct}% of list price · ${basis}`,
-      href: paid,
+      href: discountLogsHref(scope),
       badge: "Given",
       badgeTone: "brand",
     },
@@ -220,6 +220,7 @@ async function Kpis({ scope }: { scope: AnalyticsScope }) {
       label: "Free tiffins",
       value: money(free.amount),
       hint: `${plural(free.count, "tiffin", "tiffins")} on ${plural(free.orders, "order", "orders")} · ${DATE_BASIS_LABEL.deliveries} · ${free.notValued} not valued (no stored price)`,
+      href: freeTiffinOrdersHref(scope),
       badge: "Given away",
       badgeTone: "neutral",
     },

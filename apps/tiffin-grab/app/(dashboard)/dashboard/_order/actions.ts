@@ -211,7 +211,7 @@ export type StaffPricePreview = {
   /** Kitchen COGS for this quote (cost × tiffins); null when the meal size has no cost price. */
   costFloor: number | null;
   /**
-   * Largest staff/manual discount that still stays above cost after auto coupons.
+   * Largest staff discount that still stays above cost after the other coupons and coins.
    * Null when cost is unset (allowance ceiling alone applies).
    */
   maxStaffDiscount: number | null;
@@ -223,7 +223,7 @@ export type StaffPricePreview = {
     marginPct: number | null;
     targetMarginPct: number;
     minMarginPct: number;
-    /** Largest staff discount (after autos) that keeps the target margin. */
+    /** Largest staff discount (after other coupons and coins) that keeps the target margin. */
     recommendedMaxDiscount: number;
   } | null;
 };
@@ -297,11 +297,12 @@ async function quotePrice(
     };
   }
 
-  // Room left for a staff code after autos only — the UI Max button uses this so a
-  // generated code is not immediately refused as below cost.
-  const autoAmount = lane.applied.filter((a) => a.coupon.autoApply).reduce((s, a) => s + a.amount, 0);
-  const maxStaffDiscount = maxDiscountAboveCost(round2(postCatalog - autoAmount), costFloor);
+  // Room left for a staff code after every other coupon and the coins, so the Max button and the
+  // margin cap never stack a staff discount on top of discounts already on the quote.
   const net = postCatalogSubtotal(postCatalog, lines);
+  const staffAmount = (lane.rep?.amount ?? 0) + lane.applied.filter((a) => a.coupon.kind === "rep_code").reduce((s, a) => s + a.amount, 0);
+  const beforeStaff = round2(net + staffAmount);
+  const maxStaffDiscount = maxDiscountAboveCost(beforeStaff, costFloor);
 
   return {
     preview: lines.length > 0 ? await quote(lines) : base,
@@ -314,7 +315,7 @@ async function quotePrice(
       marginPct: net > 0 ? round2(((net - costing.cost) / net) * 100) : null,
       targetMarginPct: costing.targetMarginPct,
       minMarginPct: costing.minMarginPct,
-      recommendedMaxDiscount: maxDiscountAboveCost(round2(postCatalog - autoAmount), costing.target) ?? 0,
+      recommendedMaxDiscount: maxDiscountAboveCost(beforeStaff, costing.target) ?? 0,
     },
     coupons: {
       applied,

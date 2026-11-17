@@ -47,7 +47,7 @@ export function CoinsField({ coins, setCoins, onOrder = false }: { coins: StaffC
           {coins.message && <p className="text-muted-foreground text-xs">{coins.message}</p>}
         </div>
       ) : (
-        <p className="text-muted-foreground text-sm">No coins in this customer&apos;s wallet.</p>
+        <p className="text-muted-foreground text-xs tabular-nums">0 in wallet</p>
       )}
     </section>
   );

@@ -18,6 +18,14 @@ export function OrderPricingBreakdown({ result, currency }: { result: PricingRes
             <span className="tabular-nums">{fmt(li.amount, currency)}</span>
           </li>
         ))}
+      </ul>
+      <Separator className="my-3" />
+      {/* Reads top to bottom as the sum: subtotal, minus discounts, plus tax, equals total. */}
+      <ul className="space-y-1.5">
+        <li className="flex justify-between gap-2">
+          <span className="text-muted-foreground">Subtotal</span>
+          <span className="tabular-nums">{fmt(result.subtotal, currency)}</span>
+        </li>
         {result.adjustments.map((d) => (
           <li key={d.label} className="flex justify-between gap-2 text-emerald-600 dark:text-emerald-400">
             <span>{d.label}</span>
@@ -32,11 +40,7 @@ export function OrderPricingBreakdown({ result, currency }: { result: PricingRes
         ))}
       </ul>
       <Separator className="my-3" />
-      <div className="text-muted-foreground flex justify-between gap-2">
-        <span>Subtotal</span>
-        <span className="tabular-nums">{fmt(result.subtotal, currency)}</span>
-      </div>
-      <div className="mt-2 flex items-baseline justify-between gap-2 font-semibold">
+      <div className="flex items-baseline justify-between gap-2 font-semibold">
         <span>Total</span>
         <span className="tabular-nums text-base">{fmt(result.total, currency)}</span>
       </div>

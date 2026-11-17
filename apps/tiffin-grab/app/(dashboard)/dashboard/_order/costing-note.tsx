@@ -29,7 +29,7 @@ export function CostingNote({ costing }: { costing: StaffPricePreview["costing"]
         <Badge variant={tone}>{m == null ? "No margin" : `Margin ${m}%`}</Badge>
       </div>
       <p className="text-muted-foreground">
-        Recommended max discount {money(costing.recommendedMaxDiscount)} (keeps the recommended {costing.targetMarginPct}% margin). Below {costing.minMarginPct}% margin is a loss warning only; you can still apply it.
+        Recommended max staff discount {money(costing.recommendedMaxDiscount)} on top of the coupons and coins already applied (keeps the recommended {costing.targetMarginPct}% margin). Below {costing.minMarginPct}% margin is a loss warning only; you can still apply it.
       </p>
     </div>
   );

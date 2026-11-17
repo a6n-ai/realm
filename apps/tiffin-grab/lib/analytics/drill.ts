@@ -75,6 +75,20 @@ export function ordersDrillHref(scope: AnalyticsScope, extra: { status?: string[
   return `${ORDERS}?${qs}`;
 }
 
+/** Orders "Free tiffins" tab: orders created in the range, not the delivered-by-date count the tile shows. */
+export function freeTiffinOrdersHref(scope: AnalyticsScope): string {
+  const qs = new URLSearchParams({ view: "free" });
+  withScope(qs, scope);
+  return `${ORDERS}?${qs}`;
+}
+
+/** Coupon redemptions only; plan (catalog) discounts have no list of their own. */
+export function discountLogsHref(scope: AnalyticsScope): string {
+  const qs = new URLSearchParams();
+  withScope(qs, scope);
+  return `/dashboard/discounts/logs?${qs}`;
+}
+
 /** Carries date and franchise only; the inquiries list is not guaranteed to match lead tiles. */
 export function inquiriesHref(
   scope: AnalyticsScope,

@@ -18,7 +18,7 @@ import { CostingNote } from "./costing-note";
 import { CustomerSearch } from "../_leads/customer-search";
 import type { CustomerHit } from "../_leads/match-actions";
 import type { OrderFormInput } from "./order-schema";
-import { createQuoteLink, estimateFormData, estimatePrefill } from "./estimate-actions";
+import { createQuoteLink, customerCoinBalance, estimateFormData, estimatePrefill } from "./estimate-actions";
 import { CustomerCodeField } from "./customer-code-field";
 import { CoinsField } from "./coins-field";
 import { useAppCurrency, useFormatMoney } from "@/components/app-currency";
@@ -49,6 +49,15 @@ export function EstimateDialog({ open, onOpenChange, fromOrder }: { open: boolea
   const [prefillError, setPrefillError] = useState<string | null>(null);
   // A new customer has no account, so the preview judges first-order coupons as eligible.
   const who = existing && customer ? customer : null;
+  // Shown in the side panel before a plan is priced; CoinsField takes over once it is.
+  const [coinBalance, setCoinBalance] = useState<number | null>(null);
+  useEffect(() => {
+    setCoinBalance(null);
+    if (!who) return;
+    let live = true;
+    customerCoinBalance(who.publicId).then((b) => live && setCoinBalance(b)).catch(() => {});
+    return () => { live = false; };
+  }, [who?.publicId]);
 
   const fetchData = () => estimateFormData().then(setData).catch(() => setLoadError(true));
   const fetchPrefill = (orderPublicId: string) =>
@@ -184,7 +193,14 @@ export function EstimateDialog({ open, onOpenChange, fromOrder }: { open: boolea
 
             {estimate && <CouponsField estimate={estimate} />}
 
-            {estimate?.coins && <CoinsField coins={estimate.coins} setCoins={estimate.setCoins} />}
+            {estimate?.coins ? (
+              <CoinsField coins={estimate.coins} setCoins={estimate.setCoins} />
+            ) : who && coinBalance != null ? (
+              <section className="grid gap-1">
+                <p className="text-sm font-medium">Coins</p>
+                <p className="text-muted-foreground text-xs tabular-nums">{coinBalance} in wallet</p>
+              </section>
+            ) : null}
 
             <CustomerCodeField
               subtotal={estimate?.preview?.subtotal ?? 0}
