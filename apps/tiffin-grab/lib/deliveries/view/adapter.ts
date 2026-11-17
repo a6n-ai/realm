@@ -1,3 +1,4 @@
+import type { CustomerStartChange } from "@/lib/orders/orders.service";
 import type { SavedAddress } from "@foundry/address";
 import type { DropOffCatalog, DropOffValue } from "@/lib/catalog/drop-off";
 import { swapLabel, type SwapCategory } from "@/lib/menu/swap-rules";
@@ -15,6 +16,8 @@ export type PlanView = {
   counts: TiffinCounts;
   ctx: PlanContext;
   pause: PausePanel;
+  /** Customer's own start-date change; `blockedReason` greys the button out. */
+  startChange: CustomerStartChange | null;
   today: string;
   /** Raw myCalendar output for the month: per-eating-day swap pairs and applied swaps live here. */
   days: CalendarDay[];

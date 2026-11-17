@@ -4,7 +4,7 @@ import { revalidateOrder } from "@/lib/revalidate";
 import type { DropOffValue } from "@/lib/catalog/drop-off";
 import { revalidatePath } from "next/cache";
 import type { AddressInput } from "@foundry/address";
-import { NotFoundError } from "@foundry/commons";
+import { NotFoundError, ValidationError } from "@foundry/commons";
 import { currentUserId } from "@/lib/services/session-service";
 import { assertCanManageDelivery, assertCanManageOrder, assertOrderUnlocked } from "@/lib/orders/access";
 import { setDeliveryAddress, rescheduleDelivery } from "@/lib/deliveries/deliveries.service";
@@ -17,6 +17,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, orders } from "@/db/schema";
 import { runAction, type ActionResult } from "@/lib/actions/action-result";
+import { ordersService } from "@/lib/orders/orders.service";
 
 // Every action gates with assertCanManage* (owner OR staff) before mutating, then stamps the
 // acting user (currentUserId) — so an admin acting on a customer's order is audited as the admin.
@@ -88,6 +89,19 @@ export async function setMyAutoMovePaused(orderPublicId: string, on: boolean): P
     const result = await setAutoMovePaused(orderPublicId, on, await currentUserId());
     if (result.moved > 0) await revalidateDeliverySurfaces(orderPublicId);
     return result;
+  });
+}
+
+/** Customer moves their plan's start before it starts. Same rules as staff without force: cutoff, allowed start days, holidays, overlap. */
+export async function changeMyStartDate(orderPublicId: string, startDate: string): Promise<ActionResult> {
+  return runAction(async () => {
+    await assertCanManageOrder(orderPublicId);
+    await assertOrderUnlocked(orderPublicId);
+    // The greyed-out button is UI only: refuse blocked plans here too. changeStartDate re-checks the blocker under the lock.
+    const change = await ordersService.customerStartChange(orderPublicId);
+    if (!change || change.blockedReason) throw new ValidationError(change?.blockedReason ?? "This plan's start date can't change");
+    await ordersService.changeStartDate(orderPublicId, startDate);
+    await revalidateDeliverySurfaces(orderPublicId);
   });
 }
 

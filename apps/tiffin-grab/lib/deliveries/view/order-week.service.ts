@@ -76,6 +76,8 @@ export async function loadOrderWeek(userId: bigint, sub: Subscription, weekParam
     counts,
     ctx,
     pause,
+    // Staff move the start from the order page's own control.
+    startChange: null,
     today,
     days,
     categoryLabels,

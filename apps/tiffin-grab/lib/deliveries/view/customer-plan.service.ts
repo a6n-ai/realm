@@ -14,6 +14,7 @@ import { stripeMethodAvailable } from "@/lib/payments/stripe";
 import { getClaimPaymentContextForOrder } from "@/lib/payments/verification";
 import { getAppSettings } from "@/lib/settings";
 import { orderPaymentLocked } from "@/lib/orders/access";
+import { ordersService } from "@/lib/orders/orders.service";
 import { addressService } from "@/lib/services/addresses.service";
 import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
 import { dropOffsFor } from "@/lib/deliveries/address-drop-off.service";
@@ -72,7 +73,7 @@ export async function loadCustomerDeliveries(userId: bigint, query: CustomerDeli
   const from = addDaysIso(weekStart, -3);
   const until = addDaysIso(weekStart, 6);
 
-  const [locked, rows, catalog, days, counts, pause, makeupSources, categoryRows, swapCategories, holidays] = await Promise.all([
+  const [locked, rows, catalog, days, counts, pause, makeupSources, categoryRows, swapCategories, holidays, startChange] = await Promise.all([
     orderPaymentLocked(sub.publicId),
     myDeliveries(userId, from, until),
     loadCatalogSnapshot(),
@@ -83,6 +84,7 @@ export async function loadCustomerDeliveries(userId: bigint, query: CustomerDeli
     dishCategoriesService.forPlanType(sub.planType),
     dishCategoriesService.swapCategoriesForMealSize(sub.mealSizeId),
     holidayNamesForUser(userId, today),
+    ordersService.customerStartChange(sub.publicId),
   ]);
   // Payment-review plans hide the calendar and show the claim form instead.
   const claimPayment = locked ? await getClaimPaymentContextForOrder(sub.publicId) : null;
@@ -97,6 +99,7 @@ export async function loadCustomerDeliveries(userId: bigint, query: CustomerDeli
     counts,
     ctx,
     pause,
+    startChange,
     today,
     days,
     categoryLabels,

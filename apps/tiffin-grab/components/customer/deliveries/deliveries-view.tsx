@@ -16,6 +16,7 @@ import { pausedLine, resumeLine } from "./pause-copy";
 import { TripActions } from "./action-panel";
 import { ActionSheet } from "./actions/registry";
 import { PauseSheet } from "./actions/pause-sheet";
+import { StartDateSheet } from "./actions/start-date-sheet";
 import { pauseMyDays, releaseMyDays } from "@/lib/deliveries/customer-actions";
 import { planLines, renewDays, type PlanView } from "@/lib/deliveries/view/adapter";
 import { PlanHeader, windowLabel } from "./plan-header";
@@ -76,6 +77,7 @@ export function DeliveriesView({ plan, subs, waitingRenewal = false, windows, tr
   const active = locked ? null : requested;
   const [info, setInfo] = useState<EatingRow | null>(null);
   const [pauseOpen, setPauseOpen] = useState(false);
+  const [startOpen, setStartOpen] = useState(false);
   const [releasing, startRelease] = useTransition();
   const [toast, setToast] = useState<string | null>(null);
   const { ctx, sub, today } = plan;
@@ -209,9 +211,20 @@ export function DeliveriesView({ plan, subs, waitingRenewal = false, windows, tr
             })}
           </nav>
         )}
-        actions={!locked && !plan.sub.trial ? (
+        actions={(!locked && !plan.sub.trial) || plan.startChange ? (
           <>
-            <Button className="min-h-11 whitespace-nowrap" onClick={() => setPauseOpen(true)}>{PAUSE_OR_RESUME_LABEL}</Button>
+            {!locked && !plan.sub.trial && <Button className="min-h-11 whitespace-nowrap" onClick={() => setPauseOpen(true)}>{PAUSE_OR_RESUME_LABEL}</Button>}
+            {/* Always shown so customers know it exists; greyed out with the reason when the start can't move. */}
+            {plan.startChange && (
+              <Button
+                variant="outline"
+                className="min-h-11 whitespace-nowrap"
+                disabledReason={locked ? "Available once your payment is confirmed" : plan.startChange.blockedReason ?? undefined}
+                onClick={() => setStartOpen(true)}
+              >
+                Change start date
+              </Button>
+            )}
           </>
         ) : undefined}
       />
@@ -303,6 +316,7 @@ export function DeliveriesView({ plan, subs, waitingRenewal = false, windows, tr
       )}
 
       {active && trip && !navigating && <ActionSheet action={active} trip={trip} day={row?.date} plan={plan} agenda={agenda} open onDone={done} onChanged={changed} />}
+      {startOpen && plan.startChange && <StartDateSheet orderId={plan.orderId} change={plan.startChange} open onDone={(message) => { setStartOpen(false); if (message) changed(message); }} />}
       {pauseOpen && <PauseSheet plan={plan} open onMove={moveDay} onDone={(message) => { setPauseOpen(false); if (message) changed(message); }} />}
       {info && <TripInfoSheet row={info} tz={tz} plan={plan} open onClose={() => setInfo(null)} />}
       <Toast open={toast !== null} onClose={closeToast}>{toast}</Toast>

@@ -4,18 +4,18 @@ import { parseIsoDate } from "@/lib/dates/iso-date";
 import { appTodayIso } from "@/lib/dates/today";
 import { isCutoffPassed } from "@/lib/dates/cutoff";
 import { ONGOING, RUNNING, inOrderStatuses } from "@/lib/orders/status";
-import { daysBetween } from "@foundry/commons/util/dates";
+import { daysBetween, utcIso } from "@foundry/commons/util/dates";
 import { pageOffset } from "@foundry/design-system/filters/parse-filter-state";
 import { wordpressImportSql } from "@/lib/orders/wordpress-import-sql";
 import { isWordpressImport } from "@/lib/orders/wordpress-import";
-import { NotFoundError, ValidationError, cutoffMsFor } from "@foundry/commons";
+import { NotFoundError, ValidationError, cutoffMsFor, nextWeekday } from "@foundry/commons";
 import type { Condition } from "@foundry/commons/model/condition";
 import type { Page, PageRequest } from "@foundry/commons/util/pagination";
 import { BaseRepository, UpdatableRepository, pageOrder } from "@foundry/database";
-import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { orderPaymentStatuses, paidStatusOf } from "@/lib/payments/order-payments";
 import { clearLookOutOnEnd } from "@/lib/orders/look-out";
-import { db } from "@/db/client";
+import { db, type Tx } from "@/db/client";
 import { startPaidStripeOrder } from "@/lib/orders/start-paid-order";
 import { ordersListWhere, type OrdersListOpts } from "@/lib/orders/queries";
 import {
@@ -42,9 +42,10 @@ import { buildBoundedDeliveryRows, tripsFor } from "@/lib/orders/bounded-deliver
 import { cancelDeliveries, dropVoidRows } from "../deliveries/deliveries.service";
 import { removeStopsBestEffort } from "../optimoroute/stops";
 import { applyHolidaysToOrder, scheduleWrite } from "../deliveries/holiday-apply";
+import { pauseRows } from "../deliveries/pause-state";
 import { assertStartable } from "./order-window";
 import { appToday, assertFirstDeliveryOpen, validateStartDate } from "@/lib/dates/start-date";
-import { assertTrialStart } from "@/lib/trial/schedule";
+import { assertTrialStart, earliestTrialIso } from "@/lib/trial/schedule";
 import {
   reverseCoinRedemption,
   reverseCoinAward,
@@ -57,6 +58,8 @@ import { mealSizeAllowedDays, mealSizeServesWeekends } from "../deliveries/weeke
 import { getAppSettings } from "@/lib/settings";
 import { lockOrder, withOrderLock } from "./order-lock";
 import { enqueueOrderNotice } from "@/lib/notifications/order-notice";
+
+export type CustomerStartChange = { startDate: string; minDate: string; allowedDays: string[]; blockedReason: string | null };
 
 export type OrderListRow = {
   publicId: string;
@@ -487,9 +490,10 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
 
   /**
    * Why this order's start date can't move, or null when it can: nothing has
-   * happened yet. Every delivery is still scheduled before its cutoff and the
-   * customer hasn't paused, skipped, moved, swapped, added tiffins or picked dishes,
-   * so its deliveries can be rebuilt from a new start without losing anything.
+   * happened yet. Every delivery is still before its cutoff and the customer hasn't
+   * moved, swapped, added tiffins or picked dishes, so its deliveries can be rebuilt
+   * from a new start without losing anything. Whole-day pauses are allowed:
+   * changeStartDate carries them over by date.
    */
   async startChangeBlocker(orderId: bigint, status: string, tx: Pick<typeof db, "select"> = db): Promise<string | null> {
     if (status !== "active" && status !== "pending" && status !== "waitlisted") return "Only a plan that hasn't started can move its start date";
@@ -499,10 +503,10 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
     // A row a holiday closed was paused by the kitchen, not the customer; the rebuild re-applies holidays.
     const rows = all.filter((d) => !(d.status === "paused" && d.holidayId != null));
     if (rows.some((d) => isCutoffPassed(d.cutoffAt, now))) return "This plan has started: its first delivery is past the cutoff";
-    if (rows.some((d) => d.status !== "scheduled")) return "The customer has already skipped or paused a delivery";
+    if (rows.some((d) => d.status !== "scheduled" && d.status !== "paused")) return "The customer has already held or moved a delivery";
     const ids = all.map((d) => d.id);
+    // A partial-day pause leaves a delivery move behind, so it is still caught below.
     const touched = await Promise.all([
-      tx.select({ id: subscriptionPauses.id }).from(subscriptionPauses).where(eq(subscriptionPauses.orderId, orderId)).limit(1),
       tx.select({ id: mealSelections.id }).from(mealSelections).where(eq(mealSelections.orderId, orderId)).limit(1),
       ids.length ? tx.select({ id: deliveryMoves.id }).from(deliveryMoves).where(eq(deliveryMoves.orderId, orderId)).limit(1) : [],
       ids.length ? tx.select({ id: deliveryCategorySwaps.id }).from(deliveryCategorySwaps).where(inArray(deliveryCategorySwaps.deliveryId, ids)).limit(1) : [],
@@ -510,6 +514,45 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
     ]);
     if (touched.some((r) => r.length > 0)) return "The customer has already changed this plan's deliveries or dishes";
     return null;
+  }
+
+  /** The customer's start-date picker. Always returned so the button always shows; `blockedReason` greys it out. */
+  async customerStartChange(publicId: string): Promise<CustomerStartChange | null> {
+    const [order] = await db.select({ id: orders.id, status: orders.status, startDate: orders.startDate, trialLength: orders.trialLength, trialWeekdays: orders.trialWeekdays, allowedDays: plans.allowedStartDays })
+      .from(orders).innerJoin(plans, eq(plans.id, orders.planId)).where(eq(orders.publicId, publicId)).limit(1);
+    if (!order) return null;
+    const { timezone, cutoffHour } = await getAppSettings();
+    const today = appToday(timezone, cutoffHour);
+    const trial = order.trialLength != null;
+    const allowedDays = trial ? (order.trialWeekdays ?? []) : (order.allowedDays ?? []);
+    const base = { startDate: order.startDate, minDate: trial ? earliestTrialIso(today, allowedDays) : utcIso(nextWeekday(today)), allowedDays };
+    const blocker = await this.startChangeBlocker(order.id, order.status);
+    if (!blocker) return { ...base, blockedReason: null };
+    const started = order.startDate <= appTodayIso(timezone) || blocker.startsWith("This plan has started") || blocker.startsWith("Only a plan");
+    return {
+      ...base,
+      blockedReason: started
+        ? "Your plan has already started, so its start date can't change."
+        : "You've already moved, swapped or picked dishes on this plan. Contact support to change the start date.",
+    };
+  }
+
+  // Re-pause rebuilt deliveries on the dates the customer had paused. A date the new schedule
+  // no longer delivers (or whose cutoff passed, under force) goes back to the hold budget.
+  private async carryPausedDates(tx: Tx, orderId: bigint, dates: string[]): Promise<void> {
+    const targets = await tx.select({ id: deliveries.id }).from(deliveries)
+      .where(and(eq(deliveries.orderId, orderId), eq(deliveries.status, "scheduled"), inArray(deliveries.deliveryDate, dates)));
+    const kept = new Set((await pauseRows(tx, targets.map((r) => r.id), Date.now())).map((r) => r.deliveryDate));
+    const dropped = dates.filter((d) => !kept.has(d));
+    if (!dropped.length) return;
+    const logs = await tx.select({ id: subscriptionPauses.id, deliveryDates: subscriptionPauses.deliveryDates, releasedDates: subscriptionPauses.releasedDates })
+      .from(subscriptionPauses).where(eq(subscriptionPauses.orderId, orderId)).orderBy(desc(subscriptionPauses.id));
+    const refunds = new Map<bigint, string[]>();
+    for (const d of dropped) {
+      const log = logs.find((l) => l.deliveryDates?.includes(d));
+      if (log) refunds.set(log.id, [...(refunds.get(log.id) ?? log.releasedDates), d]);
+    }
+    for (const [id, releasedDates] of refunds) await tx.update(subscriptionPauses).set({ releasedDates }).where(eq(subscriptionPauses.id, id));
   }
 
   // Admin: move a plan's start before it starts. Its untouched deliveries are rebuilt
@@ -542,6 +585,9 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
         .where(eq(orders.id, order.id)).returning();
       const [had] = await tx.select({ id: deliveries.id }).from(deliveries).where(eq(deliveries.orderId, order.id)).limit(1);
       if (had) {
+        // Customer pauses (not holiday closures) survive the rebuild by date.
+        const pausedDates = (await tx.select({ date: deliveries.deliveryDate }).from(deliveries)
+          .where(and(eq(deliveries.orderId, order.id), eq(deliveries.status, "paused"), isNull(deliveries.holidayId)))).map((r) => r.date);
         await tx.delete(deliveries).where(eq(deliveries.orderId, order.id));
         const bounded = order.trialLength == null && !!order.eatingDays?.length;
         if (bounded) {
@@ -567,6 +613,7 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
         const placed = await tx.select({ deliveryDate: deliveries.deliveryDate, cutoffAt: deliveries.cutoffAt }).from(deliveries)
           .where(eq(deliveries.orderId, order.id)).orderBy(asc(deliveries.deliveryDate));
         if (!force) assertFirstDeliveryOpen(placed[0]);
+        if (pausedDates.length) await this.carryPausedDates(tx, order.id, pausedDates);
         if (bounded && placed.length) {
           // The overlap guard reads durationWeeks: keep it at the span these rows occupy.
           const spanDays = daysBetween(startDate, placed.at(-1)!.deliveryDate) + 1;
