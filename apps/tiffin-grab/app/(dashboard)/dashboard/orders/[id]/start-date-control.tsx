@@ -23,8 +23,11 @@ export function StartDateControl({
   allowedDays,
   blockedReason = null,
   resetReason = null,
+  pastCutoff = false,
   otherPlanEnd = null,
 }: {
+  /** The first delivery is past its cutoff but not pushed to OptimoRoute yet: still movable, with a warning. */
+  pastCutoff?: boolean;
   /** The customer already changed this plan: saving wipes those changes, so it needs confirming. */
   resetReason?: string | null;
   /** Earliest start when the cutoff is ignored (today's calendar date, not tomorrow's after cutoff). */
@@ -81,7 +84,9 @@ export function StartDateControl({
       }}
       trigger={<Button size="sm" variant="ghost" className="-my-1 h-7 px-2">Edit</Button>}
       title="Change start date"
-      description={resetReason
+      description={pastCutoff
+        ? "The first delivery is past its cutoff but not on a route yet, so the deliveries can still be rescheduled from the new date."
+        : resetReason
         ? "The plan hasn't started, so its deliveries are rescheduled from the new date."
         : "The plan hasn't started, so its deliveries are rescheduled from the new date. Nothing else changes."}
       footer={
@@ -112,10 +117,12 @@ export function StartDateControl({
         {resetReason && (
           <Alert variant="warning">
             <TriangleAlertIcon />
-            <AlertTitle>{resetReason}</AlertTitle>
+            <AlertTitle>{pastCutoff ? "The first delivery is past its cutoff" : resetReason}</AlertTitle>
             <AlertDescription>
               <ul className="list-disc ps-4">
-                <li>Saving resets their moved days, meal swaps, extra tiffins and picked dishes.</li>
+                {pastCutoff && <li>OptimoRoute: not pushed yet. After the push, the start can&apos;t move.</li>}
+                {pastCutoff && <li>Kitchen counts and labels for that day may already be final.</li>}
+                <li>Saving resets any moved days, meal swaps, extra tiffins and picked dishes.</li>
                 <li>Paused days stay paused if they are still on the new schedule.</li>
                 <li>The tiffin count stays the same. The customer is not notified.</li>
               </ul>

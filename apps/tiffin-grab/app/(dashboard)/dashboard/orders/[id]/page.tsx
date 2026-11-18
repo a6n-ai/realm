@@ -13,7 +13,7 @@ import { mealSizeAddons } from "@/lib/catalog/types";
 import { can, requirePagePermission } from "@/lib/auth/guards";
 import { settleStaleOnView } from "@/lib/payments/payment-stripe";
 import { getSession } from "@/lib/auth/session";
-import { readOrder, listOrderActivities, ordersService } from "@/lib/orders/orders.service";
+import { readOrder, listOrderActivities, ordersService, START_PAST_CUTOFF } from "@/lib/orders/orders.service";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import { appToday } from "@/lib/dates/start-date";
 import { earliestNewPlanStart, runningPlans } from "@/lib/orders/order-window";
@@ -169,7 +169,7 @@ async function OrderDetail({
     // A WordPress plan waiting to start has its own Start plan flow.
     migratedWaiting
       ? (["Use Start plan to set when this WordPress plan begins", null] as const)
-      // Hard blocker (plan started) vs. one staff can override by resetting the customer's changes.
+      // Hard blocker (pushed to OptimoRoute) vs. one staff can override: past cutoff, or the customer's changes.
       : Promise.all([ordersService.startChangeBlocker(order.id, order.status, db, true), ordersService.startChangeBlocker(order.id, order.status)])
         .then(([hard, any]) => [hard, hard ? null : any] as const),
     // Moving the start must not land inside another running plan of this customer.
@@ -245,6 +245,7 @@ async function OrderDetail({
     <StartDateControl
       blockedReason={startBlocker}
       resetReason={startResetReason}
+      pastCutoff={startResetReason === START_PAST_CUTOFF}
       orderId={order.publicId}
       startDate={order.startDate}
       minDate={order.trialLength != null ? earliestTrialIso(startToday, startDays) : utcIso(nextWeekday(startToday))}

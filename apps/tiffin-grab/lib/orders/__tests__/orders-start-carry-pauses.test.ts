@@ -7,7 +7,7 @@ vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
 const { db } = await import("@/db/client");
 const { deliveries, deliveryMoves, subscriptionPauses } = await import("@/db/schema");
-const { ordersService } = await import("../orders.service");
+const { ordersService, START_PAST_CUTOFF, START_PUSHED_TO_OPTIMO } = await import("../orders.service");
 const { pauseDays } = await import("@/lib/deliveries/pause-days.service");
 const { rescheduleDelivery } = await import("@/lib/deliveries/deliveries.service");
 const { getPauseUsage } = await import("@/lib/deliveries/pause-limits.service");
@@ -52,5 +52,21 @@ describe("changeStartDate with customer pauses", () => {
     const rows = await db.select({ date: deliveries.deliveryDate }).from(deliveries).where(eq(deliveries.orderId, order.id)).orderBy(asc(deliveries.deliveryDate));
     expect(rows[0]!.date).toBe("2030-01-14");
     expect(await db.select().from(deliveryMoves).where(eq(deliveryMoves.orderId, order.id))).toHaveLength(0);
+  });
+
+  it("staff can move a start past its cutoff until the day is pushed to OptimoRoute", async () => {
+    const { order } = await makeTripOrder(DEPLOYMENT, PREFIX);
+    await db.update(deliveries).set({ cutoffAt: Date.now() - 60_000 }).where(eq(deliveries.orderId, order.id));
+    expect(await ordersService.startChangeBlocker(order.id, "active")).toBe(START_PAST_CUTOFF);
+    expect(await ordersService.startChangeBlocker(order.id, "active", db, true)).toBeNull();
+
+    await db.update(deliveries).set({ routeSyncedAt: Date.now() }).where(eq(deliveries.orderId, order.id));
+    expect(await ordersService.startChangeBlocker(order.id, "active", db, true)).toBe(START_PUSHED_TO_OPTIMO);
+    await expect(ordersService.changeStartDate(order.publicId, "2030-01-14", { reset: true })).rejects.toThrow("OptimoRoute");
+
+    await db.update(deliveries).set({ routeSyncedAt: null }).where(eq(deliveries.orderId, order.id));
+    await ordersService.changeStartDate(order.publicId, "2030-01-14", { reset: true });
+    const [first] = await db.select({ date: deliveries.deliveryDate }).from(deliveries).where(eq(deliveries.orderId, order.id)).orderBy(asc(deliveries.deliveryDate)).limit(1);
+    expect(first!.date).toBe("2030-01-14");
   });
 });

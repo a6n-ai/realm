@@ -34,7 +34,8 @@ export function StartDateSheet({ orderId, change, open, onDone }: {
   const days: Record<string, { disabledReason?: string }> = {};
   for (let i = 1; i <= count; i++) {
     const iso = `${month}-${String(i).padStart(2, "0")}`;
-    if (iso < change.minDate) days[iso] = { disabledReason: "Past the cutoff" };
+    if (iso < change.minDate) days[iso] = { disabledReason: "Not available yet" };
+    else if (change.closedDates.includes(iso)) days[iso] = { disabledReason: "We're closed this day" };
     else if (change.allowedDays.length && !change.allowedDays.includes(weekdayOf(iso))) days[iso] = { disabledReason: "Plans can't start on this day" };
   }
 

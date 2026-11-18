@@ -44,8 +44,9 @@ import { cancelDeliveries, dropVoidRows } from "../deliveries/deliveries.service
 import { removeStopsBestEffort } from "../optimoroute/stops";
 import { applyHolidaysToOrder, scheduleWrite } from "../deliveries/holiday-apply";
 import { pauseRows } from "../deliveries/pause-state";
-import { assertStartable } from "./order-window";
-import { appToday, assertFirstDeliveryOpen, validateStartDate } from "@/lib/dates/start-date";
+import { assertStartable, earliestNewPlanStart } from "./order-window";
+import { checkoutHolidayDates } from "../deliveries/holidays.service";
+import { appToday, assertFirstDeliveryOpen, planStartDays, startWindow, validateStartDate } from "@/lib/dates/start-date";
 import { assertTrialStart, earliestTrialIso } from "@/lib/trial/schedule";
 import {
   reverseCoinRedemption,
@@ -60,7 +61,10 @@ import { getAppSettings } from "@/lib/settings";
 import { lockOrder, withOrderLock } from "./order-lock";
 import { enqueueOrderNotice } from "@/lib/notifications/order-notice";
 
-export type CustomerStartChange = { startDate: string; minDate: string; allowedDays: string[]; blockedReason: string | null };
+export const START_PAST_CUTOFF = "This plan has started: its first delivery is past the cutoff";
+export const START_PUSHED_TO_OPTIMO = "Deliveries are already pushed to OptimoRoute, so the start can't move";
+
+export type CustomerStartChange = { startDate: string; minDate: string; allowedDays: string[]; closedDates: string[]; blockedReason: string | null };
 
 export type OrderListRow = {
   publicId: string;
@@ -497,17 +501,20 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
    * from a new start without losing anything. Whole-day pauses are allowed:
    * changeStartDate carries them over by date.
    */
-  // `reset` (staff override) checks only what can't be undone: a started plan. The customer's
+  // `reset` (staff override) checks only what can't be undone: a delivery already pushed to
+  // OptimoRoute or completed. Past the cutoff is allowed (the dialog warns), and the customer's
   // moves, swaps, extras and dish picks are then wiped by changeStartDate.
   async startChangeBlocker(orderId: bigint, status: string, tx: Pick<typeof db, "select"> = db, reset = false): Promise<string | null> {
     if (status !== "active" && status !== "pending" && status !== "waitlisted") return "Only a plan that hasn't started can move its start date";
-    const all = await tx.select({ id: deliveries.id, status: deliveries.status, cutoffAt: deliveries.cutoffAt, holidayId: deliveries.holidayId })
+    const all = await tx.select({ id: deliveries.id, status: deliveries.status, cutoffAt: deliveries.cutoffAt, holidayId: deliveries.holidayId, routeSyncedAt: deliveries.routeSyncedAt, optimoCompletionStatus: deliveries.optimoCompletionStatus })
       .from(deliveries).where(eq(deliveries.orderId, orderId));
     const now = Date.now();
     // A row a holiday closed was paused by the kitchen, not the customer; the rebuild re-applies holidays.
     const rows = all.filter((d) => !(d.status === "paused" && d.holidayId != null));
-    if (rows.some((d) => isCutoffPassed(d.cutoffAt, now))) return "This plan has started: its first delivery is past the cutoff";
-    if (reset) return null;
+    if (reset) {
+      return all.some((d) => d.routeSyncedAt != null || d.optimoCompletionStatus != null) ? START_PUSHED_TO_OPTIMO : null;
+    }
+    if (rows.some((d) => isCutoffPassed(d.cutoffAt, now))) return START_PAST_CUTOFF;
     if (rows.some((d) => d.status !== "scheduled" && d.status !== "paused")) return "The customer has already held or moved a delivery";
     const ids = all.map((d) => d.id);
     // A partial-day pause leaves a delivery move behind, so it is still caught below.
@@ -522,15 +529,29 @@ class OrdersService extends SessionUpdatableService<typeof orders> {
   }
 
   /** The customer's start-date picker. Always returned so the button always shows; `blockedReason` greys it out. */
+  // Same window as the subscribe form's Start step (step-duration.tsx): cutoff-aware tomorrow, the plan's
+  // start days on its delivery days, holidays closed, and after the customer's other running plans.
   async customerStartChange(publicId: string): Promise<CustomerStartChange | null> {
-    const [order] = await db.select({ id: orders.id, status: orders.status, startDate: orders.startDate, trialLength: orders.trialLength, trialWeekdays: orders.trialWeekdays, allowedDays: plans.allowedStartDays })
-      .from(orders).innerJoin(plans, eq(plans.id, orders.planId)).where(eq(orders.publicId, publicId)).limit(1);
+    const [order] = await db.select({
+      id: orders.id, userId: orders.userId, status: orders.status, startDate: orders.startDate,
+      trialLength: orders.trialLength, trialWeekdays: orders.trialWeekdays,
+      allowedStartDays: plans.allowedStartDays, frequencyWeekdays: deliveryFrequencies.weekdays,
+    }).from(orders)
+      .innerJoin(plans, eq(plans.id, orders.planId))
+      .innerJoin(deliveryFrequencies, eq(deliveryFrequencies.id, orders.frequencyId))
+      .where(eq(orders.publicId, publicId)).limit(1);
     if (!order) return null;
     const { timezone, cutoffHour } = await getAppSettings();
     const today = appToday(timezone, cutoffHour);
     const trial = order.trialLength != null;
-    const allowedDays = trial ? (order.trialWeekdays ?? []) : (order.allowedDays ?? []);
-    const base = { startDate: order.startDate, minDate: trial ? earliestTrialIso(today, allowedDays) : utcIso(nextWeekday(today)), allowedDays };
+    const allowedDays = trial ? (order.trialWeekdays ?? []) : planStartDays(order.allowedStartDays, order.frequencyWeekdays as string[] | null);
+    const tomorrow = trial ? earliestTrialIso(today, allowedDays) : utcIso(nextWeekday(today));
+    const [closedDates, otherPlanEnd] = await Promise.all([
+      checkoutHolidayDates(tomorrow),
+      order.userId != null ? earliestNewPlanStart(db, order.userId, order.id) : null,
+    ]);
+    const { minDate } = startWindow(tomorrow, otherPlanEnd, allowedDays, new Set(closedDates));
+    const base = { startDate: order.startDate, minDate, allowedDays, closedDates };
     const blocker = await this.startChangeBlocker(order.id, order.status);
     if (!blocker) return { ...base, blockedReason: null };
     const started = order.startDate <= appTodayIso(timezone) || blocker.startsWith("This plan has started") || blocker.startsWith("Only a plan");
