@@ -93,6 +93,7 @@ const PUBLIC_ACTIONS: Record<string, string> = {
 // Dashboard pages that only redirect and render no data (or re-export a page that guards itself).
 const REDIRECT_ONLY_PAGES: Record<string, string> = {
   "app/(dashboard)/dashboard/payments/page.tsx": "redirects to a sub-page",
+  "app/(dashboard)/dashboard/customers/[id]/payments/page.tsx": "redirects to the merged Orders & payments tab (which gates payments on finance:read)",
   "app/(dashboard)/dashboard/analytics/page.tsx": "redirects to a sub-page",
   "app/(dashboard)/dashboard/delivery/page.tsx": "redirects to delivery/charges",
   "app/(dashboard)/dashboard/notifications/page.tsx": "redirects to notifications/templates",
