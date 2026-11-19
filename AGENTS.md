@@ -199,6 +199,10 @@ below comes from an incident (2026-09-24/25).
   shell with user invites. No Clover, cart, or orders until a later phase.
 - TiffinGrab analytics numbers come from `apps/tiffin-grab/lib/services/analytics/metrics/*` (`scope.ts`, `money.ts`, `orders.ts`); pages never write their own money or count SQL. Revenue = settled payments × (1 − tax/total) minus ledger refunds, dated by capture (refunds by ledger date), and cancelled-but-paid orders still count. Order and customer counts use `ordersListWhere`, so they equal the Orders listing. Scope franchises through `orders.organization_id`, never `ledger_entries.organization_id`. Profitability and the Products "paid by" splits reuse the same money expressions, so they reconcile with the Revenue tab.
 
+## Admin component look (overrides "keep its look" below for admin)
+
+`@foundry/ui` is moving off Radix onto ui-sdk (`@ui-sdk/react`), one component at a time; Switch is first. Migrated components use ui-sdk's parts and `render` prop (no `asChild`) and its state attributes (`data-checked`, `data-open`, ...; no `data-state`). In admin (`.crm-app`) they take a Vercel/Geist look: flat hairline surfaces, crisp 150ms motion, offset focus rings, Geist Mono numbers. Colours never change: each app keeps its own tokens. Customer and public surfaces keep their own looks. Restyle per app with tokens, `className`, or CSS on `[data-slot="..."]`, never by forking a component. Admin stylesheets declare `@layer ui-sdk;` first so app styles win over ui-sdk's base layer.
+
 <!-- BEGIN:reui-agent-rules -->
 ## ReUI design rules (every UI edit, follow-ups included)
 
