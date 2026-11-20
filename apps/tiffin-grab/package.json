@@ -76,7 +76,7 @@
     "maplibre-gl": "^6.15.0",
     "motion": "^14.6.0",
     "nanoid": "^6.0.2",
-    "next": "16.4.3",
+    "next": "16.4.6",
     "postgres": "^3.4.9",
     "prettier": "^3.9.10",
     "radix-ui": "^1.8.1",
