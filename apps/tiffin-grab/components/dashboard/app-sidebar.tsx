@@ -399,7 +399,7 @@ export function AppSidebar({
                       onMouseEnter={() => router.prefetch(child.href)}
                       onFocus={() => router.prefetch(child.href)}
                       className={cn(
-                        "text-muted-foreground hover:bg-muted/60 hover:text-foreground flex h-8 items-center rounded-(--ui-radius-control) pr-2 pl-8 text-[13px] transition-colors",
+                        "text-muted-foreground hover:bg-muted/60 hover:text-foreground flex h-8 items-center rounded-(--ui-radius-control) pr-2 pl-8 text-footnote transition-colors",
                         childActive && "bg-muted text-foreground",
                       )}
                     >

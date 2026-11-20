@@ -65,7 +65,7 @@ function Row({
       <Icon className="text-muted-foreground size-4" strokeWidth={1.5} />
       <span className="flex min-w-0 flex-col">
         <span className="truncate text-sm">{title}</span>
-        {subtitle && <span className="text-muted-foreground truncate text-[13px]">{subtitle}</span>}
+        {subtitle && <span className="text-muted-foreground truncate text-footnote">{subtitle}</span>}
       </span>
       {add && (
         <button

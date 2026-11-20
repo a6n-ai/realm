@@ -29,7 +29,7 @@ export function AppClock({ cutoffHour, variant = "pill" }: { cutoffHour: number;
     return (
       <HoverHint text={hint}>
         <div className="border-border bg-muted/30 grid gap-1 rounded-(--ui-radius-card) border p-3">
-          <span className="flex items-center gap-1.5 text-[13px] tabular-nums">
+          <span className="flex items-center gap-1.5 text-footnote tabular-nums">
             <span role="img" aria-label="Canada time" className="text-sm leading-none">🇨🇦</span>
             {label}
           </span>

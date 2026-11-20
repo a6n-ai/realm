@@ -227,7 +227,7 @@ describe("AppSidebar list", () => {
     renderSidebar();
     fireEvent.click(screen.getByRole("button", { name: "Kitchen" }));
     const child = screen.getByRole("link", { name: "Weekly Menus" });
-    expect(child).toHaveClass("pl-8", "text-[13px]", "h-8");
+    expect(child).toHaveClass("pl-8", "text-footnote", "h-8");
     expect(child.querySelector("svg")).toBeNull();
   });
 

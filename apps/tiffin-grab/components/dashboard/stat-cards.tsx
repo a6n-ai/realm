@@ -130,7 +130,7 @@ function StatCell({
             <span data-slot="stat-dot" aria-hidden className="size-2 shrink-0 rounded-full" style={{ background: color }} />
             <h3 className="text-muted-foreground min-w-0 truncate text-sm font-medium">{label}</h3>
           </div>
-          {period ? <span className="text-muted-foreground text-[13px]">{period}</span> : null}
+          {period ? <span className="text-muted-foreground text-footnote">{period}</span> : null}
         </div>
         {badge ? (
           <InfoTip inLink={Boolean(href)}>{badge}</InfoTip>
@@ -155,7 +155,7 @@ function StatCell({
           >
             {value}
           </span>
-          {hint ? <div className="text-muted-foreground text-[13px]">{hint}</div> : null}
+          {hint ? <div className="text-muted-foreground text-footnote">{hint}</div> : null}
         </div>
         {delta ? <DeltaLine {...delta} compareLabel={compareLabel} /> : null}
         {footer}
@@ -205,7 +205,7 @@ function DeltaLine({
   good: "up" | "down";
   compareLabel?: string;
 }) {
-  const vs = <span className="text-muted-foreground text-[13px]">vs {compareLabel}</span>;
+  const vs = <span className="text-muted-foreground text-footnote">vs {compareLabel}</span>;
   // A zero before is real data, but a percent of zero is undefined: show the absolute change instead.
   const pct = before === 0 ? null : Math.round(((now - before) / before) * 100);
   if (now === before || pct === 0) {

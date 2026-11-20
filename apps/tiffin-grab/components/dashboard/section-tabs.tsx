@@ -28,7 +28,7 @@ export function SectionTabs() {
             prefetch={false}
             aria-current={active ? "page" : undefined}
             className={cn(
-              "-mb-px border-b-2 px-0.5 pb-2 text-[13px] font-medium whitespace-nowrap transition-colors",
+              "-mb-px border-b-2 px-0.5 pb-2 text-footnote font-medium whitespace-nowrap transition-colors",
               active ? "border-foreground text-foreground" : "text-muted-foreground hover:text-foreground border-transparent",
             )}
           >

@@ -5,7 +5,7 @@ import { isValidAnalyticsCardCount } from "../card-rules";
 
 const DASH = join(__dirname, "../../../app/(dashboard)/dashboard");
 const TABS = readdirSync(join(DASH, "analytics"), { withFileTypes: true })
-  .filter((d) => d.isDirectory())
+  .filter((d) => d.isDirectory() && !d.name.startsWith("_"))
   .map((d) => join(DASH, "analytics", d.name, "page.tsx"));
 const PAGES = [...TABS, join(DASH, "notifications/analytics/page.tsx")];
 
