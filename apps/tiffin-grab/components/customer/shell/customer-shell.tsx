@@ -51,7 +51,8 @@ export function Brand({ href = "/me", compact = false, markOnlyNarrow = false }:
   return (
     <Link href={href} aria-label="TiffinGrab home" className={cn(FONT, FOCUS, "flex min-h-11 w-fit items-center gap-2 justify-self-start rounded-full transition-transform duration-300 ease-soft hover:-translate-y-0.5 active:scale-[0.98]")}>
       <BrandMark className={compact ? "size-8" : "size-9"} />
-      <BrandWordmark className={cn(compact ? "text-title-3" : "text-title-2", markOnlyNarrow && "max-[429px]:hidden")} />
+      {/* Inside an @container (the subscribe bar), drop to the mark alone when the wordmark no longer fits. */}
+      <BrandWordmark className={cn(compact ? "text-title-3" : "text-title-2", "@max-[9rem]:hidden", markOnlyNarrow && "max-[429px]:hidden")} />
     </Link>
   );
 }

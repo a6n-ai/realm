@@ -95,7 +95,7 @@ function ActorBadge({ kind, label }: { kind: ViewRow["actorKind"]; label: string
   return (
     <span className="inline-flex items-center gap-1.5">
       <span className="text-foreground">{label}</span>
-      <Badge variant={kind === "staff" ? "secondary" : "outline"} className="text-[10px]">{kind === "staff" ? "Staff" : "Customer"}</Badge>
+      <Badge variant={kind === "staff" ? "secondary" : "outline"} className="text-caption-2">{kind === "staff" ? "Staff" : "Customer"}</Badge>
     </span>
   );
 }

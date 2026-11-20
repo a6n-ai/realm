@@ -32,7 +32,7 @@ export function SupportHoursNote({ view, compact = false }: { view: SupportHours
         <IconTile tint={view.open ? "green" : "gray"} size="lg"><Headset /></IconTile>
         <div className="min-w-0 flex-1">
           <p className="text-body leading-tight font-semibold">{view.open ? "We're open now" : "We're closed now"}</p>
-          <p className="text-[14px] text-[var(--muted-foreground)]">{view.detail}</p>
+          <p className="text-sm text-[var(--muted-foreground)]">{view.detail}</p>
         </div>
         <Pill tone={view.open ? "ok" : "soft"} size="sm">{view.open ? "Open" : "Closed"}</Pill>
       </div>

@@ -135,7 +135,7 @@ function PaymentSummary({
           <MetaRow label="Open payment">
             <span className="inline-flex flex-wrap items-center justify-end gap-1.5">
               <span className="tabular-nums">{formatMoney(Number(openPayment.amount), currency)}</span>
-              <Badge variant="secondary" className="text-[0.65rem]">
+              <Badge variant="secondary" className="text-caption-2">
                 {statusLabel(openPayment.status)}
               </Badge>
             </span>
@@ -437,7 +437,7 @@ function PaymentRow({
           ))}
           {payment.taxSource && (
             <MetaRow label="Tax source">
-              <Badge variant={payment.taxSource === "fallback" ? "outline" : "secondary"} className="text-[0.65rem]">{payment.taxSource}</Badge>
+              <Badge variant={payment.taxSource === "fallback" ? "outline" : "secondary"} className="text-caption-2">{payment.taxSource}</Badge>
             </MetaRow>
           )}
         </div>

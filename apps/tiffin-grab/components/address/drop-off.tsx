@@ -89,7 +89,7 @@ export function DropOffPicker({
               disabled={disabled}
               // Tapping the picked place again clears it: every choice here is optional.
               onClick={() => onChange(pickTag(value, g.publicId === value.tagId ? null : g.publicId))}
-              className="!h-10 flex-none px-4 text-[14px] sm:text-[14px]"
+              className="!h-10 flex-none px-4 text-sm sm:text-sm"
             >
               {g.name}
             </Pill>

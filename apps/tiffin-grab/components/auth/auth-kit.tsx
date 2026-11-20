@@ -37,7 +37,7 @@ export function AuthLogo() {
   return (
     <Link href="/" aria-label="TiffinGrab home" style={{ ["--brand" as string]: "#C2580B" }} className="group flex items-center gap-2.5 rounded-xl transition-transform duration-300 ease-soft active:scale-[0.98] hover:-translate-y-0.5">
       <BrandMark className="size-12 transition-transform duration-500 ease-spring group-hover:-rotate-8" />
-      <BrandWordmark className="text-[26px]" />
+      <BrandWordmark className="text-title-1" />
     </Link>
   );
 }

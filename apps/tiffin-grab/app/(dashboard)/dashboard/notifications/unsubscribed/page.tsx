@@ -19,7 +19,7 @@ export default async function UnsubscribedPage({ searchParams }: { searchParams:
         {(Object.keys(LABELS) as (keyof typeof LABELS)[]).map((k) => (
           <div key={k} className="bg-card rounded-xl border p-4">
             <p className="text-muted-foreground text-sm">{LABELS[k]}</p>
-            <p className="text-3xl font-semibold tabular-nums">{summary.total[k].toLocaleString()}</p>
+            <p className="text-title-1 font-semibold tabular-nums">{summary.total[k].toLocaleString()}</p>
             <p className="text-muted-foreground text-xs tabular-nums">
               {summary.thisMonth[k]} this month · {summary.last30[k]} in 30 days
             </p>

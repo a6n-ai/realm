@@ -1239,7 +1239,7 @@ export function GaugeChart({
           </RadialBarChart>
         </ChartContainer>
         <div className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-col items-center">
-          <span className="text-foreground text-3xl font-semibold tabular-nums">{`${pct.toFixed(pct < 10 && pct > 0 ? 1 : 0)}%`}</span>
+          <span className="text-foreground text-title-1 font-semibold tabular-nums">{`${pct.toFixed(pct < 10 && pct > 0 ? 1 : 0)}%`}</span>
           <span className="text-muted-foreground text-xs">{caption}</span>
         </div>
       </div>

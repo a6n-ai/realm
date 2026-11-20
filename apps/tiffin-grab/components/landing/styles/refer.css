@@ -2,7 +2,7 @@
 @media (max-width: 767px) {
   .tg-refer__steps { grid-template-columns: minmax(0, 1fr); }
 }
-.lp-h2--sm { font-size: clamp(28px, 3.4vw, 40px); }
+.lp-h2--sm { font-size: var(--text-display-s); }
 .tg-land { --tg-kraft: #E9D9BC; }
 
 .rf3 { --rf3-flip: cubic-bezier(0.34, 1.32, 0.64, 1); --rf3-twine: #8A6A44; }
@@ -14,24 +14,24 @@
 .rf3-hero__h { margin: 0; color: var(--tg-cream); }
 .rf3-hero__h > span { display: block; }
 .rf3-hero__h .c-accent { padding-right: 0.06em; color: var(--tg-saffron); }
-.rf3-hero__sub { margin: 0; max-width: 34ch; font-size: 16px; line-height: 1.5; color: rgb(251 244 231 / 0.84); text-wrap: pretty; }
+.rf3-hero__sub { margin: 0; max-width: 34ch; font-size: var(--text-callout); line-height: 1.5; color: rgb(251 244 231 / 0.84); text-wrap: pretty; }
 .rf3-hero__obj { grid-area: obj; }
 .rf3-hero__act { grid-area: act; display: flex; flex-direction: column; align-items: flex-start; gap: 12px; }
-.rf3-hero__note { margin: 0; font-size: 13px; line-height: 1.4; color: rgb(251 244 231 / 0.76); }
+.rf3-hero__note { margin: 0; font-size: var(--text-footnote); line-height: 1.4; color: rgb(251 244 231 / 0.76); }
 .rf3-hero .lp-cta:focus-visible, .rf3-hero .lp-textlink:focus-visible { outline: 2px solid var(--tg-cream); outline-offset: 3px; }
 @media (min-width: 960px) {
   .rf3-hero__in { grid-template-columns: minmax(0, 6fr) minmax(0, 5fr); grid-template-areas: "copy obj" "act obj"; column-gap: clamp(40px, 5vw, 80px); row-gap: 36px; padding-block: calc(var(--lp-nav-h, 56px) + 72px) 88px; }
   .rf3-hero__copy { align-self: end; gap: 22px; }
   .rf3-hero__act { align-self: start; }
   .rf3-hero__obj { align-self: center; }
-  .rf3-hero__sub { font-size: 19px; }
+  .rf3-hero__sub { font-size: var(--text-title-3); }
 }
 
 .rf3-obj { position: relative; container-type: inline-size; }
 .rf3-obj__img { display: block; width: 100%; height: auto; }
 .rf3-sticker { position: absolute; left: 26%; top: -3%; z-index: 2; width: 22%; aspect-ratio: 1; rotate: -8deg; filter: drop-shadow(0 8px 12px rgb(20 16 12 / 0.34)); }
 .rf3-sticker svg { display: block; width: 100%; height: 100%; }
-.rf3-sticker__ring { font-size: 15px; font-weight: 800; letter-spacing: 0.04em; fill: var(--tg-ink-warm); }
+.rf3-sticker__ring { font-size: var(--text-subhead); font-weight: 800; letter-spacing: 0.04em; fill: var(--tg-ink-warm); }
 
 .rf3-tag { --w: 30cqi; --dx: 7cqi; --dy: 10cqi; --hole-y: calc(var(--w) * 0.15); --hole-r: clamp(4px, 1.3cqi, 7px); position: absolute; left: 71.6%; top: 21.6%; z-index: 3; width: 0; height: 0; }
 .rf3-tag__cord { position: absolute; left: 0; top: 0; z-index: 2; width: var(--dx); height: var(--dy); overflow: visible; pointer-events: none; }
@@ -51,7 +51,7 @@ div.rf3-tag__card { cursor: default; }
 .rf3-tag__big { font-size: clamp(30px, 9.6cqi, 56px); line-height: 1; font-weight: 800; letter-spacing: -0.055em; font-variant-numeric: tabular-nums; }
 .rf3-tag__big[data-long] { font-size: clamp(20px, 6.4cqi, 36px); letter-spacing: -0.04em; }
 .rf3-tag__small { font-size: clamp(12px, 2.8cqi, 14px); line-height: 1.3; font-weight: 500; color: rgb(46 18 0 / 0.8); text-wrap: pretty; }
-.rf3-tag__hint { display: none; position: absolute; left: var(--dx); top: calc(var(--dy) - var(--hole-y) + var(--w) * 1.4 + 10px); width: max-content; margin: 0; padding: 3px 10px; border-radius: 999px; translate: -50% 0; background: rgb(20 36 28 / 0.8); color: var(--tg-cream); font-size: 12px; line-height: 1.4; font-weight: 600; pointer-events: none; }
+.rf3-tag__hint { display: none; position: absolute; left: var(--dx); top: calc(var(--dy) - var(--hole-y) + var(--w) * 1.4 + 10px); width: max-content; margin: 0; padding: 3px 10px; border-radius: 999px; translate: -50% 0; background: rgb(20 36 28 / 0.8); color: var(--tg-cream); font-size: var(--text-caption); line-height: 1.4; font-weight: 600; pointer-events: none; }
 @media (pointer: coarse) {
   .rf3-tag__hint { display: block; }
 }
@@ -70,11 +70,11 @@ div.rf3-tag__card { cursor: default; }
 .rf3-steps { padding-block: clamp(56px, 8vw, 112px); }
 .rf3-step { display: grid; grid-template-columns: 44px minmax(0, 1fr); column-gap: 16px; row-gap: 2px; padding-block: 18px; border-top: 1px solid var(--border); }
 .rf3-step:last-child { border-bottom: 1px solid var(--border); }
-.rf3-step__n { position: relative; isolation: isolate; grid-row: span 2; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 999px; box-shadow: inset 0 0 0 1.5px rgb(46 18 0 / 0.2); color: var(--tg-ink-warm); font-size: 16px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.rf3-step__n { position: relative; isolation: isolate; grid-row: span 2; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 999px; box-shadow: inset 0 0 0 1.5px rgb(46 18 0 / 0.2); color: var(--tg-ink-warm); font-size: var(--text-callout); font-weight: 800; font-variant-numeric: tabular-nums; }
 .rf3-step__n::before { content: ""; position: absolute; inset: 0; z-index: -1; border-radius: inherit; background: var(--tg-saffron); opacity: 0; scale: 0.5; transition: opacity 250ms ease, scale 450ms var(--rf3-flip); }
 .rf3-step[aria-current] .rf3-step__n::before { opacity: 1; scale: 1; }
-.rf3-step strong { align-self: end; font-size: 20px; line-height: 1.25; font-weight: 700; letter-spacing: -0.02em; text-wrap: balance; }
-.rf3-step p { margin: 0; font-size: 15px; line-height: 1.5; color: var(--muted-foreground); text-wrap: pretty; }
+.rf3-step strong { align-self: end; font-size: var(--text-title-3); line-height: 1.25; font-weight: 700; letter-spacing: -0.02em; text-wrap: balance; }
+.rf3-step p { margin: 0; font-size: var(--text-subhead); line-height: 1.5; color: var(--muted-foreground); text-wrap: pretty; }
 @media (prefers-reduced-motion: reduce) {
   .rf3-step__n::before { transition: none; }
 }
@@ -104,11 +104,11 @@ div.rf3-tag__card { cursor: default; }
 .rf3-food__strip::-webkit-scrollbar { display: none; }
 .rf3-food__strip:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; border-radius: 20px; }
 .rf3-dish { scroll-snap-align: start; display: flex; flex-direction: column; gap: 6px; min-height: 132px; padding: 14px; border-radius: 20px; background: var(--card); box-shadow: var(--sh-ring); }
-.rf3-dish__row { margin-top: auto; font-size: 12px; font-weight: 600; color: var(--muted-foreground); }
-.rf3-dish strong { font-size: 16px; line-height: 1.25; font-weight: 700; letter-spacing: -0.015em; text-wrap: balance; }
+.rf3-dish__row { margin-top: auto; font-size: var(--text-caption); font-weight: 600; color: var(--muted-foreground); }
+.rf3-dish strong { font-size: var(--text-callout); line-height: 1.25; font-weight: 700; letter-spacing: -0.015em; text-wrap: balance; }
 .rf3-food__foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 24px; }
 .rf3-facts { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 20px; }
-.rf3-facts li { display: inline-flex; align-items: center; gap: 8px; min-height: 32px; font-size: 14px; font-weight: 600; }
+.rf3-facts li { display: inline-flex; align-items: center; gap: 8px; min-height: 32px; font-size: var(--text-sm); font-weight: 600; }
 .rf3-facts svg { width: 18px; height: 18px; color: var(--primary-text, var(--primary)); }
 @media (min-width: 960px) {
   .rf3-food__strip { margin: 0; padding: 0; grid-auto-flow: row; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); overflow: visible; }
@@ -119,8 +119,8 @@ div.rf3-tag__card { cursor: default; }
 .rf-good ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
 .rf-good li { display: grid; grid-template-columns: 36px minmax(0, 1fr); gap: 12px; align-items: start; padding: 16px; border-radius: 20px; background: var(--card); box-shadow: var(--sh-ring); }
 .rf-good svg { width: 36px; height: 36px; padding: 9px; border-radius: 999px; background: var(--tg-peach); color: var(--tg-ink-warm); }
-.rf-good li span { display: flex; flex-direction: column; gap: 2px; font-size: 14px; line-height: 1.45; color: var(--muted-foreground); text-wrap: pretty; }
-.rf-good li strong { font-size: 15px; color: var(--foreground); }
+.rf-good li span { display: flex; flex-direction: column; gap: 2px; font-size: var(--text-sm); line-height: 1.45; color: var(--muted-foreground); text-wrap: pretty; }
+.rf-good li strong { font-size: var(--text-subhead); color: var(--foreground); }
 .rf-faq { margin-top: clamp(56px, 8vw, 104px); display: grid; gap: clamp(24px, 3vw, 40px); }
 .rf-faq__head { display: grid; gap: 14px; justify-items: start; }
 @media (min-width: 960px) {
@@ -134,9 +134,9 @@ div.rf3-tag__card { cursor: default; }
 .rf3-close__obj { width: min(100%, 280px); justify-self: center; }
 .rf3-close__copy { display: grid; gap: 10px; justify-items: start; }
 .rf3-close__h { color: var(--tg-cream); }
-.rf3-close p { margin: 0; font-size: 16px; line-height: 1.5; color: rgb(251 244 231 / 0.82); }
+.rf3-close p { margin: 0; font-size: var(--text-callout); line-height: 1.5; color: rgb(251 244 231 / 0.82); }
 .rf3-close__act { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; margin-top: 12px; }
-.rf3-close .rf3-close__promo { font-size: 14px; color: var(--tg-cream); }
+.rf3-close .rf3-close__promo { font-size: var(--text-sm); color: var(--tg-cream); }
 .rf3-close .lp-cta:focus-visible { outline: 2px solid var(--tg-cream); outline-offset: 3px; }
 @media (max-width: 640px) {
   .rf3-close__copy, .rf3-close__act, .rf3-close__act > span, .rf3-close__act .lp-cta { width: 100%; }
@@ -148,7 +148,7 @@ div.rf3-tag__card { cursor: default; }
 
 .rf3-dock { position: fixed; z-index: 44; left: 12px; right: 12px; bottom: calc(max(14px, env(safe-area-inset-bottom)) + 70px); display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 6px 6px 18px; border-radius: 999px; background: color-mix(in srgb, var(--card) 84%, transparent); -webkit-backdrop-filter: var(--blur-glass); backdrop-filter: var(--blur-glass); box-shadow: var(--sh-rim), var(--sh-ring), var(--sh-3); opacity: 0; translate: 0 16px; pointer-events: none; transition: opacity 250ms ease, translate 400ms var(--ease-soft, ease-out); }
 .rf3-dock[data-show] { opacity: 1; translate: 0 0; pointer-events: auto; }
-.rf3-dock__offer { min-width: 0; overflow: hidden; font-size: 14px; font-weight: 700; letter-spacing: -0.01em; white-space: nowrap; text-overflow: ellipsis; }
+.rf3-dock__offer { min-width: 0; overflow: hidden; font-size: var(--text-sm); font-weight: 700; letter-spacing: -0.01em; white-space: nowrap; text-overflow: ellipsis; }
 .rf3-dock .lp-cta { min-height: 48px; padding: 0 20px; }
 @media (min-width: 768px) {
   .rf3-dock { display: none; }

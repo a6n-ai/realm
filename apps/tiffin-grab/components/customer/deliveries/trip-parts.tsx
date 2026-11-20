@@ -151,10 +151,10 @@ export function EatingCard({ row, tz, reason, plan, address, eyebrow, menuOut, o
       <div>
         {label("Delivery", "var(--s-upcoming,#0ea5e9)")}
         <h2 className="text-title-1 font-bold leading-tight tracking-[-0.03em] lg:text-large-title">{humanDate(row.date)}</h2>
-        {meta && <p className="mt-1 text-[14px] tabular-nums text-[var(--muted-foreground)]" data-testid="delivery-pills">{meta}</p>}
+        {meta && <p className="mt-1 text-sm tabular-nums text-[var(--muted-foreground)]" data-testid="delivery-pills">{meta}</p>}
         {plan && <span className="mt-1 inline-block"><PlanTag plan={plan} /></span>}
         {trip.complimentaryNote && (
-          <p className="mt-2 text-[14px]" data-testid="complimentary-note">
+          <p className="mt-2 text-sm" data-testid="complimentary-note">
             <Pill tone="brand" className="mr-2 h-7 px-2.5 text-caption">Complimentary</Pill>
             <span className="text-[var(--muted-foreground)]">{trip.complimentaryNote}</span>
           </p>
@@ -166,7 +166,7 @@ export function EatingCard({ row, tz, reason, plan, address, eyebrow, menuOut, o
           </p>
         )}
         {note.length > 0 && (
-          <div className="mt-3 space-y-0.5 break-words text-[14px] text-[var(--muted-foreground)]" data-testid="holiday-note">
+          <div className="mt-3 space-y-0.5 break-words text-sm text-[var(--muted-foreground)]" data-testid="holiday-note">
             {note.map((l) => <p key={l}>{l}</p>)}
           </div>
         )}
@@ -183,7 +183,7 @@ export function EatingCard({ row, tz, reason, plan, address, eyebrow, menuOut, o
           </div>
         )}
         {facts.length > 0 && (
-          <ul className="mt-3 space-y-1 text-[14px] text-[var(--muted-foreground)]">
+          <ul className="mt-3 space-y-1 text-sm text-[var(--muted-foreground)]">
             {facts.map((f) => <li key={f}>{f}</li>)}
           </ul>
         )}
@@ -218,7 +218,7 @@ export function EatingCard({ row, tz, reason, plan, address, eyebrow, menuOut, o
               </ul>
             </>
           )}
-          {arriving && <p className="mt-2 text-[14px] text-[var(--muted-foreground)]">{tiffinCount}</p>}
+          {arriving && <p className="mt-2 text-sm text-[var(--muted-foreground)]">{tiffinCount}</p>}
         </div>
       )}
 
@@ -295,7 +295,7 @@ export function MealTiles({ cats }: { cats: MealCategory[] }) {
           <p className="truncate text-caption-2 font-semibold uppercase tracking-[0.1em] text-[var(--muted-foreground)]">
             {t.label}{t.portion ? ` · ${t.portion}` : ""}
           </p>
-          <p className="mt-0.5 line-clamp-2 text-[14px] font-semibold leading-snug">{t.name}</p>
+          <p className="mt-0.5 line-clamp-2 text-sm font-semibold leading-snug">{t.name}</p>
         </li>
       ))}
     </ul>

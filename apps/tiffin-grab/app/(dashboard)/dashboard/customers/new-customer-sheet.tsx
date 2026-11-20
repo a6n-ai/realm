@@ -40,7 +40,7 @@ type EnabledSlot = { key: string; label: string };
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <p className="text-muted-foreground/80 text-[0.7rem] font-semibold tracking-[0.08em] uppercase">
+    <p className="text-muted-foreground/80 text-caption-2 font-semibold tracking-[0.08em] uppercase">
       {children}
     </p>
   );

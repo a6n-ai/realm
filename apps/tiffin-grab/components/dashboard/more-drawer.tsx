@@ -37,7 +37,7 @@ export function MoreDrawer({
         <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-2">
           {sections.map((section) => (
             <div key={section.label} className="py-2">
-              <p className="text-muted-foreground/80 px-1 pb-1 text-[0.7rem] font-semibold tracking-[0.08em] uppercase">
+              <p className="text-muted-foreground/80 px-1 pb-1 text-caption-2 font-semibold tracking-[0.08em] uppercase">
                 {section.label}
               </p>
               <div className="grid">

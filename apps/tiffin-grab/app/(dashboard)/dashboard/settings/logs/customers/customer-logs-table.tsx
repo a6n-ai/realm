@@ -36,7 +36,7 @@ function ActorBadge({ kind, label }: { kind: CustomerActivityActorKind; label: s
   return (
     <span className="inline-flex flex-wrap items-center gap-1.5">
       <span className="text-foreground">{label}</span>
-      <Badge variant={kind === "staff" ? "secondary" : "outline"} className="text-[10px]">
+      <Badge variant={kind === "staff" ? "secondary" : "outline"} className="text-caption-2">
         {kind === "staff" ? "Admin" : "Customer"}
       </Badge>
     </span>
@@ -97,7 +97,7 @@ export function CustomerLogsTable({
             <TableCell>
               <div className="flex flex-wrap items-center gap-1.5">
                 <span className="font-medium">{row.action}</span>
-                <Badge variant="outline" className="text-[10px]">
+                <Badge variant="outline" className="text-caption-2">
                   {CUSTOMER_ACTIVITY_CATEGORY_LABELS[row.category]}
                 </Badge>
               </div>
@@ -131,7 +131,7 @@ export function CustomerLogsTable({
               >
                 {row.customerName}
               </Link>
-              <Badge variant="outline" className="text-[10px]">
+              <Badge variant="outline" className="text-caption-2">
                 {CUSTOMER_ACTIVITY_CATEGORY_LABELS[row.category]}
               </Badge>
             </div>

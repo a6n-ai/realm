@@ -65,8 +65,8 @@ export default async function ActivatePage({ params }: { params: Promise<{ deplo
         <span className="bg-primary/15 text-primary grid size-12 place-items-center rounded-full">
           <state.Icon className="size-6" />
         </span>
-        <h1 className="mt-5 text-[1.75rem] leading-tight font-semibold tracking-tight">{state.title}</h1>
-        <p className="text-muted-foreground mt-2 text-[0.95rem] leading-relaxed">{state.body}</p>
+        <h1 className="mt-5 text-title-1 leading-tight font-semibold tracking-tight">{state.title}</h1>
+        <p className="text-muted-foreground mt-2 text-subhead leading-relaxed">{state.body}</p>
         <p className="text-muted-foreground mt-4 text-xs">
           Order <span className="text-foreground font-medium tabular-nums">{sub.deploymentId}</span>
         </p>

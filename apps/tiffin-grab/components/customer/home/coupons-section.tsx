@@ -46,7 +46,7 @@ function CouponCard({ coupon }: { coupon: AvailableCoupon }) {
     <div className="flex flex-col gap-3 c-surface rounded-2xl bg-(--primary-wash) p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-[14px] font-semibold tracking-[0.04em]">{coupon.code}</p>
+          <p className="text-sm font-semibold tracking-[0.04em]">{coupon.code}</p>
           <p className="mt-0.5 text-sm text-pretty">{coupon.name}</p>
         </div>
         <p className="text-primary nums shrink-0 text-base font-semibold">{discountLine(coupon, currency)}</p>

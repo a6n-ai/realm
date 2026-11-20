@@ -20,7 +20,8 @@ export function Progress({ steps, current, planParts = 1, planAt = planParts - 1
   const plan = names.length - steps.length + 1;
   const at = current === 0 ? Math.min(planAt, plan - 1) : current + plan - 1;
   return (
-    <nav aria-label="Progress" className="mb-6">
+    // A container: when large OS text leaves too little room, only the current step keeps a visible label.
+    <nav aria-label="Progress" className="@container mb-6">
       <Stepper value={at + 1} indicators={{ completed: <Check aria-hidden className="size-3.5" strokeWidth={3} /> }}>
         <StepperNav>
           {names.map((name, i) => (
@@ -32,7 +33,7 @@ export function Progress({ steps, current, planParts = 1, planAt = planParts - 1
                     return Icon ? <Icon aria-hidden className="size-3.5" strokeWidth={2.25} /> : i + 1;
                   })()}
                 </StepperIndicator>
-                <StepperTitle className={`text-center text-xs sm:text-sm ${i <= at ? "text-foreground" : "text-muted-foreground"}`}>{name}</StepperTitle>
+                <StepperTitle className={`text-center text-xs sm:text-sm ${i <= at ? "text-foreground" : "text-muted-foreground"} ${i === at ? "" : "@max-[21rem]:sr-only"}`}>{name}</StepperTitle>
               </StepperTrigger>
               {/* Phones: equal columns, the line runs from this dot's centre to the next one's (dot is 24px, 6px clear each side). */}
               {/* The leg after the current step is the moving wave; legs already done are solid green. */}

@@ -229,7 +229,7 @@ async function NeedsAttentionSection({ scope }: { scope: AnalyticsScope }) {
               <CardContent className="flex flex-col gap-2">
                 <span className="text-sm font-medium">{c.label}</span>
                 <div className="flex items-center gap-2">
-                  <span className="text-3xl font-semibold tabular-nums">{c.n}</span>
+                  <span className="text-title-1 font-semibold tabular-nums">{c.n}</span>
                   {c.n > 0 ? <Badge variant={c.tone}>Act now</Badge> : null}
                 </div>
                 <span className="text-muted-foreground text-xs">{c.hint}</span>

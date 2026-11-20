@@ -56,7 +56,7 @@ export function CheckoutAddressPicker({
             <Fragment key={a.publicId}>
             <Row selected={value === a.publicId} onClick={() => (value === a.publicId && onEditSaved ? onEditSaved(a) : onPick(a))} icon={<MapPin className="size-[18px]" />}>
               <span className="flex items-center gap-2">
-                <span className="text-[16px] font-semibold tracking-[-0.01em]">{a.label}</span>
+                <span className="text-callout font-semibold tracking-[-0.01em]">{a.label}</span>
                 {a.isDefault && <Pill tone="soft" size="sm">Default</Pill>}
               </span>
               <span className="text-muted-foreground mt-0.5 block text-footnote text-pretty">{formatAddress(a)}</span>
@@ -75,7 +75,7 @@ export function CheckoutAddressPicker({
             // Tapping the picked draft again reopens it for editing.
             <Row selected={value === null} onClick={() => (value === null ? onEditDraft?.() : onPick(null))} icon={<MapPin className="size-[18px]" />}>
               <span className="flex items-center gap-2">
-                <span className="text-[16px] font-semibold tracking-[-0.01em]">{draftFromAccount ? "Address on file" : "New address"}</span>
+                <span className="text-callout font-semibold tracking-[-0.01em]">{draftFromAccount ? "Address on file" : "New address"}</span>
                 {draftFromAccount && <Pill tone="soft" size="sm">From your account</Pill>}
               </span>
               <span className="text-muted-foreground mt-0.5 block text-footnote text-pretty">{draft}</span>
@@ -96,7 +96,7 @@ export function CheckoutAddressPicker({
           <Plus className="size-4" />
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block text-[16px] font-semibold tracking-[-0.01em]">{hasOptions ? "Add new address" : "Add delivery address"}</span>
+          <span className="block text-callout font-semibold tracking-[-0.01em]">{hasOptions ? "Add new address" : "Add delivery address"}</span>
           {!hasOptions && <span className="text-muted-foreground block text-footnote">We&apos;ll check we deliver there.</span>}
         </span>
       </button>}

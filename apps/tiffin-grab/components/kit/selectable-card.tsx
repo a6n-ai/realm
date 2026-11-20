@@ -103,7 +103,7 @@ export function PillToggle({ on, className, children, type = "button", ...rest }
       className={cn(
         FONT,
         FOCUS,
-        "c-pill-glass flex h-12 min-w-0 flex-1 cursor-pointer items-center justify-center rounded-full px-0 text-[14px] font-semibold [touch-action:manipulation] transition-[transform,background-color] duration-100 active:scale-[.97] disabled:cursor-not-allowed disabled:opacity-40 motion-reduce:transition-none motion-reduce:active:scale-100 sm:px-3 sm:text-subhead",
+        "c-pill-glass flex h-12 min-w-0 flex-1 cursor-pointer items-center justify-center rounded-full px-0 text-sm font-semibold [touch-action:manipulation] transition-[transform,background-color] duration-100 active:scale-[.97] disabled:cursor-not-allowed disabled:opacity-40 motion-reduce:transition-none motion-reduce:active:scale-100 sm:px-3 sm:text-subhead",
         SPRING,
         className,
       )}

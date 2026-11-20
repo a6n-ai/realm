@@ -35,7 +35,7 @@ export function RankCards({ items, cols = 2, size = "default" }: { items: RankIt
                 {it.dot ? <span className="size-2.5 shrink-0 rounded-full" style={{ background: it.dot }} /> : null}
                 <span className="truncate" title={it.title}>{it.title}</span>
               </span>
-              <span className={cn("font-semibold tabular-nums", sm ? "text-xl" : "text-3xl")}>{it.value}</span>
+              <span className={cn("font-semibold tabular-nums", sm ? "text-xl" : "text-title-1")}>{it.value}</span>
               {it.meta?.map((m) => (
                 <span key={m} className="text-muted-foreground w-full truncate text-xs">
                   {m}

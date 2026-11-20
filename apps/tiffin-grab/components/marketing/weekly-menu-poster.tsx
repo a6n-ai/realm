@@ -64,7 +64,7 @@ export function WeeklyMenuPoster({
                     </div>
                   ))
                 ) : (
-                  <p className="m-0 text-[12.5px] text-muted-foreground italic">Menu coming soon.</p>
+                  <p className="m-0 text-footnote text-muted-foreground italic">Menu coming soon.</p>
                 )}
               </div>
             </div>

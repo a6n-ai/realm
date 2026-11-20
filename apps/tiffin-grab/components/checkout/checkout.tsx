@@ -929,7 +929,7 @@ export function Checkout({
             {catalog.deliveryCharges.addressTags.map((tag) => {
               const on = selections.addressTagId === tag.id;
               return (
-                <PillToggle key={tag.id} role="radio" aria-checked={on} on={on} onClick={() => handleAddressTagSelect(tag.id)} className="h-10 flex-none gap-1.5 px-4 text-[14px] sm:text-[14px]">
+                <PillToggle key={tag.id} role="radio" aria-checked={on} on={on} onClick={() => handleAddressTagSelect(tag.id)} className="h-10 flex-none gap-1.5 px-4 text-sm sm:text-sm">
                   {tag.name}
                   <span className="text-caption font-medium opacity-75">{formatChargeHint(tag, money)}</span>
                 </PillToggle>
@@ -1135,7 +1135,7 @@ export function Checkout({
               exit={{ opacity: 0, x: -slide * sign }}
               transition={spring}
             >
-              <h1 className="mb-6 text-large-title leading-[1.06] font-bold tracking-[-0.03em] text-balance sm:text-[40px]">{TITLES[step]}</h1>
+              <h1 className="mb-6 text-large-title leading-[1.06] font-bold tracking-[-0.03em] text-balance sm:text-large-title">{TITLES[step]}</h1>
 
               {/* Payment only: on Delivery the header's total chip opens the same summary, and the card would push
                   the phone row below the fold. */}
@@ -1201,7 +1201,7 @@ export function Checkout({
                           {(contact.fullName.trim()[0] ?? "?").toUpperCase()}
                         </span>
                         <span className="min-w-0 flex-1">
-                          <span className="block truncate text-[16px] font-semibold tracking-[-0.01em]">{contact.fullName || "Name not set"}</span>
+                          <span className="block truncate text-callout font-semibold tracking-[-0.01em]">{contact.fullName || "Name not set"}</span>
                           <span className="text-muted-foreground block truncate text-footnote">{contact.email}</span>
                         </span>
                       </div>
@@ -1528,7 +1528,7 @@ function CouponEntry({ value, onChange, onApply, state, reveal, suggestions, onP
                   className="flex min-h-14 max-w-[15rem] items-center gap-2.5 c-surface rounded-2xl bg-(--primary-wash) py-2 pr-3.5 pl-3 text-left transition-transform duration-150 active:scale-[0.97] disabled:opacity-50 motion-reduce:active:scale-100"
                 >
                   <span className="min-w-0">
-                    <span className="block text-[14px] font-semibold tracking-[0.04em] uppercase">{c.code}</span>
+                    <span className="block text-sm font-semibold tracking-[0.04em] uppercase">{c.code}</span>
                     <span className="text-muted-foreground block truncate text-caption">
                       {c.allowedPaymentMethods.length ? `${c.allowedPaymentMethods.map(methodName).join(" or ")} only` : c.minSubtotal != null ? `On orders ${money(Number(c.minSubtotal)).replace(/\.00$/, "")}+` : c.name}
                     </span>
@@ -1584,7 +1584,7 @@ function ApplyField({ id, className, value, placeholder, inputMode, uppercase, a
           onClick={onApply}
           disabled={checking || !value.trim()}
           aria-label={applyLabel}
-          className={buttonClass({ variant: "primary", className: "!min-h-10 h-10 shrink-0 !px-4 !text-[14px] disabled:opacity-35" })}
+          className={buttonClass({ variant: "primary", className: "!min-h-10 h-10 shrink-0 !px-4 !text-sm disabled:opacity-35" })}
         >
           {checking ? "Checking…" : "Apply"}
         </button>

@@ -104,7 +104,7 @@ export function ShareCard({ code, offer = null }: { code: string; offer?: string
         </div>
       </div>
       <div className="rounded-2xl bg-foreground/7 px-4 py-4 text-center">
-        <p className="font-mono text-[32px] leading-none font-bold tracking-[0.3em] [padding-left:0.3em]">{code}</p>
+        <p className="font-mono text-large-title leading-none font-bold tracking-[0.3em] [padding-left:0.3em]">{code}</p>
         <Button variant="quiet" size="md" className="mt-3 !min-h-9 !px-3.5 !text-footnote" onClick={() => codeCopy.copy(code)} aria-label={`Copy code ${code}`}>
           {codeCopy.copied ? <Check aria-hidden className="size-3.5" /> : <Copy aria-hidden className="size-3.5" />}
           <span role="status">{codeCopy.copied ? "Code copied" : "Copy code"}</span>

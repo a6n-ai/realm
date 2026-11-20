@@ -67,7 +67,7 @@ function ChannelsCell({ channels }: { channels: TemplateChannel[] }) {
           className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs"
         >
           {label(c.channel)}
-          <span className="font-mono text-[10px] uppercase text-muted-foreground">{c.locales.join("·")}</span>
+          <span className="font-mono text-caption-2 uppercase text-muted-foreground">{c.locales.join("·")}</span>
         </span>
       ))}
     </span>

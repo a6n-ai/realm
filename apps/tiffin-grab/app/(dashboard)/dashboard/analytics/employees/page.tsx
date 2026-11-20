@@ -127,7 +127,7 @@ async function RepCards({ scope }: { scope: AnalyticsScope }) {
           <CardContent className="flex flex-col items-start gap-2">
             <Badge variant="secondary">#{i + 1}</Badge>
             <span className="w-full truncate text-sm font-medium">{r.name}</span>
-            <span className="text-3xl font-semibold tabular-nums">{usd(r.revenueOwned)}</span>
+            <span className="text-title-1 font-semibold tabular-nums">{usd(r.revenueOwned)}</span>
             <dl className="text-muted-foreground grid w-full grid-cols-[1fr_auto] gap-x-3 gap-y-1 text-xs">
               <dt>Orders owned</dt><dd className="text-foreground tabular-nums">{r.ordersOwned}</dd>
               <dt>Renewal rate</dt><dd className="text-foreground tabular-nums">{r.renewalRatePct != null ? `${r.renewalRatePct}%` : "—"}</dd>

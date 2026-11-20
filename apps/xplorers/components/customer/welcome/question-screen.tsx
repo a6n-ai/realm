@@ -85,7 +85,7 @@ export function QuestionScreen({ question, edit = false }: { question: CustomerQ
             style={{ width: `${progress}%` }}
           />
         </div>
-        <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">{question.prompt}</h1>
+        <h1 className="text-2xl font-semibold tracking-tight md:text-title-1">{question.prompt}</h1>
         {!question.required ? (
           <p className="text-muted-foreground text-sm">Optional — you can skip.</p>
         ) : null}

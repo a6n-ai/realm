@@ -2,6 +2,9 @@ import { cn } from "@/components/kit/cn";
 
 // Bigger savings read bigger: 12px with nothing off, about 20px at the best deal.
 const saveSize = (save: number, best: number) => (best > 0 ? 12 + Math.round((save / best) * 8) : 12);
+// The label grows with the saving, snapped to the type scale (px at a 16px root), in rem so it follows text size.
+const SCALE = [12, 13, 14, 15, 16, 17, 18, 20, 22];
+export const toScale = (px: number) => `${SCALE.reduce((a, b) => (Math.abs(b - px) < Math.abs(a - px) ? b : a)) / 16}rem`;
 
 /**
  * Commitment length as one timeline: a native range slider over the offered durations (finger drag,
@@ -27,7 +30,7 @@ export function WeeksSlider({ weeks, value, savings, perWeek, onChange }: { week
             <span
               key={w}
               className={cn("absolute bottom-0 font-bold leading-none tabular-nums whitespace-nowrap text-[var(--s-delivered,#10b981)] transition-[font-size] duration-200", i === at ? "opacity-100" : "opacity-70", i === 0 ? "" : i === stops.length - 1 ? "-translate-x-full" : "-translate-x-1/2")}
-              style={{ left: pos(i), fontSize: saveSize(s, best) }}
+              style={{ left: pos(i), fontSize: toScale(saveSize(s, best)) }}
             >
               −{s}%
             </span>
@@ -57,7 +60,7 @@ export function WeeksSlider({ weeks, value, savings, perWeek, onChange }: { week
         <span className="text-title-2 leading-none font-bold tracking-[-0.03em]">{value} {value === 1 ? "week" : "weeks"}</span>
         {tiffins != null && <span className="text-subhead font-semibold text-muted-foreground tabular-nums">· {tiffins} {tiffins === 1 ? "tiffin" : "tiffins"}</span>}
         {save > 0 && (
-          <span className="font-bold leading-none text-[var(--s-delivered,#10b981)] transition-[font-size] duration-200" style={{ fontSize: Math.max(15, saveSize(save, best) + 2) }}>
+          <span className="font-bold leading-none text-[var(--s-delivered,#10b981)] transition-[font-size] duration-200" style={{ fontSize: toScale(Math.max(15, saveSize(save, best) + 2)) }}>
             Save {save}%
           </span>
         )}

@@ -55,7 +55,7 @@ export function ChatPane({ messages, timezone }: { messages: PaneMessage[]; time
             {name ? <p className="mb-0.5 text-caption-2 font-semibold opacity-80">{name}</p> : null}
             <p className="whitespace-pre-wrap text-pretty">
               {m.body}
-              <span className={cn("float-right mt-1.5 ml-2 text-[10px] leading-none", mine ? "text-primary-foreground/75" : "text-muted-foreground")}>
+              <span className={cn("float-right mt-1.5 ml-2 text-caption-2 leading-none", mine ? "text-primary-foreground/75" : "text-muted-foreground")}>
                 {m.meta}
               </span>
             </p>

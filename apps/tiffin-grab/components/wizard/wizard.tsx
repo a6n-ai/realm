@@ -316,7 +316,7 @@ export function Wizard({
           exit={{ opacity: 0, x: -slide * sign }}
           transition={spring}
         >
-          <h2 className="mb-6 text-large-title leading-[1.06] font-bold tracking-[-0.03em] text-balance sm:text-[40px]">{questions[progressIndex]}</h2>
+          <h2 className="mb-6 text-large-title leading-[1.06] font-bold tracking-[-0.03em] text-balance sm:text-large-title">{questions[progressIndex]}</h2>
 
           {step === 0 && (
             <div className="flex flex-col gap-6">

@@ -129,7 +129,7 @@ export function CategorySection({ label, children, summary, status, open, onTogg
       <button type="button" aria-expanded={!!open} onClick={onToggle} className="flex min-h-12 w-full items-center gap-3 px-4 py-2.5 text-left [touch-action:manipulation]">
         <span className="min-w-0 flex-1">
           <span className={`block text-caption-2 font-semibold uppercase tracking-wide ${muted}`}>{label}</span>
-          {summary && <span className="block truncate text-[14px] font-semibold">{summary}</span>}
+          {summary && <span className="block truncate text-sm font-semibold">{summary}</span>}
         </span>
         {status && <span className={`shrink-0 text-caption ${muted}`}>{status}</span>}
         <ChevronDown aria-hidden className={`size-4 shrink-0 transition-transform motion-reduce:transition-none ${open ? "rotate-180" : ""} ${muted}`} />

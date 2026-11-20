@@ -13,7 +13,7 @@ export function StepHeader({ step, steps }: { step: number; steps: string[] }) {
           <div key={label} className="flex items-center gap-2">
             <span
               className={cn(
-                "flex size-5 shrink-0 items-center justify-center rounded-full text-[0.7rem] font-semibold transition-colors",
+                "flex size-5 shrink-0 items-center justify-center rounded-full text-caption-2 font-semibold transition-colors",
                 active ? "bg-primary text-primary-foreground" : done ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground",
               )}
             >

@@ -148,7 +148,7 @@ const kitChatUi: Partial<ChatUi> = {
           <BubbleContent className={cn("rounded-[20px] px-3.5 py-2 text-subhead leading-snug", mine ? "rounded-br-md" : "rounded-bl-md")}>
             <p className="whitespace-pre-wrap text-pretty">
               {m.body}
-              <span className={cn("float-right mt-1.5 ml-2 text-[10px] leading-none", mine ? "text-[var(--primary-foreground,#fff)]/75" : "text-[var(--muted-foreground)]")}>{m.meta}</span>
+              <span className={cn("float-right mt-1.5 ml-2 text-caption-2 leading-none", mine ? "text-[var(--primary-foreground,#fff)]/75" : "text-[var(--muted-foreground)]")}>{m.meta}</span>
             </p>
             {m.attachments?.length ? (
               <div className="mt-2 flex flex-wrap gap-2">

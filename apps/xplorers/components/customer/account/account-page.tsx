@@ -69,7 +69,7 @@ export function AccountPage({
   return (
     <div className="mx-auto max-w-5xl space-y-6 pb-[calc(2rem+env(safe-area-inset-bottom))]">
       <div className={cn(active && "hidden lg:block")}>
-        <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">Settings</h1>
+        <h1 className="text-2xl font-semibold tracking-tight md:text-title-1">Settings</h1>
         <p className="text-muted-foreground mt-1 text-sm md:text-base">{who || "Your settings"}</p>
       </div>
 

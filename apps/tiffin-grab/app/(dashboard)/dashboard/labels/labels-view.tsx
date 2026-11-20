@@ -206,7 +206,7 @@ export function LabelList({ labels }: { labels: DeliveryLabel[] }) {
                     {label.forLabel ? ` · ${label.forLabel}` : ""}
                   </p>
                 </div>
-                <Badge variant="outline" className="shrink-0 text-[10px]">
+                <Badge variant="outline" className="shrink-0 text-caption-2">
                   {label.routeDriver
                     ? `${label.routeDriver}${label.routeStop != null ? ` · #${label.routeStop}` : ""}`
                     : (label.zoneName ?? "Unzoned")}

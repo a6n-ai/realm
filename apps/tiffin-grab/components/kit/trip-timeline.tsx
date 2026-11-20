@@ -119,7 +119,7 @@ export function TripTimeline({
             const head = pick ? (
               <>
                 <span className={`text-caption-2 font-semibold uppercase tracking-[0.08em] ${eats ? "text-muted-foreground" : "text-muted-foreground/60"}`}>{DAY_SHORT[d]}</span>
-                <span className={`grid size-8 place-items-center rounded-full text-[16px] font-bold tabular-nums ${pick.today === d && !sel ? "border-primary border-2" : ""}`}>{Number(dateIso(d).slice(8))}</span>
+                <span className={`grid size-8 place-items-center rounded-full text-callout font-bold tabular-nums ${pick.today === d && !sel ? "border-primary border-2" : ""}`}>{Number(dateIso(d).slice(8))}</span>
               </>
             ) : (
               <>
@@ -185,7 +185,7 @@ export function TripTimeline({
         {legend !== undefined ? legend : (
         <p className="text-muted-foreground mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-caption">
           <span className="inline-flex items-center gap-1.5">
-            <span className="c-stop bg-primary text-primary-foreground grid size-4 place-items-center rounded-full text-[9px] font-bold">{pick ? <Truck className="size-2.5" /> : 2}</span>
+            <span className="c-stop bg-primary text-primary-foreground grid size-4 place-items-center rounded-full text-caption-2 font-bold">{pick ? <Truck className="size-2.5" /> : 2}</span>
             {pick ? "Delivery day" : "Delivery, tiffins it brings"}
           </span>
           {/* Only when this week has a day eaten from an earlier delivery. */}

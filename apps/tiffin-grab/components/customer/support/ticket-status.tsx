@@ -63,7 +63,7 @@ export function RateChat({ ticketId, rating, note }: { ticketId: string; rating:
           ))}
           <span className="ml-2 text-footnote text-[var(--muted-foreground)]">{WORDS[rating]}</span>
         </p>
-        {note ? <p className="text-[14px] text-[var(--muted-foreground)]">“{note}”</p> : null}
+        {note ? <p className="text-sm text-[var(--muted-foreground)]">“{note}”</p> : null}
         <div>
           <Button variant="quiet" onClick={() => setEditing(true)}>Change rating</Button>
         </div>
@@ -103,7 +103,7 @@ export function RateChat({ ticketId, rating, note }: { ticketId: string; rating:
             <Star aria-hidden className={cn("size-7 transition-colors", n <= shown ? "fill-[#f59e0b] text-[#f59e0b]" : "text-[var(--muted-foreground)]")} />
           </button>
         ))}
-        <span className="ml-2 text-[14px] font-semibold" aria-live="polite">{shown ? WORDS[shown] : ""}</span>
+        <span className="ml-2 text-sm font-semibold" aria-live="polite">{shown ? WORDS[shown] : ""}</span>
       </div>
       <Textarea
         label="Anything to add? (optional)"

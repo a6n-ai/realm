@@ -68,7 +68,7 @@ export function InquiryMatch({
 
   return (
     <div className="border-border/70 grid gap-1.5 rounded-xl border p-3 text-sm">
-      <p className="text-muted-foreground text-[0.7rem] font-semibold tracking-[0.08em] uppercase">
+      <p className="text-muted-foreground text-caption-2 font-semibold tracking-[0.08em] uppercase">
         {heading}
       </p>
       {rows()}

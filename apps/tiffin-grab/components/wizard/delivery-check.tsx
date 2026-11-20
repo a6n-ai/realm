@@ -92,7 +92,7 @@ export function DeliveryCheck({ onlyWhenChecked = false }: { onlyWhenChecked?: b
           </button>
         }
       >
-        <label htmlFor="delivery-postal" className="min-w-0 flex-1 truncate font-semibold">Check your area</label>
+        <label htmlFor="delivery-postal" className="min-w-0 flex-1 font-semibold">Check your area</label>
         <input
           id="delivery-postal"
           autoComplete="postal-code"

@@ -147,7 +147,7 @@ function AvatarEditor({ image, name }: { image: string | null; name: string | nu
 
   return (
     <div className="flex items-center gap-4">
-      <Avatar name={name} image={image} className="size-24 text-3xl" />
+      <Avatar name={name} image={image} className="size-24 text-title-1" />
       <div className="flex flex-wrap gap-2">
         <Button variant="quiet" onClick={() => input.current?.click()}>
           {image ? "Change photo" : "Add photo"}

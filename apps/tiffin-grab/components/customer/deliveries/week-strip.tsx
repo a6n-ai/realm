@@ -87,7 +87,7 @@ export function WeekStrip({ firstWeek, lastWeek, week: propWeek, today, selected
               <span className={cn("grid size-8 place-items-center rounded-full text-subhead font-semibold tabular-nums", iso === today && "ring-[1.5px] ring-primary")}>{at(iso).getUTCDate()}</span>
               <span aria-hidden className="size-1.5 rounded-full" style={{ background: s ? STATUS_COLOR[s] : "transparent" }} />
               {/* Fixed height so weeks with and without a truck line up. */}
-              <span aria-hidden className="flex h-3.5 items-center gap-0.5 text-[10px] font-semibold tabular-nums text-[var(--muted-foreground)]">
+              <span aria-hidden className="flex h-3.5 items-center gap-0.5 text-caption-2 font-semibold tabular-nums text-[var(--muted-foreground)]">
                 {units ? (
                   <>
                     <Truck className="size-3.5" />

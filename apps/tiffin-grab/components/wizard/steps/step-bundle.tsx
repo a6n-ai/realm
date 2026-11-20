@@ -226,7 +226,7 @@ function PopularOption({ meal, active, categoryLabels, onPick, biggest = false }
           </span>
         </span>
         {/* Price top-right, as on every meal card: one popular card per row on phones, so there's room. */}
-        <MealSizePrice meal={meal} perTiffin stacked priceClassName="text-primary text-[24px] font-bold tracking-[-0.03em]" />
+        <MealSizePrice meal={meal} perTiffin stacked priceClassName="text-primary text-2xl font-bold tracking-[-0.03em]" />
       </div>
       {/* What's in it, same line as the other cards, so a popular pick is never a blind one. */}
       {/* What's in it on the left, the price level on the same line at the right. */}
@@ -265,7 +265,7 @@ function MealOption({
           {/* Name and price on one row, the price top-right, as on every other meal card. */}
           <div className="flex items-start justify-between gap-3">
             <span className="min-w-0 text-title-3 leading-tight font-semibold tracking-[-0.025em]">{meal.name}</span>
-            <MealSizePrice meal={meal} perTiffin stacked priceClassName="text-primary text-[24px] font-bold tracking-[-0.03em]" />
+            <MealSizePrice meal={meal} perTiffin stacked priceClassName="text-primary text-2xl font-bold tracking-[-0.03em]" />
           </div>
           <p className="text-muted-foreground text-sm text-pretty">{meal.description || "Taste it before you commit to a plan."}</p>
           <MealDays meal={meal} />
@@ -287,7 +287,7 @@ function MealOption({
             <MealDays meal={meal} />
           </span>
         </span>
-        <MealSizePrice meal={meal} perTiffin stacked priceClassName="text-primary text-[24px] font-bold tracking-[-0.03em]" />
+        <MealSizePrice meal={meal} perTiffin stacked priceClassName="text-primary text-2xl font-bold tracking-[-0.03em]" />
       </div>
       {mealOffPct(meal) > 0 && <Pill tone="save" size="sm" className="-mt-1 w-fit">{mealOffPct(meal)}% off</Pill>}
       {meal.description ? <p className="text-muted-foreground -mt-1 text-sm text-pretty">{meal.description}</p> : null}

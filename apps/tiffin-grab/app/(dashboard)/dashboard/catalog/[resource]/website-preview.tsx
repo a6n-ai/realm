@@ -89,7 +89,7 @@ export function WebsitePreview({ resource, values }: { resource: string; values:
 
   return (
     <div className="border-border/70 bg-muted/30 sm:col-span-2 -mx-5 -mb-5 mt-1 border-t px-5 py-4">
-      <p className="text-muted-foreground/80 text-[0.7rem] font-semibold tracking-[0.08em] uppercase">
+      <p className="text-muted-foreground/80 text-caption-2 font-semibold tracking-[0.08em] uppercase">
         Website preview
       </p>
       <div className="mt-3">{body}</div>

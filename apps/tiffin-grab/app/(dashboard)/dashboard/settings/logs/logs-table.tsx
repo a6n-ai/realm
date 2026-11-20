@@ -37,7 +37,7 @@ function ActorBadge({
   return (
     <span className="inline-flex flex-wrap items-center gap-1.5">
       <span className="text-foreground">{label}</span>
-      <Badge variant={kind === "staff" ? "secondary" : "outline"} className="text-[10px]">
+      <Badge variant={kind === "staff" ? "secondary" : "outline"} className="text-caption-2">
         {kind === "staff" ? "Staff" : "Customer"}
       </Badge>
     </span>
@@ -87,7 +87,7 @@ export function LogsTable({
               <div className="font-medium">{r.customerName}</div>
               <Link
                 href={`/dashboard/orders/${r.orderPublicId}`}
-                className="text-muted-foreground hover:text-foreground font-mono text-[10px] hover:underline"
+                className="text-muted-foreground hover:text-foreground font-mono text-caption-2 hover:underline"
               >
                 {r.orderDeploymentId}
               </Link>

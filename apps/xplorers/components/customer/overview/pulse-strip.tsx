@@ -29,7 +29,7 @@ export function PulseStrip({ items }: { items: PulseItem[] }) {
               {item.label}
             </span>
             <span
-              className="mt-1.5 block text-2xl font-extrabold tracking-tight tabular-nums sm:text-3xl"
+              className="mt-1.5 block text-2xl font-extrabold tracking-tight tabular-nums sm:text-title-1"
               style={{ fontFamily: "var(--font-display)" }}
             >
               {item.value}

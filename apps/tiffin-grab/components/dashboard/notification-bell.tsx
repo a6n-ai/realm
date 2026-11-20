@@ -31,7 +31,7 @@ export function NotificationBell(props: UseNotificationsOptions = {}) {
         <Button variant="ghost" size="icon" className="relative" aria-label="Notifications">
           <BellIcon data-icon="inline-start" />
           {unread > 0 && (
-            <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-medium leading-none text-primary-foreground">
+            <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-caption-2 font-medium leading-none text-primary-foreground">
               {unread > 9 ? "9+" : unread}
             </span>
           )}

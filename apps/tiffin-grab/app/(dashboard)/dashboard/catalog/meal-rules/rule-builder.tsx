@@ -440,7 +440,7 @@ export function RuleForm({
                   <div className="absolute inset-0 flex items-center">
                     <div className="w-full border-t border-border/50" />
                   </div>
-                  <span className="relative rounded-full border border-border/80 bg-background px-2.5 py-0.5 text-[10px] font-semibold tracking-wider uppercase text-muted-foreground shadow-2xs">
+                  <span className="relative rounded-full border border-border/80 bg-background px-2.5 py-0.5 text-caption-2 font-semibold tracking-wider uppercase text-muted-foreground shadow-2xs">
                     {draft.matchMode === "all" ? "AND" : "OR"}
                   </span>
                 </div>

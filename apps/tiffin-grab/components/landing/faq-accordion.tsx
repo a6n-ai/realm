@@ -19,7 +19,7 @@ export function FaqAccordion({ items, name, openFirst = true }: { items: FaqItem
           >
             <summary className="grid cursor-pointer list-none grid-cols-[40px_minmax(0,1fr)_20px] items-center gap-3.5 rounded-[22px] px-4 py-3.5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[#F06B1A] group-not-open:hover:bg-muted/60 [&::-webkit-details-marker]:hidden">
               <span aria-hidden className="grid size-10 place-items-center rounded-full bg-[#F06B1A]/14 text-[#B4470F] [&_svg]:size-5"><Icon /></span>
-              <span className="text-[16px] font-bold tracking-[-0.01em] sm:text-body">{f.q}</span>
+              <span className="text-callout font-bold tracking-[-0.01em] sm:text-body">{f.q}</span>
               <ChevronDown aria-hidden className="size-5 text-muted-foreground transition-[rotate] duration-300 ease-soft group-open:rotate-180 motion-reduce:transition-none" />
             </summary>
             <p className="m-0 whitespace-pre-line px-4 pb-[18px] text-subhead leading-[1.55] text-pretty text-muted-foreground sm:pl-[70px]">{f.a}</p>

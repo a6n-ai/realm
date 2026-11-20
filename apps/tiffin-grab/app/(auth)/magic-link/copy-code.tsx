@@ -30,7 +30,7 @@ export function CopyCode({ code }: { code: string | null }) {
       >
         <div className="flex flex-1 flex-col gap-5">
           {code ? (
-            <p className="border-border bg-card select-all self-center rounded-2xl border px-6 py-4 text-[40px] font-semibold tracking-[0.2em] tabular-nums">
+            <p className="border-border bg-card select-all self-center rounded-2xl border px-6 py-4 text-large-title font-semibold tracking-[0.2em] tabular-nums">
               {code}
             </p>
           ) : null}

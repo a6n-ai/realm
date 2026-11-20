@@ -39,7 +39,7 @@ function MethodTile({ id }: { id: string }) {
     );
   }
   if (id === "etransfer") {
-    return <span aria-hidden className={`${BRAND_TILE} bg-[#FFB81C] text-[24px] leading-none font-black text-black italic`}>e</span>;
+    return <span aria-hidden className={`${BRAND_TILE} bg-[#FFB81C] text-2xl leading-none font-black text-black italic`}>e</span>;
   }
   const look = LOOK[id] ?? OTHER;
   return <IconTile tint={look.tint} size="lg"><look.icon /></IconTile>;

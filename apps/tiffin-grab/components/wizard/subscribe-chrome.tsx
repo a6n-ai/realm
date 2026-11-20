@@ -36,7 +36,8 @@ export function SubscribeChrome({
     // A scroll edge, not a hairline: content fades as it passes under the glass bar.
     <header className="c-glass sticky top-0 z-40 mb-6 mr-[calc(50%-50vw)] ml-[calc(50%-50vw)] pt-[env(safe-area-inset-top)] after:pointer-events-none after:absolute after:inset-x-0 after:top-full after:h-4 after:bg-gradient-to-b after:from-background after:to-transparent after:content-['']">
       <div className="mx-auto grid h-16 max-w-[1280px] grid-cols-[1fr_auto_1fr] items-center gap-3 px-4 lg:px-6">
-        <div className="flex min-w-0 items-center gap-3">
+        {/* A container, so the wordmark steps aside (mark only) when large OS text leaves it no room. */}
+        <div className="@container flex min-w-0 items-center gap-3">
           {/* The logo answers a pointer like every other link here: a small lift. */}
           <Brand href={closeHref} />
           {topBack ? <Button
