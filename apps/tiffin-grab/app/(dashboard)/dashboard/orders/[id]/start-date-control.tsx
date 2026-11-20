@@ -53,11 +53,11 @@ export function StartDateControl({
     return (
       <Tooltip>
         {/* aria-disabled, not disabled: a disabled button gets no hover, so the reason would never show. */}
-        <TooltipTrigger asChild>
+        <TooltipTrigger render={
           <Button size="sm" variant="ghost" aria-disabled className="text-muted-foreground -my-1 h-7 cursor-not-allowed px-2 opacity-50" onClick={(e) => e.preventDefault()}>
             Edit
           </Button>
-        </TooltipTrigger>
+        } />
         <TooltipContent className="max-w-60 text-pretty">{blockedReason}.</TooltipContent>
       </Tooltip>
     );

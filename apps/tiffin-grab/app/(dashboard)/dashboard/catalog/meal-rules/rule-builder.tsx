@@ -124,14 +124,17 @@ function ValuePicker({
   return (
     <div className="grid w-full gap-1.5">
       <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
-          <Button
+        <PopoverTrigger
+          render={
+            <Button
             type="button"
             variant="outline"
             role="combobox"
             aria-expanded={open}
             className="w-full justify-between bg-background font-normal text-left"
-          >
+            />
+          }
+        >
             <span className="truncate">
               {selected.length === 0 ? (
                 <span className="text-muted-foreground">{placeholder}</span>
@@ -142,9 +145,8 @@ function ValuePicker({
               )}
             </span>
             <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" aria-hidden />
-          </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-[--radix-popover-trigger-width] min-w-64 p-0" align="start">
+        <PopoverContent className="w-(--anchor-width) min-w-64 p-0" align="start">
           <Command>
             <CommandInput placeholder="Search…" />
             <CommandList>
@@ -227,7 +229,7 @@ export function ConditionRow({
   };
 
   return (
-    <div className="group relative rounded-xl border border-border/70 bg-card/60 p-3.5 shadow-2xs transition-colors hover:border-border">
+    <div className="group relative rounded-xl border border-border/70 bg-card/60 p-3.5 shadow-2xs">
       <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center">
         {/* Field selector */}
         <div className="w-full sm:w-40 sm:shrink-0">
@@ -500,7 +502,7 @@ export function RuleForm({
                 })
               }
               className={cn(
-                "group relative flex flex-col items-start gap-2 rounded-xl border p-3.5 text-left transition-all outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                "group relative flex flex-col items-start gap-2 rounded-xl border p-3.5 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring",
                 draft.action === "max_qualifying"
                   ? "border-primary bg-primary/10 shadow-xs ring-1 ring-primary/40"
                   : "border-border/70 bg-card/60 hover:border-border hover:bg-card"
@@ -536,7 +538,7 @@ export function RuleForm({
               aria-checked={draft.action === "forbid"}
               onClick={() => set({ action: "forbid" })}
               className={cn(
-                "group relative flex flex-col items-start gap-2 rounded-xl border p-3.5 text-left transition-all outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                "group relative flex flex-col items-start gap-2 rounded-xl border p-3.5 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring",
                 draft.action === "forbid"
                   ? "border-primary bg-primary/10 shadow-xs ring-1 ring-primary/40"
                   : "border-border/70 bg-card/60 hover:border-border hover:bg-card"
@@ -572,7 +574,7 @@ export function RuleForm({
               aria-checked={draft.action === "cannot_coexist"}
               onClick={() => set({ action: "cannot_coexist" })}
               className={cn(
-                "group relative flex flex-col items-start gap-2 rounded-xl border p-3.5 text-left transition-all outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                "group relative flex flex-col items-start gap-2 rounded-xl border p-3.5 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring",
                 draft.action === "cannot_coexist"
                   ? "border-primary bg-primary/10 shadow-xs ring-1 ring-primary/40"
                   : "border-border/70 bg-card/60 hover:border-border hover:bg-card"

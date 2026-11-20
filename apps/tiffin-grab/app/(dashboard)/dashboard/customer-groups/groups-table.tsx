@@ -11,6 +11,7 @@ import { TableCell } from "@foundry/ui/table";
 import { GroupRowActions } from "./group-quick-actions";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@foundry/design-system/timezone-provider";
+import { TableRowsSkeleton } from "@/components/dashboard/table-rows-skeleton";
 
 export type GroupTableRow = {
   publicId: string;
@@ -55,13 +56,13 @@ export function GroupsTable({ rows, spec, total, page, size }: { rows: GroupTabl
             <TableCell className="font-medium">
               <Link href={`/dashboard/customer-groups/${r.publicId}`} className="hover:underline">{r.name}</Link>
             </TableCell>
-            <TableCell className="text-right tabular-nums">{r.memberCount}</TableCell>
+            <TableCell numeric className="text-right tabular-nums">{r.memberCount}</TableCell>
             <TableCell className="text-muted-foreground">
               {r.lastAction
                 ? `${ACTION_LABEL[r.lastAction.kind] ?? r.lastAction.kind} · ${formatEpoch(r.lastAction.createdAt, { mode: "date", timeZone: tz })}`
                 : "None yet"}
             </TableCell>
-            <TableCell className="whitespace-nowrap tabular-nums text-muted-foreground">
+            <TableCell numeric className="whitespace-nowrap tabular-nums text-muted-foreground">
               {formatEpoch(r.createdAt, { mode: "date", timeZone: tz })}
               {r.createdBy ? ` · ${r.createdBy}` : ""}
             </TableCell>
@@ -77,5 +78,5 @@ export function GroupsTable({ rows, spec, total, page, size }: { rows: GroupTabl
 }
 
 export function GroupsTableSkeleton() {
-  return <DataTable.Skeleton columns={COLUMNS} />;
+  return <TableRowsSkeleton columns={COLUMNS} serial={false} search="Search groups…" />;
 }

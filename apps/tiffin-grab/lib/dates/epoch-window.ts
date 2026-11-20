@@ -1,4 +1,4 @@
-import { dayRange, isoToUtcDate } from "@foundry/commons/util/dates";
+import { dayRange } from "@foundry/commons/util/dates";
 
 /** Inclusive calendar range in `timeZone`, as the epoch window list filters expect. */
 export function zonedRangeMs(from: string, to: string, timeZone: string): { from: number; to: number } {
@@ -27,17 +27,6 @@ export const list = (raw: string | undefined): string[] =>
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
-
-export const epoch = (raw: string | undefined): number | undefined => {
-  if (!raw) return undefined;
-  // Facet dateRange writes epoch ms; revenue once wrote ISO dates — accept both.
-  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
-    const n = isoToUtcDate(raw).getTime();
-    return Number.isFinite(n) ? n : undefined;
-  }
-  const n = Number(raw);
-  return Number.isFinite(n) ? n : undefined;
-};
 
 /** Inclusive epoch window for the calendar month containing `now` in `timezone`. */
 export function currentMonthEpochRange(timezone: string, now = Date.now()): { from: number; to: number } {

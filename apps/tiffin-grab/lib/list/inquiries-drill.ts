@@ -3,6 +3,8 @@
  * as groupCounts; the list skips the follow-up queue so the rows match the card.
  */
 
+import { setDateParams, type WithUrlDates } from "@/lib/dates/range-params";
+
 export type InquiryDrillBucket = "all" | "lead" | "follow_up" | "took" | "lost";
 
 const BUCKETS: readonly InquiryDrillBucket[] = ["all", "lead", "follow_up", "took", "lost"];
@@ -12,12 +14,11 @@ export function parseInquiryBucket(value: string | undefined): InquiryDrillBucke
 }
 
 export function inquiriesListHref(
-  sp: { from?: string; to?: string; owner?: string },
+  sp: { from?: string; to?: string; owner?: string } & WithUrlDates,
   bucket?: InquiryDrillBucket,
 ): string {
   const qs = new URLSearchParams();
-  if (sp.from) qs.set("from", sp.from);
-  if (sp.to) qs.set("to", sp.to);
+  setDateParams(qs, sp);
   if (sp.owner) qs.set("owner", sp.owner);
   if (bucket) qs.set("bucket", bucket);
   const s = qs.toString();

@@ -42,20 +42,22 @@ export function PostalCombobox({
   return (
     <div className="grid gap-1.5">
       <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
-          <Button
+        <PopoverTrigger
+          render={
+            <Button
             id={id}
             type="button"
             variant="outline"
             role="combobox"
             aria-expanded={open}
             className="justify-between font-normal uppercase"
-          >
+            />
+          }
+        >
             {value || <span className="text-muted-foreground normal-case">{placeholder}</span>}
             <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
-          </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+        <PopoverContent className="w-(--anchor-width) p-0" align="start">
           <Command>
             {/* Free text: typing sets the value directly so out-of-area codes are enterable. */}
             <CommandInput

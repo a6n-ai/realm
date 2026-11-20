@@ -1,9 +1,8 @@
 import { Suspense } from "react";
 import { eq, inArray } from "drizzle-orm";
 import { zonedDateIso } from "@foundry/commons";
-import { ClipboardListIcon, ListPlusIcon, PlusIcon, UploadIcon, InboxIcon, UsersIcon, TrendingUpIcon, XCircleIcon } from "lucide-react";
+import { ClipboardListIcon, ListPlusIcon, PlusIcon, InboxIcon, UsersIcon, TrendingUpIcon, XCircleIcon } from "lucide-react";
 import { StatCards, StatCardsSkeleton } from "@/components/dashboard/stat-cards";
-import Link from "next/link";
 import { db } from "@/db/client";
 import { deliveryZones, inquiries } from "@/db/schema";
 import { can, requirePagePermission } from "@/lib/auth/guards";
@@ -17,13 +16,11 @@ import { parseSort } from "@foundry/design-system/list-sort";
 import { loadOwnerOptions, loadSourceOptions } from "@/lib/list/facet-options";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { listableMealSizes } from "@/lib/catalog/types";
+import Link from "next/link";
 import { Button } from "@foundry/ui/button";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@foundry/ui/tabs";
 import {
-  PageShell,
-  PageHeader,
-  SectionCard,
   parseFilterState,
   type FacetDef,
 } from "@/components/ds";
@@ -38,10 +35,10 @@ import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import { reassignInquiry } from "./actions";
 import { SUB_STATUSES, SUB_STATUS_META } from "@/lib/inquiries/status";
 import { QueueTabs } from "./queue-tabs";
+import { InquiriesChrome } from "./inquiries-chrome";
 import { RenewalsQueue, RenewalsQueueSkeleton } from "./renewals-queue";
 import { MarkSectionRead } from "@/components/dashboard/mark-section-read";
-import { SectionDateRange } from "@/components/filters/section-date-range";
-import { epochBoundsWhere, withDefaultMonth } from "@/lib/list/default-month";
+import { epochBoundsWhere, withDefaultMonth, withListDates } from "@/lib/list/default-month";
 import { inquiriesListHref, parseInquiryBucket } from "@/lib/list/inquiries-drill";
 import { dayRange } from "@foundry/commons/util/dates";
 import { requestNow } from "@/lib/dates/request-now";
@@ -70,48 +67,33 @@ const EMPTY_COPY: Record<QueueTab, string> = {
 export default async function InquiriesPage({ searchParams }: { searchParams: SearchParams }) {
   // A bare landing shows the viewer's own inquiries; links that carry filters (cards, drill-downs) keep their meaning.
   if (Object.keys(await searchParams).length === 0) redirect(`/dashboard/inquiries?owner=${ME}`);
+  const renewalsView = (await searchParams).view === "renewals";
   return (
-    <PageShell>
-      <MarkSectionRead section="inquiries" />
-      <PageHeader
-        icon={ClipboardListIcon}
-        title="Inquiries"
-        actions={
-          <div className="flex items-center gap-2">
-            <Button variant="outline" asChild>
-              <Link href="/dashboard/inquiries/import">
-                <UploadIcon className="size-4" />
-                Import
-              </Link>
-            </Button>
-            <Suspense fallback={<Skeleton className="h-9 w-32" />}>
-              <NewInquiryAction />
-            </Suspense>
-          </div>
-        }
-      />
-
-      {/* The date range filters the cards: one group, tighter than the page rhythm. */}
-      <div className="flex flex-col gap-3">
-        <div className="flex">
-          <SectionDateRange />
-        </div>
+    <InquiriesChrome
+      addActions={
+        <Suspense fallback={<Skeleton className="h-9 w-32" />}>
+          <NewInquiryAction />
+        </Suspense>
+      }
+      stats={
         <Suspense fallback={<StatCardsSkeleton count={5} />}>
           <InquiryStats searchParams={searchParams} />
         </Suspense>
-      </div>
-
-      <Suspense fallback={(await searchParams).view === "renewals" ? <RecommendationGridSkeleton title="Next renewals" /> : <RecommendationGridSkeleton title="Next leads" />}>
-        <NextLead searchParams={searchParams} />
-        <NextRenewals searchParams={searchParams} />
-      </Suspense>
-
-      <SectionCard title="Follow-up queue">
-        <Suspense fallback={(await searchParams).view === "renewals" ? <RenewalsQueueSkeleton /> :<InquiriesListSkeleton />}>
+      }
+      next={
+        <Suspense fallback={renewalsView ? <RecommendationGridSkeleton title="Next renewals" /> : <RecommendationGridSkeleton title="Next leads" entity />}>
+          <NextLead searchParams={searchParams} />
+          <NextRenewals searchParams={searchParams} />
+        </Suspense>
+      }
+      queue={
+        <Suspense fallback={renewalsView ? <RenewalsQueueSkeleton /> : <InquiriesListSkeleton />}>
           <QueueSection searchParams={searchParams} />
         </Suspense>
-      </SectionCard>
-    </PageShell>
+      }
+    >
+      <MarkSectionRead section="inquiries" />
+    </InquiriesChrome>
   );
 }
 
@@ -232,11 +214,11 @@ function QueueViewSwitch({ view, owner }: { view: "leads" | "renewals"; owner: s
   return (
     <Tabs value={view}>
       <TabsList variant="line" aria-label="Follow-up views">
-        <TabsTrigger value="leads" asChild>
-          <Link href={leadsHref} prefetch={false}>Leads</Link>
+        <TabsTrigger value="leads" render={<Link href={leadsHref} prefetch={false} />}>
+          Leads
         </TabsTrigger>
-        <TabsTrigger value="renewals" asChild>
-          <Link href={renewalsHref} prefetch={false}>Renewals</Link>
+        <TabsTrigger value="renewals" render={<Link href={renewalsHref} prefetch={false} />}>
+          Renewals
         </TabsTrigger>
       </TabsList>
     </Tabs>
@@ -350,8 +332,7 @@ function renewalOwnerHref(sp: Awaited<SearchParams>, owner: string): string {
 async function InquiriesData({ searchParams }: { searchParams: SearchParams }) {
   await requirePagePermission({ inquiry: ["read"] });
 
-  // No default-month filter here: a follow-up queue must show older leads. Explicit from/to still apply.
-  const sp = await searchParams;
+  const sp = await withListDates(await searchParams);
   const bucket = parseInquiryBucket(sp.bucket);
   const queue = QUEUES.find((q) => q === sp.queue) ?? "due";
   const sort = parseSort(

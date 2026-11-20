@@ -7,7 +7,6 @@ import { geistSans, geistMono, geistPixelCircle } from "./fonts";
 import { ThemeProvider, themeInitScript } from "@foundry/themes";
 import { InlineScript } from "@foundry/ui/inline-script";
 import { Toaster } from "@foundry/ui/sonner";
-import { TooltipProvider } from "@foundry/ui/tooltip";
 import { StaleDeployReloader } from "@/components/stale-deploy-reloader";
 import { NavPending } from "@/components/landing/nav-pending";
 import { BrowserChrome } from "@/components/browser-chrome";
@@ -64,7 +63,7 @@ export default function RootLayout({
       </head>
       <body className="min-h-full flex flex-col">
         <ThemeProvider>
-          <TooltipProvider><AreaTransition>{children}</AreaTransition></TooltipProvider>
+          <AreaTransition>{children}</AreaTransition>
           <Toaster />
           <StaleDeployReloader />
           <NavPending />

@@ -32,7 +32,7 @@ export function KitchenWeekView({
   const [day, setDay] = useState(defaultDay);
   const selected = dishes?.find((d) => d.date === day)?.counts ?? [];
   return (
-    <Tabs defaultValue={dishes ? "dishes" : "plans"} className="gap-4">
+    <Tabs defaultValue={dishes ? "dishes" : "plans"} className="flex-col gap-4">
       <TabsList>
         {dishes ? <TabsTrigger value="dishes">By dish</TabsTrigger> : null}
         <TabsTrigger value="plans">By plan</TabsTrigger>

@@ -1,4 +1,5 @@
 import { LifeBuoyIcon, PauseCircleIcon, RefreshCwIcon, type LucideIcon } from "lucide-react";
+import { HoverHint } from "@/components/ds/hover-hint";
 
 // No "use client": the server page renders the legend and the client list renders the tags,
 // both from this one map so the legend can't drift from the rows (same pattern as Orders' row tags).
@@ -15,10 +16,12 @@ export function FactTag({ fact, n, title }: { fact: RenewalFact; n: number; titl
   if (n <= 0) return null;
   const { icon: Icon, label, className } = RENEWAL_FACTS[fact];
   return (
-    <span title={title} className={`ml-2 inline-flex items-center gap-0.5 align-middle text-xs font-medium tabular-nums ${className}`}>
-      <Icon className="size-4" aria-label={label} />
-      {n}
-    </span>
+    <HoverHint text={title}>
+      <span className={`ml-2 inline-flex items-center gap-0.5 align-middle text-xs font-medium tabular-nums ${className}`}>
+        <Icon className="size-4" aria-label={label} />
+        {n}
+      </span>
+    </HoverHint>
   );
 }
 

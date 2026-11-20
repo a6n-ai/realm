@@ -27,15 +27,13 @@ export function NotificationBell(props: UseNotificationsOptions = {}) {
 
   return (
     <Popover onOpenChange={(open) => open && markAllRead()}>
-      <PopoverTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative" aria-label="Notifications">
+      <PopoverTrigger render={<Button variant="ghost" size="icon" className="relative" aria-label="Notifications" />}>
           <BellIcon data-icon="inline-start" />
           {unread > 0 && (
             <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-caption-2 font-medium leading-none text-primary-foreground">
               {unread > 9 ? "9+" : unread}
             </span>
           )}
-        </Button>
       </PopoverTrigger>
       <PopoverContent align="end" className="z-50 w-80 overflow-hidden p-0">
         <div className="px-3 py-2 text-sm font-medium">Notifications</div>

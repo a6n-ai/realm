@@ -51,12 +51,10 @@ export function InquiryMatch({
     const using = matches.find((m) => m.publicId === pickedId);
     return (
       <Popover>
-        <PopoverTrigger asChild>
-          <Button type="button" variant="outline" className="shrink-0" aria-label={heading}>
+        <PopoverTrigger render={<Button type="button" variant="outline" className="shrink-0" aria-label={heading} />}>
             <MapPinIcon />
             {using ? `${using.sourceLabel} · ${ageLabel(using.createdAt)}` : `${matches.length} inquir${matches.length === 1 ? "y" : "ies"}`}
             <ChevronDownIcon className="opacity-60" />
-          </Button>
         </PopoverTrigger>
         <PopoverContent align="end" className="grid w-80 gap-1.5 text-sm">
           <p className="text-muted-foreground text-xs font-medium">{heading}</p>

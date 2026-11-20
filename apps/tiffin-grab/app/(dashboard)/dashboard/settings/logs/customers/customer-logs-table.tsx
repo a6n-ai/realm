@@ -19,6 +19,7 @@ import type {
   CustomerActivityListRow,
   CustomerActivitySortColumn,
 } from "@/lib/customer-activity/customer-activities-list.service";
+import { TableRowsSkeleton } from "@/components/dashboard/table-rows-skeleton";
 
 const COLUMNS: readonly Column<CustomerActivitySortColumn | "customer" | "activity" | "details" | "by">[] =
   [
@@ -82,7 +83,7 @@ export function CustomerLogsTable({
         emptySearchMessage="No customer activity matches your filters."
         renderRow={(row) => (
           <>
-            <TableCell className="text-muted-foreground whitespace-nowrap text-xs tabular-nums">
+            <TableCell numeric className="text-muted-foreground whitespace-nowrap text-xs tabular-nums">
               {formatTime(row.createdAt)}
             </TableCell>
             <TableCell>
@@ -156,5 +157,5 @@ export function CustomerLogsTable({
 }
 
 export function CustomerLogsTableSkeleton() {
-  return <DataTable.Skeleton columns={COLUMNS} serial={false} />;
+  return <TableRowsSkeleton columns={COLUMNS} serial={false} search="Search customer name or email…" filters={[]} />;
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import type { ReactElement, ReactNode } from "react";
 import { cn } from "@foundry/ui/cn";
 import { useIsMobile } from "@foundry/ui/use-mobile";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@foundry/ui/sheet";
@@ -23,7 +23,7 @@ export function FormDrawer({
 }: {
   open?: boolean;
   onOpenChange?: (o: boolean) => void;
-  trigger?: ReactNode;
+  trigger?: ReactElement;
   title: string;
   description?: string;
   children: ReactNode;
@@ -48,9 +48,9 @@ export function FormDrawer({
     );
   }
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      {trigger && <SheetTrigger asChild>{trigger}</SheetTrigger>}
-      <SheetContent side="right" className="flex w-full flex-col gap-0 p-0 data-[side=right]:sm:max-w-xl">
+    <Sheet open={open} onOpenChange={onOpenChange} side="right">
+      {trigger && <SheetTrigger render={trigger} />}
+      <SheetContent className="flex w-full flex-col gap-0 p-0 data-[side=right]:sm:max-w-xl">
         {/* pr-12 keeps the title clear of the close button. */}
         <SheetHeader className="shrink-0 gap-0.5 px-6 pt-4 pr-12 pb-2">
           <SheetTitle className="text-lg font-semibold tracking-[-0.01em]">{title}</SheetTitle>

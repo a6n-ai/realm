@@ -84,7 +84,7 @@ export function ProvinceTaxForm({ overrides }: { overrides: Record<string, TaxLi
             <TableCell className="whitespace-normal">
               <LinePills lines={r.lines} />
             </TableCell>
-            <TableCell className="text-right font-medium tabular-nums">{totalPct(r.lines)}%</TableCell>
+            <TableCell numeric className="text-right font-medium tabular-nums">{totalPct(r.lines)}%</TableCell>
             <TableCell>
               <TonePill tone={r.custom ? "brand" : "faint"}>{r.custom ? "Custom" : "Default"}</TonePill>
             </TableCell>

@@ -32,14 +32,17 @@ export function DayCard({
   const tone = profit == null || profit === 0 ? "text-muted-foreground" : profit < 0 ? "text-destructive" : "text-success-foreground dark:text-success";
   return (
     <Popover>
-      <PopoverTrigger asChild>
-        <button
+      <PopoverTrigger
+        render={
+          <button
           type="button"
           className={cn(
-            "bg-card hover:bg-muted/50 focus-visible:ring-ring/50 flex h-full w-full min-w-0 flex-col gap-1.5 rounded-lg border p-3 text-left text-sm outline-none transition-colors focus-visible:ring-2",
+            "bg-card focus-visible:ring-ring/50 flex h-full w-full min-w-0 flex-col gap-1.5 rounded-lg border p-3 text-left text-sm outline-none focus-visible:ring-2",
             muted && "text-muted-foreground",
           )}
-        >
+          />
+        }
+      >
           <span className="font-medium">{title}</span>
           {sub ? <span className="text-muted-foreground text-xs tabular-nums">{sub}</span> : null}
           <dl className="flex flex-col gap-0.5 text-xs tabular-nums">
@@ -51,7 +54,6 @@ export function DayCard({
             ))}
           </dl>
           <span className={cn("text-sm font-semibold tabular-nums", tone)}>{profit == null ? "—" : signedMoney(profit, fmt)}</span>
-        </button>
       </PopoverTrigger>
       <PopoverContent align="start" className="w-64 border">
         <p className="font-medium">{title}</p>

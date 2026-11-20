@@ -132,7 +132,7 @@ export const ADMIN_SHEET_UI: SheetUi = {
     </div>
   ),
   Segmented: ({ label, value, onChange, items }) => (
-    <Tabs value={value} onValueChange={onChange}>
+    <Tabs value={value} onValueChange={(next) => next && onChange(next)}>
       <TabsList aria-label={label}>
         {items.map((it) => (
           <TabsTrigger key={it.id} value={it.id}>{it.label}</TabsTrigger>

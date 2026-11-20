@@ -9,6 +9,7 @@ import {
   RowActionButton,
   RowActions,
 } from "@/components/ds";
+import { Badge } from "@foundry/ui/badge";
 import { TableCell } from "@foundry/ui/table";
 import { useUrlState } from "@/lib/list/use-url-state";
 import type { SortState } from "@foundry/design-system/list-sort";
@@ -62,13 +63,10 @@ function ChannelsCell({ channels }: { channels: TemplateChannel[] }) {
   return (
     <span className="flex flex-wrap gap-1.5">
       {channels.map((c) => (
-        <span
-          key={c.channel}
-          className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs"
-        >
+        <Badge key={c.channel} variant="neutral" className="[--ui-badge-tone:var(--primary)]">
           {label(c.channel)}
           <span className="font-mono text-caption-2 uppercase text-muted-foreground">{c.locales.join("·")}</span>
-        </span>
+        </Badge>
       ))}
     </span>
   );
@@ -184,12 +182,12 @@ export function TemplateList({
           <>
             <TableCell className="font-medium">{r.label}</TableCell>
             <TableCell>
-              <span className="rounded-full border px-2 py-0.5 text-xs text-muted-foreground">{CATEGORY_LABEL[r.category]}</span>
+              <Badge variant="neutral">{CATEGORY_LABEL[r.category]}</Badge>
             </TableCell>
             <TableCell>
               <ChannelsCell channels={r.channels} />
             </TableCell>
-            <TableCell className="text-right tabular-nums text-muted-foreground">{fmt(r.updatedAt)}</TableCell>
+            <TableCell numeric className="text-right tabular-nums text-muted-foreground">{fmt(r.updatedAt)}</TableCell>
             <TableCell>
               <RowActions>
                 <RowActionButton icon={PencilIcon} label="Edit templates" href={href} />

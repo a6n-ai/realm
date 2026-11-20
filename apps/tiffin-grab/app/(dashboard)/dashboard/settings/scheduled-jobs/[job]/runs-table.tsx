@@ -9,6 +9,7 @@ import { CRON_RUN_FACETS } from "@/lib/cron/facets";
 import type { CronRunListRow } from "@/lib/cron/run";
 import { formatEpoch } from "@/lib/format/datetime";
 import { RunStatus } from "../run-parts";
+import { TableRowsSkeleton } from "@/components/dashboard/table-rows-skeleton";
 
 const COLUMNS: readonly Column<"when" | "status" | "trigger" | "took" | "result">[] = [
   { key: "when", label: "When" },
@@ -54,10 +55,10 @@ export function RunsTable({ rows, total, page, size }: { rows: CronRunListRow[];
         emptySearchMessage="No runs match your filters."
         renderRow={(r) => (
           <>
-            <TableCell className="whitespace-nowrap tabular-nums">{fmt(r.startedAt)}</TableCell>
+            <TableCell numeric className="whitespace-nowrap tabular-nums">{fmt(r.startedAt)}</TableCell>
             <TableCell><RunStatus run={r} /></TableCell>
             <TableCell className="text-muted-foreground">{startedBy(r)}</TableCell>
-            <TableCell className="text-muted-foreground tabular-nums">{took(r)}</TableCell>
+            <TableCell numeric className="text-muted-foreground tabular-nums">{took(r)}</TableCell>
             <TableCell className="text-sm whitespace-normal"><Result r={r} /></TableCell>
           </>
         )}
@@ -78,5 +79,5 @@ export function RunsTable({ rows, total, page, size }: { rows: CronRunListRow[];
 }
 
 export function RunsTableSkeleton() {
-  return <DataTable.Skeleton columns={COLUMNS} serial={false} />;
+  return <TableRowsSkeleton columns={COLUMNS} serial={false} filters={[]} />;
 }

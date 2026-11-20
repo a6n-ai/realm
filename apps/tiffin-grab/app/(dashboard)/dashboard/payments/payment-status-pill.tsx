@@ -1,25 +1,20 @@
-import { cn } from "@foundry/ui/cn";
+import { Badge } from "@foundry/ui/badge";
 import { paymentStatusLabel } from "@/lib/payments/status";
 
 const TONE: Record<string, string> = {
-  simulated_paid: "bg-ok/15 text-ok",
-  paid: "bg-ok/15 text-ok",
-  pending_verification: "bg-warn/15 text-warn",
-  awaiting_payment: "bg-muted text-muted-foreground border",
-  pending: "bg-muted text-muted-foreground border",
-  rejected: "bg-bad/15 text-bad",
-  refunded: "bg-bad/15 text-bad",
+  simulated_paid: "[--ui-badge-tone:var(--ok)]",
+  paid: "[--ui-badge-tone:var(--ok)]",
+  pending_verification: "[--ui-badge-tone:var(--warn)]",
+  awaiting_payment: "",
+  pending: "",
+  rejected: "[--ui-badge-tone:var(--bad)]",
+  refunded: "[--ui-badge-tone:var(--bad)]",
 };
 
 export function PaymentStatusPill({ status }: { status: string }) {
   return (
-    <span
-      className={cn(
-        "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium",
-        TONE[status] ?? "bg-muted text-muted-foreground",
-      )}
-    >
+    <Badge variant="neutral" className={TONE[status]}>
       {paymentStatusLabel(status)}
-    </span>
+    </Badge>
   );
 }

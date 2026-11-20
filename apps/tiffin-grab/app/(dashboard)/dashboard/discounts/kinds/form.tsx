@@ -15,6 +15,7 @@ import { Switch } from "@foundry/ui/switch";
 import { TableCell } from "@foundry/ui/table";
 import { saveDiscountPolicy } from "../actions";
 import { useFormatMoney } from "@/components/app-currency";
+import { TableRowsSkeleton } from "@/components/dashboard/table-rows-skeleton";
 
 export type KindRow = { kind: CouponKind; label: string; live: number; uses: number; discounted: number };
 
@@ -88,9 +89,9 @@ export function KindsForm({
         renderRow={(r) => (
           <>
             <TableCell className="font-medium">{r.label}</TableCell>
-            <TableCell className="text-right tabular-nums">{r.live.toLocaleString()}</TableCell>
-            <TableCell className="text-right tabular-nums">{r.uses.toLocaleString()}</TableCell>
-            <TableCell className="text-right tabular-nums">{fmtMoney(r.discounted)}</TableCell>
+            <TableCell numeric className="text-right tabular-nums">{r.live.toLocaleString()}</TableCell>
+            <TableCell numeric className="text-right tabular-nums">{r.uses.toLocaleString()}</TableCell>
+            <TableCell numeric className="text-right tabular-nums">{fmtMoney(r.discounted)}</TableCell>
             <TableCell>
               <Switch aria-label={`${r.label} enabled`} checked={kinds.includes(r.kind)} onCheckedChange={(on) => toggle(r.kind, on)} />
             </TableCell>
@@ -105,7 +106,7 @@ export function KindsForm({
 export function KindsFormSkeleton() {
   return (
     <SectionCard bleed title={CARD.title} subtitle={CARD.subtitle} action={<Skeleton className="h-8 w-24" />}>
-      <DataTable.Skeleton columns={COLUMNS} serial={false} />
+      <TableRowsSkeleton columns={COLUMNS} serial={false} search="Search kinds…" filters={["Status"]} />
     </SectionCard>
   );
 }

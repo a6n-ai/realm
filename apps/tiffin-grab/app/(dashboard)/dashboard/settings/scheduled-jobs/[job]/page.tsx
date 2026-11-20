@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { ClockIcon } from "lucide-react";
 import { PageHeader, SectionCard, parseFilterState } from "@/components/ds";
 import { getAppSettings } from "@/lib/settings";
+import { withExplicitDates } from "@/lib/list/default-month";
 import { CRON_JOBS, nextCronRun } from "@/lib/cron/jobs";
 import { CRON_RUN_FACETS } from "@/lib/cron/facets";
 import { listCronRunsPage, recentCronRuns } from "@/lib/cron/run";
@@ -54,7 +55,7 @@ export default async function ScheduledJobPage({ params, searchParams }: { param
 }
 
 async function RunsData({ job, searchParams }: { job: string; searchParams: SearchParams }) {
-  const { condition, page } = parseFilterState(CRON_RUN_FACETS, await searchParams);
+  const { condition, page } = parseFilterState(CRON_RUN_FACETS, await withExplicitDates(await searchParams));
   const result = await listCronRunsPage(job, condition, page);
   return <RunsTable rows={result.items} total={result.total} page={page.page} size={page.size} />;
 }

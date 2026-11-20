@@ -9,7 +9,7 @@ export function scheduleLabel(job: CronJob, timezone: string, now: number): stri
 export function RunStatus({ run }: { run: { finishedAt: number | null; ok: boolean | null } }) {
   if (run.finishedAt == null) return <Badge variant="outline">Running</Badge>;
   return run.ok ? (
-    <Badge variant="outline" className="border-emerald-500/40 text-emerald-600 dark:text-emerald-400">OK</Badge>
+    <Badge variant="outline" className="border-emerald-500/40 [--ui-badge-tone:var(--color-emerald-600)] dark:[--ui-badge-tone:var(--color-emerald-400)]">OK</Badge>
   ) : (
     <Badge variant="destructive">Failed</Badge>
   );

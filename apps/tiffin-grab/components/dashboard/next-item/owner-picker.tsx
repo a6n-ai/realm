@@ -11,11 +11,9 @@ export function OwnerPicker({ label, options }: { label: string; options: OwnerO
   const router = useRouter();
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm">
-          {label}
-          <ChevronDownIcon className="size-4" />
-        </Button>
+      <DropdownMenuTrigger render={<Button variant="outline" size="sm" />}>
+        {label}
+        <ChevronDownIcon className="size-4" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         {options.map((o) => (

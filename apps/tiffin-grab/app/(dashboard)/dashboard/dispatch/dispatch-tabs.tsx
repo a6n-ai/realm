@@ -21,13 +21,11 @@ export function DispatchTabs({ date }: { date: string }) {
   const active = TABS.find((t) => pathname === t.href)?.href ?? TABS[0].href;
 
   return (
-    <Tabs value={active}>
+    <Tabs value={active} activation="manual">
       <TabsList variant="line" aria-label="Dispatch sections" className="h-auto flex-wrap overflow-x-visible">
         {TABS.map((t) => (
-          <TabsTrigger key={t.href} value={t.href} asChild>
-            <Link href={`${t.href}?date=${date}`} prefetch={false}>
-              <t.icon /> {t.label}
-            </Link>
+          <TabsTrigger key={t.href} value={t.href} render={<Link href={`${t.href}?date=${date}`} prefetch={false} />}>
+            <t.icon /> {t.label}
           </TabsTrigger>
         ))}
       </TabsList>

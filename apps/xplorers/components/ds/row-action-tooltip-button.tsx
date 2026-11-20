@@ -17,7 +17,7 @@ export const RowActionTooltipButton = React.forwardRef<
 >(function RowActionTooltipButton({ icon: Icon, label, onClick, disabled }, ref) {
   return (
     <Tooltip>
-      <TooltipTrigger asChild>
+      <TooltipTrigger render={
         <button
           ref={ref}
           type="button"
@@ -31,7 +31,7 @@ export const RowActionTooltipButton = React.forwardRef<
         >
           <Icon className="size-4" />
         </button>
-      </TooltipTrigger>
+      } />
       <TooltipContent side="top">{label}</TooltipContent>
     </Tooltip>
   );

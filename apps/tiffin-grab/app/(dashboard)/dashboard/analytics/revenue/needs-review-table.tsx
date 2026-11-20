@@ -51,9 +51,9 @@ export function NeedsReviewTable({ rows }: { rows: NeedsReviewTableRow[] }) {
           <TableCell>
             <OrderStatusBadge status={r.status} />
           </TableCell>
-          <TableCell className="text-right tabular-nums">{money(r.paid)}</TableCell>
-          <TableCell className="text-right tabular-nums">{money(r.total)}</TableCell>
-          <TableCell className="text-right tabular-nums">{money(r.diff)}</TableCell>
+          <TableCell numeric className="text-right tabular-nums">{money(r.paid)}</TableCell>
+          <TableCell numeric className="text-right tabular-nums">{money(r.total)}</TableCell>
+          <TableCell numeric className="text-right tabular-nums">{money(r.diff)}</TableCell>
           <TableCell className="text-muted-foreground text-sm">{r.reason}</TableCell>
         </>
       )}

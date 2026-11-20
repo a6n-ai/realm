@@ -11,6 +11,7 @@ import type { SortState } from "@foundry/design-system/list-sort";
 import { LEDGER_TYPE_OPTIONS, type LedgerSortKey } from "@/lib/payments/facets";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@foundry/design-system/timezone-provider";
+import { TableRowsSkeleton } from "@/components/dashboard/table-rows-skeleton";
 
 type Row = {
   publicId: string;
@@ -69,7 +70,7 @@ export function MoneyLedgerTable({
         const credit = r.direction === "credit";
         return (
           <>
-            <TableCell className="whitespace-nowrap tabular-nums text-muted-foreground">
+            <TableCell numeric className="whitespace-nowrap tabular-nums text-muted-foreground">
               {formatEpoch(r.createdAt, { mode: "datetime", timeZone: tz })}
             </TableCell>
             <TableCell className="text-muted-foreground">{r.email ?? "-"}</TableCell>
@@ -83,8 +84,8 @@ export function MoneyLedgerTable({
                 <span className="text-muted-foreground">-</span>
               )}
             </TableCell>
-            <TableCell className="max-w-[260px] truncate text-xs text-muted-foreground">{r.memo ?? ""}</TableCell>
-            <TableCell className={`text-right tabular-nums ${credit ? "text-ok" : "text-bad"}`}>
+            <TableCell className="max-w-[260px] truncate text-xs text-muted-foreground">{r.memo ?? "—"}</TableCell>
+            <TableCell numeric className={`text-right tabular-nums ${credit ? "text-ok" : "text-bad"}`}>
               {credit ? "+" : "-"}
               {formatMoney(Number(r.amount))}
             </TableCell>
@@ -98,5 +99,5 @@ export function MoneyLedgerTable({
 }
 
 export function MoneyLedgerTableSkeleton() {
-  return <DataTable.Skeleton columns={COLUMNS} hasId />;
+  return <TableRowsSkeleton columns={COLUMNS} hasId search="Search ledger…" filters={["Type"]} />;
 }

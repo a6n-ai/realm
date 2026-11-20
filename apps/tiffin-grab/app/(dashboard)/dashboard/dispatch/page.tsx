@@ -1,9 +1,8 @@
 import { parseIsoDate } from "@/lib/dates/iso-date";
 import { Suspense } from "react";
-import { CircleAlertIcon, CircleCheckIcon, EraserIcon, RouteIcon, TagIcon, TruckIcon } from "lucide-react";
-import { StatCards, StatCardsSkeleton } from "@/components/dashboard/stat-cards";
+import { CircleAlertIcon, CircleCheckIcon, EraserIcon, RouteIcon, TagIcon } from "lucide-react";
+import { StatCards } from "@/components/dashboard/stat-cards";
 import { zonedDateIso } from "@foundry/commons";
-import { Skeleton } from "@foundry/ui/skeleton";
 import { can, requirePagePermission } from "@/lib/auth/guards";
 import { getAppSettings } from "@/lib/settings";
 import { getOptimoRouteStatus } from "@/lib/optimoroute/config";
@@ -12,7 +11,8 @@ import { HolidayBanner } from "@/components/dashboard/holiday-banner";
 import { getSession } from "@/lib/auth/session";
 import { holidaysOn } from "@/lib/deliveries/holidays.service";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
-import { PageShell, PageHeader, SectionCard } from "@/components/ds";
+import { SectionCard } from "@/components/ds";
+import { DispatchChrome, DispatchSkeleton } from "./dispatch-chrome";
 import { DayHeader } from "./day-header";
 import { LedgerTable } from "./ledger-table";
 import { DayActions } from "./day-actions";
@@ -27,16 +27,11 @@ export default async function DispatchPage({ searchParams }: { searchParams: Sea
   const dateKey = parseIsoDate(dateParam) ?? "today";
 
   return (
-    <PageShell>
-      <PageHeader
-        icon={TruckIcon}
-        title="Dispatch"
-        subtitle="Today's routes and driver assignments."
-      />
-      <Suspense key={dateKey} fallback={<DispatchData.Skeleton />}>
+    <DispatchChrome>
+      <Suspense key={dateKey} fallback={<DispatchSkeleton />}>
         <DispatchData searchParams={searchParams} />
       </Suspense>
-    </PageShell>
+    </DispatchChrome>
   );
 }
 
@@ -125,25 +120,3 @@ async function DispatchData({ searchParams }: { searchParams: SearchParams }) {
     </>
   );
 }
-
-DispatchData.Skeleton = function DispatchDataSkeleton() {
-  return (
-    <>
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <Skeleton className="h-9 w-48" />
-        <Skeleton className="h-9 w-80" />
-      </div>
-      <StatCardsSkeleton count={5} />
-      <SectionCard title="Send to OptimoRoute">
-        <div className="grid gap-3 sm:grid-cols-3">
-          <Skeleton className="h-36" />
-          <Skeleton className="h-36" />
-          <Skeleton className="h-36" />
-        </div>
-      </SectionCard>
-      <SectionCard title="Stops">
-        <Skeleton className="h-40 w-full" />
-      </SectionCard>
-    </>
-  );
-};

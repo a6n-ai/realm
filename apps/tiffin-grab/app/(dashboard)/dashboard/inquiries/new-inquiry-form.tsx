@@ -85,7 +85,7 @@ export function AddInquirySheet({
   zones,
   catalog,
 }: {
-  trigger?: React.ReactNode;
+  trigger?: React.ReactElement;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   defaultCountry: CountryCode;
@@ -206,7 +206,7 @@ export function AddInquirySheet({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
+      {trigger && <DialogTrigger render={trigger} />}
       <DialogContent className="flex max-h-[90vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-lg">
         <DialogHeader className="px-6 pt-6 pb-2">
           <DialogTitle>New inquiry</DialogTitle>
@@ -330,11 +330,11 @@ export function AddInquirySheet({
                       <p className="text-muted-foreground flex items-center gap-1.5 text-xs">
                         Sub-source (optional)
                         <Tooltip>
-                          <TooltipTrigger asChild>
+                          <TooltipTrigger render={
                             <button type="button" aria-label="What is a sub-source?" className="hover:text-foreground transition-colors">
                               <HelpCircleIcon className="size-3.5" />
                             </button>
-                          </TooltipTrigger>
+                          } />
                           <TooltipContent>Finer breakdown of the source when you have it - skip if unknown.</TooltipContent>
                         </Tooltip>
                       </p>

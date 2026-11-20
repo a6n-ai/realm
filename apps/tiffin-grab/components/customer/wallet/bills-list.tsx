@@ -13,7 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@foundry/ui/dialog";
-import { OrderStatusBadge } from "@/components/ds";
+import { BillStatusPill } from "./bill-status-pill";
 import { formatEpoch, formatDateOnly } from "@/lib/format/datetime";
 import { useTimezone } from "@foundry/design-system/timezone-provider";
 import type { CustomerBill } from "@/lib/services/customer-finances.service";
@@ -144,7 +144,7 @@ function BillRow({
           {formatEpoch(bill.createdAt, { mode: "date", timeZone: tz })}
         </p>
         <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-          <OrderStatusBadge status={bill.status} />
+          <BillStatusPill status={bill.status} />
           {bill.payments.map((p) => {
             const { label, tone, Icon } = paymentPill(p.status);
             return (

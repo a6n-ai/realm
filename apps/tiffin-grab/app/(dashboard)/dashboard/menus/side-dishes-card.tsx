@@ -1,10 +1,10 @@
 "use client";
-
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectSeparator, SelectTrigger, SelectValue } from "@foundry/ui/select";
+import { Select, SelectContent, SelectGroup, SelectGroupLabel, SelectItem, SelectSeparator, SelectTrigger, SelectValue } from "@foundry/ui/select";
 import { Badge } from "@/components/reui/badge";
 import { Button } from "@foundry/ui/button";
+import { Card, CardContent } from "@foundry/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@foundry/ui/dialog";
 import type { DayOfWeek } from "@/lib/deliveries/schedule/delivery-days";
 import { DAY_NAME } from "@/lib/dates/weekdays";
@@ -12,23 +12,18 @@ import { sanitizeClientError } from "@foundry/commons/util/client-error";
 import type { DaySide, DaySideValue, SideRole, SideSlot } from "@/lib/menu/menu-sides.service";
 import type { ActionResult } from "@/lib/actions/action-result";
 import { setDaySide, setSideDefault } from "./actions";
-
 export type SideCategory = { key: string; label: string };
 export type DayDish = { publicId: string; name: string; category: string; isDefault: boolean };
 export type SidesInput = { weekId: string; slots: SideSlot[]; categories: SideCategory[]; daySides: DaySide[] };
-
 const ROLE_LABEL: Record<SideRole, string> = { side_1: "Side 1", side_2: "Side 2" };
 const DEFAULT = "default";
 const NONE = "none";
-
 export const sideKey = (slot: Pick<SideSlot, "category" | "role">) => `side:${slot.category}:${slot.role}`;
 export const sideLabel = (slot: SideSlot) => `${slot.categoryLabel} · ${ROLE_LABEL[slot.role]}`;
-
 const encode = (v: DaySideValue): string =>
   v == null ? DEFAULT : v.kind === "category" ? `cat:${v.key}` : `dish:${v.dishPublicId}`;
 const decode = (s: string): DaySideValue =>
   s === DEFAULT ? null : s.startsWith("cat:") ? { kind: "category", key: s.slice(4) } : { kind: "dish", dishPublicId: s.slice(5) };
-
 /**
  * Side dishes for 5 Item / Maharaja / Sabzi Only meals: their side items (meal sizes, Role
  * "Side 1/2") pack a dish from another category on the day's menu, the day's dal by default.
@@ -52,7 +47,6 @@ export function useSides(input: SidesInput | undefined, dayDishes: Partial<Recor
   const [defaults, setDefaults] = useState(() => new Map((input?.slots ?? []).map((s) => [`${s.category}:${s.role}`, s.defaultSource])));
   const categories = input?.categories ?? [];
   const catLabel = (key: string) => categories.find((c) => c.key === key)?.label ?? key;
-
   const run = (fn: () => Promise<ActionResult>) =>
     start(async () => {
       setError(null);
@@ -60,10 +54,8 @@ export function useSides(input: SidesInput | undefined, dayDishes: Partial<Recor
       if ("error" in res) setError(sanitizeClientError(res.error));
       else router.refresh();
     });
-
   const valueOf = (day: DayOfWeek, slot: SideSlot) => overrides.get(`${day}:${slot.category}:${slot.role}`) ?? DEFAULT;
   const standingOf = (slot: SideSlot) => defaults.get(`${slot.category}:${slot.role}`) ?? null;
-
   // What the side packs on that day, as the kitchen sheet will print it.
   const packs = (day: DayOfWeek, slot: SideSlot): string => {
     const value = valueOf(day, slot);
@@ -77,7 +69,6 @@ export function useSides(input: SidesInput | undefined, dayDishes: Partial<Recor
     if (!source) return `Same as ${slot.categoryLabel.toLowerCase()} main`;
     return fromCategory(source) ?? `No ${catLabel(source).toLowerCase()} on the menu (falls back to ${slot.categoryLabel.toLowerCase()})`;
   };
-
   return {
     slots: input?.slots ?? [],
     categories,
@@ -111,61 +102,59 @@ export function useSides(input: SidesInput | undefined, dayDishes: Partial<Recor
     },
   };
 }
-
 export type Sides = ReturnType<typeof useSides>;
-
 /** One side on one day: what it packs, the day's source, and the standing default for every week. */
 export function SidePanel({ day, slot, sides, dishesOfDay, editable }: { day: DayOfWeek; slot: SideSlot; sides: Sides; dishesOfDay: DayDish[]; editable: boolean }) {
   const standing = sides.standingOf(slot);
   return (
-    <section aria-label={`${DAY_NAME[day]} ${sideLabel(slot)}`} data-testid="side-panel" className="bg-card flex flex-col gap-4 rounded-xl border p-4">
-      <div className="flex flex-col gap-1">
-        <p className="text-muted-foreground text-xs font-semibold tracking-wider uppercase">{DAY_NAME[day]}</p>
-        <h3 className="text-lg font-semibold">{sideLabel(slot)}</h3>
-        <p className="text-muted-foreground text-xs">{slot.meals.join(" · ")}</p>
-      </div>
-
-      <div className="bg-muted/40 flex flex-wrap items-center gap-2 rounded-lg border px-3 py-2 text-sm">
-        <span className="text-muted-foreground">Packs</span>
-        <span className="font-medium">{sides.packs(day, slot)}</span>
-        {sides.changed(day, slot) && <Badge variant="warning-light">Changed for this day</Badge>}
-      </div>
-
-      <label className="flex flex-col gap-1.5">
-        <span className="text-sm font-medium">This day</span>
-        <Select value={sides.valueOf(day, slot)} disabled={!editable} onValueChange={(v) => sides.setDay(day, slot, v)}>
-          <SelectTrigger aria-label={`${DAY_NAME[day]} source`}><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value={DEFAULT}>Default{standing ? ` (${sides.catLabel(standing)})` : ""}</SelectItem>
-            <SelectSeparator />
-            <SelectGroup>
-              <SelectLabel>Category</SelectLabel>
-              {sides.categories.map((c) => <SelectItem key={c.key} value={`cat:${c.key}`}>{c.label}</SelectItem>)}
-            </SelectGroup>
-            {dishesOfDay.length ? (
-              <>
-                <SelectSeparator />
-                <SelectGroup>
-                  <SelectLabel>Dish on this day</SelectLabel>
-                  {dishesOfDay.map((d) => <SelectItem key={d.publicId} value={`dish:${d.publicId}`}>{d.name}</SelectItem>)}
-                </SelectGroup>
-              </>
-            ) : null}
-          </SelectContent>
-        </Select>
-        <span className="text-muted-foreground text-xs">
-          Change a day only when the kitchen makes something else. Default{standing ? ` packs the day's ${sides.catLabel(standing).toLowerCase()}` : " repeats the main"}; change it under Side dishes, Defaults.
-        </span>
-      </label>
-
-      <p className="text-muted-foreground border-t pt-3 text-xs">
-        {editable ? "Saved with the menu: Save on a draft, Review & publish when amending." : "Released menus are read-only. Use Amend to change a day."}
-      </p>
-      {sides.error ? <p className="text-destructive text-sm" role="alert">{sides.error}</p> : null}
+    <section aria-label={`${DAY_NAME[day]} ${sideLabel(slot)}`} data-testid="side-panel" className="flex flex-col">
+      <Card className="flex-1">
+        <CardContent className="flex flex-col gap-4">
+        <div className="flex flex-col gap-1">
+          <p className="text-muted-foreground text-xs font-semibold tracking-wider uppercase">{DAY_NAME[day]}</p>
+          <h3 className="text-lg font-semibold">{sideLabel(slot)}</h3>
+          <p className="text-muted-foreground text-xs">{slot.meals.join(" · ")}</p>
+        </div>
+        <div className="bg-muted/40 flex flex-wrap items-center gap-2 rounded-lg border px-3 py-2 text-sm">
+          <span className="text-muted-foreground">Packs</span>
+          <span className="font-medium">{sides.packs(day, slot)}</span>
+          {sides.changed(day, slot) && <Badge variant="warning-light">Changed for this day</Badge>}
+        </div>
+        <label className="flex flex-col gap-1.5">
+          <span className="text-sm font-medium">This day</span>
+          <Select value={sides.valueOf(day, slot)} disabled={!editable} onValueChange={(v) => sides.setDay(day, slot, v)}>
+            <SelectTrigger aria-label={`${DAY_NAME[day]} source`}><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value={DEFAULT}>Default{standing ? ` (${sides.catLabel(standing)})` : ""}</SelectItem>
+              <SelectSeparator />
+              <SelectGroup>
+                <SelectGroupLabel>Category</SelectGroupLabel>
+                {sides.categories.map((c) => <SelectItem key={c.key} value={`cat:${c.key}`}>{c.label}</SelectItem>)}
+              </SelectGroup>
+              {dishesOfDay.length ? (
+                <>
+                  <SelectSeparator />
+                  <SelectGroup>
+                    <SelectGroupLabel>Dish on this day</SelectGroupLabel>
+                    {dishesOfDay.map((d) => <SelectItem key={d.publicId} value={`dish:${d.publicId}`}>{d.name}</SelectItem>)}
+                  </SelectGroup>
+                </>
+              ) : null}
+            </SelectContent>
+          </Select>
+          <span className="text-muted-foreground text-xs">
+            Change a day only when the kitchen makes something else. Default{standing ? ` packs the day's ${sides.catLabel(standing).toLowerCase()}` : " repeats the main"}; change it under Side dishes, Defaults.
+          </span>
+        </label>
+        <p className="text-muted-foreground border-t pt-3 text-xs">
+          {editable ? "Saved with the menu: Save on a draft, Review & publish when amending." : "Released menus are read-only. Use Amend to change a day."}
+        </p>
+        {sides.error ? <p className="text-destructive text-sm" role="alert">{sides.error}</p> : null}
+        </CardContent>
+      </Card>
     </section>
   );
 }
-
 /** The standing source per side, for every week: kept apart from the day-by-day choices. */
 export function SideDefaultsDialog({ sides }: { sides: Sides }) {
   const [open, setOpen] = useState(false);

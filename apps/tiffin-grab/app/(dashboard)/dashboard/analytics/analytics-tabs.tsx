@@ -46,14 +46,12 @@ export function AnalyticsTabs({ allowed }: { allowed: string[] }) {
   const active = tabs.find((t) => pathname === t.href || pathname.startsWith(`${t.href}/`))?.href ?? tabs[0]?.href;
 
   return (
-    <Tabs value={active}>
+    <Tabs value={active} activation="manual">
       <TabsList variant="line" aria-label="Analytics sections" className="max-w-full overflow-x-auto">
         {tabs.map((t) => (
-          <TabsTrigger key={t.href} value={t.href} asChild>
-            <Link href={qs ? `${t.href}?${qs}` : t.href} prefetch={false}>
-              <t.icon aria-hidden />
-              {t.label}
-            </Link>
+          <TabsTrigger key={t.href} value={t.href} render={<Link href={qs ? `${t.href}?${qs}` : t.href} prefetch={false} />}>
+            <t.icon aria-hidden />
+            {t.label}
           </TabsTrigger>
         ))}
       </TabsList>

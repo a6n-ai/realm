@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { UsersIcon } from "lucide-react";
 import { RoleChips, chipState } from "@foundry/crm";
 import { Button } from "@foundry/ui/button";
-import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@foundry/ui/dialog";
+import { AlertDialog, AlertDialogClose, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@foundry/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
 import { EmptyState } from "@/components/ds";
 import { addMemberAction, removeMemberAction } from "@/lib/services/organizations-actions";
@@ -126,22 +126,20 @@ export function StaffSection({
         </Button>
       </div>
 
-      <Dialog open={removing !== null} onOpenChange={(open) => !open && setRemoving(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Remove {removing?.email} from this client?</DialogTitle>
-            <DialogDescription>They lose access to this client right away. You can add them back later.</DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button variant="outline">Keep</Button>
-            </DialogClose>
+      <AlertDialog open={removing !== null} onOpenChange={(open) => !open && setRemoving(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove {removing?.email} from this client?</AlertDialogTitle>
+            <AlertDialogDescription>They lose access to this client right away. You can add them back later.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogClose render={<Button variant="outline" />}>Keep</AlertDialogClose>
             <Button variant="destructive" disabled={pending} onClick={remove}>
               Remove
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

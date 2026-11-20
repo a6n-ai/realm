@@ -19,7 +19,7 @@ export default async function PublicWebsitePage() {
               <span className="bg-muted text-muted-foreground flex size-9 items-center justify-center rounded-lg">
                 <HelpCircleIcon className="size-5" />
               </span>
-              <ArrowRightIcon className="text-muted-foreground size-4 transition-transform group-hover:translate-x-0.5" />
+              <ArrowRightIcon className="text-muted-foreground size-4" />
             </CardHeader>
             <CardContent>
               <div className="font-medium">FAQ</div>

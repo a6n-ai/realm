@@ -20,12 +20,11 @@ import {
 } from "lucide-react";
 import { formatMoney } from "@foundry/commons";
 import { StatCards, StatCardsSkeleton, type StatCardItem } from "@/components/dashboard/stat-cards";
-import { SectionDateRange } from "@/components/filters/section-date-range";
 import { requirePagePermission } from "@/lib/auth/guards";
 import { withDefaultMonth } from "@/lib/list/default-month";
 import { paymentsListHref, type PaymentsTabPath } from "@/lib/list/payments-drill";
 import { countStripeAttention, getLedgerKpis, getLogKpis, getPaymentKpis, OVERDUE_DAYS, type PaymentKpis } from "@/lib/payments/payments-list.service";
-import { PaymentsTabs } from "./payments-tabs";
+import { PaymentsFrame } from "./payments-frame";
 import { PAYMENT_STATUS_LABEL } from "@/lib/payments/status";
 
 type SearchParams = Promise<Record<string, string | undefined>>;
@@ -41,20 +40,15 @@ const TAB_PATH: Record<PaymentsTab, PaymentsTabPath> = {
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
-/** Same order as Orders and Renewals: the date range and the cards it moves, then the tabs. */
 export function PaymentsTop({ tab, searchParams }: { tab: PaymentsTab; searchParams: SearchParams }) {
   return (
-    <>
-      <div className="flex flex-col gap-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <SectionDateRange />
-        </div>
+    <PaymentsFrame
+      stats={
         <Suspense fallback={<StatCardsSkeleton count={5} />}>
           <PaymentKpisData tab={tab} searchParams={searchParams} />
         </Suspense>
-      </div>
-      <PaymentsTabs />
-    </>
+      }
+    />
   );
 }
 

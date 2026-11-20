@@ -14,6 +14,7 @@ import { epochBoundsWhere, withDefaultMonth } from "@/lib/list/default-month";
 import { CREATABLE_KINDS, KIND_LABELS } from "@/lib/coupons/kind-labels";
 import { CouponsManager, CouponsManagerSkeleton } from "./coupons-manager";
 import { requestNow } from "@/lib/dates/request-now";
+import { setDateParams } from "@/lib/dates/range-params";
 
 // Same Search + Filter bar as the other lists.
 const SPEC: FacetDef[] = [
@@ -118,8 +119,7 @@ async function CouponsData({ searchParams }: { searchParams: SearchParams }) {
   });
   const href = (over: { status?: string; auto?: string; expiring?: string } = {}) => {
     const qs = new URLSearchParams();
-    if (sp.from) qs.set("from", sp.from);
-    if (sp.to) qs.set("to", sp.to);
+    setDateParams(qs, sp);
     if (kind) qs.set("kind", kind);
     if (q) qs.set("q", q);
     if (over.status) qs.set("status", over.status);

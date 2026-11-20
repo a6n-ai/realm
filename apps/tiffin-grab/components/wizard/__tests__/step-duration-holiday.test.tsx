@@ -2,7 +2,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, fireEvent, cleanup } from "@testing-library/react";
 import { useState } from "react";
-import { TooltipProvider } from "@foundry/ui/tooltip";
 import { StepDuration } from "../steps/step-duration";
 import { initialSelections, type WizardSelections } from "@/lib/wizard/selections";
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
@@ -24,10 +23,10 @@ afterEach(() => { vi.useRealTimers(); cleanup(); });
 function Harness({ holidayDates, start = "" }: { holidayDates: string[]; start?: string }) {
   const [sel, setSel] = useState<WizardSelections>({ ...initialSelections, planKey: "p", startDate: start });
   return (
-    <TooltipProvider>
+    <>
       <StepDuration catalog={catalog} selections={sel} set={(p) => setSel((s) => ({ ...s, ...p }))} result={null} holidayDates={holidayDates} />
       <output data-testid="start">{sel.startDate}</output>
-    </TooltipProvider>
+    </>
   );
 }
 

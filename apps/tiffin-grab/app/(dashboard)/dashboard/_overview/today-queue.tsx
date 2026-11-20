@@ -7,7 +7,7 @@ import { RowActionTooltipButton } from "@/components/ds/row-action-tooltip-butto
 import { DataTable, type Column } from "@foundry/design-system";
 import { Button } from "@foundry/ui/button";
 import { TableCell } from "@foundry/ui/table";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@foundry/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@foundry/ui/tooltip";
 import { Badge } from "@/components/reui/badge";
 import { useTimezone } from "@foundry/design-system/timezone-provider";
 import { formatEpoch } from "@/lib/format/datetime";
@@ -41,57 +41,55 @@ export function TodayQueue({
   const router = useRouter();
   const tz = useTimezone();
   return (
-    <TooltipProvider>
-      <div className="flex flex-col gap-4">
-        {failed.length > 0 ? (
-          <div className="text-destructive flex flex-wrap items-center gap-2 text-sm" role="alert">
-            <span>Couldn&apos;t load {failed.map((k) => TODAY_KIND_LABEL[k]).join(", ")}.</span>
-            <Button variant="link" size="sm" onClick={() => router.refresh()}>
-              Retry
-            </Button>
-          </div>
-        ) : null}
-        <DataTable
-          pagination="client"
-          pageSize={10}
-          serial={false}
-          columns={COLUMNS}
-          rows={rows}
-          rowKey={(r) => r.key}
-          filters={<TypePills pills={pills} active={activeType} />}
-          emptyIcon={CheckCircle2Icon}
-          emptyMessage={activeType ? `Nothing is waiting in ${TODAY_KIND_LABEL[activeType]}.` : "Nothing is waiting. Every list is clear."}
-          emptyAction={
-            <Button asChild variant="outline" size="sm">
-              <Link href="/dashboard/orders">Go to Orders</Link>
-            </Button>
-          }
-          renderRow={(r) => (
-            <>
-              <TableCell>
-                <Badge variant={URGENCY_BADGE[r.urgency]}>{TODAY_KIND_LABEL[r.kind]}</Badge>
-              </TableCell>
-              <TableCell className="font-medium">{r.who}</TableCell>
-              <TableCell className="text-muted-foreground">{r.what}</TableCell>
-              <TableCell>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span className="tabular-nums">{waitingLabel(r.since, now)}</span>
-                  </TooltipTrigger>
-                  <TooltipContent>{formatEpoch(r.since, { mode: "datetime", timeZone: tz })}</TooltipContent>
-                </Tooltip>
-              </TableCell>
-              <TableCell>
-                <div className="flex justify-end gap-1">
-                  {r.kind === "payment" && r.canVerify ? <VerifyPaymentButton icon who={r.who} payment={r.payment} /> : null}
-                  <RowActionTooltipButton icon={ArrowUpRightIcon} label="Open" hint={`Open ${r.who}`} onClick={() => router.push(r.href)} />
-                </div>
-              </TableCell>
-            </>
-          )}
-        />
-      </div>
-    </TooltipProvider>
+    <div className="flex flex-col gap-4">
+      {failed.length > 0 ? (
+        <div className="text-destructive flex flex-wrap items-center gap-2 text-sm" role="alert">
+          <span>Couldn&apos;t load {failed.map((k) => TODAY_KIND_LABEL[k]).join(", ")}.</span>
+          <Button variant="link" size="sm" onClick={() => router.refresh()}>
+            Retry
+          </Button>
+        </div>
+      ) : null}
+      <DataTable
+        pagination="client"
+        pageSize={10}
+        serial={false}
+        columns={COLUMNS}
+        rows={rows}
+        rowKey={(r) => r.key}
+        filters={<TypePills pills={pills} active={activeType} />}
+        emptyIcon={CheckCircle2Icon}
+        emptyMessage={activeType ? `Nothing is waiting in ${TODAY_KIND_LABEL[activeType]}.` : "Nothing is waiting. Every list is clear."}
+        emptyAction={
+          <Button asChild variant="outline" size="sm">
+            <Link href="/dashboard/orders">Go to Orders</Link>
+          </Button>
+        }
+        renderRow={(r) => (
+          <>
+            <TableCell>
+              <Badge variant={URGENCY_BADGE[r.urgency]}>{TODAY_KIND_LABEL[r.kind]}</Badge>
+            </TableCell>
+            <TableCell className="font-medium">{r.who}</TableCell>
+            <TableCell className="text-muted-foreground">{r.what}</TableCell>
+            <TableCell>
+              <Tooltip>
+                <TooltipTrigger render={
+                  <span className="tabular-nums">{waitingLabel(r.since, now)}</span>
+                } />
+                <TooltipContent>{formatEpoch(r.since, { mode: "datetime", timeZone: tz })}</TooltipContent>
+              </Tooltip>
+            </TableCell>
+            <TableCell>
+              <div className="flex justify-end gap-1">
+                {r.kind === "payment" && r.canVerify ? <VerifyPaymentButton icon who={r.who} payment={r.payment} /> : null}
+                <RowActionTooltipButton icon={ArrowUpRightIcon} label="Open" hint={`Open ${r.who}`} onClick={() => router.push(r.href)} />
+              </div>
+            </TableCell>
+          </>
+        )}
+      />
+    </div>
   );
 }
 

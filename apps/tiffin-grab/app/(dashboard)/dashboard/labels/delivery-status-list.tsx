@@ -89,13 +89,13 @@ export function DeliveryStatusList({ rows }: { rows: DayDeliveryStatusRow[] }) {
       renderRow={(row) => (
         <>
           <TableCell className="whitespace-nowrap">{row.customerName}</TableCell>
-          <TableCell className="font-mono text-xs">
+          <TableCell mono className="font-mono text-xs">
             <Link href={`/dashboard/go/${row.deliveryPublicId}`} className="hover:underline">{row.deliveryPublicId}</Link>
           </TableCell>
-          <TableCell className="whitespace-nowrap font-mono text-xs">{row.orderId}</TableCell>
+          <TableCell mono className="whitespace-nowrap font-mono text-xs">{row.orderId}</TableCell>
           <TableCell className="whitespace-nowrap">{row.planName}</TableCell>
           <TableCell className="whitespace-nowrap">{row.mealSizeName}</TableCell>
-          <TableCell className="text-right tabular-nums">{row.tiffinUnits}</TableCell>
+          <TableCell numeric className="text-right tabular-nums">{row.tiffinUnits}</TableCell>
           <TableCell className="whitespace-nowrap">
             <DeliveryStatusBadge status={row.status} />
           </TableCell>

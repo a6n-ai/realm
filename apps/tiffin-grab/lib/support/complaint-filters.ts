@@ -4,6 +4,7 @@ import { deliveryZones, mealSizes, orders, plans, tickets } from "@/db/schema";
 import { isTicketCategory, TICKET_CATEGORIES, type TicketCategoryValue } from "./ticket-taxonomy";
 import { orgScope } from "@/lib/tenant/org-scope";
 import { type AnalyticsScope } from "@/lib/analytics/scope-types";
+import { rangeParams } from "@/lib/dates/range-params";
 import { STATUS_OPTIONS as TICKET_STATUS_OPTIONS } from "./ticket-status";
 
 /**
@@ -15,7 +16,7 @@ import { STATUS_OPTIONS as TICKET_STATUS_OPTIONS } from "./ticket-status";
  * rest are complaints-only.
  */
 export const COMPLAINT_PARAMS = [
-  "from", "to", "category", "subcategory", "status", "priority", "plan", "mealSize", "zone",
+  "from", "to", "range", "category", "subcategory", "status", "priority", "plan", "mealSize", "zone",
 ] as const;
 
 export type ComplaintSearchParams = Partial<Record<(typeof COMPLAINT_PARAMS)[number], string>>;
@@ -23,6 +24,8 @@ export type ComplaintSearchParams = Partial<Record<(typeof COMPLAINT_PARAMS)[num
 export type ComplaintFilters = {
   from?: number;
   to?: number;
+  /** Business timezone: when set, links write the window as `range`/ISO dates instead of epoch ms. */
+  tz?: string;
   categories: string[];
   subcategories: string[];
   statuses: string[];
@@ -73,6 +76,7 @@ export function scopeToComplaintFilters(scope: AnalyticsScope): ComplaintFilters
   return {
     from: scope.fromMs,
     to: scope.toMs,
+    tz: scope.tz,
     categories: (scope.extra.category ?? []).filter((c) => isTicketCategory(c)),
     subcategories: scope.extra.subcategory ?? [],
     statuses: scope.extra.status ?? [],
@@ -94,8 +98,10 @@ export function complaintHref(base: string, filters: Partial<ComplaintFilters> &
   const put = (key: string, value: string[] | undefined) => {
     if (value && value.length) qs.set(key, value.join(","));
   };
-  if (filters.from != null) qs.set("from", String(filters.from));
-  if (filters.to != null) qs.set("to", String(filters.to));
+  const dates = filters.tz
+    ? rangeParams({ from: filters.from, to: filters.to }, filters.tz, Date.now(), { exact: true })
+    : { ...(filters.from != null && { from: String(filters.from) }), ...(filters.to != null && { to: String(filters.to) }) };
+  for (const [k, v] of Object.entries(dates)) qs.set(k, v);
   put("category", filters.categories);
   put("subcategory", filters.subcategories);
   put("status", filters.statuses);

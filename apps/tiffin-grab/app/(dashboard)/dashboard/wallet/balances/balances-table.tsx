@@ -9,6 +9,7 @@ import { ListSearchFilters } from "@/components/filters/reui-facet-filters";
 import { TableCell } from "@foundry/ui/table";
 import { RowActionTooltipButton } from "@/components/ds/row-action-tooltip-button";
 import { GiveOneCustomerDialog } from "../give/give-one-customer-dialog";
+import { TableRowsSkeleton } from "@/components/dashboard/table-rows-skeleton";
 
 export type BalanceColumn = "customer" | "contact" | "balance" | "value" | "earned" | "redeemed" | "last" | "actions";
 
@@ -68,11 +69,11 @@ export function BalancesTable({ rows, spec, sort, total, page, size }: {
                 {r.phone && <span className="truncate text-xs text-muted-foreground">{r.phone}</span>}
               </div>
             </TableCell>
-            <TableCell className="text-right tabular-nums">{r.balance.toLocaleString()}</TableCell>
-            <TableCell className="text-right tabular-nums">{r.value}</TableCell>
-            <TableCell className="text-right tabular-nums">{r.earned.toLocaleString()}</TableCell>
-            <TableCell className="text-right tabular-nums">{r.redeemed.toLocaleString()}</TableCell>
-            <TableCell className="whitespace-nowrap tabular-nums text-muted-foreground">{r.last}</TableCell>
+            <TableCell numeric className="text-right tabular-nums">{r.balance.toLocaleString()}</TableCell>
+            <TableCell numeric className="text-right tabular-nums">{r.value}</TableCell>
+            <TableCell numeric className="text-right tabular-nums">{r.earned.toLocaleString()}</TableCell>
+            <TableCell numeric className="text-right tabular-nums">{r.redeemed.toLocaleString()}</TableCell>
+            <TableCell numeric className="whitespace-nowrap tabular-nums text-muted-foreground">{r.last}</TableCell>
             <TableCell className="text-right">
               <RowActionTooltipButton icon={CoinsIcon} label={`Give coins to ${r.name}`} hint="Give coins" onClick={() => setGiving(r)} />
             </TableCell>
@@ -93,5 +94,5 @@ export function BalancesTable({ rows, spec, sort, total, page, size }: {
 }
 
 export function BalancesTableSkeleton() {
-  return <DataTable.Skeleton columns={COLUMNS} />;
+  return <TableRowsSkeleton columns={COLUMNS} search="Search by name, email or phone…" filters={["Balance"]} />;
 }

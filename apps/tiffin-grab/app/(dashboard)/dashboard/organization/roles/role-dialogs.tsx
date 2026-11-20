@@ -119,10 +119,8 @@ export function NewRoleDialog({
   const [open, setOpen] = useState(false);
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button size="sm">
+      <DialogTrigger render={<Button size="sm" />}>
           <PlusIcon /> New role
-        </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-2xl">
         <NewRoleForm
@@ -226,10 +224,8 @@ export function RenameRoleDialog({
   const [open, setOpen] = useState(false);
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="sm" disabled={disabled}>
+      <DialogTrigger render={<Button variant="outline" size="sm" disabled={disabled} />}>
           Rename
-        </Button>
       </DialogTrigger>
       <DialogContent>
         <RenameRoleForm

@@ -20,9 +20,9 @@ export function UpNextStrip({ label, tiles, more, viewAllHref }: { label: string
             key={tile.key}
             href={tile.href}
             prefetch={false}
-            className={`group w-full focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-2 md:w-64 md:shrink-0 md:snap-start ${i >= PHONE_TILES ? "hidden md:block" : ""}`}
+            className={`w-full focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-2 md:w-64 md:shrink-0 md:snap-start ${i >= PHONE_TILES ? "hidden md:block" : ""}`}
           >
-            <Card size="sm" className="h-full transition-colors group-hover:bg-muted/50">
+            <Card size="sm" className="h-full">
               <div className="flex min-w-0 items-center gap-2">
                 <span className="min-w-0 flex-1 truncate font-medium">{tile.title}</span>
                 <ChevronRightIcon className="text-muted-foreground size-4 shrink-0" aria-hidden />

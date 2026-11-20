@@ -17,7 +17,7 @@ import { quickAddInquiries } from "../actions";
 import { QUICK_ADD_MAX, parsePastedPhones } from "./parse-phones";
 
 /** Rush mode: paste numbers now, name them later from the Quick adds tab. */
-export function QuickAddDialog({ trigger, sources }: { trigger: React.ReactNode; sources: Src[] }) {
+export function QuickAddDialog({ trigger, sources }: { trigger: React.ReactElement; sources: Src[] }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [text, setText] = useState("");
@@ -68,7 +68,7 @@ export function QuickAddDialog({ trigger, sources }: { trigger: React.ReactNode;
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>{trigger}</DialogTrigger>
+      <DialogTrigger render={trigger} />
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Quick add numbers</DialogTitle>

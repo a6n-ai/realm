@@ -54,7 +54,7 @@ export default async function ProfitabilityAnalyticsPage({ searchParams }: { sea
   const month = parseMonth(sp.month, currentMonth(resolved.scope.tz));
   const grain = parseGrain(sp.view);
   // GrainNav writes ?view=&month= with no from/to; an explicit date filter wins over it.
-  const scope = navScope(resolved.scope, sp.from != null || sp.to != null, month, grain);
+  const scope = navScope(resolved.scope, sp.from != null || sp.to != null || sp.range != null, month, grain);
   const view = { month, grain, scope };
   return (
     <Can perms={{ finance: ["read"] }} fallback={<NoAccessNote />}>

@@ -1,7 +1,20 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+
+beforeAll(() => {
+  HTMLElement.prototype.showPopover = function () {};
+  HTMLElement.prototype.hidePopover = function () {};
+  Element.prototype.getAnimations = () => [];
+  Element.prototype.checkVisibility = () => true;
+  Element.prototype.scrollIntoView = function () {};
+  document.head.append(
+    Object.assign(document.createElement("style"), {
+      textContent: "[popover] { display: block !important }",
+    })
+  );
+});
 
 const saveItem = vi.fn().mockResolvedValue({ ok: true });
 vi.mock("@/app/(dashboard)/dashboard/catalog/actions", () => ({ saveItem: (...a: unknown[]) => saveItem(...a) }));
@@ -17,8 +30,8 @@ afterEach(() => { cleanup(); saveItem.mockClear(); });
 describe("DiscountDialog", () => {
   it("locks the prefilled target", () => {
     render(<DiscountDialog open onOpenChange={() => {}} prefill={{ kind: "delivery", targetPublicId: "f1", lockTarget: true }} options={options} />);
-    expect(screen.getByLabelText("Target")).toBeDisabled();
-    expect(screen.getByLabelText("Applies to")).toBeDisabled();
+    expect(screen.getByRole("combobox", { name: "Target" })).toBeDisabled();
+    expect(screen.getByRole("combobox", { name: "Applies to" })).toBeDisabled();
   });
 
   it("rejects out-of-range percent without saving", async () => {
@@ -42,9 +55,6 @@ describe("DiscountDialog", () => {
   });
 
   it("saves a flat $ meal-size discount with percent 0 and no min weeks", async () => {
-    // Radix Select calls these; jsdom lacks them.
-    Element.prototype.scrollIntoView ??= vi.fn();
-    Element.prototype.hasPointerCapture ??= vi.fn(() => false);
     render(<DiscountDialog open onOpenChange={() => {}} prefill={{ kind: "meal_size", targetPublicId: "m1", lockTarget: true }} options={options} />);
     expect(screen.queryByLabelText("Min weeks (optional)")).toBeNull();
     fireEvent.click(screen.getByLabelText("Discount unit"));

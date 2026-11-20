@@ -79,7 +79,7 @@ export function CustomerInquiriesTable({ inquiries }: { inquiries: CustomerInqui
           <TableCell>
             <StageBadge stage={i.stage} />
           </TableCell>
-          <TableCell className="text-right tabular-nums">
+          <TableCell numeric className="text-right tabular-nums">
             {formatEpoch(i.createdAt, { mode: "date", timeZone: tz })}
           </TableCell>
         </>

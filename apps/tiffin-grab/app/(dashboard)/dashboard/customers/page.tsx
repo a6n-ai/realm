@@ -15,22 +15,14 @@ import { listableMealSizes, mealSizeAddons } from "@/lib/catalog/types";
 import { dishCategoriesService } from "@/lib/menu/dish-categories.service";
 import { Button } from "@foundry/ui/button";
 import { Skeleton } from "@foundry/ui/skeleton";
-import {
-  PageShell,
-  PageHeader,
-  SectionCard,
-} from "@/components/ds";
+import { CustomersChrome } from "./customers-chrome";
 import { CustomersList, CustomersListSkeleton } from "./customers-list";
-import { CUSTOMER_DATE_BY, CUSTOMER_SPEC, customerListQuery } from "./list-query";
-import { DateByPicker } from "@/components/filters/date-by-picker";
+import { CUSTOMER_SPEC, customerListQuery } from "./list-query";
 import { CustomersExportButton } from "./customers-export-button";
 import { CustomerPaymentsList, CustomerPaymentsListSkeleton } from "./customer-payments-list";
-import Link from "next/link";
-import { Tabs, TabsList, TabsTrigger } from "@foundry/ui/tabs";
 import { NewCustomerSheet } from "./new-customer-sheet";
 import { InvitePendingButton } from "./invite-pending-button";
 import { MarkSectionRead } from "@/components/dashboard/mark-section-read";
-import { SectionDateRange } from "@/components/filters/section-date-range";
 import { epochBoundsWhere, withDefaultMonth } from "@/lib/list/default-month";
 import { customersListHref } from "@/lib/list/customers-drill";
 import { requestNow } from "@/lib/dates/request-now";
@@ -47,75 +39,32 @@ export default async function CustomersPage({ searchParams }: { searchParams: Se
   const sp = await searchParams;
   const canFinance = await can({ finance: ["read"] });
   const tab = sp.tab === "payments" && canFinance ? "payments" : "all";
-  // Switching tabs keeps the date range and search; sort and page belong to the other table.
-  const tabHref = (t: string) => {
-    const qs = new URLSearchParams(Object.entries(sp).filter((e): e is [string, string] => e[1] != null && !["tab", "sort", "dir", "page"].includes(e[0])));
-    if (t !== "all") qs.set("tab", t);
-    const q = qs.toString();
-    return `/dashboard/customers${q ? `?${q}` : ""}`;
-  };
   return (
-    <PageShell>
-      <MarkSectionRead section="customers" />
-      <PageHeader
-        icon={UsersIcon}
-        title="Customers"
-        actions={
-          <Suspense fallback={<Skeleton className="h-9 w-32" />}>
-            <NewCustomerAction />
-          </Suspense>
-        }
-      />
-      {/* The date range filters the cards: one group, tighter than the page rhythm. */}
-      <div className="flex flex-col gap-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <DateByPicker value={sp.dateBy === "ordered" ? "ordered" : "joined"} options={CUSTOMER_DATE_BY} />
-          <SectionDateRange />
-        </div>
+    <CustomersChrome
+      lead={<MarkSectionRead section="customers" />}
+      actions={
+        <Suspense fallback={<Skeleton className="h-9 w-32" />}>
+          <NewCustomerAction />
+        </Suspense>
+      }
+      dateBy={sp.dateBy === "ordered" ? "ordered" : "joined"}
+      stats={
         <Suspense fallback={<StatCardsSkeleton count={5} />}>
           <CustomersStats searchParams={searchParams} />
         </Suspense>
-      </div>
-      <Tabs value={tab}>
-        <TabsList variant="line" aria-label="Customer lists">
-          <TabsTrigger value="all" asChild>
-            <Link href={tabHref("all")} prefetch={false}>All customers</Link>
-          </TabsTrigger>
-          {canFinance && (
-            <TabsTrigger value="payments" asChild>
-              <Link href={tabHref("payments")} prefetch={false}>Payments</Link>
-            </TabsTrigger>
-          )}
-        </TabsList>
-      </Tabs>
-      {tab === "payments" ? (
-        <SectionCard
-          title="Customer payments"
-          action={
-            <Suspense fallback={null}>
-              <CustomersExportButton />
-            </Suspense>
-          }
-        >
-          <Suspense fallback={<CustomerPaymentsListSkeleton />}>
-            <CustomersData searchParams={searchParams} tab="payments" />
-          </Suspense>
-        </SectionCard>
-      ) : (
-        <SectionCard
-          title="All customers"
-          action={
-            <Suspense fallback={null}>
-              <InvitePendingAction />
-            </Suspense>
-          }
-        >
-          <Suspense fallback={<CustomersListSkeleton />}>
-            <CustomersData searchParams={searchParams} tab="all" />
-          </Suspense>
-        </SectionCard>
-      )}
-    </PageShell>
+      }
+      tab={tab}
+      showPayments={canFinance}
+      searchParams={sp}
+      listAction={
+        <Suspense fallback={null}>{tab === "payments" ? <CustomersExportButton /> : <InvitePendingAction />}</Suspense>
+      }
+      list={
+        <Suspense fallback={tab === "payments" ? <CustomerPaymentsListSkeleton /> : <CustomersListSkeleton />}>
+          <CustomersData searchParams={searchParams} tab={tab} />
+        </Suspense>
+      }
+    />
   );
 }
 

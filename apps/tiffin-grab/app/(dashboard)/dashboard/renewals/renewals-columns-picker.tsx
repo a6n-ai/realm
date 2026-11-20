@@ -25,11 +25,9 @@ export function RenewalsColumnsPicker({
 
   return (
     <Popover>
-      <PopoverTrigger asChild>
-        <Button type="button" variant="outline" size="sm" className="h-11 gap-1.5 sm:h-9">
+      <PopoverTrigger render={<Button type="button" variant="outline" size="sm" className="h-11 gap-1.5 sm:h-9" />}>
           <Columns3Icon className="size-4" />
           Columns
-        </Button>
       </PopoverTrigger>
       <PopoverContent align="end" className="flex w-64 flex-col gap-3 p-3">
         <p className="text-muted-foreground text-xs">Table columns for Renewals and Trial conversion. Saved in this browser.</p>

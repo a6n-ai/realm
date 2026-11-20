@@ -17,6 +17,7 @@ import { cn } from "@foundry/ui/cn";
 import { TableCell } from "@foundry/ui/table";
 import { NumberField, ToggleRow, numOrNull } from "@/components/dashboard/form-controls";
 import { saveDiscountPolicy, setRepCeiling } from "../actions";
+import { TableRowsSkeleton } from "@/components/dashboard/table-rows-skeleton";
 
 type RepOption = { publicId: string; name: string | null; email: string | null; role: string };
 
@@ -84,7 +85,7 @@ export function RepAllowanceFormSkeleton() {
         </div>
       </SectionCard>
       <SectionCard title={PER_REP_SECTION.title} subtitle={PER_REP_SECTION.subtitle}>
-        <DataTable.Skeleton columns={PER_REP_COLUMNS} serial={false} />
+        <TableRowsSkeleton columns={PER_REP_COLUMNS} serial={false} search="Search staff…" filters={["Role", "Allowed"]} />
       </SectionCard>
     </div>
   );

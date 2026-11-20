@@ -33,6 +33,7 @@ import { PLAN_TYPES, formatWindow, pct } from "../controls";
 import { saveCoupon, setCouponActive } from "../actions";
 import { GroupPicker, type PickedGroup } from "../../customer-groups/group-picker";
 import { DateTimeInput } from "@/components/dashboard/date-fields";
+import { TableRowsSkeleton } from "@/components/dashboard/table-rows-skeleton";
 
 type CouponRow = {
   publicId: string;
@@ -258,7 +259,7 @@ export function CouponsManager({
       title="Coupons"
       subtitle="Codes customers enter at checkout. Staff codes and rep daily coupons live on the Staff codes tab."
       action={
-        <Button size="sm" onClick={() => open(emptyDraft())} className="transition-transform active:scale-[0.96]">
+        <Button size="sm" onClick={() => open(emptyDraft())}>
           <PlusIcon className="size-4" />
           New coupon
         </Button>
@@ -292,14 +293,14 @@ export function CouponsManager({
             <TableCell>
               <Badge variant="secondary">{KIND_LABELS[c.kind]}</Badge>
             </TableCell>
-            <TableCell className="text-right tabular-nums">{couponValue(c, money)}</TableCell>
+            <TableCell numeric className="text-right tabular-nums">{couponValue(c, money)}</TableCell>
             <TableCell>
               <YesNo value={c.autoApply} />
             </TableCell>
             <TableCell>
               <YesNo value={c.visible} />
             </TableCell>
-            <TableCell className="text-muted-foreground tabular-nums whitespace-nowrap text-sm">
+            <TableCell numeric className="text-muted-foreground tabular-nums whitespace-nowrap text-sm">
               {formatWindow(c.startsAt, c.expiresAt, tz)}
             </TableCell>
             <TableCell>
@@ -545,7 +546,7 @@ export function CouponsManager({
                 <Button variant="outline" onClick={() => setDraft(null)} disabled={pending}>
                   Cancel
                 </Button>
-                <Button onClick={submit} disabled={pending} className="transition-transform active:scale-[0.96]">
+                <Button onClick={submit} disabled={pending}>
                   {draft.publicId ? "Save" : "Create"}
                 </Button>
               </DialogFooter>
@@ -570,7 +571,7 @@ export function CouponsManagerSkeleton() {
         subtitle="Codes customers enter at checkout. Staff codes and rep daily coupons live on the Staff codes tab."
         action={<Skeleton className="h-8 w-28" />}
       >
-        <DataTable.Skeleton columns={COLUMNS} />
+        <TableRowsSkeleton columns={COLUMNS} search="Search coupons…" filters={["Kind", "Status", "Auto-apply"]} firstColumnLines={2} />
       </SectionCard>
     </div>
   );

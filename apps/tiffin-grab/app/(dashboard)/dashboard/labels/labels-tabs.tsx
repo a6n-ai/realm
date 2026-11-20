@@ -42,7 +42,7 @@ export function LabelsTabs({
   return (
     <>
       <div className="flex items-center gap-3">
-        <Tabs value={active} onValueChange={select}>
+        <Tabs value={active} onValueChange={(next) => next && select(next)}>
           <TabsList variant="line" aria-label="Labels sections" className="h-auto flex-wrap overflow-x-visible">
             {LABEL_TABS.map((tab) => {
               const { label, icon: Icon } = META[tab];

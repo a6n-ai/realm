@@ -7,6 +7,7 @@ import { DataTable, ListPagination, type Column, type FacetDef, type SortState }
 import { ListSearchFilters } from "@/components/filters/reui-facet-filters";
 import { MemoCell } from "@/components/dashboard/memo-cell";
 import { TableCell } from "@foundry/ui/table";
+import { TableRowsSkeleton } from "@/components/dashboard/table-rows-skeleton";
 
 export type CustomerWalletColumn = "time" | "event" | "source" | "coins" | "order" | "memo";
 
@@ -59,9 +60,9 @@ export function CustomerWalletTable({ rows, spec, sort, total, page, size }: {
           const credit = r.direction === "credit";
           return (
             <>
-              <TableCell className="whitespace-nowrap tabular-nums text-muted-foreground">{r.when}</TableCell>
+              <TableCell numeric className="whitespace-nowrap tabular-nums text-muted-foreground">{r.when}</TableCell>
               <TableCell className="truncate">{r.eventLabel ?? r.sourceLabel}</TableCell>
-              <TableCell className={`text-right tabular-nums ${credit ? "text-ok" : "text-bad"}`}>
+              <TableCell numeric className={`text-right tabular-nums ${credit ? "text-ok" : "text-bad"}`}>
                 {credit ? "+" : "−"}
                 {r.coins}
               </TableCell>
@@ -86,5 +87,5 @@ export function CustomerWalletTable({ rows, spec, sort, total, page, size }: {
 }
 
 export function CustomerWalletTableSkeleton() {
-  return <DataTable.Skeleton columns={COLUMNS} />;
+  return <TableRowsSkeleton columns={COLUMNS} search="Search memo or source…" filters={["Source", "Direction"]} />;
 }

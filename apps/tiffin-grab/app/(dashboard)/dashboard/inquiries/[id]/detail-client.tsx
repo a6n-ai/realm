@@ -65,13 +65,13 @@ function DetailSection({ title, children }: { title: string; children: ReactNode
 function QueueNav({ href, label, icon: Icon }: { href: string; label: string; icon: LucideIcon }) {
   return (
     <Tooltip>
-      <TooltipTrigger asChild>
+      <TooltipTrigger render={
         <Button variant="ghost" size="icon-sm" asChild>
           <Link href={href} aria-label={label}>
             <Icon aria-hidden />
           </Link>
         </Button>
-      </TooltipTrigger>
+      } />
       <TooltipContent>{label}</TooltipContent>
     </Tooltip>
   );

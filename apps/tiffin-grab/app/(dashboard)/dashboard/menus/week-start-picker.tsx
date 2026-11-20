@@ -23,14 +23,16 @@ export function WeekStartPicker({
   const taken = new Set(disabledDates);
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
+      <PopoverTrigger
+        render={
+          <Button
           variant="outline"
-          className="w-56 justify-start gap-2 font-normal tabular-nums transition-transform active:scale-[0.96]"
-        >
+          className="w-56 justify-start gap-2 font-normal tabular-nums"
+          />
+        }
+      >
           <CalendarIcon className="size-4 text-muted-foreground" />
           {label(value)}
-        </Button>
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0" align="start">
         <Calendar

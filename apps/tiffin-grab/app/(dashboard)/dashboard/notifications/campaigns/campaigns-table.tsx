@@ -13,6 +13,7 @@ import type { ContactListOption } from "@relay/engine/ui/audience-builder";
 import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
 import type { SortState } from "@foundry/design-system/list-sort";
 import type { CampaignSortColumn } from "./page";
+import { TableRowsSkeleton } from "@/components/dashboard/table-rows-skeleton";
 
 export type CampaignRow = {
   publicId: string;
@@ -54,7 +55,7 @@ function DeliveryProgress({ counts }: { counts: Record<string, number> }) {
         {bounced > 0 && <span className="text-destructive"> · {bounced} bounced</span>}
       </span>
       <div className="h-1.5 w-32 overflow-hidden rounded-full bg-muted">
-        <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${pct}%` }} />
+        <div className="h-full rounded-full bg-primary transition-[width] duration-300" style={{ width: `${pct}%` }} />
       </div>
     </div>
   );
@@ -104,7 +105,7 @@ export function CampaignsTable({
             <TableCell className="text-right">
               <DeliveryProgress counts={r.counts} />
             </TableCell>
-            <TableCell className="text-right tabular-nums text-muted-foreground">
+            <TableCell numeric className="text-right tabular-nums text-muted-foreground">
               <AppDate value={r.createdAt} />
             </TableCell>
             <TableCell>
@@ -125,5 +126,5 @@ export function CampaignsTable({
 }
 
 export function CampaignsTableSkeleton() {
-  return <DataTable.Skeleton columns={COLUMNS} hasId />;
+  return <TableRowsSkeleton columns={COLUMNS} hasId search="Search campaigns…" filters={[]} />;
 }

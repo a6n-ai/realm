@@ -6,6 +6,7 @@ import { getAppSettings } from "@/lib/settings";
 import { getOptimoRouteStatus } from "@/lib/optimoroute/config";
 import { nextRoutePushStatus } from "@/lib/optimoroute/push-status";
 import { requestNow } from "@/lib/dates/request-now";
+import { HoverHint } from "@/components/ds/hover-hint";
 
 /** Top-bar note: has the next delivery day gone to OptimoRoute? Links to Dispatch. */
 export async function RoutePushBadge() {
@@ -21,8 +22,10 @@ export async function RoutePushBadge() {
     : (["success-light", "pushed"] as const);
 
   return (
-    <Link href="/dashboard/dispatch" prefetch={false} title={`${pushed} of ${total} stops for ${humanDate(date)} are on OptimoRoute`} className="hidden sm:inline-flex">
-      <Badge variant={variant}>OptimoRoute · {humanDate(date)} {text}</Badge>
-    </Link>
+    <HoverHint text={`${pushed} of ${total} stops for ${humanDate(date)} are on OptimoRoute`}>
+      <Link href="/dashboard/dispatch" prefetch={false} className="hidden sm:inline-flex">
+        <Badge variant={variant}>OptimoRoute · {humanDate(date)} {text}</Badge>
+      </Link>
+    </HoverHint>
   );
 }

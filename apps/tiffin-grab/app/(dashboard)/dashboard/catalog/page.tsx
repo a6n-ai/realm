@@ -17,7 +17,7 @@ export default async function CatalogIndexPage() {
                 <span className="bg-muted text-muted-foreground flex size-9 items-center justify-center rounded-lg">
                   <LayersIcon className="size-5" />
                 </span>
-                <ArrowRightIcon className="text-muted-foreground size-4 transition-transform group-hover:translate-x-0.5" />
+                <ArrowRightIcon className="text-muted-foreground size-4" />
               </CardHeader>
               <CardContent>
                 <div className="font-medium">{r.label}</div>
@@ -37,7 +37,7 @@ export default async function CatalogIndexPage() {
               <span className="bg-muted text-muted-foreground flex size-9 items-center justify-center rounded-lg">
                 <ArrowLeftRightIcon className="size-5" />
               </span>
-              <ArrowRightIcon className="text-muted-foreground size-4 transition-transform group-hover:translate-x-0.5" />
+              <ArrowRightIcon className="text-muted-foreground size-4" />
             </CardHeader>
             <CardContent>
               <div className="font-medium">Swap Rules</div>
@@ -51,7 +51,7 @@ export default async function CatalogIndexPage() {
               <span className="bg-muted text-muted-foreground flex size-9 items-center justify-center rounded-lg">
                 <ListChecksIcon className="size-5" />
               </span>
-              <ArrowRightIcon className="text-muted-foreground size-4 transition-transform group-hover:translate-x-0.5" />
+              <ArrowRightIcon className="text-muted-foreground size-4" />
             </CardHeader>
             <CardContent>
               <div className="font-medium">Meal Rules</div>

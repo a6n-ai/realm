@@ -18,6 +18,7 @@ import { setCouponActive } from "../actions";
 import { DiscountStats, DiscountStatsSkeleton } from "../discount-stats";
 import type { StaffCodeSortColumn } from "./page";
 import { useFormatMoney } from "@/components/app-currency";
+import { TableRowsSkeleton } from "@/components/dashboard/table-rows-skeleton";
 
 export type IssuedCode = {
   publicId: string;
@@ -135,15 +136,15 @@ export function StaffCodes({
                   <Badge variant="outline">{c.kind === "rep_code" ? "Staff code" : "Daily coupon"}</Badge>
                 </TableCell>
                 <TableCell>{c.issuer}</TableCell>
-                <TableCell className="text-right tabular-nums">
+                <TableCell numeric className="text-right tabular-nums">
                   {c.applied != null ? fmtMoney(c.applied) : worth(c, fmtMoney)}
                   {c.applied != null && (c.kind === "rep_daily" || c.applied < (c.amount ?? 0)) && (
                     <span className="text-muted-foreground block text-xs">of {worth(c, fmtMoney)}</span>
                   )}
                 </TableCell>
-                <TableCell className="text-right tabular-nums">{c.uses} / {c.maxUses}</TableCell>
-                <TableCell className="text-muted-foreground whitespace-nowrap tabular-nums">{fmt(c.createdAt)}</TableCell>
-                <TableCell className="text-muted-foreground whitespace-nowrap tabular-nums">{c.expiresAt == null ? "Never" : fmt(c.expiresAt)}</TableCell>
+                <TableCell numeric className="text-right tabular-nums">{c.uses} / {c.maxUses}</TableCell>
+                <TableCell numeric className="text-muted-foreground whitespace-nowrap tabular-nums">{fmt(c.createdAt)}</TableCell>
+                <TableCell numeric className="text-muted-foreground whitespace-nowrap tabular-nums">{c.expiresAt == null ? "Never" : fmt(c.expiresAt)}</TableCell>
                 <TableCell>
                   <Badge variant={STATUS[c.status].variant}>{STATUS[c.status].label}</Badge>
                 </TableCell>
@@ -178,7 +179,7 @@ export function StaffCodesSkeleton() {
     <div className="grid grid-cols-1 gap-6">
       <DiscountStatsSkeleton />
       <SectionCard bleed title={SECTION.title} subtitle={SECTION.subtitle}>
-        <DataTable.Skeleton columns={COLUMNS} />
+        <TableRowsSkeleton columns={COLUMNS} search="Search code, staff, customer or order…" filters={["Type", "Status", "Issued by"]} firstColumnLines={2} />
       </SectionCard>
     </div>
   );

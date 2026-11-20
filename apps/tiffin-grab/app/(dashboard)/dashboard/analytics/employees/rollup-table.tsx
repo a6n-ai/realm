@@ -8,6 +8,7 @@ import { inquiriesHref } from "@/lib/analytics/drill";
 import { useFormatMoney } from "@/components/app-currency";
 import type { EmployeeRow } from "@/lib/analytics/employees.service";
 import type { AnalyticsScope } from "@/lib/analytics/scope-types";
+import { HoverHint } from "@/components/ds/hover-hint";
 
 const COLUMNS: readonly Column<"rep" | "revenue" | "orders" | "renewal" | "actions" | "leads" | "converted" | "rate" | "tickets" | "resolution" | "coupons">[] = [
   { key: "rep", label: "Rep" },
@@ -39,18 +40,18 @@ export function EmployeeRollupTable({ rows, scope }: { rows: EmployeeRow[]; scop
           <TableCell className="font-medium">
             {r.publicId ? <Link href={inquiriesHref(scope, { owner: r.publicId })} className="hover:underline">{r.name}</Link> : r.name}
           </TableCell>
-          <TableCell className="text-right tabular-nums">{money(r.revenueOwned)}</TableCell>
-          <TableCell className="text-right tabular-nums">{r.ordersOwned}</TableCell>
-          <TableCell className="text-right tabular-nums">{r.renewalRatePct != null ? `${r.renewalRatePct}%` : "—"}</TableCell>
-          <TableCell className="text-right tabular-nums">{r.actions}</TableCell>
-          <TableCell className="text-right tabular-nums">
+          <TableCell numeric className="text-right tabular-nums">{money(r.revenueOwned)}</TableCell>
+          <TableCell numeric className="text-right tabular-nums">{r.ordersOwned}</TableCell>
+          <TableCell numeric className="text-right tabular-nums">{r.renewalRatePct != null ? `${r.renewalRatePct}%` : "—"}</TableCell>
+          <TableCell numeric className="text-right tabular-nums">{r.actions}</TableCell>
+          <TableCell numeric className="text-right tabular-nums">
             {r.publicId ? (
               <Link href={inquiriesHref(scope, { owner: r.publicId })} className="hover:underline">{r.leadsWorked}</Link>
             ) : (
               r.leadsWorked
             )}
           </TableCell>
-          <TableCell className="text-right tabular-nums">
+          <TableCell numeric className="text-right tabular-nums">
             {r.publicId ? (
               <Link href={inquiriesHref(scope, { owner: r.publicId, stage: "converted" })} className="hover:underline">
                 {r.leadsConverted}
@@ -59,20 +60,21 @@ export function EmployeeRollupTable({ rows, scope }: { rows: EmployeeRow[]; scop
               r.leadsConverted
             )}
           </TableCell>
-          <TableCell className="text-right tabular-nums">{r.conversionRatePct}%</TableCell>
-          <TableCell className="text-right tabular-nums">
-            <Link
-              title="Opens this rep's resolved and closed tickets, not limited to the range"
-              href={`/dashboard/tickets?status=resolved,closed&owner=${encodeURIComponent(r.name)}`}
-              className="hover:underline"
-            >
-              {r.ticketsResolved}
-            </Link>
+          <TableCell numeric className="text-right tabular-nums">{r.conversionRatePct}%</TableCell>
+          <TableCell numeric className="text-right tabular-nums">
+            <HoverHint text="Opens this rep's resolved and closed tickets, not limited to the range">
+              <Link
+                href={`/dashboard/tickets?status=resolved,closed&owner=${encodeURIComponent(r.name)}`}
+                className="hover:underline"
+              >
+                {r.ticketsResolved}
+              </Link>
+            </HoverHint>
           </TableCell>
-          <TableCell className="text-right tabular-nums">
+          <TableCell numeric className="text-right tabular-nums">
             {r.avgResolutionHours != null ? `${r.avgResolutionHours}h` : "—"}
           </TableCell>
-          <TableCell className="text-right tabular-nums">{r.repDailyCoupons}</TableCell>
+          <TableCell numeric className="text-right tabular-nums">{r.repDailyCoupons}</TableCell>
         </>
       )}
     />

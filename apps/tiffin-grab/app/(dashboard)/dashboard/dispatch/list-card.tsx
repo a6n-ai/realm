@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Card } from "@/components/ds";
+import { Card, CardContent } from "@foundry/ui/card";
 
 /**
  * Lightweight secondary list — a page should have exactly one real DataTable (borders,
@@ -9,9 +9,11 @@ import { Card } from "@/components/ds";
  */
 export function ListCard({ title, children }: { title?: string; children: ReactNode }) {
   return (
-    <Card variant="flat" className="space-y-3 p-4">
-      {title ? <p className="text-sm font-medium">{title}</p> : null}
-      <div className="divide-y rounded-lg border">{children}</div>
+    <Card>
+      <CardContent className="space-y-3">
+        {title ? <p className="text-sm font-medium">{title}</p> : null}
+        <div className="divide-y rounded-lg border">{children}</div>
+      </CardContent>
     </Card>
   );
 }

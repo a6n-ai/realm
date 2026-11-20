@@ -4,7 +4,6 @@ import type { ReactElement } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render as rtlRender, screen } from "@testing-library/react";
 import { TimezoneProvider } from "@foundry/design-system/timezone-provider";
-import { TooltipProvider } from "@foundry/ui/tooltip";
 import type { NextRenewalRow } from "@/lib/renewals/next-renewal.service";
 import { NextRenewalsGrid, type NextRenewalsGridProps } from "./next-renewals-grid";
 
@@ -16,7 +15,7 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), refresh: 
 const render = (ui: ReactElement) =>
   rtlRender(
     <TimezoneProvider tz="UTC">
-      <TooltipProvider>{ui}</TooltipProvider>
+      {ui}
     </TimezoneProvider>,
   );
 

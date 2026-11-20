@@ -4,8 +4,10 @@
  * `orderStatusFilter`; `cancelledAt=1` dates by the cancel activity.
  */
 
+import { setDateParams, type WithUrlDates } from "@/lib/dates/range-params";
+
 export function ordersListHref(
-  sp: { from?: string; to?: string } = {},
+  sp: { from?: string; to?: string } & WithUrlDates = {},
   opts: {
     status?: "booked" | "running" | "soon" | "cancelled" | "ongoing" | "pending" | "active" | "paused" | "waitlisted" | "completed";
     starts?: "0" | "7" | "14";
@@ -21,13 +23,11 @@ export function ordersListHref(
   const qs = new URLSearchParams();
   if (opts.view && opts.view !== "all") qs.set("view", opts.view);
   if (!opts.clearDates && !opts.cancelledAt) {
-    if (sp.from) qs.set("from", sp.from);
-    if (sp.to) qs.set("to", sp.to);
+    setDateParams(qs, sp);
   }
   if (opts.cancelledAt) {
     qs.set("cancelledAt", "1");
-    if (sp.from) qs.set("from", sp.from);
-    if (sp.to) qs.set("to", sp.to);
+    setDateParams(qs, sp);
   }
   if (opts.status) qs.set("status", opts.status);
   if (opts.datesAll) qs.set("dates", "all");

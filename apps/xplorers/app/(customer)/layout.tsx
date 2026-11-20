@@ -5,7 +5,6 @@ import type { ReactNode } from "react";
 import { Bricolage_Grotesque, DM_Sans } from "next/font/google";
 import { Role } from "@foundry/commons";
 import { Toaster } from "@foundry/ui/sonner";
-import { TooltipProvider } from "@foundry/ui/tooltip";
 import { db } from "@/db/client";
 import { users } from "@/db/schema";
 import { landingPathFor } from "@/lib/auth/landing";
@@ -80,27 +79,25 @@ export default async function CustomerLayout({ children }: { children: ReactNode
   return (
     <div className={`crm-app customer-app ${display.variable} ${body.variable}`}>
       <TimezoneProvider tz={timezone}>
-        <TooltipProvider>
-          {onWelcome ? (
-            <div className="mx-auto min-h-dvh w-full max-w-3xl px-4 pt-6 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
-              {children}
-            </div>
-          ) : (
-            <CustomerShell
-              actions={
-                <CustomerHeaderActions
-                  coinBalance={wallet?.balance ?? 0}
-                  userPublicId={session.user.id}
-                  notificationFeed={notificationFeed}
-                />
-              }
-            >
-              {invite !== undefined ? <InviteBanner inviter={invite} /> : null}
-              <PageTransition>{children}</PageTransition>
-            </CustomerShell>
-          )}
-          <Toaster position="top-right" />
-        </TooltipProvider>
+        {onWelcome ? (
+          <div className="mx-auto min-h-dvh w-full max-w-3xl px-4 pt-6 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+            {children}
+          </div>
+        ) : (
+          <CustomerShell
+            actions={
+              <CustomerHeaderActions
+                coinBalance={wallet?.balance ?? 0}
+                userPublicId={session.user.id}
+                notificationFeed={notificationFeed}
+              />
+            }
+          >
+            {invite !== undefined ? <InviteBanner inviter={invite} /> : null}
+            <PageTransition>{children}</PageTransition>
+          </CustomerShell>
+        )}
+        <Toaster position="top-right" />
       </TimezoneProvider>
     </div>
   );

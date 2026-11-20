@@ -1,93 +1,55 @@
 import type { Visible } from "@/lib/tenant/org-scope";
-import Link from "next/link";
-import { ActivityIcon, PackageIcon, RefreshCwIcon, UtensilsCrossedIcon, type LucideIcon } from "lucide-react";
-import { Card, CardContent } from "@foundry/ui/card";
-import { Sparkline } from "@/components/dashboard/analytics/sparkline";
-import { Badge } from "@/components/reui/badge";
+import { ActivityIcon, PackageIcon, RefreshCwIcon, UtensilsCrossedIcon } from "lucide-react";
+import { StatCards, type StatCardItem } from "@/components/dashboard/stat-cards";
 import { zonedRangeMs } from "@/lib/dates/epoch-window";
+import { dateQs, rangeParams } from "@/lib/dates/range-params";
 import { ordersListHref } from "@/lib/list/orders-drill";
-import { delta, type Delta } from "@/lib/overview/delta";
 import { getOverviewSeries } from "@/lib/overview/overview.service";
-
-type Metric = { label: string; icon: LucideIcon; value: string; delta: Delta; vs: string; spark: number[] | null; href?: string };
 
 const sum = (xs: number[]) => xs.reduce((s, x) => s + x, 0);
 
-/** The four headline tiles, each its own card. No revenue on the Overview; it lives in Analytics. */
+/** The four headline figures in one divided card. No revenue on the Overview; it lives in Analytics. */
 export async function GlanceCard({ visible, today, now, timeZone }: { visible: Visible; today: string; now: number; timeZone: string }) {
   const s = await getOverviewSeries(visible, today, now);
   const d = s.days;
   const last7 = (f: (x: (typeof d)[number]) => number) => [sum(d.slice(7).map(f)), sum(d.slice(0, 7).map(f))] as const;
   const [ord7, ordPrev7] = last7((x) => x.orders);
   const week = zonedRangeMs(d[7]!.date, d[13]!.date, timeZone);
-  const metrics: Metric[] = [
+  const rate = s.renewal.rate;
+  const items: StatCardItem[] = [
     {
       label: "Tiffins today",
       icon: UtensilsCrossedIcon,
-      value: String(d[13]!.tiffins),
-      delta: delta(d[13]!.tiffins, d[6]!.tiffins),
-      vs: "vs same day last week",
-      spark: d.map((x) => x.tiffins),
+      value: d[13]!.tiffins,
+      hint: "Scheduled for delivery today",
+      delta: { now: d[13]!.tiffins, before: d[6]!.tiffins, good: "up" },
+      compareLabel: "same day last week",
     },
     {
       label: "Orders this week",
       icon: PackageIcon,
-      value: String(ord7),
-      delta: delta(ord7, ordPrev7),
-      vs: "last 7 days vs the 7 before",
-      spark: d.map((x) => x.orders),
-      href: ordersListHref({ from: String(week.from), to: String(week.to) }),
+      value: ord7,
+      hint: "Placed in the last 7 days",
+      delta: { now: ord7, before: ordPrev7, good: "up" },
+      compareLabel: "previous 7 days",
+      href: ordersListHref({ dateQs: dateQs(rangeParams(week, timeZone, now, { exact: true })) }),
     },
     {
       label: "Active plans",
       icon: ActivityIcon,
-      value: String(s.activePlans),
-      delta: delta(ord7, ordPrev7),
-      vs: "new orders, 7 days vs the 7 before",
-      spark: null,
+      value: s.activePlans,
+      hint: "Plans running now",
       href: ordersListHref({}, { status: "active", clearDates: true, datesAll: true }),
     },
     {
       label: "Renewal rate 30d",
       icon: RefreshCwIcon,
-      value: s.renewal.rate == null ? "—" : `${s.renewal.rate}%`,
-      delta: s.renewal.rate != null && s.renewal.prevRate != null ? delta(s.renewal.rate, s.renewal.prevRate, { points: true }) : { text: "—", tone: "flat", word: "No baseline" },
-      vs: "vs the 30 days before",
-      spark: null,
+      value: rate == null ? "—" : `${rate}%`,
+      hint: "Ended plans that renewed, last 30 days",
+      delta: rate != null && s.renewal.prevRate != null ? { now: rate, before: s.renewal.prevRate, good: "up" } : undefined,
+      compareLabel: "the 30 days before",
       href: "/dashboard/renewals",
     },
   ];
-  return (
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      {metrics.map((m) => {
-        const card = (
-        <Card key={m.label} className={m.href ? "h-full transition-[border-color,box-shadow] group-hover/stat:border-foreground/20 group-hover/stat:shadow-md" : undefined}>
-          <CardContent className="flex min-w-0 flex-col gap-2">
-            <div className="text-muted-foreground flex items-center gap-1.5 text-sm font-medium">
-              <m.icon className="size-4 shrink-0" aria-hidden />
-              <span className="truncate">{m.label}</span>
-            </div>
-            <div className="flex items-end justify-between gap-3">
-              <span className="text-2xl font-medium tracking-tight tabular-nums">{m.value}</span>
-              {m.spark ? <Sparkline values={m.spark} tone={m.delta.tone === "bad" ? "warning" : "c1"} /> : null}
-            </div>
-            <div className="flex flex-wrap items-center gap-1.5 text-xs">
-              <Badge variant={m.delta.tone === "ok" ? "success-light" : m.delta.tone === "bad" ? "warning-light" : "secondary"}>{m.delta.text}</Badge>
-              <span className="text-muted-foreground">
-                {m.delta.word} · {m.vs}
-              </span>
-            </div>
-          </CardContent>
-        </Card>
-        );
-        return m.href ? (
-          <Link key={m.label} href={m.href} className="group/stat focus-visible:ring-ring rounded-xl outline-none focus-visible:ring-2">
-            {card}
-          </Link>
-        ) : (
-          card
-        );
-      })}
-    </div>
-  );
+  return <StatCards items={items} cols={4} />;
 }

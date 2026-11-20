@@ -15,7 +15,7 @@ import { RENEWAL_QUEUES, parseRenewalsFilter, renewalQueueFilter, resolveRange, 
 import { requestNow } from "@/lib/dates/request-now";
 import { getAppSettings } from "@/lib/settings";
 import { countTrackQueues, listRenewals } from "@/lib/renewals/renewals.service";
-import { RenewalsQueueList } from "./renewals-queue-list";
+import { RenewalsQueueList, RenewalsQueueListSkeleton } from "./renewals-queue-list";
 const TABS: { value: RenewalQueue; label: string }[] = [
   { value: "renew", label: "To renew" },
   { value: "due", label: "Due today" },
@@ -71,13 +71,11 @@ export async function RenewalsQueue({ sp }: { sp: Record<string, string | undefi
       <Tabs value={queue}>
         <TabsList variant="line" aria-label="Renewal follow-up queues">
           {TABS.map((t) => (
-            <TabsTrigger key={t.value} value={t.value} asChild className="gap-1.5">
-              <Link href={queueHref(sp, t.value)} prefetch={false}>
-                {t.label}
-                <Badge variant={t.value === "overdue" && counts.overdue > 0 ? "destructive-light" : "secondary"} className="tabular-nums">
-                  {counts[t.value]}
-                </Badge>
-              </Link>
+            <TabsTrigger key={t.value} value={t.value} className="gap-1.5" render={<Link href={queueHref(sp, t.value)} prefetch={false} />}>
+              {t.label}
+              <Badge variant={t.value === "overdue" && counts.overdue > 0 ? "destructive-light" : "secondary"} className="tabular-nums">
+                {counts[t.value]}
+              </Badge>
             </TabsTrigger>
           ))}
         </TabsList>
@@ -96,11 +94,7 @@ export function RenewalsQueueSkeleton() {
           <Skeleton key={i} className="h-8 w-24" />
         ))}
       </div>
-      <div className="flex flex-col gap-2">
-        {Array.from({ length: 6 }, (_, i) => (
-          <Skeleton key={i} className="h-10 w-full" />
-        ))}
-      </div>
+      <RenewalsQueueListSkeleton />
     </div>
   );
 }

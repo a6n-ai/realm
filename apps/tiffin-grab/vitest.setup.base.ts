@@ -25,5 +25,17 @@ globalThis.ResizeObserver ??= ResizeObserverStub as unknown as typeof ResizeObse
 // Guarded: this file also runs in node-env test files, which have no `document`.
 if (typeof document !== "undefined") {
   document.elementFromPoint ??= () => null;
+  // ui-sdk popups (Dialog, Sheet, Select, Popover) wait on CSS animations and open the top layer.
+  Element.prototype.getAnimations ??= () => [];
+  HTMLDialogElement.prototype.showModal ??= function (this: HTMLDialogElement) {
+    this.setAttribute("open", "");
+  };
+  HTMLDialogElement.prototype.close ??= function (this: HTMLDialogElement) {
+    this.removeAttribute("open");
+  };
+  HTMLElement.prototype.showPopover ??= function () {};
+  HTMLElement.prototype.hidePopover ??= function () {};
+  // jsdom hides [popover] content it can't open; show only the open popup (ui-sdk sets data-open) so closed keepMounted content stays hidden.
+  document.head.append(Object.assign(document.createElement("style"), { textContent: "[popover][data-open] { display: block !important }" }));
 }
 

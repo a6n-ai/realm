@@ -1,4 +1,4 @@
-import { cn } from "@foundry/ui/cn";
+import { Badge } from "@foundry/ui/badge";
 
 // Labels come from the shared taxonomy so admin never drifts from the customer
 // picker; categoryLabel() also covers retired values still on historical rows.
@@ -6,11 +6,11 @@ export { categoryLabel } from "@/lib/support/ticket-taxonomy";
 
 type Variant = "neutral" | "ok" | "warn" | "bad";
 
-const VARIANT_CLASS: Record<Variant, string> = {
-  neutral: "bg-muted text-muted-foreground border",
-  ok: "bg-ok/15 text-ok",
-  warn: "bg-warn/15 text-warn",
-  bad: "bg-bad/15 text-bad",
+const VARIANT_TONE: Record<Variant, string> = {
+  neutral: "",
+  ok: "[--ui-badge-tone:var(--ok)]",
+  warn: "[--ui-badge-tone:var(--warn)]",
+  bad: "[--ui-badge-tone:var(--bad)]",
 };
 
 const STATUS_VARIANT: Record<string, Variant> = {
@@ -34,29 +34,18 @@ const PRIORITY_VARIANT: Record<string, Variant> = {
   urgent: "bad",
 };
 
-function Pill({ variant, children }: { variant: Variant; children: React.ReactNode }) {
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium",
-        VARIANT_CLASS[variant],
-      )}
-    >
-      {children}
-    </span>
-  );
-}
-
 export function TicketStatusBadge({ status }: { status: string }) {
   return (
-    <Pill variant={STATUS_VARIANT[status] ?? "neutral"}>{statusLabel(status)}</Pill>
+    <Badge variant="neutral" className={VARIANT_TONE[STATUS_VARIANT[status] ?? "neutral"]}>
+      {statusLabel(status)}
+    </Badge>
   );
 }
 
 export function PriorityBadge({ priority }: { priority: string }) {
   return (
-    <Pill variant={PRIORITY_VARIANT[priority] ?? "neutral"}>
+    <Badge variant="neutral" className={VARIANT_TONE[PRIORITY_VARIANT[priority] ?? "neutral"]}>
       {priorityLabel(priority)}
-    </Pill>
+    </Badge>
   );
 }

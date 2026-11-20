@@ -23,11 +23,11 @@ export function ReinquiryHeatIcon({ reinquiry }: { reinquiry: PipelineRow["reinq
   const text = `${label} re-inquiry: came back ${times}, last on ${formatEpoch(reinquiry.lastAt, { mode: "date", timeZone })}${reinquiry.sourceLabel ? ` via ${reinquiry.sourceLabel}` : ""}`;
   return (
     <Tooltip>
-      <TooltipTrigger asChild>
+      <TooltipTrigger render={
         <span className="inline-flex shrink-0 items-center" aria-label={text} role="img">
           <Icon className={cn("size-4", tone)} aria-hidden />
         </span>
-      </TooltipTrigger>
+      } />
       <TooltipContent>{text}</TooltipContent>
     </Tooltip>
   );

@@ -20,7 +20,7 @@ import { RadioGroup, RadioGroupItem } from "@foundry/ui/radio-group";
 import { Badge } from "@/components/reui/badge";
 import { ToggleGroup, ToggleGroupItem } from "@foundry/ui/toggle-group";
 import { toggleVariants } from "@foundry/ui/toggle";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@foundry/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@foundry/ui/tooltip";
 import { DateInput } from "@/components/dashboard/date-fields";
 import { DeliveryAreaNote } from "@/components/address/delivery-area";
 import { ScheduleCard } from "@/components/wizard/schedule-card";
@@ -38,6 +38,7 @@ import { DropOffToggles } from "./drop-off-toggles";
 import { addDaysIso, daysBetween, isoToUtcDate, utcIso } from "@foundry/commons/util/dates";
 import { useAppCurrency, useFormatMoney } from "@/components/app-currency";
 import { isSubmitEnter } from "@/lib/enter-key";
+import { HoverHint } from "@/components/ds/hover-hint";
 
 export type Draft = ReturnType<typeof useOrderDraft>;
 
@@ -116,25 +117,20 @@ export function PlanSection({ d, catalog }: { d: Draft; catalog: Catalog }) {
           {planKey && (
             <Field label="Meal size" error={meals.length === 0 ? "No meal sizes for this plan." : null}>
               {/* Equal cells keep the grid even; long names are cut and shown in full on hover. */}
-              <TooltipProvider delayDuration={300}>
-                <ToggleGroup type="single" variant="outline" size="default" spacing={2} className="grid w-full grid-cols-3" value={mealSizeId}
-                  onValueChange={(v) => v && form.setValue("mealSizeId", v, { shouldDirty: true, shouldValidate: true })}>
-                  {meals.map((m) => {
-                    const label = m.trial ? `${m.name} · Trial` : m.name;
-                    return (
-                      // Tooltip wraps the label, not the item: its trigger sets data-state, which would hide the item's "on" style.
-                      <ToggleGroupItem key={m.id} value={m.id} aria-label={label}>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <span className="truncate">{label}</span>
-                          </TooltipTrigger>
-                          <TooltipContent>{label}</TooltipContent>
-                        </Tooltip>
-                      </ToggleGroupItem>
-                    );
-                  })}
-                </ToggleGroup>
-              </TooltipProvider>
+              <ToggleGroup type="single" variant="outline" size="default" spacing={2} className="grid w-full grid-cols-3" value={mealSizeId}
+                onValueChange={(v) => v && form.setValue("mealSizeId", v, { shouldDirty: true, shouldValidate: true })}>
+                {meals.map((m) => {
+                  const label = m.trial ? `${m.name} · Trial` : m.name;
+                  return (
+                    <Tooltip key={m.id} delay={300}>
+                      <TooltipTrigger render={<ToggleGroupItem value={m.id} aria-label={label} />}>
+                        <span className="truncate">{label}</span>
+                      </TooltipTrigger>
+                      <TooltipContent>{label}</TooltipContent>
+                    </Tooltip>
+                  );
+                })}
+              </ToggleGroup>
             </Field>
           )}
           {eligibleAddons.length > 0 && (
@@ -142,8 +138,8 @@ export function PlanSection({ d, catalog }: { d: Draft; catalog: Catalog }) {
               <div className="flex flex-wrap items-center gap-2">
                 {/* Searchable list: production menus have many add-ons. Picked ones leave the list and line up beside the button. */}
                 <Popover open={addonPickerOpen} onOpenChange={setAddonPickerOpen}>
-                  <PopoverTrigger asChild>
-                    <Button type="button" variant="outline" disabled={eligibleAddons.every((a) => d.qtyFor(a.key) > 0)}><PlusIcon /> Add-on</Button>
+                  <PopoverTrigger render={<Button type="button" variant="outline" disabled={eligibleAddons.every((a) => d.qtyFor(a.key) > 0)} />}>
+                    <PlusIcon /> Add-on
                   </PopoverTrigger>
                   <PopoverContent align="start" className="w-64 p-0">
                     <Command>
@@ -166,12 +162,14 @@ export function PlanSection({ d, catalog }: { d: Draft; catalog: Catalog }) {
                   const qty = d.qtyFor(a.key);
                   return (
                     // Same box as a selected ToggleGroup pill, so picked add-ons read as choices, not tags.
-                    <span key={a.key} role="group" aria-label={`${a.name} quantity`} data-state="on" className={toggleVariants({ variant: "outline", className: "gap-1 pr-1" })} title={a.portion ?? undefined}>
+                    <HoverHint key={a.key} text={a.portion}>
+                    <span role="group" aria-label={`${a.name} quantity`} data-state="on" className={toggleVariants({ variant: "outline", className: "gap-1 pr-1" })}>
                       {a.name}
                       <Button type="button" variant="ghost" size="icon-xs" aria-label={`Remove one ${a.name}`} onClick={() => d.setAddonQty(a.key, qty - 1)}>{qty > 1 ? <MinusIcon /> : <XIcon />}</Button>
                       <span className="w-3 text-center tabular-nums" aria-live="polite">{qty}</span>
                       <Button type="button" variant="ghost" size="icon-xs" aria-label={`Add one ${a.name}`} disabled={qty >= a.maxQty} onClick={() => d.setAddonQty(a.key, qty + 1)}><PlusIcon /></Button>
                     </span>
+                    </HoverHint>
                   );
                 })}
               </div>
@@ -245,10 +243,12 @@ export function PlanSection({ d, catalog }: { d: Draft; catalog: Catalog }) {
                 <ToggleGroup type="single" variant="outline" size="default" spacing={2} className="flex-wrap" value={frequencyKey}
                   onValueChange={(v) => v && form.setValue("frequencyKey", v, { shouldDirty: true, shouldValidate: true })}>
                   {deliveryFrequencies.map((f) => (
-                    <ToggleGroupItem key={f.key} value={f.key} title={(f.weekdays ?? []).map(dayName).join(" · ")}>
-                      {f.name}
-                      {!!f.savePct && <span className="text-primary text-xs tabular-nums">Save {f.savePct}%</span>}
-                    </ToggleGroupItem>
+                    <HoverHint key={f.key} text={(f.weekdays ?? []).map(dayName).join(" · ")}>
+                      <ToggleGroupItem value={f.key}>
+                        {f.name}
+                        {!!f.savePct && <span className="text-primary text-xs tabular-nums">Save {f.savePct}%</span>}
+                      </ToggleGroupItem>
+                    </HoverHint>
                   ))}
                 </ToggleGroup>
               </Field>
@@ -391,9 +391,11 @@ export function PaymentSection({ d, customerName, extra }: { d: Draft; customerN
                 // One line per method: who to pay and a copy button. The full instructions travel in the copied text.
                 selectedMethod.payeeHandle || selectedMethod.instructions?.trim() ? (
                   <div className="flex items-center justify-between gap-2">
-                    <p className="text-muted-foreground min-w-0 truncate text-xs" title={selectedMethod.instructions ?? undefined}>
-                      {selectedMethod.payeeHandle ? <>Send to <span className="text-foreground font-medium">{selectedMethod.payeeHandle}</span></> : selectedMethod.instructions}
-                    </p>
+                    <HoverHint text={selectedMethod.instructions}>
+                      <p className="text-muted-foreground min-w-0 truncate text-xs">
+                        {selectedMethod.payeeHandle ? <>Send to <span className="text-foreground font-medium">{selectedMethod.payeeHandle}</span></> : selectedMethod.instructions}
+                      </p>
+                    </HoverHint>
                     <Button type="button" variant="outline" size="sm" onClick={() => void copyPaymentDetails(selectedMethod)}>
                       <CopyIcon /> Copy details
                     </Button>
@@ -468,9 +470,11 @@ export function DiscountsSection({ d, customerLabel }: { d: Draft; customerLabel
                     <Button type="button" variant="secondary" size="sm" onClick={() => d.applyAllCoupons(coupons.available.map((c) => c.code))}>Apply all applicable</Button>
                   )}
                   {coupons.available.filter((c) => !couponCodes.includes(c.code.toUpperCase())).map((c) => (
-                    <Button key={c.code} type="button" variant="outline" size="sm" title={c.name} onClick={() => d.applyCoupon(c.code)}>
-                      <span className="tabular-nums">{c.code}</span> · {discountLine(c, currency)}
-                    </Button>
+                    <HoverHint key={c.code} text={c.name}>
+                      <Button type="button" variant="outline" size="sm" onClick={() => d.applyCoupon(c.code)}>
+                        <span className="tabular-nums">{c.code}</span> · {discountLine(c, currency)}
+                      </Button>
+                    </HoverHint>
                   ))}
                 </div>
               )}
@@ -535,32 +539,28 @@ export function RunningPlansField({ plans, selectedId, busyId, onPick }: { plans
   if (plans.length === 0) return null;
   return (
     <Field label="Running plans" hint="Tap one to renew it">
-      <TooltipProvider delayDuration={300}>
-        <div className="flex flex-wrap gap-2">
-          {plans.map((p) => (
-            <button
-              key={p.publicId}
-              type="button"
-              disabled={busyId != null}
-              data-state={selectedId === p.publicId ? "on" : "off"}
-              onClick={() => onPick(p)}
-              className={toggleVariants({ variant: "outline", className: "max-w-full" })}
-            >
+      <div className="flex flex-wrap gap-2">
+        {plans.map((p) => (
+          <Tooltip key={p.publicId} delay={300}>
+            <TooltipTrigger render={
+              <button
+                type="button"
+                disabled={busyId != null}
+                data-state={selectedId === p.publicId ? "on" : "off"}
+                onClick={() => onPick(p)}
+                className={toggleVariants({ variant: "outline", className: "max-w-full" })}
+              />
+            }>
               <RefreshCwIcon className={busyId === p.publicId ? "animate-spin" : undefined} />
-              {/* Tooltip on the label: on the button its trigger would overwrite data-state. */}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="flex min-w-0 items-center gap-1">
-                    <span className="tabular-nums">{p.deploymentId}</span>
-                    <span className="text-muted-foreground truncate font-normal">· ends {p.lastDay}</span>
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent>{p.mealSize} · <span className="capitalize">{p.status}</span> · {p.startDate} to {p.lastDay} · {p.tiffinCount} tiffins</TooltipContent>
-              </Tooltip>
-            </button>
-          ))}
-        </div>
-      </TooltipProvider>
+              <span className="flex min-w-0 items-center gap-1">
+                <span className="tabular-nums">{p.deploymentId}</span>
+                <span className="text-muted-foreground truncate font-normal">· ends {p.lastDay}</span>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>{p.mealSize} · <span className="capitalize">{p.status}</span> · {p.startDate} to {p.lastDay} · {p.tiffinCount} tiffins</TooltipContent>
+          </Tooltip>
+        ))}
+      </div>
     </Field>
   );
 }

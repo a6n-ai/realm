@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@foundry/ui/button";
-import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@foundry/ui/dialog";
+import { AlertDialog, AlertDialogClose, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@foundry/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
 import { OrgRoleDialog, RoleChips, chipState, type PermissionMap, type ResourceLabel } from "@foundry/crm";
 import { Badge } from "@/components/reui/badge";
@@ -229,26 +229,24 @@ export function MemberDetail({ data, resources }: { data: MemberPanelData; resou
         </div>
       </SectionCard>
 
-      <Dialog open={confirm !== null} onOpenChange={(open) => !open && setConfirm(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{confirm === "remove" ? `Remove ${label} from this organization?` : `Suspend ${label}?`}</DialogTitle>
-            <DialogDescription>
+      <AlertDialog open={confirm !== null} onOpenChange={(open) => !open && setConfirm(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{confirm === "remove" ? `Remove ${label} from this organization?` : `Suspend ${label}?`}</AlertDialogTitle>
+            <AlertDialogDescription>
               {confirm === "remove"
                 ? "They lose access to this organization right away. You can add them back later."
                 : "They are signed out everywhere and cannot sign in until you reactivate them."}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button variant="outline">Keep</Button>
-            </DialogClose>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogClose render={<Button variant="outline" />}>Keep</AlertDialogClose>
             <Button variant="destructive" disabled={pending} onClick={confirm === "remove" ? removeFromOrg : suspend}>
               {confirm === "remove" ? "Remove" : "Suspend"}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

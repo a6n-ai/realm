@@ -6,6 +6,7 @@ import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
 import type { SortState } from "@foundry/design-system/list-sort";
 import { UserRow, UserRowCard, type RoleCtx } from "./user-row";
 import type { PeopleRow } from "./people-rows";
+import { TableRowsSkeleton } from "@/components/dashboard/table-rows-skeleton";
 
 export type UserListRow = PeopleRow;
 
@@ -66,7 +67,7 @@ export function UsersListSkeleton() {
   return (
     <div className="space-y-4">
       <SkeletonFilterBar dropdown />
-      <DataTable.Skeleton columns={COLUMNS} serial={false} />
+      <TableRowsSkeleton columns={COLUMNS} serial={false} search="Search users…" filters={[]} firstColumnLines={2} />
     </div>
   );
 }

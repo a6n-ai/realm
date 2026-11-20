@@ -97,7 +97,7 @@ export function MealTypesForm({
         <Button
           onClick={handleSaveTypes}
           disabled={typesPending}
-          className="h-10 gap-2 active:scale-[0.96] transition-transform"
+          className="h-10 gap-2"
         >
           <SaveIcon className="size-4" />
           Save meal types

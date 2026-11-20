@@ -96,16 +96,16 @@ export function OrderWeeksTable({ weeks }: { weeks: OrderWeek[] }) {
                 </span>
               </div>
             </TableCell>
-            <TableCell className="text-right tabular-nums">
+            <TableCell numeric className="text-right tabular-nums">
               <div className="flex flex-col items-end">
                 {r.tiffins}
                 {r.free > 0 ? <span className="text-warning text-xs">{r.free} free</span> : null}
               </div>
             </TableCell>
-            <TableCell className="text-right tabular-nums">{money(r.selling)}</TableCell>
-            <TableCell className="text-muted-foreground text-right tabular-nums">{r.deductions > 0 ? `−${money(r.deductions)}` : money(0)}</TableCell>
-            <TableCell className="text-right tabular-nums">{money(r.revenue)}</TableCell>
-            <TableCell className="text-right tabular-nums">
+            <TableCell numeric className="text-right tabular-nums">{money(r.selling)}</TableCell>
+            <TableCell numeric className="text-muted-foreground text-right tabular-nums">{r.deductions > 0 ? `−${money(r.deductions)}` : money(0)}</TableCell>
+            <TableCell numeric className="text-right tabular-nums">{money(r.revenue)}</TableCell>
+            <TableCell numeric className="text-right tabular-nums">
               <span className="inline-flex items-center justify-end gap-1">
                 {r.unrated ? (
                   <TriangleAlertIcon className="text-warning size-3.5 shrink-0" aria-label="Some items have no cost rate">
@@ -115,9 +115,9 @@ export function OrderWeeksTable({ weeks }: { weeks: OrderWeek[] }) {
                 {money(r.food)}
               </span>
             </TableCell>
-            <TableCell className="text-right tabular-nums">{money(r.driver)}</TableCell>
-            <TableCell className="text-right font-medium tabular-nums">{money(round2(r.food + r.driver))}</TableCell>
-            <TableCell className={cn("text-right font-medium tabular-nums", r.profit < 0 && "text-destructive")}>{money(r.profit)}</TableCell>
+            <TableCell numeric className="text-right tabular-nums">{money(r.driver)}</TableCell>
+            <TableCell numeric className="text-right font-medium tabular-nums">{money(round2(r.food + r.driver))}</TableCell>
+            <TableCell numeric className={cn("text-right font-medium tabular-nums", r.profit < 0 && "text-destructive")}>{money(r.profit)}</TableCell>
           </>
         )}
       />

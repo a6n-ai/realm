@@ -16,8 +16,10 @@ export type RecommendationOwner = { current: string; options: OwnerOption[] };
 export type RecommendationItem = {
   key: string;
   name: string;
-  /** Opens the item's page; also the name's link and the Open action. */
+  /** Opens the item's page; also the name's link and, on the card layout, the Open action. */
   href: string;
+  /** Lead row: the name links and the status sits beside it, the reason is the muted line under them, and the actions take the right. */
+  entity?: boolean;
   reason?: ReactNode;
   status?: ReactNode;
   contact?: ReactNode;
@@ -65,21 +67,41 @@ export function RecommendationGrid({ title, owner, toAct, viewAllHref, items, em
   );
 }
 
-export function RecommendationGridSkeleton({ title }: { title: string }) {
+export function RecommendationGridSkeleton({ title, entity = false }: { title: string; entity?: boolean }) {
   return (
     <SectionCard title={title} action={<Skeleton className="h-8 w-40" />}>
       <div className="grid gap-3 md:grid-cols-3">
-        {[0, 1, 2].map((i) => (
-          <Card key={i} size="sm" className="flex flex-col gap-3">
-            <div className="flex items-center gap-2">
-              <Skeleton className="size-8 shrink-0 rounded-full" />
-              <Skeleton className="h-4 w-32" />
-            </div>
-            <Skeleton className="h-5 w-24" />
-            <Skeleton className="h-8 w-40" />
-            <Skeleton className="h-8 w-24" />
-          </Card>
-        ))}
+        {[0, 1, 2].map((i) =>
+          entity ? (
+            <Card key={i} size="sm" className="h-full">
+              <div className="flex min-w-0 items-center justify-between gap-3">
+                <div className="flex min-w-0 flex-col gap-1">
+                  <div className="flex min-w-0 flex-wrap items-center gap-2">
+                    <Skeleton className="size-8 shrink-0 rounded-full" />
+                    <Skeleton className="h-4 w-32" />
+                    <Skeleton className="h-5 w-20 rounded-full" />
+                  </div>
+                  <Skeleton className="h-3 w-40" />
+                </div>
+                <div className="flex shrink-0 items-center gap-1">
+                  <Skeleton className="size-8" />
+                  <Skeleton className="size-8" />
+                  <Skeleton className="size-8" />
+                </div>
+              </div>
+            </Card>
+          ) : (
+            <Card key={i} size="sm" className="flex flex-col gap-3">
+              <div className="flex items-center gap-2">
+                <Skeleton className="size-8 shrink-0 rounded-full" />
+                <Skeleton className="h-4 w-32" />
+              </div>
+              <Skeleton className="h-5 w-24" />
+              <Skeleton className="h-8 w-40" />
+              <Skeleton className="h-8 w-24" />
+            </Card>
+          ),
+        )}
       </div>
     </SectionCard>
   );

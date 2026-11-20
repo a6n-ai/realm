@@ -30,6 +30,7 @@ import { PaymentStatusPill } from "../payment-status-pill";
 import { CustomerLink } from "../customer-link";
 import { PaymentDetailDialog } from "../payment-detail-dialog";
 import type { SortState } from "@foundry/design-system/list-sort";
+import { TableRowsSkeleton } from "@/components/dashboard/table-rows-skeleton";
 
 const buildSpec = (ownerOptions: Option[]): FacetDef[] => [
   { kind: "pills", field: "status", label: "Status", options: [...PAYMENT_STATUS_OPTIONS] },
@@ -132,11 +133,11 @@ export function RequestsTable({
         emptySearchMessage="No e-transfers match your filters."
         renderRow={(r) => (
           <>
-            <TableCell className="whitespace-nowrap tabular-nums text-muted-foreground">
+            <TableCell numeric className="whitespace-nowrap tabular-nums text-muted-foreground">
               {formatEpoch(r.createdAt, { mode: "datetime", timeZone: tz })}
             </TableCell>
             <TableCell className="text-muted-foreground"><CustomerLink row={r} /></TableCell>
-            <TableCell className="font-mono text-xs">{r.reference ?? "-"}</TableCell>
+            <TableCell mono className="font-mono text-xs">{r.reference ?? "-"}</TableCell>
             <TableCell>
               {r.proofThumb ? (
                 <a href={r.proofHref ?? r.proofThumb} target="_blank" rel="noreferrer">
@@ -150,7 +151,7 @@ export function RequestsTable({
             <TableCell>
               <PaymentStatusPill status={r.status} />
             </TableCell>
-            <TableCell className="text-right tabular-nums">{formatMoney(Number(r.amount))}</TableCell>
+            <TableCell numeric className="text-right tabular-nums">{formatMoney(Number(r.amount))}</TableCell>
             <TableCell className="text-right">
               <RowActions>
                 <RowActionTooltipButton icon={EyeIcon} label="View e-transfer" onClick={() => setViewing(r)} />
@@ -226,5 +227,5 @@ export function RequestsTable({
 }
 
 export function RequestsTableSkeleton() {
-  return <DataTable.Skeleton columns={COLUMNS} />;
+  return <TableRowsSkeleton columns={COLUMNS} search="Search order, customer, reference…" filters={["Status", "Owner"]} />;
 }

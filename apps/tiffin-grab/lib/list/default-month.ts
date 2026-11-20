@@ -2,22 +2,42 @@ import { and, gte, lte, type SQL } from "drizzle-orm";
 import type { AnyColumn } from "drizzle-orm";
 import { getAppSettings } from "@/lib/settings";
 import { currentMonthEpochRange } from "@/lib/dates/epoch-window";
+import { parseRangeParams, dateQs, rangeParams, type WithUrlDates } from "@/lib/dates/range-params";
 
-type Dated = { from?: string; to?: string };
+type Dated = { from?: string; to?: string; range?: string };
 
-function hasBound(sp: Dated): boolean {
-  return (sp.from != null && sp.from !== "") || (sp.to != null && sp.to !== "");
+/**
+ * Normalises `range=`, ISO and legacy epoch `from`/`to` to the epoch-ms strings every
+ * query reads, filling the current business month when none is valid. Also sets `dateQs`
+ * (see `WithUrlDates`) so drill links write the readable form; it stays off `T` so search-param records keep their type.
+ */
+export function fillDefaultMonth<T extends Dated>(sp: T, timezone: string, now = Date.now()): T {
+  const parsed = parseRangeParams(sp, timezone, now);
+  if (parsed.from == null && parsed.to == null) {
+    const month = currentMonthEpochRange(timezone, now);
+    return { ...sp, from: String(month.from), to: String(month.to), dateQs: "" } satisfies WithUrlDates as T;
+  }
+  const dates = parsed.preset ? rangeParams({ preset: parsed.preset }, timezone, now) : rangeParams(parsed, timezone, now, { exact: true });
+  return {
+    ...sp,
+    from: parsed.from == null ? undefined : String(parsed.from),
+    to: parsed.to == null ? undefined : String(parsed.to),
+    dateQs: dateQs(dates),
+  } satisfies WithUrlDates as T;
 }
 
-/** Fill a missing `from`/`to` with the current business month. Explicit bounds stay. */
-export function fillDefaultMonth<T extends Dated>(sp: T, timezone: string, now = Date.now()): T {
-  if (hasBound(sp)) return sp;
-  const range = currentMonthEpochRange(timezone, now);
-  return { ...sp, from: String(range.from), to: String(range.to) };
+/** `range=`, ISO and epoch `from`/`to` as the epoch strings `parseFilterState` reads; no valid window stays open (all time). */
+export function explicitDates<T extends Dated>(sp: T, timezone: string, now = Date.now()): T {
+  const p = parseRangeParams(sp, timezone, now);
+  return { ...sp, from: p.from == null ? undefined : String(p.from), to: p.to == null ? undefined : String(p.to) };
+}
+
+export async function withExplicitDates<T extends Dated>(sp: T): Promise<T> {
+  const { timezone } = await getAppSettings();
+  return explicitDates(sp, timezone);
 }
 
 export async function withDefaultMonth<T extends Dated>(sp: T): Promise<T> {
-  if (hasBound(sp)) return sp;
   const { timezone } = await getAppSettings();
   return fillDefaultMonth(sp, timezone);
 }
@@ -27,7 +47,7 @@ export async function withDefaultMonth<T extends Dated>(sp: T): Promise<T> {
  * before the default month still shows; without one the list keeps its range.
  */
 export async function withListDates<T extends Dated & { q?: string }>(sp: T): Promise<T> {
-  if (sp.q?.trim()) return { ...sp, from: undefined, to: undefined };
+  if (sp.q?.trim()) return { ...sp, from: undefined, to: undefined, dateQs: undefined } satisfies WithUrlDates as T;
   return withDefaultMonth(sp);
 }
 

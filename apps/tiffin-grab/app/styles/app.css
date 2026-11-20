@@ -13,3 +13,97 @@
 @source "../../node_modules/@foundry/delivery/src/ui";
 @source "../../node_modules/@foundry/address/src/ui";
 @source "../../../../node_modules/@foundry/crm/src";
+
+/* Without this the 200ms width transitions trail the pointer during a drag. */
+[data-slot="sidebar-wrapper"][data-resizing] [data-slot^="sidebar"] {
+  transition: none;
+}
+
+/* Admin-only: customer screens share these filter components and keep their own look. Colour-only, no transitions. */
+.admin-ui [data-slot="filter-add"],
+.admin-ui [data-slot="filter-chip"],
+.admin-ui [data-slot="filter-suggestion"] {
+  height: 2rem;
+  border-radius: 9999px;
+  border: 1px solid var(--border);
+  font-size: 0.875rem;
+  font-weight: 400;
+  transition: none;
+}
+.admin-ui [data-slot="filter-chip"] {
+  display: inline-flex;
+  align-items: center;
+  overflow: hidden;
+  padding-inline: 0 0.25rem;
+  background: var(--background);
+}
+.admin-ui [data-slot="filter-chip"] > * {
+  height: 100%;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  transition: none;
+}
+/* Overflow is hidden on the chip, and box-shadow is reset above, so the ring is an outline inset into the pill. */
+.admin-ui [data-slot="filter-chip"] > *:hover {
+  background: var(--accent);
+}
+.admin-ui [data-slot="filter-chip"] > *:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: -2px;
+}
+.admin-ui [data-slot="filter-chip-key"] {
+  padding-inline: 0.75rem 0.25rem;
+  color: var(--muted-foreground);
+}
+.admin-ui [data-slot="filter-chip"] > [data-slot="button"] {
+  padding-inline: 0.25rem 0.5rem;
+  font-weight: 400;
+}
+.admin-ui [data-slot="filter-chip"] > [data-slot="button"]:last-child {
+  width: 1.5rem;
+  padding: 0;
+  margin-inline: 0.125rem;
+  border-radius: 9999px;
+}
+/* Unpicked facet: one dashed key-only pill. The trigger's :last-child width rule would squeeze it, so reset it. */
+.admin-ui [data-slot="filter-chip"][data-empty] {
+  border-style: dashed;
+  color: var(--muted-foreground);
+  padding-inline: 0;
+}
+.admin-ui [data-slot="filter-chip"][data-empty] > [data-slot="button"]:first-child {
+  width: auto;
+  margin-inline: 0;
+  padding-inline: 0.75rem;
+}
+.admin-ui [data-slot="filter-suggestion"] {
+  border-style: dashed;
+  background: transparent;
+  color: var(--muted-foreground);
+  padding-inline: 0.75rem;
+}
+.admin-ui [data-slot="filter-suggestion"][data-state="on"] {
+  border-style: solid;
+  color: var(--foreground);
+}
+
+/* InputGroup's h-8! and rounded-lg! are !important in @layer utilities, and a layered !important
+   beats an unlayered one, so these overrides live in the same layer and win on selector strength. */
+@layer utilities {
+  .tg-find-panel [data-slot="command-input-wrapper"] {
+    padding: 0;
+  }
+  .tg-find-panel [data-slot="input-group"] {
+    height: 3rem !important;
+    border-width: 0 !important;
+    border-radius: 0 !important;
+    background-color: transparent !important;
+    box-shadow: none !important;
+  }
+  .tg-find-panel [data-slot="command-input"] {
+    padding-right: 3.5rem;
+    font-size: 0.875rem;
+  }
+}

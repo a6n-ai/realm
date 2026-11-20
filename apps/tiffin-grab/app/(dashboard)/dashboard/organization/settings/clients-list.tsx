@@ -10,6 +10,7 @@ import { Badge } from "@/components/reui/badge";
 import { DataTable, RowActions, UserAvatar, useListNav, type Column } from "@/components/ds";
 import type { SortState } from "@foundry/design-system/list-sort";
 import { CreateFranchiseButton } from "./create-franchise-button";
+import { TableRowsSkeleton } from "@/components/dashboard/table-rows-skeleton";
 
 const ALL = "all";
 
@@ -105,7 +106,7 @@ export function ClientsList({
               {r.name}
             </Link>
           </TableCell>
-          <TableCell className="font-mono text-sm">{r.clientCode}</TableCell>
+          <TableCell mono className="font-mono text-sm">{r.clientCode}</TableCell>
           <TableCell>
             {r.isBrand ? (
               <Badge variant="primary-light">Brand</Badge>
@@ -116,7 +117,7 @@ export function ClientsList({
               </span>
             )}
           </TableCell>
-          <TableCell className="text-right tabular-nums">{r.memberCount}</TableCell>
+          <TableCell numeric className="text-right tabular-nums">{r.memberCount}</TableCell>
           <TableCell>
             {r.isBrand && (
               <RowActions>
@@ -132,5 +133,5 @@ export function ClientsList({
 
 // Loading twin is now owned by DataTable — same COLUMNS, zero drift.
 export function ClientsListSkeleton() {
-  return <DataTable.Skeleton columns={COLUMNS} hasId />;
+  return <TableRowsSkeleton columns={COLUMNS} hasId search="Search clients…" />;
 }

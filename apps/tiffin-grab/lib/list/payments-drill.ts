@@ -3,6 +3,8 @@
  * Only use when the card's predicate is exactly expressible as list facets.
  */
 
+import { setDateParams, type WithUrlDates } from "@/lib/dates/range-params";
+
 export const PAYMENTS_TABS = [
   { key: "requests", label: "E-transfer", href: "/dashboard/payments/requests" },
   { key: "stripe", label: "Stripe", href: "/dashboard/payments/stripe" },
@@ -17,12 +19,11 @@ const PATH = Object.fromEntries(PAYMENTS_TABS.map((t) => [t.key, t.href])) as Re
 
 export function paymentsListHref(
   tab: PaymentsTabPath,
-  sp: { from?: string; to?: string },
+  sp: { from?: string; to?: string } & WithUrlDates,
   opts: { status?: string; attention?: string; type?: string; kind?: string } = {},
 ): string {
   const qs = new URLSearchParams();
-  if (sp.from) qs.set("from", sp.from);
-  if (sp.to) qs.set("to", sp.to);
+  setDateParams(qs, sp);
   if (opts.status) qs.set("status", opts.status);
   if (opts.attention) qs.set("attention", opts.attention);
   if (opts.type) qs.set("type", opts.type);

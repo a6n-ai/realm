@@ -1,5 +1,4 @@
-import { TruckIcon } from "lucide-react";
-import { PageHeader, PageShell } from "@/components/ds";
+import { DeliveryChargesChrome } from "./delivery-charges-chrome";
 import { requirePagePermission } from "@/lib/auth/guards";
 import { deliveryService } from "@/lib/services/delivery.service";
 import { resolveRequestOrg } from "@/lib/tenant/resolve-request-org";
@@ -17,17 +16,12 @@ export default async function DeliveryChargesPage() {
   ]);
 
   return (
-    <PageShell>
-      <PageHeader
-        icon={TruckIcon}
-        title="Delivery charges"
-        subtitle="Base delivery fee, place types (tags), connected sets, and the delivery strategies customers can add, each with its own charge."
-      />
+    <DeliveryChargesChrome>
       <DeliveryChargesBoundary
         initialBaseCharge={baseCharge}
         initialDeliveryStrategies={deliveryStrategies}
         initialStrategyGroups={strategyGroups}
       />
-    </PageShell>
+    </DeliveryChargesChrome>
   );
 }

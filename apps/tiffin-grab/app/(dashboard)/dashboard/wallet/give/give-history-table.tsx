@@ -7,6 +7,7 @@ import { DataTable, ListPagination, type Column, type FacetDef, type SortState }
 import { ListSearchFilters } from "@/components/filters/reui-facet-filters";
 import { TableCell } from "@foundry/ui/table";
 import { MemoCell } from "@/components/dashboard/memo-cell";
+import { TableRowsSkeleton } from "@/components/dashboard/table-rows-skeleton";
 
 export type GiveColumn = "when" | "customer" | "coins" | "type" | "group" | "givenBy" | "memo";
 
@@ -56,11 +57,11 @@ export function GiveHistoryTable({ rows, spec, sort, total, page, size }: {
         emptySearchMessage="No grants match your search or filters."
         renderRow={(r) => (
           <>
-            <TableCell className="whitespace-nowrap tabular-nums text-muted-foreground">{r.when}</TableCell>
+            <TableCell numeric className="whitespace-nowrap tabular-nums text-muted-foreground">{r.when}</TableCell>
             <TableCell className="font-medium">
               {r.customerPublicId ? <Link href={`/dashboard/customers/${r.customerPublicId}/wallet`} className="hover:underline">{r.customer}</Link> : r.customer}
             </TableCell>
-            <TableCell className="text-ok text-right tabular-nums">+{r.coins}</TableCell>
+            <TableCell numeric className="text-ok text-right tabular-nums">+{r.coins}</TableCell>
             <TableCell className="text-muted-foreground">{r.type}</TableCell>
             <TableCell>
               {r.group && r.groupPublicId ? (
@@ -80,5 +81,5 @@ export function GiveHistoryTable({ rows, spec, sort, total, page, size }: {
 }
 
 export function GiveHistoryTableSkeleton() {
-  return <DataTable.Skeleton columns={COLUMNS} />;
+  return <TableRowsSkeleton columns={COLUMNS} search="Search by customer name or email…" filters={["Given by", "Type", "Group"]} />;
 }

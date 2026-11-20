@@ -7,6 +7,7 @@ import { DataTable, ListPagination, type Column, type FacetDef, type SortState }
 import { ListSearchFilters } from "@/components/filters/reui-facet-filters";
 import { TableCell } from "@foundry/ui/table";
 import { MemoCell } from "@/components/dashboard/memo-cell";
+import { TableRowsSkeleton } from "@/components/dashboard/table-rows-skeleton";
 
 export type LedgerColumn = "time" | "user" | "event" | "source" | "coins" | "order" | "memo";
 
@@ -59,12 +60,12 @@ export function LedgerTable({ rows, spec, sort, total, page, size }: {
           const credit = r.direction === "credit";
           return (
             <>
-              <TableCell className="whitespace-nowrap tabular-nums text-muted-foreground">{r.when}</TableCell>
+              <TableCell numeric className="whitespace-nowrap tabular-nums text-muted-foreground">{r.when}</TableCell>
               <TableCell className="truncate text-muted-foreground">
                 {r.whoHref && r.who ? <Link href={r.whoHref} className="hover:underline">{r.who}</Link> : (r.who ?? "—")}
               </TableCell>
               <TableCell className="truncate">{r.eventLabel ?? r.sourceType}</TableCell>
-              <TableCell className={`text-right tabular-nums ${credit ? "text-ok" : "text-bad"}`}>
+              <TableCell numeric className={`text-right tabular-nums ${credit ? "text-ok" : "text-bad"}`}>
                 {credit ? "+" : "−"}
                 {r.coins}
               </TableCell>
@@ -86,5 +87,5 @@ export function LedgerTable({ rows, spec, sort, total, page, size }: {
 }
 
 export function LedgerTableSkeleton() {
-  return <DataTable.Skeleton columns={COLUMNS} />;
+  return <TableRowsSkeleton columns={COLUMNS} search="Search ledger…" filters={["Source", "Direction"]} />;
 }

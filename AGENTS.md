@@ -201,7 +201,7 @@ below comes from an incident (2026-09-24/25).
 
 ## Admin component look (overrides "keep its look" below for admin)
 
-`@foundry/ui` is moving off Radix onto ui-sdk (`@ui-sdk/react`), one component at a time; Switch is first. Migrated components use ui-sdk's parts and `render` prop (no `asChild`) and its state attributes (`data-checked`, `data-open`, ...; no `data-state`). In admin (`.crm-app`) they take a Vercel/Geist look: flat hairline surfaces, crisp 150ms motion, offset focus rings, Geist Mono numbers. Colours never change: each app keeps its own tokens. Customer and public surfaces keep their own looks. Restyle per app with tokens, `className`, or CSS on `[data-slot="..."]`, never by forking a component. Admin stylesheets declare `@layer ui-sdk;` first so app styles win over ui-sdk's base layer.
+`@foundry/ui` is moving off Radix onto ui-sdk (`@ui-sdk/react`), one component at a time; Switch is first. Migrated components use ui-sdk's parts and `render` prop (no `asChild`) and its state attributes (`data-checked`, `data-open`, ...; no `data-state`). In admin (layouts with `.admin-ui`; customer, auth and public layouts never add it) they take a Vercel/Geist look: flat hairline surfaces, crisp 150ms motion, offset focus rings, Geist Mono numbers. Colours never change: each app keeps its own tokens. Customer and public surfaces keep their own looks. Restyle per app with tokens, `className`, or CSS on `[data-slot="..."]`, never by forking a component. Admin stylesheets declare `@layer ui-sdk;` first so app styles win over ui-sdk's base layer.
 
 <!-- BEGIN:reui-agent-rules -->
 ## ReUI design rules (every UI edit, follow-ups included)

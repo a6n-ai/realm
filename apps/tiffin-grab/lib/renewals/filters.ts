@@ -1,6 +1,7 @@
 // No "use client" and no db: the server page parses with it and builds the facet spec from the options.
 import { zonedDateIso } from "@foundry/commons";
 import type { RenewalStatus } from "@/lib/orders/queries";
+import { rangeParams } from "@/lib/dates/range-params";
 import { TRACK_STATUSES, type TrackStatus } from "@/lib/renewals/status";
 
 /** Plans (regular and trial, narrowed by `type`), or every customer who has renewed. */
@@ -122,7 +123,8 @@ export function parseRenewalsFilter(sp: Record<string, string | undefined>): Ren
   };
 }
 
-export function renewalsQuery(f: RenewalsFilter): string {
+/** With `tz`, the window is written as `range`/ISO dates; without it `from`/`to` stay epoch ms. */
+export function renewalsQuery(f: RenewalsFilter, tz?: string): string {
   const sp = new URLSearchParams();
   if (f.tab !== "renewals") sp.set("tab", f.tab);
   if (f.type) sp.set("type", f.type);
@@ -134,8 +136,11 @@ export function renewalsQuery(f: RenewalsFilter): string {
   if (f.status) sp.set("status", f.status);
   if (f.renewed != null) sp.set("renewed", String(f.renewed));
   if (f.owner) sp.set("owner", f.owner);
-  if (f.from != null) sp.set("from", String(f.from));
-  if (f.to != null) sp.set("to", String(f.to));
+  if (tz) for (const [k, v] of Object.entries(rangeParams({ from: f.from ?? undefined, to: f.to ?? undefined }, tz, Date.now(), { exact: true }))) sp.set(k, v);
+  else {
+    if (f.from != null) sp.set("from", String(f.from));
+    if (f.to != null) sp.set("to", String(f.to));
+  }
   if (f.q) sp.set("q", f.q);
   const qs = sp.toString();
   return qs ? `?${qs}` : "";

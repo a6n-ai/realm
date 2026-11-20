@@ -25,7 +25,9 @@ import { CustomerLink } from "../customer-link";
 import { PaymentDetailDialog } from "../payment-detail-dialog";
 import { sendPaymentReminderAction } from "@/app/(dashboard)/dashboard/payments/actions";
 import { sendTone } from "@/lib/notifications/send-tone";
+import { HoverHint } from "@/components/ds/hover-hint";
 import { checkStatusAction, refundAction } from "./actions";
+import { TableRowsSkeleton } from "@/components/dashboard/table-rows-skeleton";
 
 const SPEC: FacetDef[] = [
   { kind: "pills", field: "status", label: "Status", options: [...PAYMENT_STATUS_OPTIONS] },
@@ -63,9 +65,9 @@ export function ExpiryBadge({
   }
   if (r.status === "awaiting_payment" && r.expiresAt != null && r.expiresAt <= now) {
     return (
-      <Badge variant="warning-light" title={`Expired ${formatEpoch(r.expiresAt, { mode: "datetime", timeZone: tz })}`}>
-        Expired
-      </Badge>
+      <HoverHint text={`Expired ${formatEpoch(r.expiresAt, { mode: "datetime", timeZone: tz })}`}>
+        <Badge variant="warning-light">Expired</Badge>
+      </HoverHint>
     );
   }
   return fallback;
@@ -139,7 +141,7 @@ export function StripeTable({
         emptySearchMessage="No card payments match your filters."
         renderRow={(r) => (
           <>
-            <TableCell className="whitespace-nowrap tabular-nums text-muted-foreground">
+            <TableCell numeric className="whitespace-nowrap tabular-nums text-muted-foreground">
               {formatEpoch(r.createdAt, { mode: "datetime", timeZone: tz })}
             </TableCell>
             <TableCell className="text-muted-foreground">
@@ -152,15 +154,16 @@ export function StripeTable({
               {(() => {
                 const card = r.cardLast4 ? `${cardBrandLabel(r.cardBrand)} ••${r.cardLast4}` : r.providerRef ? "Stripe" : "-";
                 return r.providerRef ? (
-                  <a
-                    href={`https://dashboard.stripe.com/${livemode ? "" : "test/"}payments/${r.providerRef}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="hover:underline"
-                    title={`Open ${r.providerRef} in Stripe`}
-                  >
-                    {card}
-                  </a>
+                  <HoverHint text={`Open ${r.providerRef} in Stripe`}>
+                    <a
+                      href={`https://dashboard.stripe.com/${livemode ? "" : "test/"}payments/${r.providerRef}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="hover:underline"
+                    >
+                      {card}
+                    </a>
+                  </HoverHint>
                 ) : (
                   card
                 );
@@ -169,11 +172,10 @@ export function StripeTable({
             <TableCell>
               <ExpiryBadge r={r} now={now} tz={tz} fallback={<PaymentStatusPill status={r.status} />} />
             </TableCell>
-            <TableCell
-              className="whitespace-nowrap text-right tabular-nums"
-              title={Number(r.surchargeAmount) > 0 ? `Includes ${formatMoney(Number(r.surchargeAmount))} card surcharge` : undefined}
-            >
-              {formatMoney(Number(r.amount))}
+            <TableCell numeric className="whitespace-nowrap text-right tabular-nums">
+              <HoverHint text={Number(r.surchargeAmount) > 0 ? `Includes ${formatMoney(Number(r.surchargeAmount))} card surcharge` : undefined}>
+                <span>{formatMoney(Number(r.amount))}</span>
+              </HoverHint>
             </TableCell>
             <TableCell className="text-right">
               <RowActions>
@@ -228,5 +230,5 @@ export function StripeTable({
 }
 
 export function StripeTableSkeleton() {
-  return <DataTable.Skeleton columns={COLUMNS} />;
+  return <TableRowsSkeleton columns={COLUMNS} search="Search order, customer, reference…" filters={["Status", "Needs attention"]} />;
 }

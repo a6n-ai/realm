@@ -1,8 +1,6 @@
 import { requirePagePermission } from "@/lib/auth/guards";
 import { Suspense } from "react";
-import { UtensilsCrossedIcon } from "lucide-react";
-import { PageHeader, PageShell, SectionCard } from "@/components/ds";
-import { RESOURCES, type ResourceDef } from "@/lib/catalog/resource-config";
+import { CatalogResourceChrome } from "../catalog-resource-chrome";
 import { ResourceEditorSkeleton } from "./resource-editor";
 import { CatalogData, type SearchParams } from "../catalog-data";
 
@@ -14,15 +12,14 @@ export default async function CatalogResourcePage({
 }) {
   await requirePagePermission({ catalog: ["read"] });
   const { resource } = await params;
-  const def: ResourceDef | undefined = RESOURCES[resource];
   return (
-    <PageShell>
-      <PageHeader icon={UtensilsCrossedIcon} title={def?.label ?? "Catalog"} />
-      <SectionCard title="Entries">
+    <CatalogResourceChrome
+      resource={resource}
+      list={
         <Suspense fallback={<ResourceEditorSkeleton resource={resource} />}>
           <CatalogData resource={resource} searchParams={searchParams} />
         </Suspense>
-      </SectionCard>
-    </PageShell>
+      }
+    />
   );
 }

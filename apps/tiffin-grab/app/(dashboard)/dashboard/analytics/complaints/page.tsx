@@ -225,7 +225,7 @@ async function NeedsAttentionSection({ scope }: { scope: AnalyticsScope }) {
             href={c.href}
             className="focus-visible:ring-ring/50 rounded-xl outline-none focus-visible:ring-2"
           >
-            <Card className="hover:bg-muted/50 h-full transition-colors">
+            <Card className="h-full">
               <CardContent className="flex flex-col gap-2">
                 <span className="text-sm font-medium">{c.label}</span>
                 <div className="flex items-center gap-2">

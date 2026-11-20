@@ -57,6 +57,8 @@ import { WebsitePreview } from "./website-preview";
 import { CostRatePreview } from "./cost-rate-preview";
 
 import type { EditorExtras } from "@/lib/catalog/resource-hooks";
+import { HoverHint } from "@/components/ds/hover-hint";
+import { TableRowsSkeleton } from "@/components/dashboard/table-rows-skeleton";
 
 
 type Row = Record<string, unknown> & { publicId: string };
@@ -180,7 +182,7 @@ function FieldControl({
                     aria-pressed={on}
                     onClick={() => field.onChange(on ? arr.filter((x) => x !== o.value) : [...arr, o.value])}
                     className={cn(
-                      "rounded-full border px-3 py-1.5 text-sm font-medium transition-[color,background-color,border-color] active:scale-[0.96]",
+                      "rounded-full border px-3 py-1.5 text-sm font-medium",
                       on ? "border-primary/30 bg-primary/12 text-primary" : "border-border text-muted-foreground hover:bg-muted hover:text-foreground",
                     )}
                   >
@@ -405,7 +407,7 @@ function Cell({ f, value, options }: { f: FieldDef; value: unknown; options: Opt
   if (f.type === "categoryCounts") {
     const counts = value as Record<string, number>;
     const text = Object.entries(counts).map(([k, n]) => `${labelFor(f, k, options)} × ${n}`).join(", ");
-    return <span className="text-muted-foreground block max-w-[14rem] truncate" title={text}>{text}</span>;
+    return <HoverHint text={text}><span className="text-muted-foreground block max-w-[14rem] truncate">{text}</span></HoverHint>;
   }
   if (f.type === "select") {
     return <Badge variant="secondary" className="font-normal">{labelFor(f, String(value), options)}</Badge>;
@@ -427,7 +429,7 @@ function Cell({ f, value, options }: { f: FieldDef; value: unknown; options: Opt
   if (isArrayType(f)) {
     const labels = (value as string[]).map((v) => labelFor(f, v, options));
     const text = labels.join(", ");
-    return <span className="text-muted-foreground block max-w-[14rem] truncate" title={text}>{text}</span>;
+    return <HoverHint text={text}><span className="text-muted-foreground block max-w-[14rem] truncate">{text}</span></HoverHint>;
   }
   if (f.type === "boolean") {
     return value ? <CheckIcon className="text-ok size-4" /> : <span className="text-muted-foreground/50">—</span>;
@@ -507,7 +509,7 @@ export function ResourceEditor({
         }
         filters={<ListSearchFilters spec={spec} />}
         actions={
-          <Button onClick={openNew} className="active:scale-[0.96]">
+          <Button onClick={openNew}>
             <PlusIcon className="size-4" /> Add {def.singular}
           </Button>
         }
@@ -527,24 +529,26 @@ export function ResourceEditor({
               <TableCell className="font-medium">
                 <span className="text-balance">{String(row[first.key] ?? row.publicId)}</span>
                 {discountCtx && discountCtx.byTarget[row.publicId] ? (
-                  <button
+                  <Button
                     type="button"
-                    className="bg-ok/10 text-ok ml-2 rounded-full px-2 py-0.5 text-xs font-medium"
+                    variant="ghost"
+                    size="xs"
+                    className="bg-ok/10 text-ok ml-2 rounded-full"
                     onClick={() => setDiscountDlg({ discount: discountCtx.byTarget[row.publicId], target: row.publicId })}
                   >
                     Save {discountValueLabel(discountCtx.byTarget[row.publicId], currency)}
-                  </button>
+                  </Button>
                 ) : null}
                 {def.keyed ? <span className="text-muted-foreground/70 block text-xs font-normal">{String(row.key ?? "")}</span> : null}
               </TableCell>
               {rest.map((f) => (
-                <TableCell key={f.key} className={isNumberType(f) ? "text-right tabular-nums" : undefined}>
+                <TableCell key={f.key} numeric={isNumberType(f)} className={isNumberType(f) ? "text-right tabular-nums" : undefined}>
                   <Cell f={f} value={row[f.key]} options={dynamicOptions} />
                 </TableCell>
               ))}
               <TableCell>
                 {isRetired
-                  ? <Badge variant="outline" className="text-muted-foreground font-normal">Retired</Badge>
+                  ? <Badge variant="outline" className="[--ui-badge-tone:var(--muted-foreground)] font-normal">Retired</Badge>
                   : <span className="text-ok inline-flex items-center gap-1.5 text-xs font-medium"><span className="bg-ok size-1.5 rounded-full" />Active</span>}
               </TableCell>
               <TableCell className="text-right">
@@ -603,11 +607,11 @@ export function ResourceEditor({
 function IconAction({ label, className, onClick, disabled, children }: { label: string; className?: string; onClick: () => void; disabled?: boolean; children: React.ReactNode }) {
   return (
     <Tooltip>
-      <TooltipTrigger asChild>
+      <TooltipTrigger render={
         <Button size="icon-sm" variant="ghost" className={className} onClick={onClick} disabled={disabled} aria-label={label}>
           {children}
         </Button>
-      </TooltipTrigger>
+      } />
       <TooltipContent>{label}</TooltipContent>
     </Tooltip>
   );
@@ -617,5 +621,13 @@ function IconAction({ label, className, onClick, disabled, children }: { label: 
 // zero drift. Rendered as the page's <Suspense fallback>.
 export function ResourceEditorSkeleton({ resource }: { resource: string }) {
   const def = RESOURCES[resource];
-  return <DataTable.Skeleton columns={def ? tableColumns(def) : []} />;
+  if (!def) return <TableRowsSkeleton columns={[]} />;
+  const facets = def.fields.filter((f) => (f.type === "select" || f.type === "multiselect") && f.optionsSource !== "discount-targets");
+  return (
+    <TableRowsSkeleton
+      columns={tableColumns(def)}
+      search={def.keyed || def.fields.some((f) => f.type === "text") ? "Search…" : undefined}
+      filters={["Status", ...facets.map((f) => f.label)].slice(0, 3)}
+    />
+  );
 }

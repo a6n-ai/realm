@@ -12,6 +12,7 @@ import { DataTable } from "@/components/ds";
 import { DiscountDialog, type DiscountDialogOptions } from "./discount-dialog";
 import { COUPONS_HREF, TYPE_LABELS, type AllRow, type DiscountDto, type DiscountKind, type RowType } from "./build-rows";
 import { COUPON_STATUS_LABEL } from "@/lib/coupons/status";
+import { TableRowsSkeleton } from "@/components/dashboard/table-rows-skeleton";
 
 export const ALL_DISCOUNT_COLUMNS = [
   { key: "type", label: "Type" },
@@ -46,8 +47,8 @@ export function AllDiscountsTable({ rows, options, moreCoupons }: { rows: AllRow
         }
         actions={
           <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button><PlusIcon className="size-4" /> Add discount</Button>
+            <DropdownMenuTrigger render={<Button />}>
+              <PlusIcon className="size-4" /> Add discount
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem onSelect={() => setDialog({ kind: "delivery" })}>Delivery frequency</DropdownMenuItem>
@@ -66,7 +67,7 @@ export function AllDiscountsTable({ rows, options, moreCoupons }: { rows: AllRow
               {r.appliesTo}
               {r.discount ? <span className="text-muted-foreground block text-xs font-normal">{r.discount.name}</span> : null}
             </TableCell>
-            <TableCell className="text-right tabular-nums">{r.value}</TableCell>
+            <TableCell numeric className="text-right tabular-nums">{r.value}</TableCell>
             <TableCell>
               <Badge variant={r.status === "active" ? "default" : "outline"} className="font-normal">{COUPON_STATUS_LABEL[r.status]}</Badge>
             </TableCell>
@@ -99,5 +100,5 @@ export function AllDiscountsTable({ rows, options, moreCoupons }: { rows: AllRow
 }
 
 export function AllDiscountsSkeleton() {
-  return <DataTable.Skeleton columns={ALL_DISCOUNT_COLUMNS} />;
+  return <TableRowsSkeleton columns={ALL_DISCOUNT_COLUMNS} />;
 }

@@ -36,13 +36,11 @@ export function GroupPicker({
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button id={id} type="button" variant="outline" role="combobox" aria-expanded={open} className="justify-between font-normal">
+      <PopoverTrigger render={<Button id={id} type="button" variant="outline" role="combobox" aria-expanded={open} className="justify-between font-normal" />}>
           {value ? value.name : <span className="text-muted-foreground">{noneLabel ?? placeholder}</span>}
           <ChevronsUpDownIcon className="opacity-50" />
-        </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+      <PopoverContent className="w-(--anchor-width) p-0" align="start">
         <Command shouldFilter={false}>
           <CommandInput placeholder="Search groups by name" value={q} onValueChange={setQ} />
           <CommandList>

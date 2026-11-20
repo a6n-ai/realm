@@ -13,6 +13,7 @@ import { useTimezone } from "@foundry/design-system/timezone-provider";
 import type { SortState } from "@foundry/design-system/list-sort";
 import { ResubscribeLinkButton } from "../resubscribe-link-button";
 import type { SuppressedSortColumn } from "@/lib/notifications/logs-query";
+import { TableRowsSkeleton } from "@/components/dashboard/table-rows-skeleton";
 
 type Row = {
   publicId: string;
@@ -72,7 +73,7 @@ export function SuppressedTable({
         emptySearchMessage="No suppressed addresses match your search."
         renderRow={(r) => (
           <>
-            <TableCell className="whitespace-nowrap tabular-nums text-muted-foreground">{fmt(r.createdAt)}</TableCell>
+            <TableCell numeric className="whitespace-nowrap tabular-nums text-muted-foreground">{fmt(r.createdAt)}</TableCell>
             <TableCell className="text-sm">{r.address}</TableCell>
             <TableCell className="text-muted-foreground">{r.channel}</TableCell>
             <TableCell>
@@ -102,5 +103,5 @@ export function SuppressedTable({
 }
 
 export function SuppressedTableSkeleton() {
-  return <DataTable.Skeleton columns={COLUMNS} />;
+  return <TableRowsSkeleton columns={COLUMNS} search="Search addresses…" filters={[]} />;
 }

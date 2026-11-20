@@ -8,7 +8,7 @@ import { EmptyState } from "@/components/ds";
 import { Alert, AlertDescription, AlertTitle } from "@/components/reui/alert";
 
 // Facet params only: the date range stays so "clear" does not change the window.
-const KEEP = new Set(["from", "to", "month", "view"]);
+const KEEP = new Set(["from", "to", "range", "month", "view"]);
 
 /** Empty-state action: drops every facet filter and keeps the date range. */
 export function ClearFiltersButton() {

@@ -17,7 +17,7 @@ import {
 import { cn } from "@foundry/ui/cn";
 import { FollowUpPicker, type FollowUpValue } from "@/components/dashboard/pipeline/follow-up-picker";
 import { ReasonDialog } from "@/components/dashboard/pipeline/reason-dialog";
-import { StatusTileButton, TonePill } from "@/components/dashboard/pipeline/status-tile";
+import { StatusTileButton, PipelinePill } from "@/components/dashboard/pipeline/status-tile";
 import {
   SUB_STATUSES, groupFor, isClosed, isOpenPickable, statusLabel,
   type StatusGroup, type SubStatus,
@@ -32,24 +32,24 @@ import { useCardRefresh } from "@/components/dashboard/next-item/recommendation-
 // Violet and teal are taken by the row quick actions.
 type Look = { icon: LucideIcon; pill: string; text: string; tile: string };
 const LOOK: Record<SubStatus | "new", Look> = {
-  new: { icon: SparklesIcon, pill: "bg-sky-500/12 text-sky-700 dark:bg-sky-400/15 dark:text-sky-300", text: "text-sky-600 dark:text-sky-400", tile: "bg-sky-500/12 dark:bg-sky-400/15" },
-  no_response: { icon: PhoneMissedIcon, pill: "bg-orange-500/12 text-orange-700 dark:bg-orange-400/15 dark:text-orange-300", text: "text-orange-600 dark:text-orange-400", tile: "bg-orange-500/12 dark:bg-orange-400/15" },
-  responded: { icon: MessageSquareReplyIcon, pill: "bg-blue-500/12 text-blue-700 dark:bg-blue-400/15 dark:text-blue-300", text: "text-blue-600 dark:text-blue-400", tile: "bg-blue-500/12 dark:bg-blue-400/15" },
-  future: { icon: CalendarClockIcon, pill: "bg-indigo-500/12 text-indigo-700 dark:bg-indigo-400/15 dark:text-indigo-300", text: "text-indigo-600 dark:text-indigo-400", tile: "bg-indigo-500/12 dark:bg-indigo-400/15" },
-  persistent: { icon: RepeatIcon, pill: "bg-cyan-500/12 text-cyan-700 dark:bg-cyan-400/15 dark:text-cyan-300", text: "text-cyan-600 dark:text-cyan-400", tile: "bg-cyan-500/12 dark:bg-cyan-400/15" },
-  expected: { icon: ThumbsUpIcon, pill: "bg-lime-500/14 text-lime-700 dark:bg-lime-400/15 dark:text-lime-300", text: "text-lime-600 dark:text-lime-400", tile: "bg-lime-500/14 dark:bg-lime-400/15" },
-  pending_payment: { icon: CreditCardIcon, pill: "bg-amber-500/14 text-amber-700 dark:bg-amber-400/15 dark:text-amber-300", text: "text-amber-600 dark:text-amber-400", tile: "bg-amber-500/14 dark:bg-amber-400/15" },
-  took_plan: { icon: BadgeCheckIcon, pill: "bg-emerald-500/14 text-emerald-700 dark:bg-emerald-400/15 dark:text-emerald-300", text: "text-emerald-600 dark:text-emerald-400", tile: "bg-emerald-500/14 dark:bg-emerald-400/15" },
-  took_trial: { icon: UtensilsIcon, pill: "bg-green-500/14 text-green-700 dark:bg-green-400/15 dark:text-green-300", text: "text-green-600 dark:text-green-400", tile: "bg-green-500/14 dark:bg-green-400/15" },
-  lost: { icon: XCircleIcon, pill: "bg-red-500/12 text-red-700 dark:bg-red-400/15 dark:text-red-300", text: "text-red-600 dark:text-red-400", tile: "bg-red-500/12 dark:bg-red-400/15" },
-  undeliverable: { icon: MapPinOffIcon, pill: "bg-pink-500/12 text-pink-700 dark:bg-pink-400/15 dark:text-pink-300", text: "text-pink-600 dark:text-pink-400", tile: "bg-pink-500/12 dark:bg-pink-400/15" },
+  new: { icon: SparklesIcon, pill: "[--ui-badge-tone:var(--color-sky-700)] dark:[--ui-badge-tone:var(--color-sky-300)]", text: "text-sky-600 dark:text-sky-400", tile: "bg-sky-500/12 dark:bg-sky-400/15" },
+  no_response: { icon: PhoneMissedIcon, pill: "[--ui-badge-tone:var(--color-orange-700)] dark:[--ui-badge-tone:var(--color-orange-300)]", text: "text-orange-600 dark:text-orange-400", tile: "bg-orange-500/12 dark:bg-orange-400/15" },
+  responded: { icon: MessageSquareReplyIcon, pill: "[--ui-badge-tone:var(--color-blue-700)] dark:[--ui-badge-tone:var(--color-blue-300)]", text: "text-blue-600 dark:text-blue-400", tile: "bg-blue-500/12 dark:bg-blue-400/15" },
+  future: { icon: CalendarClockIcon, pill: "[--ui-badge-tone:var(--color-indigo-700)] dark:[--ui-badge-tone:var(--color-indigo-300)]", text: "text-indigo-600 dark:text-indigo-400", tile: "bg-indigo-500/12 dark:bg-indigo-400/15" },
+  persistent: { icon: RepeatIcon, pill: "[--ui-badge-tone:var(--color-cyan-700)] dark:[--ui-badge-tone:var(--color-cyan-300)]", text: "text-cyan-600 dark:text-cyan-400", tile: "bg-cyan-500/12 dark:bg-cyan-400/15" },
+  expected: { icon: ThumbsUpIcon, pill: "[--ui-badge-tone:var(--color-lime-700)] dark:[--ui-badge-tone:var(--color-lime-300)]", text: "text-lime-600 dark:text-lime-400", tile: "bg-lime-500/14 dark:bg-lime-400/15" },
+  pending_payment: { icon: CreditCardIcon, pill: "[--ui-badge-tone:var(--color-amber-700)] dark:[--ui-badge-tone:var(--color-amber-300)]", text: "text-amber-600 dark:text-amber-400", tile: "bg-amber-500/14 dark:bg-amber-400/15" },
+  took_plan: { icon: BadgeCheckIcon, pill: "[--ui-badge-tone:var(--color-emerald-700)] dark:[--ui-badge-tone:var(--color-emerald-300)]", text: "text-emerald-600 dark:text-emerald-400", tile: "bg-emerald-500/14 dark:bg-emerald-400/15" },
+  took_trial: { icon: UtensilsIcon, pill: "[--ui-badge-tone:var(--color-green-700)] dark:[--ui-badge-tone:var(--color-green-300)]", text: "text-green-600 dark:text-green-400", tile: "bg-green-500/14 dark:bg-green-400/15" },
+  lost: { icon: XCircleIcon, pill: "[--ui-badge-tone:var(--color-red-700)] dark:[--ui-badge-tone:var(--color-red-300)]", text: "text-red-600 dark:text-red-400", tile: "bg-red-500/12 dark:bg-red-400/15" },
+  undeliverable: { icon: MapPinOffIcon, pill: "[--ui-badge-tone:var(--color-pink-700)] dark:[--ui-badge-tone:var(--color-pink-300)]", text: "text-pink-600 dark:text-pink-400", tile: "bg-pink-500/12 dark:bg-pink-400/15" },
 };
 
 export const look = (sub: SubStatus | null) => LOOK[sub ?? "new"];
 
 export function StatusPill({ subStatus }: { subStatus: SubStatus | null }) {
   const { icon, pill } = look(subStatus);
-  return <TonePill icon={icon} pill={pill} label={statusLabel(subStatus)} />;
+  return <PipelinePill icon={icon} pill={pill} label={statusLabel(subStatus)} />;
 }
 
 function TileRow({ label, children }: { label: string; children: ReactNode }) {
@@ -255,7 +255,7 @@ export function StatusMenu({ inquiryId, subStatus }: { inquiryId: string; subSta
   return (
     <>
     <DropdownMenu>
-      <DropdownMenuTrigger asChild>{trigger}</DropdownMenuTrigger>
+      <DropdownMenuTrigger render={trigger} />
       <DropdownMenuContent align="start" className="w-auto" onClick={(e) => e.stopPropagation()}>
         {closed ? (
           <TileRow label="Reopen">

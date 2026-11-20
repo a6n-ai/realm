@@ -56,7 +56,7 @@ describe("side dishes in the menu maker", () => {
     fireEvent.click(screen.getByRole("button", { name: /^Monday, Sabzi · Side 1/ }));
     const panel = within(screen.getByTestId("side-panel"));
     expect(panel.getByText(/5 Item Thali — Large \(8oz\)/)).toBeInTheDocument();
-    expect(panel.getByText("Masoor Dal")).toBeInTheDocument();
+    expect(panel.getByText("Masoor Dal", { selector: "span.font-medium" })).toBeInTheDocument();
     expect(panel.getByRole("combobox", { name: "Monday source" })).toBeInTheDocument();
     expect(panel.queryByRole("combobox", { name: /default/i })).toBeNull();
     // The every-week default lives behind the Side dishes header's Defaults button.

@@ -2,7 +2,6 @@
 import "@testing-library/jest-dom/vitest";
 import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
-import { TooltipProvider } from "@foundry/ui/tooltip";
 import { ContactChips, whatsappHref } from "./contact-chips";
 
 afterEach(cleanup);
@@ -41,13 +40,11 @@ describe("ContactChips", () => {
 
   it("compact: icon-only call and WhatsApp links keep their hrefs and accessible names", () => {
     render(
-      <TooltipProvider>
-        <ContactChips name="Asha Rao" phone="+14165550123" whatsappPhone={null} email="asha@example.com" compact />
-      </TooltipProvider>,
+      <ContactChips name="Asha Rao" phone="+14165550123" whatsappPhone={null} email="asha@example.com" compact />,
     );
     expect(screen.getByRole("link", { name: /Call Asha Rao/ })).toHaveAttribute("href", "tel:+14165550123");
     expect(screen.getByRole("link", { name: /WhatsApp Asha Rao/ })).toHaveAttribute("href", "https://wa.me/14165550123");
-    expect(screen.queryByText("WhatsApp")).not.toBeInTheDocument();
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
   });
 
   it("shows No phone and no call or WhatsApp links when there is no phone", () => {

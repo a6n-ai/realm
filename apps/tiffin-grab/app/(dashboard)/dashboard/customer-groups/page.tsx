@@ -1,42 +1,37 @@
 import { Suspense } from "react";
 import { CoinsIcon, MailIcon, UserRoundIcon, UsersIcon, ZapIcon } from "lucide-react";
 import { can, requirePagePermission } from "@/lib/auth/guards";
-import { PageShell, PageHeader, SectionCard, parseFilterState, type FacetDef } from "@/components/ds";
+import { parseFilterState, type FacetDef } from "@/components/ds";
 import { StatCards, StatCardsSkeleton, type StatCardItem } from "@/components/dashboard/stat-cards";
-import { SectionDateRange } from "@/components/filters/section-date-range";
+import { CustomerGroupsChrome } from "./groups-chrome";
 import { epochRange, withDefaultMonth, withListDates } from "@/lib/list/default-month";
 import { customerGroupStats, listCustomerGroups } from "@/lib/customer-groups/customer-groups.service";
 import { GroupsTable, GroupsTableSkeleton } from "./groups-table";
-import { NewGroupButtonSkeleton, NewGroupLauncher } from "./new-group-launcher";
+import { NewGroupLauncher } from "./new-group-launcher";
+import { NewGroupButtonSkeleton } from "./new-group-button-skeleton";
+import { hrefWithDates } from "@/lib/dates/range-params";
 
 type SearchParams = Promise<Record<string, string | undefined>>;
 
 export default function CustomerGroupsPage({ searchParams }: { searchParams: SearchParams }) {
   return (
-    <PageShell>
-      <PageHeader
-        icon={UsersIcon}
-        title="Customer groups"
-        actions={
-          <Suspense fallback={<NewGroupButtonSkeleton />}>
-            <NewGroupLauncher />
-          </Suspense>
-        }
-      />
-      <div className="flex flex-col gap-3">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <SectionDateRange />
-        </div>
+    <CustomerGroupsChrome
+      actions={
+        <Suspense fallback={<NewGroupButtonSkeleton />}>
+          <NewGroupLauncher />
+        </Suspense>
+      }
+      stats={
         <Suspense fallback={<StatCardsSkeleton count={5} />}>
           <GroupsStats searchParams={searchParams} />
         </Suspense>
-      </div>
-      <SectionCard title="All groups" subtitle="Saved sets of customers. Pick one from Give coins, Campaigns or Coupons to act on it. A text search spans all dates.">
+      }
+      list={
         <Suspense fallback={<GroupsTableSkeleton />}>
           <GroupsData searchParams={searchParams} />
         </Suspense>
-      </SectionCard>
-    </PageShell>
+      }
+    />
   );
 }
 
@@ -48,7 +43,7 @@ async function GroupsStats({ searchParams }: { searchParams: SearchParams }) {
   const canWallet = await can({ wallet: ["read"] });
   const stats = await customerGroupStats(epochRange(sp), { wallet: canWallet });
   const cards: StatCardItem[] = [
-    { label: "Groups", value: stats.groups.toLocaleString(), icon: UsersIcon, hint: "created in selected range", href: `/dashboard/customer-groups?from=${sp.from}&to=${sp.to}` },
+    { label: "Groups", value: stats.groups.toLocaleString(), icon: UsersIcon, hint: "created in selected range", href: hrefWithDates("/dashboard/customer-groups", sp) },
     {
       label: "Members",
       value: stats.members.toLocaleString(),

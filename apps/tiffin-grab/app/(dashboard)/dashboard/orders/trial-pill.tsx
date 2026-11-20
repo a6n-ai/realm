@@ -1,7 +1,9 @@
+import { Badge } from "@foundry/ui/badge";
+
 export function TrialPill({ className = "" }: { className?: string }) {
   return (
-    <span className={`inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-caption-2 font-semibold tracking-wide text-amber-950 uppercase dark:bg-amber-900/40 dark:text-amber-100 ${className}`}>
+    <Badge variant="neutral" className={`[--ui-badge-tone:var(--color-amber-700)] dark:[--ui-badge-tone:var(--color-amber-300)] text-caption-2 font-semibold tracking-wide uppercase ${className}`}>
       Trial
-    </span>
+    </Badge>
   );
 }

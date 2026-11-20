@@ -1,6 +1,7 @@
 "use client";
 
 import { DAY_MS } from "@foundry/commons/util/dates";
+import { HoverHint } from "@/components/ds/hover-hint";
 import { pageOffset } from "@foundry/design-system/filters/parse-filter-state";
 import { useEffect, useState, useTransition, type ReactNode } from "react";
 import { cn } from "@foundry/ui/cn";
@@ -12,6 +13,8 @@ import {
   CalendarClockIcon, ClipboardListIcon, MessageSquarePlusIcon, ShoppingBagIcon,
 } from "lucide-react";
 import { DataTable, ListPagination, RowActionTooltipButton, type Column, type FacetDef } from "@/components/ds";
+import { TableRowsSkeleton } from "@/components/dashboard/table-rows-skeleton";
+import { QueueTabs } from "./queue-tabs";
 import { ListSearchFilters } from "@/components/filters/reui-facet-filters";
 import { TableCell } from "@foundry/ui/table";
 import { Button } from "@foundry/ui/button";
@@ -33,7 +36,7 @@ type InquirySortColumn = "name" | "owner" | "stage" | "source" | "nextFollowUp" 
 type StaffOption = { publicId: string; name: string };
 
 // Single source of truth for the table's columns: DataTable renders the header
-// and DataTable.Skeleton the loading twin from this array, so they cannot drift.
+// and TableRowsSkeleton the loading twin from this array, so they cannot drift.
 const COLUMNS: readonly Column<InquirySortColumn | "select" | "lastNote" | "actions">[] = [
   { key: "select", label: "", width: "w-10" },
   { key: "name", label: "Lead", sortable: true },
@@ -267,8 +270,10 @@ export function InquiriesList({
                 )}
               </TableCell>
               <TableCell>{r.ownerName ?? "—"}</TableCell>
-              <TableCell className="text-muted-foreground truncate" title={r.lastNote ?? undefined}>
-                {r.lastNote ?? "—"}
+              <TableCell className="text-muted-foreground truncate">
+                <HoverHint text={r.lastNote}>
+                  <span>{r.lastNote ?? "—"}</span>
+                </HoverHint>
               </TableCell>
               <TableCell>
                 <div className="flex justify-end">
@@ -289,5 +294,10 @@ export function InquiriesList({
 }
 
 export function InquiriesListSkeleton() {
-  return <DataTable.Skeleton columns={COLUMNS} />;
+  return (
+    <div className="flex flex-col gap-4">
+      <QueueTabs />
+      <TableRowsSkeleton columns={COLUMNS} search="Search inquiries…" filters={["Status", "Owner", "Source"]} firstColumnLines={2} />
+    </div>
+  );
 }

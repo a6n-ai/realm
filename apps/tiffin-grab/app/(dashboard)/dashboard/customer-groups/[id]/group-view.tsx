@@ -186,6 +186,7 @@ export function GroupView({
       )}
       {stats}
       <Tabs value={params.get("tab") === "activity" ? "activity" : "members"} onValueChange={(value) => {
+        if (!value) return;
         const sp = new URLSearchParams(params.toString());
         if (value === "members") sp.delete("tab");
         else sp.set("tab", value);
@@ -240,10 +241,10 @@ export function GroupView({
                     <TableCell className="font-medium">
                       <Link href={`/dashboard/customers/${m.publicId}`} className="hover:underline">{m.name ?? "Unnamed"}</Link>
                     </TableCell>
-                    {canWallet && <TableCell className="text-right tabular-nums">{m.coins.toLocaleString()}</TableCell>}
-                    {canFinance && <TableCell className="text-right tabular-nums">{fmtMoney(Number(m.revenue))}</TableCell>}
-                    <TableCell className="tabular-nums">{m.firstOrderDate ?? ""}</TableCell>
-                    <TableCell className="tabular-nums">{m.lastTiffin ?? ""}</TableCell>
+                    {canWallet && <TableCell numeric className="text-right tabular-nums">{m.coins.toLocaleString()}</TableCell>}
+                    {canFinance && <TableCell numeric className="text-right tabular-nums">{fmtMoney(Number(m.revenue))}</TableCell>}
+                    <TableCell numeric className="tabular-nums">{m.firstOrderDate ?? "—"}</TableCell>
+                    <TableCell numeric className="tabular-nums">{m.lastTiffin ?? "—"}</TableCell>
                     <TableCell className="text-right">
                       <RowActionTooltipButton
                         icon={Trash2Icon}
@@ -288,9 +289,9 @@ export function GroupView({
               }
               renderRow={(a) => (
                 <>
-                  <TableCell className="whitespace-nowrap tabular-nums">{formatEpoch(a.createdAt, { mode: "datetime", timeZone: tz })}</TableCell>
+                  <TableCell numeric className="whitespace-nowrap tabular-nums">{formatEpoch(a.createdAt, { mode: "datetime", timeZone: tz })}</TableCell>
                   <TableCell className="font-medium">{ACTION_LABEL[a.kind] ?? a.kind}</TableCell>
-                  <TableCell className="text-muted-foreground">{a.createdBy ?? ""}</TableCell>
+                  <TableCell className="text-muted-foreground">{a.createdBy ?? "—"}</TableCell>
                   <TableCell>
                     {a.kind === "coins" ? (
                       <Button variant="link" onClick={() => setViewing(a.publicId)}>{summary(a)}</Button>

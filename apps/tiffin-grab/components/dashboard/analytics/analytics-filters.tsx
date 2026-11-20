@@ -12,7 +12,7 @@ import { pruneSubcategories } from "./subcategory-prune";
 import { franchiseFacets } from "./franchise-facet";
 import type { AnalyticsFilterOptions } from "@/lib/analytics/shared-filter-params";
 
-const KEEP = new Set(["from", "to", "month", "view"]);
+const KEEP = new Set(["from", "to", "range", "month", "view"]);
 
 /**
  * Shared filter bar for every analytics subsection: date presets + range, then the facet menu with its

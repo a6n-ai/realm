@@ -6,10 +6,10 @@ import * as React from "react";
 import { cn } from "@foundry/ui/cn";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@foundry/ui/tooltip";
 
-const BTN = cn(
+export const ROW_ACTION_CLASS = cn(
   // In a table cell the 32px hit area overhangs the row instead of making it taller than text-only rows.
   "inline-flex size-8 items-center justify-center rounded-md text-muted-foreground in-[td]:-my-1.5",
-  "transition-[transform,color,background-color] hover:bg-accent hover:text-foreground active:scale-[0.96]",
+  "hover:bg-accent hover:text-foreground",
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
 );
 
@@ -38,14 +38,14 @@ export const RowActionTooltipButton = React.forwardRef<
   const icon = pending ? (
     <Loader2Icon aria-hidden className={cn("size-4 animate-spin", tone)} />
   ) : (
-    <Icon className={cn("size-4 transition-transform duration-200 group-hover/row:scale-110", tone)} />
+    <Icon className={cn("size-4", tone)} />
   );
   const stop = (e: React.MouseEvent) => e.stopPropagation();
   return (
     <Tooltip>
-      <TooltipTrigger asChild>
-        {href ? (
-          <Link href={href} prefetch={false} aria-label={label} className={BTN} onClick={stop}>
+      <TooltipTrigger render={
+        href ? (
+          <Link href={href} prefetch={false} aria-label={label} className={ROW_ACTION_CLASS} onClick={stop}>
             {icon}
           </Link>
         ) : (
@@ -55,7 +55,7 @@ export const RowActionTooltipButton = React.forwardRef<
             aria-label={label}
             aria-busy={pending || undefined}
             disabled={disabled || pending}
-            className={BTN}
+            className={ROW_ACTION_CLASS}
             onClick={(e) => {
               stop(e);
               onClick?.();
@@ -63,8 +63,8 @@ export const RowActionTooltipButton = React.forwardRef<
           >
             {icon}
           </button>
-        )}
-      </TooltipTrigger>
+        )
+      } />
       <TooltipContent side="top">{hint ?? label}</TooltipContent>
     </Tooltip>
   );

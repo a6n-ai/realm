@@ -156,7 +156,7 @@ export function PriceMath({ plans, lengths, frequencies = [], bounds = { min: 3,
         <div className="lp-math__field lp-math__field--picker">
           <Select value={size.id} onValueChange={(id) => pickSize(plan, id)}>
             <SelectTrigger aria-label="Size" className="lp-math__trigger"><SelectValue /></SelectTrigger>
-            <SelectContent position="popper" side="bottom" sideOffset={6} avoidCollisions={false} className="lp-math__menu">
+            <SelectContent alignItemWithTrigger={false} sideOffset={6} className="lp-math__menu">
               {plan.sizes.map((s) => (
                 <SelectItem key={s.id} value={s.id} className="lp-math__option">{s.name}, {money(s.rate)}</SelectItem>
               ))}

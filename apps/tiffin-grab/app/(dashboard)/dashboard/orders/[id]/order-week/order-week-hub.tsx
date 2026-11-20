@@ -434,9 +434,9 @@ function InfoDialog({ row, plan, onClose }: { row: EatingRow; plan: OrderWeek["p
 
 // Same highlight as the customer's pills: count blue, moved-in brand orange, moved-out muted.
 const PILL = {
-  count: "border-transparent bg-sky-500/15 text-sky-700 dark:text-sky-300",
-  in: "border-transparent bg-orange-500/15 text-orange-700 dark:text-orange-300",
-  out: "border-transparent bg-muted text-muted-foreground",
+  count: "border-transparent [--ui-badge-tone:var(--color-sky-700)] dark:[--ui-badge-tone:var(--color-sky-300)]",
+  in: "border-transparent [--ui-badge-tone:var(--color-orange-700)] dark:[--ui-badge-tone:var(--color-orange-300)]",
+  out: "border-transparent [--ui-badge-tone:var(--muted-foreground)]",
 } as const;
 
 /** Moved-in / moved-out fact as a badge; wraps instead of overflowing the panel. */

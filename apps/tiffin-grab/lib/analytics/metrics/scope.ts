@@ -6,7 +6,8 @@ import { deliveryZones, mealSizes, orders, payments, plans } from "@/db/schema";
 import { PAID } from "@/lib/payments/status";
 import { getAppSettings } from "@/lib/settings";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
-import { currentMonthEpochRange, epoch, list } from "@/lib/dates/epoch-window";
+import { currentMonthEpochRange, list } from "@/lib/dates/epoch-window";
+import { parseRangeParams } from "@/lib/dates/range-params";
 import { isoDateInZone } from "@foundry/commons/util/dates";
 import type { AnalyticsScope } from "@/lib/analytics/scope-types";
 
@@ -41,6 +42,7 @@ export function buildAnalyticsScope(
   now = Date.now(),
 ): AnalyticsScope {
   const month = currentMonthEpochRange(tz, now);
+  const range = parseRangeParams(sp, tz, now);
   const extra: Record<string, string[]> = {};
   for (const key of EXTRA_PARAMS) {
     const values = list(sp[key]);
@@ -49,9 +51,10 @@ export function buildAnalyticsScope(
   return {
     orgIds: intersectOrgs(visible, list(sp.org)),
     visible,
-    fromMs: epoch(sp.from) ?? month.from,
-    toMs: epoch(sp.to) ?? month.to,
+    fromMs: range.from ?? month.from,
+    toMs: range.to ?? month.to,
     tz,
+    relative: range.preset != null || (range.from == null && range.to == null),
     plans: list(sp.plan),
     mealSizes: list(sp.mealSize),
     zones: list(sp.zone),

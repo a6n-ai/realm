@@ -5,17 +5,16 @@
  * order rows. See `listCustomersPage` customerType and the CustomersStats query.
  */
 
+import { setDateParams, type WithUrlDates } from "@/lib/dates/range-params";
+
 export type CustomerTypeFilter = "none" | "ordered" | "new" | "repeat";
 
 export function customersListHref(
-  sp: { from?: string; to?: string },
-  opts: { customerType?: CustomerTypeFilter; from?: string; to?: string } = {},
+  sp: { from?: string; to?: string } & WithUrlDates,
+  opts: { customerType?: CustomerTypeFilter; from?: string; to?: string; dateQs?: string } = {},
 ): string {
   const qs = new URLSearchParams();
-  const from = opts.from ?? sp.from;
-  const to = opts.to ?? sp.to;
-  if (from) qs.set("from", from);
-  if (to) qs.set("to", to);
+  setDateParams(qs, opts.from || opts.to || opts.dateQs != null ? opts : sp);
   if (opts.customerType) qs.set("customerType", opts.customerType);
   const s = qs.toString();
   return s ? `/dashboard/customers?${s}` : "/dashboard/customers";

@@ -2,6 +2,7 @@
 
 import { pageOffset } from "@foundry/design-system/filters/parse-filter-state";
 import Link from "next/link";
+import { TableRowsSkeleton } from "@/components/dashboard/table-rows-skeleton";
 import { PackageIcon } from "lucide-react";
 import { formatMoney as fmt } from "@foundry/commons";
 import { DataTable, ListPagination, OrderStatusBadge, type Column, type FacetDef } from "@/components/ds";
@@ -100,12 +101,12 @@ export function OrdersList({
           <TableCell>
             {o.ownerName ?? "—"}
           </TableCell>
-          <TableCell className="text-right tabular-nums">{o.startDate}</TableCell>
-          <TableCell className="text-right tabular-nums">{fmt(Number(o.total))}</TableCell>
+          <TableCell numeric className="text-right tabular-nums">{o.startDate}</TableCell>
+          <TableCell numeric className="text-right tabular-nums">{fmt(Number(o.total))}</TableCell>
           {costs ? (
-            <TableCell className="text-muted-foreground text-right tabular-nums">{costs[o.publicId] == null ? "—" : fmt(costs[o.publicId]!)}</TableCell>
+            <TableCell numeric className="text-muted-foreground text-right tabular-nums">{costs[o.publicId] == null ? "—" : fmt(costs[o.publicId]!)}</TableCell>
           ) : null}
-          <TableCell className="text-right tabular-nums">
+          <TableCell numeric className="text-right tabular-nums">
             {formatEpoch(o.createdAt, { mode: "date", timeZone: tz })}
           </TableCell>
         </>
@@ -116,7 +117,6 @@ export function OrdersList({
   );
 }
 
-// Loading twin is now owned by DataTable — same COLUMNS + lead columns, zero drift.
 export function OrdersListSkeleton() {
-  return <DataTable.Skeleton columns={COLUMNS} />;
+  return <TableRowsSkeleton columns={COLUMNS} search="Search orders…" filters={["Status", "Owner", "Plan"]} firstColumnLines={2} />;
 }

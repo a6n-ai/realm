@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { fillDefaultMonth } from "@/lib/list/default-month";
 import { ne, sql } from "drizzle-orm";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
@@ -283,7 +284,7 @@ describe("analytics reconciliation (integration)", () => {
     ];
     for (const c of cases) {
       const href = ordersDrillHref({ ...c.scope, visible: c.visible }, c.extra);
-      const sp = Object.fromEntries(new URL(href, "http://x").searchParams);
+      const sp = fillDefaultMonth(Object.fromEntries(new URL(href, "http://x").searchParams), TZ, MARCH_NOW);
       const { condition, page } = parseFilterState(spec, sp);
       const listed = await listOrdersPage(condition, page, undefined, c.visible);
       expect(listed.total).toBe(await countOrders(c.scope, c.extra));

@@ -65,7 +65,7 @@ export function NewCustomerSheet({
   catalog,
   enabledSlots,
 }: {
-  trigger?: React.ReactNode;
+  trigger?: React.ReactElement;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   defaultCountry: CountryCode;
@@ -221,7 +221,7 @@ export function NewCustomerSheet({
             <CustomerSearch onPick={pickCustomer} />
               {/* Source */}
               <section
-                className="grid gap-4 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-1 motion-safe:duration-500"
+                className="grid gap-4"
                 style={{ animationDelay: "40ms" }}
               >
                 <SectionLabel>Source</SectionLabel>
@@ -244,7 +244,7 @@ export function NewCustomerSheet({
                             setPickedId(null);
                           }}
                           className={cn(
-                            "rounded-full border px-3 py-1.5 text-sm font-medium transition-[color,background-color,border-color,transform] outline-none focus-visible:ring-3 focus-visible:ring-ring/50 active:scale-[0.97]",
+                            "rounded-full border px-3 py-1.5 text-sm font-medium transition-[color,background-color,border-color] outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
                             active
                               ? "border-primary/30 bg-primary/12 text-primary"
                               : "border-border text-muted-foreground hover:bg-muted hover:text-foreground",
@@ -273,7 +273,7 @@ export function NewCustomerSheet({
 
               {/* Contact */}
               <section
-                className="grid gap-4 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-1 motion-safe:duration-500"
+                className="grid gap-4"
                 style={{ animationDelay: "120ms" }}
               >
                 <SectionLabel>Contact</SectionLabel>
@@ -321,7 +321,7 @@ export function NewCustomerSheet({
               ← <span className="font-medium">{fullName}</span>
             </button>
             <section
-              className="grid gap-4 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-1 motion-safe:duration-500"
+              className="grid gap-4"
               style={{ animationDelay: "200ms" }}
             >
               <SectionLabel>Order</SectionLabel>

@@ -44,6 +44,34 @@ describe("default window", () => {
 });
 
 
+const now = Date.parse("2035-03-10T16:00:00Z");
+
+describe("url forms", () => {
+  const month = buildAnalyticsScope({}, "all", TZ, now);
+  it("range=, ISO and legacy epoch give the same window", () => {
+    const r = presetRange("last-30", TZ, now);
+    const a = buildAnalyticsScope({ range: "last-30" }, "all", TZ, now);
+    expect([a.fromMs, a.toMs]).toEqual([r.from, r.to]);
+    const iso = buildAnalyticsScope({ from: "2035-02-01", to: "2035-02-28" }, "all", TZ, now);
+    const epoch = buildAnalyticsScope({ from: String(iso.fromMs), to: String(iso.toMs) }, "all", TZ, now);
+    expect([epoch.fromMs, epoch.toMs]).toEqual([iso.fromMs, iso.toMs]);
+    expect(isoDateInZone(iso.toMs, TZ)).toBe("2035-02-28");
+  });
+  it("garbage falls back to the month", () => {
+    const s = buildAnalyticsScope({ from: "x", range: "nope" }, "all", TZ, now);
+    expect([s.fromMs, s.toMs]).toEqual([month.fromMs, month.toMs]);
+  });
+});
+
+describe("relative flag", () => {
+  it("is set for the default month and presets, not for explicit windows", () => {
+    expect(buildAnalyticsScope({}, "all", TZ, now).relative).toBe(true);
+    expect(buildAnalyticsScope({ range: "last-7" }, "all", TZ, now).relative).toBe(true);
+    expect(buildAnalyticsScope({ from: "2035-03-04", to: "2035-03-10" }, "all", TZ, now).relative).toBe(false);
+    expect(buildAnalyticsScope({ from: "1".repeat(400) }, "all", TZ, now).relative).toBe(true);
+  });
+});
+
 describe("ordersScope", () => {
   it("is a false condition for an empty visible set", () => {
     const s = buildAnalyticsScope({}, [], TZ);

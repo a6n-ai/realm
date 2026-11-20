@@ -22,6 +22,7 @@ import { MethodName, StripeMark } from "@/components/payments/stripe-mark";
 import { methodLabel, PAYMENT_METHOD_OPTIONS, PAYMENT_STATUS_OPTIONS, type PaymentRow, type PaymentSortKey } from "@/lib/payments/facets";
 import type { SortState } from "@foundry/design-system/list-sort";
 import { sendPaymentReminderAction } from "@/app/(dashboard)/dashboard/payments/actions";
+import { TableRowsSkeleton } from "@/components/dashboard/table-rows-skeleton";
 
 /** "all" is the Payments listing (who paid); "customer" is one customer's tab (which order it paid for). */
 type Scope = "all" | "customer";
@@ -110,7 +111,7 @@ export function PaymentsTable({
       emptySearchMessage="No payments match your search."
       renderRow={(r) => (
         <>
-          <TableCell className="whitespace-nowrap tabular-nums text-muted-foreground">
+          <TableCell numeric className="whitespace-nowrap tabular-nums text-muted-foreground">
             {formatEpoch(datedBy === "money" ? (r.capturedAt ?? r.createdAt) : r.createdAt, {
               mode: "datetime",
               timeZone: tz,
@@ -130,7 +131,7 @@ export function PaymentsTable({
           <TableCell>
             <PaymentStatusPill status={r.status} />
           </TableCell>
-          <TableCell className="text-right tabular-nums">{formatMoney(Number(r.amount))}</TableCell>
+          <TableCell numeric className="text-right tabular-nums">{formatMoney(Number(r.amount))}</TableCell>
           <TableCell className="text-right">
             <RowActions>
               <RowActionTooltipButton icon={EyeIcon} label="View payment" onClick={() => setViewing(r)} />
@@ -149,5 +150,12 @@ export function PaymentsTable({
 }
 
 export function PaymentsTableSkeleton({ scope = "all", datedBy = "created" }: { scope?: Scope; datedBy?: "created" | "money" }) {
-  return <DataTable.Skeleton columns={columnsFor(scope, datedBy)} hasId />;
+  return (
+    <TableRowsSkeleton
+      columns={columnsFor(scope, datedBy)}
+      hasId
+      search={scope === "all" ? "Search order, customer, reference…" : "Search order, reference…"}
+      filters={scope === "all" ? ["Status", "Method", "Owner"] : ["Status", "Method"]}
+    />
+  );
 }

@@ -15,6 +15,7 @@ import type {
   ActivityListRow,
   ActivitySortColumn,
 } from "@/lib/order-activity/order-activities-list.service";
+import { TableRowsSkeleton } from "@/components/dashboard/table-rows-skeleton";
 
 const COLUMNS: readonly Column<ActivitySortColumn | "details">[] = [
   { key: "time", label: "When", sortable: true },
@@ -80,7 +81,7 @@ export function LogsTable({
         emptySearchMessage="No logs match your filters."
         renderRow={(r) => (
           <>
-            <TableCell className="text-muted-foreground whitespace-nowrap text-xs tabular-nums">
+            <TableCell numeric className="text-muted-foreground whitespace-nowrap text-xs tabular-nums">
               {fmt(r.createdAt)}
             </TableCell>
             <TableCell>
@@ -127,5 +128,5 @@ export function LogsTable({
 }
 
 export function LogsTableSkeleton() {
-  return <DataTable.Skeleton columns={COLUMNS} serial={false} />;
+  return <TableRowsSkeleton columns={COLUMNS} serial={false} search="Search customer, actor, order, note…" filters={[]} />;
 }

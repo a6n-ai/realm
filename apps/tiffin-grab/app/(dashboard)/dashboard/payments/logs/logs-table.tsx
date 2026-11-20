@@ -17,6 +17,8 @@ import { PaymentStatusPill } from "../payment-status-pill";
 import { LOG_EVENT_OPTIONS, type LogSortKey } from "@/lib/payments/facets";
 import { checkStatusAction, reprocessEventAction } from "../stripe/actions";
 import type { LogRow as Row } from "./page";
+import { HoverHint } from "@/components/ds/hover-hint";
+import { TableRowsSkeleton } from "@/components/dashboard/table-rows-skeleton";
 
 const EVENT_STATUS: Record<string, string> = {
   payment_claimed: "pending_verification",
@@ -93,7 +95,7 @@ export function LogsTable({
       emptySearchMessage="No payment events match your search."
       renderRow={(r) => (
         <>
-          <TableCell className="whitespace-nowrap tabular-nums text-muted-foreground">
+          <TableCell numeric className="whitespace-nowrap tabular-nums text-muted-foreground">
             {formatEpoch(r.createdAt, { mode: "datetime", timeZone: tz })}
           </TableCell>
           <TableCell>
@@ -114,7 +116,7 @@ export function LogsTable({
           <TableCell className="text-muted-foreground">{r.actorEmail ?? "-"}</TableCell>
           <TableCell className="max-w-[280px] text-xs text-muted-foreground">
             <div className="flex items-center gap-2">
-              <span className="truncate" title={r.note ?? undefined}>{r.note ?? ""}</span>
+              <HoverHint text={r.note}><span className="truncate">{r.note ?? "—"}</span></HoverHint>
               {r.checkPaymentId && (
                 <Button size="sm" variant="outline" disabled={pending} onClick={() => check(r.checkPaymentId!)}>
                   Check status
@@ -136,5 +138,5 @@ export function LogsTable({
 }
 
 export function LogsTableSkeleton() {
-  return <DataTable.Skeleton columns={COLUMNS} hasId />;
+  return <TableRowsSkeleton columns={COLUMNS} hasId search="Search order, person, note…" filters={["Event"]} />;
 }

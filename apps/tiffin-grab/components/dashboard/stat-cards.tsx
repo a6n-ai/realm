@@ -1,13 +1,13 @@
-import { Fragment, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { ArrowDownIcon, ArrowUpIcon } from "lucide-react";
-import { Card, CardContent } from "@foundry/ui/card";
+import { Card } from "@foundry/ui/card";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { Badge } from "@/components/reui/badge";
-import { Separator } from "@foundry/ui/separator";
+import { InfoTip } from "@/components/dashboard/analytics/chart-tip";
+import { HoverHint } from "@/components/ds/hover-hint";
 import { cn } from "@foundry/ui/cn";
-import { StatBar } from "@foundry/design-system";
 import { isValidAnalyticsCardCount } from "@/lib/analytics/card-rules";
 
 /**
@@ -25,10 +25,11 @@ export type StatCardItem = {
   hint?: string;
   /** Colors the figure for a bare good/bad number with no trend, e.g. a balance still due. */
   tone?: "ok" | "bad" | "warn";
-  /** Makes the whole card a link to the rows behind the number. */
+  /** Makes the whole cell a link to the rows behind the number. */
   href?: string;
   /** Short state pill in the icon slot. */
   badge?: string;
+  /** @deprecated The badge now sits behind the info icon, which has no tone. */
   badgeTone?: "neutral" | "ok" | "warn" | "brand" | "primary";
   /** A second fact under the hint, usually a `StatFootnote`. */
   footer?: ReactNode;
@@ -36,22 +37,37 @@ export type StatCardItem = {
   valueSize?: "label";
   /** Change vs the previous period. `good` says which way is good news (more cancellations is not). */
   delta?: { now: number; before: number; good: "up" | "down" };
+  /** What the delta compares against, read as "vs previous 7 days". */
+  compareLabel?: string;
+  /** A second line under the label, e.g. "Last 7 days". */
+  period?: string;
+  /** Colour of the dot before the label, normally a `--chart-*` token. Defaults to the chart palette by position. */
+  color?: string;
 };
 
-// Phones get the Overview's one-row StatBar (value over label); cards from md up.
-const GRID = {
-  3: "hidden gap-4 md:grid md:grid-cols-3",
-  4: "hidden gap-4 md:grid md:grid-cols-2 xl:grid-cols-4",
-  5: "hidden gap-4 md:grid md:grid-cols-3 xl:grid-cols-5",
-} as const;
+const CHART_PALETTE = ["var(--chart-1)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)", "var(--chart-5)"];
 
-const BADGE = {
-  neutral: "secondary",
-  ok: "success-light",
-  warn: "warning-light",
-  brand: "primary-light",
-  primary: "default",
-} as const;
+// Static class maps: Tailwind only sees literal class names.
+const XL_COLS = ["", "xl:grid-cols-1", "xl:grid-cols-2", "xl:grid-cols-3", "xl:grid-cols-4", "xl:grid-cols-5"];
+const MD_COLS = ["", "md:grid-cols-1", "md:grid-cols-2", "md:grid-cols-3"];
+const SPAN = ["", "col-span-1", "col-span-2"];
+const MD_SPAN = ["", "md:col-span-1", "md:col-span-2", "md:col-span-3"];
+const XL_SPAN = ["", "xl:col-span-1", "xl:col-span-2", "xl:col-span-3", "xl:col-span-4", "xl:col-span-5"];
+
+/** Columns that divide the count, so no row ends in an empty slot; a remainder (7 cells) is absorbed by the last cell. */
+export function statGrid(n: number, preferred: 3 | 4 | 5) {
+  const pick = (options: number[]) => options.find((c) => c <= n && n % c === 0) ?? Math.min(n, options[0]!);
+  const xl = pick([preferred, 5, 4, 3, 2]);
+  const md = pick([3, 2]);
+  const base = Math.min(n, 2);
+  const span = (cols: number) => (n % cols === 0 ? 1 : cols - (n % cols) + 1);
+  return {
+    grid: cn(base === 1 ? "grid-cols-1" : "grid-cols-2", MD_COLS[md], XL_COLS[xl]),
+    last: cn(SPAN[span(base)], MD_SPAN[span(md)], XL_SPAN[span(xl)]),
+  };
+}
+
+const CELL = "bg-card flex h-full min-w-0 flex-col gap-4 p-4 sm:p-5";
 
 /** Second fact row under a card's hint, for a second fact such as a rate or a total. */
 export function StatFootnote({ children }: { children: ReactNode }) {
@@ -71,124 +87,97 @@ export function StatCards({
   items: StatCardItem[];
   cols?: 3 | 4 | 5;
 }) {
-  const anyLink = items.some((i) => i.href);
+  if (!items.length) return null;
+  const { grid, last } = statGrid(items.length, cols);
   return (
-    <>
-      <div className="md:hidden">
-        {anyLink ? (
-          <div className="bg-card flex divide-x overflow-x-auto rounded-lg border [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {items.map(({ label, value, tone, href }) => {
-              const body = (
-                <div className="flex w-full flex-col items-center gap-0.5 px-4 py-3 text-center">
-                  <span
-                    className={cn(
-                      "text-base leading-none font-semibold whitespace-nowrap tabular-nums",
-                      tone === "ok" && "text-success-foreground dark:text-success",
-                      tone === "bad" && "text-destructive-foreground dark:text-destructive",
-                      tone === "warn" && "text-warning-foreground dark:text-warning",
-                    )}
-                  >
-                    {value}
-                  </span>
-                  <span className="text-muted-foreground text-caption-2 leading-tight whitespace-nowrap">{label}</span>
-                </div>
-              );
-              const shell = "flex min-w-fit flex-1";
-              return href ? (
-                <Link
-                  key={label}
-                  href={href}
-                  className={cn(shell, "hover:bg-muted/50 focus-visible:ring-ring outline-none focus-visible:ring-2")}
-                >
-                  {body}
-                </Link>
-              ) : (
-                <div key={label} className={shell}>
-                  {body}
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-          <StatBar
-            items={items.map(({ label, value, tone }) => ({
-              label,
-              value,
-              tone: tone === "warn" ? undefined : tone,
-            }))}
+    <Card className="py-0 overflow-hidden">
+      {/* gap-px over a border-coloured grid draws the dividers at every column count. */}
+      <div data-slot="stat-grid" className={cn("bg-border grid gap-px", grid)}>
+        {items.map((item, i) => (
+          <StatCell
+            key={item.label}
+            {...item}
+            color={item.color ?? CHART_PALETTE[i % CHART_PALETTE.length]!}
+            className={i === items.length - 1 ? last : undefined}
           />
-        )}
+        ))}
       </div>
-      <div className={GRID[cols]}>
-        {items.map(
-          ({ label, value, icon: Icon, hint, tone, delta, href, badge, badgeTone, footer, valueSize }) => {
-            const card = (
-              <Card
-                className={cn(
-                  href && "h-full transition-[border-color,box-shadow,transform] group-hover/stat:-translate-y-0.5 group-hover/stat:border-foreground/20 group-hover/stat:shadow-md",
-                )}
-              >
-                <CardContent className="flex flex-col gap-5">
-                  <div className="flex items-center justify-between gap-3">
-                    <h3
-                      className={cn(
-                        "text-muted-foreground min-w-0 truncate text-sm font-medium",
-                        href && "group-hover/stat:text-foreground transition-colors",
-                      )}
-                    >
-                      {label}
-                    </h3>
-                    {badge ? (
-                      <Badge variant={BADGE[badgeTone ?? "neutral"]}>{badge}</Badge>
-                    ) : Icon ? (
-                      <Icon className="text-muted-foreground size-4 shrink-0" aria-hidden="true" />
-                    ) : null}
-                  </div>
-                  <div className="flex flex-col gap-2.5">
-                    <div className="flex flex-wrap items-center gap-2.5">
-                      <span
-                        className={cn(
-                          valueSize === "label" ? "text-lg font-medium" : "text-2xl font-medium",
-                          "tracking-tight tabular-nums",
-                          tone === "ok"
-                            ? "text-success-foreground dark:text-success"
-                            : tone === "bad"
-                              ? "text-destructive-foreground dark:text-destructive"
-                              : tone === "warn"
-                                ? "text-warning-foreground dark:text-warning"
-                                : "text-foreground",
-                        )}
-                      >
-                        {value}
-                      </span>
-                      {delta && delta.now !== delta.before ? <DeltaBadge {...delta} /> : null}
-                    </div>
-                    {hint || footer ? <Separator /> : null}
-                    {hint ? <div className="text-muted-foreground text-xs">{hint}</div> : null}
-                    {footer}
-                  </div>
-                </CardContent>
-              </Card>
-            );
-            return href ? (
-              <Link
-                key={label}
-                href={href}
-                className="group/stat focus-visible:ring-ring block h-full cursor-pointer rounded-xl outline-none focus-visible:ring-2"
-              >
-                {card}
-              </Link>
-            ) : (
-              <Fragment key={label}>{card}</Fragment>
-            );
-          },
-        )}
-      </div>
-    </>
+    </Card>
   );
 }
 
-/** Analytics cards always carry the pill and the hint, so the divider always shows. */
+function StatCell({
+  label,
+  value,
+  icon: Icon,
+  hint,
+  tone,
+  delta,
+  compareLabel,
+  href,
+  badge,
+  footer,
+  valueSize,
+  period,
+  color,
+  className,
+}: StatCardItem & { color: string; className?: string }) {
+  const body = (
+    <>
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <div className="flex min-w-0 items-center gap-2">
+            <span data-slot="stat-dot" aria-hidden className="size-2 shrink-0 rounded-full" style={{ background: color }} />
+            <h3 className="text-muted-foreground min-w-0 truncate text-sm font-medium">{label}</h3>
+          </div>
+          {period ? <span className="text-muted-foreground text-[13px]">{period}</span> : null}
+        </div>
+        {badge ? (
+          <InfoTip inLink={Boolean(href)}>{badge}</InfoTip>
+        ) : Icon ? (
+          <Icon className="text-muted-foreground size-4 shrink-0" aria-hidden="true" />
+        ) : null}
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-0.5">
+          <span
+            className={cn(
+              // Geist heading-24, measured on vercel.com: sans, not mono.
+              valueSize === "label" ? "text-lg font-medium tracking-tight" : "text-2xl leading-8 font-semibold tracking-[-0.96px] tabular-nums",
+              tone === "ok"
+                ? "text-success-foreground dark:text-success"
+                : tone === "bad"
+                  ? "text-destructive-foreground dark:text-destructive"
+                  : tone === "warn"
+                    ? "text-warning-foreground dark:text-warning"
+                    : "text-foreground",
+            )}
+          >
+            {value}
+          </span>
+          {hint ? <div className="text-muted-foreground text-[13px]">{hint}</div> : null}
+        </div>
+        {delta ? <DeltaLine {...delta} compareLabel={compareLabel} /> : null}
+        {footer}
+      </div>
+    </>
+  );
+  return href ? (
+    <Link
+      href={href}
+      data-slot="stat-cell"
+      className={cn(CELL, "outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring", className)}
+    >
+      {body}
+    </Link>
+  ) : (
+    <div data-slot="stat-cell" className={cn(CELL, className)}>
+      {body}
+    </div>
+  );
+}
+
+/** Analytics cards always carry a qualifier (behind the info icon) and the hint. */
 export type AnalyticsStatCardItem = StatCardItem & { hint: string; badge: string };
 
 /** Analytics tabs: 4 or 8 cards in rows of 4. A wrong count fails loudly outside production. */
@@ -204,27 +193,37 @@ export function AnalyticsStatCardsSkeleton({ rows }: { rows: 1 | 2 }) {
   return <StatCardsSkeleton count={rows * 4} cols={4} />;
 }
 
-function DeltaBadge({
+/** "↑ 12% vs previous 7 days": a delta never stands alone, it always names what it compares against. */
+function DeltaLine({
   now,
   before,
   good,
+  compareLabel = "previous period",
 }: {
   now: number;
   before: number;
   good: "up" | "down";
+  compareLabel?: string;
 }) {
+  const vs = <span className="text-muted-foreground text-[13px]">vs {compareLabel}</span>;
+  // A zero before is real data, but a percent of zero is undefined: show the absolute change instead.
+  const pct = before === 0 ? null : Math.round(((now - before) / before) * 100);
+  if (now === before || pct === 0) {
+    return <div className="flex items-center gap-1.5"><Badge variant="secondary">No change</Badge>{vs}</div>;
+  }
   const up = now > before;
   const Arrow = up ? ArrowUpIcon : ArrowDownIcon;
   return (
-    <Badge
-      variant={up === (good === "up") ? "success-light" : "destructive-light"}
-    >
-      <Arrow aria-hidden="true" />
-      <span className="tabular-nums">{Math.abs(now - before)}</span>
-      <span className="sr-only">
-        {up ? "more" : "fewer"} than the previous period
-      </span>
-    </Badge>
+    <HoverHint text={`${now.toLocaleString()} now · ${before.toLocaleString()} before`}>
+      <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+      <Badge variant={up === (good === "up") ? "success-light" : "destructive-light"}>
+        <Arrow aria-hidden="true" />
+        <span className="tabular-nums">{pct == null ? Math.abs(now - before).toLocaleString() : `${Math.abs(pct)}%`}</span>
+        <span className="sr-only">{up ? "up" : "down"}</span>
+      </Badge>
+      {vs}
+      </div>
+    </HoverHint>
   );
 }
 
@@ -235,34 +234,20 @@ export function StatCardsSkeleton({
   count: number;
   cols?: 3 | 4 | 5;
 }) {
+  const { grid, last } = statGrid(count, cols);
   return (
-    <>
-      {/* The StatBar twin: one bar, N grey segments. */}
-      <div className="bg-card flex divide-x overflow-hidden rounded-lg border md:hidden">
+    <Card className="py-0 overflow-hidden">
+      <div data-slot="stat-grid" className={cn("bg-border grid gap-px", grid)}>
         {Array.from({ length: count }).map((_, i) => (
-          <div
-            key={i}
-            className="flex flex-1 flex-col items-center gap-1 px-4 py-3"
-          >
-            <Skeleton className="h-4 w-8" />
-            <Skeleton className="h-3 w-12" />
+          <div key={i} data-slot="stat-cell" className={cn(CELL, i === count - 1 && last)}>
+            <Skeleton className="h-4 w-24" />
+            <div className="mt-auto flex flex-col gap-2.5">
+              <Skeleton className="h-7 w-16" />
+              <Skeleton className="h-3 w-40" />
+            </div>
           </div>
         ))}
       </div>
-      <div className={GRID[cols]}>
-        {Array.from({ length: count }).map((_, i) => (
-          <Card key={i}>
-            <CardContent className="flex flex-col gap-5">
-              <Skeleton className="h-5 w-24" />
-              <div className="flex flex-col gap-2.5">
-                <Skeleton className="h-8 w-16" />
-                <Separator />
-                <Skeleton className="h-4 w-40" />
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    </>
+    </Card>
   );
 }

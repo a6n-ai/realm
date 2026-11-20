@@ -25,13 +25,13 @@ export type ContactChipsProps = {
 function IconChip({ label, tip, href, icon: Icon, external }: { label: string; tip: string; href: string; icon: LucideIcon; external?: boolean }) {
   return (
     <Tooltip>
-      <TooltipTrigger asChild>
+      <TooltipTrigger render={
         <Button variant="outline" size="icon-sm" asChild>
           <a href={href} aria-label={label} {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}>
             <Icon className="size-4" />
           </a>
         </Button>
-      </TooltipTrigger>
+      } />
       <TooltipContent side="top">{tip}</TooltipContent>
     </Tooltip>
   );

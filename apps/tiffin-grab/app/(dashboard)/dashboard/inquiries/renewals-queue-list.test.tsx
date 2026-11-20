@@ -4,7 +4,6 @@ import type { ReactElement } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render as rtlRender, screen, within } from "@testing-library/react";
 import { TimezoneProvider } from "@foundry/design-system/timezone-provider";
-import { TooltipProvider } from "@foundry/ui/tooltip";
 import type { RenewalRow } from "@/lib/renewals/renewals.service";
 import { RenewalsQueueList } from "./renewals-queue-list";
 vi.mock("../renewals/actions", () => ({
@@ -18,7 +17,7 @@ vi.mock("next/navigation", () => ({
   usePathname: () => "/dashboard/inquiries",
   useSearchParams: () => new URLSearchParams(),
 }));
-const render = (ui: ReactElement) => rtlRender(<TimezoneProvider tz="America/Toronto"><TooltipProvider>{ui}</TooltipProvider></TimezoneProvider>);
+const render = (ui: ReactElement) => rtlRender(<TimezoneProvider tz="America/Toronto">{ui}</TimezoneProvider>);
 const plan = (over: Partial<RenewalRow>): RenewalRow => ({
   orderPublicId: "ord_1", customerPublicId: "cus_1", code: "A1", customerName: "Asha", phone: "+16475550001",
   planName: "Plan", mealSize: "Regular", lastTiffin: "2026-11-20", planTotal: "100", status: "none", trial: false,

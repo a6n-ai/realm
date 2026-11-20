@@ -12,6 +12,7 @@ import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@foundry/design-system/timezone-provider";
 import type { SortState } from "@foundry/design-system/list-sort";
 import type { LogSortColumn } from "@/lib/notifications/logs-query";
+import { TableRowsSkeleton } from "@/components/dashboard/table-rows-skeleton";
 
 type Row = {
   publicId: string;
@@ -112,7 +113,7 @@ export function LogsTable({
         emptySearchMessage="No notifications match your search."
         renderRow={(r) => (
           <>
-            <TableCell className="whitespace-nowrap tabular-nums text-muted-foreground">
+            <TableCell numeric className="whitespace-nowrap tabular-nums text-muted-foreground">
               {fmt(r.createdAt)}
             </TableCell>
             <TableCell>{eventLabel(r.event)}</TableCell>
@@ -125,7 +126,7 @@ export function LogsTable({
               )}
             </TableCell>
             <TableCell className="max-w-[280px] truncate text-xs text-muted-foreground">
-              {r.lastError ?? r.providerMessageId ?? ""}
+              {r.lastError ?? r.providerMessageId ?? "—"}
             </TableCell>
           </>
         )}
@@ -183,5 +184,5 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 
 // Loading twin is now owned by DataTable — same COLUMNS, zero drift.
 export function LogsTableSkeleton() {
-  return <DataTable.Skeleton columns={COLUMNS} hasId />;
+  return <TableRowsSkeleton columns={COLUMNS} hasId search="Search notifications…" filters={[]} />;
 }

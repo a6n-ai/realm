@@ -12,6 +12,7 @@ import { formatConsentDate } from "@relay/engine/ui/date";
 import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
 import type { SortState } from "@foundry/design-system/list-sort";
 import type { ContactListSortColumn } from "./page";
+import { TableRowsSkeleton } from "@/components/dashboard/table-rows-skeleton";
 
 export type ContactListRow = {
   publicId: string;
@@ -71,8 +72,8 @@ export function ContactListsTable({
               {CONSENT_LABEL[r.consentSource] ?? r.consentSource} · {formatConsentDate(r.consentAt, timeZone)}
               {r.consentNote ? ` · ${r.consentNote}` : ""}
             </TableCell>
-            <TableCell className="text-right tabular-nums text-muted-foreground">{r.memberCount}</TableCell>
-            <TableCell className="text-right tabular-nums text-muted-foreground">
+            <TableCell numeric className="text-right tabular-nums text-muted-foreground">{r.memberCount}</TableCell>
+            <TableCell numeric className="text-right tabular-nums text-muted-foreground">
               <AppDate value={r.createdAt} />
             </TableCell>
             <TableCell>
@@ -90,5 +91,5 @@ export function ContactListsTable({
 }
 
 export function ContactListsTableSkeleton() {
-  return <DataTable.Skeleton columns={COLUMNS} hasId />;
+  return <TableRowsSkeleton columns={COLUMNS} hasId search="Search lists…" filters={[]} />;
 }

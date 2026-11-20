@@ -17,6 +17,7 @@ import {
 } from "@/lib/wallet/wallet-balances.service";
 import { BalancesTable, BalancesTableSkeleton } from "./balances-table";
 import { requestNow } from "@/lib/dates/request-now";
+import { hrefWithDates } from "@/lib/dates/range-params";
 
 type SearchParams = Promise<Record<string, string | undefined>>;
 
@@ -67,7 +68,7 @@ async function BalancesStats({ searchParams }: { searchParams: SearchParams }) {
       value: stats.walletsWithBalance.toLocaleString(),
       icon: WalletIcon,
       hint: held,
-      href: `/dashboard/wallet/balances?from=${sp.from}&to=${sp.to}&balance=has`,
+      href: hrefWithDates("/dashboard/wallet/balances", sp, { balance: "has" }),
     },
     { label: "Coins earned", value: stats.earned.toLocaleString(), icon: TrendingUpIcon, hint: "in selected range" },
     { label: "Coins redeemed", value: stats.redeemed.toLocaleString(), icon: TrendingDownIcon, hint: "in selected range" },

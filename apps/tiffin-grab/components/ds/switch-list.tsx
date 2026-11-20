@@ -63,32 +63,32 @@ export function SwitchList({ rows }: { rows: SwitchRow[] }) {
   return (
     <Card className="p-0">
       <FieldGroup className="gap-0">
-        {rows.map((r, i) => (
-          <Fragment key={r.id}>
-            {i > 0 && <Separator />}
-            <Field data-disabled={r.disabled || undefined}>
-              <FieldLabel className="justify-between px-4 py-3">
-                <FieldContent>
-                  <FieldTitle className="flex items-center gap-2">{r.icon}{r.label}</FieldTitle>
-                  {r.hint && <FieldDescription className="text-xs tabular-nums">{r.hint}</FieldDescription>}
-                </FieldContent>
+        {rows.map((r, i) => {
+          const control = <Switch checked={r.checked} disabled={r.disabled} onCheckedChange={r.onChange} />;
+          const label = (
+            <FieldLabel className="justify-between px-4 py-3">
+              <FieldContent>
+                <FieldTitle className="flex items-center gap-2">{r.icon}{r.label}</FieldTitle>
+                {r.hint && <FieldDescription className="text-xs tabular-nums">{r.hint}</FieldDescription>}
+              </FieldContent>
+              {/* A disabled button swallows pointer events, so the tooltip hangs off a wrapper span. */}
+              {r.tooltip ? <TooltipTrigger render={<span className="inline-flex">{control}</span>} /> : control}
+            </FieldLabel>
+          );
+          return (
+            <Fragment key={r.id}>
+              {i > 0 && <Separator />}
+              <Field data-disabled={r.disabled || undefined}>
                 {r.tooltip ? (
                   <Tooltip>
-                    {/* A disabled button swallows pointer events, so the tooltip hangs off a wrapper span. */}
-                    <TooltipTrigger asChild>
-                      <span className="inline-flex">
-                        <Switch checked={r.checked} disabled={r.disabled} onCheckedChange={r.onChange} />
-                      </span>
-                    </TooltipTrigger>
+                    {label}
                     <TooltipContent>{r.tooltip}</TooltipContent>
                   </Tooltip>
-                ) : (
-                  <Switch checked={r.checked} disabled={r.disabled} onCheckedChange={r.onChange} />
-                )}
-              </FieldLabel>
-            </Field>
-          </Fragment>
-        ))}
+                ) : label}
+              </Field>
+            </Fragment>
+          );
+        })}
       </FieldGroup>
     </Card>
   );

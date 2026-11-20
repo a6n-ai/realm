@@ -16,7 +16,7 @@ const TABS: { value: QueueTab; label: string }[] = [
 ];
 
 /** Switching tabs keeps the other filters and resets the page. */
-export function QueueTabs({ counts }: { counts: Record<QueueTab, number> }) {
+export function QueueTabs({ counts }: { counts?: Record<QueueTab, number> }) {
   const pathname = usePathname();
   const sp = useSearchParams();
   const drilled = sp.has("bucket");
@@ -29,16 +29,16 @@ export function QueueTabs({ counts }: { counts: Record<QueueTab, number> }) {
     return `${pathname}?${next.toString()}`;
   };
   return (
-    <Tabs value={drilled ? "" : current}>
+    <Tabs value={drilled ? "" : current} activation="manual">
       <TabsList variant="line" aria-label="Follow-up queues">
         {TABS.map((t) => (
-          <TabsTrigger key={t.value} value={t.value} asChild className="gap-1.5">
-            <Link href={href(t.value)} prefetch={false}>
-              {t.label}
+          <TabsTrigger key={t.value} value={t.value} className="gap-1.5" render={<Link href={href(t.value)} prefetch={false} />}>
+            {t.label}
+            {counts && (
               <Badge variant={t.value === "overdue" && counts.overdue > 0 ? "destructive-light" : "secondary"} className="tabular-nums">
                 {counts[t.value]}
               </Badge>
-            </Link>
+            )}
           </TabsTrigger>
         ))}
       </TabsList>

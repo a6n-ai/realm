@@ -1,3 +1,4 @@
+import { setDateParams, type WithUrlDates } from "@/lib/dates/range-params";
 import { sql, type SQL } from "drizzle-orm";
 import { notificationOutbox } from "@/db/schema";
 
@@ -29,12 +30,11 @@ export function parseNotificationOutcome(value: string | undefined): Notificatio
 }
 
 export function notificationLogsHref(
-  sp: { from?: string; to?: string },
+  sp: { from?: string; to?: string } & WithUrlDates,
   outcome?: NotificationOutcome,
 ): string {
   const qs = new URLSearchParams();
-  if (sp.from) qs.set("from", sp.from);
-  if (sp.to) qs.set("to", sp.to);
+  setDateParams(qs, sp);
   if (outcome) qs.set("outcome", outcome);
   const s = qs.toString();
   return s ? `/dashboard/notifications/logs?${s}` : "/dashboard/notifications/logs";

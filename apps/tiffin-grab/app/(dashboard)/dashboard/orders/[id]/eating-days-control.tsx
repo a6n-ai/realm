@@ -9,6 +9,7 @@ import { unwrapAction } from "@/lib/actions/unwrap";
 import { NO_WEEKEND_DISH, allowedDaysError, dayAllowed, eatingDaysError, onlyOnMessage, planWeek, type DayOfWeek, WEEK_DAYS } from "@/lib/deliveries/schedule/delivery-days";
 import { changeEatingDaysAction } from "./actions";
 import { isWeekendDay } from "@foundry/commons/util/dates";
+import { HoverHint } from "@/components/ds/hover-hint";
 
 const cap = (d: string) => d.charAt(0).toUpperCase() + d.slice(1);
 
@@ -80,21 +81,32 @@ export function EatingDaysControl({
             const on = value.includes(d);
             const noDish = !servesWeekends && (isWeekendDay(d));
             const offDay = !on && !dayAllowed(d, mealDays);
-            return (
+            const disabled = noDish || offDay;
+            const hint = noDish ? NO_WEEKEND_DISH : offDay && mealDays ? onlyOnMessage(mealDays) : undefined;
+            const dayButton = (
               <button
-                key={d}
                 type="button"
                 aria-pressed={on}
-                disabled={noDish || offDay}
-                title={noDish ? NO_WEEKEND_DISH : offDay && mealDays ? onlyOnMessage(mealDays) : undefined}
+                disabled={disabled}
                 onClick={() => setValue(WEEK_DAYS.filter((x) => (x === d ? !on : value.includes(x))))}
                 className={cn(
-                  "rounded-md border px-3 py-1.5 text-sm font-medium outline-none focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-40",
+                  "rounded-md border px-3 py-1.5 text-sm font-medium outline-none focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-40",
                   on ? "border-primary bg-primary text-primary-foreground" : "bg-background hover:bg-muted",
                 )}
               >
                 {cap(d)}
               </button>
+            );
+            return (
+              <HoverHint key={d} text={hint}>
+                {disabled && hint ? (
+                  <span tabIndex={0} className="inline-flex rounded-md outline-none focus-visible:ring-3 focus-visible:ring-ring/50">
+                    {dayButton}
+                  </span>
+                ) : (
+                  dayButton
+                )}
+              </HoverHint>
             );
           })}
         </div>

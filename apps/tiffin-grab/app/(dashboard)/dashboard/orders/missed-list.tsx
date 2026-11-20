@@ -75,7 +75,7 @@ export function MissedList({ rows, anyMissed, spec, isAdmin, today }: { rows: Mi
               <Link href={`/dashboard/orders/${r.orderPublicId}`} className="hover:underline">{r.orderCode}</Link>
               <span className="text-muted-foreground block text-xs">{r.planName}</span>
             </TableCell>
-            <TableCell className="text-right tabular-nums">{r.tiffinUnits}</TableCell>
+            <TableCell numeric className="text-right tabular-nums">{r.tiffinUnits}</TableCell>
             <TableCell>
               <Badge variant={r.kind === "not_sent" ? "destructive" : "secondary"}>{MISSED_WHY[r.kind]}</Badge>
               {r.driver && <span className="text-muted-foreground block text-xs">{r.driver}</span>}

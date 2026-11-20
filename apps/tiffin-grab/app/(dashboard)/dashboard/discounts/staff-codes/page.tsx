@@ -9,6 +9,7 @@ import { StaffCodes, StaffCodesSkeleton, type IssuedCode } from "./staff-codes";
 import { requestNow } from "@/lib/dates/request-now";
 import { getMoneyFormatter } from "@/lib/settings";
 import { listCodeIssuers, listStaffCodes, STAFF_CODE_SORT_COLUMNS, type StaffCodeKind, type StaffCodeSortColumn } from "@/lib/coupons/staff-codes.service";
+import { setDateParams } from "@/lib/dates/range-params";
 
 const TYPE_OPTIONS = [
   { value: "rep_code", label: "Staff code" },
@@ -86,8 +87,7 @@ async function StaffCodesData({ searchParams }: { searchParams: SearchParams }) 
 
   const href = (status?: string) => {
     const qs = new URLSearchParams();
-    if (sp.from) qs.set("from", sp.from);
-    if (sp.to) qs.set("to", sp.to);
+    setDateParams(qs, sp);
     if (sp.type) qs.set("type", sp.type);
     if (sp.issuer) qs.set("issuer", sp.issuer);
     if (status) qs.set("status", status);

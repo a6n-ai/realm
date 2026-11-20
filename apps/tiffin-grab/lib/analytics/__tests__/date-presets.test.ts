@@ -32,6 +32,46 @@ describe("presetRange", () => {
     expect(r.to).toBe(zonedDayStart("2026-11-04", TZ) - 1);
   });
 
+  it("last 14 days is today and the 13 days before, across the fall-back change", () => {
+    const now = zonedDayStart("2026-11-05", TZ) + 3_600_000;
+    expect(presetRange("last-14", TZ, now)).toEqual({
+      from: zonedDayStart("2026-10-23", TZ),
+      to: zonedDayStart("2026-11-06", TZ) - 1,
+    });
+  });
+
+  it("last 3 months is whole days from the day after today minus 3 months, clamped at month end", () => {
+    const now = zonedDayStart("2026-11-20", TZ) + 3_600_000;
+    expect(presetRange("last-3m", TZ, now)).toEqual({
+      from: zonedDayStart("2026-08-21", TZ),
+      to: zonedDayStart("2026-11-21", TZ) - 1,
+    });
+    const may = zonedDayStart("2026-05-31", TZ) + 3_600_000;
+    expect(presetRange("last-3m", TZ, may).from).toBe(zonedDayStart("2026-03-01", TZ));
+    const first = zonedDayStart("2026-11-01", TZ) + 30 * 60_000;
+    expect(presetRange("last-3m", TZ, first).from).toBe(zonedDayStart("2026-08-02", TZ));
+  });
+
+  it("last 12 months spans both DST changes and clamps a leap day", () => {
+    const now = zonedDayStart("2026-11-20", TZ) + 3_600_000;
+    expect(presetRange("last-12m", TZ, now)).toEqual({
+      from: zonedDayStart("2025-11-21", TZ),
+      to: zonedDayStart("2026-11-21", TZ) - 1,
+    });
+    const leap = zonedDayStart("2028-02-29", TZ) + 3_600_000;
+    expect(presetRange("last-12m", TZ, leap).from).toBe(zonedDayStart("2027-03-01", TZ));
+  });
+
+  it("lists the presets in menu order", () => {
+    expect(DATE_PRESETS.map((p) => p.key)).toEqual(["this-month", "last-month", "last-7", "last-14", "last-30", "last-3m", "last-12m"]);
+    expect(DATE_PRESETS.map((p) => p.label)).toContain("Last 3 months");
+  });
+
+  it("uses the business day, not the UTC day, near midnight", () => {
+    const now = Date.parse("2026-11-21T03:30:00Z");
+    expect(presetRange("last-14", TZ, now).to).toBe(zonedDayStart("2026-11-21", TZ) - 1);
+  });
+
   it("highlights exactly the matching preset and none for a custom range", () => {
     const now = Date.parse("2026-10-20T15:00:00Z");
     for (const p of DATE_PRESETS) {

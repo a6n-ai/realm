@@ -37,7 +37,6 @@ import {
 import type { TreemapNode } from "recharts";
 import {
   Tooltip,
-  TooltipProvider,
   TooltipTrigger,
 } from "@foundry/ui/tooltip";
 import { cn } from "@foundry/ui/cn";
@@ -90,7 +89,7 @@ type TooltipFormatter = NonNullable<
   ComponentProps<typeof ChartTooltipContent>["formatter"]
 >;
 
-const valueFormatter =
+export const valueFormatter =
   (format: ValueFormat, currency: string, suffix = ""): TooltipFormatter =>
   (value, name, item) => (
     <div className="flex w-full items-center justify-between gap-2">
@@ -99,9 +98,9 @@ const valueFormatter =
           className="h-2.5 w-2.5 shrink-0 rounded-xs"
           style={{ background: item?.payload?.fill ?? item?.color }}
         />
-        <span className="text-muted-foreground">{name}</span>
+        <span className="text-background/70">{name}</span>
       </div>
-      <span className="text-foreground font-semibold tabular-nums">
+      <span className="text-background font-semibold tabular-nums">
         {formatValue(value, format, currency)}
         {suffix}
       </span>
@@ -525,52 +524,50 @@ export function SegmentedBar({
   const total = folded.reduce((s, p) => s + p.value, 0);
   return (
     <div className="flex flex-col gap-3">
-      <TooltipProvider>
-        <div
-          className="flex h-3 w-full gap-0.5 overflow-hidden rounded-full"
-          onMouseLeave={() => setHover(null)}
-        >
-          {folded.map((p, i) => {
-            const text = `${p.label}: ${formatValue(p.value, format, currency)} (${fmtPct(p.share)})`;
-            return (
-              <Tooltip key={`${p.label}-${i}`}>
-                <TooltipTrigger asChild>
-                  {p.href ? (
-                    <Link
-                      href={p.href}
-                      aria-label={text}
-                      className="focus-visible:ring-ring/50 relative h-full outline-none transition-opacity first:rounded-l-full last:rounded-r-full focus-visible:ring-2"
-                      style={{
-                        width: `${(p.value / total) * 100}%`,
-                        background: p.color,
-                        opacity: hover === null || hover === i ? 1 : 0.45,
-                      }}
-                      onMouseEnter={() => setHover(i)}
-                      onFocus={() => setHover(i)}
-                      onBlur={() => setHover(null)}
-                    />
-                  ) : (
-                    <div
-                      tabIndex={0}
-                      aria-label={text}
-                      className="focus-visible:ring-ring/50 relative h-full outline-none transition-opacity first:rounded-l-full last:rounded-r-full focus-visible:ring-2"
-                      style={{
-                        width: `${(p.value / total) * 100}%`,
-                        background: p.color,
-                        opacity: hover === null || hover === i ? 1 : 0.45,
-                      }}
-                      onMouseEnter={() => setHover(i)}
-                      onFocus={() => setHover(i)}
-                      onBlur={() => setHover(null)}
-                    />
-                  )}
-                </TooltipTrigger>
-                <ChartTip>{text}</ChartTip>
-              </Tooltip>
-            );
-          })}
-        </div>
-      </TooltipProvider>
+      <div
+        className="flex h-3 w-full gap-0.5 overflow-hidden rounded-full"
+        onMouseLeave={() => setHover(null)}
+      >
+        {folded.map((p, i) => {
+          const text = `${p.label}: ${formatValue(p.value, format, currency)} (${fmtPct(p.share)})`;
+          return (
+            <Tooltip key={`${p.label}-${i}`}>
+              <TooltipTrigger render={
+                p.href ? (
+                  <Link
+                    href={p.href}
+                    aria-label={text}
+                    className="focus-visible:ring-ring/50 relative h-full outline-none transition-opacity first:rounded-l-full last:rounded-r-full focus-visible:ring-2"
+                    style={{
+                      width: `${(p.value / total) * 100}%`,
+                      background: p.color,
+                      opacity: hover === null || hover === i ? 1 : 0.45,
+                    }}
+                    onMouseEnter={() => setHover(i)}
+                    onFocus={() => setHover(i)}
+                    onBlur={() => setHover(null)}
+                  />
+                ) : (
+                  <div
+                    tabIndex={0}
+                    aria-label={text}
+                    className="focus-visible:ring-ring/50 relative h-full outline-none transition-opacity first:rounded-l-full last:rounded-r-full focus-visible:ring-2"
+                    style={{
+                      width: `${(p.value / total) * 100}%`,
+                      background: p.color,
+                      opacity: hover === null || hover === i ? 1 : 0.45,
+                    }}
+                    onMouseEnter={() => setHover(i)}
+                    onFocus={() => setHover(i)}
+                    onBlur={() => setHover(null)}
+                  />
+                )
+              } />
+              <ChartTip>{text}</ChartTip>
+            </Tooltip>
+          );
+        })}
+      </div>
       {withList ? (
         <ul className="divide-border/60 divide-y">
           {folded.map((p, i) => {
@@ -656,18 +653,16 @@ function PartsList({ rows, footnote }: { rows: ListRow[]; footnote?: ReactNode }
       return (
         <li key={`${p.label}-${i}`}>
           {p.tip ? (
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div tabIndex={0} className={cn(cls, "focus-visible:ring-ring/50 cursor-default rounded-sm outline-none focus-visible:ring-2")}>
-                    {row}
-                  </div>
-                </TooltipTrigger>
-                <ChartTip side="left" className="max-w-xs">
-                  {p.tip}
-                </ChartTip>
-              </Tooltip>
-            </TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger render={
+                <div tabIndex={0} className={cn(cls, "focus-visible:ring-ring/50 cursor-default rounded-sm outline-none focus-visible:ring-2")}>
+                  {row}
+                </div>
+              } />
+              <ChartTip side="left" className="max-w-xs">
+                {p.tip}
+              </ChartTip>
+            </Tooltip>
           ) : p.href ? (
             <Link
               href={p.href}
@@ -849,8 +844,8 @@ export function TreemapChart({
                 formatter={(value, name, item) => (
                   <div className="flex w-full flex-col gap-0.5">
                     <span className="font-medium">{name}</span>
-                    <span className="text-muted-foreground">{item?.payload?.plan}</span>
-                    <span className="text-foreground font-semibold tabular-nums">
+                    <span className="text-background/70">{item?.payload?.plan}</span>
+                    <span className="text-background font-semibold tabular-nums">
                       {formatValue(value, format, currency)} · {fmtPct(total > 0 ? Math.round((Number(value) / total) * 100) : 0)}
                     </span>
                   </div>
@@ -894,99 +889,97 @@ export function HeatmapGrid({
   const min = Math.min(...values);
   const max = Math.max(...values);
   return (
-    <TooltipProvider>
-      <div className="flex flex-col gap-3">
-        <div
-          role="table"
-          className="grid items-stretch gap-0.5 text-sm"
-          style={{
-            gridTemplateColumns: `minmax(0, auto) repeat(${columns.length}, minmax(0, 1fr))`,
-          }}
-        >
-          <div role="row" className="contents">
-            <div role="columnheader" />
-            {columns.map((c, ci) => (
-              <div
-                key={`${c}-${ci}`}
-                role="columnheader"
-                className="text-muted-foreground truncate px-2 pb-1 text-center text-xs"
-              >
-                {c}
-              </div>
-            ))}
-          </div>
-          {rows.map((r, ri) => (
-            <div key={`${r}-${ri}`} role="row" className="contents">
-              <div
-                role="rowheader"
-                className="text-muted-foreground flex items-center truncate pr-2 text-xs"
-              >
-                {r}
-              </div>
-              {columns.map((c, ci) => {
-                const v = cells[ri]?.[ci] ?? null;
-                const b = heatBucket(v, min, max);
-                const shown = v == null ? "\u2014" : formatValue(v, format, currency);
-                const text = `${r} / ${c}: ${v == null ? "no data" : shown}`;
-                return (
-                  <Tooltip key={`${c}-${ci}`}>
-                    <TooltipTrigger asChild>
-                      <div
-                        role="cell"
-                        tabIndex={0}
-                        aria-label={text}
-                        className="focus-visible:ring-ring/50 relative flex min-h-10 items-center justify-center overflow-hidden rounded-sm px-2 py-2 text-xs tabular-nums outline-none focus-visible:ring-2"
-                      >
-                        <span
-                          aria-hidden
-                          className="absolute inset-0"
-                          style={{
-                            background: chartColor(0),
-                            opacity: heatOpacity(b),
-                          }}
-                        />
-                        <span
-                          className={cn(
-                            "relative",
-                            b === 0
-                              ? "text-muted-foreground"
-                              : heatIsDense(b)
-                                ? "text-background font-medium"
-                                : "text-foreground font-medium",
-                          )}
-                        >
-                          {shown}
-                        </span>
-                      </div>
-                    </TooltipTrigger>
-                    <ChartTip>{text}</ChartTip>
-                  </Tooltip>
-                );
-              })}
+    <div className="flex flex-col gap-3">
+      <div
+        role="table"
+        className="grid items-stretch gap-0.5 text-sm"
+        style={{
+          gridTemplateColumns: `minmax(0, auto) repeat(${columns.length}, minmax(0, 1fr))`,
+        }}
+      >
+        <div role="row" className="contents">
+          <div role="columnheader" />
+          {columns.map((c, ci) => (
+            <div
+              key={`${c}-${ci}`}
+              role="columnheader"
+              className="text-muted-foreground truncate px-2 pb-1 text-center text-xs"
+            >
+              {c}
             </div>
           ))}
         </div>
-        <div
-          className="text-muted-foreground flex items-center gap-2 text-xs"
-          aria-hidden
-        >
-          <span>{formatValue(min, format, currency)}</span>
-          <div className="flex h-2 flex-1 overflow-hidden rounded-sm">
-            {Array.from({ length: HEAT_STEPS }, (_, i) => (
-              <span
-                key={i}
-                className="flex-1"
-                style={{
-                  background: chartColor(0),
-                  opacity: heatOpacity(i + 1),
-                }}
-              />
-            ))}
+        {rows.map((r, ri) => (
+          <div key={`${r}-${ri}`} role="row" className="contents">
+            <div
+              role="rowheader"
+              className="text-muted-foreground flex items-center truncate pr-2 text-xs"
+            >
+              {r}
+            </div>
+            {columns.map((c, ci) => {
+              const v = cells[ri]?.[ci] ?? null;
+              const b = heatBucket(v, min, max);
+              const shown = v == null ? "\u2014" : formatValue(v, format, currency);
+              const text = `${r} / ${c}: ${v == null ? "no data" : shown}`;
+              return (
+                <Tooltip key={`${c}-${ci}`}>
+                  <TooltipTrigger render={
+                    <div
+                      role="cell"
+                      tabIndex={0}
+                      aria-label={text}
+                      className="focus-visible:ring-ring/50 relative flex min-h-10 items-center justify-center overflow-hidden rounded-sm px-2 py-2 text-xs tabular-nums outline-none focus-visible:ring-2"
+                    >
+                      <span
+                        aria-hidden
+                        className="absolute inset-0"
+                        style={{
+                          background: chartColor(0),
+                          opacity: heatOpacity(b),
+                        }}
+                      />
+                      <span
+                        className={cn(
+                          "relative",
+                          b === 0
+                            ? "text-muted-foreground"
+                            : heatIsDense(b)
+                              ? "text-background font-medium"
+                              : "text-foreground font-medium",
+                        )}
+                      >
+                        {shown}
+                      </span>
+                    </div>
+                  } />
+                  <ChartTip>{text}</ChartTip>
+                </Tooltip>
+              );
+            })}
           </div>
-          <span>{formatValue(max, format, currency)}</span>
-        </div>
+        ))}
       </div>
-    </TooltipProvider>
+      <div
+        className="text-muted-foreground flex items-center gap-2 text-xs"
+        aria-hidden
+      >
+        <span>{formatValue(min, format, currency)}</span>
+        <div className="flex h-2 flex-1 overflow-hidden rounded-sm">
+          {Array.from({ length: HEAT_STEPS }, (_, i) => (
+            <span
+              key={i}
+              className="flex-1"
+              style={{
+                background: chartColor(0),
+                opacity: heatOpacity(i + 1),
+              }}
+            />
+          ))}
+        </div>
+        <span>{formatValue(max, format, currency)}</span>
+      </div>
+    </div>
   );
 }
 
@@ -1026,78 +1019,76 @@ export function CalendarHeatmap({
   const cellText = (v: number) => (format === "currency" ? moneyTick(v, currency) : v.toLocaleString());
   const zeroText = format === "currency" ? moneyTick(0, currency) : "0";
   return (
-    <TooltipProvider>
-      <div className="flex flex-col gap-3">
-        <div role="table" aria-label={`${label} by day`} className="grid items-stretch gap-0.5 text-sm" style={{ gridTemplateColumns: "minmax(0, auto) repeat(7, minmax(0, 1fr))" }}>
-          <div role="row" className="contents">
-            <div role="columnheader" />
-            {WEEKDAYS.map((d) => (
-              <div key={d} role="columnheader" className="text-muted-foreground px-1 pb-1 text-center text-xs">
-                {d}
-              </div>
-            ))}
-          </div>
-          {weeks.map((week) => (
-            <div key={week.find(Boolean) ?? "blank"} role="row" className="contents">
-              <div role="rowheader" className="text-muted-foreground flex items-center pr-2 text-xs whitespace-nowrap">
-                {calDate(CAL_WEEK, week.find((d): d is string => d !== null)!)}
-              </div>
-              {week.map((date, i) => {
-                if (!date) return <div key={`blank-${i}`} role="cell" aria-hidden className="min-h-10" />;
-                const entry = byDate.get(date);
-                const v = entry?.value ?? 0;
-                const b = heatBucket(v, min, max);
-                const parts = (entry?.breakdown ?? []).map((p) => `${p.label} ${formatValue(p.value, format, currency)}`);
-                const shown = v > 0 ? formatValue(v, format, currency) : zeroText;
-                const text = `${calDate(CAL_DAY, date)}: ${shown}${parts.length ? ` (${parts.join(", ")})` : ""}`;
-                return (
-                  <Tooltip key={date}>
-                    <TooltipTrigger asChild>
-                      <div
-                        role="cell"
-                        tabIndex={v > 0 ? 0 : undefined}
-                        aria-label={text}
-                        className={cn(
-                          "bg-muted/40 focus-visible:ring-ring/50 relative flex min-h-10 items-center justify-center overflow-hidden rounded-sm px-1 py-2 text-xs tabular-nums outline-none focus-visible:ring-2",
-                          date === today && "outline-foreground outline-2 -outline-offset-2",
-                        )}
-                      >
-                        <span aria-hidden className="absolute inset-0" style={{ background: chartColor(0), opacity: heatOpacity(b) }} />
-                        <span className={cn("relative", b === 0 ? "text-muted-foreground" : heatIsDense(b) ? "text-background font-medium" : "text-foreground font-medium")}>
-                          {v > 0 ? cellText(v) : null}
-                        </span>
-                      </div>
-                    </TooltipTrigger>
-                    <ChartTip>
-                      <div className="flex flex-col gap-0.5">
-                        <span className="font-medium">{calDate(CAL_DAY, date)}</span>
-                        <span>
-                          {label}: {shown}
-                        </span>
-                        {(entry?.breakdown ?? []).map((p) => (
-                          <span key={p.label}>
-                            {p.label}: {formatValue(p.value, format, currency)}
-                          </span>
-                        ))}
-                      </div>
-                    </ChartTip>
-                  </Tooltip>
-                );
-              })}
+    <div className="flex flex-col gap-3">
+      <div role="table" aria-label={`${label} by day`} className="grid items-stretch gap-0.5 text-sm" style={{ gridTemplateColumns: "minmax(0, auto) repeat(7, minmax(0, 1fr))" }}>
+        <div role="row" className="contents">
+          <div role="columnheader" />
+          {WEEKDAYS.map((d) => (
+            <div key={d} role="columnheader" className="text-muted-foreground px-1 pb-1 text-center text-xs">
+              {d}
             </div>
           ))}
         </div>
-        <div className="text-muted-foreground flex items-center gap-2 text-xs" aria-hidden>
-          <span>{cellText(0)}</span>
-          <div className="flex h-2 flex-1 overflow-hidden rounded-sm">
-            {Array.from({ length: HEAT_STEPS }, (_, i) => (
-              <span key={i} className="flex-1" style={{ background: chartColor(0), opacity: heatOpacity(i + 1) }} />
-            ))}
+        {weeks.map((week) => (
+          <div key={week.find(Boolean) ?? "blank"} role="row" className="contents">
+            <div role="rowheader" className="text-muted-foreground flex items-center pr-2 text-xs whitespace-nowrap">
+              {calDate(CAL_WEEK, week.find((d): d is string => d !== null)!)}
+            </div>
+            {week.map((date, i) => {
+              if (!date) return <div key={`blank-${i}`} role="cell" aria-hidden className="min-h-10" />;
+              const entry = byDate.get(date);
+              const v = entry?.value ?? 0;
+              const b = heatBucket(v, min, max);
+              const parts = (entry?.breakdown ?? []).map((p) => `${p.label} ${formatValue(p.value, format, currency)}`);
+              const shown = v > 0 ? formatValue(v, format, currency) : zeroText;
+              const text = `${calDate(CAL_DAY, date)}: ${shown}${parts.length ? ` (${parts.join(", ")})` : ""}`;
+              return (
+                <Tooltip key={date}>
+                  <TooltipTrigger render={
+                    <div
+                      role="cell"
+                      tabIndex={v > 0 ? 0 : undefined}
+                      aria-label={text}
+                      className={cn(
+                        "bg-muted/40 focus-visible:ring-ring/50 relative flex min-h-10 items-center justify-center overflow-hidden rounded-sm px-1 py-2 text-xs tabular-nums outline-none focus-visible:ring-2",
+                        date === today && "outline-foreground outline-2 -outline-offset-2",
+                      )}
+                    >
+                      <span aria-hidden className="absolute inset-0" style={{ background: chartColor(0), opacity: heatOpacity(b) }} />
+                      <span className={cn("relative", b === 0 ? "text-muted-foreground" : heatIsDense(b) ? "text-background font-medium" : "text-foreground font-medium")}>
+                        {v > 0 ? cellText(v) : null}
+                      </span>
+                    </div>
+                  } />
+                  <ChartTip>
+                    <div className="flex flex-col gap-0.5">
+                      <span className="font-medium">{calDate(CAL_DAY, date)}</span>
+                      <span>
+                        {label}: {shown}
+                      </span>
+                      {(entry?.breakdown ?? []).map((p) => (
+                        <span key={p.label}>
+                          {p.label}: {formatValue(p.value, format, currency)}
+                        </span>
+                      ))}
+                    </div>
+                  </ChartTip>
+                </Tooltip>
+              );
+            })}
           </div>
-          <span>{cellText(max)}</span>
-        </div>
+        ))}
       </div>
-    </TooltipProvider>
+      <div className="text-muted-foreground flex items-center gap-2 text-xs" aria-hidden>
+        <span>{cellText(0)}</span>
+        <div className="flex h-2 flex-1 overflow-hidden rounded-sm">
+          {Array.from({ length: HEAT_STEPS }, (_, i) => (
+            <span key={i} className="flex-1" style={{ background: chartColor(0), opacity: heatOpacity(i + 1) }} />
+          ))}
+        </div>
+        <span>{cellText(max)}</span>
+      </div>
+    </div>
   );
 }
 
@@ -1226,8 +1217,8 @@ export function GaugeChart({
                   className="min-w-40 gap-2.5"
                   formatter={() => (
                     <div className="flex w-full items-center justify-between gap-2">
-                      <span className="text-muted-foreground">{caption}</span>
-                      <span className="text-foreground font-semibold tabular-nums">
+                      <span className="text-background/70">{caption}</span>
+                      <span className="text-background font-semibold tabular-nums">
                         {formatValue(value, format, currency)} of {formatValue(total, format, currency)}
                       </span>
                     </div>
@@ -1267,7 +1258,7 @@ export function FunnelChart({ steps, footnote }: { steps: FunnelStep[]; footnote
     <div className="flex flex-col gap-1">
       {steps.map((s, i) => {
         const prev = steps[i - 1]?.value ?? 0;
-        const width = Math.min(100, Math.max(2, (s.value / first) * 100));
+        const width = Math.min(100, (s.value / first) * 100);
         const bar = (
           <div className="flex flex-col gap-1 py-1">
             <div className="flex items-baseline justify-between gap-2 text-sm">
@@ -1277,20 +1268,20 @@ export function FunnelChart({ steps, footnote }: { steps: FunnelStep[]; footnote
                 <span className="text-muted-foreground w-10 text-right text-xs tabular-nums">{fmtPct(Math.round((s.value / first) * 100))}</span>
               </span>
             </div>
-            <div className="flex justify-center">
-              <div className="h-6 rounded-sm" style={{ width: `${width}%`, background: toneColor(s.tone, "var(--chart-1)") }} />
+            <div className="bg-muted h-2 w-full overflow-hidden rounded-full">
+              <div className="h-full rounded-full" style={{ width: `${width}%`, background: toneColor(s.tone, "var(--chart-1)") }} />
             </div>
           </div>
         );
         return (
           <div key={`${s.label}-${i}`} className="flex flex-col">
-            {i > 0 ? (
-              <div className="text-muted-foreground text-center text-xs tabular-nums">
-                {prev > 0 ? `${Math.round((s.value / prev) * 100)}% of ${steps[i - 1]!.label}` : "-"}
+            {i > 0 && prev > 0 ? (
+              <div className="text-muted-foreground text-xs tabular-nums">
+                {`${Math.round((s.value / prev) * 100)}% of ${steps[i - 1]!.label}`}
               </div>
             ) : null}
             {s.href ? (
-              <Link href={s.href} className="hover:bg-muted/50 focus-visible:ring-ring/50 -mx-2 rounded-md px-2 outline-none transition-colors focus-visible:ring-2">
+              <Link href={s.href} className="hover:bg-muted/50 focus-visible:ring-ring/50 -mx-2 rounded-md px-2 outline-none focus-visible:ring-2">
                 {bar}
               </Link>
             ) : (
@@ -1426,9 +1417,9 @@ export function WaterfallChart({ start, steps, end, format = "currency", height 
                 <div className="flex w-full items-center justify-between gap-2">
                   <div className="flex items-center gap-1.5">
                     <div className="h-2.5 w-2.5 shrink-0 rounded-xs" style={{ background: item?.payload?.fill }} />
-                    <span className="text-muted-foreground">{item?.payload?.label}</span>
+                    <span className="text-background/70">{item?.payload?.label}</span>
                   </div>
-                  <span className="text-foreground font-semibold tabular-nums">{formatValue(item?.payload?.delta, format, currency)}</span>
+                  <span className="text-background font-semibold tabular-nums">{formatValue(item?.payload?.delta, format, currency)}</span>
                 </div>
               )}
             />

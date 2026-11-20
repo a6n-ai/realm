@@ -2,7 +2,6 @@
 import "@testing-library/jest-dom/vitest";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen, within } from "@testing-library/react";
-import { TooltipProvider } from "@foundry/ui/tooltip";
 import { RECOMMENDATION_LIMIT, RecommendationGrid, RecommendationGridSkeleton, type RecommendationItem } from "./recommendation-grid";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }) }));
@@ -13,9 +12,7 @@ const owner = { current: "me", options: [{ value: "me", label: "Me", href: "/x?o
 const item = (n: number): RecommendationItem => ({ key: `k${n}`, name: `Lead ${n}`, href: `/dashboard/inquiries/p${n}`, actions: <button type="button">Note {n}</button> });
 const wrap = (items: RecommendationItem[], over: { error?: string } = {}) =>
   render(
-    <TooltipProvider>
-      <RecommendationGrid title="Next leads" owner={owner} toAct={9} viewAllHref="/dashboard/inquiries?queue=open" items={items} empty={<p>All clear</p>} {...over} />
-    </TooltipProvider>,
+    <RecommendationGrid title="Next leads" owner={owner} toAct={9} viewAllHref="/dashboard/inquiries?queue=open" items={items} empty={<p>All clear</p>} {...over} />,
   );
 
 describe("RecommendationGrid", () => {
@@ -49,5 +46,12 @@ describe("RecommendationGrid", () => {
     render(<RecommendationGridSkeleton title="Next leads" />);
     expect(screen.getByRole("heading", { name: "Next leads" })).toBeInTheDocument();
     expect(within(document.body).getAllByRole("heading")).toHaveLength(1);
+  });
+
+  it("entity skeleton mirrors the lead row: avatar, name, pill, meta line and three action squares", () => {
+    const { container } = render(<RecommendationGridSkeleton title="Next leads" entity />);
+    const cards = container.querySelectorAll('[data-slot="card"][data-size="sm"]');
+    expect(cards).toHaveLength(3);
+    cards.forEach((card) => expect(card.querySelectorAll('[data-slot="skeleton"]')).toHaveLength(7));
   });
 });

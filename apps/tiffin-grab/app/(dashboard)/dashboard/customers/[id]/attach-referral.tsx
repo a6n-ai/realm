@@ -35,9 +35,7 @@ export function AttachReferral({ customerPublicId }: { customerPublicId: string 
 
   return (
     <Dialog open={open} onOpenChange={(o) => { setOpen(o); setError(null); }}>
-      <DialogTrigger asChild>
-        <Button size="sm" variant="outline">Add referral code</Button>
-      </DialogTrigger>
+      <DialogTrigger render={<Button size="sm" variant="outline" />}>Add referral code</DialogTrigger>
       <DialogContent>
         <form onSubmit={submit} className="flex flex-col gap-4">
           <DialogHeader>
@@ -50,9 +48,7 @@ export function AttachReferral({ customerPublicId }: { customerPublicId: string 
             {error ? <p className="text-destructive text-sm">{error}</p> : null}
           </div>
           <DialogFooter>
-            <DialogClose asChild>
-              <Button type="button" variant="outline">Cancel</Button>
-            </DialogClose>
+            <DialogClose render={<Button type="button" variant="outline" />}>Cancel</DialogClose>
             <Button type="submit" disabled={pending || code.trim() === ""}>Add referral</Button>
           </DialogFooter>
         </form>

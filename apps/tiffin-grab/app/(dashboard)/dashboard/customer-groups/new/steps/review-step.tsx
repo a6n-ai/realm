@@ -95,10 +95,10 @@ export function ReviewStep({
             </TableCell>
             <TableCell className="font-medium">{r.name ?? "Customer"}</TableCell>
             <TableCell className="text-muted-foreground">{r.phone ?? r.email ?? "-"}</TableCell>
-            <TableCell className="text-right tabular-nums">{r.added ? <Badge variant="secondary">Added</Badge> : fmtMoney(Number(r.revenue))}</TableCell>
-            <TableCell className="text-right tabular-nums">{r.walletCoins}</TableCell>
-            <TableCell className="tabular-nums">{r.added ? "" : r.firstOrderDate}</TableCell>
-            <TableCell className="tabular-nums">{r.added ? "" : (r.lastTiffin ?? "-")}</TableCell>
+            <TableCell numeric className="text-right tabular-nums">{r.added ? <Badge variant="secondary">Added</Badge> : fmtMoney(Number(r.revenue))}</TableCell>
+            <TableCell numeric className="text-right tabular-nums">{r.walletCoins}</TableCell>
+            <TableCell numeric className="tabular-nums">{r.added ? "" : r.firstOrderDate}</TableCell>
+            <TableCell numeric className="tabular-nums">{r.added ? "" : (r.lastTiffin ?? "-")}</TableCell>
           </>
         )}
       />

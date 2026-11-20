@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Skeleton } from "@foundry/ui/skeleton";
-import { Card } from "@/components/ds";
+import { Card, CardContent, CardFooter, CardHeader } from "@foundry/ui/card";
 import { IconTileSkeleton } from "./icon-tile";
 
 /** App Store–style card shared by the plugin marketplace and Add payment method. */
@@ -25,8 +25,8 @@ export function CatalogCard({
   action?: ReactNode;
 }) {
   return (
-    <Card variant="flat" className="h-full gap-0 p-0">
-      <div className="flex h-full flex-col gap-4 p-5">
+    <Card className="h-full">
+      <CardHeader>
         <div className="flex items-start gap-3">
           {tile}
           <div className="flex min-w-0 flex-1 flex-col gap-0.5">
@@ -35,12 +35,14 @@ export function CatalogCard({
           </div>
           {menu}
         </div>
-        <p className="text-muted-foreground line-clamp-2 flex-1 text-sm">{description}</p>
-        <div className="flex items-center justify-between gap-2">
-          {status ?? <span />}
-          {action}
-        </div>
-      </div>
+      </CardHeader>
+      <CardContent className="flex-1">
+        <p className="text-muted-foreground line-clamp-2 text-sm">{description}</p>
+      </CardContent>
+      <CardFooter className="justify-between gap-2">
+        {status ?? <span />}
+        {action}
+      </CardFooter>
     </Card>
   );
 }
@@ -64,8 +66,8 @@ export function CatalogShelf({ title, count, children }: { title?: string | null
 
 export function CatalogCardSkeleton() {
   return (
-    <Card variant="flat" className="h-full gap-0 p-0">
-      <div className="flex h-full flex-col gap-4 p-5">
+    <Card className="h-full">
+      <CardHeader>
         <div className="flex items-start gap-3">
           <IconTileSkeleton size="lg" />
           <div className="flex flex-1 flex-col gap-1.5">
@@ -73,15 +75,15 @@ export function CatalogCardSkeleton() {
             <Skeleton className="h-3 w-16" />
           </div>
         </div>
-        <div className="flex flex-1 flex-col gap-1.5">
-          <Skeleton className="h-3.5 w-full" />
-          <Skeleton className="h-3.5 w-2/3" />
-        </div>
-        <div className="flex items-center justify-between gap-2">
-          <Skeleton className="h-5 w-20 rounded-full" />
-          <Skeleton className="h-8 w-20" />
-        </div>
-      </div>
+      </CardHeader>
+      <CardContent className="flex flex-1 flex-col gap-1.5">
+        <Skeleton className="h-3.5 w-full" />
+        <Skeleton className="h-3.5 w-2/3" />
+      </CardContent>
+      <CardFooter className="justify-between gap-2">
+        <Skeleton className="h-5 w-20 rounded-full" />
+        <Skeleton className="h-8 w-20" />
+      </CardFooter>
     </Card>
   );
 }

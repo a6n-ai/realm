@@ -53,7 +53,7 @@ export function WaiversTable({ waivers, strategies, now }: { waivers: DiscountDt
               <TableCell>
                 {w.kind === "waiver_strategy" ? `${strategyName.get(w.targetPublicId ?? "") ?? "Unknown strategy"} fee` : WAIVER_LABELS[w.kind as WaiverKind]}
               </TableCell>
-              <TableCell className="text-right tabular-nums">{w.percent}%</TableCell>
+              <TableCell numeric className="text-right tabular-nums">{w.percent}%</TableCell>
               <TableCell>
                 <Badge variant={status === "active" ? "default" : "outline"} className="font-normal">{COUPON_STATUS_LABEL[status]}</Badge>
               </TableCell>

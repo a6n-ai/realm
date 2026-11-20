@@ -1,4 +1,3 @@
-import { Badge } from "@/components/reui/badge";
 import { formatEpoch } from "@/lib/format/datetime";
 import type { PipelineRow } from "@/lib/inquiries/inquiries.service";
 
@@ -11,10 +10,13 @@ export function ago(ms: number, now: number): string {
   return `${Math.round(hours / 24)}d ago`;
 }
 
+/** The lead row's muted meta line: the follow-up state as text, since the status pill already carries the lead's state. */
 export function FollowUpBadge({ lead, dayStart, dayEnd, now, timeZone }: { lead: PipelineRow; timeZone: string; now: number; dayStart: number; dayEnd: number }) {
   const at = lead.nextFollowUpAt;
-  if (at == null) return <Badge variant="warning-light">No follow-up set</Badge>;
-  if (at < dayStart) return <Badge variant="destructive-light">Overdue · {ago(at, now)}</Badge>;
-  if (at < dayEnd) return <Badge variant="warning-light">Due {formatEpoch(at, { mode: "time", timeZone })}</Badge>;
-  return <Badge variant="secondary">{formatEpoch(at, { mode: "datetime", timeZone })}</Badge>;
+  const text =
+    at == null ? "No follow-up set"
+    : at < dayStart ? `Overdue · ${ago(at, now)}`
+    : at < dayEnd ? `Due ${formatEpoch(at, { mode: "time", timeZone })}`
+    : formatEpoch(at, { mode: "datetime", timeZone });
+  return <span className="tabular-nums">{text}</span>;
 }

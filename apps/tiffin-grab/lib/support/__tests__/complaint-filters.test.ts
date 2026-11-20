@@ -106,3 +106,14 @@ describe("unlinked bucket", () => {
     expect(NOT_LINKED.startsWith("__")).toBe(true);
   });
 });
+
+describe("complaintHref with a timezone", () => {
+  it("writes ISO dates for a day window and keeps epoch without one", () => {
+    const from = Date.parse("2035-01-05T05:00:00Z");
+    const to = Date.parse("2035-01-21T05:00:00Z") - 1;
+    expect(complaintHref("/dashboard/tickets", { from, to, tz: "America/Toronto" })).toBe(
+      "/dashboard/tickets?from=2035-01-05&to=2035-01-20",
+    );
+    expect(complaintHref("/dashboard/tickets", { from, to })).toBe(`/dashboard/tickets?from=${from}&to=${to}`);
+  });
+});

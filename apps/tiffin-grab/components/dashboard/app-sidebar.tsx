@@ -3,24 +3,31 @@
 import { initials } from "@foundry/ui/initials";
 import { useNavAllowed } from "@/components/dashboard/nav-access-provider";
 import * as React from "react";
+import type { ReactNode } from "react";
 import {
   BarChart3Icon,
   BellIcon,
   Building2Icon,
   CalendarIcon,
   CheckIcon,
-  ClipboardListIcon,
+  ChefHatIcon,
+  ChartLineIcon,
+  ChevronRightIcon,
+  BoxIcon,
   CoinsIcon,
   CopyIcon,
-  LayoutDashboardIcon,
+  EllipsisIcon,
+  InboxIcon,
+  LayoutGridIcon,
   LifeBuoyIcon,
   Loader2Icon,
   LockIcon,
   LogOutIcon,
+  MegaphoneIcon,
   TruckIcon,
   WalletCardsIcon,
+  WalletIcon,
   type LucideIcon,
-  PackageIcon,
   RefreshCwIcon,
   SettingsIcon,
   TagIcon,
@@ -48,8 +55,10 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarRail,
+  SidebarSeparator,
+  useSidebar,
 } from "@foundry/ui/sidebar";
+import { Collapsible, CollapsibleContent } from "@foundry/ui/collapsible";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -60,11 +69,36 @@ import {
   DropdownMenuTrigger,
 } from "@foundry/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@foundry/ui/avatar";
+import { Button } from "@foundry/ui/button";
 import { useFormatMoney } from "@/components/app-currency";
 import { useCopy } from "@/lib/hooks/use-copy";
+import {
+  SIDEBAR_WIDTH_COOKIE,
+  SIDEBAR_WIDTH_DEFAULT,
+  SIDEBAR_WIDTH_MAX,
+  SIDEBAR_WIDTH_MIN,
+  clampSidebarWidth,
+} from "@/components/dashboard/sidebar-width";
 
-export type NavItem = { title: string; href: string; icon: LucideIcon };
-export type NavSection = { label: string; items: NavItem[] };
+export type NavItem = { title: string; href: string; icon: LucideIcon; children?: NavItem[] };
+export type NavSection = {
+  label: string;
+  items: NavItem[];
+  variant?: "primary" | "section" | "bottom" | "menu";
+};
+
+const WIDTH_STEP = 8;
+
+function saveWidth(w: number) {
+  try {
+    document.cookie = `${SIDEBAR_WIDTH_COOKIE}=${w}; path=/; max-age=31536000; SameSite=Lax`;
+  } catch {
+    // Cookies blocked: the width still applies until reload.
+  }
+}
+
+const ROW =
+  "group/nav h-9 rounded-(--ui-radius-control) text-sm text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground data-active:bg-muted data-active:font-medium data-active:text-foreground";
 
 // Swaps the nav icon for a spinner while this link's navigation is in flight.
 // Dashboard routes are dynamic and unprefetched, so a click otherwise shows
@@ -72,9 +106,9 @@ export type NavSection = { label: string; items: NavItem[] };
 function NavIcon({ icon: Icon }: { icon: LucideIcon }) {
   const { pending } = useLinkStatus();
   return pending ? (
-    <Loader2Icon aria-hidden className="animate-spin" />
+    <Loader2Icon aria-hidden className="size-4 animate-spin" strokeWidth={1.5} />
   ) : (
-    <Icon className="transition-transform duration-200 group-hover/nav:scale-110" />
+    <Icon className="size-4" strokeWidth={1.5} />
   );
 }
 
@@ -88,59 +122,89 @@ const SECTION_BY_HREF: Record<string, Section> = {
   "/dashboard/payments": "payments",
 };
 
-// Grouped navigation. A section renders only when the caller's org permissions
-// admit at least one of its items (see lib/nav/nav-permissions.ts). Exported so the command palette reuses it.
+// Flat primary list, then `>` section items that expand inline to their pages. A section renders only
+// when the caller's org permissions admit one of its pages (see lib/nav/nav-permissions.ts).
 export const SECTIONS: NavSection[] = [
   {
-    label: "Operations",
+    label: "Main",
+    variant: "primary",
     items: [
-      { title: "Overview", href: "/dashboard", icon: LayoutDashboardIcon },
-      { title: "Analytics", href: "/dashboard/analytics", icon: BarChart3Icon },
-      { title: "Inquiries", href: "/dashboard/inquiries", icon: ClipboardListIcon },
-      { title: "Orders", href: "/dashboard/orders", icon: PackageIcon },
-      { title: "Daily labels", href: "/dashboard/labels", icon: TagIcon },
-      { title: "Dispatch", href: "/dashboard/dispatch", icon: TruckIcon },
-      { title: "Renewals", href: "/dashboard/renewals", icon: RefreshCwIcon },
+      { title: "Overview", href: "/dashboard", icon: LayoutGridIcon },
+      { title: "Orders", href: "/dashboard/orders", icon: BoxIcon },
+      { title: "Inquiries", href: "/dashboard/inquiries", icon: InboxIcon },
       { title: "Customers", href: "/dashboard/customers", icon: UsersIcon },
+      { title: "Renewals", href: "/dashboard/renewals", icon: RefreshCwIcon },
+      { title: "Dispatch", href: "/dashboard/dispatch", icon: TruckIcon },
       { title: "Tickets", href: "/dashboard/tickets", icon: LifeBuoyIcon },
     ],
   },
   {
-    label: "Catalog",
+    label: "Sections",
+    variant: "section",
     items: [
-      { title: "Catalog", href: "/dashboard/catalog", icon: UtensilsCrossedIcon },
-      { title: "Weekly Menus", href: "/dashboard/menus", icon: CalendarIcon },
-    ],
-  },
-  {
-    label: "Finance",
-    items: [
-      { title: "Payments", href: "/dashboard/payments", icon: WalletCardsIcon },
-      { title: "Wallet", href: "/dashboard/wallet", icon: CoinsIcon },
-      { title: "Discounts", href: "/dashboard/discounts", icon: TicketPercentIcon },
-    ],
-  },
-  {
-    label: "Engagement",
-    items: [
-      { title: "Notifications", href: "/dashboard/notifications", icon: BellIcon },
-      { title: "Customer groups", href: "/dashboard/customer-groups", icon: UsersIcon },
+      {
+        title: "Kitchen",
+        href: "/dashboard/labels",
+        icon: ChefHatIcon,
+        children: [
+          { title: "Daily labels", href: "/dashboard/labels", icon: TagIcon },
+          { title: "Weekly Menus", href: "/dashboard/menus", icon: CalendarIcon },
+          { title: "Catalog", href: "/dashboard/catalog", icon: UtensilsCrossedIcon },
+        ],
+      },
+      {
+        title: "Money",
+        href: "/dashboard/payments",
+        icon: WalletIcon,
+        children: [
+          { title: "Payments", href: "/dashboard/payments", icon: WalletCardsIcon },
+          { title: "Wallet", href: "/dashboard/wallet", icon: CoinsIcon },
+          { title: "Discounts", href: "/dashboard/discounts", icon: TicketPercentIcon },
+        ],
+      },
+      {
+        title: "Engage",
+        href: "/dashboard/notifications",
+        icon: MegaphoneIcon,
+        children: [
+          { title: "Notifications", href: "/dashboard/notifications", icon: BellIcon },
+          { title: "Customer groups", href: "/dashboard/customer-groups", icon: UsersIcon },
+        ],
+      },
+      {
+        title: "Insights",
+        href: "/dashboard/analytics",
+        icon: ChartLineIcon,
+        children: [{ title: "Analytics", href: "/dashboard/analytics", icon: BarChart3Icon }],
+      },
     ],
   },
   {
     label: "Administration",
+    variant: "bottom",
     items: [
-      { title: "Organization", href: "/dashboard/organization", icon: Building2Icon },
       { title: "Settings", href: "/dashboard/settings", icon: SettingsIcon },
+      { title: "Organization", href: "/dashboard/organization", icon: Building2Icon },
     ],
   },
   {
     label: "Personal",
-    items: [
-      { title: "Account", href: "/dashboard/account", icon: UserIcon },
-    ],
+    variant: "menu",
+    items: [{ title: "Account", href: "/dashboard/account", icon: UserIcon }],
   },
 ];
+
+// Every page a user can open, with section children expanded. Global search and the more drawer read this.
+export const flatNavItems = (): NavItem[] => SECTIONS.flatMap((s) => s.items.flatMap((i) => i.children ?? [i]));
+
+// Longest-prefix match: /dashboard/orders is not active while a more specific page under it is open.
+export function isNavActive(pathname: string, href: string): boolean {
+  if (href === "/dashboard") return pathname === href;
+  return (
+    pathname.startsWith(href) &&
+    !flatNavItems().some((i) => i.href.length > href.length && i.href.startsWith(href) && pathname.startsWith(i.href))
+  );
+}
 
 // Serializable rep-coupon projection (mirrors RepCouponToday) — kept local so the
 // client bundle never imports the server-only coupons service module.
@@ -157,15 +221,31 @@ export function AppSidebar({
   hasPin,
   repCoupon,
   activity,
+  initialWidth = SIDEBAR_WIDTH_DEFAULT,
+  search,
+  orgSwitcher,
+  bell,
+  clock,
 }: {
   user: { email: string; role: string; name: string | null; image: string | null };
   hasPin: boolean;
   repCoupon?: RepCouponView | null;
   activity?: Record<Section, boolean> | null;
+  /** Saved width from the cookie, so the first paint matches the server-set --sidebar-width. */
+  initialWidth?: number;
+  /** Find box (GlobalSearch); a slot because the search imports SECTIONS from this module. */
+  search?: ReactNode;
+  /** Org switcher; renders nothing for a single-org session. */
+  orgSwitcher?: ReactNode;
+  /** Notification bell for the footer user row. */
+  bell?: ReactNode;
+  /** Clock card above the footer links. */
+  clock?: ReactNode;
 }) {
   const pathname = usePathname();
   const router = useRouter();
   const navAllowed = useNavAllowed();
+  const { state: sidebarState } = useSidebar();
   // Sections read since the layout last rendered `activity`. A fresh `activity`
   // (any refresh) already reflects those reads, so the set resets with it.
   const [read, setRead] = React.useState<{ from: typeof activity; set: ReadonlySet<Section> }>({ from: activity, set: new Set() });
@@ -178,67 +258,200 @@ export function AppSidebar({
     window.addEventListener(SECTION_READ_EVENT, onRead);
     return () => window.removeEventListener(SECTION_READ_EVENT, onRead);
   }, [activity]);
+  const unread = (href: string) => {
+    const section = SECTION_BY_HREF[href];
+    return Boolean(section && activity?.[section] && !readSet.has(section));
+  };
+
+  // CrmShell's provider already carries the saved width as --sidebar-width, so nothing is written on mount.
+  const [width, setWidth] = React.useState(initialWidth);
+  const drag = React.useRef<{ startX: number; startWidth: number; next: number; moved: boolean } | null>(null);
+
+  const wrapperOf = (el: HTMLElement) => el.closest<HTMLElement>('[data-slot="sidebar-wrapper"]');
+  const setLiveWidth = (el: HTMLElement, w: number) => wrapperOf(el)?.style.setProperty("--sidebar-width", `${w}px`);
+  const commitWidth = (el: HTMLElement, w: number) => {
+    setWidth(w);
+    setLiveWidth(el, w);
+    saveWidth(w);
+  };
+
+  // Pointer capture keeps the drag on the handle even when the pointer leaves the sidebar.
+  const onResizeDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    drag.current = { startX: e.clientX, startWidth: width, next: width, moved: false };
+    wrapperOf(e.currentTarget)?.setAttribute("data-resizing", "");
+  };
+  const onResizeMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const d = drag.current;
+    if (!d) return;
+    const dx = e.clientX - d.startX;
+    if (Math.abs(dx) >= 3) d.moved = true;
+    d.next = clampSidebarWidth(d.startWidth + dx);
+    setLiveWidth(e.currentTarget, d.next);
+  };
+  const endResize = (el: HTMLElement, commit: boolean) => {
+    const d = drag.current;
+    if (!d) return;
+    drag.current = null;
+    wrapperOf(el)?.removeAttribute("data-resizing");
+    if (commit && d.moved) commitWidth(el, d.next);
+    else setLiveWidth(el, d.startWidth);
+  };
+
+  const onResizeKey = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === "Escape" && drag.current) {
+      e.preventDefault();
+      endResize(e.currentTarget, false);
+      return;
+    }
+    const next =
+      e.key === "ArrowLeft" ? clampSidebarWidth(width - WIDTH_STEP)
+      : e.key === "ArrowRight" ? clampSidebarWidth(width + WIDTH_STEP)
+      : e.key === "Home" ? SIDEBAR_WIDTH_MIN
+      : e.key === "End" ? SIDEBAR_WIDTH_MAX
+      : null;
+    if (next === null) return;
+    e.preventDefault();
+    commitWidth(e.currentTarget, next);
+  };
+
   const userInitials = initials(user.name?.trim() || user.email);
-  const isActive = (href: string) =>
-    href === "/dashboard"
-      ? pathname === href
-      : pathname.startsWith(href) &&
-        !SECTIONS.some((s) => s.items.some((i) => i.href.length > href.length && i.href.startsWith(href) && pathname.startsWith(i.href)));
+  const allowedItems = (items: NavItem[]) => items.filter((item) => navAllowed(item.href));
+  const allowedChildren = (item: NavItem) => (item.children ?? []).filter((child) => navAllowed(child.href));
+
+  const renderItem = (item: NavItem) => {
+    const active = isNavActive(pathname, item.href);
+    return (
+      <SidebarMenuItem key={item.href}>
+        <SidebarMenuButton asChild isActive={active} tooltip={item.title} className={ROW}>
+          {/* No viewport prefetch (every nav item at once 503'd the box); prefetch
+              on intent instead, down to dashboard/loading.tsx. */}
+          <Link
+            href={item.href}
+            prefetch={false}
+            onMouseEnter={() => router.prefetch(item.href)}
+            onFocus={() => router.prefetch(item.href)}
+          >
+            <NavIcon icon={item.icon} />
+            <span>{item.title}</span>
+            {unread(item.href) ? (
+              <span aria-label="New activity" className="bg-primary ml-auto size-2 shrink-0 rounded-full" />
+            ) : null}
+          </Link>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+    );
+  };
+
+  const [sectionOpen, setSectionOpen] = React.useState<Record<string, boolean>>({});
+  // Moving to another page inside a section drops the user's close on it, so the active section reopens.
+  const [seenPath, setSeenPath] = React.useState(pathname);
+  if (seenPath !== pathname) {
+    setSeenPath(pathname);
+    const holdsPage = (title: string) =>
+      (SECTIONS.flatMap((s) => s.items).find((i) => i.title === title)?.children ?? []).some((c) => isNavActive(pathname, c.href));
+    setSectionOpen((prev) => Object.fromEntries(Object.entries(prev).filter(([title]) => !holdsPage(title))));
+  }
+
+  const renderSection = (item: NavItem) => {
+    const children = allowedChildren(item);
+    const active = children.some((child) => isNavActive(pathname, child.href));
+    const open = sectionOpen[item.title] ?? active;
+    const dot = children.some((child) => unread(child.href));
+    const panelId = `tg-nav-${item.title.toLowerCase().replace(/\s+/g, "-")}`;
+    return (
+      <SidebarMenuItem key={item.title}>
+        <SidebarMenuButton
+          type="button"
+          isActive={active}
+          tooltip={item.title}
+          aria-expanded={open}
+          aria-controls={panelId}
+          onClick={() => setSectionOpen((prev) => ({ ...prev, [item.title]: !open }))}
+          className={ROW}
+        >
+          <item.icon className="size-4" strokeWidth={1.5} />
+          <span>{item.title}</span>
+          {dot ? <span aria-label="New activity" className="bg-primary ml-auto size-2 shrink-0 rounded-full" /> : null}
+          <ChevronRightIcon
+            aria-hidden
+            strokeWidth={1.5}
+            className={cn(
+              "text-muted-foreground size-4 transition-transform duration-150 motion-reduce:transition-none",
+              open && "rotate-90",
+              !dot && "ml-auto",
+            )}
+          />
+        </SidebarMenuButton>
+        <Collapsible open={open}>
+          <CollapsibleContent id={panelId}>
+            <ul className="flex flex-col gap-0.5 pt-0.5">
+              {children.map((child) => {
+                const childActive = isNavActive(pathname, child.href);
+                return (
+                  <li key={child.href}>
+                    <Link
+                      href={child.href}
+                      prefetch={false}
+                      aria-current={childActive ? "page" : undefined}
+                      onMouseEnter={() => router.prefetch(child.href)}
+                      onFocus={() => router.prefetch(child.href)}
+                      className={cn(
+                        "text-muted-foreground hover:bg-muted/60 hover:text-foreground flex h-8 items-center rounded-(--ui-radius-control) pr-2 pl-8 text-[13px] transition-colors",
+                        childActive && "bg-muted text-foreground",
+                      )}
+                    >
+                      {child.title}
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </CollapsibleContent>
+        </Collapsible>
+      </SidebarMenuItem>
+    );
+  };
+
+  const bottomItems = SECTIONS.filter((s) => s.variant === "bottom").flatMap((s) => allowedItems(s.items));
 
   return (
-    <Sidebar collapsible="icon">
+    <Sidebar collapsible="offcanvas" id="tg-sidebar" inert={sidebarState === "collapsed"}>
       <SidebarHeader>
-        <Link href="/dashboard" aria-label="TiffinGrab home" className="group flex items-center gap-2.5 px-2 py-1.5 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
-          <BrandMark className="size-10 group-data-[collapsible=icon]:size-8" />
-          <div className="flex flex-col gap-1 group-data-[collapsible=icon]:hidden">
-            <BrandWordmark className="text-xl" />
-            <span className="text-muted-foreground text-caption-2 font-medium tracking-wide uppercase">Operations</span>
-          </div>
-        </Link>
+        <div className="flex items-center gap-1 px-2 py-1.5">
+          <Link href="/dashboard" aria-label="TiffinGrab home" className="flex min-w-0 flex-1 items-center gap-2">
+            <BrandMark className="size-8" />
+            <BrandWordmark className="text-lg" />
+          </Link>
+          {orgSwitcher}
+        </div>
+        {search ? <div className="px-2 pb-2">{search}</div> : null}
       </SidebarHeader>
 
       <SidebarContent>
         {SECTIONS.map((section) => {
-          const items = section.items.filter((item) => navAllowed(item.href));
-          if (items.length === 0) return null;
-          return (
-            <SidebarGroup key={section.label}>
-              <SidebarGroupLabel>{section.label}</SidebarGroupLabel>
-              <SidebarMenu>
-                {items.map((item) => (
-                  <SidebarMenuItem key={item.href}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={isActive(item.href)}
-                      tooltip={item.title}
-                      className="group/nav"
-                    >
-                      {/* No viewport prefetch (every nav item at once 503'd the box); prefetch
-                          on intent instead, down to dashboard/loading.tsx. */}
-                      <Link
-                        href={item.href}
-                        prefetch={false}
-                        onMouseEnter={() => router.prefetch(item.href)}
-                        onFocus={() => router.prefetch(item.href)}
-                      >
-                        <NavIcon icon={item.icon} />
-                        <span>{item.title}</span>
-                        {(() => {
-                          const section = SECTION_BY_HREF[item.href];
-                          return section && activity?.[section] && !readSet.has(section) ? (
-                            <span
-                              aria-label="New activity"
-                              className="bg-primary ml-auto size-2 shrink-0 rounded-full"
-                            />
-                          ) : null;
-                        })()}
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
-            </SidebarGroup>
-          );
+          if (section.variant === "primary") {
+            const items = allowedItems(section.items);
+            if (items.length === 0) return null;
+            return (
+              <SidebarGroup key={section.label}>
+                <SidebarMenu>{items.map(renderItem)}</SidebarMenu>
+              </SidebarGroup>
+            );
+          }
+          if (section.variant === "section") {
+            const rows = section.items.flatMap((item) => (allowedChildren(item).length > 0 ? [renderSection(item)] : []));
+            if (rows.length === 0) return null;
+            return (
+              <SidebarGroup key={section.label}>
+                <SidebarSeparator />
+                <SidebarMenu>{rows}</SidebarMenu>
+              </SidebarGroup>
+            );
+          }
+          return null;
         })}
 
         {activity && Object.values(activity).some(Boolean) && (
@@ -249,7 +462,7 @@ export function AppSidebar({
                   onClick={() => { void markAllReadAction(); router.refresh(); }}
                   tooltip="Mark all read"
                 >
-                  <CheckIcon />
+                  <CheckIcon className="size-4" strokeWidth={1.5} />
                   <span>Mark all read</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -261,72 +474,77 @@ export function AppSidebar({
       {repCoupon && <RepCouponCard coupon={repCoupon} />}
 
       <SidebarFooter>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <SidebarMenuButton size="lg">
-                  <Avatar className="size-8 rounded-md">
-                    <AvatarImage src={user.image ?? undefined} alt={user.name ?? user.email} className="rounded-md" />
-                    <AvatarFallback className="rounded-md">{userInitials}</AvatarFallback>
-                  </Avatar>
-                  <div className="flex flex-col leading-tight">
-                    <span className="truncate text-sm font-medium">{user.name?.trim() || user.email}</span>
-                    <span className="text-muted-foreground text-xs capitalize">{user.role}</span>
-                  </div>
-                </SidebarMenuButton>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" side="top" className="w-56">
-                <DropdownMenuLabel className="flex flex-col">
-                  <span className="truncate font-medium">{user.name?.trim() || user.email}</span>
-                  <span className="text-muted-foreground truncate text-xs font-normal capitalize">{user.role}</span>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuGroup>
-                  <DropdownMenuItem asChild>
-                    <Link href="/dashboard/account">
-                      <UserIcon data-icon="inline-start" />
-                      Account
-                    </Link>
-                  </DropdownMenuItem>
-                  {navAllowed("/dashboard/settings") && (
-                    <DropdownMenuItem asChild>
-                      <Link href="/dashboard/settings">
-                        <SettingsIcon data-icon="inline-start" />
-                        Settings
-                      </Link>
-                    </DropdownMenuItem>
-                  )}
-                  {hasPin && (
-                    <DropdownMenuItem
-                      onClick={async () => {
-                        await lockSession();
-                        router.push("/login");
-                      }}
-                    >
-                      <LockIcon data-icon="inline-start" />
-                      Lock session
-                    </DropdownMenuItem>
-                  )}
-                </DropdownMenuGroup>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => signOut({ fetchOptions: { onSuccess: () => { window.location.href = "/login"; } } })}>
-                  <LogOutIcon data-icon="inline-start" />
-                  Sign out
+        {clock ? <div className="px-2 pt-2">{clock}</div> : null}
+        {bottomItems.length > 0 && <SidebarMenu>{bottomItems.map(renderItem)}</SidebarMenu>}
+        <div className="flex items-center gap-1 px-2 py-1.5 [&_svg]:[stroke-width:1.5]">
+          <Avatar className="size-8 rounded-md">
+            <AvatarImage src={user.image ?? undefined} alt={user.name ?? user.email} className="rounded-md" />
+            <AvatarFallback className="rounded-md">{userInitials}</AvatarFallback>
+          </Avatar>
+          <div className="flex min-w-0 flex-1 flex-col leading-tight">
+            <span className="truncate text-sm font-medium">{user.name?.trim() || user.email}</span>
+            <span className="text-muted-foreground text-xs capitalize">{user.role}</span>
+          </div>
+          {bell}
+          <DropdownMenu>
+            <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label="Account menu" />}>
+              <EllipsisIcon />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" side="top" className="w-56">
+              <DropdownMenuLabel className="flex flex-col">
+                <span className="truncate font-medium">{user.name?.trim() || user.email}</span>
+                <span className="text-muted-foreground truncate text-xs font-normal capitalize">{user.role}</span>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuGroup>
+                <DropdownMenuItem render={<Link href="/dashboard/account" />}>
+                  <UserIcon data-icon="inline-start" />
+                  Account
                 </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </SidebarMenuItem>
-        </SidebarMenu>
+                {hasPin && (
+                  <DropdownMenuItem
+                    onClick={async () => {
+                      await lockSession();
+                      router.push("/login");
+                    }}
+                  >
+                    <LockIcon data-icon="inline-start" />
+                    Lock session
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuGroup>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => signOut({ fetchOptions: { onSuccess: () => { window.location.href = "/login"; } } })}>
+                <LogOutIcon data-icon="inline-start" />
+                Sign out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </SidebarFooter>
-      <SidebarRail />
+      <div
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Resize sidebar"
+        aria-controls="tg-sidebar"
+        aria-valuemin={SIDEBAR_WIDTH_MIN}
+        aria-valuemax={SIDEBAR_WIDTH_MAX}
+        aria-valuenow={width}
+        tabIndex={0}
+        onPointerDown={onResizeDown}
+        onPointerMove={onResizeMove}
+        onPointerUp={(e) => endResize(e.currentTarget, true)}
+        onPointerCancel={(e) => endResize(e.currentTarget, false)}
+        onLostPointerCapture={(e) => endResize(e.currentTarget, true)}
+        onKeyDown={onResizeKey}
+        className="hover:bg-sidebar-border/60 focus-visible:bg-sidebar-border absolute inset-y-0 -right-1 z-30 hidden w-2 cursor-col-resize transition-colors focus-visible:outline-none md:block"
+      />
     </Sidebar>
   );
 }
 
 // Compact sidebar card showing the rep's coupon for today: the code with a copy
-// button, plus a used/remaining count against their daily budget. Hidden entirely
-// when the rail is collapsed to icons (the detail would not fit).
+// button, plus a used/remaining count against their daily budget.
 function RepCouponCard({ coupon }: { coupon: RepCouponView }) {
   const fmtMoney = useFormatMoney();
   const { copied, copy: copyText } = useCopy(1500);
@@ -339,7 +557,7 @@ function RepCouponCard({ coupon }: { coupon: RepCouponView }) {
   ].filter(Boolean).join(" / ");
 
   return (
-    <SidebarGroup className="group-data-[collapsible=icon]:hidden">
+    <SidebarGroup>
       <SidebarGroupLabel className="gap-1.5">
         <TicketPercentIcon className="size-3.5" aria-hidden />
         Today&apos;s discount coupon
@@ -356,7 +574,6 @@ function RepCouponCard({ coupon }: { coupon: RepCouponView }) {
               aria-label={copied ? "Coupon code copied" : "Copy coupon code"}
               className={cn(
                 "text-muted-foreground hover:text-foreground hover:bg-accent flex size-10 shrink-0 items-center justify-center rounded-md border",
-                "transition-[transform,color,background-color] duration-150 active:scale-[0.96]",
                 "focus-visible:ring-ring focus-visible:ring-2 focus-visible:outline-none",
               )}
             >

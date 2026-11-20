@@ -3,7 +3,6 @@ import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { Role } from "@foundry/commons";
 import { Toaster } from "@foundry/ui/sonner";
-import { TooltipProvider } from "@foundry/ui/tooltip";
 import { CrmShell } from "@foundry/crm";
 import { db } from "@/db/client";
 import { users } from "@/db/schema";
@@ -45,31 +44,29 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   const granted = grantedKeys(session.user.role);
 
   return (
-    <div className="crm-app">
+    <div className="crm-app admin-ui">
       <TimezoneProvider tz={timezone}>
-        <TooltipProvider>
-          <CrmShell
-            hideSidebarOnMobile
-            brand={<AppBrand href="/dashboard" />}
-            sidebar={
-              <AppSidebar
-                user={{ email: session.user.email, name: u.name ?? null, role: session.user.role }}
-                granted={granted}
-              />
-            }
-            breadcrumbs={<AppBreadcrumbs />}
-            actions={
-              <>
-                <OrgSwitcher organizations={memberOrganizations} activeOrganizationId={session.session.activeOrganizationId} />
-                <ModeToggle />
-              </>
-            }
-            bottomNav={<AppBottomNav granted={granted} />}
-          >
-            {children}
-          </CrmShell>
-          <Toaster position="top-right" />
-        </TooltipProvider>
+        <CrmShell
+          hideSidebarOnMobile
+          brand={<AppBrand href="/dashboard" />}
+          sidebar={
+            <AppSidebar
+              user={{ email: session.user.email, name: u.name ?? null, role: session.user.role }}
+              granted={granted}
+            />
+          }
+          breadcrumbs={<AppBreadcrumbs />}
+          actions={
+            <>
+              <OrgSwitcher organizations={memberOrganizations} activeOrganizationId={session.session.activeOrganizationId} />
+              <ModeToggle />
+            </>
+          }
+          bottomNav={<AppBottomNav granted={granted} />}
+        >
+          {children}
+        </CrmShell>
+        <Toaster position="top-right" />
       </TimezoneProvider>
     </div>
   );

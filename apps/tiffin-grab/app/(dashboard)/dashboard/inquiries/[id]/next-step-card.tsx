@@ -47,11 +47,9 @@ export function NextStepCard({ nextFollowUpAt, dayStart, dayEnd, tz, pending, on
         <CardTitle>Next step</CardTitle>
         <CardAction>
           <Popover open={open} onOpenChange={setOpen}>
-            <PopoverTrigger asChild>
-              <Button variant="outline" size="sm" disabled={pending}>
+            <PopoverTrigger render={<Button variant="outline" size="sm" disabled={pending} />}>
                 <CalendarClockIcon className="text-muted-foreground" aria-hidden />
                 {scheduled ? "Reschedule" : "Set follow-up"}
-              </Button>
             </PopoverTrigger>
             <PopoverContent align="end" className="w-auto p-3">
               <FollowUpPicker

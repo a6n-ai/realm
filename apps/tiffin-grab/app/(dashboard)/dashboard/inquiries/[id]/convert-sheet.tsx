@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { AlertTriangleIcon } from "lucide-react";
+import { Badge } from "@foundry/ui/badge";
 import { Button } from "@foundry/ui/button";
 import { ResponsiveDialog } from "@foundry/design-system";
 import { formatPhone } from "@foundry/commons";
@@ -87,13 +88,10 @@ export function ConvertSheet({
           {chips.length ? (
             <div className="flex flex-wrap gap-1.5">
               {chips.map((c) => (
-                <span
-                  key={c.label}
-                  className="bg-background text-foreground inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs"
-                >
+                <Badge key={c.label} variant="neutral">
                   <span className="text-muted-foreground">{c.label}:</span>
                   <span className="tabular-nums">{c.value}</span>
-                </span>
+                </Badge>
               ))}
             </div>
           ) : null}

@@ -20,6 +20,7 @@ import { walletEntryLabel } from "@/lib/wallet/source-labels";
 import { account, campaign, deliveries, inquiries, leadSources, mealSizes, messageSuppression, notificationOutbox, orders, payments, plans, users } from "@/db/schema";
 import { MENU_REMINDER_KEY } from "@/lib/notifications/menu-reminder";
 import type { SortState } from "@foundry/design-system/list-sort";
+import type { CustomerSortColumn } from "@/lib/customers/customer-list-keys";
 import { auth } from "@/lib/auth";
 import { createCustomerInviteUrl, sendCustomerInviteLink } from "@/lib/auth/invite-links";
 import { ledgerService } from "../payments/ledger.service";
@@ -266,8 +267,7 @@ export type CustomerRow = {
 
 const sendStateJson = sql`json_build_object('status', o.status, 'at', o.created_at, 'deliveredAt', o.delivered_at, 'openedAt', o.opened_at)`;
 
-export type CustomerSortColumn = "name" | "email" | "phone" | "paid" | "free" | "cancelled" | "latestOrder" | "lastDelivered";
-export const CUSTOMER_SORT_KEYS: readonly CustomerSortColumn[] = ["name", "email", "phone", "paid", "free", "cancelled", "latestOrder", "lastDelivered"];
+export type { CustomerSortColumn } from "@/lib/customers/customer-list-keys";
 
 // Server-side unified filters (Condition) + offset pagination + unpaginated
 // total — mirrors ordersService.listOrdersPage / inquiriesService.listForPipeline.

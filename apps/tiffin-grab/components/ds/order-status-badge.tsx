@@ -1,4 +1,4 @@
-import { cn } from "@foundry/ui/cn";
+import { Badge } from "@foundry/ui/badge";
 
 export const ORDER_STATUS_LABEL: Record<string, string> = {
   pending: "Pending",
@@ -13,7 +13,7 @@ export const ORDER_STATUS_LABEL: Record<string, string> = {
   rejected: "Rejected",
 };
 type Variant = "neutral" | "ok" | "warn" | "bad";
-const STATUS_VARIANT: Record<string, Variant> = {
+export const ORDER_STATUS_VARIANT: Record<string, Variant> = {
   pending: "neutral",
   active: "ok",
   upcoming: "ok",
@@ -24,18 +24,18 @@ const STATUS_VARIANT: Record<string, Variant> = {
   payment_review: "warn",
   rejected: "bad",
 };
-const VARIANT_CLASS: Record<Variant, string> = {
-  neutral: "bg-muted text-muted-foreground border",
-  ok: "bg-ok/15 text-ok",
-  warn: "bg-warn/15 text-warn",
-  bad: "bg-bad/15 text-bad",
+const VARIANT_TONE: Record<Variant, string> = {
+  neutral: "",
+  ok: "[--ui-badge-tone:var(--ok)]",
+  warn: "[--ui-badge-tone:var(--warn)]",
+  bad: "[--ui-badge-tone:var(--bad)]",
 };
 
 export function OrderStatusBadge({ status }: { status: string }) {
-  const v = STATUS_VARIANT[status] ?? "neutral";
+  const v = ORDER_STATUS_VARIANT[status] ?? "neutral";
   return (
-    <span className={cn("inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium", VARIANT_CLASS[v])}>
+    <Badge variant="neutral" className={VARIANT_TONE[v]}>
       {ORDER_STATUS_LABEL[status] ?? status}
-    </span>
+    </Badge>
   );
 }

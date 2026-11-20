@@ -38,7 +38,6 @@ import { cn } from "@foundry/ui/cn"
 import {
   Tooltip,
   TooltipContent,
-  TooltipProvider,
   TooltipTrigger,
 } from "@foundry/ui/tooltip"
 import { RepeatIcon } from "lucide-react"
@@ -545,17 +544,15 @@ function EventCalendarEvent<TData = unknown>({
       value={{ occurrence, segment, isDragging, isSelected }}
     >
       {tooltipOn ? (
-        <TooltipProvider delayDuration={tooltipOpts?.delay ?? 600}>
-          <Tooltip>
-            <TooltipTrigger asChild>{chip}</TooltipTrigger>
-            <TooltipContent
-              side={tooltipOpts?.side ?? "top"}
-              className={viewConfig.classNames?.eventTooltip}
-            >
-              {tooltipContent}
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        <Tooltip delay={tooltipOpts?.delay ?? 600}>
+          <TooltipTrigger render={chip} />
+          <TooltipContent
+            side={tooltipOpts?.side ?? "top"}
+            className={viewConfig.classNames?.eventTooltip}
+          >
+            {tooltipContent}
+          </TooltipContent>
+        </Tooltip>
       ) : (
         chip
       )}

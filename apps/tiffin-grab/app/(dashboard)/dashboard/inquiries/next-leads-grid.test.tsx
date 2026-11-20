@@ -2,10 +2,9 @@
 import "@testing-library/jest-dom/vitest";
 import type { ReactElement } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render as rtlRender, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render as rtlRender, screen } from "@testing-library/react";
 import { eq } from "@foundry/commons/model/condition";
 import { TimezoneProvider } from "@foundry/design-system/timezone-provider";
-import { TooltipProvider } from "@foundry/ui/tooltip";
 import type { PipelineRow } from "@/lib/inquiries/inquiries.service";
 import { NextLeadsGrid, leadScope, type NextLeadsGridProps } from "./next-leads-grid";
 
@@ -19,7 +18,7 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), refresh: 
 const render = (ui: ReactElement) =>
   rtlRender(
     <TimezoneProvider tz="UTC">
-      <TooltipProvider>{ui}</TooltipProvider>
+      {ui}
     </TimezoneProvider>,
   );
 
@@ -55,20 +54,36 @@ const base: Omit<NextLeadsGridProps, "leads"> = {
 afterEach(cleanup);
 
 describe("NextLeadsGrid", () => {
-  it("shows each lead as a card linking to its page, with call and note actions", () => {
+  it("shows each lead as a row: its name links to the lead, Call and Log outcome sit beside it, and the rest is in More actions", async () => {
     render(<NextLeadsGrid {...base} leads={[lead()]} />);
     expect(screen.getByRole("link", { name: "Asha Rao" })).toHaveAttribute("href", "/dashboard/inquiries/inq_1");
-    expect(screen.getByRole("link", { name: "Open" })).toHaveAttribute("href", "/dashboard/inquiries/inq_1");
+    expect(screen.queryByRole("link", { name: "Open" })).toBeNull();
+    expect(screen.getByRole("link", { name: /Call Asha Rao/ })).toHaveAttribute("href", "tel:4165550123");
     expect(screen.getByRole("button", { name: "Log outcome" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Add note" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Set follow-up" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /WhatsApp/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Add note" })).toBeNull();
     expect(screen.getByText("12 to act on", { exact: false })).toBeInTheDocument();
+
+    fireEvent.pointerDown(screen.getByRole("button", { name: "More actions" }), { button: 0, ctrlKey: false });
+    expect(await screen.findByRole("menuitem", { name: "Message" })).toHaveAttribute("href", "https://wa.me/4165550123");
+    expect(screen.getByRole("menuitem", { name: "Note" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Follow-up" })).toBeInTheDocument();
   });
 
-  it("hides Set follow-up for a closed lead", () => {
+  it("hides Follow-up in More actions for a closed lead", async () => {
     render(<NextLeadsGrid {...base} leads={[lead({ subStatus: "lost" })]} />);
-    expect(screen.queryByRole("button", { name: "Set follow-up" })).toBeNull();
-    expect(screen.getByRole("button", { name: "Add note" })).toBeInTheDocument();
+    fireEvent.pointerDown(screen.getByRole("button", { name: "More actions" }), { button: 0, ctrlKey: false });
+    expect(await screen.findByRole("menuitem", { name: "Note" })).toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: "Follow-up" })).toBeNull();
+  });
+
+  it("shows the no-phone state as text and no Call or Message", async () => {
+    render(<NextLeadsGrid {...base} leads={[lead({ phone: null })]} />);
+    expect(screen.getByText(/No phone/)).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Call Asha Rao/ })).toBeNull();
+    fireEvent.pointerDown(screen.getByRole("button", { name: "More actions" }), { button: 0, ctrlKey: false });
+    expect(await screen.findByRole("menuitem", { name: "Note" })).toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: "Message" })).toBeNull();
   });
 
   it("shows the empty state with Upcoming and All open links when nothing is due", () => {
@@ -80,7 +95,7 @@ describe("NextLeadsGrid", () => {
   it("shows the inline error with Retry in place of the leads", () => {
     render(<NextLeadsGrid {...base} leads={[]} error="Something went wrong loading your leads. Try again." />);
     expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "Open" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "More actions" })).toBeNull();
   });
 });
 

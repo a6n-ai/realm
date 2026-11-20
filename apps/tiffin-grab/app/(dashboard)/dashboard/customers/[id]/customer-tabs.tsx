@@ -22,14 +22,12 @@ export function CustomerTabs({ customerPublicId, hidden }: { customerPublicId: s
   const tabs = TABS.filter((t) => !hidden.includes(t.seg));
   const active = tabs.findLast((t) => pathname === base + t.seg || pathname.startsWith(`${base}${t.seg}/`))?.seg ?? "";
   return (
-    <Tabs value={active}>
+    <Tabs value={active} activation="manual">
       <TabsList variant="line" aria-label="Customer sections" className="h-auto flex-wrap">
         {tabs.map((t) => (
-          <TabsTrigger key={t.seg} value={t.seg} asChild>
-            <Link href={base + t.seg} prefetch={false}>
-              <t.icon />
-              {t.label}
-            </Link>
+          <TabsTrigger key={t.seg} value={t.seg} render={<Link href={base + t.seg} prefetch={false} />}>
+            <t.icon />
+            {t.label}
           </TabsTrigger>
         ))}
       </TabsList>

@@ -12,13 +12,11 @@ const TABS: { id: FinancesTab; label: string }[] = [
 
 export function FinancesTabs({ active }: { active: FinancesTab }) {
   return (
-    <Tabs value={active}>
+    <Tabs value={active} activation="manual">
       <TabsList variant="line" aria-label="Finances sections" className="h-auto flex-wrap">
         {TABS.map((t) => (
-          <TabsTrigger key={t.id} value={t.id} asChild>
-            <Link href={financesHref(t.id)} prefetch={false}>
-              {t.label}
-            </Link>
+          <TabsTrigger key={t.id} value={t.id} render={<Link href={financesHref(t.id)} prefetch={false} />}>
+            {t.label}
           </TabsTrigger>
         ))}
       </TabsList>

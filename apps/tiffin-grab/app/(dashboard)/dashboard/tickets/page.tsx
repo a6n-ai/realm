@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { LifeBuoyIcon, InboxIcon, AlertCircleIcon, CheckCircleIcon, HourglassIcon, TicketIcon } from "lucide-react";
+import { InboxIcon, AlertCircleIcon, CheckCircleIcon, HourglassIcon, TicketIcon } from "lucide-react";
 import { StatCards, StatCardsSkeleton } from "@/components/dashboard/stat-cards";
 import { can, requirePagePermission } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
@@ -10,14 +10,9 @@ import { ticketsService } from "@/lib/support/tickets.service";
 import { parseComplaintFilters, type ComplaintSearchParams } from "@/lib/support/complaint-filters";
 import { parseSort } from "@foundry/design-system/list-sort";
 import { parseFilterState } from "@/components/ds";
-import {
-  PageShell,
-  PageHeader,
-  SectionCard,
-} from "@/components/ds";
+import { TicketsChrome } from "./tickets-chrome";
 import { TicketsList, TicketsListSkeleton } from "./tickets-list";
 import { MarkSectionRead } from "@/components/dashboard/mark-section-read";
-import { SectionDateRange } from "@/components/filters/section-date-range";
 import { withDefaultMonth, withListDates } from "@/lib/list/default-month";
 import { ticketsListHref } from "@/lib/list/tickets-drill";
 import { DONE_STATUSES, OPEN_STATUSES } from "@/lib/support/ticket-status";
@@ -47,33 +42,24 @@ function queueParams(sp: Awaited<TicketSearchParams>) {
 
 export default function TicketsPage({ searchParams }: { searchParams: TicketSearchParams }) {
   return (
-    <PageShell>
-      <MarkSectionRead section="tickets" />
-      <PageHeader
-        icon={LifeBuoyIcon}
-        title="Tickets"
-        actions={
-          <Suspense fallback={null}>
-            <SupportHoursAction />
-          </Suspense>
-        }
-      />
-      {/* The date range filters the cards: one group, tighter than the page rhythm. */}
-      <div className="flex flex-col gap-3">
-        <div className="flex">
-          <SectionDateRange />
-        </div>
+    <TicketsChrome
+      lead={<MarkSectionRead section="tickets" />}
+      actions={
+        <Suspense fallback={null}>
+          <SupportHoursAction />
+        </Suspense>
+      }
+      stats={
         <Suspense fallback={<StatCardsSkeleton count={5} />}>
           <TicketStats searchParams={searchParams} />
         </Suspense>
-      </div>
-
-      <SectionCard title="All tickets">
+      }
+      list={
         <Suspense fallback={<TicketsListSkeleton />}>
           <TicketsData searchParams={searchParams} />
         </Suspense>
-      </SectionCard>
-    </PageShell>
+      }
+    />
   );
 }
 

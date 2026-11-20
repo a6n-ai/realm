@@ -9,6 +9,7 @@ import { Input } from "@foundry/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@foundry/ui/popover";
 import { useIsMobile } from "@foundry/ui/use-mobile";
 import { TimePicker } from "@/components/reui/time-picker";
+import { HoverHint } from "@/components/ds/hover-hint";
 import { formatDateOnly } from "@/lib/format/datetime";
 import { isoToLocalDate, localIso } from "@foundry/commons/util/dates";
 
@@ -35,11 +36,13 @@ function NativeInput({ type, value, onChange, id, disabled, className, min, max,
   max?: string;
 }) {
   return (
-    <Input
-      id={id} type={type} min={min} max={max} value={value} disabled={disabled} title={title}
-      aria-label={rest["aria-label"]} className={className}
-      onChange={(e) => onChange(e.target.value)}
-    />
+    <HoverHint text={title}>
+      <Input
+        id={id} type={type} min={min} max={max} value={value} disabled={disabled}
+        aria-label={rest["aria-label"]} className={className}
+        onChange={(e) => onChange(e.target.value)}
+      />
+    </HoverHint>
   );
 }
 
@@ -58,15 +61,19 @@ export function DateInput({
   ];
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          id={id} type="button" variant="outline" disabled={disabled} aria-label={rest["aria-label"]} title={title}
-          className={cn("justify-start gap-2 font-normal tabular-nums", !value && "text-muted-foreground", className)}
+      <HoverHint text={title}>
+        <PopoverTrigger
+          render={
+            <Button
+            id={id} type="button" variant="outline" disabled={disabled} aria-label={rest["aria-label"]}
+            className={cn("justify-start gap-2 font-normal tabular-nums", !value && "text-muted-foreground", className)}
+            />
+          }
         >
-          <CalendarIcon className="text-muted-foreground size-4" />
-          {value ? formatDateOnly(value, { mode: "weekday" }) : placeholder}
-        </Button>
-      </PopoverTrigger>
+            <CalendarIcon className="text-muted-foreground size-4" />
+            {value ? formatDateOnly(value, { mode: "weekday" }) : placeholder}
+        </PopoverTrigger>
+      </HoverHint>
       <PopoverContent className="w-auto p-0" align="start">
         <Calendar
           mode="single"
@@ -141,14 +148,16 @@ export function MonthInput({ value, onChange, id, disabled, className, placehold
   }
   return (
     <Popover open={open} onOpenChange={(o) => { setOpen(o); if (o) setYear(y); }}>
-      <PopoverTrigger asChild>
-        <Button
+      <PopoverTrigger
+        render={
+          <Button
           id={id} type="button" variant="outline" disabled={disabled} aria-label={rest["aria-label"]}
           className={cn("justify-start gap-2 font-normal tabular-nums", !value && "text-muted-foreground", className)}
-        >
+          />
+        }
+      >
           <CalendarIcon className="text-muted-foreground size-4" />
           {value ? `${MONTHS[m - 1]} ${y}` : placeholder}
-        </Button>
       </PopoverTrigger>
       <PopoverContent className="flex w-64 flex-col gap-2 p-2" align="start">
         <div className="flex items-center justify-between">

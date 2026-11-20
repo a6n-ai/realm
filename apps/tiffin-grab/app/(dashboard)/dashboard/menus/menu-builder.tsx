@@ -359,12 +359,12 @@ export function MenuBuilder({
           {isDraft && copySources.length > 0 && rows.length === 0 && (
             // A one-shot action, so DropdownMenu, not Select.
             <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline"><Copy data-icon="inline-start" />Copy from week…</Button>
+              <DropdownMenuTrigger render={<Button variant="outline" />}>
+                <Copy data-icon="inline-start" />Copy from week…
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 {copySources.map((src) => (
-                  <DropdownMenuItem key={src.id} onSelect={() => handleCopyWeek(src.id)}>{src.weekStart}</DropdownMenuItem>
+                  <DropdownMenuItem key={src.id} onSelect={() => { handleCopyWeek(src.id) }}>{src.weekStart}</DropdownMenuItem>
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
@@ -468,8 +468,8 @@ export function MenuBuilder({
       </div>
 
       {/* The poster is a check, not a workspace: it opens wide in a sheet instead of squeezing the grid. */}
-      <Sheet open={showPreview} onOpenChange={setShowPreview}>
-        <SheetContent side="right" className="w-full data-[side=right]:sm:max-w-4xl">
+      <Sheet open={showPreview} onOpenChange={setShowPreview} side="right">
+        <SheetContent className="w-full data-[side=right]:sm:max-w-4xl">
           <SheetHeader>
             <SheetTitle>Website preview</SheetTitle>
             <SheetDescription>What customers see for this week{isReleased && !amending ? "" : ", including unsaved changes"}.</SheetDescription>
@@ -507,7 +507,7 @@ export function MenuBuilder({
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setAmendPreview(null)} disabled={saving}>Keep editing</Button>
-            <Button className="transition-transform active:scale-[0.96]" disabled={saving}
+            <Button disabled={saving}
               onClick={() => { void save({ amend: true }); }}>
               Publish changes
             </Button>
@@ -564,7 +564,7 @@ export function MenuBuilder({
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateTarget(null)} disabled={pending}>Cancel</Button>
-            <Button onClick={handleCreateDish} disabled={pending || !newName.trim() || !newPlanId} className="transition-transform active:scale-[0.96]">Create &amp; add</Button>
+            <Button onClick={handleCreateDish} disabled={pending || !newName.trim() || !newPlanId}>Create &amp; add</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -336,7 +336,7 @@ export function LabelsTable({ sheet }: { sheet: KitchenPackingSheet }) {
               ) : (
                 displayRows.map((row, i) => (
                   <TableRow key={`${row.deliveryPublicId}-${row.forDate}-${serialOffset + i}`}>
-                    <TableCell
+                    <TableCell numeric
                       className="bg-background sticky left-0 z-10 text-right tabular-nums text-muted-foreground shadow-[1px_0_0_0_var(--border)]"
                       style={{ width: SERIAL_WIDTH, minWidth: SERIAL_WIDTH, maxWidth: SERIAL_WIDTH }}
                     >
@@ -350,6 +350,8 @@ export function LabelsTable({ sheet }: { sheet: KitchenPackingSheet }) {
                       return (
                         <TableCell
                           key={c.key}
+                          numeric={c.align === "right" || c.key === "phone"}
+                          mono={c.key === "orderId" || c.key === "deliveryId"}
                           data-pack-cell
                           className={cn(
                             "overflow-hidden text-ellipsis whitespace-nowrap",

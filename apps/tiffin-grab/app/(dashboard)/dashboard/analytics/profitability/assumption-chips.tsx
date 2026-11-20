@@ -31,11 +31,9 @@ export function AssumptionChips({ current }: { current: ProfitabilityAssumptions
         </Badge>
       ))}
       <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
-          <Button variant="outline" size="sm">
+        <PopoverTrigger render={<Button variant="outline" size="sm" />}>
             <PencilIcon aria-hidden />
             Edit
-          </Button>
         </PopoverTrigger>
         <PopoverContent align="start" className="w-[26rem] max-w-[calc(100vw-2rem)]">
           <AssumptionsForm current={current} onSaved={() => setOpen(false)} />

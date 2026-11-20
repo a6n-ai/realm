@@ -4,6 +4,7 @@ import { after } from "next/server";
 import { stripeMethodAvailable } from "@/lib/payments/stripe";
 import { settleStaleOnView } from "@/lib/payments/payment-stripe";
 import { getAppSettings } from "@/lib/settings";
+import { withExplicitDates } from "@/lib/list/default-month";
 import { getCoinEarnPct } from "@/lib/wallet/wallet-settings";
 import { myBillsPage, myCouponsPage, myCouponTotals, myMoneyLedgerPage } from "@/lib/services/customer-finances.service";
 import { couponsService } from "@/lib/coupons/coupons.service";
@@ -82,7 +83,7 @@ export default async function MyWalletPage({ searchParams }: { searchParams: Sea
 
 async function CoinsPanel({ userId, searchParams }: { userId: bigint; searchParams: SearchParams }) {
   const { currency } = await getAppSettings();
-  const { condition, page } = parseFilterState(WALLET_FACETS, await searchParams);
+  const { condition, page } = parseFilterState(WALLET_FACETS, await withExplicitDates(await searchParams));
 
   const [balance, { earned, spent }, ledger, earnPct] = await Promise.all([
     walletService.balance(userId),
@@ -122,7 +123,7 @@ async function BillsPanel({ userId, searchParams }: { userId: bigint; searchPara
 
 async function TransactionsPanel({ userId, searchParams }: { userId: bigint; searchParams: SearchParams }) {
   const { currency } = await getAppSettings();
-  const { condition, page } = parseFilterState(MONEY_LEDGER_FACETS, await searchParams);
+  const { condition, page } = parseFilterState(MONEY_LEDGER_FACETS, await withExplicitDates(await searchParams));
   const ledger = await myMoneyLedgerPage(userId, condition, page);
   return (
     <TransactionsList

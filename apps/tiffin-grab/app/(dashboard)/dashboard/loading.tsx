@@ -5,10 +5,12 @@ import { PageShell, SkeletonPageHeader, SkeletonStatCards, SkeletonTable } from 
 // prefetch in AppSidebar fetches, so a click paints this instantly.
 export default function Loading() {
   return (
-    <PageShell>
-      <SkeletonPageHeader action />
-      <SkeletonStatCards count={4} />
-      <SkeletonTable columns={6} />
-    </PageShell>
+    <div aria-busy="true" className="contents">
+      <PageShell>
+        <SkeletonPageHeader action />
+        <SkeletonStatCards count={4} />
+        <SkeletonTable columns={6} />
+      </PageShell>
+    </div>
   );
 }

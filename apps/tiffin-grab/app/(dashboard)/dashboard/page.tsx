@@ -14,7 +14,8 @@ import { formatDateOnly } from "@/lib/format/datetime";
 import { Alert, AlertDescription, AlertTitle } from "@/components/reui/alert";
 import { ChartSkeleton } from "@/components/dashboard/analytics/skeletons";
 import { StatCardsSkeleton } from "@/components/dashboard/stat-cards";
-import { PageShell, PageHeader, SectionCard, PageSkeleton, DataTableSkeleton } from "@/components/ds";
+import { PageShell, PageHeader, PageSkeleton } from "@/components/ds";
+import { ChartCard } from "@/components/dashboard/analytics/chart-card";
 import { parseWeekParam } from "@/lib/deliveries/view/week";
 import { GlanceCard } from "./_overview/glance-card";
 import { ServiceCard } from "./_overview/service-card";
@@ -26,6 +27,7 @@ import { KitchenWeekCard } from "./_overview/kitchen-week-card";
 import { TodayQueue } from "./_overview/today-queue";
 import { mondayOfIso } from "@foundry/commons/util/dates";
 import { requestNow } from "@/lib/dates/request-now";
+import { TableRowsSkeleton } from "@/components/dashboard/table-rows-skeleton";
 
 type SearchParams = Promise<Record<string, string | undefined>>;
 
@@ -120,11 +122,11 @@ async function DashboardData({ searchParams }: { searchParams: SearchParams }) {
 
       {allowedKinds.length > 0 && (
         <div id="queue">
-          <SectionCard title="Waiting on us" subtitle="Most urgent first. Verify a payment here; every other row opens its record.">
-            <Suspense fallback={<DataTableSkeleton columns={QUEUE_SKELETON_COLUMNS} rows={6} serial={false} />}>
+          <ChartCard title="Waiting on us" subtitle="Most urgent first. Verify a payment here; every other row opens its record." fill={false}>
+            <Suspense fallback={<TableRowsSkeleton columns={QUEUE_SKELETON_COLUMNS} rows={6} serial={false} />}>
               <TodayQueueSection visible={visible} today={today} now={now} activeType={activeType} kinds={allowedKinds} />
             </Suspense>
-          </SectionCard>
+          </ChartCard>
         </div>
       )}
 

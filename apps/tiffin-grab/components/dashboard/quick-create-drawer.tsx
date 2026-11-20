@@ -40,7 +40,7 @@ export function QuickCreateDrawer({
                 quickAdd?.(c.kind);
                 onOpenChange(false);
               }}
-              className="hover:bg-accent flex min-h-11 items-center gap-3 rounded-lg border p-3 text-left transition-colors active:scale-[0.99]"
+              className="hover:bg-accent flex min-h-11 items-center gap-3 rounded-lg border p-3 text-left"
             >
               <span className="bg-primary/12 text-primary flex size-10 shrink-0 items-center justify-center rounded-xl">
                 <c.icon className="size-5" />

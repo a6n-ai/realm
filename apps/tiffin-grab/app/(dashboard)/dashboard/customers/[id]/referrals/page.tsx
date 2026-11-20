@@ -66,9 +66,9 @@ export default async function CustomerReferralsPage({ params }: { params: Promis
                     <Link href={`/dashboard/customers/${f.publicId}`} className="font-medium underline-offset-2 hover:underline">{f.name || "Customer"}</Link>
                   </TableCell>
                   <TableCell><Badge variant={REFERRAL_STATUS[f.status].variant}>{REFERRAL_STATUS[f.status].label}</Badge></TableCell>
-                  <TableCell className="text-right tabular-nums">{f.friendCoins}</TableCell>
-                  <TableCell className="text-right tabular-nums">{f.referrerCoins}</TableCell>
-                  <TableCell className="text-muted-foreground whitespace-nowrap tabular-nums">{formatEpoch(f.joinedAt, { mode: "date", timeZone: timezone })}</TableCell>
+                  <TableCell numeric className="text-right tabular-nums">{f.friendCoins}</TableCell>
+                  <TableCell numeric className="text-right tabular-nums">{f.referrerCoins}</TableCell>
+                  <TableCell numeric className="text-muted-foreground whitespace-nowrap tabular-nums">{formatEpoch(f.joinedAt, { mode: "date", timeZone: timezone })}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

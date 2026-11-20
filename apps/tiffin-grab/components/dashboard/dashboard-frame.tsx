@@ -14,6 +14,7 @@ import { NotificationBellMount } from "@/components/dashboard/notification-bell-
 import { OrgSwitcher } from "@/components/dashboard/org-switcher";
 import { QuickAddProvider } from "@/components/dashboard/quick-add-provider";
 import { RepCodeFab } from "@/components/dashboard/rep-code-fab";
+import { MobileOnly } from "@/components/dashboard/mobile-only";
 import { ModeToggle } from "@/components/mode-toggle";
 import { TimezoneProvider } from "@foundry/design-system/timezone-provider";
 
@@ -47,32 +48,38 @@ export function DashboardBreadcrumbs() {
   return <AppBreadcrumbs />;
 }
 
+export function DashboardOrgSwitcher(props: ComponentProps<typeof OrgSwitcher>) {
+  return <OrgSwitcher {...props} />;
+}
+
+export function DashboardBell(props: ComponentProps<typeof NotificationBellMount>) {
+  return <NotificationBellMount {...props} />;
+}
+
+export function DashboardClock({ cutoffHour }: { cutoffHour: number }) {
+  return <AppClock cutoffHour={cutoffHour} variant="card" />;
+}
+
 export function DashboardActions({
   cutoffHour,
-  organizations,
-  activeOrganizationId,
-  userPublicId,
-  notifications,
-  notifyBootstrap,
   hasPin,
   routePush,
+  mobileChrome,
 }: {
   cutoffHour: number;
-  organizations: ComponentProps<typeof OrgSwitcher>["organizations"];
-  activeOrganizationId: string | null;
-  userPublicId: string;
-  notifications: ComponentProps<typeof NotificationBellMount>["initial"];
-  notifyBootstrap?: ComponentProps<typeof NotificationBellMount>["bootstrap"];
   hasPin: boolean;
   /** Server Component slot — OptimoRoute push status (streams via Suspense in the layout). */
   routePush?: ReactNode;
+  /** Org switcher and bell, which the sidebar only shows on desktop. */
+  mobileChrome?: ReactNode;
 }) {
   return (
     <>
-      <AppClock cutoffHour={cutoffHour} />
+      <MobileOnly>
+        <AppClock cutoffHour={cutoffHour} />
+        {mobileChrome}
+      </MobileOnly>
       {routePush}
-      <OrgSwitcher organizations={organizations} activeOrganizationId={activeOrganizationId} />
-      <NotificationBellMount userPublicId={userPublicId} initial={notifications} bootstrap={notifyBootstrap} />
       <LockButton hasPin={hasPin} />
       <ModeToggle />
     </>

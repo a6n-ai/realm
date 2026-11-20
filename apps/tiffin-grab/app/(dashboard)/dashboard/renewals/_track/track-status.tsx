@@ -19,7 +19,7 @@ import { cn } from "@foundry/ui/cn";
 import { useTimezone } from "@foundry/design-system/timezone-provider";
 import { FollowUpPicker, type FollowUpValue } from "@/components/dashboard/pipeline/follow-up-picker";
 import { ReasonDialog } from "@/components/dashboard/pipeline/reason-dialog";
-import { StatusTileButton, TonePill } from "@/components/dashboard/pipeline/status-tile";
+import { StatusTileButton, PipelinePill } from "@/components/dashboard/pipeline/status-tile";
 import { unwrapAction } from "@/lib/actions/unwrap";
 import { isClosedTrack, TRACK_STATUSES, trackLabel, type TrackStatus } from "@/lib/renewals/status";
 import { LOST_REASON_OPTIONS, type LostReason } from "@/lib/inquiries/lost-reason";
@@ -29,13 +29,13 @@ type Look = { icon: LucideIcon; pill: string; text: string; tile: string };
 
 // Categorical colours with dark pairs; shared meanings reuse the inquiry hues.
 export const TRACK_LOOK: Record<TrackStatus | "new", Look> = {
-  new: { icon: SparklesIcon, pill: "bg-sky-500/12 text-sky-700 dark:bg-sky-400/15 dark:text-sky-300", text: "text-sky-600 dark:text-sky-400", tile: "bg-sky-500/12 dark:bg-sky-400/15" },
-  expected: { icon: ThumbsUpIcon, pill: "bg-lime-500/14 text-lime-700 dark:bg-lime-400/15 dark:text-lime-300", text: "text-lime-600 dark:text-lime-400", tile: "bg-lime-500/14 dark:bg-lime-400/15" },
-  pending_payment: { icon: CreditCardIcon, pill: "bg-amber-500/14 text-amber-700 dark:bg-amber-400/15 dark:text-amber-300", text: "text-amber-600 dark:text-amber-400", tile: "bg-amber-500/14 dark:bg-amber-400/15" },
-  follow_up: { icon: CalendarClockIcon, pill: "bg-indigo-500/12 text-indigo-700 dark:bg-indigo-400/15 dark:text-indigo-300", text: "text-indigo-600 dark:text-indigo-400", tile: "bg-indigo-500/12 dark:bg-indigo-400/15" },
-  unresponsive: { icon: PhoneMissedIcon, pill: "bg-orange-500/12 text-orange-700 dark:bg-orange-400/15 dark:text-orange-300", text: "text-orange-600 dark:text-orange-400", tile: "bg-orange-500/12 dark:bg-orange-400/15" },
-  not_renewed: { icon: XCircleIcon, pill: "bg-red-500/12 text-red-700 dark:bg-red-400/15 dark:text-red-300", text: "text-red-600 dark:text-red-400", tile: "bg-red-500/12 dark:bg-red-400/15" },
-  renewed: { icon: BadgeCheckIcon, pill: "bg-emerald-500/14 text-emerald-700 dark:bg-emerald-400/15 dark:text-emerald-300", text: "text-emerald-600 dark:text-emerald-400", tile: "bg-emerald-500/14 dark:bg-emerald-400/15" },
+  new: { icon: SparklesIcon, pill: "[--ui-badge-tone:var(--color-sky-700)] dark:[--ui-badge-tone:var(--color-sky-300)]", text: "text-sky-600 dark:text-sky-400", tile: "bg-sky-500/12 dark:bg-sky-400/15" },
+  expected: { icon: ThumbsUpIcon, pill: "[--ui-badge-tone:var(--color-lime-700)] dark:[--ui-badge-tone:var(--color-lime-300)]", text: "text-lime-600 dark:text-lime-400", tile: "bg-lime-500/14 dark:bg-lime-400/15" },
+  pending_payment: { icon: CreditCardIcon, pill: "[--ui-badge-tone:var(--color-amber-700)] dark:[--ui-badge-tone:var(--color-amber-300)]", text: "text-amber-600 dark:text-amber-400", tile: "bg-amber-500/14 dark:bg-amber-400/15" },
+  follow_up: { icon: CalendarClockIcon, pill: "[--ui-badge-tone:var(--color-indigo-700)] dark:[--ui-badge-tone:var(--color-indigo-300)]", text: "text-indigo-600 dark:text-indigo-400", tile: "bg-indigo-500/12 dark:bg-indigo-400/15" },
+  unresponsive: { icon: PhoneMissedIcon, pill: "[--ui-badge-tone:var(--color-orange-700)] dark:[--ui-badge-tone:var(--color-orange-300)]", text: "text-orange-600 dark:text-orange-400", tile: "bg-orange-500/12 dark:bg-orange-400/15" },
+  not_renewed: { icon: XCircleIcon, pill: "[--ui-badge-tone:var(--color-red-700)] dark:[--ui-badge-tone:var(--color-red-300)]", text: "text-red-600 dark:text-red-400", tile: "bg-red-500/12 dark:bg-red-400/15" },
+  renewed: { icon: BadgeCheckIcon, pill: "[--ui-badge-tone:var(--color-emerald-700)] dark:[--ui-badge-tone:var(--color-emerald-300)]", text: "text-emerald-600 dark:text-emerald-400", tile: "bg-emerald-500/14 dark:bg-emerald-400/15" },
 };
 
 const TRACK_OPTIONS: (TrackStatus | null)[] = [...TRACK_STATUSES, null];
@@ -51,7 +51,7 @@ export function TrackStatusPill({ status, source }: Pick<TrackStatusProps, "stat
   const { icon, pill } = TRACK_LOOK[status ?? "new"];
   return (
     <span className="inline-flex max-w-full min-w-0 items-center gap-1.5">
-      <TonePill icon={icon} pill={pill} label={trackLabel(status)} />
+      <PipelinePill icon={icon} pill={pill} label={trackLabel(status)} />
       {source === "auto" ? <span className="text-muted-foreground text-xs">Auto</span> : null}
     </span>
   );
@@ -177,11 +177,9 @@ export function TrackStatusMenu(props: TrackStatusProps) {
   return (
     <>
       <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <button type="button" aria-label="Change renewal status" disabled={pending} className="inline-flex max-w-full min-w-0 cursor-pointer items-center gap-1 disabled:opacity-60" onClick={(e) => e.stopPropagation()}>
-            <TrackStatusPill status={props.status} source={props.source} />
-            <ChevronDownIcon className="text-muted-foreground size-3.5 shrink-0" />
-          </button>
+        <DropdownMenuTrigger render={<button type="button" aria-label="Change renewal status" disabled={pending} className="inline-flex max-w-full min-w-0 cursor-pointer items-center gap-1 disabled:opacity-60" onClick={(e) => e.stopPropagation()} />}>
+          <TrackStatusPill status={props.status} source={props.source} />
+          <ChevronDownIcon className="text-muted-foreground size-3.5 shrink-0" />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="w-auto" onClick={(e) => e.stopPropagation()}>
           {TRACK_OPTIONS.map((s) => {

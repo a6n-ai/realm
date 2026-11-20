@@ -110,7 +110,7 @@ export function StepSchedule({
       <section aria-labelledby="sched-delivery">
         <h2 id="sched-delivery" className={`${H} flex items-center gap-1.5`}>
           Deliveries a week
-          <Tooltip>
+          <Tooltip delay={0}>
             <TooltipTrigger type="button" className="text-muted-foreground hover:text-foreground">
               <Info className="size-[15px]" />
               <span className="sr-only">About delivery days</span>

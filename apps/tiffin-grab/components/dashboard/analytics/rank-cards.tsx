@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Card, CardContent } from "@foundry/ui/card";
 import { cn } from "@foundry/ui/cn";
 import { Badge } from "@/components/reui/badge";
+import { HoverHint } from "@/components/ds/hover-hint";
 
 export type RankItem = {
   rank: number;
@@ -27,13 +28,13 @@ export function RankCards({ items, cols = 2, size = "default" }: { items: RankIt
     <div className={cn("grid gap-3", COLS[cols])}>
       {items.map((it) => {
         const card = (
-          <Card size={size} className={cn("h-full", it.href && "hover:bg-muted/50 transition-colors")}>
+          <Card size={size} className="h-full">
             <CardContent className={cn("flex flex-col items-start", sm ? "gap-1" : "gap-2")}>
               {sm ? null : <Badge variant="secondary">#{it.rank}</Badge>}
               <span className="flex w-full items-center gap-2 text-sm font-medium">
                 {sm ? <Badge variant="secondary">#{it.rank}</Badge> : null}
                 {it.dot ? <span className="size-2.5 shrink-0 rounded-full" style={{ background: it.dot }} /> : null}
-                <span className="truncate" title={it.title}>{it.title}</span>
+                <span className="truncate">{it.title}</span>
               </span>
               <span className={cn("font-semibold tabular-nums", sm ? "text-xl" : "text-title-1")}>{it.value}</span>
               {it.meta?.map((m) => (
@@ -44,12 +45,16 @@ export function RankCards({ items, cols = 2, size = "default" }: { items: RankIt
             </CardContent>
           </Card>
         );
-        return it.href ? (
-          <Link key={it.rank} href={it.href} className="focus-visible:ring-ring/50 rounded-xl outline-none focus-visible:ring-2">
-            {card}
-          </Link>
-        ) : (
-          <div key={it.rank}>{card}</div>
+        return (
+          <HoverHint key={it.rank} text={it.title}>
+            {it.href ? (
+              <Link href={it.href} className="focus-visible:ring-ring/50 rounded-xl outline-none focus-visible:ring-2">
+                {card}
+              </Link>
+            ) : (
+              <div>{card}</div>
+            )}
+          </HoverHint>
         );
       })}
     </div>

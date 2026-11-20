@@ -9,6 +9,7 @@ import { chipState } from "@foundry/crm";
 import { Button } from "@foundry/ui/button";
 import { Checkbox } from "@foundry/ui/checkbox";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@foundry/ui/dialog";
+import { AlertDialog, AlertDialogClose, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@foundry/ui/alert-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@foundry/ui/dropdown-menu";
 import { Label } from "@foundry/ui/label";
 import { removeMemberAction } from "@/lib/services/organizations-actions";
@@ -95,9 +96,7 @@ export function EditMemberRolesDialog({
         </div>
         {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
         <DialogFooter>
-          <DialogClose asChild>
-            <Button variant="outline">Cancel</Button>
-          </DialogClose>
+          <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
           <Button disabled={pending || !changed || selected.length === 0} onClick={save}>
             Save
           </Button>
@@ -130,21 +129,19 @@ export function RemoveMemberDialog({
     });
   };
   return (
-    <Dialog open={open} onOpenChange={(o) => { onOpenChange(o); if (o) setError(undefined); }}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Remove {row.name || row.email || "this person"}?</DialogTitle>
-          <DialogDescription>They lose access to this organization. You can invite them again later.</DialogDescription>
-        </DialogHeader>
+    <AlertDialog open={open} onOpenChange={(o) => { onOpenChange(o); if (o) setError(undefined); }}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Remove {row.name || row.email || "this person"}?</AlertDialogTitle>
+          <AlertDialogDescription>They lose access to this organization. You can invite them again later.</AlertDialogDescription>
+        </AlertDialogHeader>
         {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-        <DialogFooter>
-          <DialogClose asChild>
-            <Button variant="outline">Keep</Button>
-          </DialogClose>
+        <AlertDialogFooter>
+          <AlertDialogClose render={<Button variant="outline" />}>Keep</AlertDialogClose>
           <Button variant="destructive" disabled={pending} onClick={remove}>Remove</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }
 
@@ -155,15 +152,11 @@ export function MemberRowMenu({ row, ctx, href }: { row: PeopleRow; ctx: RoleCtx
   return (
     <>
       <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon-sm" aria-label={`Actions for ${row.name || row.email || "this person"}`}>
-            <EllipsisIcon />
-          </Button>
+        <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label={`Actions for ${row.name || row.email || "this person"}`} />}>
+          <EllipsisIcon />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem asChild>
-            <Link href={href}>Open</Link>
-          </DropdownMenuItem>
+          <DropdownMenuItem render={<Link href={href} />}>Open</DropdownMenuItem>
           <DropdownMenuItem disabled={row.isSelf} onSelect={() => setEditing(true)}>
             Edit roles
           </DropdownMenuItem>

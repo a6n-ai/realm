@@ -15,6 +15,8 @@ import { isClosedTrack } from "@/lib/renewals/status";
 import type { RenewalRow } from "@/lib/renewals/renewals.service";
 import { TrackStatusMenu, TrackStatusPill } from "../renewals/_track/track-status";
 import { TrackNoteDialog, type TrackNoteKind } from "../renewals/_track/track-note-dialog";
+import { TableRowsSkeleton } from "@/components/dashboard/table-rows-skeleton";
+import { HoverHint } from "@/components/ds/hover-hint";
 type QueueColumn = "customer" | "plan" | "last" | "status" | "followUp" | "activity" | "actions";
 const COLUMNS: readonly Column<QueueColumn>[] = [
   // Sum stays under a laptop-width card so the table never scrolls sideways; DataTable stretches it on wider screens.
@@ -100,13 +102,19 @@ export function RenewalsQueueList({ rows, total, page, size, queue, today, spec 
                 )}
                 {r.phone && <span className="text-muted-foreground ml-2 text-xs font-normal tabular-nums">{r.phone}</span>}
               </TableCell>
-              <TableCell title={r.mealSize}>
-                <div className="flex min-w-0 items-center gap-1.5">
-                  {r.trial && <Badge variant="secondary">Trial</Badge>}
-                  <span className="truncate">{r.mealSize}</span>
-                </div>
+              <TableCell>
+                <HoverHint text={r.mealSize}>
+                  <div className="flex min-w-0 items-center gap-1.5">
+                    {r.trial && <Badge variant="secondary">Trial</Badge>}
+                    <span className="truncate">{r.mealSize}</span>
+                  </div>
+                </HoverHint>
               </TableCell>
-              <TableCell className="whitespace-nowrap tabular-nums" title={humanDate(r.lastTiffin)}>{humanDate(r.lastTiffin)}</TableCell>
+              <TableCell numeric className="whitespace-nowrap tabular-nums">
+                <HoverHint text={humanDate(r.lastTiffin)}>
+                  <span>{humanDate(r.lastTiffin)}</span>
+                </HoverHint>
+              </TableCell>
               <TableCell className="whitespace-nowrap">
                 {r.customerPublicId ? (
                   <TrackStatusMenu orderPublicId={r.orderPublicId} customerPublicId={r.customerPublicId} status={r.track} source={r.trackSource} />
@@ -114,7 +122,7 @@ export function RenewalsQueueList({ rows, total, page, size, queue, today, spec 
                   <TrackStatusPill status={r.track} source={r.trackSource} />
                 )}
               </TableCell>
-              <TableCell className="whitespace-nowrap tabular-nums">
+              <TableCell numeric className="whitespace-nowrap tabular-nums">
                 {followIso ? (
                   <span className={overdue ? "text-destructive" : undefined}>
                     {humanDate(followIso)}
@@ -126,9 +134,11 @@ export function RenewalsQueueList({ rows, total, page, size, queue, today, spec 
               </TableCell>
               <TableCell>
                 {r.lastActivity ? (
-                  <span className="text-muted-foreground block truncate text-xs" title={r.lastActivity.note ?? ACTIVITY_LABEL[r.lastActivity.type] ?? r.lastActivity.type}>
-                    {r.lastActivity.note ?? ACTIVITY_LABEL[r.lastActivity.type] ?? r.lastActivity.type}
-                  </span>
+                  <HoverHint text={r.lastActivity.note ?? ACTIVITY_LABEL[r.lastActivity.type] ?? r.lastActivity.type}>
+                    <span className="text-muted-foreground block truncate text-xs">
+                      {r.lastActivity.note ?? ACTIVITY_LABEL[r.lastActivity.type] ?? r.lastActivity.type}
+                    </span>
+                  </HoverHint>
                 ) : (
                   <span className="text-muted-foreground text-xs">None yet</span>
                 )}
@@ -147,4 +157,8 @@ export function RenewalsQueueList({ rows, total, page, size, queue, today, spec 
       <ListPagination page={page} size={size} total={total} />
     </div>
   );
+}
+
+export function RenewalsQueueListSkeleton() {
+  return <TableRowsSkeleton columns={COLUMNS} search="Search name, order or phone…" filters={["Owner"]} />;
 }

@@ -1,6 +1,7 @@
 import { requirePagePermission } from "@/lib/auth/guards";
 import { Suspense } from "react";
 import { SectionCard, parseFilterState } from "@/components/ds";
+import { withExplicitDates } from "@/lib/list/default-month";
 import { Can, NoAccessNote } from "@/components/auth/can";
 import { CUSTOMER_ACTIVITY_FACETS } from "@/lib/customer-activity/log-facets";
 import { parseSort } from "@foundry/design-system/list-sort";
@@ -31,7 +32,7 @@ export default async function CustomerLogsPage({ searchParams }: { searchParams:
 }
 
 async function CustomerLogsData({ searchParams }: { searchParams: SearchParams }) {
-  const params = await searchParams;
+  const params = await withExplicitDates(await searchParams);
   const sort = parseSort(params, SORT_COLUMNS, { column: "time", dir: "desc" });
   const { condition, page } = parseFilterState(CUSTOMER_ACTIVITY_FACETS, params);
   const result = await listCustomerActivitiesPage(condition, page, sort);

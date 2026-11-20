@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { HoverHint } from "@/components/ds/hover-hint";
 import { BellIcon, CheckIcon, ChevronDownIcon, FlaskConicalIcon, PackageIcon } from "lucide-react";
 import { formatMoney as fmt } from "@foundry/commons";
 import { Button } from "@foundry/ui/button";
@@ -115,17 +116,17 @@ export function RenewalReminders({ reminders, plans }: { reminders: RenewalRemin
       emptyMessage="No renewal reminder has gone to this customer yet."
       renderRow={(r) => (
         <>
-          <TableCell className="tabular-nums">{formatEpoch(r.sentAt, { mode: "date", timeZone: tz })}</TableCell>
+          <TableCell numeric className="tabular-nums">{formatEpoch(r.sentAt, { mode: "date", timeZone: tz })}</TableCell>
           <TableCell>{(r.orderPublicId && codeOf.get(r.orderPublicId)) ?? "—"}</TableCell>
           <TableCell>{r.byStaff ? "Sent by staff" : r.daysLeft == null ? "—" : r.daysLeft === 1 ? "1 day before the end" : `${r.daysLeft} days before the end`}</TableCell>
-          <TableCell
-            title={[
+          <TableCell>
+            <HoverHint text={[
               DELIVERY[r.delivery].hint,
               r.deliveredAt ? `Delivered ${formatEpoch(r.deliveredAt, { timeZone: tz })}` : null,
               r.error,
-            ].filter(Boolean).join(" · ")}
-          >
-            <Badge variant={DELIVERY[r.delivery].variant}>{DELIVERY[r.delivery].label}</Badge>
+            ].filter(Boolean).join(" · ")}>
+              <Badge variant={DELIVERY[r.delivery].variant}>{DELIVERY[r.delivery].label}</Badge>
+            </HoverHint>
           </TableCell>
         </>
       )}

@@ -36,7 +36,7 @@ export function DriverRoster({ drivers, rows }: { drivers: KnownDriver[]; rows: 
         <>
           <TableCell className="font-medium">{d.driverName ?? d.driverSerial}</TableCell>
           <TableCell className="text-muted-foreground text-xs">{d.driverSerial}</TableCell>
-          <TableCell className="text-right tabular-nums">
+          <TableCell numeric className="text-right tabular-nums">
             {stopCountBySerial.get(d.driverSerial) ?? 0}
           </TableCell>
         </>

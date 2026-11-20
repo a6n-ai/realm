@@ -174,7 +174,7 @@ export function DispatchView({
                 </SelectContent>
               </Select>
             </TableCell>
-            <TableCell className="text-right tabular-nums">
+            <TableCell numeric className="text-right tabular-nums">
               {r.routeStopNumber ?? "—"}
             </TableCell>
             <TableCell onClick={(e) => e.stopPropagation()}>

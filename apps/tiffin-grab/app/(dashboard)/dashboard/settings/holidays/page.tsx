@@ -1,7 +1,7 @@
 import { Suspense } from "react";
-import { CalendarOffIcon } from "lucide-react";
 import { zonedDateIso } from "@foundry/commons";
-import { PageHeader, SectionCard } from "@/components/ds";
+import { SectionCard } from "@/components/ds";
+import { HolidaysChrome } from "./holidays-chrome";
 import { requirePagePermission } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
 import { getAppSettings } from "@/lib/settings";
@@ -22,26 +22,23 @@ export default async function HolidaysPage() {
   for (const w of waiting) waitingBy.set(w.holidayPublicId, (waitingBy.get(w.holidayPublicId) ?? 0) + 1);
 
   return (
-    <div className="grid gap-6">
-      <PageHeader
-        icon={CalendarOffIcon}
-        title="Holidays"
-        subtitle="Days the kitchen is closed."
-        actions={<HolidayDialog today={today} organizations={organizations} />}
-      />
-      {waiting.length > 0 && (
-        <SectionCard title="Needs placing">
-          <p className="text-muted-foreground mb-3 text-sm">
-            These closed days have no extra day yet. Pick the first day and the tiffins go on that plan&apos;s next free delivery days.
-          </p>
-          <NeedsPlacingTable rows={waiting} today={today} />
-        </SectionCard>
-      )}
-      <SectionCard title="Holidays">
+    <HolidaysChrome
+      actions={<HolidayDialog today={today} organizations={organizations} />}
+      needsPlacing={
+        waiting.length > 0 && (
+          <SectionCard title="Needs placing">
+            <p className="text-muted-foreground mb-3 text-sm">
+              These closed days have no extra day yet. Pick the first day and the tiffins go on that plan&apos;s next free delivery days.
+            </p>
+            <NeedsPlacingTable rows={waiting} today={today} />
+          </SectionCard>
+        )
+      }
+      list={
         <Suspense fallback={<HolidaysTableSkeleton />}>
           <HolidaysTable rows={rows.map((r) => ({ ...r, needsPlacing: waitingBy.get(r.publicId) ?? 0 }))} today={today} />
         </Suspense>
-      </SectionCard>
-    </div>
+      }
+    />
   );
 }

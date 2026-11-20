@@ -7,10 +7,10 @@ import { Button } from "@foundry/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
+  MenuGroupLabel,
 } from "@foundry/ui/dropdown-menu";
 import { switchActiveOrganization } from "@/lib/auth/organization-actions";
 import type { MemberOrganization } from "@/lib/services/organizations.service";
@@ -34,30 +34,29 @@ export function OrgSwitcher({
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="sm" className="gap-1.5 px-2" disabled={pending}>
-          <span className="max-w-32 truncate">{active.name}</span>
-          <ChevronsUpDownIcon className="size-3.5 text-muted-foreground" />
-        </Button>
+      <DropdownMenuTrigger render={<Button variant="ghost" size="sm" className="gap-1.5 px-2" disabled={pending} />}>
+        <span className="max-w-32 truncate">{active.name}</span>
+        <ChevronsUpDownIcon className="size-3.5 text-muted-foreground" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuLabel>Switch client</DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        {organizations.map((org) => (
-          <DropdownMenuItem
-            key={org.id}
-            onClick={() => {
-              if (org.id === active.id) return;
-              startTransition(async () => {
-                await switchActiveOrganization(org.id);
-                router.refresh();
-              });
-            }}
-          >
-            <span className="flex-1 truncate">{org.name}</span>
-            {org.id === active.id ? <CheckIcon className="size-4" /> : null}
-          </DropdownMenuItem>
-        ))}
+        <DropdownMenuGroup>
+          <MenuGroupLabel>Switch client</MenuGroupLabel>
+          {organizations.map((org) => (
+            <DropdownMenuItem
+              key={org.id}
+              onClick={() => {
+                if (org.id === active.id) return;
+                startTransition(async () => {
+                  await switchActiveOrganization(org.id);
+                  router.refresh();
+                });
+              }}
+            >
+              <span className="flex-1 truncate">{org.name}</span>
+              {org.id === active.id ? <CheckIcon className="size-4" /> : null}
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>
   );

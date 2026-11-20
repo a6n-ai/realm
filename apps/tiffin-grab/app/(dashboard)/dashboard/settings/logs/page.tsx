@@ -1,6 +1,7 @@
 import { requirePagePermission } from "@/lib/auth/guards";
 import { Suspense } from "react";
 import { SectionCard, parseFilterState } from "@/components/ds";
+import { withExplicitDates } from "@/lib/list/default-month";
 import { SETTINGS_ACTIVITY_FACETS } from "@/lib/order-activity/log-facets";
 import { parseSort } from "@foundry/design-system/list-sort";
 import {
@@ -30,7 +31,7 @@ export default async function SettingsLogsPage({ searchParams }: { searchParams:
 }
 
 async function LogsData({ searchParams }: { searchParams: SearchParams }) {
-  const sp = await searchParams;
+  const sp = await withExplicitDates(await searchParams);
   const sort = parseSort(sp, SORT_COLUMNS, { column: "time", dir: "desc" });
   const { condition, page } = parseFilterState(SETTINGS_ACTIVITY_FACETS, sp);
   const result = await listOrderActivitiesPage(condition, page, sort);

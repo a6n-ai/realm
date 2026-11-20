@@ -34,10 +34,10 @@ export function StatusTileButton({
   );
 }
 
-export function TonePill({ icon: Icon, pill, label }: { icon: LucideIcon; pill: string; label: string }) {
+export function PipelinePill({ icon: Icon, pill, label }: { icon: LucideIcon; pill: string; label: string }) {
   return (
     // max-w-full + truncate: a long label (e.g. "Will take in future") ellipsizes inside its column instead of widening it.
-    <Badge variant="outline" size="lg" className={cn("max-w-full border-transparent", pill)} title={label}>
+    <Badge variant="outline" size="lg" className={cn("max-w-full border-transparent", pill)}>
       <Icon className="size-3.5" aria-hidden />
       <span className="truncate">{label}</span>
     </Badge>

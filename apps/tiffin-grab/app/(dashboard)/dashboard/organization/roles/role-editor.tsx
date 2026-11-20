@@ -8,15 +8,15 @@ import { toast } from "sonner";
 import type { PermissionMap, ResourceLabel } from "@foundry/crm";
 import { Button } from "@foundry/ui/button";
 import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@foundry/ui/dialog";
+  AlertDialog,
+  AlertDialogClose,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@foundry/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
 import { SaveBar } from "@/components/ds/switch-list";
 import { BreadcrumbLabel } from "@/components/dashboard/app-breadcrumbs";
@@ -120,32 +120,28 @@ function DeleteRole({ role, id, disabled }: { role: RoleItem; id: string; disabl
     });
   }
   return (
-    <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (o) setError(undefined); }}>
-      <DialogTrigger asChild>
-        <Button variant="ghost" size="sm" disabled={disabled} aria-label={`Delete ${role.name}`}>
+    <AlertDialog open={open} onOpenChange={(o) => { setOpen(o); if (o) setError(undefined); }}>
+      <AlertDialogTrigger render={<Button variant="ghost" size="sm" disabled={disabled} aria-label={`Delete ${role.name}`} />}>
           <Trash2Icon />
-        </Button>
-      </DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Delete {role.name}?</DialogTitle>
-          <DialogDescription>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Delete {role.name}?</AlertDialogTitle>
+          <AlertDialogDescription>
             {role.members > 0
               ? `${memberCount(role.members)} still ${role.members === 1 ? "has" : "have"} this role. Move them to another role first.`
               : "This can't be undone."}
-          </DialogDescription>
-        </DialogHeader>
+          </AlertDialogDescription>
+        </AlertDialogHeader>
         {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-        <DialogFooter>
-          <DialogClose asChild>
-            <Button variant="outline">Keep</Button>
-          </DialogClose>
+        <AlertDialogFooter>
+          <AlertDialogClose render={<Button variant="outline" />}>Keep</AlertDialogClose>
           <Button variant="destructive" disabled={pending || role.members > 0} onClick={confirm}>
             Delete
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }
 

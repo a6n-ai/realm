@@ -1,7 +1,7 @@
 import { parseSort } from "@foundry/design-system/list-sort";
 import { parseFilterState, type FacetDef } from "@/components/ds";
 import { withListDates } from "@/lib/list/default-month";
-import { CUSTOMER_SORT_KEYS } from "@/lib/services/customers.service";
+import { CUSTOMER_SORT_KEYS, type CustomerDateBy } from "@/lib/customers/customer-list-keys";
 import { ORDER_STATUS_PILLS } from "@/lib/orders/status-pills";
 
 const LATEST_STATUS_OPTIONS = ORDER_STATUS_PILLS.filter((p) => p.value !== "ongoing").map((p) => ({ value: p.value, label: p.label }));
@@ -49,13 +49,6 @@ export const CUSTOMER_SPEC: FacetDef[] = [
 const CUSTOM = ["planCompletesInDays", "activePlan", "customerType", "latestStatus"];
 const DB_SPEC = CUSTOMER_SPEC.filter((s) => s.kind !== "select" || !CUSTOM.includes(s.field));
 const DB_SPEC_NO_DATE = DB_SPEC.filter((s) => s.kind !== "dateRange");
-
-/** What the page's date range filters on. `joined` (the default) is the account's creation date. */
-export const CUSTOMER_DATE_BY = [
-  { value: "joined", label: "Customer joined" },
-  { value: "ordered", label: "Order date" },
-] as const;
-export type CustomerDateBy = (typeof CUSTOMER_DATE_BY)[number]["value"];
 
 /** The Customers listing's filters, sort and page from the URL. The page and its Excel export share it, so both list the same rows. */
 export async function customerListQuery(raw: Record<string, string | undefined>) {

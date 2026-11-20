@@ -1,11 +1,9 @@
 import { Suspense } from "react";
-import Link from "next/link";
-import { CalendarCheckIcon, CalendarX2Icon, HourglassIcon, PackageIcon, RefreshCwIcon, WalletIcon } from "lucide-react";
+import { CalendarCheckIcon, CalendarX2Icon, HourglassIcon, PackageIcon, WalletIcon } from "lucide-react";
 import { zonedDateIso } from "@foundry/commons";
 import { dayRange } from "@foundry/commons/util/dates";
-import { Tabs, TabsList, TabsTrigger } from "@foundry/ui/tabs";
 import { Skeleton } from "@foundry/ui/skeleton";
-import { PageShell, PageHeader, SectionCard, parseFilterState, type FacetDef } from "@/components/ds";
+import { parseFilterState, type FacetDef } from "@/components/ds";
 import { StatCards, StatCardsSkeleton } from "@/components/dashboard/stat-cards";
 import { can, requirePagePermission } from "@/lib/auth/guards";
 import { getSession } from "@/lib/auth/session";
@@ -14,10 +12,9 @@ import { UNASSIGNED_OWNER, resolveOwnerParam } from "@/lib/list/presets";
 import { getAppSettings } from "@/lib/settings";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import { countRenewals, listRenewals, listRenewedCustomers } from "@/lib/renewals/renewals.service";
-import { SectionDateRange } from "@/components/filters/section-date-range";
 import { withListDates } from "@/lib/list/default-month";
-import { DateByPicker } from "@/components/filters/date-by-picker";
-import { DATE_BY, ENDED_DAYS, ENDING_DAYS, RENEWAL_STATUSES, RENEWED_DAYS, hideUnpaidStatus, resolveRange, statusLabel, parseRenewalsFilter, renewalsQuery, type RenewalsFilter } from "@/lib/renewals/filters";
+import { ENDED_DAYS, ENDING_DAYS, RENEWAL_STATUSES, RENEWED_DAYS, hideUnpaidStatus, resolveRange, statusLabel, parseRenewalsFilter, renewalsQuery, type RenewalsFilter } from "@/lib/renewals/filters";
+import { RenewalsChrome } from "./renewals-chrome";
 import { RenewalFactsLegend } from "./fact-tags";
 import { RenewalsExportButton } from "./renewals-export-button";
 import { RenewalsList, RenewalsListSkeleton, RenewedCustomersList, RenewedCustomersListSkeleton } from "./renewals-list";
@@ -39,53 +36,30 @@ export default async function RenewalsPage({ searchParams }: { searchParams: Sea
   // Same date rules as Orders: this month by default, and a text search spans all dates.
   const sp = await withListDates(await searchParams);
   const f = parseRenewalsFilter(sp);
+  const { timezone } = await getAppSettings();
   const ownerOptions = f.tab === "customers" ? [] : await loadOwnerOptions();
   const canFinance = await can({ finance: ["read"] });
   const spec = facetSpec(f, ownerOptions, canFinance);
   // Same page/size rules as every other list (default 25, sizes 10/25/50/100).
   const { page } = parseFilterState(spec, sp);
-  const tab = f.tab === "customers" ? "customers" : f.type === "trial" ? "trials" : "renewals";
   return (
-    <PageShell>
-      <PageHeader
-        icon={RefreshCwIcon}
-        title="Renewals"
-        subtitle="Plans ending soon or lapsed, and who already booked again."
-        actions={
-          <Suspense fallback={<Skeleton className="h-9 w-24" />}>
-            <RenewalsExportButton />
-          </Suspense>
-        }
-      />
-      {/* The date range filters the cards and the list: one group, tighter than the page rhythm. */}
-      <div className="flex flex-col gap-3">
-        <div className="flex flex-wrap items-center gap-2">
-          {f.tab !== "customers" && <DateByPicker value={f.dateBy} options={DATE_BY} />}
-          <SectionDateRange />
-        </div>
+    <RenewalsChrome
+      f={f}
+      timezone={timezone}
+      actions={
+        <Suspense fallback={<Skeleton className="h-9 w-24" />}>
+          <RenewalsExportButton />
+        </Suspense>
+      }
+      stats={
         <Suspense key={`${f.tab}:${f.type}:${f.dateBy}:${f.from}:${f.to}`} fallback={<StatCardsSkeleton count={5} />}>
           <RenewalsCards f={f} canFinance={canFinance} />
         </Suspense>
-      </div>
-      <Tabs value={tab}>
-        <TabsList variant="line" aria-label="Renewal lists">
-          <TabsTrigger value="renewals" asChild>
-            <Link href={`/dashboard/renewals${renewalsQuery({ ...f, tab: "renewals", type: "regular", status: null, renewed: null })}`} prefetch={false}>Renewals</Link>
-          </TabsTrigger>
-          <TabsTrigger value="trials" asChild>
-            <Link href={`/dashboard/renewals${renewalsQuery({ ...f, tab: "renewals", type: "trial", status: null, renewed: null })}`} prefetch={false}>Trial conversion</Link>
-          </TabsTrigger>
-          <TabsTrigger value="customers" asChild>
-            <Link href={`/dashboard/renewals${renewalsQuery({ ...f, tab: "customers", ending: null, ended: null, status: null, track: null, followUp: null })}`} prefetch={false}>Renewed customers</Link>
-          </TabsTrigger>
-        </TabsList>
-      </Tabs>
-      <SectionCard
-        title={tab === "customers" ? "Customers who renewed" : tab === "trials" ? "Trials" : "Plans"}
-        action={f.tab === "customers" ? undefined : <RenewalFactsLegend />}
-      >
+      }
+      listAction={f.tab === "customers" ? undefined : <RenewalFactsLegend />}
+      list={
         <Suspense
-          key={`${renewalsQuery(f)}:${page.page}:${page.size}`}
+          key={`${renewalsQuery(f, timezone)}:${page.page}:${page.size}`}
           fallback={f.tab === "customers" ? <RenewedCustomersListSkeleton /> : <RenewalsListSkeleton />}
         >
           {f.tab === "customers" ? (
@@ -94,8 +68,8 @@ export default async function RenewalsPage({ searchParams }: { searchParams: Sea
             <RenewalsData f={f} page={page.page} size={page.size} spec={spec} canFinance={canFinance} />
           )}
         </Suspense>
-      </SectionCard>
-    </PageShell>
+      }
+    />
   );
 }
 
@@ -141,7 +115,7 @@ async function RenewalsCards({ f, canFinance }: { f: RenewalsFilter; canFinance:
       from: f.from,
       to: f.to,
       q: "",
-    })}`;
+    }, timezone)}`;
   return (
     <StatCards
       items={[

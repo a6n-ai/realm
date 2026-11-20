@@ -2,13 +2,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { render as rtlRender, screen, fireEvent, cleanup, within } from "@testing-library/react";
 import type { ReactElement } from "react";
-import { TooltipProvider } from "@foundry/ui/tooltip";
 import { StepSchedule } from "../steps/step-schedule";
 import { initialSelections, scheduleError, type WizardSelections } from "@/lib/wizard/selections";
 import type { ClientCatalogSnapshot } from "@/lib/catalog/types";
 
 // The app root provides this (app/layout.tsx); the step's delivery-schedule tooltip needs it.
-const render = (ui: ReactElement) => rtlRender(ui, { wrapper: TooltipProvider });
+const render = (ui: ReactElement) => rtlRender(ui);
 
 afterEach(cleanup);
 

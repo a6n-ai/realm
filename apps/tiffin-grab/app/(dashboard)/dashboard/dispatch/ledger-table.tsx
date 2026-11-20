@@ -110,7 +110,7 @@ export function LedgerTable({ date, ledger }: { date: string; ledger: DayLedger 
         emptyMessage="Nothing in this group for the date."
         renderRow={(r) => (
           <>
-            <TableCell className="font-mono text-xs">
+            <TableCell mono className="font-mono text-xs">
               {r.deliveryPublicId ? (
                 <Link href={`/dashboard/go/${r.deliveryPublicId}`} className="hover:underline">{r.deliveryPublicId}</Link>
               ) : (
@@ -127,7 +127,7 @@ export function LedgerTable({ date, ledger }: { date: string; ledger: DayLedger 
               {r.ourStatus ? <TonePill tone={labelStatusTone(r.ourStatus)}>{r.ourStatus}</TonePill> : "—"}
             </TableCell>
             <TableCell className="text-xs">{r.optimoStatus ?? "Not on OptimoRoute"}</TableCell>
-            <TableCell className="text-xs tabular-nums">
+            <TableCell numeric className="text-xs tabular-nums">
               {r.driver ? `${r.driver}${r.stopNumber != null ? ` · #${r.stopNumber}` : ""}` : "—"}
             </TableCell>
             <TableCell>

@@ -11,6 +11,7 @@ import { TableCell } from "@foundry/ui/table";
 import type { SortState } from "@foundry/design-system/list-sort";
 import { formatDateOnly, formatEpoch } from "@/lib/format/datetime";
 import type { CustomerRow, CustomerSortColumn } from "@/lib/services/customers.service";
+import { TableRowsSkeleton } from "@/components/dashboard/table-rows-skeleton";
 
 // The Customers page's Payments tab: one row per customer with their money and order facts.
 const COLUMNS: readonly Column<CustomerSortColumn>[] = [
@@ -60,9 +61,9 @@ export function CustomerPaymentsList({
                 {c.name ?? c.email ?? "(no name)"}
               </Link>
             </TableCell>
-            <TableCell className="text-right tabular-nums">{formatMoney(Number(c.totalPaid))}</TableCell>
-            <TableCell className="text-right tabular-nums">{c.freeTiffins || "—"}</TableCell>
-            <TableCell className="text-right tabular-nums">{c.cancelledOrders || "—"}</TableCell>
+            <TableCell numeric className="text-right tabular-nums">{formatMoney(Number(c.totalPaid))}</TableCell>
+            <TableCell numeric className="text-right tabular-nums">{c.freeTiffins || "—"}</TableCell>
+            <TableCell numeric className="text-right tabular-nums">{c.cancelledOrders || "—"}</TableCell>
             <TableCell>
               {c.latestOrderAt && c.latestStatus ? (
                 <div className="flex items-center gap-2 whitespace-nowrap">
@@ -73,7 +74,7 @@ export function CustomerPaymentsList({
                 "—"
               )}
             </TableCell>
-            <TableCell className="whitespace-nowrap tabular-nums">{c.lastDelivered ? formatDateOnly(c.lastDelivered) : "—"}</TableCell>
+            <TableCell numeric className="whitespace-nowrap tabular-nums">{c.lastDelivered ? formatDateOnly(c.lastDelivered) : "—"}</TableCell>
           </>
         )}
       />
@@ -83,5 +84,5 @@ export function CustomerPaymentsList({
 }
 
 export function CustomerPaymentsListSkeleton() {
-  return <DataTable.Skeleton columns={COLUMNS} hasId />;
+  return <TableRowsSkeleton columns={COLUMNS} hasId search="Search customers…" filters={["Plan Completes In", "Active plan", "Customer type"]} />;
 }

@@ -20,10 +20,11 @@ export function MoreDrawer({
 }) {
   const router = useRouter();
   const navAllowed = useNavAllowed();
-  const sections = SECTIONS.map((s) => ({
-    label: s.label,
-    items: s.items.filter((i) => navAllowed(i.href)),
-  })).filter((s) => s.items.length > 0);
+  const sections = SECTIONS.flatMap((s) =>
+    s.items.some((i) => i.children)
+      ? s.items.map((i) => ({ label: i.title, items: (i.children ?? []).filter((c) => navAllowed(c.href)) }))
+      : [{ label: s.label, items: s.items.filter((i) => navAllowed(i.href)) }],
+  ).filter((s) => s.items.length > 0);
 
   const rowClass =
     "hover:bg-accent flex min-h-11 items-center gap-3 rounded-md px-2 text-left text-sm transition-colors";

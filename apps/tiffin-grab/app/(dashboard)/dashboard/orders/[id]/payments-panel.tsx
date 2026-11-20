@@ -462,7 +462,7 @@ function PaymentRow({
             <img
               src={payment.proofThumbUrl}
               alt={payment.proof?.name ?? "Payment proof"}
-              className="max-h-64 w-auto max-w-full rounded-md border object-contain transition-opacity group-hover:opacity-90"
+              className="max-h-64 w-auto max-w-full rounded-md border object-contain"
             />
             <span className="text-primary mt-1 inline-flex items-center gap-1 text-xs underline-offset-2 group-hover:underline">
               <ExternalLinkIcon className="size-3" aria-hidden />

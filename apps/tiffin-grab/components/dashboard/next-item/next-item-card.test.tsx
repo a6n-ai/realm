@@ -3,7 +3,6 @@ import "@testing-library/jest-dom/vitest";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ReactElement } from "react";
 import { cleanup, render, screen, within } from "@testing-library/react";
-import { TooltipProvider } from "@foundry/ui/tooltip";
 import { NextItemCard, NextItemEmpty, NextItemSkeleton, type NextItemView } from "./next-item-card";
 import { UpNextStrip, type UpNextTile } from "./up-next-strip";
 
@@ -18,7 +17,7 @@ const view = (over: Partial<NextItemView> = {}): NextItemView => ({
   primary: <button type="button">Do it</button>,
   ...over,
 });
-const wrap = (ui: ReactElement) => render(<TooltipProvider>{ui}</TooltipProvider>);
+const wrap = (ui: ReactElement) => render(ui);
 
 describe("NextItemCard", () => {
   it("shows queue arrows and one Skip when there is an item", () => {

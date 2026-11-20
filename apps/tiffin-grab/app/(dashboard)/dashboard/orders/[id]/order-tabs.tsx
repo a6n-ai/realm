@@ -47,7 +47,7 @@ export function OrderTabs({
   };
 
   return (
-    <Tabs value={value} onValueChange={select} className="gap-4">
+    <Tabs value={value} onValueChange={(next) => next && select(next)} className="gap-4">
       <div className="-mx-4 overflow-x-auto px-4 md:mx-0 md:px-0">
         <TabsList>
           {tabs.map((t) => (

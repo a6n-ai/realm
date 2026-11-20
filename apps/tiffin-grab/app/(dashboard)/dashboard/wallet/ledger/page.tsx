@@ -14,6 +14,7 @@ import { walletEntryLabel } from "@/lib/wallet/source-labels";
 import { formatEpoch } from "@/lib/format/datetime";
 import { getAppSettings } from "@/lib/settings";
 import { walletLedgerRows, walletLedgerStats, type WalletSortColumn } from "@/lib/wallet/wallet-ledger.service";
+import { hrefWithDates } from "@/lib/dates/range-params";
 
 type SearchParams = Promise<Record<string, string | undefined>>;
 
@@ -46,7 +47,7 @@ async function LedgerStats({ searchParams }: { searchParams: SearchParams }) {
     { label: "Coins spent", value: agg.spent.toLocaleString(), icon: ShoppingBagIcon, hint: "net of returns" },
     { label: "Net", value: (agg.earned - agg.spent).toLocaleString(), icon: ScaleIcon, hint: "earned minus spent" },
     { label: "Active wallets", value: agg.wallets.toLocaleString(), icon: WalletIcon, hint: "with activity in range" },
-    { label: "Entries", value: agg.entries.toLocaleString(), icon: ScrollTextIcon, hint: "ledger rows in range", href: `/dashboard/wallet/ledger?from=${sp.from}&to=${sp.to}` },
+    { label: "Entries", value: agg.entries.toLocaleString(), icon: ScrollTextIcon, hint: "ledger rows in range", href: hrefWithDates("/dashboard/wallet/ledger", sp) },
   ];
   return <StatCards items={cards} />;
 }

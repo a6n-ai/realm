@@ -911,9 +911,7 @@ export function TimePickerTrigger({
     )
 
   return (
-    <PopoverTrigger asChild>
-      <Button {...buttonProps}>{content}</Button>
-    </PopoverTrigger>
+    <PopoverTrigger render={<Button {...buttonProps} />}>{content}</PopoverTrigger>
   )
 }
 
@@ -1068,9 +1066,7 @@ export function TimePickerInput({
         }}
       />
       <InputGroupAddon align="inline-end">
-        <PopoverTrigger asChild>
-          <InputGroupButton {...clockProps}>{CLOCK_ICON}</InputGroupButton>
-        </PopoverTrigger>
+        <PopoverTrigger render={<InputGroupButton {...clockProps} />}>{CLOCK_ICON}</PopoverTrigger>
       </InputGroupAddon>
     </InputGroup>
   )
@@ -1083,7 +1079,9 @@ export function TimePickerInput({
 const TABBABLE =
   'button:not(:disabled), [href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])'
 
-export type TimePickerContentProps = ComponentProps<typeof PopoverContent>
+export type TimePickerContentProps = Omit<ComponentProps<typeof PopoverContent>, "children"> & {
+  children?: ReactNode
+}
 
 /**
  * The popover: columns and footer by default. Tab cycles inside it, as in a

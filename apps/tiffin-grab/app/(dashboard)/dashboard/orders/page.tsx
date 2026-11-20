@@ -21,21 +21,17 @@ import { dishCategoriesService } from "@/lib/menu/dish-categories.service";
 import { parseSort } from "@foundry/design-system/list-sort";
 import { Skeleton } from "@foundry/ui/skeleton";
 import {
-  PageShell,
-  PageHeader,
-  SectionCard,
   parseFilterState,
   type FacetDef,
 } from "@/components/ds";
-import { SectionDateRange } from "@/components/filters/section-date-range";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@foundry/ui/tooltip";
 import { withDefaultMonth, withListDates } from "@/lib/list/default-month";
 import { OrdersList, OrdersListSkeleton } from "./orders-list";
 import { NextOrderSection } from "./next-order-section";
 import { NextItemSkeleton } from "@/components/dashboard/next-item/next-item-card";
 import { OrdersViewTabs } from "./orders-view-tabs";
+import { OrdersChrome } from "./orders-chrome";
 import { getFreeTiffinStats, getLookOutStats, getOrdersOverview, getPaymentReviewStats } from "@/lib/orders/orders-stats.service";
-import { OrderTagsLegend } from "./row-tags";
 import { StatCards, StatCardsSkeleton, type StatCardItem } from "@/components/dashboard/stat-cards";
 import { MissedList } from "./missed-list";
 import { countMissedDeliveries, listMissedDeliveries } from "@/lib/deliveries/missed-deliveries.service";
@@ -65,64 +61,59 @@ export default async function OrdersPage({
   const raw = await searchParams;
   // Ending soon moved to Renewals; keep old bookmarks working.
   if (raw.view === "ending") redirect("/dashboard/renewals?ending=2");
+  const view = raw.view;
   return (
-    <PageShell>
-      <PageHeader
-        icon={PackageIcon}
-        title="Orders"
-        actions={
-          <div className="flex flex-wrap items-center gap-2">
-            <Suspense fallback={null}>
-              <StartMigratedAction />
-            </Suspense>
-            <Suspense fallback={<Skeleton className="h-9 w-32" />}>
-              <NewOrderAction />
-            </Suspense>
-          </div>
-        }
-      />
-      {/* The date range filters the cards: one group, tighter than the page rhythm. */}
-      <div className="flex flex-col gap-3">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <SectionDateRange />
-            {raw.view === "lookout" ||
-            raw.view === "payment" ||
-            raw.view === "missed" ||
-            raw.status === "running" ||
-            raw.status === "soon" ? (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <CalendarOffIcon className="text-muted-foreground size-4" aria-label="Filter ignored" />
-                </TooltipTrigger>
-                <TooltipContent>Created-date filter ignored for this view</TooltipContent>
-              </Tooltip>
-            ) : raw.cancelledAt === "1" ? (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <CalendarOffIcon className="text-muted-foreground size-4" aria-label="Dated by cancel" />
-                </TooltipTrigger>
-                <TooltipContent>Dated by cancel activity, not order created date</TooltipContent>
-              </Tooltip>
-            ) : null}
-          </div>
-        </div>
-        <Suspense key={`${raw.view ?? "all"}:${raw.from}:${raw.to}`} fallback={<StatCardsSkeleton count={raw.view === "lookout" || raw.view === "payment" || raw.view === "missed" ? 4 : raw.view === "free" ? 3 : 5} />}>
+    <OrdersChrome
+      startMigrated={
+        <Suspense fallback={null}>
+          <StartMigratedAction />
+        </Suspense>
+      }
+      newOrder={
+        <Suspense fallback={<Skeleton className="h-9 w-32" />}>
+          <NewOrderAction />
+        </Suspense>
+      }
+      dateNote={
+        view === "lookout" || view === "payment" || view === "missed" || raw.status === "running" || raw.status === "soon" ? (
+          <Tooltip>
+            <TooltipTrigger render={
+              <CalendarOffIcon className="text-muted-foreground size-4" aria-label="Filter ignored" />
+            } />
+            <TooltipContent>Created-date filter ignored for this view</TooltipContent>
+          </Tooltip>
+        ) : raw.cancelledAt === "1" ? (
+          <Tooltip>
+            <TooltipTrigger render={
+              <CalendarOffIcon className="text-muted-foreground size-4" aria-label="Dated by cancel" />
+            } />
+            <TooltipContent>Dated by cancel activity, not order created date</TooltipContent>
+          </Tooltip>
+        ) : null
+      }
+      stats={
+        <Suspense key={`${view ?? "all"}:${raw.from}:${raw.to}:${raw.range}`} fallback={<StatCardsSkeleton count={view === "lookout" || view === "payment" || view === "missed" ? 4 : view === "free" ? 3 : 5} />}>
           <OrdersStats searchParams={searchParams} />
         </Suspense>
-      </div>
-      <Suspense fallback={<NextItemSkeleton title="Next order" />}>
-        <NextOrderSection searchParams={searchParams} />
-      </Suspense>
-      <Suspense fallback={<Skeleton className="h-9 w-56" />}>
-        <OrdersViews searchParams={searchParams} />
-      </Suspense>
-      <SectionCard title="Orders" subtitle={listNote(raw.view)} action={raw.view === "missed" ? undefined : <OrderTagsLegend />}>
+      }
+      next={
+        <Suspense fallback={<NextItemSkeleton title="Next order" />}>
+          <NextOrderSection searchParams={searchParams} />
+        </Suspense>
+      }
+      tabs={
+        <Suspense fallback={<OrdersViewTabs showPayment />}>
+          <OrdersViews searchParams={searchParams} />
+        </Suspense>
+      }
+      listSubtitle={listNote(view)}
+      showLegend={view !== "missed"}
+      list={
         <Suspense fallback={<OrdersListSkeleton />}>
           <OrdersData searchParams={searchParams} />
         </Suspense>
-      </SectionCard>
-    </PageShell>
+      }
+    />
   );
 }
 
@@ -309,7 +300,7 @@ async function OrdersData({ searchParams }: { searchParams: SearchParams }) {
   const freeTiffins = raw.view === "free";
   const cancelledAt = raw.cancelledAt === "1";
   // Running / starting-soon KPIs are "right now"; cancel-dated lists use activity time, not createdAt.
-  const datesAll = raw.dates === "all" && !raw.from && !raw.to;
+  const datesAll = raw.dates === "all" && !raw.from && !raw.to && !raw.range;
   const ignoreCreatedAt =
     datesAll ||
     lookOutOnly ||

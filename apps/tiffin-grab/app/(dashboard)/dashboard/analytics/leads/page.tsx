@@ -86,6 +86,13 @@ async function StatsData({ scope }: { scope: AnalyticsScope }) {
           href: inquiriesHref(scope, { stage: "converted" }),
           badge: "Won",
           badgeTone: "ok",
+          footer:
+            s.total === 0 ? undefined : (
+              <StatFootnote>
+                <span className="text-muted-foreground">Conversion rate</span>
+                <span className="text-foreground font-semibold tabular-nums">{s.conversionRatePct}%</span>
+              </StatFootnote>
+            ),
         },
         {
           label: "Lost",
@@ -103,23 +110,6 @@ async function StatsData({ scope }: { scope: AnalyticsScope }) {
           href: inquiriesHref(scope, {}),
           badge: "Direct",
           badgeTone: "brand",
-        },
-        {
-          label: "Conversion rate",
-          value: `${s.conversionRatePct}%`,
-          hint: s.total === 0 ? "No leads yet" : `Converted leads divided by all leads · ${DATE_BASIS_LABEL.leads}`,
-          href: inquiriesHref(scope, { stage: "converted" }),
-          badge: "Rate",
-          badgeTone: "brand",
-          footer:
-            s.total === 0 ? undefined : (
-              <StatFootnote>
-                <span className="text-muted-foreground">Converted</span>
-                <span className="text-foreground font-semibold tabular-nums">
-                  {s.converted} of {s.total}
-                </span>
-              </StatFootnote>
-            ),
         },
       ]}
     />

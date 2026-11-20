@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { HoverHint } from "@/components/ds/hover-hint";
 import { useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { CalendarOffIcon, CalendarPlusIcon, UsersIcon } from "lucide-react";
@@ -12,6 +13,7 @@ import { parseSort, sortRows } from "@foundry/design-system/list-sort";
 import type { HolidayClosedRow, HolidayOutcome, HolidayRow, NeedsPlacingRow } from "@/lib/deliveries/holidays.service";
 import { HolidayRowActions } from "./holiday-row-actions";
 import { PlacingActions } from "./placing-actions";
+import { TableRowsSkeleton } from "@/components/dashboard/table-rows-skeleton";
 
 export type HolidayListRow = HolidayRow & { needsPlacing: number };
 
@@ -85,12 +87,12 @@ export function HolidaysTable({ rows, today }: { rows: HolidayListRow[]; today: 
         const when = whenOf(r.date, today);
         return (
           <>
-            <TableCell className="whitespace-nowrap tabular-nums">{humanDate(r.date)}</TableCell>
-            <TableCell className="font-medium" title={r.name}><Link className="hover:underline" href={`/dashboard/settings/holidays/${r.publicId}`}>{r.name}</Link></TableCell>
+            <TableCell numeric className="whitespace-nowrap tabular-nums">{humanDate(r.date)}</TableCell>
+            <TableCell className="font-medium"><HoverHint text={r.name}><Link className="hover:underline" href={`/dashboard/settings/holidays/${r.publicId}`}>{r.name}</Link></HoverHint></TableCell>
             <TableCell className="text-muted-foreground">{r.organizationName}</TableCell>
             <TableCell><TonePill tone={when === "past" ? "neutral" : when === "today" ? "warn" : "brand"}>{WHEN[when]}</TonePill></TableCell>
-            <TableCell className="text-right tabular-nums">{r.closed}</TableCell>
-            <TableCell className="text-right tabular-nums">{r.needsPlacing}</TableCell>
+            <TableCell numeric className="text-right tabular-nums">{r.closed}</TableCell>
+            <TableCell numeric className="text-right tabular-nums">{r.needsPlacing}</TableCell>
             <TableCell className="text-muted-foreground">{r.declaredBy ?? "-"}</TableCell>
             <TableCell className="text-right">
               <RowActions>
@@ -105,7 +107,7 @@ export function HolidaysTable({ rows, today }: { rows: HolidayListRow[]; today: 
 }
 
 export function HolidaysTableSkeleton() {
-  return <DataTable.Skeleton columns={COLUMNS} />;
+  return <TableRowsSkeleton columns={COLUMNS} search="Search holiday, organization, staff…" filters={[]} />;
 }
 
 const PLACING_COLUMNS: readonly Column<"closedDay" | "order" | "customer" | "tiffins" | "why" | "actions">[] = [
@@ -132,11 +134,11 @@ export function NeedsPlacingTable({ rows, today }: { rows: NeedsPlacingRow[]; to
       renderRow={(w) => (
         <>
           <TableCell className="whitespace-nowrap">{humanDate(w.date)} · {w.holidayName}</TableCell>
-          <TableCell className="font-mono text-xs">
+          <TableCell mono className="font-mono text-xs">
             <Link className="hover:underline" href={`/dashboard/orders/${w.orderPublicId}`}>{w.orderCode}</Link>
           </TableCell>
           <TableCell>{w.customerName}</TableCell>
-          <TableCell className="text-right tabular-nums">{w.tiffins}</TableCell>
+          <TableCell numeric className="text-right tabular-nums">{w.tiffins}</TableCell>
           <TableCell className="text-muted-foreground text-sm">{reasonFor(w)}</TableCell>
           <TableCell><PlacingActions deliveryPublicId={w.deliveryPublicId} orderPublicId={w.orderPublicId} label={`${w.customerName} · ${w.orderCode}`} date={w.date} today={today} /></TableCell>
         </>
@@ -180,8 +182,8 @@ export function ClosedDaysTable({ rows }: { rows: HolidayClosedRow[] }) {
         return (
           <>
             <TableCell className="font-medium">{r.customerName}</TableCell>
-            <TableCell className="font-mono text-xs"><Link className="hover:underline" href={`/dashboard/orders/${r.orderPublicId}`}>{r.orderCode}</Link></TableCell>
-            <TableCell className="text-right tabular-nums">{r.tiffins}</TableCell>
+            <TableCell mono className="font-mono text-xs"><Link className="hover:underline" href={`/dashboard/orders/${r.orderPublicId}`}>{r.orderCode}</Link></TableCell>
+            <TableCell numeric className="text-right tabular-nums">{r.tiffins}</TableCell>
             <TableCell><TonePill tone={tone}>{text}</TonePill></TableCell>
           </>
         );

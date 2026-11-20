@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition, type ReactNode } from "react";
+import { useState, useTransition, type ReactElement } from "react";
 import { EyeIcon, EyeOffIcon, PencilIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@foundry/ui/button";
@@ -71,7 +71,7 @@ function NoteDialog({
   orderId: string;
   on: boolean;
   initial?: string;
-  trigger: ReactNode;
+  trigger: ReactElement;
   title: string;
   description: string;
   label?: string;

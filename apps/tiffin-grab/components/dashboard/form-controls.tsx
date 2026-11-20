@@ -136,19 +136,21 @@ export function Multiselect({
         </ul>
       )}
       <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
-          <Button
+        <PopoverTrigger
+          render={
+            <Button
             type="button"
             variant="outline"
             role="combobox"
             aria-expanded={open}
             className="text-muted-foreground w-full justify-between font-normal"
-          >
+            />
+          }
+        >
             {value.length > 0 ? `${value.length} selected` : placeholder}
             <ChevronsUpDownIcon className="size-4 opacity-50" aria-hidden />
-          </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-[--radix-popover-trigger-width] min-w-56 p-0" align="start">
+        <PopoverContent className="w-(--anchor-width) min-w-56 p-0" align="start">
           <Command>
             <CommandInput placeholder={searchPlaceholder} />
             <CommandList>

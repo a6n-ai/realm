@@ -440,12 +440,12 @@ html.dark .customer-app nav[aria-label="Primary"] button[aria-current="page"] > 
 }
 
 /* Tabs underline active = navy */
-.customer-app [data-slot="tabs-trigger"][data-state="active"] {
+.customer-app [data-slot="tabs-tab"][data-selected] {
   color: var(--xl-navy-800);
   font-weight: 700;
 }
 
-html.dark .customer-app [data-slot="tabs-trigger"][data-state="active"] {
+html.dark .customer-app [data-slot="tabs-tab"][data-selected] {
   color: var(--foreground);
 }
 

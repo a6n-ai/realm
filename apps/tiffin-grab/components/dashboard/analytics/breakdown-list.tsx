@@ -3,7 +3,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { cn } from "@foundry/ui/cn";
-import { Tooltip, TooltipProvider, TooltipTrigger } from "@foundry/ui/tooltip";
+import { Tooltip, TooltipTrigger } from "@foundry/ui/tooltip";
 import { ListPagination } from "@/components/ds";
 import { ChartEmpty } from "@/components/dashboard/analytics/chart-boundary";
 import { ChartTip } from "@/components/dashboard/analytics/chart-tip";
@@ -96,18 +96,16 @@ export function BreakdownList({
           return (
             <li key={`${r.label}-${r.meta ?? ""}`}>
               {r.tip ? (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div tabIndex={0} className="focus-visible:ring-ring/50 cursor-default rounded-sm outline-none focus-visible:ring-2">
-                        {body}
-                      </div>
-                    </TooltipTrigger>
-                    <ChartTip side="left" className="max-w-xs">
-                      {r.tip}
-                    </ChartTip>
-                  </Tooltip>
-                </TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger render={
+                    <div tabIndex={0} className="focus-visible:ring-ring/50 cursor-default rounded-sm outline-none focus-visible:ring-2">
+                      {body}
+                    </div>
+                  } />
+                  <ChartTip side="left" className="max-w-xs">
+                    {r.tip}
+                  </ChartTip>
+                </Tooltip>
               ) : r.href ? (
                 <Link
                   href={r.href}

@@ -30,6 +30,8 @@ import {
   savePlanTableColumns,
   type PlanTableColumnKey,
 } from "./renewal-table-columns";
+import { HoverHint } from "@/components/ds/hover-hint";
+import { TableRowsSkeleton } from "@/components/dashboard/table-rows-skeleton";
 
 const STATUS_VARIANT: Record<RenewalRowStatus, "success-light" | "warning-light" | "info-light" | "secondary" | "destructive-light"> = {
   renewed: "success-light",
@@ -80,7 +82,7 @@ function planCell(key: PlanTableColumnKey, r: RenewalRow, today: string, trial: 
       );
     case "phone":
       return (
-        <TableCell key={key} className="tabular-nums">
+        <TableCell numeric key={key} className="tabular-nums">
           {r.phone ?? <span className="text-muted-foreground">—</span>}
         </TableCell>
       );
@@ -96,8 +98,12 @@ function planCell(key: PlanTableColumnKey, r: RenewalRow, today: string, trial: 
       );
     case "last":
       return (
-        <TableCell key={key} className="tabular-nums" title={humanDate(r.lastTiffin)}>
-          {humanDate(r.lastTiffin)} <span className="text-muted-foreground">· {whenLabel(r.lastTiffin, today)}</span>
+        <TableCell numeric key={key} className="tabular-nums">
+          <HoverHint text={humanDate(r.lastTiffin)}>
+            <span>
+              {humanDate(r.lastTiffin)} <span className="text-muted-foreground">· {whenLabel(r.lastTiffin, today)}</span>
+            </span>
+          </HoverHint>
         </TableCell>
       );
     case "outcome":
@@ -127,7 +133,7 @@ function planCell(key: PlanTableColumnKey, r: RenewalRow, today: string, trial: 
         );
       }
       return (
-        <TableCell key={key} className="tabular-nums">
+        <TableCell numeric key={key} className="tabular-nums">
           {formatEpoch(r.laterBookedAt, { mode: "date", timeZone: tz })}
         </TableCell>
       );
@@ -136,7 +142,7 @@ function planCell(key: PlanTableColumnKey, r: RenewalRow, today: string, trial: 
       const followIso = r.nextFollowUpAt != null ? zonedDateIso(r.nextFollowUpAt, tz) : null;
       const overdue = followIso != null && followIso < today;
       return (
-        <TableCell key={key} className="whitespace-nowrap tabular-nums">
+        <TableCell numeric key={key} className="whitespace-nowrap tabular-nums">
           {followIso ? (
             <span className={overdue ? "text-destructive" : undefined}>
               {humanDate(followIso)}
@@ -152,9 +158,11 @@ function planCell(key: PlanTableColumnKey, r: RenewalRow, today: string, trial: 
       return (
         <TableCell key={key}>
           {r.lastActivity ? (
-            <span className="text-muted-foreground block truncate text-xs" title={r.lastActivity.note ?? ACTIVITY_LABEL[r.lastActivity.type] ?? r.lastActivity.type}>
-              {r.lastActivity.note ?? ACTIVITY_LABEL[r.lastActivity.type] ?? r.lastActivity.type}
-            </span>
+            <HoverHint text={r.lastActivity.note ?? ACTIVITY_LABEL[r.lastActivity.type] ?? r.lastActivity.type}>
+              <span className="text-muted-foreground block truncate text-xs">
+                {r.lastActivity.note ?? ACTIVITY_LABEL[r.lastActivity.type] ?? r.lastActivity.type}
+              </span>
+            </HoverHint>
           ) : (
             <span className="text-muted-foreground text-xs">—</span>
           )}
@@ -162,43 +170,45 @@ function planCell(key: PlanTableColumnKey, r: RenewalRow, today: string, trial: 
       );
     case "priorPlans":
       return (
-        <TableCell key={key} className="text-right tabular-nums">
+        <TableCell numeric key={key} className="text-right tabular-nums">
           {r.priorPlans}
         </TableCell>
       );
     case "holds":
       return (
-        <TableCell key={key} className="text-right tabular-nums">
+        <TableCell numeric key={key} className="text-right tabular-nums">
           {r.holds}
         </TableCell>
       );
     case "openTickets":
       return (
-        <TableCell key={key} className="text-right tabular-nums">
+        <TableCell numeric key={key} className="text-right tabular-nums">
           {r.openTickets}
         </TableCell>
       );
     case "coins":
       return (
-        <TableCell key={key} className="text-right tabular-nums">
+        <TableCell numeric key={key} className="text-right tabular-nums">
           {r.walletCoins} <span className="text-muted-foreground">coins</span>
         </TableCell>
       );
     case "spent":
       return (
-        <TableCell key={key} className="text-right tabular-nums">
+        <TableCell numeric key={key} className="text-right tabular-nums">
           {fmt(Number(r.totalSpent))}
         </TableCell>
       );
     case "total":
       return (
-        <TableCell key={key} className="text-right tabular-nums" title={r.prevOrderTotal != null ? `Plan before this one: ${fmt(Number(r.prevOrderTotal))}` : "No plan before this one"}>
-          {fmt(Number(r.planTotal))}
+        <TableCell numeric key={key} className="text-right tabular-nums">
+          <HoverHint text={r.prevOrderTotal != null ? `Plan before this one: ${fmt(Number(r.prevOrderTotal))}` : "No plan before this one"}>
+            <span>{fmt(Number(r.planTotal))}</span>
+          </HoverHint>
         </TableCell>
       );
     case "prevPlanTotal":
       return (
-        <TableCell key={key} className="text-right tabular-nums">
+        <TableCell numeric key={key} className="text-right tabular-nums">
           {r.prevOrderTotal != null ? fmt(Number(r.prevOrderTotal)) : <span className="text-muted-foreground">—</span>}
         </TableCell>
       );
@@ -261,7 +271,7 @@ export function RenewalsList({ rows, total, page, size, trial, today, spec }: { 
 }
 
 export function RenewalsListSkeleton() {
-  return <DataTable.Skeleton columns={planTableColumnDefs(DEFAULT_PLAN_TABLE_COLUMNS)} hasId />;
+  return <TableRowsSkeleton columns={planTableColumnDefs(DEFAULT_PLAN_TABLE_COLUMNS)} hasId search="Search name, order or phone…" filters={["Ending within", "Ended in last", "Status"]} firstColumnLines={2} />;
 }
 
 const CUSTOMER_COLUMNS: readonly Column<"customer" | "renewals" | "lastRenewed" | "current" | "spent">[] = [
@@ -295,8 +305,8 @@ export function RenewedCustomersList({ rows, total, page, size, today, spec }: {
               <Link href={`/dashboard/renewals/customers/${r.customerPublicId}`} className="group-hover:underline">{r.customerName || "Unnamed customer"}</Link>
               {r.phone && <span className="text-muted-foreground ml-2 text-xs font-normal tabular-nums">{r.phone}</span>}
             </TableCell>
-            <TableCell className="text-right tabular-nums">{r.renewals} <span className="text-muted-foreground">of {r.plans} plans</span></TableCell>
-            <TableCell className="tabular-nums">{formatEpoch(r.lastRenewedAt, { mode: "date", timeZone: tz })}</TableCell>
+            <TableCell numeric className="text-right tabular-nums">{r.renewals} <span className="text-muted-foreground">of {r.plans} plans</span></TableCell>
+            <TableCell numeric className="tabular-nums">{formatEpoch(r.lastRenewedAt, { mode: "date", timeZone: tz })}</TableCell>
             <TableCell>
               {r.currentMealSize ? (
                 <>
@@ -307,7 +317,7 @@ export function RenewedCustomersList({ rows, total, page, size, today, spec }: {
                 <span className="text-muted-foreground">None running</span>
               )}
             </TableCell>
-            <TableCell className="text-right tabular-nums">{fmt(Number(r.totalSpent))}</TableCell>
+            <TableCell numeric className="text-right tabular-nums">{fmt(Number(r.totalSpent))}</TableCell>
           </>
         )}
       />
@@ -317,5 +327,5 @@ export function RenewedCustomersList({ rows, total, page, size, today, spec }: {
 }
 
 export function RenewedCustomersListSkeleton() {
-  return <DataTable.Skeleton columns={CUSTOMER_COLUMNS} />;
+  return <TableRowsSkeleton columns={CUSTOMER_COLUMNS} search="Search name, phone or email…" filters={["Renewed in last"]} />;
 }

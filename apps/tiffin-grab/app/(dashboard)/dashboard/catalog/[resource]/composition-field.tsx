@@ -77,7 +77,7 @@ export function CompositionField({
           type="button"
           variant="outline"
           size="sm"
-          className="justify-self-start transition-transform active:scale-[0.96]"
+          className="justify-self-start"
           onClick={() => append({ category: "", planId: "", tuAmount: "1", maxTuAmount: "", role: "main" })}
         >
           <PlusIcon className="size-4" /> Add item
@@ -202,7 +202,7 @@ function CompositionRow({
           type="button"
           variant="ghost"
           size="icon"
-          className="text-muted-foreground hover:text-destructive size-10 self-end transition-[color,scale] active:scale-[0.96]"
+          className="text-muted-foreground hover:text-destructive size-10 self-end"
           aria-label={`Remove item ${idx + 1}`}
           onClick={onRemove}
         >

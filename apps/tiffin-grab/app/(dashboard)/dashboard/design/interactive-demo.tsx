@@ -73,7 +73,7 @@ export function InteractiveDemo() {
             <>
               <TableCell className="font-medium">{r.name}</TableCell>
               <TableCell>{r.role}</TableCell>
-              <TableCell className="text-right tabular-nums">{r.orders}</TableCell>
+              <TableCell numeric className="text-right tabular-nums">{r.orders}</TableCell>
             </>
           )}
         />

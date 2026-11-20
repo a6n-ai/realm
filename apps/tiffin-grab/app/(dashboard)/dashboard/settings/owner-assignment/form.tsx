@@ -43,7 +43,7 @@ function StrategyCards({
       {choices.map((c) => (
         <label
           key={c.value}
-          className={`has-data-[state=checked]:border-primary flex cursor-pointer rounded-lg border transition-colors hover:bg-muted/50 ${compact ? "items-center gap-3 p-3" : "flex-col gap-2 p-4"}`}
+          className={`has-data-[state=checked]:border-primary flex cursor-pointer rounded-lg border hover:bg-muted/50 ${compact ? "items-center gap-3 p-3" : "flex-col gap-2 p-4"}`}
         >
           {compact ? (
             <>
@@ -177,7 +177,7 @@ export function OwnerAssignmentForm({
 
   return (
     <div className="grid gap-6">
-      <Tabs value={tab} onValueChange={changeTab}>
+      <Tabs value={tab} onValueChange={(next) => next && changeTab(next)}>
         <TabsList>
           {TABS.map((t) => (
             <TabsTrigger key={t.value} value={t.value}>
@@ -367,7 +367,7 @@ function PoolRow({
       <div className="grid min-w-0 flex-1 gap-1.5">
         <span className="truncate text-sm">{name}</span>
         {showWeight && (
-          <div className={`animate-in fade-in flex items-center gap-2 motion-reduce:animate-none ${EASE}`}>
+          <div className={`flex items-center gap-2 `}>
             <div className="bg-muted h-1.5 flex-1 overflow-hidden rounded-full" role="progressbar" aria-valuenow={share} aria-valuemin={0} aria-valuemax={100} aria-label={`${name} share`}>
               <div className={`bg-primary h-full w-full origin-left transition-transform ${EASE}`} style={{ transform: `scaleX(${share / 100})` }} />
             </div>
@@ -376,7 +376,7 @@ function PoolRow({
         )}
       </div>
       {showWeight && (
-        <div className={`animate-in fade-in flex items-center gap-1 motion-reduce:animate-none ${EASE}`}>
+        <div className={`flex items-center gap-1 `}>
           <Button variant="outline" size="icon-sm" aria-label={`Decrease ${name} weight`} disabled={weight <= 1} onClick={() => onWeight(weight - 1)}>
             <MinusIcon />
           </Button>

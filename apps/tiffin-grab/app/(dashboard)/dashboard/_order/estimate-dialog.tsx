@@ -125,7 +125,7 @@ export function EstimateDialog({ open, onOpenChange, fromOrder }: { open: boolea
                   <Label
                     key={w.value}
                     htmlFor={`estimate-${w.value}`}
-                    className="hover:bg-muted/40 has-data-[state=checked]:border-primary has-data-[state=checked]:bg-primary/5 flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors"
+                    className="hover:bg-muted/40 has-data-[state=checked]:border-primary has-data-[state=checked]:bg-primary/5 flex cursor-pointer items-start gap-3 rounded-lg border p-3"
                   >
                     <RadioGroupItem id={`estimate-${w.value}`} value={w.value} className="mt-0.5" />
                     <span className="grid gap-0.5">

@@ -2,7 +2,6 @@
 import "@testing-library/jest-dom/vitest";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render as rtlRender, screen, waitFor, within } from "@testing-library/react";
-import { TooltipProvider } from "@foundry/ui/tooltip";
 import type { NextOrderReason, NextOrderRow } from "@/lib/orders/next-order.service";
 import { NextOrderCard, type NextOrderCardProps } from "../next-order-card";
 vi.mock("../actions", () => ({ addOrderNoteAction: vi.fn() }));
@@ -36,7 +35,7 @@ const base = (over: Partial<NextOrderCardProps> = {}): NextOrderCardProps => ({
   attentionHref: "/dashboard/orders?view=payment",
   ...over,
 });
-const render = (ui: React.ReactElement) => rtlRender(<TooltipProvider>{ui}</TooltipProvider>);
+const render = (ui: React.ReactElement) => rtlRender(ui);
 
 afterEach(() => cleanup());
 describe("Next order card", () => {

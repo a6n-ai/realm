@@ -4,7 +4,7 @@
  * browser bundle.
  */
 
-export const ANALYTICS_FILTER_PARAMS = ["from", "to", "plan", "mealSize", "zone", "org"] as const;
+export const ANALYTICS_FILTER_PARAMS = ["from", "to", "range", "plan", "mealSize", "zone", "org"] as const;
 
 export type AnalyticsSearchParams = Partial<Record<(typeof ANALYTICS_FILTER_PARAMS)[number], string>>;
 

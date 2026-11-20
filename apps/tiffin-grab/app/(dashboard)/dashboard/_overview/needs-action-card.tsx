@@ -1,7 +1,7 @@
 import type { Visible } from "@/lib/tenant/org-scope";
 import Link from "next/link";
 import { inStatuses, PENDING } from "@/lib/payments/status";
-import { CalendarDaysIcon, CheckIcon, CircleAlertIcon, CreditCardIcon, LifeBuoyIcon, RefreshCwIcon, RouteIcon, type LucideIcon } from "lucide-react";
+import { CalendarDaysIcon, CircleAlertIcon, CreditCardIcon, LifeBuoyIcon, RefreshCwIcon, RouteIcon, type LucideIcon } from "lucide-react";
 import { Button } from "@foundry/ui/button";
 import { ChartCard } from "@/components/dashboard/analytics/chart-card";
 import { Badge } from "@/components/reui/badge";
@@ -104,10 +104,7 @@ export async function NeedsActionCard({ visible, today, seesAll, perms }: { visi
                 <div className="text-muted-foreground truncate text-xs">{l.count == null ? "count unavailable" : l.sub}</div>
               </div>
               {clear ? (
-                <Badge variant="success-light">
-                  <CheckIcon aria-hidden />
-                  clear
-                </Badge>
+                <Badge variant="success-light" className="[--ui-badge-tone:var(--ok)]">clear</Badge>
               ) : (
                 l.action
               )}

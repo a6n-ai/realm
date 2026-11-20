@@ -126,10 +126,8 @@ function PluginCard({ meta, status }: { meta: PluginMeta; status: PluginCatalogS
       menu={
         status.installed ? (
           <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon-sm" aria-label={`More for ${meta.label}`} disabled={pending}>
-                <EllipsisIcon />
-              </Button>
+            <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label={`More for ${meta.label}`} disabled={pending} />}>
+              <EllipsisIcon />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem variant="destructive" onSelect={() => setInstalled(false)}>

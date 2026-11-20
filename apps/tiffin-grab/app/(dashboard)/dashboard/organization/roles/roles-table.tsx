@@ -11,6 +11,7 @@ import { AreaBadge, DataTable, type Column } from "@/components/ds";
 import { Badge } from "@/components/reui/badge";
 import { NewRoleDialog } from "./role-dialogs";
 import { areasOf, countPermissions, memberCount, type RoleItem } from "./role-summary";
+import { TableRowsSkeleton } from "@/components/dashboard/table-rows-skeleton";
 
 const ROLES = "/dashboard/organization/roles";
 const roleHref = (name: string) => `${ROLES}?role=${encodeURIComponent(name)}`;
@@ -79,7 +80,7 @@ export function RolesTable({
                 )}
               </span>
             </TableCell>
-            <TableCell className="tabular-nums">{countPermissions(r.permission)}</TableCell>
+            <TableCell numeric className="tabular-nums">{countPermissions(r.permission)}</TableCell>
             <TableCell>
               <div className="flex flex-wrap gap-1">
                 {areas.map((a) => (
@@ -87,14 +88,14 @@ export function RolesTable({
                 ))}
               </div>
             </TableCell>
-            <TableCell className="tabular-nums">{memberCount(r.members)}</TableCell>
+            <TableCell numeric className="tabular-nums">{memberCount(r.members)}</TableCell>
           </>
         );
       }}
       mobileCard={(r) => (
         <Link
           href={roleHref(r.name)}
-          className="flex flex-col gap-2 rounded-lg border p-3 transition-colors hover:bg-muted"
+          className="flex flex-col gap-2 rounded-lg border p-3"
         >
           <span className="flex items-center gap-2 text-sm font-medium capitalize">
             {r.name}
@@ -114,5 +115,5 @@ export function RolesTable({
 }
 
 export function RolesTableSkeleton() {
-  return <DataTable.Skeleton columns={COLUMNS} />;
+  return <TableRowsSkeleton columns={COLUMNS} search="Search roles…" />;
 }

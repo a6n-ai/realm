@@ -5,9 +5,9 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { Tabs, TabsList, TabsTrigger } from "@foundry/ui/tabs";
 import type { RoutedTabNavItem } from "@foundry/design-system";
 
-const DATE_KEYS = ["from", "to"] as const;
+const DATE_KEYS = ["from", "to", "range"] as const;
 
-/** Tab links that keep the section date (`from`/`to`) and drop every other param. */
+/** Tab links that keep the section date (`range`/`from`/`to`) and drop every other param. */
 export function DatedTabNav({
   tabs,
   ariaLabel,
@@ -29,14 +29,12 @@ export function DatedTabNav({
   const qs = sp.toString();
 
   return (
-    <Tabs value={active}>
+    <Tabs value={active} activation="manual">
       <TabsList variant="line" aria-label={ariaLabel} className="h-auto flex-wrap">
         {tabs.map((t) => (
-          <TabsTrigger key={t.href} value={t.href} asChild>
-            <Link href={qs ? `${t.href}?${qs}` : t.href} prefetch={false}>
-              {t.icon ? <t.icon /> : null}
-              {t.label}
-            </Link>
+          <TabsTrigger key={t.href} value={t.href} render={<Link href={qs ? `${t.href}?${qs}` : t.href} prefetch={false} />}>
+            {t.icon ? <t.icon /> : null}
+            {t.label}
           </TabsTrigger>
         ))}
       </TabsList>

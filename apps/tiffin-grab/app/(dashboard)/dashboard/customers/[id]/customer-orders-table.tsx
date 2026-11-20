@@ -97,16 +97,16 @@ export function CustomerOrdersTable({ orders }: { orders: CustomerOrderRow[] }) 
           <TableCell>
             <OrderStatusBadge status={orderDisplayStatus(o.status, [o.paymentStatus])} />
           </TableCell>
-          <TableCell className="text-right tabular-nums">{o.startDate}</TableCell>
-          <TableCell className="text-right tabular-nums">{fmt(Number(o.total))}</TableCell>
+          <TableCell numeric className="text-right tabular-nums">{o.startDate}</TableCell>
+          <TableCell numeric className="text-right tabular-nums">{fmt(Number(o.total))}</TableCell>
           {/* Separate cells, not a fragment: DataTable counts top-level cells to match columns. */}
-          {showPayments ? <TableCell className="text-right tabular-nums">{fmt(o.paid ?? 0)}</TableCell> : null}
+          {showPayments ? <TableCell numeric className="text-right tabular-nums">{fmt(o.paid ?? 0)}</TableCell> : null}
           {showPayments ? (
-            <TableCell className={cn("text-right tabular-nums", (o.due ?? 0) > 0 ? "text-destructive font-medium" : "text-muted-foreground")}>
+            <TableCell numeric className={cn("text-right tabular-nums", (o.due ?? 0) > 0 ? "text-destructive font-medium" : "text-muted-foreground")}>
               {o.due == null ? "—" : fmt(o.due)}
             </TableCell>
           ) : null}
-          <TableCell className="text-right tabular-nums">
+          <TableCell numeric className="text-right tabular-nums">
             {formatEpoch(o.createdAt, { mode: "date", timeZone: tz })}
           </TableCell>
         </>

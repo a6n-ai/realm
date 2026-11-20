@@ -33,12 +33,11 @@ export function CreateFranchiseButton({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild onClick={(e) => e.stopPropagation()}>
-        {variant === "icon" ? (
-          <RowActionTooltipButton icon={Plus} label="Add franchise" />
-        ) : (
-          <Button variant="outline" size="sm">Add franchise</Button>
-        )}
+      <DialogTrigger
+        render={variant === "icon" ? <RowActionTooltipButton icon={Plus} label="Add franchise" /> : <Button variant="outline" size="sm" />}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {variant === "icon" ? null : "Add franchise"}
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>

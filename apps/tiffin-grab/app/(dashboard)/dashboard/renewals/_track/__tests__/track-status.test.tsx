@@ -25,7 +25,7 @@ afterEach(cleanup);
 describe("TrackStatusPill", () => {
   it("shows the label and an Auto suffix for an auto status", () => {
     render(<TrackStatusPill status="pending_payment" source="auto" />);
-    expect(screen.getByText("Pending Payment")).toBeInTheDocument();
+    expect(screen.getByText("Pending Payment", { selector: "span" })).toBeInTheDocument();
     expect(screen.getByText("Auto")).toBeInTheDocument();
   });
 });

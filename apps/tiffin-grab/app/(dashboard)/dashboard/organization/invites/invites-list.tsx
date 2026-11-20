@@ -15,6 +15,7 @@ import { unwrapAction } from "@/lib/actions/unwrap";
 import { cancelInvitation, resendInvite } from "../members/actions";
 import { StatusBadge } from "../status-badge";
 import { isInviteExpired, type InviteRow } from "./invite-status";
+import { TableRowsSkeleton } from "@/components/dashboard/table-rows-skeleton";
 
 export type { InviteRow };
 
@@ -92,7 +93,7 @@ export function InvitesList({
 }
 
 export function InvitesListSkeleton() {
-  return <DataTable.Skeleton columns={COLUMNS} />;
+  return <TableRowsSkeleton columns={COLUMNS} />;
 }
 
 // Shared by the table row and the mobile card: what the row shows and the one action it offers.
@@ -139,7 +140,7 @@ function InviteRowCells({ row, canAct }: { row: InviteRow; canAct: boolean }) {
       <TableCell>
         <StatusBadge status={status} />
       </TableCell>
-      <TableCell className="text-muted-foreground tabular-nums">
+      <TableCell numeric className="text-muted-foreground tabular-nums">
         <AppDate value={row.expiresAt} />
       </TableCell>
       <TableCell className="text-right">

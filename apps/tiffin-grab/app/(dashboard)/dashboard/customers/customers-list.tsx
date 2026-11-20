@@ -15,6 +15,7 @@ import { TableCell } from "@foundry/ui/table";
 import type { SortState } from "@foundry/design-system/list-sort";
 import type { CustomerRow, CustomerSortColumn } from "@/lib/services/customers.service";
 import { CustomerInviteCell } from "./customer-invite-cell";
+import { TableRowsSkeleton } from "@/components/dashboard/table-rows-skeleton";
 
 // Name, email and phone share one column so order facts fit without sideways scroll.
 // DataTable renders the header and its Skeleton from this array, so the two can never drift.
@@ -83,11 +84,11 @@ export function CustomersList({
                 <span className={cn("text-xs", c.joined ? "text-muted-foreground" : "text-warning")}>{c.joined ? "Joined" : "Not joined"}</span>
               </span>
             </TableCell>
-            <TableCell className="text-right tabular-nums">{c.orderCount}</TableCell>
-            <TableCell className="text-right tabular-nums">
+            <TableCell numeric className="text-right tabular-nums">{c.orderCount}</TableCell>
+            <TableCell numeric className="text-right tabular-nums">
               {c.latestOrderAt == null ? "—" : formatEpoch(c.latestOrderAt, { mode: "date", timeZone: tz })}
             </TableCell>
-            {canFinance ? <TableCell className="text-right tabular-nums">{formatMoney(Number(c.totalPaid ?? 0))}</TableCell> : null}
+            {canFinance ? <TableCell numeric className="text-right tabular-nums">{formatMoney(Number(c.totalPaid ?? 0))}</TableCell> : null}
             <TableCell>
               <CustomerInviteCell
                 publicId={c.publicId}
@@ -107,5 +108,5 @@ export function CustomersList({
 }
 
 export function CustomersListSkeleton() {
-  return <DataTable.Skeleton columns={columnsFor(false)} />;
+  return <TableRowsSkeleton columns={columnsFor(false)} search="Search customers…" filters={["Plan Completes In", "Active plan", "Customer type"]} firstColumnLines={2} />;
 }

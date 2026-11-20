@@ -237,17 +237,17 @@ export function CellPanel({
                 {row.isDefault && <Badge variant="primary-light"><Star className="size-3 fill-current" aria-hidden />Default</Badge>}
                 {editable && (
                   <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button type="button" variant="ghost" size="icon" aria-label={`Options for ${name}`}><MoreHorizontal /></Button>
+                    <DropdownMenuTrigger render={<Button type="button" variant="ghost" size="icon" aria-label={`Options for ${name}`} />}>
+                      <MoreHorizontal />
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem onSelect={() => onToggleDefault(row.key)}>
+                      <DropdownMenuItem onSelect={() => { onToggleDefault(row.key) }}>
                         <Star />{row.isDefault ? "Unset default" : "Set as default"}
                       </DropdownMenuItem>
                       <DropdownMenuItem disabled={index === 0} onSelect={() => onMove(row.key, -1)}><ArrowUp />Move up</DropdownMenuItem>
                       <DropdownMenuItem disabled={index === rows.length - 1} onSelect={() => onMove(row.key, 1)}><ArrowDown />Move down</DropdownMenuItem>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem variant="destructive" onSelect={() => onRemove(row.key)}><Trash2 />Remove</DropdownMenuItem>
+                      <DropdownMenuItem variant="destructive" onSelect={() => { onRemove(row.key) }}><Trash2 />Remove</DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 )}
@@ -260,10 +260,8 @@ export function CellPanel({
       {editable && (
         <div className="flex flex-wrap gap-2 border-t pt-3">
           <Popover open={open} onOpenChange={setOpen}>
-            <PopoverTrigger asChild>
-              <Button type="button" variant="outline" size="sm" aria-label={`Add a dish to ${slot.categoryLabel} (${slot.planName}) on ${DAY_NAME[day]}`}>
+            <PopoverTrigger render={<Button type="button" variant="outline" size="sm" aria-label={`Add a dish to ${slot.categoryLabel} (${slot.planName}) on ${DAY_NAME[day]}`} />}>
                 <Plus data-icon="inline-start" />Add dish
-              </Button>
             </PopoverTrigger>
             {/* Typing filters; Enter takes the highlighted dish; Escape closes. */}
             <PopoverContent className="w-72 p-0" align="start">

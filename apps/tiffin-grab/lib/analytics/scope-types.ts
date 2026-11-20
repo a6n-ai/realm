@@ -8,6 +8,8 @@ export type AnalyticsScope = {
   fromMs: number;
   toMs: number;
   tz: string;
+  /** The URL named no window or a `range=` preset; only then may drill links write a relative form. */
+  relative?: boolean;
   plans: string[];
   mealSizes: string[];
   zones: string[];

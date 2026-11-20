@@ -3,11 +3,12 @@
 import { useTimezone } from "@foundry/design-system/timezone-provider";
 import { useNow } from "@/lib/hooks/use-now";
 import { cutoffNote, cutoffTime } from "@/lib/deliveries/view/cutoff";
+import { HoverHint } from "@/components/ds/hover-hint";
 
 // Live clock in the app-settings timezone, so staff in another zone (India) see
 // business time. Renders nothing until mounted: server and browser clocks differ,
 // so any SSR text would mismatch on hydration.
-export function AppClock({ cutoffHour }: { cutoffHour: number }) {
+export function AppClock({ cutoffHour, variant = "pill" }: { cutoffHour: number; variant?: "pill" | "card" }) {
   const tz = useTimezone();
   const now = useNow(15_000);
 
@@ -23,15 +24,27 @@ export function AppClock({ cutoffHour }: { cutoffHour: number }) {
     timeZoneName: "short",
   }).format(now);
 
+  const hint = `Canada time (${tz}). ${cutoffNote(cutoffHour)}.`;
+  if (variant === "card") {
+    return (
+      <HoverHint text={hint}>
+        <div className="border-border bg-muted/30 grid gap-1 rounded-(--ui-radius-card) border p-3">
+          <span className="flex items-center gap-1.5 text-[13px] tabular-nums">
+            <span role="img" aria-label="Canada time" className="text-sm leading-none">🇨🇦</span>
+            {label}
+          </span>
+          <span className="text-muted-foreground text-xs tabular-nums">Cutoff {cutoffTime(cutoffHour)}</span>
+        </div>
+      </HoverHint>
+    );
+  }
   return (
-    <span
-      title={`Canada time (${tz}). ${cutoffNote(cutoffHour)}.`}
-      className="hidden items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs tabular-nums text-muted-foreground sm:inline-flex"
-    >
-      <span role="img" aria-label="Canada time" className="text-sm leading-none">🇨🇦</span>
-      {label}
-      <span aria-hidden>·</span>
-      <span>Cutoff {cutoffTime(cutoffHour)}</span>
-    </span>
+    <HoverHint text={hint}>
+      <span className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs tabular-nums text-muted-foreground">
+        {new Intl.DateTimeFormat("en-US", { timeZone: tz, hour: "numeric", minute: "2-digit" }).format(now)}
+        <span aria-hidden>·</span>
+        <span>Cutoff {cutoffTime(cutoffHour)}</span>
+      </span>
+    </HoverHint>
   );
 }

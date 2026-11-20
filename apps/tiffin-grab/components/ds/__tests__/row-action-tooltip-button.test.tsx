@@ -3,16 +3,13 @@ import "@testing-library/jest-dom/vitest";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import { PhoneCallIcon } from "lucide-react";
-import { TooltipProvider } from "@foundry/ui/tooltip";
 import { RowActionTooltipButton } from "../row-action-tooltip-button";
 
 afterEach(cleanup);
 
 const renderButton = (props: Partial<Parameters<typeof RowActionTooltipButton>[0]> = {}) =>
   render(
-    <TooltipProvider>
-      <RowActionTooltipButton icon={PhoneCallIcon} label="Log outcome" onClick={vi.fn()} {...props} />
-    </TooltipProvider>,
+    <RowActionTooltipButton icon={PhoneCallIcon} label="Log outcome" onClick={vi.fn()} {...props} />,
   );
 
 describe("RowActionTooltipButton", () => {

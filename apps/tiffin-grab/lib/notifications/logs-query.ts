@@ -10,7 +10,7 @@ import { db } from "@/db/client";
 import { campaign, messageSuppression, notificationOutbox, users } from "@/db/schema";
 import { parseSort, type SortState } from "@foundry/design-system/list-sort";
 import { parseFilterState, type FacetDef } from "@foundry/design-system";
-import { withListDates } from "@/lib/list/default-month";
+import { withExplicitDates, withListDates } from "@/lib/list/default-month";
 
 export type LogSortColumn = "time" | "event" | "channel" | "recipient" | "status";
 export type SuppressedSortColumn = "time" | "address" | "channel" | "scope" | "reason";
@@ -227,7 +227,7 @@ export async function loadSuppressedAddresses(
     dir: "desc",
   });
 
-  const { condition, page } = parseFilterState(SUPPRESSED_SPEC, sp);
+  const { condition, page } = parseFilterState(SUPPRESSED_SPEC, await withExplicitDates(sp));
   const where = conditionToSql(
     condition,
     columnResolver({

@@ -96,7 +96,6 @@ export function LeadSourcesManager({ sources }: { sources: Source[] }) {
         </p>
         <Button
           size="sm"
-          className="active:scale-[0.96] transition-transform"
           onClick={() =>
             setDialog({ kind: "source", mode: "create", publicId: null, key: "", label: "", isInbound: true })
           }
@@ -106,14 +105,13 @@ export function LeadSourcesManager({ sources }: { sources: Source[] }) {
         </Button>
       </div>
 
-      {sources.map((s, i) => (
+      {sources.map((s) => (
         <div
           key={s.publicId}
           className={cn(
-            "bg-card rounded-xl border p-4 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-1 motion-safe:duration-500",
+            "bg-card rounded-xl border p-4",
             !s.active && "opacity-60",
           )}
-          style={{ animationDelay: `${i * 60}ms` }}
         >
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="grid gap-1">
@@ -132,7 +130,6 @@ export function LeadSourcesManager({ sources }: { sources: Source[] }) {
               <Button
                 variant="ghost"
                 size="sm"
-                className="active:scale-[0.96] transition-transform"
                 onClick={() =>
                   setDialog({ kind: "source", mode: "edit", publicId: s.publicId, key: s.key, label: s.label, isInbound: s.isInbound })
                 }
@@ -144,7 +141,7 @@ export function LeadSourcesManager({ sources }: { sources: Source[] }) {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-muted-foreground active:scale-[0.96] transition-[color,transform]"
+                  className="text-muted-foreground"
                   disabled={pending}
                   onClick={() => run(() => setSourceActive(s.publicId, false), "Source retired")}
                 >
@@ -155,7 +152,6 @@ export function LeadSourcesManager({ sources }: { sources: Source[] }) {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="active:scale-[0.96] transition-transform"
                   disabled={pending}
                   onClick={() => run(() => setSourceActive(s.publicId, true), "Source reactivated")}
                 >
@@ -188,7 +184,6 @@ export function LeadSourcesManager({ sources }: { sources: Source[] }) {
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="active:scale-[0.96] transition-transform"
                       onClick={() =>
                         setDialog({ kind: "subsource", mode: "edit", publicId: ss.publicId, sourcePublicId: s.publicId, sourceLabel: s.label, key: ss.key, label: ss.label })
                       }
@@ -199,7 +194,7 @@ export function LeadSourcesManager({ sources }: { sources: Source[] }) {
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="text-muted-foreground active:scale-[0.96] transition-[color,transform]"
+                        className="text-muted-foreground"
                         disabled={pending}
                         onClick={() => run(() => setSubsourceActive(ss.publicId, false), "Sub-source retired")}
                       >
@@ -209,7 +204,6 @@ export function LeadSourcesManager({ sources }: { sources: Source[] }) {
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="active:scale-[0.96] transition-transform"
                         disabled={pending}
                         onClick={() => run(() => setSubsourceActive(ss.publicId, true), "Sub-source reactivated")}
                       >
@@ -223,7 +217,7 @@ export function LeadSourcesManager({ sources }: { sources: Source[] }) {
             <Button
               variant="ghost"
               size="sm"
-              className="text-muted-foreground hover:text-foreground active:scale-[0.96] mt-0.5 justify-self-start transition-[color,transform]"
+              className="text-muted-foreground hover:text-foreground mt-0.5 justify-self-start"
               onClick={() =>
                 setDialog({ kind: "subsource", mode: "create", publicId: null, sourcePublicId: s.publicId, sourceLabel: s.label, key: "", label: "" })
               }
@@ -289,7 +283,7 @@ export function LeadSourcesManager({ sources }: { sources: Source[] }) {
                 <Button variant="outline" onClick={() => setDialog(null)} disabled={pending}>
                   Cancel
                 </Button>
-                <Button onClick={submit} disabled={pending} className="active:scale-[0.96] transition-transform">
+                <Button onClick={submit} disabled={pending}>
                   {dialog.mode === "create" ? "Add" : "Save"}
                 </Button>
               </DialogFooter>

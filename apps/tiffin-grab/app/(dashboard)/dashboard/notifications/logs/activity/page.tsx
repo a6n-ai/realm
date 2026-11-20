@@ -1,6 +1,7 @@
 import { requirePagePermission } from "@/lib/auth/guards";
 import { Suspense } from "react";
-import { SectionCard, parseFilterState } from "@/components/ds";
+import { parseFilterState } from "@/components/ds";
+import { ActivityCard } from "../log-cards";
 import { CUSTOMER_ACTIVITY_FACETS } from "@/lib/customer-activity/log-facets";
 import { parseSort } from "@foundry/design-system/list-sort";
 import { withListDates } from "@/lib/list/default-month";
@@ -24,14 +25,11 @@ export default async function NotificationActivityLogsPage({
 }) {
   await requirePagePermission({ notification: ["read"] });
   return (
-    <SectionCard
-      title="Customer activity"
-      subtitle="Address changes, meal picks, holds, reschedules, and other saved customer actions — by the customer, admin, or system."
-    >
+    <ActivityCard>
       <Suspense fallback={<CustomerLogsTableSkeleton />}>
         <ActivityData searchParams={searchParams} />
       </Suspense>
-    </SectionCard>
+    </ActivityCard>
   );
 }
 

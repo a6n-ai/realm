@@ -139,13 +139,11 @@ export function AppSidebar({
       </SidebarContent>
       <SidebarFooter>
         <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button type="button" className="hover:bg-sidebar-accent flex w-full items-center gap-2 rounded-md p-2 text-left text-sm">
-              <Avatar size="sm">
-                <AvatarFallback>{initials}</AvatarFallback>
-              </Avatar>
-              <span className="min-w-0 flex-1 truncate">{user.name ?? user.email}</span>
-            </button>
+          <DropdownMenuTrigger render={<button type="button" className="hover:bg-sidebar-accent flex w-full items-center gap-2 rounded-md p-2 text-left text-sm" />}>
+            <Avatar size="sm">
+              <AvatarFallback>{initials}</AvatarFallback>
+            </Avatar>
+            <span className="min-w-0 flex-1 truncate">{user.name ?? user.email}</span>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="w-56">
             <DropdownMenuLabel className="font-normal">
@@ -153,11 +151,9 @@ export function AppSidebar({
               <p className="text-muted-foreground truncate text-xs">{user.email}</p>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem asChild>
-              <Link href="/dashboard/account">
-                <UserIcon />
-                Account
-              </Link>
+            <DropdownMenuItem render={<Link href="/dashboard/account" />}>
+              <UserIcon />
+              Account
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() => void signOut({ fetchOptions: { onSuccess: () => router.push("/login") } })}

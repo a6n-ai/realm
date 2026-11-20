@@ -12,6 +12,7 @@ import { useTimezone } from "@foundry/design-system/timezone-provider";
 import type { SortState } from "@foundry/design-system/list-sort";
 import type { DiscountLogSortColumn } from "./page";
 import { useFormatMoney } from "@/components/app-currency";
+import { TableRowsSkeleton } from "@/components/dashboard/table-rows-skeleton";
 
 // Single source of truth for the table's columns. DataTable renders the header
 // and DataTable.Skeleton renders the loading twin from this same array, so the
@@ -75,10 +76,10 @@ export function DiscountLogs({
         emptySearchMessage="No redemptions match your search or filters."
         renderRow={(r) => (
           <>
-            <TableCell className="whitespace-nowrap tabular-nums text-muted-foreground">{fmt(r.createdAt)}</TableCell>
-            <TableCell className="font-mono text-xs">{r.code ?? "—"}</TableCell>
+            <TableCell numeric className="whitespace-nowrap tabular-nums text-muted-foreground">{fmt(r.createdAt)}</TableCell>
+            <TableCell mono className="font-mono text-xs">{r.code ?? "—"}</TableCell>
             {canCustomer && <TableCell className="text-muted-foreground">{r.email ?? "—"}</TableCell>}
-            <TableCell className="text-right tabular-nums text-ok">−{fmtMoney(Number(r.amountApplied))}</TableCell>
+            <TableCell numeric className="text-right tabular-nums text-ok">−{fmtMoney(Number(r.amountApplied))}</TableCell>
             <TableCell>
               {r.orderPublicId ? (
                 <Link href={`/dashboard/orders/${r.orderPublicId}`} className="text-muted-foreground hover:underline">
@@ -103,7 +104,7 @@ export function DiscountLogsSkeleton() {
   return (
     <>
       <DiscountStatsSkeleton />
-      <DataTable.Skeleton columns={COLUMNS} />
+      <TableRowsSkeleton columns={COLUMNS} search="Search coupon, customer, staff or order…" filters={["Kind"]} />
     </>
   );
 };

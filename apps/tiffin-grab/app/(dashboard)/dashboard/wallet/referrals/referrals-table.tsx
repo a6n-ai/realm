@@ -11,6 +11,7 @@ import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@foundry/design-system/timezone-provider";
 import type { ReferralListRow } from "@/lib/referrals/referrals.service";
 import { REFERRAL_STATUS } from "@/lib/referrals/status";
+import { TableRowsSkeleton } from "@/components/dashboard/table-rows-skeleton";
 
 type ReferralColumn = "referrer" | "friend" | "status" | "friendCoins" | "referrerCoins" | "order" | "note" | "time";
 
@@ -59,8 +60,8 @@ export function ReferralsTable({ rows, spec, total, page, size }: { rows: Referr
             <TableCell><Person p={r.referrer} /></TableCell>
             <TableCell><Person p={r.friend} /></TableCell>
             <TableCell><Badge variant={REFERRAL_STATUS[r.status].variant}>{REFERRAL_STATUS[r.status].label}</Badge></TableCell>
-            <TableCell className="text-right tabular-nums">{r.friendCoins}</TableCell>
-            <TableCell className="text-right tabular-nums">{r.referrerCoins}</TableCell>
+            <TableCell numeric className="text-right tabular-nums">{r.friendCoins}</TableCell>
+            <TableCell numeric className="text-right tabular-nums">{r.referrerCoins}</TableCell>
             <TableCell>
               {r.orderPublicId ? (
                 <Link href={`/dashboard/orders/${r.orderPublicId}`} className="text-muted-foreground hover:underline">{r.orderPublicId}</Link>
@@ -69,7 +70,7 @@ export function ReferralsTable({ rows, spec, total, page, size }: { rows: Referr
               )}
             </TableCell>
             <TableCell className="text-muted-foreground">{r.skipReason ? (SKIP[r.skipReason] ?? r.skipReason) : "—"}</TableCell>
-            <TableCell className="whitespace-nowrap tabular-nums text-muted-foreground">{formatEpoch(r.createdAt, { mode: "date", timeZone: tz })}</TableCell>
+            <TableCell numeric className="whitespace-nowrap tabular-nums text-muted-foreground">{formatEpoch(r.createdAt, { mode: "date", timeZone: tz })}</TableCell>
           </>
         )}
       />
@@ -79,5 +80,5 @@ export function ReferralsTable({ rows, spec, total, page, size }: { rows: Referr
 }
 
 export function ReferralsTableSkeleton() {
-  return <DataTable.Skeleton columns={COLUMNS} />;
+  return <TableRowsSkeleton columns={COLUMNS} search="Search referrer or friend by name, email or phone…" filters={["Status"]} />;
 }

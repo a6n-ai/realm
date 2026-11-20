@@ -1,6 +1,7 @@
 import { isCustomerRole } from "@/lib/roles";
 import "@/app/styles/app.css";
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { Suspense, type ReactNode } from "react";
 import { zonedDateIso } from "@foundry/commons";
 import { CrmShell } from "@foundry/crm";
@@ -23,17 +24,23 @@ import { mintRealtimeTokens } from "@/lib/realtime/mint";
 import { notifyChannel } from "@/lib/realtime/notify";
 import { PAYMENTS_INBOX, TICKETS_INBOX } from "@/lib/realtime/inbox";
 import { AppBrand } from "@/components/app-brand";
+import { SIDEBAR_WIDTH_COOKIE, parseSidebarWidth } from "@/components/dashboard/sidebar-width";
 import { AppCurrencyProvider } from "@/components/app-currency";
 import {
   DashboardActions,
+  DashboardBell,
   DashboardBottomNav,
   DashboardBreadcrumbs,
+  DashboardClock,
   DashboardFooter,
   DashboardLive,
+  DashboardOrgSwitcher,
   DashboardProviders,
   DashboardSearch,
   DashboardSidebar,
 } from "@/components/dashboard/dashboard-frame";
+import { MobileOnly } from "@/components/dashboard/mobile-only";
+import { SectionTabs } from "@/components/dashboard/section-tabs";
 import { RoutePushBadge } from "@/components/dashboard/route-push-badge";
 import { geistSansAdmin } from "./admin-font";
 import { requestNow } from "@/lib/dates/request-now";
@@ -61,6 +68,15 @@ function timer() {
       console.info(`[dashboard-timing] ${JSON.stringify({ total: elapsed(start), ...ms })}`);
     },
   };
+}
+
+// Read on the server so the first paint already has the saved sidebar width (no snap on load).
+async function readSidebarWidth(): Promise<number> {
+  try {
+    return parseSidebarWidth((await cookies()).get(SIDEBAR_WIDTH_COOKIE)?.value);
+  } catch {
+    return parseSidebarWidth(undefined);
+  }
 }
 
 // Any authenticated user reaches the shell; the sidebar filters nav by org permissions and
@@ -109,9 +125,8 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   const notify = notifyChannel(session.user.id);
   const [seePayments, navHrefs] = await Promise.all([can({ finance: ["manage"] }), allowedNavHrefs()]);
   const realtimeChannels = [notify, TICKETS_INBOX, ...(seePayments ? [PAYMENTS_INBOX] : [])];
-
   // Independent reads; this layout blocks first byte of every /dashboard page.
-  const [{ timezone, cutoffHour, currency }, memberOrganizations, activity, repCoupon, notificationFeed, realtimeTokens] =
+  const [{ timezone, cutoffHour, currency }, memberOrganizations, activity, repCoupon, notificationFeed, realtimeTokens, sidebarWidth] =
     await Promise.all([
       timed("settings", getAppSettings()),
       timed("orgs", getMemberOrganizations(session)),
@@ -120,16 +135,29 @@ export default async function DashboardLayout({ children }: { children: ReactNod
       // Server-rendered so the bell paints with its badge instead of fetching after hydration.
       timed("feed", getFeed(user.id)),
       timed("realtime", mintRealtimeTokens(realtimeChannels)),
+      readSidebarWidth(),
     ]);
   log();
 
+  const orgSwitcher =
+    memberOrganizations.length > 1 ? (
+      <DashboardOrgSwitcher
+        organizations={memberOrganizations}
+        activeOrganizationId={session.session.activeOrganizationId}
+      />
+    ) : null;
+  const bell = (
+    <DashboardBell userPublicId={session.user.id} initial={notificationFeed} bootstrap={realtimeTokens[notify]} />
+  );
+
   return (
-    <div className={`crm-app ${geistSansAdmin.variable}`}>
+    <div className={`crm-app admin-ui ${geistSansAdmin.variable}`}>
       <DashboardProviders tz={timezone}>
         <NavAccessProvider hrefs={navHrefs}>
         <AppCurrencyProvider currency={currency}>
         <CrmShell
           hideSidebarOnMobile
+          sidebarWidth={`${sidebarWidth}px`}
           brand={<AppBrand href="/dashboard" subtitle="Operations" />}
           sidebar={
             <DashboardSidebar
@@ -137,6 +165,11 @@ export default async function DashboardLayout({ children }: { children: ReactNod
               hasPin={hasPin}
               repCoupon={repCoupon}
               activity={activity}
+              initialWidth={sidebarWidth}
+              search={<DashboardSearch role={role} />}
+              orgSwitcher={orgSwitcher}
+              bell={bell}
+              clock={<DashboardClock cutoffHour={cutoffHour} />}
             />
           }
           breadcrumbs={
@@ -144,16 +177,21 @@ export default async function DashboardLayout({ children }: { children: ReactNod
               <DashboardBreadcrumbs />
             </Suspense>
           }
-          center={<DashboardSearch role={role} />}
+          center={
+            <MobileOnly>
+              <DashboardSearch role={role} />
+            </MobileOnly>
+          }
           actions={
             <DashboardActions
               cutoffHour={cutoffHour}
-              organizations={memberOrganizations}
-              activeOrganizationId={session.session.activeOrganizationId}
-              userPublicId={session.user.id}
-              notifications={notificationFeed}
-              notifyBootstrap={realtimeTokens[notify]}
               hasPin={hasPin}
+              mobileChrome={
+                <>
+                  {orgSwitcher}
+                  {bell}
+                </>
+              }
               routePush={
                 <Suspense fallback={null}>
                   <RoutePushBadge />
@@ -170,6 +208,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
             ticketsBootstrap={realtimeTokens[TICKETS_INBOX]}
             paymentsBootstrap={realtimeTokens[PAYMENTS_INBOX]}
           />
+          <SectionTabs />
           {children}
           {/* Room to scroll the last row out from under the floating button. */}
           {hasRepAllowance && <div aria-hidden className="h-20" />}

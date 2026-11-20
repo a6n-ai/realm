@@ -12,6 +12,7 @@ import { epochBoundsWhere, withListDates } from "@/lib/list/default-month";
 import { DiscountLogs, DiscountLogsSkeleton } from "./discount-logs";
 import { getMoneyFormatter } from "@/lib/settings";
 import { can, requirePagePermission } from "@/lib/auth/guards";
+import { setDateParams } from "@/lib/dates/range-params";
 
 const customer = alias(users, "customer");
 const redeemer = alias(users, "redeemer");
@@ -118,8 +119,7 @@ async function DiscountLogsData({ searchParams }: { searchParams: SearchParams }
   const discounted = Number(agg.discounted);
   const logHref = () => {
     const qs = new URLSearchParams();
-    if (sp.from) qs.set("from", sp.from);
-    if (sp.to) qs.set("to", sp.to);
+    setDateParams(qs, sp);
     if (kind) qs.set("kind", kind);
     if (q) qs.set("q", q);
     const s = qs.toString();

@@ -1047,7 +1047,7 @@ function EventCalendarMonthCell({
       onPointerDown={(e) => {
         const target = e.target as HTMLElement
         if (target.closest("[data-slot=event-calendar-event]")) return
-        if (target.closest("[data-slot=event-calendar-more]")) return
+        if (target.closest("[data-event-calendar-more]")) return
         gestures.beginCreate(e, day, true)
       }}
       onClick={(e) => {
@@ -1134,7 +1134,7 @@ function EventCalendarMoreIndicator({
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger
-        data-slot="event-calendar-more"
+        data-event-calendar-more=""
         data-drop-into={dropInto ? "" : undefined}
         data-drop-invalid={dropInto && !dropInto.valid ? "" : undefined}
         className={cn(
@@ -1176,7 +1176,6 @@ function EventCalendarMoreIndicator({
           settings.i18n.labels.more(count)}
       </PopoverTrigger>
       <PopoverContent
-        data-slot="event-calendar-more-popover"
         align={viewConfig.morePopoverAlign}
         // The popover is a dialog, so it needs a name. The built-in body already
         // renders the day header this list belongs to, so point at that; a
@@ -1193,8 +1192,7 @@ function EventCalendarMoreIndicator({
             : undefined
         }
         // PopoverContent is unlayered (flex-col gap-4 p-4); override with !
-        // text-xs re-establishes the calendar's base type here because this
-        // content is portaled out of the root subtree and cannot inherit it.
+        // The content renders in place, so it inherits the calendar's base type.
         className={cn(
           "w-64 gap-1! p-2! text-xs",
           viewConfig.classNames?.morePopover

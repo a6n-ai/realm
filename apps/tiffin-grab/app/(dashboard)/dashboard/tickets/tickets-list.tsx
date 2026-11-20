@@ -16,6 +16,9 @@ import type { SortState } from "@foundry/design-system/list-sort";
 import type { QueueRow, QueueSortColumn } from "@/lib/support/tickets.service";
 import { TicketStatusBadge, PriorityBadge, categoryLabel } from "./ticket-badges";
 import { STATUS_OPTIONS } from "@/lib/support/ticket-status";
+import { TableRowsSkeleton } from "@/components/dashboard/table-rows-skeleton";
+import { PillsRowSkeleton } from "@/components/dashboard/pills-row-skeleton";
+import { Skeleton } from "@foundry/ui/skeleton";
 
 const STATUS_PILLS = [
   { key: "all", label: "All" },
@@ -169,11 +172,11 @@ export function TicketsList({
             <TableCell>
               <PriorityBadge priority={r.priority} />
             </TableCell>
-            <TableCell className="text-right tabular-nums">
+            <TableCell numeric className="text-right tabular-nums">
               {formatEpoch(r.lastMessageAt ?? r.createdAt, { mode: "datetime", timeZone: tz })}
             </TableCell>
             <TableCell>
-              <ChevronRightIcon className="size-4 opacity-0 transition-opacity group-hover:opacity-60" />
+              <ChevronRightIcon className="size-4 opacity-0 group-hover:opacity-60" />
             </TableCell>
           </>
         )}
@@ -185,5 +188,17 @@ export function TicketsList({
 
 // Loading twin is now owned by DataTable — same COLUMNS, zero drift.
 export function TicketsListSkeleton() {
-  return <DataTable.Skeleton columns={COLUMNS} hasId />;
+  return (
+    <TableRowsSkeleton
+      columns={COLUMNS}
+      hasId
+      search="Search tickets…"
+      toolbar={
+        <div className="hidden flex-wrap items-center gap-2 md:flex">
+          <PillsRowSkeleton labels={STATUS_PILLS.map((p) => p.label)} />
+          <Skeleton className="h-8 w-40" />
+        </div>
+      }
+    />
+  );
 }

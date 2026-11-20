@@ -1,13 +1,14 @@
 /**
  * Links from an analytics figure to the list that produced it.
  *
- * The payments list filters `createdAt` with epoch `from`/`to`. Revenue totals
+ * The payments list filters `createdAt` with the `range`/`from`/`to` window. Revenue totals
  * follow the day the money moved (capturedAt, else createdAt) in the app
  * timezone. These helpers turn that calendar range into the epoch window the
  * list already understands, so a click lands on the same days.
  */
 
 import type { AnalyticsScope } from "@/lib/analytics/scope-types";
+import { rangeParams } from "@/lib/dates/range-params";
 
 const PAYMENTS = "/dashboard/payments/all";
 const ORDERS = "/dashboard/orders";
@@ -29,8 +30,7 @@ function orgParam(scope: AnalyticsScope): string | null {
 }
 
 function withScope(qs: URLSearchParams, scope: AnalyticsScope) {
-  qs.set("from", String(scope.fromMs));
-  qs.set("to", String(scope.toMs));
+  for (const [k, v] of Object.entries(rangeParams({ from: scope.fromMs, to: scope.toMs }, scope.tz, Date.now(), { exact: !scope.relative }))) qs.set(k, v);
   const org = orgParam(scope);
   if (org) qs.set("org", org);
 }
