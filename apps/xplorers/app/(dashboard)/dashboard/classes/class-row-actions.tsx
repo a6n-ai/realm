@@ -1,8 +1,9 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { ArchiveIcon, EyeIcon, EyeOffIcon, PencilIcon } from "lucide-react";
 import { RowActionButton, RowActions } from "@foundry/design-system";
+import { ConfirmDialog } from "@/components/ds";
 import { archiveClassAction, setClassPublished } from "./class-actions";
 
 export function ClassRowActions({
@@ -17,6 +18,7 @@ export function ClassRowActions({
   showEdit?: boolean;
 }) {
   const [pending, startTransition] = useTransition();
+  const [archiveOpen, setArchiveOpen] = useState(false);
 
   return (
     <RowActions>
@@ -37,13 +39,21 @@ export function ClassRowActions({
           <RowActionButton
             icon={ArchiveIcon}
             label="Archive class"
-            onClick={() => {
-              if (pending) return;
-              if (!window.confirm("Archive this class? Its sessions leave the public calendar.")) return;
-              startTransition(() => {
-                void archiveClassAction(publicId);
-              });
-            }}
+            onClick={() => setArchiveOpen(true)}
+          />
+          <ConfirmDialog
+            open={archiveOpen}
+            onOpenChange={setArchiveOpen}
+            title="Archive this class?"
+            description="Its sessions leave the public calendar."
+            confirmLabel={pending ? "Archiving…" : "Archive class"}
+            pending={pending}
+            onConfirm={() =>
+              startTransition(async () => {
+                await archiveClassAction(publicId);
+                setArchiveOpen(false);
+              })
+            }
           />
         </>
       ) : null}

@@ -205,7 +205,7 @@ export async function getKitchenPackingSheet(dateIso: string): Promise<KitchenPa
           daySwaps,
           mealCache,
         );
-        const ordered = [...resolved].sort(
+        const ordered = resolved.toSorted(
           (a, b) => (categorySort.get(a.category) ?? 0) - (categorySort.get(b.category) ?? 0),
         );
         for (const cat of ordered) {

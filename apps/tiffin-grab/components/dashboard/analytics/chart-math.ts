@@ -49,7 +49,7 @@ export function foldParts(input: Part[], max = 5): SharedPart[] {
   const parts = input.filter((p) => p.value > 0);
   let kept = parts;
   if (parts.length > max) {
-    const sorted = [...parts].sort((a, b) => b.value - a.value);
+    const sorted = parts.toSorted((a, b) => b.value - a.value);
     const head = sorted.slice(0, max - 1);
     const rest = sorted.slice(max - 1);
     kept = [

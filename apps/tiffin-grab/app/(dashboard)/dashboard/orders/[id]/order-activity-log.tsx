@@ -125,7 +125,7 @@ function groupByDay(rows: ViewRow[], tz: string): Day[] {
   const dayKey = new Intl.DateTimeFormat("en-CA", { timeZone: tz });
   const today = dayKey.format(Date.now());
   const days = new Map<string, Day>();
-  for (const row of [...rows].sort((a, b) => b.createdAt - a.createdAt)) {
+  for (const row of rows.toSorted((a, b) => b.createdAt - a.createdAt)) {
     const key = dayKey.format(row.createdAt);
     let day = days.get(key);
     if (!day) {

@@ -6,6 +6,7 @@ import { Input } from "@foundry/ui/input";
 import { Label } from "@foundry/ui/label";
 import type { StaffCoinPreview } from "./actions";
 import { useFormatMoney } from "@/components/app-currency";
+import { isSubmitEnter } from "@/lib/enter-key";
 
 // The matched customer's wallet. An estimate starts on every coin the order allows; a staff order
 // starts on none (`onOrder`). The server clamps whatever is typed to the order's maximum.
@@ -35,7 +36,7 @@ export function CoinsField({ coins, setCoins, onOrder = false }: { coins: StaffC
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
               onBlur={submit}
-              onKeyDown={(e) => { if (e.key === "Enter") submit(); }}
+              onKeyDown={(e) => { if (isSubmitEnter(e)) submit(); }}
             />
             <Button type="button" variant="outline" disabled={coins.maxCoins <= 0} onClick={() => setCoins("max")}>Max</Button>
             {onOrder && coins.used > 0 && <Button type="button" variant="ghost" onClick={() => setCoins(0)}>Clear</Button>}

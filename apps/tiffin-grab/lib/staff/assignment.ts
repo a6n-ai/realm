@@ -17,7 +17,7 @@ export function strategyFor(cfg: LeadAssignmentConfig, sourceKey: string): Strat
 
 export function pickAssignee(strategy: Strategy, pool: PoolMember[], cfg: LeadAssignmentConfig, sourceKey: string, roll: number): PickResult {
   if (pool.length === 0) return { chosen: null, cursorPublicId: null };
-  const sorted = [...pool].sort((a, b) => a.publicId.localeCompare(b.publicId));
+  const sorted = pool.toSorted((a, b) => a.publicId.localeCompare(b.publicId));
 
   if (strategy === "percentage") {
     const weights = sorted.map((m) => Math.max(0, m.weight));

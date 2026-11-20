@@ -329,7 +329,7 @@ export function routeTotals(
  * zone then name when a date has not been planned yet.
  */
 export function sortForPrinting(labels: DeliveryLabel[]): DeliveryLabel[] {
-  return [...labels].sort(
+  return labels.toSorted(
     (a, b) =>
       routeGroupOf(a).localeCompare(routeGroupOf(b), undefined, { numeric: true }) ||
       (a.routeStop ?? Number.MAX_SAFE_INTEGER) - (b.routeStop ?? Number.MAX_SAFE_INTEGER) ||

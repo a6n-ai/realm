@@ -20,7 +20,7 @@ export function CustomerTabs({ customerPublicId, hidden }: { customerPublicId: s
   const pathname = usePathname();
   const base = `/dashboard/customers/${customerPublicId}`;
   const tabs = TABS.filter((t) => !hidden.includes(t.seg));
-  const active = [...tabs].reverse().find((t) => pathname === base + t.seg || pathname.startsWith(`${base}${t.seg}/`))?.seg ?? "";
+  const active = tabs.findLast((t) => pathname === base + t.seg || pathname.startsWith(`${base}${t.seg}/`))?.seg ?? "";
   return (
     <Tabs value={active}>
       <TabsList variant="line" aria-label="Customer sections" className="h-auto flex-wrap">

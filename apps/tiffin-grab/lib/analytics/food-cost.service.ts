@@ -25,7 +25,7 @@ export function deliveryPicks(input: {
 }): CostPick[] {
   const { items, swaps, addons, orderPlanId, categoriesByKey } = input;
   const mealPlans = new Map<string, bigint[]>();
-  for (const item of [...items].sort((a, b) => a.sortOrder - b.sortOrder)) {
+  for (const item of items.toSorted((a, b) => a.sortOrder - b.sortOrder)) {
     const list = mealPlans.get(item.category) ?? [];
     list.push(item.planId);
     mealPlans.set(item.category, list);

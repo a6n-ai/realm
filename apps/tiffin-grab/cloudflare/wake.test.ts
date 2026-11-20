@@ -62,7 +62,7 @@ describe("workflows", () => {
     const mod = (await import("./workflows.js")) as any;
     const create = vi.fn();
     const env = { WORKER_SELF_REFERENCE: { fetch: async () => new Response("x", { status: 500 }) }, CRON_SECRET: "s", [binding]: { create } };
-    const step = { sleepUntil: vi.fn(), do: (_n: string, ...rest: any[]) => rest[rest.length - 1]() };
+    const step = { sleepUntil: vi.fn(), do: (_n: string, ...rest: any[]) => rest.at(-1)() };
     const before = Date.now();
     await new mod[cls]({}, env).run({ payload: { at: 1 } }, step);
     expect(create).toHaveBeenCalledTimes(1);

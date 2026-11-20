@@ -71,7 +71,7 @@ describe("RuleForm", () => {
     fireEvent.click(forbidButton);
 
     expect(setDraft).toHaveBeenCalled();
-    const lastCall = setDraft.mock.calls[setDraft.mock.calls.length - 1]![0];
+    const lastCall = setDraft.mock.calls.at(-1)![0];
     expect(lastCall.action).toBe("forbid");
 
     // Re-render with new draft
@@ -104,7 +104,7 @@ describe("RuleForm", () => {
     fireEvent.click(coexistButton);
 
     expect(setDraft).toHaveBeenCalled();
-    const lastCall = setDraft.mock.calls[setDraft.mock.calls.length - 1]![0];
+    const lastCall = setDraft.mock.calls.at(-1)![0];
     expect(lastCall.action).toBe("cannot_coexist");
 
     // Re-render with new draft

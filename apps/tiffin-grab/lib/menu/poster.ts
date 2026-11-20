@@ -57,7 +57,7 @@ function groupsForColumn(
   const flat = slots.length <= 1;
   if (flat) {
     if (emptyDays === "omit" && inCol.length === 0) return [];
-    return [{ slotLabel: null, dishes: uniqueByName([...inCol].sort(order)) }];
+    return [{ slotLabel: null, dishes: uniqueByName(inCol.toSorted(order)) }];
   }
   // A category with nothing on it that day is omitted entirely, not rendered as an
   // empty row. The public menu should read as what IS being served — an admin leaving

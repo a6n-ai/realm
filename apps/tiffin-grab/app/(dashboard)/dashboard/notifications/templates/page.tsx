@@ -94,7 +94,7 @@ async function TemplateListData({ searchParams }: { searchParams: SearchParams }
   // orderBy), so the sort is applied to the array here, server-side, before the
   // client list renders it.
   const dir = sort.dir === "asc" ? 1 : -1;
-  const sorted = [...items].sort((a, b) => {
+  const sorted = items.toSorted((a, b) => {
     const d =
       sort.column === "event"
         ? a.event.localeCompare(b.event)

@@ -9,7 +9,7 @@ const SUMMED = ["tiffins", "revenue", "cashCollected", "unpaidRevenue", "food", 
 /** Mon–Sun weeks, oldest first; every figure is the plain sum of its day cards, margin recomputed from the sums. */
 export function groupProfitWeeks(rows: ProfitRow[]): ProfitWeek[] {
   const weeks = new Map<string, ProfitWeek>();
-  for (const r of [...rows].sort((a, b) => a.date.localeCompare(b.date))) {
+  for (const r of rows.toSorted((a, b) => a.date.localeCompare(b.date))) {
     const start = mondayOfIso(r.date);
     let w = weeks.get(start);
     if (!w) {

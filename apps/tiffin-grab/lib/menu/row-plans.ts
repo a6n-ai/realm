@@ -16,7 +16,7 @@ type RowItem = { category: string; planId: bigint; sortOrder: number; addon?: tr
 export function rowPlanIds(items: RowItem[], custom: boolean): RowPlans | null {
   if (!custom && !items.some((i) => i.addon)) return null;
   const out: RowPlans = new Map();
-  for (const it of [...items].sort((a, b) => a.sortOrder - b.sortOrder)) {
+  for (const it of items.toSorted((a, b) => a.sortOrder - b.sortOrder)) {
     const plans = custom || it.addon ? [it.planId, ...(it.fallbackPlanIds ?? [])] : null;
     const list = out.get(it.category);
     if (list) list.push(plans);

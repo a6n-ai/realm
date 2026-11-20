@@ -459,6 +459,6 @@ function TrustLine({ rating, reviews, freeDelivery }: { rating: number; reviews:
 // Everything the estimate priced; the start date is not part of a quote.
 function quoteChanged(quoted: WizardSelections, s: WizardSelections): boolean {
   const key = (x: WizardSelections) =>
-    JSON.stringify([x.planKey, x.mealSizeId, x.frequencyKey, [...(x.eatingDays ?? [])].sort(), x.durationWeeks, x.addonSelections ?? []]);
+    JSON.stringify([x.planKey, x.mealSizeId, x.frequencyKey, (x.eatingDays ?? []).toSorted(), x.durationWeeks, x.addonSelections ?? []]);
   return key(quoted) !== key(s);
 }

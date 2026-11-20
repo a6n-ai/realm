@@ -28,7 +28,7 @@ export function normalizeItems(items: CustomMealItem[], units: Map<string, Categ
 }
 
 export function compositionKey(items: CustomMealItem[]): string {
-  return [...items].sort(cmp).map((i) => `${i.category}:${i.planKey}:${i.tuAmount}`).join("|");
+  return items.toSorted(cmp).map((i) => `${i.category}:${i.planKey}:${i.tuAmount}`).join("|");
 }
 
 // Only WordPress imports still infer the meal's plan from its items; staff pick it in the builder.

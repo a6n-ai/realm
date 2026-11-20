@@ -69,7 +69,7 @@ export function promoSavings(snapshot: CatalogSnapshot, coupon: CouponLike | nul
   // Most any plan gets: dearest size, longest plan, best schedule.
   const longest = Math.max(...snapshot.durations.map((d) => d.weeks));
   const best = snapshot.frequencies
-    .map((f) => quote(snapshot, sizes[sizes.length - 1]!.publicId, f.key, longest, coupon)?.saving ?? 0)
+    .map((f) => quote(snapshot, sizes.at(-1)!.publicId, f.key, longest, coupon)?.saving ?? 0)
     .reduce((a, b) => Math.max(a, b), 0);
 
   // Strictly under the real figure, rounded to $5, so "over" is always true.

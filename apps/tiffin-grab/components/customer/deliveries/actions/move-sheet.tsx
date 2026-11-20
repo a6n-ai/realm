@@ -103,7 +103,7 @@ export function MoveSheet({ trip, plan, agenda, day: sourceDate, open, onDone, u
               {renewalFrom && <Reason>Renewal starts {humanDate(renewalFrom)}. Its days are greyed out.</Reason>}
               <WeekTimeline
                 firstWeek={mondayOfIso(options[0]?.date ?? plan.today)}
-                lastWeek={mondayOfIso(options[options.length - 1]?.date ?? plan.today)}
+                lastWeek={mondayOfIso(options.at(-1)?.date ?? plan.today)}
                 week={week ?? mondayOfIso(options[0]?.date ?? plan.today)}
                 today={plan.today}
                 selectedDay={picked}

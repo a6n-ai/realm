@@ -21,7 +21,7 @@ type Params = { get(name: string): string | null };
 /** One stable string per filter combination: sorted keys, sorted csv values, own owner id as "me". "" = no filter. */
 export function canonicalParams(current: Params, fields: readonly string[], me: string): string {
   const out = new URLSearchParams();
-  for (const field of [...fields].sort()) {
+  for (const field of fields.toSorted()) {
     const raw = current.get(field);
     if (!raw) continue;
     const vals = raw.split(",").filter(Boolean).map((v) => (field === "owner" && v === me ? ME : v)).sort();

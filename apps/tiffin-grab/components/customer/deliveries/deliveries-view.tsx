@@ -88,7 +88,7 @@ export function DeliveriesView({ plan, subs, waitingRenewal = false, windows, tr
   const allRows = useMemo(() => buildEatingDays(trips), [trips]);
   const inWeek = !!sel && sel >= weekStart && sel <= weekEnd;
   // Tapping the truck day (the date a moved tiffin arrives) selects that meal even when its eat date is another week.
-  const row: EatingRow | null = (sel ? shown.find((r) => r.date === sel) ?? shown.find((r) => r.trip.date === sel) : null) ?? (inWeek ? null : [...shown].sort((a, b) => rank(a.trip) - rank(b.trip) || a.date.localeCompare(b.date))[0] ?? null);
+  const row: EatingRow | null = (sel ? shown.find((r) => r.date === sel) ?? shown.find((r) => r.trip.date === sel) : null) ?? (inWeek ? null : shown.toSorted((a, b) => rank(a.trip) - rank(b.trip) || a.date.localeCompare(b.date))[0] ?? null);
   const trip = row?.trip ?? null;
   const emptyDay = !row && inWeek ? sel : null;
   // Swap only when this eating day has a swap the customer can still make (same filter the swap sheet applies).
@@ -177,7 +177,7 @@ export function DeliveriesView({ plan, subs, waitingRenewal = false, windows, tr
   });
 
   const dates = Object.keys(agenda).sort();
-  const next = dates.find((d) => d > weekEnd) ?? [...dates].reverse().find((d) => d < weekStart) ?? null;
+  const next = dates.find((d) => d > weekEnd) ?? dates.findLast((d) => d < weekStart) ?? null;
   const upcoming = Object.values(agenda).flat().filter((d) => d.truck && d.status === "scheduled" && d.deliveryDate >= today).sort((a, b) => a.deliveryDate.localeCompare(b.deliveryDate))[0];
   const addressRow = model?.rows.find((r) => r.key === "address");
   const tiles = row ? splitMealAddons(mealCategories(row, plan), sub.addons) : { meal: [], addons: [] };

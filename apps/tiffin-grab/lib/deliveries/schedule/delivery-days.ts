@@ -11,9 +11,9 @@ const MWF: DayOfWeek[] = ["mon", "wed", "fri"];
  * earlier in the plan could carry it) — callers reject that selection. */
 export function planWeek(deliveryDays: DayOfWeek[], eatingDays: DayOfWeek[]): { day: DayOfWeek; units: number; days: DayOfWeek[] }[] | null {
   const idx = (d: DayOfWeek) => WEEK_DAYS.indexOf(d);
-  const deliveries = [...deliveryDays].sort((a, b) => idx(a) - idx(b));
+  const deliveries = deliveryDays.toSorted((a, b) => idx(a) - idx(b));
   const carried = new Map<DayOfWeek, DayOfWeek[]>();
-  for (const eat of [...eatingDays].sort((a, b) => idx(a) - idx(b))) {
+  for (const eat of eatingDays.toSorted((a, b) => idx(a) - idx(b))) {
     const carrier = deliveries.filter((d) => idx(d) <= idx(eat)).pop();
     if (!carrier) return null;
     carried.set(carrier, [...(carried.get(carrier) ?? []), eat]);

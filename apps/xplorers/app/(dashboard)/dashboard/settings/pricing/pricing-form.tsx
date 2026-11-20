@@ -21,11 +21,11 @@ export function PricingForm({ initial }: { initial: PriceTable }) {
   const lengths = Object.keys(table).sort((a, b) => lenOf(a) - lenOf(b));
 
   const add = () => {
-    const next = lengths.length ? lenOf(lengths[lengths.length - 1]!) + 30 : 90;
+    const next = lengths.length ? lenOf(lengths.at(-1)!) + 30 : 90;
     setTable({ ...table, [`len:${next}`]: {} });
   };
   const remove = () => {
-    const last = lengths[lengths.length - 1];
+    const last = lengths.at(-1);
     if (!last) return;
     const { [last]: _drop, ...rest } = table;
     setTable(rest);

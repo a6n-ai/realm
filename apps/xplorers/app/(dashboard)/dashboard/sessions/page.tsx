@@ -85,7 +85,7 @@ async function SessionsData({ searchParams }: { searchParams: SearchParams }) {
 
   if (view === "calendar") {
     const grid = monthGrid(today.slice(0, 7));
-    const { from, to } = parseRange(sp.from, sp.to, { from: grid[0]!.date, to: grid[grid.length - 1]!.date });
+    const { from, to } = parseRange(sp.from, sp.to, { from: grid[0]!.date, to: grid.at(-1)!.date });
     const calendarView = sp.view === "week" ? "week" : "month";
     const date = isRealDay(sp.date) ? sp.date : today;
     const rows = await studioSessionsService.listRange(from, to, { publicOnly: false });

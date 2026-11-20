@@ -31,7 +31,7 @@ export function StepSchedule({
   const catalogFrequencies = selectableFrequencies(catalog, selections);
   const allowed = mealAllowedDays(catalog, selections);
   // Display order only: the default selection below still follows catalog order.
-  const frequencies = [...catalogFrequencies].sort((a, b) => (a.weekdays?.length ?? 0) - (b.weekdays?.length ?? 0));
+  const frequencies = catalogFrequencies.toSorted((a, b) => (a.weekdays?.length ?? 0) - (b.weekdays?.length ?? 0));
   // The suggestion lives on the card it's about (the old top banner duplicated it): biggest saving reads "Best value".
   const bestSave = Math.max(0, ...frequencies.map((f) => savePct(catalog.discounts, "delivery", f.publicId, selections.durationWeeks ?? 0, catalog.maxDiscountPct)));
   const bounds = tiffinBounds(catalog);

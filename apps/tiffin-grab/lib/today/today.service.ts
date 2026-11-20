@@ -49,7 +49,7 @@ const monthDay = (iso: string) => formatDateOnly(iso, { mode: "short" });
 
 /** Urgency ascending, then waiting longest, then key so the order is stable. */
 export function rankTodayItems(items: TodayItem[]): TodayItem[] {
-  return [...items].sort((a, b) => a.urgency - b.urgency || a.since - b.since || a.key.localeCompare(b.key));
+  return items.toSorted((a, b) => a.urgency - b.urgency || a.since - b.since || a.key.localeCompare(b.key));
 }
 
 

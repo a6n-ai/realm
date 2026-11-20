@@ -136,7 +136,7 @@ export function groupSessionsByDay(
   const groups: SessionDayGroup[] = [];
   for (const card of cards) {
     const key = dayKey(card.startsAt, timeZone);
-    const last = groups[groups.length - 1];
+    const last = groups.at(-1);
     if (last && last.key === key) {
       last.rows.push(card);
       continue;

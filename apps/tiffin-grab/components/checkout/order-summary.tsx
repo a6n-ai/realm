@@ -54,7 +54,7 @@ export function OrderSummary({
   children?: ReactNode;
 }) {
   const money = useFormatMoney();
-  const days = [...(selections.eatingDays ?? [])].sort((a, b) => WEEK_DAYS.indexOf(a) - WEEK_DAYS.indexOf(b));
+  const days = (selections.eatingDays ?? []).toSorted((a, b) => WEEK_DAYS.indexOf(a) - WEEK_DAYS.indexOf(b));
   const weeks = selections.durationWeeks;
   const perWeek = days.length;
   const start = startLabel(selections.startDate);

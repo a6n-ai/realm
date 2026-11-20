@@ -99,10 +99,10 @@ export function renewDays(last: string | null, today: string): number | null {
 // ponytail: dates stand in for a renewal link; once plans may overlap, store renewed_from_order_id and chain by it.
 export function planLines<T extends { publicId: string }>(subs: T[], windows: Record<string, { first: string; last: string }>): T[][] {
   const lines: T[][] = [];
-  const sorted = [...subs].sort((a, b) => (windows[a.publicId]?.first ?? "").localeCompare(windows[b.publicId]?.first ?? ""));
+  const sorted = subs.toSorted((a, b) => (windows[a.publicId]?.first ?? "").localeCompare(windows[b.publicId]?.first ?? ""));
   for (const s of sorted) {
     const first = windows[s.publicId]?.first;
-    const end = (l: T[]) => windows[l[l.length - 1]!.publicId]?.last ?? "";
+    const end = (l: T[]) => windows[l.at(-1)!.publicId]?.last ?? "";
     const line = first ? lines.filter((l) => end(l) < first).sort((a, b) => end(b).localeCompare(end(a)))[0] : undefined;
     if (line) line.push(s);
     else lines.push([s]);

@@ -22,7 +22,7 @@ const option = (over: Partial<SwapOption> & Pick<SwapOption, "fromCategory" | "t
   available: true,
   reason: null,
   minFromPicks: over.validBundles[0]?.fromPicks ?? null,
-  maxFromPicks: over.validBundles[over.validBundles.length - 1]?.fromPicks ?? null,
+  maxFromPicks: over.validBundles.at(-1)?.fromPicks ?? null,
   bundleIncrement: over.validBundles.length > 1
     ? (over.validBundles[1]!.fromPicks - over.validBundles[0]!.fromPicks)
     : (over.validBundles[0]?.fromPicks ?? null),

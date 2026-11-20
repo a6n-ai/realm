@@ -11,7 +11,7 @@ export function maxTuPickIndex(
   items: { tuAmount: string | number; sortOrder: number }[],
 ): number | null {
   if (items.length === 0) return null;
-  const sorted = [...items].sort((a, b) => a.sortOrder - b.sortOrder);
+  const sorted = items.toSorted((a, b) => a.sortOrder - b.sortOrder);
   let best = 0;
   let bestTu = Number(sorted[0]!.tuAmount);
   for (let i = 1; i < sorted.length; i++) {

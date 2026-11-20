@@ -45,7 +45,7 @@ export function EditMemberRolesDialog({
     });
   const toggle = (role: string, on: boolean) =>
     setSelected((s) => (on ? [...s.filter((r) => r !== role), role] : s.filter((r) => r !== role)));
-  const changed = [...selected].sort().join() !== heldRoles(row.orgRole).sort().join();
+  const changed = selected.toSorted().join() !== heldRoles(row.orgRole).sort().join();
 
   function handleOpenChange(next: boolean) {
     if (next) {

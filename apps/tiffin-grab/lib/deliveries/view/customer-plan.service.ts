@@ -53,7 +53,7 @@ export async function loadCustomerDeliveries(userId: bigint, query: CustomerDeli
     const cardOk = waitlisted.some((s) => s.pay && !s.pay.expired) ? await stripeMethodAvailable() : true;
     return { kind: "none" as const, waitlisted, ended: waitlisted.length ? null : await myEndedPlan(userId), cardAvailable: cardOk };
   }
-  const subs = [...allSubs].sort((a, b) => (windows[a.publicId]?.first ?? "").localeCompare(windows[b.publicId]?.first ?? "") || a.publicId.localeCompare(b.publicId));
+  const subs = allSubs.toSorted((a, b) => (windows[a.publicId]?.first ?? "").localeCompare(windows[b.publicId]?.first ?? "") || a.publicId.localeCompare(b.publicId));
 
   // The page shows ONE plan; ?sub picks it, else the plan with the soonest upcoming delivery.
   const soonest = [...subs].filter((s) => windows[s.publicId]?.next).sort((a, b) => windows[a.publicId]!.next!.localeCompare(windows[b.publicId]!.next!))[0];

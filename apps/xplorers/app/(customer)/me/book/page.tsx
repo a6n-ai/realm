@@ -127,7 +127,7 @@ export default async function BookPage({ searchParams }: { searchParams: Params 
 
   const today = dayKey(new Date(), timeZone);
   const grid = monthGrid(today.slice(0, 7));
-  const { from, to } = parseRange(sp.from, sp.to, { from: grid[0]!.date, to: grid[grid.length - 1]!.date });
+  const { from, to } = parseRange(sp.from, sp.to, { from: grid[0]!.date, to: grid.at(-1)!.date });
   const now = new Date().getTime();
   const mine = (r: { classPublicId: string; startsAt: Date }) => r.classPublicId === picked.publicId && r.startsAt.getTime() > now;
   const [rows, upcoming] = await Promise.all([

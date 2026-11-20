@@ -20,7 +20,7 @@ export async function PublicCalendar({
   const grid = monthGrid(today.slice(0, 7));
   const { from, to } = parseRange(searchParams.from, searchParams.to, {
     from: grid[0]!.date,
-    to: grid[grid.length - 1]!.date,
+    to: grid.at(-1)!.date,
   });
   const rows = await studioSessionsService.listRange(from, to, { publicOnly: true });
   return (

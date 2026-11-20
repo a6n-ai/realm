@@ -253,9 +253,9 @@ export function mealCategories(row: EatingRow, plan: MealPlan): MealCategory[] {
   const meal = row.own ? source?.meal : source?.carriedMeals?.[row.date];
   const portion = (category: string, i: number): string | null => {
     const swapped = plan.portionsByDate?.[row.date]?.[category];
-    if (swapped?.length) return swapped[i] ?? swapped[swapped.length - 1] ?? null;
+    if (swapped?.length) return swapped[i] ?? swapped.at(-1) ?? null;
     const slots = plan.categoryPortionSlots?.[category];
-    if (slots?.length) return slots[i] ?? slots[slots.length - 1] ?? null;
+    if (slots?.length) return slots[i] ?? slots.at(-1) ?? null;
     return plan.categoryPortions[category] ?? null;
   };
   return (meal ?? []).filter((c) => c.picks.length > 0).map((c) => ({

@@ -24,7 +24,7 @@ export const sideKey = (category: string, role: MealItemRole) => `${category}:${
 /** Each category's item roles in pick order (pick N = the Nth item by sortOrder). */
 export function rolesByCategory(items: { category: string; sortOrder: number; role?: MealItemRole | null }[]): Map<string, MealItemRole[]> {
   const out = new Map<string, MealItemRole[]>();
-  for (const it of [...items].sort((a, b) => a.sortOrder - b.sortOrder)) {
+  for (const it of items.toSorted((a, b) => a.sortOrder - b.sortOrder)) {
     const list = out.get(it.category) ?? [];
     list.push(it.role ?? "main");
     out.set(it.category, list);

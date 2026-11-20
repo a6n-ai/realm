@@ -59,22 +59,22 @@ function signedArea(points) {
     }
     return area / 2;
 }
-const oriented = (points) => (signedArea(points) < 0 ? [...points].reverse() : points);
+const oriented = (points) => (signedArea(points) < 0 ? points.toReversed() : points);
 function convexHull(points) {
-    const sorted = [...points].sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+    const sorted = points.toSorted((a, b) => a[0] - b[0] || a[1] - b[1]);
     if (sorted.length < 3)
         return sorted;
     const cross = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
     const lower = [];
     for (const point of sorted) {
-        while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], point) <= 0)
+        while (lower.length >= 2 && cross(lower[lower.length - 2], lower.at(-1), point) <= 0)
             lower.pop();
         lower.push(point);
     }
     const upper = [];
     for (let index = sorted.length - 1; index >= 0; index--) {
         const point = sorted[index];
-        while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], point) <= 0)
+        while (upper.length >= 2 && cross(upper[upper.length - 2], upper.at(-1), point) <= 0)
             upper.pop();
         upper.push(point);
     }
@@ -174,7 +174,7 @@ export function extrude(ring, z, height, projection, options = {}) {
         });
         const insetTop = inset.map(([x, y]) => iso([x, y, z + height], projection));
         bevel = runsOf(facing, true)
-            .map((run) => pathOf([top[run[0]], ...run.slice(1, -1).map((index) => insetTop[index]), top[run[run.length - 1]]]))
+            .map((run) => pathOf([top[run[0]], ...run.slice(1, -1).map((index) => insetTop[index]), top[run.at(-1)]]))
             .join("");
     }
     return {
@@ -486,7 +486,7 @@ export function fadeLineSvg(points, { fade = [0, 0], tone = "lo", className, sto
         return [points[index - 1][0] + (points[index][0] - points[index - 1][0]) * t, points[index - 1][1] + (points[index][1] - points[index - 1][1]) * t];
     };
     const pieceOf = (from, to) => [at(from), ...points.filter((_, index) => lengths[index] > from + 1e-6 && lengths[index] < to - 1e-6), at(to)];
-    const total = lengths[lengths.length - 1];
+    const total = lengths.at(-1);
     if (total < 1e-6)
         return "";
     let [start, end] = Array.isArray(fade) ? fade : [fade, fade];
@@ -499,7 +499,7 @@ export function fadeLineSvg(points, { fade = [0, 0], tone = "lo", className, sto
     const ramp = (piece, rising) => {
         const d = pathOf(piece);
         const [x1, y1] = piece[0];
-        const [x2, y2] = piece[piece.length - 1];
+        const [x2, y2] = piece.at(-1);
         const id = `iso-fade-${hashOf(`${d}|${tone}|${rising}`)}`;
         const marks = Array.from({ length: stops + 1 }, (_, index) => {
             const t = index / stops;

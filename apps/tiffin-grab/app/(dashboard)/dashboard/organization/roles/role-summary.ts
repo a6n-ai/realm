@@ -21,7 +21,7 @@ export const countOn = (value: PermissionMap, resource: ResourceLabel) =>
 /** Order-insensitive: the server may return keys or actions in another order than the draft. */
 export function samePermissions(a: PermissionMap, b: PermissionMap): boolean {
   const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
-  return [...keys].every((k) => [...(a[k] ?? [])].sort().join() === [...(b[k] ?? [])].sort().join());
+  return [...keys].every((k) => (a[k] ?? []).toSorted().join() === (b[k] ?? []).toSorted().join());
 }
 
 export const memberCount = (n: number) => `${n} ${n === 1 ? "member" : "members"}`;

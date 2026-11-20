@@ -17,7 +17,7 @@ export function poolSummary(
     return { lead: `Staff who add ${entity === "inquiry" ? "an" : "a"} ${entity} own it. Others go to this pool.`, name: null, tail: "" };
   }
   if (members.length === 0) return null;
-  const sorted = [...members].sort((a, b) => a.publicId.localeCompare(b.publicId));
+  const sorted = members.toSorted((a, b) => a.publicId.localeCompare(b.publicId));
 
   if (strategy === "round_robin") {
     const last = cursorPublicId ? sorted.findIndex((m) => m.publicId === cursorPublicId) : -1;

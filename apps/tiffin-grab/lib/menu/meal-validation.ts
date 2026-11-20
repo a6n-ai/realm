@@ -107,7 +107,7 @@ export function receivePickTu(ctx: CompositionContext, toKey: string): number | 
 /** Per-category TU slots with their base composition row, after folding applied swaps in order. */
 export function rowsAfterSwaps(ctx: CompositionContext, applied: SwapRow[]): Map<string, SlotRow<number>[]> {
   const map = new Map<string, SlotRow<number>[]>();
-  for (const item of [...ctx.mealSizeItems].sort((a, b) => a.sortOrder - b.sortOrder)) {
+  for (const item of ctx.mealSizeItems.toSorted((a, b) => a.sortOrder - b.sortOrder)) {
     const list = map.get(item.category) ?? [];
     list.push({ row: list.length, value: item.tuAmount });
     map.set(item.category, list);
@@ -271,7 +271,7 @@ export type MealRuleFailure = { ok: false; reason: string; rulePublicId: string 
 
 export function validateMealRules(ctx: MealRuleContext): { ok: true } | MealRuleFailure {
   // Deterministic message when several rules could fire on the same pick.
-  const rules = [...ctx.rules].sort((a, b) => b.priority - a.priority || a.publicId.localeCompare(b.publicId));
+  const rules = ctx.rules.toSorted((a, b) => b.priority - a.priority || a.publicId.localeCompare(b.publicId));
 
   for (const rule of rules) {
     // See `focus` above: an edit that cannot make this rule worse is not its business.
@@ -632,7 +632,7 @@ export function computeSwapOption(args: {
     reason: null,
     validBundles: bundles,
     minFromPicks: fromPicks[0]!,
-    maxFromPicks: fromPicks[fromPicks.length - 1]!,
+    maxFromPicks: fromPicks.at(-1)!,
     bundleIncrement: bundleIncrement(fromPicks),
     giveNatural: smallest.giveNatural,
     getNatural: smallest.getNatural,

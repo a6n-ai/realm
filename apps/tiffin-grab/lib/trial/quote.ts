@@ -72,7 +72,7 @@ export async function quoteTrial(
     weekdays: sendDays,
     frequencyKey: frequency.key,
     frequencyId: frequency.id,
-    durationWeeks: durationWeeksCovering(dates[0]!, dates[dates.length - 1]!),
+    durationWeeks: durationWeeksCovering(dates[0]!, dates.at(-1)!),
     pricingSelections,
     catalog: trialCatalog(snapshot, meal, length, pricingSelections),
   };

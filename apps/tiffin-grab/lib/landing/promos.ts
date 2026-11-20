@@ -95,7 +95,7 @@ export async function buildLandingPromos(): Promise<LandingPromos> {
   ]);
   const byCode = new Map(coupons.map((c) => [c.code.toUpperCase(), c]));
   const placed = (placement: string) => live.filter((x) => hasPlacement(x, placement)).map((p) => fromPromotion(p, byCode, snapshot, currency));
-  const strongest = [...coupons].sort((a, b) => strength(b) - strength(a))[0];
+  const strongest = coupons.toSorted((a, b) => strength(b) - strength(a))[0];
   return {
     sticker: placed("sticker")[0] ?? (strongest ? fromCoupon(strongest, snapshot, currency) : null),
     popup: placed("popup")[0] ?? null,

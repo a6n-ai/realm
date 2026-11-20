@@ -37,6 +37,7 @@ import { OrderPricingBreakdown } from "./order-pricing-breakdown";
 import { DropOffToggles } from "./drop-off-toggles";
 import { addDaysIso, daysBetween, isoToUtcDate, utcIso } from "@foundry/commons/util/dates";
 import { useAppCurrency, useFormatMoney } from "@/components/app-currency";
+import { isSubmitEnter } from "@/lib/enter-key";
 
 export type Draft = ReturnType<typeof useOrderDraft>;
 
@@ -444,7 +445,7 @@ export function DiscountsSection({ d, customerLabel }: { d: Draft; customerLabel
               <div className="flex gap-2">
                 <Input id="couponCode" value={d.couponInput} placeholder="Enter code" onChange={(e) => d.setCouponInput(e.target.value.toUpperCase())}
                   // Enter would otherwise submit the order.
-                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); if (d.couponInput.trim()) d.applyCoupon(d.couponInput); } }} />
+                  onKeyDown={(e) => { if (isSubmitEnter(e)) { e.preventDefault(); if (d.couponInput.trim()) d.applyCoupon(d.couponInput); } }} />
                 <Button type="button" variant="outline" disabled={!d.couponInput.trim()} onClick={() => d.applyCoupon(d.couponInput)}>Apply</Button>
               </div>
               {coupons && couponCodes.filter((code) => !coupons.applied.some((c) => c.code.toUpperCase() === code)).map((code) => {

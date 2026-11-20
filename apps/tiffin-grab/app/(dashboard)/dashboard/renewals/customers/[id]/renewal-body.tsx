@@ -13,7 +13,7 @@ import { PlanHistory, RenewalReminders } from "./renewal-history";
 import { PlanTrack } from "./plan-track";
 import { appOrigin } from "@/lib/runtime/env";
 
-const currentPlan = (data: CustomerRenewal) => [...data.plans].reverse().find((p) => inOrderStatuses(RUNNING, p.status));
+const currentPlan = (data: CustomerRenewal) => data.plans.findLast((p) => inOrderStatuses(RUNNING, p.status));
 
 /** Renewal actions for one customer: contact, reminder, coins, estimate. Shared by the Renewals page header and the customer's Renewals tab. */
 export function RenewalActions({ data, isAdmin, giveCoins = true }: { data: CustomerRenewal; isAdmin: boolean; giveCoins?: boolean }) {

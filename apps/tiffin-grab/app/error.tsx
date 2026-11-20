@@ -5,7 +5,7 @@ import { Button } from "@foundry/ui/button";
 
 export default function RootError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center gap-3 px-6 text-center">
+    <main className="flex min-h-dvh flex-col items-center justify-center gap-3 px-6 text-center">
       <AlertTriangleIcon className="text-muted-foreground size-6" />
       <h1 className="text-lg font-semibold text-balance">Something went wrong</h1>
       <p className="text-muted-foreground text-sm text-pretty">This page failed to load. Try again.</p>

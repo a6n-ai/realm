@@ -56,7 +56,7 @@ async function carriersFor(exec: Reader, orderId: bigint, from: string, until: s
   const eats = new Map<bigint, Map<string, number>>(rows.map((r) => [r.id, dateCounts(r, extras.get(r.id) ?? [])]));
   const rank = (r: CarrierRow) => (r.movedAway ? 2 : r.status === "scheduled" || r.status === "paused" ? 0 : 1);
   const byEat = new Map<string, CarrierRow>();
-  for (const r of [...rows].sort((a, b) => rank(a) - rank(b))) {
+  for (const r of rows.toSorted((a, b) => rank(a) - rank(b))) {
     for (const eat of eats.get(r.id)!.keys()) if (!byEat.has(eat)) byEat.set(eat, r);
   }
   return { byEat, eats };
@@ -116,7 +116,7 @@ export async function pauseDays(orderPublicId: string, dates: string[], actorId:
     const [entry] = await tx.insert(subscriptionPauses).values({
       orderId: order.id,
       fromDate: logged[0]!,
-      untilDate: logged[logged.length - 1]!,
+      untilDate: logged.at(-1)!,
       isIndefinite: false,
       deliveryDates: logged,
       releasedDates: [],
@@ -219,7 +219,7 @@ export async function releasePausedDaysDetailed(orderPublicId: string, dates: st
         await tx.update(subscriptionPauses).set({ deliveryDates: [...entry.deliveryDates!, ...staying] }).where(eq(subscriptionPauses.id, entry.id));
         chargedOn = entry.id;
       } else {
-        const sorted = [...staying].sort();
+        const sorted = staying.toSorted();
         const [row] = await tx.insert(subscriptionPauses).values({
           orderId: order.id, fromDate: sorted[0]!, untilDate: sorted.at(-1)!, isIndefinite: false,
           deliveryDates: sorted, releasedDates: [], resumedAt: new Date(), createdBy: actorId,

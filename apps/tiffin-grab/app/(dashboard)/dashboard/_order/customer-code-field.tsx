@@ -13,6 +13,7 @@ import { useTimezone } from "@foundry/design-system/timezone-provider";
 import { issueRepCode, repCodeAllowance, type RepCodeAllowance } from "../discounts/rep-code-actions";
 import { useFormatMoney } from "@/components/app-currency";
 import { useCopy } from "@/lib/hooks/use-copy";
+import { isSubmitEnter } from "@/lib/enter-key";
 
 // Issues a one-off code on the rep's own allowance, capped against this order, and applies it to
 // the estimate so the total shown is what the customer pays after entering it at checkout.
@@ -106,7 +107,7 @@ export function CustomerCodeField({
               disabled={subtotal <= 0}
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter" && valid && !busy) void generate(); }}
+              onKeyDown={(e) => { if (isSubmitEnter(e) && valid && !busy) void generate(); }}
             />
             <Button type="button" variant="outline" disabled={ceiling <= 0} onClick={() => setAmount(String(ceiling))}>Max</Button>
           </div>

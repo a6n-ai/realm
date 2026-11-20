@@ -16,7 +16,7 @@ const HEADERS = [
 /** Unassigned last, then driver name, then stop number: the Dispatch table and its export share it. */
 export function sortDispatchRows(rows: DispatchRow[]): DispatchRow[] {
   const UNASSIGNED = "__unassigned__";
-  return [...rows].sort((a, b) => {
+  return rows.toSorted((a, b) => {
     const aKey = a.routeDriverSerial ?? a.routeDriverName ?? UNASSIGNED;
     const bKey = b.routeDriverSerial ?? b.routeDriverName ?? UNASSIGNED;
     if (aKey === UNASSIGNED && bKey !== UNASSIGNED) return 1;

@@ -49,10 +49,10 @@ export function groupPickCells(
     byKey.set(c.slot, list);
   }
 
-  const ordered = [...categories].sort((a, b) => a.sortOrder - b.sortOrder);
+  const ordered = categories.toSorted((a, b) => a.sortOrder - b.sortOrder);
   const groups: PickCategoryGroup[] = [];
   for (const cat of ordered) {
-    const mine = (byKey.get(cat.key) ?? []).slice().sort((a, b) => a.pickIndex - b.pickIndex);
+    const mine = (byKey.get(cat.key) ?? []).toSorted((a, b) => a.pickIndex - b.pickIndex);
     if (mine.length === 0) continue;
     const portions = portionsBySlot[cat.key] ?? [];
     groups.push({
@@ -197,7 +197,7 @@ export function anchorSwaps(args: {
 
   // Newest swap owns the newest trailing cells.
   const received = new Map<string, { cells: GridCell[]; portions: (string | null)[] }>();
-  for (const s of [...swaps].reverse()) {
+  for (const s of swaps.toReversed()) {
     const to = byKey.get(s.toCategory);
     if (!to || !perRow(s.toCategory) || folded?.(s.toCategory) || to.cells.length < s.qtyTo) {
       received.set(s.publicId, { cells: [], portions: [] });

@@ -9,7 +9,9 @@ video.lp-hero__video { opacity: 0; }
 @media (min-width: 960px) {
   .lp-hero__inner { grid-template-columns: minmax(0, 1fr) auto; }
 }
-.lp-bento::-webkit-scrollbar { display: none; }
+@supports not (scrollbar-width: none) {
+  .lp-bento::-webkit-scrollbar { display: none; }
+}
 .lp-bento > * { min-height: 360px; }
 @media (min-width: 641px) {
   .lp-bento > * { min-height: auto; }
@@ -92,9 +94,6 @@ html[data-popup] { overflow: clip; }
 }
 @media (prefers-reduced-transparency: reduce) {
   .tg-receipt:not(.tg-receipt--flat) { background: var(--tg-cream); -webkit-backdrop-filter: none; backdrop-filter: none; }
-}
-@media (prefers-color-scheme: dark) {
-  .tg-receipt--flat { background: color-mix(in srgb, var(--tg-saffron) 12%, var(--card)); }
 }
 @media (hover: hover) and (prefers-reduced-motion: no-preference) {
   .lp-offers__dot:hover { translate: 0 -2px; }

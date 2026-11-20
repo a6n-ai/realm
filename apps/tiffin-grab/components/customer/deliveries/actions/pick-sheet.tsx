@@ -369,7 +369,7 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged, 
   const ruleLiveSwapOptions = swapOptionsAllowedByRules({
     rules: grid?.mealRules ?? [],
     options: liveSwapOptions(swapOptions),
-    mealPicks: [...mealPicks].sort((a, b) => a.pickIndex - b.pickIndex),
+    mealPicks: mealPicks.toSorted((a, b) => a.pickIndex - b.pickIndex),
     menuByCategory: new Map(groups.map((g) => [g.key, g.dishes])),
   });
   const allowedSwaps = new Set(
@@ -489,7 +489,7 @@ export function PickSheet({ trip, plan, open, day: startDay, onDone, onChanged, 
     const appliedAt = new Map(
       plan.days.flatMap((d) => (d.eatingDays ?? []).flatMap((e) => e.appliedSwaps.map((sw) => sw.publicId))).map((id, i) => [id, i]),
     );
-    let removes = [...pendingRemoves].sort((a, b) => (appliedAt.get(b.publicId) ?? 0) - (appliedAt.get(a.publicId) ?? 0));
+    let removes = pendingRemoves.toSorted((a, b) => (appliedAt.get(b.publicId) ?? 0) - (appliedAt.get(a.publicId) ?? 0));
     let applies = pendingApplies;
     try {
       while (removes.length > 0) {

@@ -54,7 +54,7 @@ export function groupConflict(group: MergeRow[]): string | null {
 
 /** Open before closed, then stage rank, then latest activity, then newest row. */
 export function pickWinner(group: MergeRow[]): MergeRow {
-  return [...group].sort(
+  return group.toSorted(
     (a, b) => rank(b.stage) - rank(a.stage) || b.latestActivityAt - a.latestActivityAt || b.createdAt - a.createdAt,
   )[0]!;
 }
@@ -72,7 +72,7 @@ const isEmpty = (v: unknown) => v == null || (typeof v === "string" && !v.trim()
  */
 export function fillPlan(winner: MergeRow, losers: MergeRow[], held: Set<string>): Record<string, unknown> {
   const plan: Record<string, unknown> = {};
-  const newestFirst = [...losers].sort((a, b) => b.latestActivityAt - a.latestActivityAt || b.createdAt - a.createdAt);
+  const newestFirst = losers.toSorted((a, b) => b.latestActivityAt - a.latestActivityAt || b.createdAt - a.createdAt);
   for (const f of FILLABLE) {
     if (!isEmpty(winner[f])) continue;
     for (const l of newestFirst) {

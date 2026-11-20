@@ -12,11 +12,11 @@ export type PickPlan = { key: string; label: string; sizes: PickSize[] };
 
 // Cheapest, a middle and the dearest size; fewer than three sizes just show fewer cards.
 function picksFor(sizes: PickSize[], lengths: MathLength[]) {
-  const ladder = [...sizes].sort((a, b) => a.rate - b.rate);
+  const ladder = sizes.toSorted((a, b) => a.rate - b.rate);
   const n = ladder.length;
   const mid = Math.floor((n - 1) / 2);
   const four = lengths.find((l) => l.weeks === 4) ?? lengths.find((l) => l.off > 0) ?? lengths[0]!;
-  const longest = [...lengths].reverse().find((l) => l.off > 0) ?? lengths[lengths.length - 1]!;
+  const longest = lengths.findLast((l) => l.off > 0) ?? lengths.at(-1)!;
   return [...new Set([0, mid, n - 1])].map((i) => ({ size: ladder[i]!, length: i === n - 1 && n > 1 ? longest : four, good: n >= 3 && i === mid }));
 }
 

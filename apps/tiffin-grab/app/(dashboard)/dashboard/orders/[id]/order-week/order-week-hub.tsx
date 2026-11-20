@@ -55,7 +55,7 @@ export function OrderWeekHub({ data, canEditDeliveryStatus = false, readOnly = f
 
   const weekEnd = addDaysIso(weekStart, 6);
   const rows = useMemo(() => eatingRowsInWeek(trips, weekStart, weekEnd), [trips, weekStart, weekEnd]);
-  const row: EatingRow | null = (sel ? rows.find((r) => r.date === sel) ?? rows.find((r) => r.trip.date === sel) : null) ?? (sel ? null : [...rows].sort((a, b) => rank(a.trip) - rank(b.trip) || a.date.localeCompare(b.date))[0] ?? null);
+  const row: EatingRow | null = (sel ? rows.find((r) => r.date === sel) ?? rows.find((r) => r.trip.date === sel) : null) ?? (sel ? null : rows.toSorted((a, b) => rank(a.trip) - rank(b.trip) || a.date.localeCompare(b.date))[0] ?? null);
   const trip = row?.trip ?? null;
   const editChoice = trip && canEditDeliveryStatus && trip.deliveryId ? statusChoice(trip) : null;
   const av = trip ? actionAvailability(trip, now, plan.ctx) : null;
@@ -388,9 +388,9 @@ function InfoDialog({ row, plan, onClose }: { row: EatingRow; plan: OrderWeek["p
   const cats = (meal ?? []).filter((c) => c.picks.length > 0);
   const slotPortion = (category: string, pickIndex: number): string | null => {
     const swapped = plan.portionsByDate?.[row.date]?.[category];
-    if (swapped?.length) return swapped[pickIndex] ?? swapped[swapped.length - 1] ?? null;
+    if (swapped?.length) return swapped[pickIndex] ?? swapped.at(-1) ?? null;
     const slots = plan.categoryPortionSlots?.[category];
-    if (slots?.length) return slots[pickIndex] ?? slots[slots.length - 1] ?? null;
+    if (slots?.length) return slots[pickIndex] ?? slots.at(-1) ?? null;
     return plan.categoryPortions[category] ?? null;
   };
   return (

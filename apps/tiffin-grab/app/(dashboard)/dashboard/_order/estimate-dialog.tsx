@@ -22,6 +22,7 @@ import { createQuoteLink, customerCoinBalance, estimateFormData, estimatePrefill
 import { CustomerCodeField } from "./customer-code-field";
 import { CoinsField } from "./coins-field";
 import { useAppCurrency, useFormatMoney } from "@/components/app-currency";
+import { isSubmitEnter } from "@/lib/enter-key";
 
 type FormData = Awaited<ReturnType<typeof estimateFormData>>;
 
@@ -256,7 +257,7 @@ function CouponsField({ estimate }: { estimate: EstimateState }) {
           value={input}
           placeholder="Enter code"
           onChange={(e) => setInput(e.target.value.toUpperCase())}
-          onKeyDown={(e) => { if (e.key === "Enter") submit(); }}
+          onKeyDown={(e) => { if (isSubmitEnter(e)) submit(); }}
         />
         <Button type="button" variant="outline" disabled={!input.trim()} onClick={submit}>Apply</Button>
       </div>

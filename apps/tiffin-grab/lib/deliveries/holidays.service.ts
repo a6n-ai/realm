@@ -338,7 +338,7 @@ export function holidayOutcome(r: {
   status: string; tiffinUnits: number; orderStatus: string; trial: boolean; dismissed: boolean;
   extraDates: string[]; makeupDate: string | null; mergedDate: string | null;
 }): HolidayOutcome {
-  if (r.extraDates.length > 0) return { kind: "placed", dates: [...r.extraDates].sort() };
+  if (r.extraDates.length > 0) return { kind: "placed", dates: r.extraDates.toSorted() };
   if (r.makeupDate) return { kind: "moved", date: r.makeupDate, merged: false };
   if (r.mergedDate) return { kind: "moved", date: r.mergedDate, merged: true };
   if (r.dismissed) return { kind: "dismissed" };

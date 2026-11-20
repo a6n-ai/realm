@@ -99,8 +99,8 @@ type Executor = Pick<typeof db, "select" | "insert" | "delete">;
 
 const sameSet = (a: number[] | null, b: number[] | null) => {
   if (!a || !b) return a === b;
-  const sb = [...b].sort((x, y) => x - y);
-  return a.length === b.length && [...a].sort((x, y) => x - y).every((v, i) => v === sb[i]);
+  const sb = b.toSorted((x, y) => x - y);
+  return a.length === b.length && a.toSorted((x, y) => x - y).every((v, i) => v === sb[i]);
 };
 
 /** Structural compare: jsonb reorders object keys, so JSON.stringify never matches a stored pattern. */

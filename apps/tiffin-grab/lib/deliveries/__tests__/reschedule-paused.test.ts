@@ -60,7 +60,7 @@ describe("rescheduleDelivery on a paused trip", () => {
     const paused = (await db.select().from(deliveries).where(eq(deliveries.orderId, order.id)))
       .find((r) => r.deliveryDate === dates[0])!;
     expect(paused.status).toBe("paused");
-    const target = nextWeekday(new Date(`${dates[dates.length - 1]}T00:00:00Z`)).toISOString().slice(0, 10);
+    const target = nextWeekday(new Date(`${dates.at(-1)}T00:00:00Z`)).toISOString().slice(0, 10);
     await expect(rescheduleDelivery(paused.publicId, target, null)).resolves.toMatchObject({ merged: false });
   });
 });

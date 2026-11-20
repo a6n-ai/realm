@@ -1,7 +1,7 @@
 import { humanDate } from "@/lib/deliveries/view";
 import { weekdayShort } from "@/lib/deliveries/view/eating";
 
-const list = (names: string[]) => (names.length < 2 ? names.join("") : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`);
+const list = (names: string[]) => (names.length < 2 ? names.join("") : `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`);
 
 /** Weekday names when they are few and distinct ("Wed and Thu"); otherwise a count, so the line stays short. */
 function who(dates: string[]): string {

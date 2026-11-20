@@ -22,6 +22,7 @@ import { Stepper, StepperIndicator, StepperItem, StepperNav, StepperSeparator, S
 import { amendImpact, backToDraft, copyWeek, createDish, markReady, releaseWeek, saveWeek } from "./actions";
 import { cn } from "@foundry/ui/cn";
 import { sanitizeClientError } from "@foundry/commons/util/client-error";
+import { isSubmitEnter } from "@/lib/enter-key";
 
 type Dish = { id: string; name: string; category: string | null; planId: string };
 type Week = { id: string; weekStart: string; status: string; updatedAt: number };
@@ -523,7 +524,7 @@ export function MenuBuilder({
               value={newName}
               autoFocus
               onChange={(e) => setNewName(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") handleCreateDish(); }}
+              onKeyDown={(e) => { if (isSubmitEnter(e)) handleCreateDish(); }}
             />
             {similarDishes.length > 0 && createTarget ? (
               <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-2 text-xs">

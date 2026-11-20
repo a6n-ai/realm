@@ -18,7 +18,7 @@ export function groupByMonth<T>(items: T[], at: (item: T) => number, timeZone: s
   const groups: { key: string; label: string; items: T[] }[] = [];
   for (const item of items) {
     const key = monthKey(at(item), timeZone);
-    const last = groups[groups.length - 1];
+    const last = groups.at(-1);
     if (last?.key === key) last.items.push(item);
     else groups.push({ key, label: monthLabel(at(item), timeZone), items: [item] });
   }

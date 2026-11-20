@@ -99,7 +99,7 @@ export function PriceMath({ plans, lengths, frequencies = [], bounds = { min: 3,
   const max = Math.min(bounds.max, openCount);
   const min = Math.min(bounds.min, max);
   const fits = frequencies.filter((f) => f.days.every(open)).sort((a, b) => a.days.length - b.days.length);
-  const freq = frequencies.find((f) => f.key === freqKey && fits.includes(f)) ?? [...fits].sort((a, b) => frequencies.indexOf(a) - frequencies.indexOf(b))[0];
+  const freq = frequencies.find((f) => f.key === freqKey && fits.includes(f)) ?? fits.toSorted((a, b) => frequencies.indexOf(a) - frequencies.indexOf(b))[0];
   const saveFor = (f: MathFrequency) => Math.min(maxPct, f.off[length?.weeks ?? 0] ?? 0);
 
   const tiffins = eating.length * (length?.weeks ?? 0);

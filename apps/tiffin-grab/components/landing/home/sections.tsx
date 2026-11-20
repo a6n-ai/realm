@@ -25,7 +25,7 @@ function dayRange(days: string[]): string {
   const idx = WEEK_DAYS.flatMap((d, i) => (days.includes(d) ? [i] : []));
   if (idx.length === 0) return "";
   const run = idx.length > 2 && idx.every((v, i) => i === 0 || v === idx[i - 1]! + 1);
-  return run ? `${DAY_SHORT[WEEK_DAYS[idx[0]!]!]} to ${DAY_SHORT[WEEK_DAYS[idx[idx.length - 1]!]!]}` : idx.map((i) => DAY_SHORT[WEEK_DAYS[i]!]).join(", ");
+  return run ? `${DAY_SHORT[WEEK_DAYS[idx[0]!]!]} to ${DAY_SHORT[WEEK_DAYS[idx.at(-1)!]!]}` : idx.map((i) => DAY_SHORT[WEEK_DAYS[i]!]).join(", ");
 }
 
 /** The running promotion as a die-cut sticker on the hero: short headline in the middle,

@@ -57,7 +57,7 @@ const D = (points, style) => k.dotsSvg(points, style);
 const g = (cls, body) => `<g class="${cls}">${body}</g>`;
 const cylAt = (x, y, r, z, h, steps = 72, bevel = 0) => k.cylinder(x, y, r, z, h, P, steps, bevel);
 const cyl = (r, z, h, steps = 72, bevel = 0) => cylAt(0, 0, r, z, h, steps, bevel);
-const byDepth = (items) => [...items].sort((a, b) => k.depthOf([a.x, a.y, 0], P) - k.depthOf([b.x, b.y, 0], P));
+const byDepth = (items) => items.toSorted((a, b) => k.depthOf([a.x, a.y, 0], P) - k.depthOf([b.x, b.y, 0], P));
 
 // Seeded so the art is the same on every build.
 let seed = 7;

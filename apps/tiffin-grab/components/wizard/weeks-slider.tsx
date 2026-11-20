@@ -8,7 +8,7 @@ const saveSize = (save: number, best: number) => (best > 0 ? 12 + Math.round((sa
  * keyboard and screen readers for free), each stop labelled with its weeks and the discount it earns.
  */
 export function WeeksSlider({ weeks, value, savings, perWeek, onChange }: { weeks: number[]; value: number; savings: Record<number, number>; /** Tiffins a week, to say how many arrive in all. */ perWeek?: number; onChange: (weeks: number) => void }) {
-  const stops = [...weeks].sort((a, b) => a - b);
+  const stops = weeks.toSorted((a, b) => a - b);
   const at = Math.max(0, stops.indexOf(value));
   const last = Math.max(stops.length - 1, 1);
   const best = Math.max(0, ...stops.map((w) => savings[w] ?? 0));

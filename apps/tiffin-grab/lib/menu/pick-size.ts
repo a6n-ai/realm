@@ -68,8 +68,8 @@ export function slotRowsAfterSwaps(
 ): Map<string, SlotRow<number | null>[]> {
   const out = new Map<string, SlotRow<number | null>[]>();
   for (const [category, list] of byCategoryOf(items)) {
-    const slots = [...list]
-      .sort((a, b) => a.sortOrder - b.sortOrder)
+    const slots = list
+      .toSorted((a, b) => a.sortOrder - b.sortOrder)
       .map((item, row) => {
         if (item.tuAmount == null || item.tuAmount === "") return { row, value: null };
         const n = Number(item.tuAmount);

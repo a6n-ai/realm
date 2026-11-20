@@ -4,7 +4,7 @@ import { cn } from "@foundry/ui/cn";
 function initials(name: string | null, fallback: string | null): string {
   const source = (name?.trim() || fallback?.trim() || "?").split(/\s+/);
   const first = source[0]?.[0] ?? "";
-  const last = source.length > 1 ? (source[source.length - 1]?.[0] ?? "") : "";
+  const last = source.length > 1 ? (source.at(-1)?.[0] ?? "") : "";
   return (first + last).toUpperCase() || "?";
 }
 

@@ -21,7 +21,7 @@ describe("moveOptions default horizon", () => {
   it("without an explicit horizon, offers up to the plan's last delivery plus a week", () => {
     const c = { ...ctx, lastDeliveryDate: "2026-10-02" }; // Fri, 11 days after today (2026-09-21)
     const o = moveOptions(trip, [], NOW, c, "2026-09-21");
-    expect(o[o.length - 1]!.date).toBe("2026-10-08"); // horizon 18 = today + 17 days
+    expect(o.at(-1)!.date).toBe("2026-10-08"); // horizon 18 = today + 17 days
   });
   it("falls back to 28 days for a plan with no known end", () => {
     const c = { ...ctx, lastDeliveryDate: null };

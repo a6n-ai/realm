@@ -331,7 +331,7 @@ async function TopDishesList({ scope }: { scope: AnalyticsScope }) {
   if (rows.length === 0) return <p className="text-muted-foreground py-8 text-center text-sm">No dish picks in this range.</p>;
   const total = rows.reduce((s, r) => s + r.n, 0);
   const planNames = [...new Set(rows.map((r) => r.plan))].sort(dietOrder);
-  const top = [...rows].sort((a, b) => b.n - a.n).slice(0, 10);
+  const top = rows.toSorted((a, b) => b.n - a.n).slice(0, 10);
   const rest = rows.length - top.length;
   return (
     <div className="flex flex-col gap-3">

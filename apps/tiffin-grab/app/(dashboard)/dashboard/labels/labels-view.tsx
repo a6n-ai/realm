@@ -93,7 +93,7 @@ export function KitchenCounts({
 function LabelsPerGroup({ byRoute }: { byRoute: { group: string; labels: number; planned: boolean }[] }) {
   if (byRoute.length === 0) return null;
   const planned = byRoute.some((r) => r.planned);
-  const groups = [...byRoute].sort((a, b) => b.labels - a.labels);
+  const groups = byRoute.toSorted((a, b) => b.labels - a.labels);
   return (
     <div className="space-y-2">
       <div>

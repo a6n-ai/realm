@@ -43,8 +43,7 @@ export function ActivityTimeline({
   const [filter, setFilter] = useState(filters[0]?.key ?? "");
   const types = filters.find((f) => f.key === filter)?.types ?? null;
   const rows = (types ? items.filter((a) => types.includes(a.type)) : items)
-    .slice()
-    .sort((a, b) => b.createdAt - a.createdAt);
+    .toSorted((a, b) => b.createdAt - a.createdAt);
 
   if (items.length === 0) {
     return (
@@ -124,7 +123,7 @@ export function ActivityTimeline({
   const days: { key: string; rows: ActivityItem[] }[] = [];
   for (const r of rows) {
     const key = zonedDateIso(r.createdAt, tz);
-    const last = days[days.length - 1];
+    const last = days.at(-1);
     if (last && last.key === key) last.rows.push(r);
     else days.push({ key, rows: [r] });
   }

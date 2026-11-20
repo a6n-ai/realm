@@ -65,6 +65,7 @@ import { StatusBanner, toneClasses } from "@/components/checkout/status-banner";
 import { discountLine } from "@/components/customer/home/coupons-section";
 import { ReferralGift } from "@/components/wizard/referral-gift";
 import type { AvailableCoupon, CouponErrorCode } from "@/lib/coupons/coupons.service";
+import { isSubmitEnter } from "@/lib/enter-key";
 
 const TITLES = { 0: "Renew your plan.", 1: "Where should we deliver?", 2: "How would you like to pay?" } as const;
 const H = "text-muted-foreground text-footnote font-semibold tracking-[0.02em]";
@@ -1574,7 +1575,7 @@ function ApplyField({ id, className, value, placeholder, inputMode, uppercase, a
           aria-invalid={state.status === "error" || undefined}
           aria-describedby={state.status === "applied" || state.status === "error" ? `${id}-msg` : undefined}
           onChange={(e) => onChange(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); onApply(); } }}
+          onKeyDown={(e) => { if (isSubmitEnter(e)) { e.preventDefault(); onApply(); } }}
           className={`nums min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-muted-foreground ${uppercase ? "uppercase placeholder:normal-case" : ""}`}
         />
         {extra}

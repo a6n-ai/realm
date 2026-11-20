@@ -9,6 +9,6 @@ export async function lockUser(tx: Tx, userId: bigint): Promise<void> {
 
 /** Locks users in id order so two transactions locking the same pair cannot deadlock. */
 export async function lockUsers(tx: Tx, userIds: bigint[]): Promise<void> {
-  const ids = [...userIds].sort((a, b) => (a < b ? -1 : 1));
+  const ids = userIds.toSorted((a, b) => (a < b ? -1 : 1));
   await tx.execute(sql`SELECT id FROM ${users} WHERE id IN (${sql.join(ids.map((id) => sql`${id}`), sql`, `)}) ORDER BY id FOR UPDATE`);
 }
