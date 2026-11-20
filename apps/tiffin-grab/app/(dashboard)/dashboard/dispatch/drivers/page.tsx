@@ -6,7 +6,6 @@ import { zonedDateIso } from "@foundry/commons";
 import { buildDispatchRows, listKnownDrivers } from "@/lib/optimoroute/drivers";
 import { PageShell, PageHeader, SectionCard } from "@/components/ds";
 import { DayHeader } from "../day-header";
-import { DispatchTabs } from "../dispatch-tabs";
 import { DriverRoster } from "../driver-roster";
 import { DispatchView } from "../dispatch-view";
 import { DispatchExportButton } from "../dispatch-export-button";
@@ -32,7 +31,6 @@ export default async function DriversPage({ searchParams }: { searchParams: Sear
       <PageShell>
         <PageHeader icon={TruckIcon} title="Dispatch" subtitle="Today's routes and driver assignments." />
         <DayHeader date={date} today={today} basePath="/dashboard/dispatch/drivers" />
-        <DispatchTabs date={date} />
         <SectionCard title="Dispatch data unavailable">
           <p className="text-sm">{e instanceof Error ? e.message : "Unknown error"}</p>
         </SectionCard>
@@ -43,10 +41,9 @@ export default async function DriversPage({ searchParams }: { searchParams: Sear
   return (
     <PageShell>
       <PageHeader icon={TruckIcon} title="Dispatch" subtitle="Today's routes and driver assignments." />
-      <DayHeader date={date} today={today} basePath="/dashboard/dispatch/drivers" />
-      <DispatchTabs date={date} />
+      <DayHeader date={date} today={today} basePath="/dashboard/dispatch/drivers" actions={<DispatchExportButton dateIso={date} rows={dispatchRows} />} />
       <DriverRoster drivers={drivers} rows={dispatchRows} />
-      <SectionCard title="Assign drivers" action={<DispatchExportButton dateIso={date} rows={dispatchRows} />}>
+      <SectionCard title="Assign drivers">
         <DispatchView date={date} rows={dispatchRows} drivers={drivers} />
       </SectionCard>
     </PageShell>

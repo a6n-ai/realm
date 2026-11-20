@@ -1,6 +1,7 @@
 import { parseIsoDate } from "@/lib/dates/iso-date";
 import { Suspense } from "react";
-import { TruckIcon } from "lucide-react";
+import { CircleAlertIcon, CircleCheckIcon, EraserIcon, RouteIcon, TagIcon, TruckIcon } from "lucide-react";
+import { StatCards, StatCardsSkeleton } from "@/components/dashboard/stat-cards";
 import { zonedDateIso } from "@foundry/commons";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { can, requirePagePermission } from "@/lib/auth/guards";
@@ -13,9 +14,10 @@ import { holidaysOn } from "@/lib/deliveries/holidays.service";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import { PageShell, PageHeader, SectionCard } from "@/components/ds";
 import { DayHeader } from "./day-header";
-import { DispatchTabs } from "./dispatch-tabs";
 import { LedgerTable } from "./ledger-table";
 import { DayActions } from "./day-actions";
+import { DispatchExportButton } from "./dispatch-export-button";
+import { buildDispatchRows } from "@/lib/optimoroute/drivers";
 import { requestNow } from "@/lib/dates/request-now";
 
 type SearchParams = Promise<{ date?: string }>;
@@ -63,19 +65,19 @@ async function DispatchData({ searchParams }: { searchParams: SearchParams }) {
     );
   }
 
-  let ledger;
+  let ledger, exportRows;
   try {
-    ledger = await buildDayLedger(date, today, visible);
+    [ledger, exportRows] = await Promise.all([buildDayLedger(date, today, visible), buildDispatchRows(date)]);
     // Phones are not rendered (or searchable) client-side without customer:read, so they never reach the browser.
     if (!(await can({ customer: ["read"] }))) {
       ledger = { ...ledger, rows: ledger.rows.map((r) => ({ ...r, phone: null })) };
+      exportRows = exportRows.map((r) => ({ ...r, phone: null }));
     }
   } catch (e) {
     return (
       <>
         <HolidayBanner closed={closed} />
         <DayHeader date={date} today={today} basePath="/dashboard/dispatch" />
-        <DispatchTabs date={date} />
         <SectionCard title="OptimoRoute unreachable">
           <p className="text-sm">{e instanceof Error ? e.message : "Unknown error"}</p>
         </SectionCard>
@@ -96,25 +98,28 @@ async function DispatchData({ searchParams }: { searchParams: SearchParams }) {
   // Stops, not tiffins: a Friday trip carrying Sat/Sun is one stop with several labels.
   const tiffins = onLabels.filter((r) => r.group !== "not_today" && r.group !== "cleanup").reduce((t, r) => t + (r.tiffinUnits ?? 0), 0);
   const c = ledger.counts;
+  const view = `/dashboard/dispatch?date=${date}&view=`;
 
   return (
     <>
       <HolidayBanner closed={closed} />
-      <DayHeader date={date} today={today} basePath="/dashboard/dispatch" />
-      <DispatchTabs date={date} />
+      <DayHeader date={date} today={today} basePath="/dashboard/dispatch" actions={<DispatchExportButton dateIso={date} rows={exportRows} />} />
 
-      <p className="text-sm" aria-live="polite">
-        <span className="font-semibold">Labels {ledger.labelsCount}</span>
-        <span className="text-muted-foreground"> ({tiffins} tiffins)</span>
-        {" = "}On route {n("on_route")} · Done {n("done")} · Needs action {n("needs_action")}{merged > 0 ? ` · Merged elsewhere ${merged}` : ""}
-        <span className="text-muted-foreground"> — Not going today {c.not_today - n("not_today")} · Clean up OptimoRoute {c.cleanup} · Not ours on OptimoRoute {c.not_ours}</span>
-      </p>
+      <StatCards
+        items={[
+          { icon: TagIcon, label: "Labels", value: ledger.labelsCount, hint: `${tiffins} tiffins${merged > 0 ? ` · ${merged} merged elsewhere` : ""}` },
+          { icon: RouteIcon, label: "On route", value: n("on_route"), hint: "on OptimoRoute, not done", href: `${view}on_route` },
+          { icon: CircleCheckIcon, label: "Done", value: n("done"), hint: "delivered", href: `${view}done` },
+          { icon: CircleAlertIcon, label: "Needs action", value: n("needs_action"), tone: n("needs_action") > 0 ? "bad" : undefined, hint: "not on a route yet", href: `${view}needs_action` },
+          { icon: EraserIcon, label: "Clean up", value: c.cleanup, tone: c.cleanup > 0 ? "warn" : undefined, hint: `not going today ${c.not_today - n("not_today")} · not ours ${c.not_ours}`, href: `${view}cleanup` },
+        ]}
+      />
 
-      <SectionCard title="Send to OptimoRoute" variant="flat">
+      <SectionCard title="Send to OptimoRoute">
         <DayActions date={date} labelsCount={ledger.labelsCount} unassigned={unassigned} />
       </SectionCard>
 
-      <SectionCard title="Day">
+      <SectionCard title="Stops">
         <LedgerTable date={date} ledger={ledger} />
       </SectionCard>
     </>
@@ -124,14 +129,19 @@ async function DispatchData({ searchParams }: { searchParams: SearchParams }) {
 DispatchData.Skeleton = function DispatchDataSkeleton() {
   return (
     <>
-      <SectionCard title="Day" variant="flat">
-        <Skeleton className="h-9 w-64" />
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <Skeleton className="h-9 w-48" />
+        <Skeleton className="h-9 w-80" />
+      </div>
+      <StatCardsSkeleton count={5} />
+      <SectionCard title="Send to OptimoRoute">
+        <div className="grid gap-3 sm:grid-cols-3">
+          <Skeleton className="h-36" />
+          <Skeleton className="h-36" />
+          <Skeleton className="h-36" />
+        </div>
       </SectionCard>
-      <Skeleton className="h-5 w-96" />
-      <SectionCard title="Send to OptimoRoute" variant="flat">
-        <Skeleton className="h-16 w-full" />
-      </SectionCard>
-      <SectionCard title="Day">
+      <SectionCard title="Stops">
         <Skeleton className="h-40 w-full" />
       </SectionCard>
     </>
