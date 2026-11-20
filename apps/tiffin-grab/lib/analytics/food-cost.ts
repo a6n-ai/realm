@@ -1,3 +1,4 @@
+import { DAY_NAMES, isWeekendDay, isoToUtcDate } from "@foundry/commons/util/dates";
 export type CostRate = { category: string; planId: bigint | null; organizationId: string | null; costBase: number; costPerTu: number };
 export type CostPick = { category: string; planId: bigint; tu: number | null };
 
@@ -28,3 +29,14 @@ export function tiffinFoodCost(picks: CostPick[], rates: CostRate[], organizatio
   }
   return { cost, unrated: [...unrated].sort() };
 }
+
+/**
+ * The picks eaten on one day. Sat/Sun eat only weekend-dish categories. Weekdays drop them while the
+ * meal has anything else (prod: weekend_dish is a Sat/Sun-only menu slot), else keep all of them.
+ */
+export function picksForDay(picks: CostPick[], weekendCategories: ReadonlySet<string>, weekend: boolean): CostPick[] {
+  const own = picks.filter((p) => weekendCategories.has(p.category) === weekend);
+  return weekend || own.length > 0 ? own : picks;
+}
+
+export const isWeekendIso = (isoDate: string): boolean => isWeekendDay(DAY_NAMES[isoToUtcDate(isoDate).getUTCDay()]!.toLowerCase());

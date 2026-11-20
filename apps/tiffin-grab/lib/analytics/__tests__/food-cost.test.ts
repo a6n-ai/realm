@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { rateFor, tiffinFoodCost, type CostRate } from "../food-cost";
+import { isWeekendIso, picksForDay, rateFor, tiffinFoodCost, type CostRate } from "../food-cost";
 
 const VEG = 1n;
 const NONVEG = 2n;
@@ -63,5 +63,27 @@ describe("rateFor", () => {
 
   it("prefers the plan rate over the category default", () => {
     expect(rateFor(rates, "sabzi", NONVEG, null)?.costBase).toBe(0.55);
+  });
+});
+
+describe("picksForDay", () => {
+  const sabzi = { category: "sabzi", planId: VEG, tu: 1 };
+  const weekendDish = { category: "weekend_dish", planId: VEG, tu: 1 };
+  const weekend = new Set(["weekend_dish"]);
+
+  it("weekday drops the weekend dish", () => {
+    expect(picksForDay([sabzi, weekendDish], weekend, false)).toEqual([sabzi]);
+  });
+
+  it("weekend keeps only the weekend dish", () => {
+    expect(picksForDay([sabzi, weekendDish], weekend, true)).toEqual([weekendDish]);
+  });
+
+  it("weekday keeps everything when every category is a weekend one", () => {
+    expect(picksForDay([sabzi, weekendDish], new Set(["sabzi", "weekend_dish"]), false)).toEqual([sabzi, weekendDish]);
+  });
+
+  it("isWeekendIso reads the UTC weekday", () => {
+    expect([isWeekendIso("2026-11-20"), isWeekendIso("2026-11-21"), isWeekendIso("2026-11-22")]).toEqual([false, true, true]);
   });
 });

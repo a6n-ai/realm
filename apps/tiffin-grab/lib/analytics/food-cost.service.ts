@@ -8,7 +8,7 @@ import { ADDON_SORT_BASE } from "@/lib/menu/grid-types";
 import { slotRowsAfterSwaps, type MealSizeItemRow, type PortionSwap } from "@/lib/menu/pick-size";
 import { swapsForDay } from "@/lib/menu/trip-meals";
 import { type AnalyticsScope } from "@/lib/analytics/scope-types";
-import { tiffinFoodCost, type CostPick, type CostRate } from "./food-cost";
+import { isWeekendIso, picksForDay, tiffinFoodCost, type CostPick, type CostRate } from "./food-cost";
 import { deliveredWhere } from "./delivered-where";
 import { noOrgs } from "./metrics/scope";
 
@@ -129,7 +129,7 @@ async function loadFoodCostByTrip(scope: AnalyticsScope, from: string, to: strin
       .where(inArray(orderAddons.orderId, deliveredOrderIds))
       .orderBy(asc(orderAddons.id)),
     db
-      .select({ key: dishCategories.key, tuUnitType: dishCategories.tuUnitType, tuUnitSize: dishCategories.tuUnitSize, tuUnitLabel: dishCategories.tuUnitLabel, selectable: dishCategories.selectable })
+      .select({ key: dishCategories.key, tuUnitType: dishCategories.tuUnitType, tuUnitSize: dishCategories.tuUnitSize, tuUnitLabel: dishCategories.tuUnitLabel, selectable: dishCategories.selectable, weekend: dishCategories.weekend })
       .from(dishCategories),
     db
       .select({ category: categoryCostRates.category, planId: categoryCostRates.planId, organizationId: categoryCostRates.organizationId, costBase: categoryCostRates.costBase, costPerTu: categoryCostRates.costPerTu })
@@ -158,6 +158,7 @@ async function loadFoodCostByTrip(scope: AnalyticsScope, from: string, to: strin
   const categoriesByKey = new Map<string, TuCategory>(
     categoryRows.map((c) => [c.key, { tuUnitType: c.tuUnitType, tuUnitSize: Number(c.tuUnitSize), tuUnitLabel: c.tuUnitLabel, selectable: c.selectable }]),
   );
+  const weekendCategories = new Set(categoryRows.filter((c) => c.weekend).map((c) => c.key));
   const rates: CostRate[] = rateRows.map((r) => ({
     category: r.category,
     planId: r.planId,
@@ -173,13 +174,13 @@ async function loadFoodCostByTrip(scope: AnalyticsScope, from: string, to: strin
     const unrated = new Set<string>();
     const mealItems = itemsByMeal.get(trip.mealSizeId) ?? [];
     for (const eatingDay of days) {
-      const picks = deliveryPicks({
+      const picks = picksForDay(deliveryPicks({
         items: mealItems,
         swaps: swapsForDay(swapsByDelivery.get(trip.id) ?? [], { id: trip.id, deliveryDate: trip.deliveryDate }, eatingDay),
         addons: addonsByOrder.get(trip.orderId) ?? [],
         orderPlanId: trip.planId,
         categoriesByKey,
-      });
+      }), weekendCategories, isWeekendIso(eatingDay));
       const priced = tiffinFoodCost(picks, rates, trip.organizationId);
       cost.foodCost += priced.cost * persons;
       // A meal size with no items has no composition to price, so it is unrated rather than free.

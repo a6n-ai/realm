@@ -1,8 +1,8 @@
 import { eq, inArray } from "drizzle-orm";
 import { round2 } from "@foundry/commons/util/money";
 import { db } from "@/db/client";
-import { categoryCostRates, mealSizeItems, mealSizes, orders } from "@/db/schema";
-import { tiffinFoodCost, type CostRate } from "@/lib/analytics/food-cost";
+import { categoryCostRates, dishCategories, mealSizeItems, mealSizes, orders } from "@/db/schema";
+import { picksForDay, tiffinFoodCost, type CostRate } from "@/lib/analytics/food-cost";
 import { deliveryPicks } from "@/lib/analytics/food-cost.service";
 import { getProfitabilityAssumptions } from "@/lib/analytics/profitability-settings";
 import type { ProfitabilityAssumptions } from "@/lib/analytics/profitability";
@@ -30,7 +30,7 @@ export async function foodPerTiffinByMealSize(where: { ids?: bigint[]; publicIds
   if ((where.ids ?? where.publicIds ?? []).length === 0) return out;
   const sizes = await db.select({ id: mealSizes.id, publicId: mealSizes.publicId, planId: mealSizes.planId, costPrice: mealSizes.costPrice }).from(mealSizes).where(filter);
   if (sizes.length === 0) return out;
-  const [items, rateRows] = await Promise.all([
+  const [items, rateRows, weekendRows] = await Promise.all([
     db
       .select({ mealSizeId: mealSizeItems.mealSizeId, category: mealSizeItems.category, planId: mealSizeItems.planId, tuAmount: mealSizeItems.tuAmount, sortOrder: mealSizeItems.sortOrder })
       .from(mealSizeItems)
@@ -39,7 +39,9 @@ export async function foodPerTiffinByMealSize(where: { ids?: bigint[]; publicIds
       .select({ category: categoryCostRates.category, planId: categoryCostRates.planId, organizationId: categoryCostRates.organizationId, costBase: categoryCostRates.costBase, costPerTu: categoryCostRates.costPerTu })
       .from(categoryCostRates)
       .where(eq(categoryCostRates.active, true)),
+    db.select({ key: dishCategories.key }).from(dishCategories).where(eq(dishCategories.weekend, true)),
   ]);
+  const weekendCategories = new Set(weekendRows.map((r) => r.key));
   const rates: CostRate[] = rateRows.map((r) => ({ ...r, costBase: Number(r.costBase), costPerTu: Number(r.costPerTu) }));
   for (const size of sizes) {
     if (size.costPrice != null) {
@@ -52,7 +54,8 @@ export async function foodPerTiffinByMealSize(where: { ids?: bigint[]; publicIds
       continue;
     }
     // shortcut: global rates and no add-ons; quotes happen before an org or add-on cost is known, upgrade if franchises get own rates.
-    const picks = deliveryPicks({ items: own, swaps: [], addons: [], orderPlanId: size.planId, categoriesByKey: new Map() });
+    // shortcut: a quote prices every tiffin as a weekday one; upgrade if weekend tiffins are priced apart.
+    const picks = picksForDay(deliveryPicks({ items: own, swaps: [], addons: [], orderPlanId: size.planId, categoriesByKey: new Map() }), weekendCategories, false);
     out.set(size.id, { publicId: size.publicId, food: tiffinFoodCost(picks, rates, null).cost });
   }
   return out;
