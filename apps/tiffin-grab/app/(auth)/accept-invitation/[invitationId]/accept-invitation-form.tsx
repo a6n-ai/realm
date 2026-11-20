@@ -73,6 +73,8 @@ export function AcceptInvitationForm({
               className={IOS_INPUT}
               id="invite-email"
               type="email"
+              autoComplete="username"
+              spellCheck={false}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               disabled={sent}

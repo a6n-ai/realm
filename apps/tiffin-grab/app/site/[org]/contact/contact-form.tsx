@@ -70,7 +70,7 @@ export function ContactForm({ defaultCountry }: { defaultCountry: CountryCode })
           render={({ field }) => (
             <FormItem>
               <FormLabel>Name</FormLabel>
-              <FormControl><Input {...field} /></FormControl>
+              <FormControl><Input autoComplete="name" {...field} /></FormControl>
               <FormMessage />
             </FormItem>
           )}
@@ -94,7 +94,7 @@ export function ContactForm({ defaultCountry }: { defaultCountry: CountryCode })
           render={({ field }) => (
             <FormItem>
               <FormLabel>Email</FormLabel>
-              <FormControl><Input type="email" {...field} /></FormControl>
+              <FormControl><Input type="email" autoComplete="email" {...field} /></FormControl>
               <FormMessage />
             </FormItem>
           )}
@@ -105,7 +105,7 @@ export function ContactForm({ defaultCountry }: { defaultCountry: CountryCode })
           render={({ field }) => (
             <FormItem>
               <FormLabel>Postal code <span className="text-muted-foreground">(optional)</span></FormLabel>
-              <FormControl><Input {...field} /></FormControl>
+              <FormControl><Input autoComplete="postal-code" {...field} /></FormControl>
               <FormMessage />
             </FormItem>
           )}

@@ -66,6 +66,8 @@ export function AcceptInvitationForm({ invitationId }: { invitationId: string })
               className={AUTH_INPUT}
               id="invite-email"
               type="email"
+              autoComplete="username"
+              spellCheck={false}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               disabled={sent}
