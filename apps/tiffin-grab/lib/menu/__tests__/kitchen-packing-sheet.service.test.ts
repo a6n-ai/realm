@@ -304,6 +304,13 @@ describe("getKitchenPackingSheet", () => {
     const sheet = await getKitchenPackingSheet(MONDAY);
     expect(sheet.rows).toEqual([]);
   });
+
+  it("keeps a past day on the sheet after its plan completes", async () => {
+    await db.update(orders).set({ status: "completed" }).where(eq(orders.id, order.id));
+    expect((await getKitchenPackingSheet(MONDAY)).rows).toHaveLength(1);
+    await db.update(orders).set({ status: "cancelled" }).where(eq(orders.id, order.id));
+    expect((await getKitchenPackingSheet(MONDAY)).rows).toEqual([]);
+  });
 });
 
 describe("extraTiffinLabel", () => {

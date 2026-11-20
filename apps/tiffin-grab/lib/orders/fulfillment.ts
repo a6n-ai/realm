@@ -1,4 +1,4 @@
-import { and, eq, exists, not, or, sql } from "drizzle-orm";
+import { and, eq, exists, inArray, not, or, sql } from "drizzle-orm";
 import { wordpressImportSql } from "./wordpress-import-sql";
 import { db } from "@/db/client";
 import { orders, payments } from "@/db/schema";
@@ -6,7 +6,7 @@ import { PAID, PENDING } from "@/lib/payments/status";
 import { paymentStatusIn, planPaymentSql } from "@/lib/payments/status-sql";
 
 /**
- * Labels, kitchen packing, and OptimoRoute: only active orders whose money is
+ * Labels, kitchen packing, and OptimoRoute: only active (or since completed) orders whose money is
  * settled. Payment-review rows stay `orders.status = active` so deliveries can
  * materialize early — this filter keeps them off the truck until verified.
  * A plan migrated from WordPress (deploymentId `wc-…`, total 0) was prepaid there
@@ -15,7 +15,8 @@ import { paymentStatusIn, planPaymentSql } from "@/lib/payments/status-sql";
  */
 export function fulfillmentReadyOrder() {
   return and(
-    eq(orders.status, "active"),
+    // A plan turns completed the night after its last delivery; its past days must stay on that day's labels and dispatch.
+    inArray(orders.status, ["active", "completed"]),
     or(
       and(eq(orders.total, "0"), wordpressImportSql),
       exists(
