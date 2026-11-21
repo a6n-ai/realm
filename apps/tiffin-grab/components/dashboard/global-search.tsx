@@ -99,8 +99,6 @@ export function GlobalSearch({ role }: { role: string }) {
   // Find's text is its own: the lists' ?q= belongs to each list's search box, so nothing is mirrored into the URL.
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResults>(EMPTY);
-  // Controlled so the root re-renders on every move: cmdk only refreshes aria-activedescendant on root render.
-  const [highlight, setHighlight] = useState("");
 
   const openPanel = useCallback(() => {
     const active = document.activeElement;
@@ -238,8 +236,6 @@ export function GlobalSearch({ role }: { role: string }) {
           >
             <Command
               shouldFilter={false}
-              value={highlight}
-              onValueChange={setHighlight}
               className="min-h-0 overflow-visible bg-transparent p-0 [&_[data-slot=input-group-addon]_svg]:[stroke-width:1.5]"
             >
               <div className="relative border-b">

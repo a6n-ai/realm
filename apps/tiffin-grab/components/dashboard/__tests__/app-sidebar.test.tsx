@@ -157,7 +157,7 @@ beforeAll(() => {
   Element.prototype.setPointerCapture ??= () => {};
   Element.prototype.hasPointerCapture ??= () => false;
   Element.prototype.releasePointerCapture ??= () => {};
-  // cmdk scrolls the highlighted row into view; jsdom has no layout.
+  // The command list scrolls the highlighted row into view; jsdom has no layout.
   Element.prototype.scrollIntoView ??= () => {};
   if (!window.matchMedia) {
     window.matchMedia = (query: string) =>
@@ -391,7 +391,7 @@ describe("AppSidebar find", () => {
     const orders = within(panel()).getByRole("option", { name: /Orders/ });
     expect(orders).toHaveTextContent("Navigation");
     expect(within(panel()).getByRole("option", { name: /Wallet/ })).toHaveTextContent("Money");
-    expect(panel().querySelector("[cmdk-group-heading]")).toBeNull();
+    expect(panel().querySelector("[data-slot=command-group-label]")).toBeNull();
   });
 
   it("maps entity hits to a title and an Order, Customer, Inquiry or Ticket subtitle", async () => {
@@ -411,7 +411,7 @@ describe("AppSidebar find", () => {
     expect(within(panel()).getByRole("option", { name: /Late box/ })).toHaveTextContent("Ticket · Ana · open");
   });
 
-  it("is a cmdk combobox whose aria-activedescendant follows ArrowDown", async () => {
+  it("is a combobox whose aria-activedescendant follows ArrowDown", async () => {
     renderSidebar();
     open();
     expect(input()).toHaveAttribute("aria-autocomplete", "list");
@@ -426,6 +426,7 @@ describe("AppSidebar find", () => {
     router.push.mockClear();
     renderSidebar();
     open();
+    await waitFor(() => expect(within(panel()).getAllByRole("option")[0]).toHaveAttribute("aria-selected", "true"));
     fireEvent.keyDown(input(), { key: "ArrowDown" });
     await waitFor(() => expect(within(panel()).getByRole("option", { name: /Orders/ })).toHaveAttribute("aria-selected", "true"));
     fireEvent.keyDown(input(), { key: "Enter" });
@@ -433,11 +434,11 @@ describe("AppSidebar find", () => {
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   });
 
-  it("says when nothing matches", () => {
+  it("says when nothing matches", async () => {
     renderSidebar();
     open();
     type("zzzq");
-    expect(within(panel()).getByText("No results for “zzzq”")).toBeInTheDocument();
+    expect(await within(panel()).findByText("No results for “zzzq”")).toBeInTheDocument();
   });
 
   it("closes on Escape and returns focus to where it was", () => {

@@ -102,7 +102,7 @@ describe("AuthForm messages", () => {
       return el;
     });
     // Six digits auto-submit (onComplete); no button press needed.
-    fireEvent.change(otp, { target: { value: "123456" } });
+    fireEvent.input(otp, { target: { value: "123456" } });
     await waitFor(() => expect(screen.getByText(/that code has expired/i)).toBeDefined());
   });
 
