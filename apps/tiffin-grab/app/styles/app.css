@@ -88,6 +88,13 @@
   border-style: solid;
   color: var(--foreground);
 }
+/* Vercel's suggestion reads "Environment Production": key at 400, value at 500, both muted until picked. */
+.admin-ui [data-slot="filter-suggestion"] {
+  gap: 0.375rem;
+}
+.admin-ui [data-slot="filter-suggestion-value"] {
+  font-weight: 500;
+}
 
 /* InputGroup's h-8! and rounded-lg! are !important in @layer utilities, and a layered !important
    beats an unlayered one, so these overrides live in the same layer and win on selector strength. */

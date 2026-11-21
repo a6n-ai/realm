@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { useTimezone } from "@foundry/design-system/timezone-provider";
 import { useNow } from "@/lib/hooks/use-now";
 import { cutoffNote, cutoffTime } from "@/lib/deliveries/view/cutoff";
@@ -8,7 +9,16 @@ import { HoverHint } from "@/components/ds/hover-hint";
 // Live clock in the app-settings timezone, so staff in another zone (India) see
 // business time. Renders nothing until mounted: server and browser clocks differ,
 // so any SSR text would mismatch on hydration.
-export function AppClock({ cutoffHour, variant = "pill" }: { cutoffHour: number; variant?: "pill" | "card" }) {
+export function AppClock({
+  cutoffHour,
+  variant = "pill",
+  routeStatus,
+}: {
+  cutoffHour: number;
+  variant?: "pill" | "card";
+  /** Server-rendered OptimoRoute line, streamed through Suspense by the layout. */
+  routeStatus?: ReactNode;
+}) {
   const tz = useTimezone();
   const now = useNow(15_000);
 
@@ -34,6 +44,7 @@ export function AppClock({ cutoffHour, variant = "pill" }: { cutoffHour: number;
             {label}
           </span>
           <span className="text-muted-foreground text-xs tabular-nums">Cutoff {cutoffTime(cutoffHour)}</span>
+          {routeStatus}
         </div>
       </HoverHint>
     );

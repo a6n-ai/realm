@@ -120,14 +120,14 @@ export function RangeCalendarPicker({
         <CalendarIcon className="text-muted-foreground size-4" aria-hidden="true" />
         {triggerLabel}
       </PopoverTrigger>
-      <PopoverContent align="start" className="w-auto gap-3 rounded-(--ui-radius-popup)! p-3">
+      <PopoverContent align="start" className="w-72 gap-3 rounded-(--ui-radius-popup)! p-3">
         <Calendar
           mode="range"
           weekStartsOn={1}
           month={month}
           onMonthChange={setMonth}
           selected={draft}
-          className="p-0"
+          className="w-full p-0 [--cell-size:--spacing(9)] [&_table]:w-full"
           onSelect={(_range, day) => {
             // A click on a finished range starts a new one; the default range mode would only move one end.
             if (!draft?.from || draft.to) return load({ from: day, to: undefined });
@@ -135,7 +135,7 @@ export function RangeCalendarPicker({
             load({ from: a, to: b });
           }}
         />
-        <div className="grid grid-cols-[auto_1fr] items-center gap-x-3 gap-y-2">
+        <div className="grid gap-1.5">
           <label htmlFor={`${uid}-start`} className="text-muted-foreground text-sm">Start</label>
           <Input
             id={`${uid}-start`}
@@ -145,7 +145,7 @@ export function RangeCalendarPicker({
             onChange={(e) => edit(setStartText, "from", e.target.value)}
             onKeyDown={onEnter}
           />
-          <label htmlFor={`${uid}-end`} className="text-muted-foreground text-sm">End</label>
+          <label htmlFor={`${uid}-end`} className="text-muted-foreground mt-1.5 text-sm">End</label>
           <Input
             id={`${uid}-end`}
             aria-invalid={endInvalid || undefined}

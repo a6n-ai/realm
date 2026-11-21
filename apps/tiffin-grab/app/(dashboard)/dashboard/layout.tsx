@@ -41,6 +41,7 @@ import {
 } from "@/components/dashboard/dashboard-frame";
 import { MobileOnly } from "@/components/dashboard/mobile-only";
 import { SectionTabs } from "@/components/dashboard/section-tabs";
+import { RouteStatus } from "@/components/dashboard/route-status";
 import { RoutePushBadge } from "@/components/dashboard/route-push-badge";
 import { geistSansAdmin } from "./admin-font";
 import { requestNow } from "@/lib/dates/request-now";
@@ -169,7 +170,16 @@ export default async function DashboardLayout({ children }: { children: ReactNod
               search={<DashboardSearch role={role} />}
               orgSwitcher={orgSwitcher}
               bell={bell}
-              clock={<DashboardClock cutoffHour={cutoffHour} />}
+              clock={
+                <DashboardClock
+                  cutoffHour={cutoffHour}
+                  routeStatus={
+                    <Suspense fallback={null}>
+                      <RouteStatus />
+                    </Suspense>
+                  }
+                />
+              }
             />
           }
           breadcrumbs={

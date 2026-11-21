@@ -56,8 +56,8 @@ export function DashboardBell(props: ComponentProps<typeof NotificationBellMount
   return <NotificationBellMount {...props} />;
 }
 
-export function DashboardClock({ cutoffHour }: { cutoffHour: number }) {
-  return <AppClock cutoffHour={cutoffHour} variant="card" />;
+export function DashboardClock({ cutoffHour, routeStatus }: { cutoffHour: number; routeStatus?: ReactNode }) {
+  return <AppClock cutoffHour={cutoffHour} variant="card" routeStatus={routeStatus} />;
 }
 
 export function DashboardActions({
