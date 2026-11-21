@@ -4,13 +4,11 @@ import { Button } from "@foundry/ui/button";
 import { humanDate } from "@/lib/deliveries/view";
 import { isClosedTrack } from "@/lib/renewals/status";
 import type { NextRenewalRow } from "@/lib/renewals/next-renewal.service";
-import { ContactChips } from "@/components/dashboard/next-item/contact-chips";
-import { NextItemEmpty } from "@/components/dashboard/next-item/next-item-card";
+import { NextItemEmpty } from "@/components/dashboard/next-item/next-item-parts";
 import { ReasonBadge } from "@/components/dashboard/next-item/reason-badge";
 import { RecommendationGrid, type RecommendationItem, type RecommendationOwner } from "@/components/dashboard/next-item/recommendation-grid";
-import { EstimateButton } from "../renewals/estimate-button";
 import { TrackStatusMenu } from "../renewals/_track/track-status";
-import { RowTrackActions } from "./renewals-queue-list";
+import { NextRenewalActions } from "./next-renewal-actions";
 
 export type NextRenewalsGridProps = {
   rows: NextRenewalRow[];
@@ -22,7 +20,7 @@ export type NextRenewalsGridProps = {
   error?: string;
 };
 
-/** Where a plan's name and Open button lead: the customer's renewal page, or the order for a customer without an account. */
+/** Where a plan's name leads: the customer's renewal page, or the order for a customer without an account. */
 const openHref = (row: NextRenewalRow) => (row.customerPublicId ? `/dashboard/inquiries/renewals/${row.customerPublicId}` : `/dashboard/orders/${row.orderPublicId}`);
 
 function reasonBadge(row: NextRenewalRow, today: string) {
@@ -44,15 +42,18 @@ export function NextRenewalsGrid({ rows, toAct, owner, today, viewAllHref, error
       <>
         {row.trial ? <Badge variant="secondary">Trial</Badge> : null}
         {reasonBadge(row, today)}
+        {row.phone ? null : <span> · No phone</span>}
       </>
     ),
     status: row.customerPublicId ? <TrackStatusMenu orderPublicId={row.orderPublicId} customerPublicId={row.customerPublicId} status={row.track} source={row.trackSource} /> : null,
-    contact: <ContactChips compact name={row.customerName} phone={row.phone} whatsappPhone={null} email={null} />,
     actions: (
-      <>
-        {row.customerPublicId ? <RowTrackActions orderPublicId={row.orderPublicId} customerPublicId={row.customerPublicId} closed={isClosedTrack(row.track)} /> : null}
-        <EstimateButton orderPublicId={row.orderPublicId} />
-      </>
+      <NextRenewalActions
+        orderPublicId={row.orderPublicId}
+        customerPublicId={row.customerPublicId}
+        name={row.customerName}
+        phone={row.phone}
+        closed={isClosedTrack(row.track)}
+      />
     ),
   }));
   return (

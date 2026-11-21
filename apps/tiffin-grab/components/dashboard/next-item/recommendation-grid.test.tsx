@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import "@testing-library/jest-dom/vitest";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import { RECOMMENDATION_LIMIT, RecommendationGrid, RecommendationGridSkeleton, type RecommendationItem } from "./recommendation-grid";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }) }));
@@ -19,8 +19,8 @@ describe("RecommendationGrid", () => {
   it("shows at most the limit as cards, each opening its item", () => {
     const items = [1, 2, 3, 4].map(item);
     wrap(items);
-    const cards = screen.getAllByRole("link", { name: "Open" });
-    expect(cards).toHaveLength(RECOMMENDATION_LIMIT);
+    expect(screen.getAllByRole("link", { name: /^Lead \d$/ })).toHaveLength(RECOMMENDATION_LIMIT);
+    expect(screen.queryByRole("link", { name: "Open" })).toBeNull();
     expect(screen.getByRole("link", { name: "Lead 1" })).toHaveAttribute("href", "/dashboard/inquiries/p1");
     expect(screen.queryByText("Lead 4")).toBeNull();
     expect(screen.getByRole("button", { name: "Note 2" })).toBeInTheDocument();
@@ -42,14 +42,9 @@ describe("RecommendationGrid", () => {
     expect(screen.queryByRole("link", { name: "Open" })).toBeNull();
   });
 
-  it("skeleton keeps the title and three placeholder cards", () => {
-    render(<RecommendationGridSkeleton title="Next leads" />);
+  it("skeleton keeps the title and mirrors the one row: avatar, name, pill, meta line and three action squares, three times", () => {
+    const { container } = render(<RecommendationGridSkeleton title="Next leads" />);
     expect(screen.getByRole("heading", { name: "Next leads" })).toBeInTheDocument();
-    expect(within(document.body).getAllByRole("heading")).toHaveLength(1);
-  });
-
-  it("entity skeleton mirrors the lead row: avatar, name, pill, meta line and three action squares", () => {
-    const { container } = render(<RecommendationGridSkeleton title="Next leads" entity />);
     const cards = container.querySelectorAll('[data-slot="card"][data-size="sm"]');
     expect(cards).toHaveLength(3);
     cards.forEach((card) => expect(card.querySelectorAll('[data-slot="skeleton"]')).toHaveLength(7));

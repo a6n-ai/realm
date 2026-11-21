@@ -57,17 +57,11 @@ describe("next order queue (integration)", () => {
     await db.update(orders).set({ lookOutAt: Date.now() }).where(eq(orders.id, rows.flagged!.id));
   });
   afterAll(cleanup);
-  // Walks the whole queue from the top, Next at a time, and stops when it wraps back to the first row.
+  // The whole queue from the top: the first row, then every other row in order.
   async function walk() {
     const first = await nextOrder(scope, today);
     if (!first) return [];
-    const out = [first];
-    for (let i = 0; i < 500; i++) {
-      const n = await nextOrder(scope, today, { publicId: out[out.length - 1].publicId, dir: "next" });
-      if (!n || n.publicId === first.publicId) break;
-      out.push(n);
-    }
-    return out;
+    return [first, ...(await upNextOrders(scope, today, first.publicId, 500))];
   }
   const ours = () => [rows.verify!, rows.overdue!, rows.missed!, rows.flagged!, rows.pending!].map((r) => r.publicId);
   it("walks the queue in ranking order: verify, overdue, missed, flagged, pending", async () => {

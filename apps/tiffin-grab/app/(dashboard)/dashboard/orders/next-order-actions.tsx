@@ -1,13 +1,13 @@
 "use client";
 import { useState, useTransition } from "react";
-import Link from "next/link";
-import { ArrowUpRightIcon, CheckCheckIcon, MailIcon, MessageSquarePlusIcon, XCircleIcon } from "lucide-react";
+import { CheckCheckIcon, MailIcon, MessageSquarePlusIcon, PhoneIcon } from "lucide-react";
 import { toast } from "sonner";
+import { formatPhone } from "@foundry/commons";
 import { Button } from "@foundry/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@foundry/ui/dialog";
 import { Textarea } from "@foundry/ui/textarea";
-import { RowActionTooltipButton } from "@/components/ds";
-import { NextItemOpenButton } from "@/components/dashboard/next-item/open-button";
+import { whatsappHref } from "@/components/dashboard/next-item/contact-chips";
+import { RecommendationActions, type IconAction } from "@/components/dashboard/next-item/recommendation-actions";
 import { useCardRefresh } from "@/components/dashboard/next-item/recommendation-card";
 import type { NextOrderRow } from "@/lib/orders/next-order.service";
 import { addOrderNoteAction } from "./actions";
@@ -16,7 +16,7 @@ import { cancel } from "./[id]/actions";
 import { verifyPaymentAction } from "@/app/(dashboard)/dashboard/payments/actions";
 import { CancelOrderDialog } from "./cancel-order-dialog";
 
-type Target = Pick<NextOrderRow, "publicId" | "reason" | "paymentPublicId" | "status">;
+type Target = Pick<NextOrderRow, "publicId" | "reason" | "paymentPublicId" | "status" | "phone"> & { name: string };
 
 function useResult() {
   const { refresh } = useCardRefresh();
@@ -35,57 +35,45 @@ function useResult() {
   return { pending, run };
 }
 
-/** The payment action the card's primary takes; missed and flagged orders get Open order instead. */
+/** The payment action the row offers; missed and flagged orders have none. */
 function paymentAction(row: Target): "verify" | "send" | null {
   if (!row.paymentPublicId) return null;
   if (row.reason === "verify") return "verify";
   return row.reason === "overdue" || row.reason === "pending" ? "send" : null;
 }
 
-/** The card's one labelled primary: Verify payment or Send payment link when a payment is open, else Open order. */
-export function NextOrderPrimary({ row }: { row: Target }) {
-  const { pending, run } = useResult();
-  const pay = row.paymentPublicId;
-  const action = paymentAction(row);
-  if (pay && action === "verify") {
-    return (
-      <Button size="sm" disabled={pending} onClick={() => run(() => verifyPaymentAction(row.publicId, pay), "Payment verified")}>
-        <CheckCheckIcon className="size-4" />
-        Verify payment
-      </Button>
-    );
-  }
-  if (pay && action === "send") {
-    return (
-      <Button size="sm" disabled={pending} onClick={() => run(() => emailPaymentLinkAction(row.publicId, pay), "Payment link sent")}>
-        <MailIcon className="size-4" />
-        Send payment link
-      </Button>
-    );
-  }
-  return (
-    <Button size="sm" asChild>
-      <Link href={`/dashboard/orders/${row.publicId}`} prefetch={false}>
-        <ArrowUpRightIcon className="size-4" />
-        Open order
-      </Link>
-    </Button>
-  );
-}
-
-/** Icon-only secondary actions on the Next order card: Add note, Cancel order, and Open order when the primary is a payment action. */
-export function NextOrderIconActions({ row }: { row: Target }) {
+/** The payment action, Call and Note beside the name (two at most); WhatsApp, Open order and Cancel order under More actions. */
+export function NextOrderActions({ row }: { row: Target }) {
   const [noteOpen, setNoteOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
   const { pending, run } = useResult();
+  const pay = row.paymentPublicId;
+  const action = paymentAction(row);
   const cancellable = row.status !== "cancelled" && row.status !== "completed";
+  const wa = whatsappHref({ phone: row.phone });
+  const payIcon: IconAction | null = !pay
+    ? null
+    : action === "verify"
+      ? { key: "pay", icon: CheckCheckIcon, label: "Verify payment", pending, onClick: () => run(() => verifyPaymentAction(row.publicId, pay), "Payment verified") }
+      : action === "send"
+        ? { key: "pay", icon: MailIcon, label: "Send payment link", pending, onClick: () => run(() => emailPaymentLinkAction(row.publicId, pay), "Payment link sent") }
+        : null;
+  const callIcon: IconAction | null = row.phone
+    ? { key: "call", icon: PhoneIcon, label: `Call ${row.name}, ${formatPhone(row.phone)}`, href: `tel:${row.phone}` }
+    : null;
+  const noteIcon: IconAction = { key: "note", icon: MessageSquarePlusIcon, label: "Note", tone: "text-violet-600 dark:text-violet-400", onClick: () => setNoteOpen(true) };
+  const primary = [payIcon, callIcon, noteIcon].filter((a): a is IconAction => a !== null).slice(0, 2);
   return (
     <>
-      <RowActionTooltipButton icon={MessageSquarePlusIcon} label="Add note" tone="text-violet-600 dark:text-violet-400" onClick={() => setNoteOpen(true)} />
-      {paymentAction(row) ? <NextItemOpenButton href={`/dashboard/orders/${row.publicId}`} label="Open order" /> : null}
-      {cancellable ? (
-        <RowActionTooltipButton icon={XCircleIcon} label="Cancel order" tone="text-destructive" onClick={() => setCancelOpen(true)} />
-      ) : null}
+      <RecommendationActions
+        primary={primary}
+        more={[
+          ...(primary.includes(noteIcon) ? [] : [{ key: "note", label: "Note", onSelect: () => setNoteOpen(true) }]),
+          ...(wa ? [{ key: "whatsapp", label: "WhatsApp", ariaLabel: `WhatsApp ${row.name}, ${formatPhone(row.phone)}`, href: wa }] : []),
+          { key: "open", label: "Open order", href: `/dashboard/orders/${row.publicId}` },
+          ...(cancellable ? [{ key: "cancel", label: "Cancel order", destructive: true, onSelect: () => setCancelOpen(true) }] : []),
+        ]}
+      />
       {noteOpen ? <AddNoteDialog orderPublicId={row.publicId} onDone={() => setNoteOpen(false)} /> : null}
       <CancelOrderDialog
         open={cancelOpen}

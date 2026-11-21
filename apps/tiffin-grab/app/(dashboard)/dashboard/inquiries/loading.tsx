@@ -9,7 +9,7 @@ export default function Loading() {
     <InquiriesChrome
       addActions={<Skeleton className="h-9 w-32" />}
       stats={<StatCardsSkeleton count={5} />}
-      next={<RecommendationGridSkeleton title="Next leads" entity />}
+      next={<RecommendationGridSkeleton title="Next leads" />}
       queue={<InquiriesListSkeleton />}
     />
   );

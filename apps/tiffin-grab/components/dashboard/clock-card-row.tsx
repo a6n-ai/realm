@@ -2,29 +2,28 @@ import type { ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@foundry/ui/cn";
 
-/** One row of the sidebar clock card: icon, text that truncates, optional trailing status dot. */
+const DOT = { ok: "bg-success", warn: "bg-warning", muted: "bg-muted-foreground" } as const;
+
+/** One sidebar info-card row, like Vercel's Usage card: icon, muted label, right-aligned value, optional status dot. */
 export function CardRow({
   icon: Icon,
   label,
+  value,
   dot,
-  className,
-  children,
+  valueClassName,
 }: {
   icon: LucideIcon;
-  /** Accessible name for the icon's meaning, read before the text. */
   label: string;
-  dot?: "ok" | "warn" | "muted";
-  className?: string;
-  children: ReactNode;
+  value: ReactNode;
+  dot?: keyof typeof DOT;
+  valueClassName?: string;
 }) {
   return (
-    <span className={cn("text-muted-foreground grid min-w-0 grid-cols-[1rem_minmax(0,1fr)_auto] items-center gap-2 text-xs", className)}>
-      <Icon aria-hidden className="size-3.5 shrink-0" />
-      <span className="sr-only">{label}: </span>
-      <span className="min-w-0 truncate">{children}</span>
-      {dot ? <span aria-hidden className={cn("size-1.5 shrink-0 rounded-full", DOT[dot])} /> : <span aria-hidden />}
+    <span className="grid min-w-0 grid-cols-[0.875rem_auto_minmax(0,1fr)_0.375rem] items-center gap-x-2 text-xs">
+      <Icon aria-hidden className="text-muted-foreground size-3.5" />
+      <span className="text-muted-foreground">{label}</span>
+      <span className={cn("text-foreground min-w-0 truncate text-right tabular-nums", valueClassName)}>{value}</span>
+      <span aria-hidden className={cn("size-1.5 rounded-full", dot && DOT[dot])} />
     </span>
   );
 }
-
-const DOT = { ok: "bg-success", warn: "bg-warning", muted: "bg-muted-foreground" } as const;

@@ -81,7 +81,7 @@ function queueWhere(scope: OrderQueueScope, rank: SQL) {
 
 const isEmptyScope = (scope: OrderQueueScope) => scope.visible !== "all" && scope.visible.length === 0;
 
-async function pick(scope: OrderQueueScope, today: string, cursor: SQL | undefined, dir: "asc" | "desc", limit: number): Promise<NextOrderRow[]> {
+async function pick(scope: OrderQueueScope, today: string, cursor: SQL | undefined, limit: number): Promise<NextOrderRow[]> {
   const { rank, signal, order } = ranking(today);
   const rows: Picked[] = await db
     .select({
@@ -101,7 +101,7 @@ async function pick(scope: OrderQueueScope, today: string, cursor: SQL | undefin
     .innerJoin(mealSizes, eq(mealSizes.id, orders.mealSizeId))
     .leftJoin(users, eq(users.id, orders.userId))
     .where(and(queueWhere(scope, rank), cursor))
-    .orderBy(...order.map((p) => sql`${p} ${sql.raw(dir)}`))
+    .orderBy(...order)
     .limit(limit);
   return hydrate(rows);
 }
@@ -133,29 +133,10 @@ async function hydrate(picked: Picked[]): Promise<NextOrderRow[]> {
   });
 }
 
-/** The order the card recommends next, or the one after/before `cursor` in that order (wrapping round). */
-export async function nextOrder(
-  scope: OrderQueueScope,
-  today: string,
-  cursor?: { publicId: string; dir: "next" | "prev" },
-): Promise<NextOrderRow | null> {
+/** The order the card recommends next. */
+export async function nextOrder(scope: OrderQueueScope, today: string): Promise<NextOrderRow | null> {
   if (isEmptyScope(scope)) return null;
-  if (!cursor) return (await pick(scope, today, undefined, "asc", 1))[0] ?? null;
-  const { rank, signal } = ranking(today);
-  const at = sql`(select ${rank}, ${signal}, ${orders.id} from ${orders} where ${orders.publicId} = ${cursor.publicId})`;
-  const row = sql`(${rank}, ${signal}, ${orders.id})`;
-  const asc = cursor.dir !== "prev";
-  const others = sql`${orders.publicId} <> ${cursor.publicId}`;
-  const [after] = await pick(scope, today, and(others, sql`${row} ${sql.raw(asc ? ">" : "<")} ${at}`), asc ? "asc" : "desc", 1);
-  if (after) return after;
-  const [wrapped] = await pick(scope, today, others, asc ? "asc" : "desc", 1);
-  return wrapped ?? null;
-}
-
-export async function queueOrder(scope: OrderQueueScope, today: string, publicId: string): Promise<NextOrderRow | null> {
-  if (isEmptyScope(scope)) return null;
-  const [row] = await pick(scope, today, eq(orders.publicId, publicId), "asc", 1);
-  return row ?? null;
+  return (await pick(scope, today, undefined, 1))[0] ?? null;
 }
 
 /** The `limit` orders after `afterPublicId` in nextOrder's order, wrapping to the top at the end. Never repeats it. */
@@ -164,9 +145,9 @@ export async function upNextOrders(scope: OrderQueueScope, today: string, afterP
   const { rank, signal } = ranking(today);
   const at = sql`(select ${rank}, ${signal}, ${orders.id} from ${orders} where ${orders.publicId} = ${afterPublicId})`;
   const row = sql`(${rank}, ${signal}, ${orders.id})`;
-  const after = await pick(scope, today, sql`${row} > ${at}`, "asc", limit);
+  const after = await pick(scope, today, sql`${row} > ${at}`, limit);
   if (after.length >= limit) return after;
-  const before = await pick(scope, today, sql`${row} < ${at}`, "asc", limit - after.length);
+  const before = await pick(scope, today, sql`${row} < ${at}`, limit - after.length);
   return [...after, ...before];
 }
 

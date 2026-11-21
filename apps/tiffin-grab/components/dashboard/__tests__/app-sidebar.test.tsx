@@ -741,6 +741,6 @@ describe("shell header chrome", () => {
     expect(shellHeader().querySelector('[aria-label="Switch organization"]')).toBeNull();
     expect(shellHeader().textContent).not.toMatch(/Cutoff/);
     expect(within(footer()).getByRole("button", { name: "Notifications" })).toBeInTheDocument();
-    expect(await within(footer()).findByText(/Cutoff 6:00 pm/)).toBeInTheDocument();
+    expect(await within(footer()).findByText(/6:00 pm · in /)).toBeInTheDocument();
   });
 });

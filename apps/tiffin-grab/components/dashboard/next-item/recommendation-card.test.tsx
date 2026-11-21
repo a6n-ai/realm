@@ -14,7 +14,6 @@ const entity: RecommendationItem = {
   key: "k2",
   name: "Lead 2",
   href: "/dashboard/inquiries/p2",
-  entity: true,
   reason: <span>Overdue · 9d ago</span>,
   status: <span>Responded</span>,
   actions: <button type="button">Log outcome</button>,
@@ -32,6 +31,15 @@ describe("RecommendationCardFrame entity row", () => {
 });
 
 describe("RecommendationCardFrame", () => {
+  it("renders every item as the one row: avatar, name link, status and meta, with no Open link or contact row", () => {
+    const { container } = render(<RecommendationCardFrame item={{ ...item, status: <span>Active</span>, reason: <span>Waiting</span> }} pending={false} />);
+    expect(container.querySelector('[data-slot="avatar"]')).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Lead 1" })).toHaveAttribute("href", "/dashboard/inquiries/p1");
+    expect(screen.getByText("Active")).toBeInTheDocument();
+    expect(screen.getByText("Waiting")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Open" })).toBeNull();
+  });
+
   it("dims, marks busy and shows a spinner while its refresh is pending", () => {
     const { container } = render(<RecommendationCardFrame item={item} pending />);
     expect(container.firstElementChild).toHaveAttribute("aria-busy", "true");

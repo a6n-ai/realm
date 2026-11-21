@@ -4,7 +4,7 @@ import { Button } from "@foundry/ui/button";
 import { displayName } from "@/lib/inquiries/display";
 import { isClosed } from "@/lib/inquiries/status";
 import type { PipelineRow } from "@/lib/inquiries/inquiries.service";
-import { NextItemEmpty } from "@/components/dashboard/next-item/next-item-card";
+import { NextItemEmpty } from "@/components/dashboard/next-item/next-item-parts";
 import { RecommendationGrid, type RecommendationOwner, type RecommendationItem } from "@/components/dashboard/next-item/recommendation-grid";
 import { ME, resolveOwnerParam } from "@/lib/list/presets";
 import { StatusMenu } from "./_leads/status-dialog";
@@ -38,7 +38,6 @@ export function NextLeadsGrid({ leads, toAct, owner, viewAllHref, upcomingHref, 
       key: lead.publicId,
       name,
       href: `/dashboard/inquiries/${lead.publicId}`,
-      entity: true,
       reason: (
         <>
           <FollowUpBadge lead={lead} dayStart={dayStart} dayEnd={dayEnd} now={now} timeZone={timeZone} />

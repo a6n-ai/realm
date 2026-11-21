@@ -61,11 +61,11 @@ describe("NextLeadsGrid", () => {
     expect(screen.getByRole("link", { name: /Call Asha Rao/ })).toHaveAttribute("href", "tel:4165550123");
     expect(screen.getByRole("button", { name: "Log outcome" })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /WhatsApp/ })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Add note" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Note" })).toBeNull();
     expect(screen.getByText("12 to act on", { exact: false })).toBeInTheDocument();
 
     fireEvent.pointerDown(screen.getByRole("button", { name: "More actions" }), { button: 0, ctrlKey: false });
-    expect(await screen.findByRole("menuitem", { name: "Message" })).toHaveAttribute("href", "https://wa.me/4165550123");
+    expect(await screen.findByRole("menuitem", { name: /^WhatsApp / })).toHaveAttribute("href", "https://wa.me/4165550123");
     expect(screen.getByRole("menuitem", { name: "Note" })).toBeInTheDocument();
     expect(screen.getByRole("menuitem", { name: "Follow-up" })).toBeInTheDocument();
   });
@@ -77,13 +77,13 @@ describe("NextLeadsGrid", () => {
     expect(screen.queryByRole("menuitem", { name: "Follow-up" })).toBeNull();
   });
 
-  it("shows the no-phone state as text and no Call or Message", async () => {
+  it("shows the no-phone state as text and no Call or WhatsApp", async () => {
     render(<NextLeadsGrid {...base} leads={[lead({ phone: null })]} />);
     expect(screen.getByText(/No phone/)).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Call Asha Rao/ })).toBeNull();
     fireEvent.pointerDown(screen.getByRole("button", { name: "More actions" }), { button: 0, ctrlKey: false });
     expect(await screen.findByRole("menuitem", { name: "Note" })).toBeInTheDocument();
-    expect(screen.queryByRole("menuitem", { name: "Message" })).toBeNull();
+    expect(screen.queryByRole("menuitem", { name: /^WhatsApp / })).toBeNull();
   });
 
   it("shows the empty state with Upcoming and All open links when nothing is due", () => {

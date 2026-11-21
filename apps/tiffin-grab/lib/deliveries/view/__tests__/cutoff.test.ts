@@ -27,4 +27,11 @@ describe("formatCountdown", () => {
     expect(formatCountdown(30_000)).toBe("<1m");
     expect(formatCountdown(-1)).toBe("<1m");
   });
+  it("short form for the admin clock card: unpadded, minutes dropped from 10h and on the hour", () => {
+    expect(formatCountdown(2 * 3600_000 + 5 * 60_000, true)).toBe("2h 5m");
+    expect(formatCountdown(3 * 3600_000, true)).toBe("3h");
+    expect(formatCountdown(15 * 3600_000 + 30 * 60_000, true)).toBe("15h");
+    expect(formatCountdown(40 * 60_000, true)).toBe("40m");
+    expect(formatCountdown(30_000, true)).toBe("<1m");
+  });
 });

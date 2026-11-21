@@ -2,14 +2,14 @@
 import "@testing-library/jest-dom/vitest";
 import type { ReactElement } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render as rtlRender, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render as rtlRender, screen } from "@testing-library/react";
 import { TimezoneProvider } from "@foundry/design-system/timezone-provider";
 import type { NextRenewalRow } from "@/lib/renewals/next-renewal.service";
 import { NextRenewalsGrid, type NextRenewalsGridProps } from "./next-renewals-grid";
 
-vi.mock("../renewals/estimate-button", () => ({ EstimateButton: () => <button type="button">Estimate</button> }));
+vi.mock("../_order/estimate-dialog", () => ({ EstimateDialog: ({ fromOrder }: { fromOrder: string }) => <div role="dialog">Estimate {fromOrder}</div> }));
 vi.mock("../renewals/_track/track-status", () => ({ TrackStatusMenu: () => <span>Status</span> }));
-vi.mock("./renewals-queue-list", () => ({ RowTrackActions: () => <button type="button">Add note</button> }));
+vi.mock("../renewals/_track/track-note-dialog", () => ({ TrackNoteDialog: ({ kind }: { kind: string }) => <div role="dialog">Track {kind}</div> }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }) }));
 
 const render = (ui: ReactElement) =>
@@ -47,18 +47,49 @@ const base: Omit<NextRenewalsGridProps, "rows"> = {
 afterEach(cleanup);
 
 describe("NextRenewalsGrid", () => {
-  it("shows each plan as a card linking to the customer's renewal page, with the to-act count", () => {
-    render(<NextRenewalsGrid {...base} rows={[plan()]} />);
+  it("shows each plan as one row: avatar, name link to the renewal page, status, Call and Estimate beside them and the rest in More actions", async () => {
+    const { container } = render(<NextRenewalsGrid {...base} rows={[plan()]} />);
+    expect(container.querySelector('[data-slot="avatar"]')).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Asha Rao" })).toHaveAttribute("href", "/dashboard/inquiries/renewals/cus_1");
+    expect(screen.queryByRole("link", { name: "Open" })).toBeNull();
+    expect(screen.getByText("Status")).toBeInTheDocument();
     expect(screen.getByText(/7 to act on/)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /View all/ })).toHaveAttribute("href", base.viewAllHref);
+    expect(screen.getByRole("link", { name: /Call Asha Rao/ })).toHaveAttribute("href", "tel:+14165550123");
     expect(screen.getByRole("button", { name: "Estimate" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /WhatsApp/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Note" })).toBeNull();
+
+    fireEvent.pointerDown(screen.getByRole("button", { name: "More actions" }), { button: 0, ctrlKey: false });
+    expect(await screen.findByRole("menuitem", { name: /^WhatsApp / })).toHaveAttribute("href", "https://wa.me/14165550123");
+    expect(screen.getByRole("menuitem", { name: "Note" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Follow-up" })).toBeInTheDocument();
   });
 
-  it("links a customer without an account to the order", () => {
+  it("opens the estimate and the note dialogs from their actions", async () => {
+    render(<NextRenewalsGrid {...base} rows={[plan()]} />);
+    fireEvent.click(screen.getByRole("button", { name: "Estimate" }));
+    expect(screen.getByRole("dialog")).toHaveTextContent("Estimate ord_1");
+    cleanup();
+    render(<NextRenewalsGrid {...base} rows={[plan()]} />);
+    fireEvent.pointerDown(screen.getByRole("button", { name: "More actions" }), { button: 0, ctrlKey: false });
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Note" }));
+    expect(await screen.findByRole("dialog")).toHaveTextContent("Track note");
+  });
+
+  it("hides Follow-up for a closed plan", async () => {
+    render(<NextRenewalsGrid {...base} rows={[plan({ track: "renewed" })]} />);
+    fireEvent.pointerDown(screen.getByRole("button", { name: "More actions" }), { button: 0, ctrlKey: false });
+    expect(await screen.findByRole("menuitem", { name: "Note" })).toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: "Follow-up" })).toBeNull();
+  });
+
+  it("links a customer without an account to the order and offers no note or follow-up", async () => {
     render(<NextRenewalsGrid {...base} rows={[plan({ customerPublicId: null })]} />);
     expect(screen.getByRole("link", { name: "Asha Rao" })).toHaveAttribute("href", "/dashboard/orders/ord_1");
-    expect(screen.queryByRole("button", { name: "Add note" })).toBeNull();
+    fireEvent.pointerDown(screen.getByRole("button", { name: "More actions" }), { button: 0, ctrlKey: false });
+    expect(await screen.findByRole("menuitem", { name: /^WhatsApp / })).toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: "Note" })).toBeNull();
   });
 
   it("shows the empty state with a link to the renewal queue when nothing needs action", () => {

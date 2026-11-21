@@ -11,16 +11,19 @@ export type RouteLineInput = {
   now?: number;
 };
 
-export type RouteLine = { label: string; tone: "ok" | "warn" | "muted"; href: string; hint: string | null };
+/** `title` is the row's name in the sidebar card ("Today", "Mon, Nov 23"); `label` its value. */
+export type RouteLine = { title?: string; label: string; tone: "ok" | "warn" | "muted"; href: string; hint: string | null };
 
 const DISPATCH = "/dashboard/dispatch";
+const SETTINGS = "/dashboard/settings/optimoroute";
 
 export function routeLine({ installed, hasApiKey, canDispatch, canSettings, tz, counts, now = Date.now() }: RouteLineInput): RouteLine | null {
   if (!installed) {
     return canSettings
-      ? { label: "Not connected", tone: "muted", href: "/dashboard/settings/optimoroute", hint: null }
+      ? { label: "Not connected", tone: "muted", href: SETTINGS, hint: null }
       : null;
   }
+  if (!hasApiKey && canSettings && !canDispatch) return { label: "Not connected", tone: "muted", href: SETTINGS, hint: null };
   if (!canDispatch) return null;
   if (!hasApiKey) return { label: "Not connected", tone: "muted", href: DISPATCH, hint: null };
   if (!counts || counts.total === 0) return null;
@@ -43,7 +46,7 @@ export function routeLine({ installed, hasApiKey, canDispatch, canSettings, tz, 
 export function nextPushLine({ date, total, pushed }: { date: string; total: number; pushed: number }): RouteLine {
   const day = humanDate(date);
   const hint = `${pushed} of ${total} stops for ${day} are on OptimoRoute`;
-  if (pushed === 0) return { label: `${day} not pushed`, tone: "warn", href: DISPATCH, hint };
-  if (pushed < total) return { label: `${day} pushed ${pushed}/${total}`, tone: "warn", href: DISPATCH, hint };
-  return { label: `${day} pushed`, tone: "ok", href: DISPATCH, hint };
+  if (pushed === 0) return { title: day, label: "Not pushed", tone: "warn", href: DISPATCH, hint };
+  if (pushed < total) return { title: day, label: `Pushed ${pushed}/${total}`, tone: "warn", href: DISPATCH, hint };
+  return { title: day, label: "Pushed", tone: "ok", href: DISPATCH, hint };
 }

@@ -16,11 +16,13 @@ export function nextCutoff(nowMs: number, cutoffHour: number, timeZone: string):
   return { ms: (left > 0 ? left : left + 86_400) * 1000 - (nowMs % 1000), today: left > 0 };
 }
 
-/** A ticking timer: "12:04:09", then "42:05" under an hour. Seconds keep it reading as a countdown, not a clock time. */
-/** "2h 54m" / "54m" / "<1m": minutes are enough for a cutoff, and a ticking seconds digit only adds noise. */
-export function formatCountdown(ms: number): string {
+/** "2h 54m" / "54m" / "<1m": minutes are enough for a cutoff, and a ticking seconds digit only adds noise. `short` for the admin card: "15h", "2h 5m". */
+export function formatCountdown(ms: number, short = false): string {
   const mins = Math.max(0, Math.floor(ms / 60_000));
   if (mins < 1) return "<1m";
   const h = Math.floor(mins / 60);
-  return h > 0 ? `${h}h ${String(mins % 60).padStart(2, "0")}m` : `${mins}m`;
+  const m = mins % 60;
+  if (h === 0) return `${m}m`;
+  if (!short) return `${h}h ${String(m).padStart(2, "0")}m`;
+  return h >= 10 || m === 0 ? `${h}h` : `${h}h ${m}m`;
 }

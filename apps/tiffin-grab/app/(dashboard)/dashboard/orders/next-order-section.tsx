@@ -7,15 +7,15 @@ import { getAppSettings } from "@/lib/settings";
 import { loadOwnerOptions } from "@/lib/list/facet-options";
 import { ALL_OWNERS, ME, resolveOwnerParam } from "@/lib/list/presets";
 import { requestNow } from "@/lib/dates/request-now";
-import { nextOrder, orderQueueCount, queueOrder, upNextOrders, type OrderQueueScope } from "@/lib/orders/next-order.service";
-import type { OwnerChoice } from "@/components/dashboard/next-item/next-item-card";
+import { nextOrder, orderQueueCount, upNextOrders, type OrderQueueScope } from "@/lib/orders/next-order.service";
+import type { OwnerChoice } from "@/components/dashboard/next-item/next-item-parts";
+import { RECOMMENDATION_LIMIT } from "@/components/dashboard/next-item/recommendation-grid";
 import { NextOrderCard } from "./next-order-card";
 
-const UP_NEXT_COUNT = 6;
 
 type SearchParams = Record<string, string | undefined>;
 
-/** The card's own params (`order`, `orderOwner`) are set on top of the list's, so the list keeps its filters. */
+/** The card's own owner param is set on top of the list's, so the list keeps its filters. */
 function hrefWith(sp: SearchParams, changes: Record<string, string | null>): string {
   const next = new URLSearchParams();
   for (const [k, v] of Object.entries(sp)) if (typeof v === "string" && !(k in changes)) next.set(k, v);
@@ -24,7 +24,7 @@ function hrefWith(sp: SearchParams, changes: Record<string, string | null>): str
   return qs ? `/dashboard/orders?${qs}` : "/dashboard/orders";
 }
 
-/** The Next order card: the order to act on for the card's owner, with Previous/Next and the up-next strip. */
+/** The Next order grid: the order to act on for the owner, then the ones after it. */
 export async function NextOrderSection({ searchParams }: { searchParams: Promise<SearchParams> }) {
   await requirePagePermission({ order: ["read"] });
   const sp = await searchParams;
@@ -40,18 +40,11 @@ export async function NextOrderSection({ searchParams }: { searchParams: Promise
     condition: owner ? eq("owner", owner) : undefined,
   };
   const [owners, count] = await Promise.all([loadOwnerOptions(), orderQueueCount(scope, today)]);
-  const chosenId = typeof sp.order === "string" ? sp.order : undefined;
-  const row = (chosenId ? await queueOrder(scope, today, chosenId) : null) ?? (await nextOrder(scope, today));
-  const [prev, next, upNext] = row
-    ? await Promise.all([
-        nextOrder(scope, today, { publicId: row.publicId, dir: "prev" }),
-        nextOrder(scope, today, { publicId: row.publicId, dir: "next" }),
-        upNextOrders(scope, today, row.publicId, UP_NEXT_COUNT),
-      ])
-    : [null, null, []];
+  const row = await nextOrder(scope, today);
+  const upNext = row ? await upNextOrders(scope, today, row.publicId, RECOMMENDATION_LIMIT - 1) : [];
   const ownerOptions: OwnerChoice[] = [{ value: ME, label: "Me" }, { value: ALL_OWNERS, label: "All owners" }, ...owners].map((o) => ({
     ...o,
-    href: hrefWith(sp, { orderOwner: o.value, order: null }),
+    href: hrefWith(sp, { orderOwner: o.value }),
   }));
   return (
     <NextOrderCard
@@ -60,10 +53,8 @@ export async function NextOrderSection({ searchParams }: { searchParams: Promise
       now={now}
       queueCount={count}
       owner={{ current: orderOwner, options: ownerOptions }}
-      prevHref={prev ? hrefWith(sp, { order: prev.publicId }) : undefined}
-      nextHref={next ? hrefWith(sp, { order: next.publicId }) : undefined}
-      upNext={upNext.map((r) => ({ ...r, href: hrefWith(sp, { order: r.publicId }) }))}
-      attentionHref={hrefWith(sp, { view: "payment", order: null, orderOwner: null })}
+      upNext={upNext}
+      attentionHref={hrefWith(sp, { view: "payment", orderOwner: null })}
     />
   );
 }

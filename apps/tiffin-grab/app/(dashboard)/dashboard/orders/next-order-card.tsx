@@ -1,29 +1,23 @@
 import Link from "next/link";
 import { formatMoney } from "@foundry/commons";
-import { Avatar, AvatarFallback } from "@foundry/ui/avatar";
 import { Button } from "@foundry/ui/button";
+import { OrderStatusBadge } from "@/components/ds";
 import type { NextOrderReason, NextOrderRow } from "@/lib/orders/next-order.service";
-import { ContactChips } from "@/components/dashboard/next-item/contact-chips";
-import { initials } from "@foundry/ui/initials";
-import { NextItemCard, NextItemEmpty, type NextItemView, type OwnerChoice } from "@/components/dashboard/next-item/next-item-card";
+import { NextItemEmpty, type OwnerChoice } from "@/components/dashboard/next-item/next-item-parts";
 import { ReasonBadge } from "@/components/dashboard/next-item/reason-badge";
-import { UpNextStrip, type UpNextTile } from "@/components/dashboard/next-item/up-next-strip";
-import { NextOrderIconActions, NextOrderPrimary } from "./next-order-actions";
+import { RecommendationGrid, type RecommendationItem } from "@/components/dashboard/next-item/recommendation-grid";
+import { NextOrderActions } from "./next-order-actions";
 
 const DAY_MS = 86_400_000;
 
-/** An order after the current one; `href` opens it in the card (`order=`). */
-export type UpNextOrder = NextOrderRow & { href: string };
-
 export type NextOrderCardProps = {
   row: NextOrderRow | null;
+  /** The orders after `row`; the grid shows as many as fit its row. */
+  upNext: NextOrderRow[];
   currency: string;
   now: number;
   queueCount: number;
   owner: { current: string; options: OwnerChoice[] };
-  prevHref?: string;
-  nextHref?: string;
-  upNext: UpNextOrder[];
   attentionHref: string;
 };
 
@@ -45,61 +39,31 @@ export function reasonBadge(reason: NextOrderReason, signalAt: number, now: numb
   }
 }
 
-export function NextOrderCard({ row, currency, now, queueCount, owner, prevHref, nextHref, upNext, attentionHref }: NextOrderCardProps) {
-  const item: NextItemView | null = row
-    ? {
-        identity: (
-          <div className="flex flex-wrap items-center gap-2">
-            <Avatar><AvatarFallback>{initials(row.customerName)}</AvatarFallback></Avatar>
-            <Link href={`/dashboard/orders/${row.publicId}`} className="min-w-0 truncate font-medium hover:underline">
-              {row.customerName}
-            </Link>
-            {reasonBadge(row.reason, row.signalAt, now, row.amount, currency)}
-            <div className="ml-auto flex items-center gap-1">
-              <NextOrderIconActions row={row} />
-            </div>
-          </div>
-        ),
-        meta: (
-          <div className="flex flex-col gap-2">
-            <p className="text-muted-foreground text-xs">{[row.code, `${row.planName} · ${row.mealSizeName}`].join(" · ")}</p>
-            <ContactChips name={row.customerName} phone={row.phone} />
-          </div>
-        ),
-        facts: [
-          ["Amount", row.amount == null ? null : formatMoney(row.amount, currency)],
-          ["Plan", row.planName],
-          ["Meal size", row.mealSizeName],
-        ],
-        primary: <NextOrderPrimary row={row} />,
-        upNext:
-          upNext.length > 0 ? (
-            <UpNextStrip
-              label="orders"
-              tiles={upNext.map(
-                (r): UpNextTile => ({
-                  key: r.publicId,
-                  href: r.href,
-                  title: r.customerName,
-                  badge: reasonBadge(r.reason, r.signalAt, now, r.amount, currency),
-                  hint: r.code,
-                }),
-              )}
-              more={Math.max(0, queueCount - 1 - upNext.length)}
-              viewAllHref={attentionHref}
-            />
-          ) : undefined,
-      }
-    : null;
+export function NextOrderCard({ row, upNext, currency, now, queueCount, owner, attentionHref }: NextOrderCardProps) {
+  const items: RecommendationItem[] = (row ? [row, ...upNext] : []).map((r) => ({
+    key: r.publicId,
+    name: r.customerName,
+    href: `/dashboard/orders/${r.publicId}`,
+    status: <OrderStatusBadge status={r.status} />,
+    reason: (
+      <>
+        {reasonBadge(r.reason, r.signalAt, now, r.amount, currency)}
+        <span> · {r.code}</span>
+      </>
+    ),
+    actions: (
+      <NextOrderActions
+        row={{ publicId: r.publicId, reason: r.reason, paymentPublicId: r.paymentPublicId, status: r.status, phone: r.phone, name: r.customerName }}
+      />
+    ),
+  }));
   return (
-    <NextItemCard
+    <RecommendationGrid
       title="Next order"
-      noun="order"
       owner={owner}
-      dueText={`${queueCount} to act on`}
-      prevHref={prevHref}
-      nextHref={nextHref}
-      item={item}
+      toAct={queueCount}
+      viewAllHref={attentionHref}
+      items={items}
       empty={
         <NextItemEmpty title="No orders need attention.">
           <Button variant="outline" size="sm" asChild>

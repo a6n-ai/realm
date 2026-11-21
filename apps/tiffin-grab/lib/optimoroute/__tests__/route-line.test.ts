@@ -60,13 +60,22 @@ describe("routeLine", () => {
   it("no dispatch permission: nothing", () => {
     expect(routeLine({ ...base, canDispatch: false })).toBeNull();
   });
+
+  it("no dispatch permission but settings: Not connected links to settings when there is no API key", () => {
+    expect(routeLine({ ...base, canDispatch: false, canSettings: true, hasApiKey: false })).toMatchObject({
+      label: "Not connected",
+      tone: "muted",
+      href: "/dashboard/settings/optimoroute",
+    });
+    expect(routeLine({ ...base, canDispatch: false, canSettings: true })).toBeNull();
+  });
 });
 
 describe("nextPushLine", () => {
   it("names the next day and how much of it is on OptimoRoute", () => {
     expect(nextPushLine({ date: "2026-11-23", total: 10, pushed: 0 })).toMatchObject({ tone: "warn" });
-    expect(nextPushLine({ date: "2026-11-23", total: 10, pushed: 0 }).label).toMatch(/not pushed$/);
-    expect(nextPushLine({ date: "2026-11-23", total: 10, pushed: 4 }).label).toMatch(/pushed 4\/10$/);
+    expect(nextPushLine({ date: "2026-11-23", total: 10, pushed: 0 })).toMatchObject({ label: "Not pushed", title: expect.stringMatching(/Nov 23/) });
+    expect(nextPushLine({ date: "2026-11-23", total: 10, pushed: 4 }).label).toBe("Pushed 4/10");
     expect(nextPushLine({ date: "2026-11-23", total: 10, pushed: 10 })).toMatchObject({ tone: "ok", href: "/dashboard/dispatch" });
   });
 });

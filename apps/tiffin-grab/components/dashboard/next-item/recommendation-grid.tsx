@@ -1,11 +1,11 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { SectionCard } from "@/components/ds";
-import { Card } from "@foundry/ui/card";
+import { Card, CardContent } from "@foundry/ui/card";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { OwnerPicker, type OwnerOption } from "./owner-picker";
 import { NextItemError } from "./next-item-error";
-import { scopeHint } from "./next-item-card";
+import { scopeHint } from "./next-item-parts";
 import { RecommendationCard } from "./recommendation-card";
 
 /** One row of recommendations; the services fetch this many and the grid shows no more. */
@@ -16,14 +16,13 @@ export type RecommendationOwner = { current: string; options: OwnerOption[] };
 export type RecommendationItem = {
   key: string;
   name: string;
-  /** Opens the item's page; also the name's link and, on the card layout, the Open action. */
+  /** Opens the item's page: the name's link. */
   href: string;
-  /** Lead row: the name links and the status sits beside it, the reason is the muted line under them, and the actions take the right. */
-  entity?: boolean;
+  /** The muted line under the name. */
   reason?: ReactNode;
+  /** The pill beside the name. */
   status?: ReactNode;
-  contact?: ReactNode;
-  /** Icon-only secondary actions, before Open. */
+  /** The row's right side: a RecommendationActions, up to two icon buttons plus More actions. */
   actions?: ReactNode;
 };
 
@@ -67,41 +66,29 @@ export function RecommendationGrid({ title, owner, toAct, viewAllHref, items, em
   );
 }
 
-export function RecommendationGridSkeleton({ title, entity = false }: { title: string; entity?: boolean }) {
+export function RecommendationGridSkeleton({ title }: { title: string }) {
   return (
     <SectionCard title={title} action={<Skeleton className="h-8 w-40" />}>
       <div className="grid gap-3 md:grid-cols-3">
-        {[0, 1, 2].map((i) =>
-          entity ? (
-            <Card key={i} size="sm" className="h-full">
-              <div className="flex min-w-0 items-center justify-between gap-3">
-                <div className="flex min-w-0 flex-col gap-1">
-                  <div className="flex min-w-0 flex-wrap items-center gap-2">
-                    <Skeleton className="size-8 shrink-0 rounded-full" />
-                    <Skeleton className="h-4 w-32" />
-                    <Skeleton className="h-5 w-20 rounded-full" />
-                  </div>
-                  <Skeleton className="h-3 w-40" />
+        {[0, 1, 2].map((i) => (
+          <Card key={i} size="sm" className="h-full">
+            <CardContent className="flex min-w-0 items-center gap-3">
+              <div className="flex min-w-0 flex-1 flex-col gap-1">
+                <div className="flex min-w-0 flex-wrap items-center gap-2">
+                  <Skeleton className="size-8 shrink-0 rounded-full" />
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-5 w-20 rounded-full" />
                 </div>
-                <div className="flex shrink-0 items-center gap-1">
-                  <Skeleton className="size-8" />
-                  <Skeleton className="size-8" />
-                  <Skeleton className="size-8" />
-                </div>
+                <Skeleton className="h-3 w-40" />
               </div>
-            </Card>
-          ) : (
-            <Card key={i} size="sm" className="flex flex-col gap-3">
-              <div className="flex items-center gap-2">
-                <Skeleton className="size-8 shrink-0 rounded-full" />
-                <Skeleton className="h-4 w-32" />
+              <div className="flex shrink-0 items-center gap-1">
+                <Skeleton className="size-8" />
+                <Skeleton className="size-8" />
+                <Skeleton className="size-8" />
               </div>
-              <Skeleton className="h-5 w-24" />
-              <Skeleton className="h-8 w-40" />
-              <Skeleton className="h-8 w-24" />
-            </Card>
-          ),
-        )}
+            </CardContent>
+          </Card>
+        ))}
       </div>
     </SectionCard>
   );

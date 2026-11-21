@@ -81,7 +81,7 @@ export default async function InquiriesPage({ searchParams }: { searchParams: Se
         </Suspense>
       }
       next={
-        <Suspense fallback={renewalsView ? <RecommendationGridSkeleton title="Next renewals" /> : <RecommendationGridSkeleton title="Next leads" entity />}>
+        <Suspense fallback={renewalsView ? <RecommendationGridSkeleton title="Next renewals" /> : <RecommendationGridSkeleton title="Next leads" />}>
           <NextLead searchParams={searchParams} />
           <NextRenewals searchParams={searchParams} />
         </Suspense>
