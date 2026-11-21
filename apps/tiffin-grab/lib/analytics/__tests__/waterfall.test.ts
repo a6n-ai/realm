@@ -4,7 +4,7 @@ import { buildProfitWaterfall } from "../waterfall";
 import { buildSourceFlow } from "../source-flow";
 
 const row = (o: Partial<ProfitRow>): ProfitRow => ({
-  date: "2026-10-01", tiffins: 10, revenue: 0, cashCollected: 0, unpaidRevenue: 0,
+  date: "2026-10-01", tiffins: 10, revenue: 0, cashCollected: 0, unpaidRevenue: 0, coupons: 0,
   food: 0, driver: 0, marketing: 0, salaries: 0, other: 0, costs: 0, profit: 0, marginPct: null, ...o,
 });
 

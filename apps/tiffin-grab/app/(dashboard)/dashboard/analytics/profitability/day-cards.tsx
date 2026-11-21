@@ -28,6 +28,7 @@ function Card({ row, title }: { row: ProfitRow; title: string }) {
         ["Marketing", fmt(row.marketing)],
         ["Salaries", fmt(row.salaries)],
         ["Other", fmt(row.other)],
+        ["Coupons", row.coupons > 0 ? `−${fmt(row.coupons)}` : fmt(0)],
         ["Cash collected", fmt(row.cashCollected)],
         ["Margin", pct(row.marginPct)],
       ]}

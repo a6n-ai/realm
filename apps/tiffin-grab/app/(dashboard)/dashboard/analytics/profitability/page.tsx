@@ -1,3 +1,4 @@
+import { round2 } from "@foundry/commons/util/money";
 import { requirePagePermission } from "@/lib/auth/guards";
 import { Can, NoAccessNote } from "@/components/auth/can";
 import { Skeleton } from "@foundry/ui/skeleton";
@@ -182,21 +183,30 @@ function HeadlineCards({ kpis, range, cashHref, toDate, money }: { kpis: Profita
     {
       label: "Revenue earned",
       value: money(kpis.revenue),
-      hint: `Value of paid tiffins delivered, excl. tax. ${rangeHint}.`,
+      hint: `Value of paid tiffins delivered, excl. tax, after coupons${kpis.coupons > 0 ? ` (${money(round2(kpis.revenue + kpis.coupons))} before)` : ""}. ${rangeHint}.`,
       badge: "Delivered",
       badgeTone: "ok",
-      footer:
-        kpis.unpaidRevenue > 0 ? (
-          <StatFootnote>
-            <span className="text-muted-foreground">Not paid yet</span>
-            <span className="text-warning-foreground dark:text-warning font-semibold tabular-nums">{money(kpis.unpaidRevenue)}</span>
-          </StatFootnote>
-        ) : (
-          <StatFootnote>
-            <span className="text-muted-foreground">Allocated on delivery day</span>
-            <Badge variant="success-light">Current</Badge>
-          </StatFootnote>
-        ),
+      footer: (
+        <div className="flex flex-col gap-1">
+          {kpis.coupons > 0 ? (
+            <StatFootnote>
+              <span className="text-muted-foreground">Coupon deductions</span>
+              <span className="text-foreground font-semibold tabular-nums">−{money(kpis.coupons)}</span>
+            </StatFootnote>
+          ) : null}
+          {kpis.unpaidRevenue > 0 ? (
+            <StatFootnote>
+              <span className="text-muted-foreground">Not paid yet</span>
+              <span className="text-warning-foreground dark:text-warning font-semibold tabular-nums">{money(kpis.unpaidRevenue)}</span>
+            </StatFootnote>
+          ) : (
+            <StatFootnote>
+              <span className="text-muted-foreground">Allocated on delivery day</span>
+              <Badge variant="success-light">Current</Badge>
+            </StatFootnote>
+          )}
+        </div>
+      ),
     },
     {
       label: "Profit margin",

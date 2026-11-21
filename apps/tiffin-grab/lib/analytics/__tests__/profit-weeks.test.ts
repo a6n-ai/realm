@@ -3,7 +3,7 @@ import { groupProfitWeeks } from "../profit-weeks";
 import type { ProfitRow } from "../profitability";
 
 const day = (date: string, n: number): ProfitRow => ({
-  date, tiffins: n, revenue: n * 10, cashCollected: n * 9, unpaidRevenue: 0,
+  date, tiffins: n, revenue: n * 10, cashCollected: n * 9, unpaidRevenue: 0, coupons: 0,
   food: n * 3, driver: n, marketing: 1, salaries: 2, other: 0.5, costs: n * 4 + 3.5, profit: n * 6 - 3.5, marginPct: null,
 });
 

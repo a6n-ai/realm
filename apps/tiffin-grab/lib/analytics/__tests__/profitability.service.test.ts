@@ -30,7 +30,7 @@ vi.mock("../food-cost.service", async () => {
 });
 
 const { db } = await import("@/db/client");
-const { deliveries, deliveryFrequencies, ledgerEntries, mealSizes, orders, payments, plans, users } = await import("@/db/schema");
+const { couponRedemptions, coupons, deliveries, deliveryFrequencies, ledgerEntries, mealSizes, orders, payments, plans, users } = await import("@/db/schema");
 const { ZERO_ASSUMPTIONS } = await import("@/lib/analytics/profitability");
 const { getProfitabilityReport } = await import("../profitability.service");
 const { setProfitabilityAssumptions } = await import("@/lib/analytics/profitability-settings");
@@ -55,11 +55,13 @@ const createdOrderIds: bigint[] = [];
 
 async function reset() {
   if (createdOrderIds.length) {
+    await db.delete(couponRedemptions).where(inArray(couponRedemptions.orderId, createdOrderIds));
     await db.delete(deliveries).where(inArray(deliveries.orderId, createdOrderIds));
     await db.delete(ledgerEntries).where(inArray(ledgerEntries.orderId, createdOrderIds));
     await db.delete(payments).where(inArray(payments.orderId, createdOrderIds));
     await db.delete(orders).where(inArray(orders.id, createdOrderIds));
   }
+  await db.delete(coupons).where(eq(coupons.code, "PROF-COUPON"));
   if (createdUserIds.length) {
     await db.delete(users).where(inArray(users.id, createdUserIds));
   }
@@ -224,6 +226,22 @@ describe("profitability report", () => {
     expect(day?.unpaidRevenue).toBe(10);
     expect(day?.food).toBe(4);
     expect(report.kpis.unpaidRevenue).toBe(10);
+  });
+
+  it("shows coupon deductions on paid delivery days without lowering revenue again", async () => {
+    // $90 paid after a $10 coupon, over 10 tiffins: $9 earned and $1 coupon per tiffin.
+    const order = await makeOrder({ total: "90.00", tiffinCount: 10, deploymentId: "PROF-COUPON" });
+    await makePayment(order.id, "90.00", Date.parse("2035-01-02T15:00:00Z"));
+    const [coupon] = await db.insert(coupons).values({ code: "PROF-COUPON", kind: "fixed", name: "Ten off", valueAmount: "10.00" }).returning();
+    await db.insert(couponRedemptions).values({ couponId: coupon!.id, userId: order.userId!, orderId: order.id, amountApplied: "10.00" });
+    await makeDelivery(order.id, "2035-01-05", { tiffinUnits: 2 });
+
+    const report = await getProfitabilityReport({ month: "2035-01", grain: "daily", now: NOW, scope: JAN_2035 });
+    const day = report.rows.find((r) => r.date === "2035-01-05");
+    expect(day?.revenue).toBe(18);
+    expect(day?.coupons).toBe(2);
+    expect(day?.profit).toBe(10); // 18 revenue − 8 food; coupons are not a cost
+    expect(report.kpis.coupons).toBe(2);
   });
 
   it("earns nothing on a refunded order", async () => {

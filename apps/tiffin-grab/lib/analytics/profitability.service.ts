@@ -1,7 +1,7 @@
 import { round2 } from "@foundry/commons/util/money";
 import { and, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { deliveries, ledgerEntries, orders, payments } from "@/db/schema";
+import { couponRedemptions, deliveries, ledgerEntries, orders, payments } from "@/db/schema";
 import { getProfitabilityAssumptions } from "@/lib/analytics/profitability-settings";
 import { costBreakdown, decorateDay, freeTiffinCost, type FreeTiffinCost, kpis, rollup, type CostPart, type Grain, type ProfitabilityAssumptions, type ProfitabilityKpis, type ProfitRow } from "@/lib/analytics/profitability";
 import { chartPeriod } from "@/lib/analytics/buckets";
@@ -57,6 +57,9 @@ const ORDER_EARNED = sql`(${CAPTURED_NET}
     inner join ${payments} on ${payments.id} = ${ledgerEntries.paymentId}
     where ${payments.orderId} = ${orders.id} and ${ledgerEntries.type} = 'refund'))`;
 export const EARNED_PER_TIFFIN = sql`(${ORDER_EARNED} / nullif(${orders.tiffinCount}, 0))`;
+// Coupon discount per tiffin, spread like EARNED_PER_TIFFIN so a day's coupons match its revenue.
+const COUPONS_PER_TIFFIN = sql`((select coalesce(sum(${couponRedemptions.amountApplied}), 0) from ${couponRedemptions}
+    where ${couponRedemptions.orderId} = ${orders.id}) / nullif(${orders.tiffinCount}, 0))`;
 // Still owed per tiffin: order total ex tax less what was paid ex tax (before refunds). A half-paid
 // order owes half; an order nobody paid owes all of it.
 const UNPAID_PER_TIFFIN = sql`greatest(
@@ -105,6 +108,8 @@ export async function getProfitabilityReport(opts: {
             // A free tiffin earns nothing (and is not owed), but stays in `tiffins` so its food and driver cost count.
             revenue: sql<number>`coalesce(sum(case when ${HAS_CAPTURED} and ${deliveries.complimentaryNote} is null
               then ${deliveries.tiffinUnits}::numeric * ${EARNED_PER_TIFFIN} end), 0)::float`,
+            coupons: sql<number>`coalesce(sum(case when ${HAS_CAPTURED} and ${deliveries.complimentaryNote} is null
+              then ${deliveries.tiffinUnits}::numeric * ${COUPONS_PER_TIFFIN} end), 0)::float`,
             unpaidRevenue: sql<number>`round(coalesce(sum(case when ${deliveries.complimentaryNote} is null
               then ${deliveries.tiffinUnits}::numeric * ${UNPAID_PER_TIFFIN} end), 0), 2)::float`,
           })
@@ -160,6 +165,7 @@ export async function getProfitabilityReport(opts: {
         tiffins: earnedByDate.get(date)?.tiffins ?? 0,
         revenue: Number(earnedByDate.get(date)?.revenue ?? 0),
         unpaidRevenue: Number(earnedByDate.get(date)?.unpaidRevenue ?? 0),
+        coupons: Number(earnedByDate.get(date)?.coupons ?? 0),
         cashCollected: Number(cashByDate.get(date) ?? 0),
         foodCost: foodByDate.get(date)?.foodCost ?? 0,
       },

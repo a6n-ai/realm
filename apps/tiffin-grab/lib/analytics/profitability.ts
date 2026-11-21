@@ -121,10 +121,13 @@ export type DailyFacts = {
   unpaidRevenue?: number;
   /** Internal food cost of the day's delivered tiffins (see food-cost.service). */
   foodCost?: number;
+  /** Coupon discounts on the day's paid tiffins. Already out of `revenue`: shown, never subtracted again. */
+  coupons?: number;
 };
 
-export type ProfitRow = Omit<DailyFacts, "unpaidRevenue" | "foodCost"> & {
+export type ProfitRow = Omit<DailyFacts, "unpaidRevenue" | "foodCost" | "coupons"> & {
   unpaidRevenue: number;
+  coupons: number;
   food: number;
   driver: number;
   marketing: number;
@@ -160,6 +163,7 @@ export function decorateDay(facts: DailyFacts, assumptions: ProfitabilityAssumpt
     revenue: round2(facts.revenue),
     cashCollected: round2(facts.cashCollected),
     unpaidRevenue: round2(facts.unpaidRevenue ?? 0),
+    coupons: round2(facts.coupons ?? 0),
     food: round2(food),
     driver: round2(driver),
     marketing: round2(allocated.marketing),
@@ -190,6 +194,7 @@ function sumRows(date: string, group: ProfitRow[]): ProfitRow {
   const revenue = round2(group.reduce((s, r) => s + r.revenue, 0));
   const cashCollected = round2(group.reduce((s, r) => s + r.cashCollected, 0));
   const unpaidRevenue = round2(group.reduce((s, r) => s + r.unpaidRevenue, 0));
+  const coupons = round2(group.reduce((s, r) => s + r.coupons, 0));
   const food = round2(group.reduce((s, r) => s + r.food, 0));
   const driver = round2(group.reduce((s, r) => s + r.driver, 0));
   const marketing = round2(group.reduce((s, r) => s + r.marketing, 0));
@@ -203,6 +208,7 @@ function sumRows(date: string, group: ProfitRow[]): ProfitRow {
     revenue,
     cashCollected,
     unpaidRevenue,
+    coupons,
     food,
     driver,
     marketing,
@@ -218,6 +224,7 @@ export type ProfitabilityKpis = {
   cashCollected: number;
   revenue: number;
   unpaidRevenue: number;
+  coupons: number;
   costs: number;
   profit: number;
   marginPct: number | null;
@@ -230,12 +237,14 @@ export function kpis(rows: ProfitRow[]): ProfitabilityKpis {
   const cashCollected = round2(rows.reduce((s, r) => s + r.cashCollected, 0));
   const revenue = round2(rows.reduce((s, r) => s + r.revenue, 0));
   const unpaidRevenue = round2(rows.reduce((s, r) => s + r.unpaidRevenue, 0));
+  const coupons = round2(rows.reduce((s, r) => s + r.coupons, 0));
   const costs = round2(rows.reduce((s, r) => s + r.costs, 0));
   const profit = round2(revenue - costs);
   return {
     cashCollected,
     revenue,
     unpaidRevenue,
+    coupons,
     costs,
     profit,
     marginPct: revenue > 0 ? round2((profit / revenue) * 100) : null,
