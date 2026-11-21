@@ -5,6 +5,8 @@ import { useTimezone } from "@foundry/design-system/timezone-provider";
 import { useNow } from "@/lib/hooks/use-now";
 import { cutoffNote, cutoffTime } from "@/lib/deliveries/view/cutoff";
 import { HoverHint } from "@/components/ds/hover-hint";
+import { Clock3Icon, TimerIcon } from "lucide-react";
+import { CardRow } from "./clock-card-row";
 
 // Live clock in the app-settings timezone, so staff in another zone (India) see
 // business time. Renders nothing until mounted: server and browser clocks differ,
@@ -37,16 +39,19 @@ export function AppClock({
   const hint = `Canada time (${tz}). ${cutoffNote(cutoffHour)}.`;
   if (variant === "card") {
     return (
-      <HoverHint text={hint}>
-        <div className="border-border bg-muted/30 grid gap-1 rounded-(--ui-radius-card) border p-3">
-          <span className="flex items-center gap-1.5 text-footnote tabular-nums">
-            <span role="img" aria-label="Canada time" className="text-sm leading-none">🇨🇦</span>
-            {label}
-          </span>
-          <span className="text-muted-foreground text-xs tabular-nums">Cutoff {cutoffTime(cutoffHour)}</span>
-          {routeStatus}
-        </div>
-      </HoverHint>
+      <div className="border-border bg-muted/30 grid min-w-0 gap-2 rounded-(--ui-radius-card) border p-3">
+        <HoverHint text={hint}>
+          <div className="grid min-w-0 gap-1.5">
+            <CardRow icon={Clock3Icon} label="Canada time">
+              <span className="text-foreground tabular-nums">{label}</span>
+            </CardRow>
+            <CardRow icon={TimerIcon} label="Order cutoff">
+              <span className="tabular-nums">Cutoff {cutoffTime(cutoffHour)}</span>
+            </CardRow>
+          </div>
+        </HoverHint>
+        {routeStatus}
+      </div>
     );
   }
   return (

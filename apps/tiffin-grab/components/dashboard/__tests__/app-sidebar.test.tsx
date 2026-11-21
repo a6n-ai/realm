@@ -287,7 +287,7 @@ describe("AppSidebar list", () => {
 
   it("sets a 1px divider between the primary list and the sections", () => {
     renderSidebar();
-    expect(document.querySelector('[data-slot="sidebar-separator"]')).toBeInTheDocument();
+    expect(document.querySelector('[data-sidebar="separator"]')).toBeInTheDocument();
   });
 
   it("marks a section item active when one of its pages is open", () => {

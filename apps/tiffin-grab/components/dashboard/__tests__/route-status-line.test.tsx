@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { TimezoneProvider } from "@foundry/design-system/timezone-provider";
 import { AppClock } from "@/components/dashboard/app-clock";
 import { RouteStatusLine } from "@/components/dashboard/route-status-line";
+import { TruckIcon } from "lucide-react";
 
 vi.mock("@/lib/hooks/use-now", () => ({ useNow: () => new Date("2026-11-20T12:20:00Z") }));
 vi.mock("@/components/ds/hover-hint", () => ({ HoverHint: ({ children }: { children: React.ReactNode }) => children }));
@@ -20,14 +21,16 @@ const card = (routeStatus?: React.ReactNode) =>
 
 describe("clock card route status", () => {
   it("shows the line as a link to Dispatch", () => {
-    card(<RouteStatusLine line={{ label: "Sent 9:12 am", tone: "ok", href: "/dashboard/dispatch", hint: "h" }} />);
-    const link = screen.getByRole("link", { name: /OptimoRoute · Sent 9:12 am/ });
+    card(<RouteStatusLine line={{ label: "Sent 9:12 am", tone: "ok", href: "/dashboard/dispatch", hint: "h" }} icon={TruckIcon} label="Today's run" />);
+    const link = screen.getByRole("link", { name: /Today's run:\s*Sent 9:12 am/ });
     expect(link).toHaveAttribute("href", "/dashboard/dispatch");
+    expect(link.querySelector("svg")).not.toBeNull();
   });
 
   it("shows nothing without a status", () => {
-    card();
-    expect(screen.queryByText(/OptimoRoute/)).toBeNull();
+    const { container } = card();
+    expect(screen.queryByRole("link")).toBeNull();
     expect(screen.getByText(/Cutoff/)).toBeInTheDocument();
+    expect(container.querySelectorAll("svg")).toHaveLength(2);
   });
 });

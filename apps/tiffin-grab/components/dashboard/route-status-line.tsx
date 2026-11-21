@@ -1,15 +1,16 @@
 import Link from "next/link";
+import type { LucideIcon } from "lucide-react";
 import type { RouteLine } from "@/lib/optimoroute/route-line";
 import { HoverHint } from "@/components/ds/hover-hint";
+import { CardRow } from "./clock-card-row";
 
-const DOT = { ok: "bg-success", warn: "bg-warning", muted: "bg-muted-foreground" } as const;
-
-export function RouteStatusLine({ line }: { line: RouteLine }) {
+export function RouteStatusLine({ line, icon, label }: { line: RouteLine; icon: LucideIcon; label: string }) {
   return (
     <HoverHint text={line.hint}>
-      <Link href={line.href} prefetch={false} className="text-muted-foreground flex items-center gap-1.5 text-xs">
-        <span aria-hidden className={`size-1.5 shrink-0 rounded-full ${DOT[line.tone]}`} />
-        <span className="truncate">OptimoRoute · {line.label}</span>
+      <Link href={line.href} prefetch={false} className="hover:text-foreground block min-w-0 rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring">
+        <CardRow icon={icon} label={label} dot={line.tone}>
+          {line.label}
+        </CardRow>
       </Link>
     </HoverHint>
   );
