@@ -64,6 +64,8 @@
     "@relay/engine": "github:a6n-ai/relay#path:packages/engine",
     "@stripe/react-stripe-js": "7.0.0",
     "@stripe/stripe-js": "10.1.0",
+    "@ui-sdk/core": "0.1.0-beta.10",
+    "@ui-sdk/react": "0.1.0-beta.10",
     "better-auth": "1.7.23",
     "class-variance-authority": "^0.7.1",
     "date-fns": "^4.4.0",
