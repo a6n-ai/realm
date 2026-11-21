@@ -267,8 +267,8 @@ export function CellPanel({
             <PopoverContent className="w-72 p-0" align="start">
               <Command>
                 <CommandInput placeholder={`Add to ${slot.categoryLabel} (${slot.planName})…`} />
+                <CommandEmpty>No dish in this category.</CommandEmpty>
                 <CommandList>
-                  <CommandEmpty>No dish in this category.</CommandEmpty>
                   <CommandGroup>
                     {addable.map((d) => (
                       <CommandItem key={d.id} value={d.name} onSelect={() => { onAdd(day, slot, d.id); setOpen(false); }}>

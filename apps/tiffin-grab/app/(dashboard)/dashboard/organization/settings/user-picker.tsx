@@ -45,8 +45,8 @@ export function UserPicker({ onSelect }: { onSelect: (user: UserSearchRow) => vo
       <PopoverContent className="p-0" align="start">
         <Command shouldFilter={false}>
           <CommandInput placeholder="Type an email…" value={query} onValueChange={setQuery} />
+          <CommandEmpty>{pending ? "Searching…" : "No matches."}</CommandEmpty>
           <CommandList>
-            <CommandEmpty>{pending ? "Searching…" : "No matches."}</CommandEmpty>
             <CommandGroup>
               {results.map((user) => (
                 <CommandItem

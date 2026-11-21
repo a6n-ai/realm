@@ -248,12 +248,12 @@ export function GlobalSearch({ role }: { role: string }) {
                 />
                 <Kbd aria-hidden className="absolute top-3.5 right-3">Esc</Kbd>
               </div>
+              {navRows.length === 0 && !hasEntity && <CommandEmpty>No results for “{query}”</CommandEmpty>}
               <CommandList
                 // Keep the input focused when clicking a row, so selection fires before any blur.
                 onMouseDown={(e) => e.preventDefault()}
                 className="max-h-none flex-1 p-2"
               >
-                {navRows.length === 0 && !hasEntity && <CommandEmpty>No results for “{query}”</CommandEmpty>}
                 {navRows.map(({ item, section }) => {
                   const addKind = isStaff && quickAdd ? ADD_KIND[item.href] : undefined;
                   return (

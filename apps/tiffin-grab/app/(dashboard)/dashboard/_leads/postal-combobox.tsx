@@ -65,8 +65,8 @@ export function PostalCombobox({
               value={value}
               onValueChange={(v) => onChange(v.toUpperCase())}
             />
+            <CommandEmpty>No matching zone — code kept as typed.</CommandEmpty>
             <CommandList>
-              <CommandEmpty>No matching zone — code kept as typed.</CommandEmpty>
               <CommandGroup heading="Delivery zones">
                 {options.map(({ prefix, zone, area }) => (
                   <CommandItem

@@ -43,6 +43,8 @@ export function GroupPicker({
       <PopoverContent className="w-(--anchor-width) p-0" align="start">
         <Command shouldFilter={false}>
           <CommandInput placeholder="Search groups by name" value={q} onValueChange={setQ} />
+          {!error && groups === null && <CommandEmpty>Loading groups...</CommandEmpty>}
+          {!error && groups?.length === 0 && <CommandEmpty>{q ? "No group matches that name." : "No customer groups yet."}</CommandEmpty>}
           <CommandList>
             {error ? (
               <Alert variant="destructive">
@@ -51,11 +53,8 @@ export function GroupPicker({
                   <Button type="button" size="sm" variant="outline" onClick={() => reload()}>Retry</Button>
                 </AlertDescription>
               </Alert>
-            ) : groups === null ? (
-              <CommandEmpty>Loading groups...</CommandEmpty>
-            ) : (
+            ) : groups === null ? null : (
               <>
-                {groups.length === 0 && <CommandEmpty>{q ? "No group matches that name." : "No customer groups yet."}</CommandEmpty>}
                 <CommandGroup>
                   {noneLabel && !q && (
                     <CommandItem value="__none" onSelect={() => pick(null)}>

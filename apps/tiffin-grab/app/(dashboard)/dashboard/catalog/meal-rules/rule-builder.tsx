@@ -149,8 +149,8 @@ function ValuePicker({
         <PopoverContent className="w-(--anchor-width) min-w-64 p-0" align="start">
           <Command>
             <CommandInput placeholder="Search…" />
+            <CommandEmpty>Nothing found.</CommandEmpty>
             <CommandList>
-              <CommandEmpty>Nothing found.</CommandEmpty>
               <CommandGroup>
                 {options.map((o) => (
                   <CommandItem

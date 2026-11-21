@@ -144,8 +144,8 @@ export function PlanSection({ d, catalog }: { d: Draft; catalog: Catalog }) {
                   <PopoverContent align="start" className="w-64 p-0">
                     <Command>
                       <CommandInput placeholder="Find an add-on…" />
+                      <CommandEmpty>No add-ons.</CommandEmpty>
                       <CommandList>
-                        <CommandEmpty>No add-ons.</CommandEmpty>
                         <CommandGroup>
                           {eligibleAddons.filter((a) => d.qtyFor(a.key) === 0).map((a) => (
                             <CommandItem key={a.key} value={a.name} onSelect={() => { d.setAddonQty(a.key, 1); setAddonPickerOpen(false); }}>

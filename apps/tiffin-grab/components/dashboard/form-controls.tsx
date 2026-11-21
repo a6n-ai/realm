@@ -153,8 +153,8 @@ export function Multiselect({
         <PopoverContent className="w-(--anchor-width) min-w-56 p-0" align="start">
           <Command>
             <CommandInput placeholder={searchPlaceholder} />
+            <CommandEmpty>{emptyText}</CommandEmpty>
             <CommandList>
-              <CommandEmpty>{emptyText}</CommandEmpty>
               <CommandGroup>
                 {options.map((o) => {
                   const selected = value.includes(o.value);
