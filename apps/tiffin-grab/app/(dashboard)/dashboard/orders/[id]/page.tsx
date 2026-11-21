@@ -362,17 +362,13 @@ async function OrderDetail({
         )}
       </span>
       {order.trialLength != null && <TrialPill className="self-center" />}
-      <Button asChild variant="outline" size="sm">
-        <a href={receiptPath(order.publicId)} download>
+      <Button variant="outline" size="sm" render={<a href={receiptPath(order.publicId)} download />}>
           <FileDownIcon />
           Receipt
-        </a>
-      </Button>
+        </Button>
       {order.lookOutAt == null && <LookOutControl orderId={order.publicId} />}
       {unpaidRenewal && (
-        <Badge variant="outline" asChild>
-          <Link href={`/dashboard/orders/${unpaidRenewal.publicId}`}>Renewal {unpaidRenewal.deploymentId} waiting for payment</Link>
-        </Badge>
+        <Badge variant="outline" render={<Link href={`/dashboard/orders/${unpaidRenewal.publicId}`} />}>Renewal {unpaidRenewal.deploymentId} waiting for payment</Badge>
       )}
       <ActivateCancelControls orderId={order.publicId} status={order.status} migrated={isWordpressImport(order)} paidPending={!isWordpressImport(order) && order.payments.some((p) => p.method === "stripe" && p.status === "paid")} migration={migration} />
       {canAddAddons && (
@@ -470,9 +466,7 @@ async function OrderDetail({
               {pendingPay.proofThumbUrl ? " · screenshot attached" : ""}
             </p>
           </div>
-          <Button asChild size="sm">
-            <Link href="?tab=payments" scroll={false}>Review payment</Link>
-          </Button>
+          <Button size="sm" render={<Link href="?tab=payments" scroll={false} />}>Review payment</Button>
         </div>
       )}
 

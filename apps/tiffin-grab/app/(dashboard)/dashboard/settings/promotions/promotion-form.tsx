@@ -238,7 +238,7 @@ export function PromotionForm({
 
       {error && <p role="alert" className="text-destructive text-sm">{error}</p>}
       <div className="flex justify-end gap-2">
-        <Button variant="outline" asChild><Link href="/dashboard/settings/promotions">Back to list</Link></Button>
+        <Button variant="outline" render={<Link href="/dashboard/settings/promotions" />}>Back to list</Button>
         <Button disabled={pending || !title.trim()} onClick={save}>{pending ? "Saving…" : "Save promotion"}</Button>
       </div>
     </div>

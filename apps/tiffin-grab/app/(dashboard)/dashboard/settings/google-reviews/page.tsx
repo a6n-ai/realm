@@ -52,13 +52,9 @@ async function ReviewsPreview({ placeId }: { placeId: string }) {
           <span className="text-muted-foreground text-xs tabular-nums">{summary.total} reviews on Google</span>
         </div>
         <div className="ml-auto flex flex-wrap gap-2">
-          <Button variant="outline" size="sm" asChild>
-            <a href={writeReviewUrl(placeId)} target="_blank" rel="noreferrer">Review link<ExternalLinkIcon data-icon="inline-end" /></a>
-          </Button>
+          <Button variant="outline" size="sm" render={<a href={writeReviewUrl(placeId)} target="_blank" rel="noreferrer" />}>Review link<ExternalLinkIcon data-icon="inline-end" /></Button>
           {summary.attributionUrl ? (
-            <Button variant="outline" size="sm" asChild>
-              <a href={summary.attributionUrl} target="_blank" rel="noreferrer">Open listing<ExternalLinkIcon data-icon="inline-end" /></a>
-            </Button>
+            <Button variant="outline" size="sm" render={<a href={summary.attributionUrl} target="_blank" rel="noreferrer" />}>Open listing<ExternalLinkIcon data-icon="inline-end" /></Button>
           ) : null}
         </div>
       </div>
@@ -147,9 +143,7 @@ export default async function GoogleReviewsSettingsPage() {
           <div className="flex flex-col items-start gap-3">
             <p className="text-muted-foreground text-sm">No listing connected yet. Add your Place ID to see the rating and reviews here.</p>
             {apiKeyConfigured ? (
-              <Button variant="outline" size="sm" asChild>
-                <a href="#place-id">Add a Place ID</a>
-              </Button>
+              <Button variant="outline" size="sm" render={<a href="#place-id" />}>Add a Place ID</Button>
             ) : null}
           </div>
         ) : (

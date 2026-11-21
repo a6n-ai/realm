@@ -27,9 +27,7 @@ function Notice({ title, children }: { title: string; children: React.ReactNode 
       <div className="bg-card flex flex-col gap-3 rounded-2xl border p-5">
         <h1 className="text-lg font-semibold">{title}</h1>
         <div className="text-muted-foreground text-sm">{children}</div>
-        <Button asChild className="h-11">
-          <Link href="/me/book">See classes</Link>
-        </Button>
+        <Button className="h-11" render={<Link href="/me/book" />}>See classes</Button>
       </div>
     </div>
   );

@@ -66,9 +66,7 @@ export function NextRenewalsGrid({ rows, toAct, owner, today, viewAllHref, error
       error={error}
       empty={
         <NextItemEmpty title="No renewals need attention.">
-          <Button variant="outline" size="sm" asChild>
-            <Link href={viewAllHref} prefetch={false}>To renew</Link>
-          </Button>
+          <Button variant="outline" size="sm" render={<Link href={viewAllHref} prefetch={false} />}>To renew</Button>
         </NextItemEmpty>
       }
     />

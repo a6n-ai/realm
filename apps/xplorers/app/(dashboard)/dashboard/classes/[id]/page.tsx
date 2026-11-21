@@ -82,12 +82,10 @@ export default async function EditClassPage({
         title="Sessions"
         action={
           canCreate ? (
-            <Button asChild size="sm">
-              <Link href={`/dashboard/sessions/new?class=${row.publicId}`}>
+            <Button size="sm" render={<Link href={`/dashboard/sessions/new?class=${row.publicId}`} />}>
                 <CalendarPlusIcon />
                 Schedule session
-              </Link>
-            </Button>
+              </Button>
           ) : null
         }
       >

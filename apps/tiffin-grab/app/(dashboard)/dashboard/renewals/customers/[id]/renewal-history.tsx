@@ -69,12 +69,10 @@ export function PlanHistory({ plans, today, now, customerPublicId, focusOrderPub
               )}
               {p.orderPublicId !== focusOrderPublicId && (
                 <Collapsible className="mt-2">
-                  <CollapsibleTrigger asChild>
-                    <Button type="button" variant="ghost" size="sm" className="group">
+                  <CollapsibleTrigger render={<Button type="button" variant="ghost" size="sm" className="group" />}>
                       Tracking
                       <ChevronDownIcon className="transition-transform duration-200 group-data-open:rotate-180 motion-reduce:transition-none" />
-                    </Button>
-                  </CollapsibleTrigger>
+                    </CollapsibleTrigger>
                   <CollapsibleContent className="pt-3">
                     <PlanTrack plan={p} customerPublicId={customerPublicId} now={now} />
                   </CollapsibleContent>

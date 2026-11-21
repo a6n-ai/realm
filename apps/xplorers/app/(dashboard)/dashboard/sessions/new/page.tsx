@@ -28,9 +28,7 @@ export default async function NewSessionPage({
         {options.length === 0 ? (
           <div className="grid gap-3">
             <p className="text-muted-foreground text-sm">Create a class first, then put it on a day.</p>
-            <Button asChild size="sm" className="w-fit">
-              <Link href="/dashboard/classes/new">New class</Link>
-            </Button>
+            <Button size="sm" className="w-fit" render={<Link href="/dashboard/classes/new" />}>New class</Button>
           </div>
         ) : (
           <ScheduleSessionForm

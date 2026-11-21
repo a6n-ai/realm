@@ -26,11 +26,9 @@ function IconChip({ label, tip, href, icon: Icon, external }: { label: string; t
   return (
     <Tooltip>
       <TooltipTrigger render={
-        <Button variant="outline" size="icon-sm" asChild>
-          <a href={href} aria-label={label} {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}>
+        <Button variant="outline" size="icon-sm" render={<a href={href} aria-label={label} {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})} />}>
             <Icon className="size-4" />
-          </a>
-        </Button>
+          </Button>
       } />
       <TooltipContent side="top">{tip}</TooltipContent>
     </Tooltip>
@@ -56,30 +54,24 @@ export function ContactChips({ name, phone, whatsappPhone, email, compact }: Con
     );
   }
   const emailChip = email ? (
-    <Button variant="outline" size="sm" asChild>
-      <a href={`mailto:${email}`}>
+    <Button variant="outline" size="sm" render={<a href={`mailto:${email}`} />}>
         <MailIcon className="size-4" />
         {email}
-      </a>
-    </Button>
+      </Button>
   ) : null;
   return (
     <div className="flex flex-wrap items-center gap-2">
       {phone ? (
         <ButtonGroup>
-          <Button variant="outline" size="sm" asChild>
-            <a href={`tel:${phone}`} aria-label={`Call ${name}, ${formatPhone(phone)}`}>
+          <Button variant="outline" size="sm" render={<a href={`tel:${phone}`} aria-label={`Call ${name}, ${formatPhone(phone)}`} />}>
               <PhoneIcon className="size-4" />
               {formatPhone(phone)}
-            </a>
-          </Button>
+            </Button>
           {wa ? (
-            <Button variant="outline" size="sm" asChild>
-              <a href={wa} target="_blank" rel="noopener noreferrer" aria-label={`WhatsApp ${name}, ${formatPhone(waNumber)}`}>
+            <Button variant="outline" size="sm" render={<a href={wa} target="_blank" rel="noopener noreferrer" aria-label={`WhatsApp ${name}, ${formatPhone(waNumber)}`} />}>
                 <MessageCircleIcon className="size-4" />
                 WhatsApp
-              </a>
-            </Button>
+              </Button>
           ) : null}
           {emailChip}
         </ButtonGroup>

@@ -365,12 +365,10 @@ function PaymentRow({
                 )}
                 {copied ? "Copied" : isCard ? "Copy link" : "Copy pay link"}
               </Button>
-              <Button size="sm" variant="ghost" asChild>
-                <a href={payLink ?? activateUrl(deploymentId)} target="_blank" rel="noopener noreferrer">
+              <Button size="sm" variant="ghost" render={<a href={payLink ?? activateUrl(deploymentId)} target="_blank" rel="noopener noreferrer" />}>
                   <ExternalLinkIcon data-icon="inline-start" />
                   Open
-                </a>
-              </Button>
+                </Button>
             </>
           )}
           {isCard && canCheck && payment.providerRef && !inStatuses(PAID, payment.status) && payment.status !== "refunded" && (

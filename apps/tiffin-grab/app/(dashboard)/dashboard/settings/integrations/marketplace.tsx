@@ -110,10 +110,10 @@ function PluginCard({ meta, status }: { meta: PluginMeta; status: PluginCatalogS
       }
       router.refresh();
       if (installed) {
-        toast.success(`${meta.label} installed`, meta.settingsHref ? { action: { label: "Set up", onClick: () => router.push(meta.settingsHref!) } } : undefined);
+        toast.success(`${meta.label} installed`, meta.settingsHref ? { action: { label: "Set up", onAction: () => router.push(meta.settingsHref!) } } : undefined);
       } else {
         // Removing keeps the plugin's saved settings, so Undo is a real undo.
-        toast.success(`${meta.label} removed`, { action: { label: "Undo", onClick: () => setInstalled(true) } });
+        toast.success(`${meta.label} removed`, { action: { label: "Undo", onAction: () => setInstalled(true) } });
       }
     });
 
@@ -145,9 +145,7 @@ function PluginCard({ meta, status }: { meta: PluginMeta; status: PluginCatalogS
             {pending ? "Installing..." : "Install"}
           </Button>
         ) : meta.settingsHref ? (
-          <Button size="sm" variant="outline" asChild>
-            <Link href={meta.settingsHref}>Open</Link>
-          </Button>
+          <Button size="sm" variant="outline" render={<Link href={meta.settingsHref} />}>Open</Button>
         ) : null
       }
     />

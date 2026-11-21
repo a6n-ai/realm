@@ -17,12 +17,10 @@ export function NoSources({ noun }: { noun: "inquiry" | "order" | "customer" }) 
           attribution and owner assignment.
         </p>
       </div>
-      <Button asChild>
-        <Link href="/dashboard/settings/lead-sources">
+      <Button render={<Link href="/dashboard/settings/lead-sources" />}>
           <SettingsIcon className="size-4" />
           Add sources in Settings
-        </Link>
-      </Button>
+        </Button>
     </div>
   );
 }

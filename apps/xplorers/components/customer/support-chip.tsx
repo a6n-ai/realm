@@ -14,17 +14,9 @@ export function SupportChip() {
 
   return (
     <HeaderTooltip label="Support">
-      <Button
-        asChild
-        variant="ghost"
-        size="icon"
-        className={cn(active && "bg-secondary text-secondary-foreground")}
-        aria-current={active ? "page" : undefined}
-      >
-        <Link href="/me/support" aria-label="Support">
+      <Button variant="ghost" size="icon" className={cn(active && "bg-secondary text-secondary-foreground")} aria-current={active ? "page" : undefined} render={<Link href="/me/support" aria-label="Support" />}>
           <LifeBuoyIcon className="size-4" />
-        </Link>
-      </Button>
+        </Button>
     </HeaderTooltip>
   );
 }

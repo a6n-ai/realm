@@ -11,7 +11,6 @@ import { useIsMobile } from "@foundry/ui/use-mobile";
 import { TimePicker } from "@/components/reui/time-picker";
 import { HoverHint } from "@/components/ds/hover-hint";
 import { formatDateOnly } from "@/lib/format/datetime";
-import { isoToLocalDate, localIso } from "@foundry/commons/util/dates";
 
 // Phones keep the native control: its OS sheet beats any popover at that size. Desktop
 // gets the ReUI/shadcn pickers. Every field speaks the same string the native input does
@@ -27,8 +26,6 @@ type FieldProps = {
   title?: string;
   "aria-label"?: string;
 };
-
-const fromIso = (iso?: string) => (iso ? isoToLocalDate(iso) : undefined);
 
 function NativeInput({ type, value, onChange, id, disabled, className, min, max, title, ...rest }: FieldProps & {
   type: "date" | "time" | "datetime-local" | "month";
@@ -54,10 +51,9 @@ export function DateInput({
   if (isMobile) {
     return <NativeInput type="date" {...{ value, onChange, min, max, id, disabled, className, title }} aria-label={rest["aria-label"]} />;
   }
-  const selected = fromIso(value);
-  const disabledDays = [
-    ...(min ? [{ before: fromIso(min)! }] : []),
-    ...(max ? [{ after: fromIso(max)! }] : []),
+  const unavailable = [
+    ...(min ? [{ before: min }] : []),
+    ...(max ? [{ after: max }] : []),
   ];
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -77,11 +73,11 @@ export function DateInput({
       <PopoverContent className="w-auto p-0" align="start">
         <Calendar
           mode="single"
-          selected={selected}
-          defaultMonth={selected ?? fromIso(min)}
-          disabled={disabledDays}
-          onSelect={(d) => {
-            if (d) onChange(localIso(d));
+          value={value || null}
+          defaultMonth={value ? undefined : min?.slice(0, 7)}
+          unavailable={unavailable}
+          onValueChange={(next) => {
+            if (typeof next === "string") onChange(next);
             setOpen(false);
           }}
           autoFocus

@@ -345,12 +345,10 @@ function SelectedDelivery({
 function DeliveryMore({ orderId, deliveryId, route }: { orderId: string; deliveryId: string; route?: OptimoRouteRow }) {
   return (
     <Collapsible className="border-t pt-3">
-      <CollapsibleTrigger asChild>
-        <Button variant="ghost" size="sm" className="group -ml-2">
+      <CollapsibleTrigger render={<Button variant="ghost" size="sm" className="group -ml-2" />}>
           More
           <ChevronDown data-icon="inline-end" className="transition-transform duration-200 ease-soft group-data-open:rotate-180 motion-reduce:transition-none" />
-        </Button>
-      </CollapsibleTrigger>
+        </CollapsibleTrigger>
       <CollapsibleContent className="flex flex-col gap-3 pt-2">
         <p className="text-muted-foreground text-sm">
           Delivery ID <span className="text-foreground font-mono text-xs" data-testid="delivery-id">{deliveryId}</span>

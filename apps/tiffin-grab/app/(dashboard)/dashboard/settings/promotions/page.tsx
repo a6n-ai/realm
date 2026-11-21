@@ -33,14 +33,14 @@ export default async function PromotionsPage() {
         icon={MegaphoneIcon}
         title="Promotions"
         subtitle="Hero sticker, popup and offers carousel on the home page."
-        actions={<Button size="sm" asChild><Link href="/dashboard/settings/promotions/new"><PlusIcon /> New promotion</Link></Button>}
+        actions={<Button size="sm" render={<Link href="/dashboard/settings/promotions/new" />}><PlusIcon /> New promotion</Button>}
       />
       <SectionCard title="All promotions">
         {rows.length === 0 ? (
           <EmptyState
             icon={MegaphoneIcon}
             message="No promotions yet. Until you add one, the home page has no offers section or popup, and the hero sticker shows your best public coupon."
-            action={<Button size="sm" asChild><Link href="/dashboard/settings/promotions/new">New promotion</Link></Button>}
+            action={<Button size="sm" render={<Link href="/dashboard/settings/promotions/new" />}>New promotion</Button>}
           />
         ) : (
           <Table>

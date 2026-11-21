@@ -31,12 +31,8 @@ export default async function CatalogDiscountsPage() {
         action={
           canEdit ? (
             <div className="flex gap-2">
-              <Button asChild size="sm" variant="outline">
-                <Link href="/dashboard/discounts/coupons/new">New coupon</Link>
-              </Button>
-              <Button asChild size="sm">
-                <Link href="/dashboard/catalog/discounts/new">New discount</Link>
-              </Button>
+              <Button size="sm" variant="outline" render={<Link href="/dashboard/discounts/coupons/new" />}>New coupon</Button>
+              <Button size="sm" render={<Link href="/dashboard/catalog/discounts/new" />}>New discount</Button>
             </div>
           ) : null
         }

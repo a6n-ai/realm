@@ -40,9 +40,7 @@ export default async function ProfilePage() {
         title="Profile"
         subtitle="Your name, username, invite link, and friends."
         actions={
-          <Button asChild size="sm" variant="outline">
-            <Link href="/me/account?section=profile">Edit profile</Link>
-          </Button>
+          <Button size="sm" variant="outline" render={<Link href="/me/account?section=profile" />}>Edit profile</Button>
         }
       />
       <div className="mx-auto flex max-w-xl flex-col gap-6">

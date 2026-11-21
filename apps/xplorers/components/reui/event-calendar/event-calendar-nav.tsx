@@ -24,6 +24,7 @@ import { Slot } from "@foundry/ui/slot"
 import { cn } from "@foundry/ui/cn"
 import { Button } from "@foundry/ui/button"
 import { Calendar } from "@foundry/ui/calendar"
+import { isoToLocalDate, localIso } from "@foundry/commons/util/dates"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -508,22 +509,22 @@ function EventCalendarDatePicker({
         {resolved === "range" ? (
           <Calendar
             mode="range"
-            selected={{
-              from: toZoned(activeRange.start, settings.timeZone),
-              to: toZoned(addDays(activeRange.end, -1), settings.timeZone),
-            }}
-            defaultMonth={zoned}
-            onDayClick={pick}
-            locale={settings.locale}
+            value={[
+              localIso(toZoned(activeRange.start, settings.timeZone)),
+              localIso(toZoned(addDays(activeRange.end, -1), settings.timeZone)),
+            ]}
+            defaultMonth={localIso(zoned).slice(0, 7)}
+            onAnchorChange={(anchor) => anchor && pick(isoToLocalDate(anchor))}
+            locale={settings.locale?.code}
             weekStartsOn={settings.weekStartsOn}
           />
         ) : (
           <Calendar
             mode="single"
-            selected={zoned}
-            defaultMonth={zoned}
-            onSelect={pick}
-            locale={settings.locale}
+            value={localIso(zoned)}
+            defaultMonth={localIso(zoned).slice(0, 7)}
+            onValueChange={(next) => typeof next === "string" && pick(isoToLocalDate(next))}
+            locale={settings.locale?.code}
             weekStartsOn={settings.weekStartsOn}
           />
         )}

@@ -66,11 +66,9 @@ function QueueNav({ href, label, icon: Icon }: { href: string; label: string; ic
   return (
     <Tooltip>
       <TooltipTrigger render={
-        <Button variant="ghost" size="icon-sm" asChild>
-          <Link href={href} aria-label={label}>
+        <Button variant="ghost" size="icon-sm" render={<Link href={href} aria-label={label} />}>
             <Icon aria-hidden />
-          </Link>
-        </Button>
+          </Button>
       } />
       <TooltipContent>{label}</TooltipContent>
     </Tooltip>
@@ -265,7 +263,7 @@ export function InquiryDetailClient({
               </Button>
             )}
             {took && convertedOrderHref ? (
-              <Button asChild variant="outline" size="sm"><Link href={convertedOrderHref}>View order</Link></Button>
+              <Button variant="outline" size="sm" render={<Link href={convertedOrderHref} />}>View order</Button>
             ) : null}
           </div>
         </CardContent>
@@ -305,11 +303,8 @@ export function InquiryDetailClient({
           </Card>
         </div>
 
-        <Collapsible open={detailsOpen} onOpenChange={setDetailsOpen} asChild>
-        <aside className="group/details min-w-0 lg:sticky lg:top-4">
-          <CollapsibleTrigger asChild>
-            <Button variant="outline" className="w-full lg:hidden">Details</Button>
-          </CollapsibleTrigger>
+        <Collapsible open={detailsOpen} onOpenChange={setDetailsOpen} render={<aside className="group/details min-w-0 lg:sticky lg:top-4" />}>
+          <CollapsibleTrigger render={<Button variant="outline" className="w-full lg:hidden" />}>Details</CollapsibleTrigger>
           <div className="mt-4 max-lg:group-data-closed/details:hidden lg:mt-0 lg:block">
           <Card>
             <CardHeader>
@@ -338,20 +333,15 @@ export function InquiryDetailClient({
             </CardContent>
           </Card>
           </div>
-        </aside>
         </Collapsible>
       </div>
 
       <div className="bg-background fixed inset-x-0 bottom-[calc(var(--tabbar-h,4rem)+max(0.75rem,env(safe-area-inset-bottom)))] z-30 flex gap-2 border-t p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:bottom-0 lg:hidden">
         {contact.phone ? (
-          <Button asChild variant="outline" className="flex-1">
-            <a href={`tel:${contact.phone}`}><PhoneIcon aria-hidden />Call</a>
-          </Button>
+          <Button variant="outline" className="flex-1" render={<a href={`tel:${contact.phone}`} />}><PhoneIcon aria-hidden />Call</Button>
         ) : null}
         {waHref ? (
-          <Button asChild variant="outline" className="flex-1">
-            <a href={waHref} target="_blank" rel="noopener noreferrer"><MessageCircleIcon aria-hidden />WhatsApp</a>
-          </Button>
+          <Button variant="outline" className="flex-1" render={<a href={waHref} target="_blank" rel="noopener noreferrer" />}><MessageCircleIcon aria-hidden />WhatsApp</Button>
         ) : null}
         <Button variant="outline" className="flex-1" onClick={() => setComposerOpen(true)}>
           <StickyNoteIcon aria-hidden />

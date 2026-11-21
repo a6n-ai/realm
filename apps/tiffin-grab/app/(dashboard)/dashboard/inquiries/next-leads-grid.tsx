@@ -67,12 +67,8 @@ export function NextLeadsGrid({ leads, toAct, owner, viewAllHref, upcomingHref, 
       error={error}
       empty={
         <NextItemEmpty title="No leads due. You're clear.">
-          <Button variant="outline" size="sm" asChild>
-            <Link href={upcomingHref} prefetch={false}>Upcoming</Link>
-          </Button>
-          <Button variant="ghost" size="sm" asChild>
-            <Link href={viewAllHref} prefetch={false}>All open</Link>
-          </Button>
+          <Button variant="outline" size="sm" render={<Link href={upcomingHref} prefetch={false} />}>Upcoming</Button>
+          <Button variant="ghost" size="sm" render={<Link href={viewAllHref} prefetch={false} />}>All open</Button>
         </NextItemEmpty>
       }
     />

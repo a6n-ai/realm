@@ -57,9 +57,7 @@ export default async function ContactListsPage({ searchParams }: { searchParams:
                 <ContactListFromSegment requiresVerifiedPhone />
               </div>
             </ResponsiveDialog>
-            <Button asChild>
-              <Link href="/dashboard/notifications/contact-lists/import">Import CSV</Link>
-            </Button>
+            <Button render={<Link href="/dashboard/notifications/contact-lists/import" />}>Import CSV</Button>
             <ResponsiveDialog
               title="Add contacts by hand"
               description="For a handful of people — no spreadsheet needed."

@@ -90,7 +90,7 @@ function ProviderCard({
           return;
         }
         toast.success(`${provider.label} added`, {
-          action: { label: "Set up", onClick: () => router.push(providerHref(provider.id)) },
+          action: { label: "Set up", onAction: () => router.push(providerHref(provider.id)) },
         });
         router.refresh();
       } catch (e) {
@@ -113,11 +113,9 @@ function ProviderCard({
       }
       action={
         added ? (
-          <Button size="sm" variant="outline" asChild>
-            <Link href={providerHref(provider.id)} prefetch={false}>
+          <Button size="sm" variant="outline" render={<Link href={providerHref(provider.id)} prefetch={false} />}>
               Open
-            </Link>
-          </Button>
+            </Button>
         ) : (
           <Button size="sm" disabled={pending || !!blockedBy} onClick={add}>
             <PlusIcon data-icon="inline-start" />

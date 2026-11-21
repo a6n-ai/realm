@@ -46,12 +46,10 @@ export function LocationCard({ location }: { location: FranchiseLocation }) {
           <Button size="sm" onClick={startOrdering}>
             Start ordering
           </Button>
-          <Button asChild size="sm" variant="outline">
-            <a href={directionsHref(location)} target="_blank" rel="noopener noreferrer">
+          <Button size="sm" variant="outline" render={<a href={directionsHref(location)} target="_blank" rel="noopener noreferrer" />}>
               <Navigation className="size-4" />
               Get directions
-            </a>
-          </Button>
+            </Button>
         </div>
       </div>
     </div>

@@ -47,15 +47,9 @@ export function GroupHeaderActions({ publicId, name }: { publicId: string; name:
   const g = useGroupShortcuts(publicId, name);
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <Button asChild>
-        <Link href={g.give}><CoinsIcon /> Give coins</Link>
-      </Button>
-      <Button asChild variant="outline">
-        <Link href={g.email}><MailIcon /> Email group</Link>
-      </Button>
-      <Button asChild variant="outline">
-        <Link href={g.coupon}><TicketPercentIcon /> Create group coupon</Link>
-      </Button>
+      <Button render={<Link href={g.give} />}><CoinsIcon /> Give coins</Button>
+      <Button variant="outline" render={<Link href={g.email} />}><MailIcon /> Email group</Button>
+      <Button variant="outline" render={<Link href={g.coupon} />}><TicketPercentIcon /> Create group coupon</Button>
       <Button variant="outline" disabled={g.exporting} onClick={() => void g.exportCsv()}>
         <DownloadIcon /> Export CSV
       </Button>

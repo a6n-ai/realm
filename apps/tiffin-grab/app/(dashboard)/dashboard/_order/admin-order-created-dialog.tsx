@@ -112,12 +112,10 @@ export function AdminOrderCreatedPanel({
               )}
               {email === "sent" ? "Emailed" : "Email payment link"}
             </Button>
-            <Button type="button" variant="outline" size="sm" asChild>
-              <a href={payPath} target="_blank" rel="noreferrer">
+            <Button type="button" variant="outline" size="sm" render={<a href={payPath} target="_blank" rel="noreferrer" />}>
                 <ExternalLinkIcon data-icon="inline-start" />
                 Open link
-              </a>
-            </Button>
+              </Button>
           </div>
         </div>
       )}

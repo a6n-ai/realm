@@ -104,8 +104,7 @@ export function SummaryRow({ title, summary, needsInput, children }: { title: st
 
   return (
     <Collapsible open={open} onOpenChange={setOpen} className="rounded-lg border">
-      <CollapsibleTrigger asChild>
-        <button type="button" className="group hover:bg-muted/50 flex w-full items-center gap-3 p-3 text-left transition-colors">
+      <CollapsibleTrigger render={<button type="button" className="group hover:bg-muted/50 flex w-full items-center gap-3 p-3 text-left transition-colors" />}>
           <span className="grid min-w-0 flex-1 gap-0.5">
             {/* Open: the section below carries its own title, so the row shows only the summary. */}
             {open ? null : (
@@ -117,8 +116,7 @@ export function SummaryRow({ title, summary, needsInput, children }: { title: st
             <span className="text-muted-foreground truncate text-sm">{summary}</span>
           </span>
           <ChevronDownIcon className="text-muted-foreground size-4 shrink-0 transition-transform group-data-open:rotate-180" />
-        </button>
-      </CollapsibleTrigger>
+        </CollapsibleTrigger>
       <CollapsibleContent className="border-t p-3">{children}</CollapsibleContent>
     </Collapsible>
   );

@@ -33,9 +33,7 @@ export function BookingRow({
           {booking.status}
         </Badge>
         {booking.status === "pending" && booking.paymentPublicId ? (
-          <Button asChild size="sm" variant="outline">
-            <Link href={`/me/pay/${booking.paymentPublicId}`}>Pay</Link>
-          </Button>
+          <Button size="sm" variant="outline" render={<Link href={`/me/pay/${booking.paymentPublicId}`} />}>Pay</Button>
         ) : null}
       </div>
     </li>

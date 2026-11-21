@@ -63,11 +63,9 @@ export function GrainNav({ view, month, aside }: { view: Grain; month: string; a
 
         <div className="flex flex-wrap items-center gap-1">
           {aside ? <div className="mr-1">{aside}</div> : null}
-          <Button variant="ghost" size="icon-sm" asChild>
-            <Link href={href(view, addMonths(month, -1))} prefetch={false} aria-label="Previous month">
+          <Button variant="ghost" size="icon-sm" render={<Link href={href(view, addMonths(month, -1))} prefetch={false} aria-label="Previous month" />}>
               <ChevronLeftIcon className="size-4" />
-            </Link>
-          </Button>
+            </Button>
           <MonthInput
             aria-label="Month"
             className="h-8 w-[10.5rem]"
@@ -76,11 +74,9 @@ export function GrainNav({ view, month, aside }: { view: Grain; month: string; a
               if (v) router.push(href(view, v));
             }}
           />
-          <Button variant="ghost" size="icon-sm" asChild>
-            <Link href={href(view, addMonths(month, 1))} prefetch={false} aria-label="Next month">
+          <Button variant="ghost" size="icon-sm" render={<Link href={href(view, addMonths(month, 1))} prefetch={false} aria-label="Next month" />}>
               <ChevronRightIcon className="size-4" />
-            </Link>
-          </Button>
+            </Button>
         </div>
       </div>
     </div>

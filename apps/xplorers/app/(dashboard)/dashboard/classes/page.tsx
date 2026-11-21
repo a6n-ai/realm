@@ -35,9 +35,7 @@ async function ClassesHeader() {
       subtitle="The catalog. Name, clock, photos, capacity. Schedule days from Sessions."
       actions={
         canCreate ? (
-          <Button asChild size="sm">
-            <Link href="/dashboard/classes/new">New class</Link>
-          </Button>
+          <Button size="sm" render={<Link href="/dashboard/classes/new" />}>New class</Button>
         ) : null
       }
     />

@@ -12,7 +12,7 @@ export default function DashboardError({ error, reset }: { error: Error & { dige
         {error.digest ? <p className="text-muted-foreground mt-1 text-xs">Ref: {error.digest}</p> : null}
         <div className="mt-3 flex gap-2">
           <Button onClick={reset}>Try again</Button>
-          <Button variant="outline" asChild><a href="/dashboard">Back to dashboard</a></Button>
+          <Button variant="outline" render={<a href="/dashboard" />}>Back to dashboard</Button>
         </div>
       </SectionCard>
     </PageShell>

@@ -282,8 +282,8 @@ export function GroupView({
                   </Button>
                 ) : (
                   <div className="flex gap-2">
-                    <Button asChild><Link href="/dashboard/wallet/give"><CoinsIcon /> Give coins</Link></Button>
-                    <Button asChild variant="outline"><Link href="/dashboard/notifications/campaigns"><MailIcon /> Email a group</Link></Button>
+                    <Button render={<Link href="/dashboard/wallet/give" />}><CoinsIcon /> Give coins</Button>
+                    <Button variant="outline" render={<Link href="/dashboard/notifications/campaigns" />}><MailIcon /> Email a group</Button>
                   </div>
                 )
               }
@@ -296,9 +296,7 @@ export function GroupView({
                     {a.kind === "coins" ? (
                       <Button variant="link" onClick={() => setViewing(a.publicId)}>{summary(a)}</Button>
                     ) : campaignId(a) ? (
-                      <Button asChild variant="link">
-                        <Link href={`/dashboard/notifications/campaigns/${campaignId(a)}`}>{summary(a)}</Link>
-                      </Button>
+                      <Button variant="link" render={<Link href={`/dashboard/notifications/campaigns/${campaignId(a)}`} />}>{summary(a)}</Button>
                     ) : (
                       summary(a)
                     )}

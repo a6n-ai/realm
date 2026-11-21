@@ -3,6 +3,7 @@
 import { useId, useState } from "react";
 import { CalendarIcon } from "lucide-react";
 import { zonedDateIso } from "@foundry/commons";
+import { isoToLocalDate, localIso } from "@foundry/commons/util/dates";
 import { cn } from "@foundry/ui/cn";
 import { Button } from "@foundry/ui/button";
 import { Calendar } from "@foundry/ui/calendar";
@@ -10,8 +11,6 @@ import { zonedEndOfDay, zonedStartOfDay } from "@foundry/ui/date-range-picker";
 import { Input } from "@foundry/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@foundry/ui/popover";
 
-// Same shape as react-day-picker's DateRange; Calendar comes from @foundry/ui
-// (which owns that dependency), so the app does not need a direct install.
 type DateRange = { from: Date; to?: Date };
 
 const MONTH_NAMES = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"];
@@ -68,7 +67,7 @@ export function RangeCalendarPicker({
   const [open, setOpen] = useState(false);
   // Calendar clicks and typing both edit this draft; the URL changes only on Apply.
   const [draft, setDraft] = useState<DateRange | undefined>(committed);
-  const [month, setMonth] = useState<Date>(committed?.from ?? new Date());
+  const [month, setMonth] = useState(localIso(committed?.from ?? new Date()).slice(0, 7));
   const [startText, setStartText] = useState("");
   const [endText, setEndText] = useState("");
 
@@ -81,7 +80,7 @@ export function RangeCalendarPicker({
   const openChange = (next: boolean) => {
     if (next) {
       load(committed);
-      setMonth(committed?.from ?? toCalendarDay(Date.now(), tz));
+      setMonth(localIso(committed?.from ?? toCalendarDay(Date.now(), tz)).slice(0, 7));
     }
     setOpen(next);
   };
@@ -96,7 +95,7 @@ export function RangeCalendarPicker({
     setText(text);
     const day = parseDay(text);
     if (!day) return;
-    setMonth(day);
+    setMonth(localIso(day).slice(0, 7));
     setDraft((d) => ({ from: d?.from ?? day, to: d?.to, [other]: day }));
   };
 
@@ -126,13 +125,12 @@ export function RangeCalendarPicker({
           weekStartsOn={1}
           month={month}
           onMonthChange={setMonth}
-          selected={draft}
+          value={draft ? [localIso(draft.from), localIso(draft.to ?? draft.from)] : null}
           className="w-full p-0 [--cell-size:--spacing(9)] [&_table]:w-full"
-          onSelect={(_range, day) => {
-            // A click on a finished range starts a new one; the default range mode would only move one end.
-            if (!draft?.from || draft.to) return load({ from: day, to: undefined });
-            const [a, b] = day < draft.from ? [day, draft.from] : [draft.from, day];
-            load({ from: a, to: b });
+          onAnchorChange={(anchor) => anchor && load({ from: isoToLocalDate(anchor), to: undefined })}
+          onValueChange={(next) => {
+            if (!Array.isArray(next)) return;
+            load({ from: isoToLocalDate(next[0]!), to: isoToLocalDate(next[1]!) });
           }}
         />
         <div className="grid gap-1.5">

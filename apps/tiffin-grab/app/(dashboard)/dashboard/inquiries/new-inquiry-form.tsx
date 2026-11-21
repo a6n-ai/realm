@@ -183,7 +183,7 @@ export function AddInquirySheet({
       }));
       localStore.setJson(LAST_SOURCE_KEY, { source: values.sourceKey, sub: values.subSourceKey || "" });
       toast.success(res.outcome === "reopened" ? `Added back to ${res.fullName ?? "their"} inquiry` : res.folded ? `Added to ${res.fullName ?? "their"} inquiry` : "Lead added", {
-        action: { label: "Open", onClick: () => router.push(`/dashboard/inquiries/${res.publicId}`) },
+        action: { label: "Open", onAction: () => router.push(`/dashboard/inquiries/${res.publicId}`) },
       });
       router.refresh();
       if (another) {
@@ -380,12 +380,10 @@ export function AddInquirySheet({
                 </section>
                 <FollowUpPicker timeZone={timeZone} value={followUp} onChange={setFollowUp} />
                 <Collapsible className="border-t pt-3" open={moreOpen || !!form.formState.errors.email} onOpenChange={setMoreOpen}>
-                  <CollapsibleTrigger asChild>
-                    <Button type="button" variant="ghost" size="sm" className="group -ml-2">
+                  <CollapsibleTrigger render={<Button type="button" variant="ghost" size="sm" className="group -ml-2" />}>
                       More details
                       <ChevronDownIcon data-icon="inline-end" className="transition-transform duration-200 ease-soft group-data-open:rotate-180 motion-reduce:transition-none" />
-                    </Button>
-                  </CollapsibleTrigger>
+                    </CollapsibleTrigger>
                   <CollapsibleContent className="flex flex-col gap-4 pt-3">
                     <FormField
                       control={form.control}

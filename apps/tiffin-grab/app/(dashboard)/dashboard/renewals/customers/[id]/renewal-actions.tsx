@@ -39,12 +39,8 @@ export function ContactButtons({ name, phone, renewUrl }: { name: string; phone:
   const text = `Hi ${name.split(" ")[0] || "there"}, your TiffinGrab plan is ending soon. Renew here: ${renewUrl}`;
   return (
     <>
-      <Button asChild size="sm" variant="outline">
-        <a href={`tel:${phone}`}><PhoneIcon aria-hidden /> Call</a>
-      </Button>
-      <Button asChild size="sm" variant="outline">
-        <a href={`https://wa.me/${digits}?text=${encodeURIComponent(text)}`} target="_blank" rel="noreferrer"><MessageCircleIcon aria-hidden /> WhatsApp</a>
-      </Button>
+      <Button size="sm" variant="outline" render={<a href={`tel:${phone}`} />}><PhoneIcon aria-hidden /> Call</Button>
+      <Button size="sm" variant="outline" render={<a href={`https://wa.me/${digits}?text=${encodeURIComponent(text)}`} target="_blank" rel="noreferrer" />}><MessageCircleIcon aria-hidden /> WhatsApp</Button>
     </>
   );
 }

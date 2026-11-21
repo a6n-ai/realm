@@ -66,9 +66,7 @@ export function NextOrderCard({ row, upNext, currency, now, queueCount, owner, a
       items={items}
       empty={
         <NextItemEmpty title="No orders need attention.">
-          <Button variant="outline" size="sm" asChild>
-            <Link href={attentionHref} prefetch={false}>Waiting on payment</Link>
-          </Button>
+          <Button variant="outline" size="sm" render={<Link href={attentionHref} prefetch={false} />}>Waiting on payment</Button>
         </NextItemEmpty>
       }
     />

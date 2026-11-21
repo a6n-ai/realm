@@ -47,9 +47,7 @@ export function GroupsTable({ rows, spec, total, page, size }: { rows: GroupTabl
         emptyMessage="No customer groups yet. Save a set of customers once, then give them coins, email them or offer a coupon."
         emptySearchMessage="No groups match your search."
         emptyAction={
-          <Button asChild>
-            <Link href="?new=1" scroll={false}><PlusIcon /> New group</Link>
-          </Button>
+          <Button render={<Link href="?new=1" scroll={false} />}><PlusIcon /> New group</Button>
         }
         renderRow={(r) => (
           <>

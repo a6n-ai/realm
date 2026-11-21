@@ -17,12 +17,10 @@ export default async function ContactListImportPage() {
         title="Import a list"
         subtitle="CSV. Preview and pick which contacts to keep before anything is saved."
         actions={
-          <Button variant="outline" asChild>
-            <Link href="/dashboard/notifications/contact-lists">
+          <Button variant="outline" render={<Link href="/dashboard/notifications/contact-lists" />}>
               <ArrowLeftIcon />
               Back to contact lists
-            </Link>
-          </Button>
+            </Button>
         }
       />
       <Card className="p-4">

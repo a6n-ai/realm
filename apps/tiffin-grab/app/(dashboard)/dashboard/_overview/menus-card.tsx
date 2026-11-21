@@ -44,9 +44,7 @@ export async function MenusCard({ today, canEdit }: { today: string; canEdit: bo
             </div>
             <Badge variant={STATE[r.state].variant}>{STATE[r.state].label}</Badge>
             {r.state !== "released" && (r.week || canEdit) ? (
-              <Button asChild size="sm" variant="outline">
-                <Link href={r.week ? `/dashboard/menus/${r.week.publicId}` : "/dashboard/menus"}>{r.week ? "Open" : "Create"}</Link>
-              </Button>
+              <Button size="sm" variant="outline" render={<Link href={r.week ? `/dashboard/menus/${r.week.publicId}` : "/dashboard/menus"} />}>{r.week ? "Open" : "Create"}</Button>
             ) : null}
           </li>
         ))}

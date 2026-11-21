@@ -19,9 +19,7 @@ export default async function DashboardHomePage() {
         subtitle={`${SITE_NAME} operations. Feature work starts from here.`}
         actions={
           canUsers ? (
-            <Button asChild size="sm">
-              <Link href="/dashboard/settings/users">Manage users</Link>
-            </Button>
+            <Button size="sm" render={<Link href="/dashboard/settings/users" />}>Manage users</Button>
           ) : null
         }
       />
@@ -31,12 +29,8 @@ export default async function DashboardHomePage() {
         </p>
         {canStudio ? (
           <div className="mt-4 flex flex-wrap gap-2">
-            <Button asChild size="sm">
-              <Link href="/dashboard/classes">Open classes</Link>
-            </Button>
-            <Button asChild size="sm" variant="outline">
-              <Link href="/dashboard/sessions">Open sessions</Link>
-            </Button>
+            <Button size="sm" render={<Link href="/dashboard/classes" />}>Open classes</Button>
+            <Button size="sm" variant="outline" render={<Link href="/dashboard/sessions" />}>Open sessions</Button>
           </div>
         ) : null}
       </SectionCard>

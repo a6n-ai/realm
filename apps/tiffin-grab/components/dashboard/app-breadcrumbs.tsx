@@ -65,18 +65,15 @@ export function AppBreadcrumbs() {
             <BreadcrumbItem>
               {c.href ? (
                 // Plain href for SSR/hydration; the remembered URL (with filters) is read on click.
-                <BreadcrumbLink asChild>
-                  <Link
+                <BreadcrumbLink render={<Link
                     href={c.href}
                     onClick={(e) => {
                       if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
                       e.preventDefault();
                       router.push(remembered(c.href!));
-                    }}
-                  >
+                    }} />}>
                     {c.label}
-                  </Link>
-                </BreadcrumbLink>
+                  </BreadcrumbLink>
               ) : (
                 <BreadcrumbPage>{c.label}</BreadcrumbPage>
               )}

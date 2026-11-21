@@ -57,9 +57,7 @@ export function PaymentsForm({
           <SaveIcon className="size-4" />
           Save {method.label}
         </Button>
-        <Button asChild variant="ghost" size="sm">
-          <Link href="/dashboard/settings/integrations">Activate plugin</Link>
-        </Button>
+        <Button variant="ghost" size="sm" render={<Link href="/dashboard/settings/integrations" />}>Activate plugin</Button>
         {error ? <p className="text-destructive text-sm">{error}</p> : null}
       </div>
     </div>

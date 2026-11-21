@@ -10,7 +10,7 @@ export default function DashboardForbidden() {
       <SectionCard title="No access">
         <p className="text-muted-foreground text-sm">Your role doesn&apos;t include this. Ask an owner or admin of your organization.</p>
         <div className="flex gap-2">
-          <Button variant="outline" asChild><Link href="/dashboard">Back to dashboard</Link></Button>
+          <Button variant="outline" render={<Link href="/dashboard" />}>Back to dashboard</Button>
         </div>
       </SectionCard>
     </PageShell>

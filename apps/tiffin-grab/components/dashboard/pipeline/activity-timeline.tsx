@@ -157,12 +157,10 @@ function SystemEvents({ items }: { items: ActivityItem[] }) {
   const Chevron = open ? ChevronUpIcon : ChevronDownIcon;
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
-      <CollapsibleTrigger asChild>
-        <Button variant="ghost" size="sm" className="text-muted-foreground w-fit">
+      <CollapsibleTrigger render={<Button variant="ghost" size="sm" className="text-muted-foreground w-fit" />}>
           <Chevron aria-hidden />
           {items.length} system {items.length === 1 ? "event" : "events"}
-        </Button>
-      </CollapsibleTrigger>
+        </CollapsibleTrigger>
       <CollapsibleContent>
         <ul className="text-muted-foreground flex flex-col gap-1 pt-1 text-xs">
           {items.map((a) => (

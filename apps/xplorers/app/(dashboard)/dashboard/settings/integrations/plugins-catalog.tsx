@@ -41,12 +41,10 @@ export function PluginsCatalog({ statuses }: { statuses: Record<string, PluginCa
         </Button>
       ) : (
         <>
-          <Button asChild type="button" size="sm" variant="outline" className="gap-1.5 self-start">
-            <Link href="/dashboard/settings/payments">
+          <Button type="button" size="sm" variant="outline" className="gap-1.5 self-start" render={<Link href="/dashboard/settings/payments" />}>
               <SettingsIcon className="size-3.5" />
               Configure
-            </Link>
-          </Button>
+            </Button>
           <Button
             type="button"
             variant="outline"

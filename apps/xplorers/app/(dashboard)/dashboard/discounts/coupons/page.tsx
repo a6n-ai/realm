@@ -17,9 +17,7 @@ export default async function CouponsPage() {
       subtitle="Codes customers type when they book."
       action={
         canEdit ? (
-          <Button asChild size="sm">
-            <Link href="/dashboard/discounts/coupons/new">New coupon</Link>
-          </Button>
+          <Button size="sm" render={<Link href="/dashboard/discounts/coupons/new" />}>New coupon</Button>
         ) : null
       }
     >

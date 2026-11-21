@@ -273,11 +273,9 @@ export function PlanSection({ d, catalog }: { d: Draft; catalog: Catalog }) {
 
           {d.schedule && (
             <Collapsible>
-              <CollapsibleTrigger asChild>
-                <Button type="button" variant="ghost" size="sm" className="justify-self-start">
+              <CollapsibleTrigger render={<Button type="button" variant="ghost" size="sm" className="justify-self-start" />}>
                   <CalendarDaysIcon /> {d.schedule.trips.length} {d.schedule.trips.length === 1 ? "delivery" : "deliveries"} · show calendar
-                </Button>
-              </CollapsibleTrigger>
+                </CollapsibleTrigger>
               <CollapsibleContent className="pt-2">
                 <ScheduleCard trips={d.schedule.trips} shifted={d.schedule.shifted} />
               </CollapsibleContent>
@@ -332,12 +330,10 @@ export function DeliverySection({ d }: { d: Draft }) {
           </fieldset>}
           <DeliveryAreaNote area={d.deliveryArea} />
           <Collapsible className="grid gap-3">
-            <CollapsibleTrigger asChild>
-              <Button type="button" variant="ghost" size="sm" className="justify-between">
+            <CollapsibleTrigger render={<Button type="button" variant="ghost" size="sm" className="justify-between" />}>
                 <span>Delivery extras <span className="text-muted-foreground font-normal">· {extrasSummary}</span></span>
                 <ChevronDownIcon />
-              </Button>
-            </CollapsibleTrigger>
+              </CollapsibleTrigger>
             <CollapsibleContent className="grid gap-3">
               {addressTags.length > 0 && (
                 <Field label="Address type">
@@ -422,16 +418,14 @@ export function DiscountsSection({ d, customerLabel }: { d: Draft; customerLabel
 
   return (
         <Collapsible className="grid gap-3">
-          <CollapsibleTrigger asChild>
-            <Button type="button" variant="ghost" size="sm" className="justify-between">
+          <CollapsibleTrigger render={<Button type="button" variant="ghost" size="sm" className="justify-between" />}>
               <span className="flex items-center gap-2">
                 Discounts
                 {discountCount > 0 && <Badge variant="success-light">{discountCount}</Badge>}
                 {savedTotal > 0 && <span className="text-muted-foreground font-normal tabular-nums">−{fmtMoney(savedTotal)}</span>}
               </span>
               <ChevronDownIcon />
-            </Button>
-          </CollapsibleTrigger>
+            </CollapsibleTrigger>
           <CollapsibleContent className="grid gap-3">
             <div className="grid gap-2">
               <Label htmlFor="couponCode">Coupon</Label>

@@ -19,21 +19,15 @@ export async function KitchenWeekCard({ visible, monday, thisMonday, today, sees
   const href = (m: string) => (m === thisMonday ? "/dashboard#kitchen-week" : `/dashboard?week=${m}#kitchen-week`);
   const arrows = (
     <div className="flex items-center gap-1">
-      <Button asChild size="icon-sm" variant="outline">
-        <Link href={href(addDaysIso(monday, -7))} aria-label="Previous week" scroll={false}>
+      <Button size="icon-sm" variant="outline" render={<Link href={href(addDaysIso(monday, -7))} aria-label="Previous week" scroll={false} />}>
           <ChevronLeftIcon />
-        </Link>
-      </Button>
-      {monday !== thisMonday ? (
-        <Button asChild size="sm" variant="outline">
-          <Link href={href(thisMonday)} scroll={false}>This week</Link>
         </Button>
+      {monday !== thisMonday ? (
+        <Button size="sm" variant="outline" render={<Link href={href(thisMonday)} scroll={false} />}>This week</Button>
       ) : null}
-      <Button asChild size="icon-sm" variant="outline">
-        <Link href={href(addDaysIso(monday, 7))} aria-label="Next week" scroll={false}>
+      <Button size="icon-sm" variant="outline" render={<Link href={href(addDaysIso(monday, 7))} aria-label="Next week" scroll={false} />}>
           <ChevronRightIcon />
-        </Link>
-      </Button>
+        </Button>
     </div>
   );
   const dates = Array.from({ length: 7 }, (_, i) => addDaysIso(monday, i));

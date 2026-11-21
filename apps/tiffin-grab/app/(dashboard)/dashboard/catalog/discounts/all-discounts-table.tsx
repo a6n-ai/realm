@@ -77,9 +77,7 @@ export function AllDiscountsTable({ rows, options, moreCoupons }: { rows: AllRow
                   <PencilIcon className="size-3.5" /> Manage
                 </Button>
               ) : (
-                <Button size="sm" variant="ghost" asChild>
-                  <Link href={r.href!}><ExternalLinkIcon className="size-3.5" /> Manage</Link>
-                </Button>
+                <Button size="sm" variant="ghost" render={<Link href={r.href!} />}><ExternalLinkIcon className="size-3.5" /> Manage</Button>
               )}
             </TableCell>
           </>

@@ -46,26 +46,20 @@ async function SessionsHeader({ searchParams }: { searchParams: SearchParams }) 
       actions={
         <div className="flex items-center gap-2">
           <div className="bg-muted flex rounded-lg p-0.5">
-            <Button asChild size="sm" variant={view === "calendar" ? "default" : "ghost"}>
-              <Link href={calendarHref}>
+            <Button size="sm" variant={view === "calendar" ? "default" : "ghost"} render={<Link href={calendarHref} />}>
                 <CalendarDaysIcon />
                 Calendar
-              </Link>
-            </Button>
-            <Button asChild size="sm" variant={view === "list" ? "default" : "ghost"}>
-              <Link href={listHref}>
+              </Button>
+            <Button size="sm" variant={view === "list" ? "default" : "ghost"} render={<Link href={listHref} />}>
                 <ListIcon />
                 List
-              </Link>
-            </Button>
+              </Button>
           </div>
           {canCreate ? (
-            <Button asChild size="sm">
-              <Link href="/dashboard/sessions/new">
+            <Button size="sm" render={<Link href="/dashboard/sessions/new" />}>
                 <CalendarPlusIcon />
                 New session
-              </Link>
-            </Button>
+              </Button>
           ) : null}
         </div>
       }

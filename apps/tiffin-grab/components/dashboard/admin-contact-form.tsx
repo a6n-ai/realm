@@ -27,7 +27,7 @@ export function AdminContactForm({ userId, email, phone }: { userId: string; ema
         if ("error" in res) return void toast.error(res.error);
         if (res.taken) {
           const href = res.taken.holderHref;
-          return void toast.error(res.taken.message, { action: { label: "Open account", onClick: () => router.push(href) } });
+          return void toast.error(res.taken.message, { action: { label: "Open account", onAction: () => router.push(href) } });
         }
         if (removePhone) {
           setValue((v) => ({ ...v, phone: "" }));

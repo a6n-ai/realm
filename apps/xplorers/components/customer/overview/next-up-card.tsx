@@ -20,12 +20,10 @@ export function NextUpCard({
         <p className="text-muted-foreground mt-1.5 max-w-md text-sm leading-relaxed">
           Pick a session and we&apos;ll show it here first — day, time, and a one-tap pay if it&apos;s still pending.
         </p>
-        <Button asChild className="mt-4">
-          <Link href="/whats-on">
+        <Button className="mt-4" render={<Link href="/whats-on" />}>
             Find a class
             <ArrowRightIcon className="ml-1.5 size-4" aria-hidden />
-          </Link>
-        </Button>
+          </Button>
       </div>
     );
   }
@@ -47,13 +45,9 @@ export function NextUpCard({
         </span>
       </div>
       <div className="mt-4 flex flex-wrap gap-2">
-        <Button asChild size="sm">
-          <Link href="/me/classes">Open my classes</Link>
-        </Button>
+        <Button size="sm" render={<Link href="/me/classes" />}>Open my classes</Button>
         {booking.status === "pending" && booking.paymentPublicId ? (
-          <Button asChild size="sm" variant="outline">
-            <Link href={`/me/pay/${booking.paymentPublicId}`}>Pay now</Link>
-          </Button>
+          <Button size="sm" variant="outline" render={<Link href={`/me/pay/${booking.paymentPublicId}`} />}>Pay now</Button>
         ) : null}
       </div>
     </div>

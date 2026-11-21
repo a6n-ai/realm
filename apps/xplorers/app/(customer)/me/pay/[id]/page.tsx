@@ -97,9 +97,7 @@ export default async function PayPage({
                 : payment.status}
           </p>
         )}
-        <Button asChild variant="ghost" size="sm" className="mt-4">
-          <Link href="/me">Back to bookings</Link>
-        </Button>
+        <Button variant="ghost" size="sm" className="mt-4" render={<Link href="/me" />}>Back to bookings</Button>
       </SectionCard>
     </PageShell>
   );

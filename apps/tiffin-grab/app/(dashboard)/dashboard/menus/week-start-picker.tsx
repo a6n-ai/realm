@@ -6,7 +6,7 @@ import { Button } from "@foundry/ui/button";
 import { Calendar } from "@foundry/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@foundry/ui/popover";
 import { formatDateOnly } from "@/lib/format/datetime";
-import { isoToLocalDate, localIso } from "@foundry/commons/util/dates";
+import { isoToLocalDate } from "@foundry/commons/util/dates";
 
 function label(value: string): string {
   if (!value) return "Pick a Monday";
@@ -19,7 +19,6 @@ export function WeekStartPicker({
   value, onChange, disabledDates = [],
 }: { value: string; onChange: (iso: string) => void; disabledDates?: string[] }) {
   const [open, setOpen] = useState(false);
-  const selected = value ? isoToLocalDate(value) : undefined;
   const taken = new Set(disabledDates);
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -37,11 +36,10 @@ export function WeekStartPicker({
       <PopoverContent className="w-auto p-0" align="start">
         <Calendar
           mode="single"
-          selected={selected}
-          defaultMonth={selected}
-          disabled={(date) => date.getDay() !== 1 || taken.has(localIso(date))}
-          onSelect={(d) => {
-            if (d) onChange(localIso(d));
+          value={value || null}
+          unavailable={(iso) => isoToLocalDate(iso).getDay() !== 1 || taken.has(iso)}
+          onValueChange={(next) => {
+            if (typeof next === "string") onChange(next);
             setOpen(false);
           }}
           autoFocus

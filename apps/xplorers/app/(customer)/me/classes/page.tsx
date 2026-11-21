@@ -33,9 +33,7 @@ export default async function MyClassesPage({ searchParams }: { searchParams: Pr
         title="My classes"
         subtitle="Upcoming sessions and your class history."
         actions={
-          <Button asChild size="sm">
-            <Link href="/me/book">Book a class</Link>
-          </Button>
+          <Button size="sm" render={<Link href="/me/book" />}>Book a class</Button>
         }
       />
 
@@ -51,9 +49,7 @@ export default async function MyClassesPage({ searchParams }: { searchParams: Pr
             icon={CalendarDaysIcon}
             message="No upcoming classes. Pick one below to book."
             action={
-              <Button asChild>
-                <Link href="/me/book">Book a class</Link>
-              </Button>
+              <Button render={<Link href="/me/book" />}>Book a class</Button>
             }
           />
         ) : (

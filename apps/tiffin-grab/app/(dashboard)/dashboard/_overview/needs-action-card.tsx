@@ -21,9 +21,7 @@ const dayLabel = (iso: string) =>
   formatDateOnly(iso, { mode: "weekdayMd" });
 
 const go = (href: string, text: string) => (
-  <Button asChild size="sm" variant="outline">
-    <Link href={href}>{text}</Link>
-  </Button>
+  <Button size="sm" variant="outline" render={<Link href={href} />}>{text}</Button>
 );
 
 export type OverviewPerms = { orders: boolean; delivery: boolean; payments: boolean; tickets: boolean; menus: boolean; editMenus: boolean };

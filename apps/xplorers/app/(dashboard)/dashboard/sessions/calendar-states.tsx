@@ -11,12 +11,10 @@ export function CalendarEmpty() {
   return (
     <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-dashed p-3">
       <p className="text-muted-foreground text-sm">Nothing scheduled in this range.</p>
-      <Button asChild size="sm" variant="outline">
-        <Link href="/dashboard/sessions/new">
+      <Button size="sm" variant="outline" render={<Link href="/dashboard/sessions/new" />}>
           <CalendarPlusIcon />
           New session
-        </Link>
-      </Button>
+        </Button>
     </div>
   );
 }

@@ -71,7 +71,7 @@ export function WeeklyMenuPoster({
           );
         })}
       </div>
-      <Button asChild size="lg" className="mt-6 h-14 rounded-full px-8"><Link href="/subscribe">Build my tiffin →</Link></Button>
+      <Button size="lg" className="mt-6 h-14 rounded-full px-8" render={<Link href="/subscribe" />}>Build my tiffin →</Button>
     </div>
   );
 }

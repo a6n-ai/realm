@@ -47,11 +47,9 @@ export function MenuWeekRow({ week, highlight = null }: { week: WeekMenu; highli
         </p>
       </div>
       <Badge variant={status.variant}>{status.label}</Badge>
-      <Button asChild size="sm" variant="outline">
-        <Link href={`/dashboard/menus/${week.publicId}`} aria-label={`Open ${formatMenuWeekRange(week.weekStart)}`}>
+      <Button size="sm" variant="outline" render={<Link href={`/dashboard/menus/${week.publicId}`} aria-label={`Open ${formatMenuWeekRange(week.weekStart)}`} />}>
           Open<ChevronRight data-icon="inline-end" />
-        </Link>
-      </Button>
+        </Button>
     </li>
   );
 }

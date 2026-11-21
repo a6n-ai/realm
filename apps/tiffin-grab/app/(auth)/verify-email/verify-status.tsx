@@ -22,9 +22,7 @@ export function VerifyStatus() {
         }
       >
         <div className="pt-1">
-          <Button asChild className={IOS_BUTTON}>
-            <Link href={failed ? "/login" : "/dashboard"}>{failed ? "Go to sign in" : "Continue"}</Link>
-          </Button>
+          <Button className={IOS_BUTTON} render={<Link href={failed ? "/login" : "/dashboard"} />}>{failed ? "Go to sign in" : "Continue"}</Button>
         </div>
       </AuthPanel>
     </AuthScreen>

@@ -52,12 +52,10 @@ export async function PaymentsSection({ id, searchParams }: { id: string; search
     <SectionCard
       title="Payments"
       action={
-        <Button variant="outline" asChild>
-          <a href={`/api/customers/${id}/payments/export?${exportQs}`} download>
+        <Button variant="outline" render={<a href={`/api/customers/${id}/payments/export?${exportQs}`} download />}>
             <DownloadIcon />
             Export
-          </a>
-        </Button>
+          </Button>
       }
     >
       <Suspense fallback={<PaymentsTableSkeleton scope="customer" />}>

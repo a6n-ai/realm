@@ -134,9 +134,7 @@ async function PaymentsPanel() {
                 </span>
                 <Badge variant={p.status === "paid" ? "default" : "outline"}>{p.status.replaceAll("_", " ")}</Badge>
                 {claimable ? (
-                  <Button asChild size="sm" variant="outline">
-                    <Link href={`/me/pay/${p.publicId}`}>Pay</Link>
-                  </Button>
+                  <Button size="sm" variant="outline" render={<Link href={`/me/pay/${p.publicId}`} />}>Pay</Button>
                 ) : null}
               </div>
             </li>

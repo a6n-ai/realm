@@ -398,11 +398,9 @@ function KeysCard({
           </div>
           {!open && (
             <div className="flex flex-wrap gap-2">
-              <CollapsibleTrigger asChild>
-                <Button type="button" variant="outline" size="sm">
+              <CollapsibleTrigger render={<Button type="button" variant="outline" size="sm" />}>
                   Replace keys
-                </Button>
-              </CollapsibleTrigger>
+                </CollapsibleTrigger>
               <Button type="button" variant="outline" size="sm" className="text-destructive" disabled={pending} onClick={onDisconnect}>
                 Disconnect
               </Button>
@@ -474,12 +472,10 @@ function StatusCard({
         )}
         {view.connected && (
           <div className="grid gap-2">
-            <Button asChild variant="outline" size="sm">
-              <Link href="/dashboard/payments/stripe" prefetch={false}>
+            <Button variant="outline" size="sm" render={<Link href="/dashboard/payments/stripe" prefetch={false} />}>
                 Stripe payments
                 <ArrowUpRightIcon className="size-3.5" aria-hidden />
-              </Link>
-            </Button>
+              </Button>
             {!view.livemode && (
               <Button type="button" variant="ghost" size="sm" disabled={pending} onClick={() => run(sendTestEventAction)}>
                 Send test event

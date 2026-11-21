@@ -79,9 +79,7 @@ export default async function SessionDetailPage({ params }: { params: Promise<{ 
             </div>
           ) : null}
         </dl>
-        <Button asChild variant="outline" size="sm" className="mt-6">
-          <Link href={`/dashboard/sessions/new?class=${row.classPublicId}`}>Schedule another day</Link>
-        </Button>
+        <Button variant="outline" size="sm" className="mt-6" render={<Link href={`/dashboard/sessions/new?class=${row.classPublicId}`} />}>Schedule another day</Button>
       </SectionCard>
       {canWrite ? (
         <SectionCard title="Edit session">

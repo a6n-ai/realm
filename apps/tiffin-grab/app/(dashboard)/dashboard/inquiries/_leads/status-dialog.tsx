@@ -152,7 +152,7 @@ function useStatusPick(inquiryId: string, subStatus: SubStatus | null) {
           action: canUndo
             ? {
                 label: "Undo",
-                onClick: () => start(async () => {
+                onAction: () => start(async () => {
                   try { await unwrapAction(updateStatus(inquiryId, { subStatus: previous })); refresh(); }
                   catch (e) { toast.error(e instanceof Error ? e.message : "Could not undo"); }
                 }),

@@ -48,9 +48,7 @@ export default async function CustomerHomePage() {
         title={firstName ? `Hi, ${firstName}` : "Overview"}
         subtitle="Your week — next class, open seats, and shortcuts."
         actions={
-          <Button asChild size="sm">
-            <Link href="/whats-on">See what&apos;s on</Link>
-          </Button>
+          <Button size="sm" render={<Link href="/whats-on" />}>See what&apos;s on</Button>
         }
       />
 
@@ -91,9 +89,7 @@ export default async function CustomerHomePage() {
         <SectionCard
           title="Also coming up"
           action={
-            <Button asChild size="sm" variant="outline">
-              <Link href="/me/classes">All classes</Link>
-            </Button>
+            <Button size="sm" variant="outline" render={<Link href="/me/classes" />}>All classes</Button>
           }
         >
           <ul className="divide-border divide-y">
@@ -108,9 +104,7 @@ export default async function CustomerHomePage() {
         title="Open to book"
         subtitle="Seats still free on the next published sessions."
         action={
-          <Button asChild size="sm" variant="outline">
-            <Link href="/whats-on">Full calendar</Link>
-          </Button>
+          <Button size="sm" variant="outline" render={<Link href="/whats-on" />}>Full calendar</Button>
         }
       >
         {toBook.length === 0 ? (

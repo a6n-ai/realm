@@ -10,11 +10,9 @@ export function CustomersExportButton() {
   qs.delete("page");
   qs.delete("size");
   return (
-    <Button variant="outline" asChild>
-      <a href={`/api/customers/export?${qs}`} download>
+    <Button variant="outline" render={<a href={`/api/customers/export?${qs}`} download />}>
         <DownloadIcon />
         Export
-      </a>
-    </Button>
+      </Button>
   );
 }

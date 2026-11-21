@@ -41,12 +41,10 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
         title={who}
         subtitle={profile.email ?? undefined}
         actions={
-          <Button asChild variant="outline" size="sm">
-            <Link href="/dashboard/customers">
+          <Button variant="outline" size="sm" render={<Link href="/dashboard/customers" />}>
               <ArrowLeftIcon />
               Customers
-            </Link>
-          </Button>
+            </Button>
         }
       />
       <div className="grid gap-6 lg:grid-cols-2">

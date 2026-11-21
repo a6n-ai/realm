@@ -16,12 +16,10 @@ export function InquiriesChrome({ addActions, stats, next, queue, children }: { 
         title="Inquiries"
         actions={
           <div className="flex items-center gap-2">
-            <Button variant="outline" asChild>
-              <Link href="/dashboard/inquiries/import">
+            <Button variant="outline" render={<Link href="/dashboard/inquiries/import" />}>
                 <UploadIcon className="size-4" />
                 Import
-              </Link>
-            </Button>
+              </Button>
             {addActions}
           </div>
         }

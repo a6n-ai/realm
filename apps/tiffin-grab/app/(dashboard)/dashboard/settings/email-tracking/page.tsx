@@ -45,9 +45,7 @@ async function TrackedStatus() {
       <AlertDescription>
         {trackedStatus(count, available)}
         {available && (
-          <Button asChild variant="link" size="sm">
-            <Link href="/dashboard/settings/email-tracking/tracked">{count > 0 ? "Change" : "Choose emails"}</Link>
-          </Button>
+          <Button variant="link" size="sm" render={<Link href="/dashboard/settings/email-tracking/tracked" />}>{count > 0 ? "Change" : "Choose emails"}</Button>
         )}
       </AlertDescription>
     </Alert>
