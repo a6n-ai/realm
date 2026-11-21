@@ -116,7 +116,7 @@ export function SummaryRow({ title, summary, needsInput, children }: { title: st
             )}
             <span className="text-muted-foreground truncate text-sm">{summary}</span>
           </span>
-          <ChevronDownIcon className="text-muted-foreground size-4 shrink-0 transition-transform group-data-[state=open]:rotate-180" />
+          <ChevronDownIcon className="text-muted-foreground size-4 shrink-0 transition-transform group-data-open:rotate-180" />
         </button>
       </CollapsibleTrigger>
       <CollapsibleContent className="border-t p-3">{children}</CollapsibleContent>

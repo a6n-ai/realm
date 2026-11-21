@@ -51,8 +51,9 @@ describe("InquiryDetailClient Details toggle", () => {
       />,
     );
     expect(screen.getByRole("button", { name: "Details" })).toBeInTheDocument();
-    const content = screen.getByRole("heading", { name: "Interest" }).closest("[data-state]");
-    expect(content).toHaveAttribute("data-state", "closed");
-    expect(content).toHaveClass("max-lg:data-[state=closed]:hidden", "lg:block");
+    const root = screen.getByRole("heading", { name: "Interest" }).closest("[data-slot=collapsible]");
+    expect(root).toHaveAttribute("data-closed");
+    const content = screen.getByRole("heading", { name: "Interest" }).closest(".lg\\:block");
+    expect(content).toHaveClass("max-lg:group-data-closed/details:hidden", "lg:block");
   });
 });

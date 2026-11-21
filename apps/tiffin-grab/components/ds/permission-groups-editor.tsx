@@ -83,7 +83,7 @@ export function PermissionGroupsEditor({
                 aria-label={`Show ${group.label}`}
                 className="group/trigger inline-flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
               >
-                <ChevronDownIcon className="size-4 transition-transform duration-200 group-data-[state=open]/trigger:rotate-180" aria-hidden />
+                <ChevronDownIcon className="size-4 transition-transform duration-200 group-data-open/trigger:rotate-180" aria-hidden />
               </CollapsibleTrigger>
             </div>
             <CollapsibleContent className="grid items-start gap-6 md:grid-cols-2">

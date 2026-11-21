@@ -24,7 +24,7 @@ import type { ActionResult } from "@/lib/actions/action-result";
 import { NoteDialog, StatusBoard, StatusMenu, type NoteKind } from "../_leads/status-dialog";
 import { InlineComposer } from "../_leads/composer";
 import { ContactChips, whatsappHref } from "@/components/dashboard/next-item/contact-chips";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@foundry/ui/collapsible";
+import { Collapsible, CollapsibleTrigger } from "@foundry/ui/collapsible";
 import { BreadcrumbLabel } from "@/components/dashboard/app-breadcrumbs";
 import { InquiryTimeline, type TimelineActivity } from "./inquiry-timeline";
 import { ConvertSheet } from "./convert-sheet";
@@ -306,11 +306,11 @@ export function InquiryDetailClient({
         </div>
 
         <Collapsible open={detailsOpen} onOpenChange={setDetailsOpen} asChild>
-        <aside className="min-w-0 lg:sticky lg:top-4">
+        <aside className="group/details min-w-0 lg:sticky lg:top-4">
           <CollapsibleTrigger asChild>
             <Button variant="outline" className="w-full lg:hidden">Details</Button>
           </CollapsibleTrigger>
-          <CollapsibleContent forceMount className="mt-4 max-lg:data-[state=closed]:hidden lg:mt-0 lg:block">
+          <div className="mt-4 max-lg:group-data-closed/details:hidden lg:mt-0 lg:block">
           <Card>
             <CardHeader>
               <CardTitle>Details</CardTitle>
@@ -337,7 +337,7 @@ export function InquiryDetailClient({
               ) : null}
             </CardContent>
           </Card>
-          </CollapsibleContent>
+          </div>
         </aside>
         </Collapsible>
       </div>

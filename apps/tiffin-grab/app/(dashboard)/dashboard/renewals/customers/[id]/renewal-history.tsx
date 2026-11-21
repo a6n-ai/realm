@@ -72,7 +72,7 @@ export function PlanHistory({ plans, today, now, customerPublicId, focusOrderPub
                   <CollapsibleTrigger asChild>
                     <Button type="button" variant="ghost" size="sm" className="group">
                       Tracking
-                      <ChevronDownIcon className="transition-transform duration-200 group-data-[state=open]:rotate-180 motion-reduce:transition-none" />
+                      <ChevronDownIcon className="transition-transform duration-200 group-data-open:rotate-180 motion-reduce:transition-none" />
                     </Button>
                   </CollapsibleTrigger>
                   <CollapsibleContent className="pt-3">
