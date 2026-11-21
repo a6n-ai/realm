@@ -19,7 +19,7 @@ import {
 import { toZoned } from "@/components/reui/event-calendar/event-calendar-lib"
 import type { CalendarView } from "@/components/reui/event-calendar/event-calendar-types"
 import { addDays, format } from "date-fns"
-import { Slot } from "radix-ui"
+import { Slot } from "@foundry/ui/slot"
 
 import { cn } from "@foundry/ui/cn"
 import { Button } from "@foundry/ui/button"
@@ -244,7 +244,7 @@ function EventCalendarTitle({
 }: EventCalendarTitleProps) {
   const { title } = useEventCalendarNavigation()
   const viewConfig = useEventCalendarViewConfig()
-  const Comp = asChild ? Slot.Root : "div"
+  const Comp = asChild ? Slot : "div"
   return (
     <Comp
       data-slot="event-calendar-title"
@@ -544,7 +544,7 @@ function EventCalendarToolbar({
   ...props
 }: EventCalendarToolbarProps) {
   const viewConfig = useEventCalendarViewConfig()
-  const Comp = asChild ? Slot.Root : "div"
+  const Comp = asChild ? Slot : "div"
   return (
     <Comp
       data-slot="event-calendar-toolbar"
@@ -583,7 +583,7 @@ function EventCalendarNav({
   ...props
 }: EventCalendarNavProps) {
   const viewConfig = useEventCalendarViewConfig()
-  const Comp = asChild ? Slot.Root : "div"
+  const Comp = asChild ? Slot : "div"
   return (
     <Comp
       data-slot="event-calendar-nav"

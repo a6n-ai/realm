@@ -1,3 +1,4 @@
+import { humanDate } from "@/lib/deliveries/view";
 export type RouteLineCounts = { total: number; sent: number; routed: number; done: number; lastSentAt: number | null };
 
 export type RouteLineInput = {
@@ -36,4 +37,13 @@ export function routeLine({ installed, hasApiKey, canDispatch, canSettings, tz, 
   const day = (ms: number) => new Intl.DateTimeFormat("en-CA", { timeZone: tz }).format(ms);
   const when = day(lastSentAt) === day(now) ? time : day(lastSentAt) === day(now - 86_400_000) ? `yesterday ${time}` : `${new Intl.DateTimeFormat("en-US", { timeZone: tz, month: "short", day: "numeric" }).format(lastSentAt)}, ${time}`;
   return { label: `Sent ${when}`, tone: "ok", href: DISPATCH, hint };
+}
+
+/** "Mon, Nov 23 not pushed" for the sidebar card; humanDate keeps the wording the Dispatch page uses. */
+export function nextPushLine({ date, total, pushed }: { date: string; total: number; pushed: number }): RouteLine {
+  const day = humanDate(date);
+  const hint = `${pushed} of ${total} stops for ${day} are on OptimoRoute`;
+  if (pushed === 0) return { label: `${day} not pushed`, tone: "warn", href: DISPATCH, hint };
+  if (pushed < total) return { label: `${day} pushed ${pushed}/${total}`, tone: "warn", href: DISPATCH, hint };
+  return { label: `${day} pushed`, tone: "ok", href: DISPATCH, hint };
 }

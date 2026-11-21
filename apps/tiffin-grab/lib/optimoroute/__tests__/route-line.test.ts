@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { routeLine, type RouteLineInput } from "../route-line";
+import { nextPushLine, routeLine, type RouteLineInput } from "../route-line";
 
 const tz = "America/Toronto";
 const base: RouteLineInput = {
@@ -59,5 +59,14 @@ describe("routeLine", () => {
 
   it("no dispatch permission: nothing", () => {
     expect(routeLine({ ...base, canDispatch: false })).toBeNull();
+  });
+});
+
+describe("nextPushLine", () => {
+  it("names the next day and how much of it is on OptimoRoute", () => {
+    expect(nextPushLine({ date: "2026-11-23", total: 10, pushed: 0 })).toMatchObject({ tone: "warn" });
+    expect(nextPushLine({ date: "2026-11-23", total: 10, pushed: 0 }).label).toMatch(/not pushed$/);
+    expect(nextPushLine({ date: "2026-11-23", total: 10, pushed: 4 }).label).toMatch(/pushed 4\/10$/);
+    expect(nextPushLine({ date: "2026-11-23", total: 10, pushed: 10 })).toMatchObject({ tone: "ok", href: "/dashboard/dispatch" });
   });
 });

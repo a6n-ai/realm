@@ -1,7 +1,7 @@
 "use client";
 import { WEEK_DAYS } from "@/lib/deliveries/schedule/delivery-days";
 import { ChevronLeft, ChevronRight, Info, Truck } from "lucide-react";
-import { Popover } from "radix-ui";
+import { Popover, PopoverContent, PopoverTrigger } from "@foundry/ui/popover";
 import { STATUS_COLOR, STATUS_LABEL, type DeliveryStatus } from "@/lib/deliveries/status";
 import { cn, FOCUS } from "@/components/kit/cn";
 import { TripTimeline } from "@/components/kit/trip-timeline";
@@ -86,26 +86,24 @@ export function WeekTimeline({ firstWeek, lastWeek, week, today, selectedDay, ag
 /** Tap or click: hover-only tooltips never open on phones. */
 export function Legend() {
   return (
-    <Popover.Root>
-      <Popover.Trigger aria-label="What the colours mean" className={cn(FOCUS, "grid size-11 place-items-center text-[var(--muted-foreground)] transition-colors hover:text-foreground [touch-action:manipulation]")}>
+    <Popover>
+      <PopoverTrigger aria-label="What the colours mean" className={cn(FOCUS, "grid size-11 place-items-center text-[var(--muted-foreground)] transition-colors hover:text-foreground [touch-action:manipulation]")}>
         <Info aria-hidden className="size-4" />
-      </Popover.Trigger>
-      <Popover.Portal>
-        <Popover.Content align="end" sideOffset={6} className="z-50 w-56 c-surface rounded-2xl bg-[var(--card,#fff)] p-3 text-footnote text-foreground shadow-lg">
-          <p className="flex items-center gap-2 pb-2">
-            <Truck aria-hidden className="size-4 shrink-0" />
-            Delivery day; the number is how many tiffins arrive.
-          </p>
-          <ul className="space-y-1.5 border-t border-border pt-2">
-            {LEGEND.map((s) => (
-              <li key={s} className="flex items-center gap-2">
-                <span aria-hidden className="size-2.5 rounded-full" style={{ background: STATUS_COLOR[s] }} />
-                {STATUS_LABEL[s]}
-              </li>
-            ))}
-          </ul>
-        </Popover.Content>
-      </Popover.Portal>
-    </Popover.Root>
+      </PopoverTrigger>
+      <PopoverContent align="end" sideOffset={6} className="block w-56 c-surface rounded-2xl bg-[var(--card,#fff)] p-3 text-footnote text-foreground shadow-lg transition-none data-starting-style:scale-100 data-starting-style:opacity-100 data-ending-style:scale-100 data-ending-style:opacity-100">
+        <p className="flex items-center gap-2 pb-2">
+          <Truck aria-hidden className="size-4 shrink-0" />
+          Delivery day; the number is how many tiffins arrive.
+        </p>
+        <ul className="space-y-1.5 border-t border-border pt-2">
+          {LEGEND.map((s) => (
+            <li key={s} className="flex items-center gap-2">
+              <span aria-hidden className="size-2.5 rounded-full" style={{ background: STATUS_COLOR[s] }} />
+              {STATUS_LABEL[s]}
+            </li>
+          ))}
+        </ul>
+      </PopoverContent>
+    </Popover>
   );
 }

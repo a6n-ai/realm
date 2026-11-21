@@ -41,9 +41,9 @@ test.describe.serial("admin New order sheet (desktop)", () => {
     await sheet.open();
     await sheet.pickCustomer(phone);
 
-    const pill = sheet.root.locator('button[data-state="on"]', { hasText: /SUB-/ });
+    const pill = sheet.root.locator('button[aria-pressed="true"]', { hasText: /SUB-/ });
     await expect(pill).toBeVisible({ timeout: 30_000 });
-    await expect(sheet.field("Meal size").locator('[role="radio"][data-state="on"]')).toHaveCount(1, { timeout: 15_000 });
+    await expect(sheet.field("Meal size").locator('button[aria-pressed="true"]')).toHaveCount(1, { timeout: 15_000 });
 
     await sheet.goToPage2();
     await expect(sheet.root.getByRole("radiogroup", { name: "Saved addresses" }).getByRole("radio").first()).toBeChecked();
@@ -68,7 +68,7 @@ test.describe.serial("admin New order sheet (desktop)", () => {
     const sheet = new NewOrderSheet(page);
     await sheet.open();
     await sheet.pickCustomer(phone);
-    await expect(sheet.root.locator('button[data-state="on"]', { hasText: /SUB-/ })).toBeVisible({ timeout: 30_000 });
+    await expect(sheet.root.locator('button[aria-pressed="true"]', { hasText: /SUB-/ })).toBeVisible({ timeout: 30_000 });
     await sheet.goToPage2();
 
     const total = sheet.root.getByText(/^Total$/).locator("xpath=following-sibling::span[1]");

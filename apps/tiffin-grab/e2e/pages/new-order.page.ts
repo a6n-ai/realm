@@ -36,7 +36,7 @@ export class NewOrderSheet {
     await tel.fill("");
     await tel.pressSequentially(o.phone, { delay: 20 });
     await this.root.locator('input[type="email"]').fill(o.email);
-    await this.field("Source").getByRole("radio", { name: o.source ?? "Manual" }).click();
+    await this.field("Source").getByRole("button", { name: o.source ?? "Manual", exact: true }).click();
   }
 
   /** Picks an existing customer through the search combobox (by phone digits). */
@@ -47,12 +47,12 @@ export class NewOrderSheet {
 
   /** First diet, first non-trial meal size, first quick-pick start day. Returns the meal size label chosen. */
   async fillPlan(): Promise<string> {
-    await this.field("Diet").getByRole("radio").first().click();
-    const meal = this.field("Meal size").getByRole("radio").filter({ hasNotText: /Trial/ }).first();
+    await this.field("Diet").getByRole("button").first().click();
+    const meal = this.field("Meal size").getByRole("button").filter({ hasNotText: /Trial/ }).first();
     await expect(meal).toBeVisible({ timeout: 15_000 });
     const label = (await meal.getAttribute("aria-label")) ?? "";
     await meal.click();
-    await this.field("Start date").getByRole("radio").first().click();
+    await this.field("Start date").getByRole("button").first().click();
     return label;
   }
 

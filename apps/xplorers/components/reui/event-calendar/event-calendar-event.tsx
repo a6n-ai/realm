@@ -32,7 +32,7 @@ import type {
   EventCalendarSegment,
 } from "@/components/reui/event-calendar/event-calendar-types"
 import { addDays, format } from "date-fns"
-import { Slot } from "radix-ui"
+import { Slot } from "@foundry/ui/slot"
 
 import { cn } from "@foundry/ui/cn"
 import {
@@ -443,7 +443,7 @@ function EventCalendarEvent<TData = unknown>({
     </>
   )
 
-  const Comp = asChild ? Slot.Root : "button"
+  const Comp = asChild ? Slot : "button"
 
   const chip = (
     <Comp

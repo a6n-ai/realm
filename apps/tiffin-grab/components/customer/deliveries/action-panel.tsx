@@ -1,7 +1,7 @@
 "use client";
 import { MapPin, MoreHorizontal } from "lucide-react";
-import { Popover } from "radix-ui";
 import { useState } from "react";
+import { Popover, PopoverContent, PopoverTrigger } from "@foundry/ui/popover";
 import { Button, Reason } from "@/components/kit";
 import { cn, FONT, FOCUS } from "@/components/kit/cn";
 import { humanDate, type TripAction } from "@/lib/deliveries/view";
@@ -38,23 +38,19 @@ export function TripActions({ model, layout, onAction, onGoTo, hide = [], onPaus
   const [menu, setMenu] = useState(false);
   const item = cn(FOCUS, "flex min-h-11 w-full items-center gap-2.5 rounded-xl px-3 text-left text-subhead font-medium hover:bg-muted [touch-action:manipulation]");
   const more = overflow.length > 0 && (
-    <Popover.Root open={menu} onOpenChange={setMenu}>
-      <Popover.Trigger asChild>
-        <Button variant={rest} size={bar ? "lg" : "md"} aria-label="More actions" className={cn("shrink-0", bar ? "px-4" : "px-4")}>
-          <MoreHorizontal aria-hidden className="size-5" />
-        </Button>
-      </Popover.Trigger>
-      <Popover.Portal>
-        <Popover.Content align="end" side="top" sideOffset={8} className={cn(FONT, "z-50 w-56 c-surface rounded-2xl bg-[var(--card,#fff)] p-1.5 text-foreground shadow-lg")}>
-          {overflow.map((r) => (
-            <button key={r.key} type="button" aria-disabled={!r.av.ok || undefined} className={cn(item, !r.av.ok && "opacity-45")} onClick={() => (setMenu(false), fire(r.key, r.av))}>
-              <MapPin aria-hidden className="size-4 shrink-0 text-[var(--muted-foreground)]" />
-              {ACTION_LABEL[r.key]}
-            </button>
-          ))}
-        </Popover.Content>
-      </Popover.Portal>
-    </Popover.Root>
+    <Popover open={menu} onOpenChange={setMenu}>
+      <PopoverTrigger render={<Button variant={rest} size={bar ? "lg" : "md"} aria-label="More actions" className={cn("shrink-0", bar ? "px-4" : "px-4")} />}>
+        <MoreHorizontal aria-hidden className="size-5" />
+      </PopoverTrigger>
+      <PopoverContent align="end" side="top" sideOffset={8} className={cn(FONT, "block w-56 c-surface rounded-2xl bg-[var(--card,#fff)] p-1.5 text-foreground shadow-lg transition-none data-starting-style:scale-100 data-starting-style:opacity-100 data-ending-style:scale-100 data-ending-style:opacity-100")}>
+        {overflow.map((r) => (
+          <button key={r.key} type="button" aria-disabled={!r.av.ok || undefined} className={cn(item, !r.av.ok && "opacity-45")} onClick={() => (setMenu(false), fire(r.key, r.av))}>
+            <MapPin aria-hidden className="size-4 shrink-0 text-[var(--muted-foreground)]" />
+            {ACTION_LABEL[r.key]}
+          </button>
+        ))}
+      </PopoverContent>
+    </Popover>
   );
 
   if (model.rows.length === 0) {

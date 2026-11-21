@@ -24,7 +24,7 @@ import type {
 } from "@/components/reui/event-calendar/event-calendar-types"
 import { IconStack } from "@foundry/ui/icon-stack"
 import { addDays, format } from "date-fns"
-import { Slot } from "radix-ui"
+import { Slot } from "@foundry/ui/slot"
 
 import { cn } from "@foundry/ui/cn"
 import { ScrollArea } from "@foundry/ui/scroll-area"
@@ -177,7 +177,7 @@ function EventCalendarAgendaView({
     </>
   )
 
-  const Comp = asChild ? Slot.Root : "div"
+  const Comp = asChild ? Slot : "div"
 
   return (
     <EventCalendarViewContext.Provider value={{ view: "agenda" }}>

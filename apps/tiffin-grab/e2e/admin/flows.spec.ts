@@ -30,7 +30,7 @@ test.describe("admin interactive flows (desktop)", () => {
     await sheet.continue().click();
 
     await expect(sheet.root.getByText(/interest|diet/i).first()).toBeVisible();
-    await expect(sheet.root.getByRole("radio", { name: /veg/i }).first()).toBeVisible();
+    await expect(sheet.root.getByRole("button", { name: /veg/i }).first()).toBeVisible();
   });
 
   test("New order opens the sheet with customer search, source pills and a disabled Continue", async ({ page }) => {
@@ -40,7 +40,7 @@ test.describe("admin interactive flows (desktop)", () => {
     const sheet = new LeadSheet(page);
     await sheet.expectOpen();
     await expect(sheet.root.getByPlaceholder(/search existing customer/i)).toBeVisible();
-    await expect(sheet.root.getByRole("radio", { name: /manual/i })).toBeVisible();
+    await expect(sheet.root.getByRole("button", { name: /manual/i })).toBeVisible();
     await expect(sheet.continue()).toBeDisabled();
   });
 

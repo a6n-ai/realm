@@ -42,7 +42,6 @@ import {
 import { MobileOnly } from "@/components/dashboard/mobile-only";
 import { SectionTabs } from "@/components/dashboard/section-tabs";
 import { RouteStatus } from "@/components/dashboard/route-status";
-import { RoutePushBadge } from "@/components/dashboard/route-push-badge";
 import { geistSansAdmin } from "./admin-font";
 import { requestNow } from "@/lib/dates/request-now";
 
@@ -201,11 +200,6 @@ export default async function DashboardLayout({ children }: { children: ReactNod
                   {orgSwitcher}
                   {bell}
                 </>
-              }
-              routePush={
-                <Suspense fallback={null}>
-                  <RoutePushBadge />
-                </Suspense>
               }
             />
           }

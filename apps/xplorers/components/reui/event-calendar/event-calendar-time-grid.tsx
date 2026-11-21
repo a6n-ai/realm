@@ -50,7 +50,7 @@ import type {
   EventCalendarSlotDraft,
 } from "@/components/reui/event-calendar/event-calendar-types"
 import { addDays, addMinutes, differenceInMinutes, format } from "date-fns"
-import { Slot } from "radix-ui"
+import { Slot } from "@foundry/ui/slot"
 
 import { cn } from "@foundry/ui/cn"
 import { ScrollArea } from "@foundry/ui/scroll-area"
@@ -269,7 +269,7 @@ function EventCalendarTimeGrid({
     </div>
   )
 
-  const Comp = asChild ? Slot.Root : "div"
+  const Comp = asChild ? Slot : "div"
 
   return (
     <EventCalendarViewContext.Provider value={{ view }}>

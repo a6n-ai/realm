@@ -163,7 +163,7 @@ export function PlanSection({ d, catalog }: { d: Draft; catalog: Catalog }) {
                   return (
                     // Same box as a selected ToggleGroup pill, so picked add-ons read as choices, not tags.
                     <HoverHint key={a.key} text={a.portion}>
-                    <span role="group" aria-label={`${a.name} quantity`} data-state="on" className={toggleVariants({ variant: "outline", className: "gap-1 pr-1" })}>
+                    <span role="group" aria-label={`${a.name} quantity`} data-pressed className={toggleVariants({ variant: "outline", className: "gap-1 pr-1" })}>
                       {a.name}
                       <Button type="button" variant="ghost" size="icon-xs" aria-label={`Remove one ${a.name}`} onClick={() => d.setAddonQty(a.key, qty - 1)}>{qty > 1 ? <MinusIcon /> : <XIcon />}</Button>
                       <span className="w-3 text-center tabular-nums" aria-live="polite">{qty}</span>

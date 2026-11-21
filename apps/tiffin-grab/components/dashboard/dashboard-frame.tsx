@@ -22,7 +22,7 @@ import { TimezoneProvider } from "@foundry/design-system/timezone-provider";
 // each of these itself, and Turbopack then copied that module's chunk list into
 // every dashboard page manifest.
 //
-// Server-only UI (e.g. RoutePushBadge → DB) must arrive as a slot from the
+// Server-only UI (e.g. RouteStatus → DB) must arrive as a slot from the
 // layout — importing it here would pull postgres into the client graph.
 export function DashboardProviders({ tz, children }: { tz: string; children: ReactNode }) {
   return (
@@ -63,13 +63,10 @@ export function DashboardClock({ cutoffHour, routeStatus }: { cutoffHour: number
 export function DashboardActions({
   cutoffHour,
   hasPin,
-  routePush,
   mobileChrome,
 }: {
   cutoffHour: number;
   hasPin: boolean;
-  /** Server Component slot — OptimoRoute push status (streams via Suspense in the layout). */
-  routePush?: ReactNode;
   /** Org switcher and bell, which the sidebar only shows on desktop. */
   mobileChrome?: ReactNode;
 }) {
@@ -79,7 +76,6 @@ export function DashboardActions({
         <AppClock cutoffHour={cutoffHour} />
         {mobileChrome}
       </MobileOnly>
-      {routePush}
       <LockButton hasPin={hasPin} />
       <ModeToggle />
     </>

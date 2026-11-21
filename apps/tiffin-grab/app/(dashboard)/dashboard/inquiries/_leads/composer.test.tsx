@@ -38,7 +38,7 @@ describe("Composer", () => {
     await userEvent.click(screen.getByRole("tab", { name: "Call outcome" }));
     const save = screen.getByRole("button", { name: "Save" });
     expect(save).toBeDisabled();
-    fireEvent.click(screen.getByRole("radio", { name: "Voicemail" }));
+    fireEvent.click(screen.getByRole("button", { name: "Voicemail" }));
     expect(save).toBeEnabled();
     fireEvent.click(save);
     await waitFor(() => expect(actions.logActivity).toHaveBeenCalledWith("INQ-2", { type: "call", outcome: "Voicemail", note: undefined }));

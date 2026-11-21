@@ -51,7 +51,7 @@ import type {
   EventCalendarSegment,
 } from "@/components/reui/event-calendar/event-calendar-types"
 import { addDays, addMinutes } from "date-fns"
-import { Slot } from "radix-ui"
+import { Slot } from "@foundry/ui/slot"
 
 import { cn } from "@foundry/ui/cn"
 import { ScrollArea } from "@foundry/ui/scroll-area"
@@ -230,7 +230,7 @@ function EventCalendarResourceView({
     </div>
   )
 
-  const Comp = asChild ? Slot.Root : "div"
+  const Comp = asChild ? Slot : "div"
 
   return (
     <EventCalendarViewContext.Provider value={{ view: "resource" }}>

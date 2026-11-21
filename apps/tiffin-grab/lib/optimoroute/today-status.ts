@@ -8,7 +8,8 @@ import { fulfillmentReadyOrder } from "@/lib/orders/fulfillment";
 import { getAppSettings } from "@/lib/settings";
 import { requestNow } from "@/lib/dates/request-now";
 import { getOptimoRouteStatus } from "./config";
-import { routeLine, type RouteLine, type RouteLineCounts } from "./route-line";
+import { nextRoutePushStatus } from "./push-status";
+import { nextPushLine, routeLine, type RouteLine, type RouteLineCounts } from "./route-line";
 
 // Same sendable rows as pushDay / nextRoutePushStatus, for today; the three steps' results are the
 // columns each one writes (push: routeSyncedAt, pull routes: route driver, pull completions: optimoCompletionStatus).
@@ -45,4 +46,13 @@ export const getRouteLine = cache(async (): Promise<RouteLine | null> => {
       ? await todayCounts(zonedDateIso(requestNow(), timezone))
       : null;
   return routeLine({ ...status, canDispatch, canSettings, tz: timezone, counts });
+});
+
+/** The next delivery day's push state (what the old top-bar badge showed); same gate as the Dispatch page. */
+export const getNextPushLine = cache(async (): Promise<RouteLine | null> => {
+  if (!(await can({ delivery: ["read"] }))) return null;
+  const [{ installed }, { timezone }] = await Promise.all([getOptimoRouteStatus(), getAppSettings()]);
+  if (!installed) return null;
+  const status = await nextRoutePushStatus(zonedDateIso(requestNow(), timezone));
+  return status ? nextPushLine(status) : null;
 });

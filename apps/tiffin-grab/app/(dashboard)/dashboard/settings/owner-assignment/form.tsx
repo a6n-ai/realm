@@ -43,7 +43,7 @@ function StrategyCards({
       {choices.map((c) => (
         <label
           key={c.value}
-          className={`has-data-[state=checked]:border-primary flex cursor-pointer rounded-lg border hover:bg-muted/50 ${compact ? "items-center gap-3 p-3" : "flex-col gap-2 p-4"}`}
+          className={`has-data-checked:border-primary flex cursor-pointer rounded-lg border hover:bg-muted/50 ${compact ? "items-center gap-3 p-3" : "flex-col gap-2 p-4"}`}
         >
           {compact ? (
             <>
