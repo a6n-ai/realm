@@ -13,7 +13,7 @@ vi.mock("@/components/app-currency", () => ({
 vi.mock("@foundry/design-system/timezone-provider", () => ({ useTimezone: () => "America/Toronto" }));
 
 vi.mock("@/lib/auth/captcha-client", () => ({ getCaptchaToken: async () => "tok" }));
-vi.mock("sonner", () => ({ toast: { error: vi.fn() } }));
+vi.mock("@foundry/ui/toast", () => ({ toast: { error: vi.fn() } }));
 const mockRouter = { push: vi.fn(), replace: vi.fn() };
 vi.mock("next/navigation", () => ({
   useRouter: () => mockRouter,

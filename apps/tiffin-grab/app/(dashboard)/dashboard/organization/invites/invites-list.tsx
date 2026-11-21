@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import { AppDate } from "@/components/dashboard/app-date";
 import { useTransition } from "react";
-import { toast } from "sonner";
+import { toast } from "@foundry/ui/toast";
 import { MailIcon } from "lucide-react";
 import { Button } from "@foundry/ui/button";
 import { TableCell } from "@foundry/ui/table";

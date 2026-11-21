@@ -16,7 +16,7 @@ vi.mock("@/components/app-currency", () => ({
 }));
 vi.mock("@foundry/design-system/timezone-provider", () => ({ useTimezone: () => "America/Toronto" }));
 
-vi.mock("sonner", () => ({ toast: { error: vi.fn() } }));
+vi.mock("@foundry/ui/toast", () => ({ toast: { error: vi.fn() } }));
 // Must be ONE stable object: Checkout's mount effect depends on [router], so a
 // fresh object per render re-runs the effect, which sets state and renders again
 // — an infinite loop that exhausts the worker's heap.

@@ -5,7 +5,7 @@ import { useAppCurrency, useFormatMoney } from "@/components/app-currency";
 import { currencySymbol } from "@/lib/format/currency";
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@foundry/ui/toast";
 import { PencilIcon, PlusIcon, RotateCcwIcon, TicketPercentIcon, XIcon } from "lucide-react";
 import type { CouponConfig, CouponKind } from "@/db/schema/coupons";
 import { DataTable, RowActionTooltipButton, SectionCard, type Column, type FacetDef, type StatItem } from "@/components/ds";

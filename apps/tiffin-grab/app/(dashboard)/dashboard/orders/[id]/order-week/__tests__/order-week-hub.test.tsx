@@ -12,7 +12,7 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ refresh: vi.fn(), replace }),
   useSearchParams: () => new URLSearchParams("tab=deliveries"),
 }));
-vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+vi.mock("@foundry/ui/toast", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 const rel = vi.hoisted(() => vi.fn());
 const pse = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/deliveries/customer-actions", () => ({

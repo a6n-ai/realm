@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { inStatuses, PAID, SETTLEABLE } from "@/lib/payments/status";
 import Link from "next/link";
 import { Check, Clock, Download, FileText, Mail, RotateCcw, XCircle, type LucideIcon } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@foundry/ui/toast";
 import { Button, EmptyState, IconTile, ListGroup, Pill, type IconTint, type Tone } from "@/components/kit";
 import { buttonClass } from "@/components/kit/button-class";
 import {

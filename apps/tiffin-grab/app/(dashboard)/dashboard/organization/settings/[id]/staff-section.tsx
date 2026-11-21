@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@foundry/ui/toast";
 import { UsersIcon } from "lucide-react";
 import { RoleChips, chipState } from "@foundry/crm";
 import { Button } from "@foundry/ui/button";

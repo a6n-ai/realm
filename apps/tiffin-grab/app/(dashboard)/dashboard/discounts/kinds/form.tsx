@@ -3,7 +3,7 @@
 import { unwrapAction } from "@/lib/actions/unwrap";
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@foundry/ui/toast";
 import { SlidersHorizontalIcon } from "lucide-react";
 import type { CouponKind } from "@/db/schema/coupons";
 import type { DiscountPolicy } from "@/db/schema/types";

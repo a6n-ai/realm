@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { ChevronDown, Copy, CreditCard, Percent, ReceiptText, RotateCcw, SlidersHorizontal, type LucideIcon } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@foundry/ui/toast";
 import { EmptyState, IconTile, ListGroup, buttonClass, type IconTint } from "@/components/kit";
 import { formatEpoch } from "@/lib/format/datetime";
 import { useTimezone } from "@foundry/design-system/timezone-provider";

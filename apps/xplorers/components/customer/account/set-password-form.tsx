@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
-import { toast } from "sonner";
+import { toast } from "@foundry/ui/toast";
 import { z } from "zod";
 import { passwordSchema } from "@foundry/commons";
 import { Button } from "@foundry/ui/button";

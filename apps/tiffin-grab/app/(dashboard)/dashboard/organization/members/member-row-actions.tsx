@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@foundry/ui/toast";
 import { EllipsisIcon, UserMinusIcon } from "lucide-react";
 import { chipState } from "@foundry/crm";
 import { Button } from "@foundry/ui/button";

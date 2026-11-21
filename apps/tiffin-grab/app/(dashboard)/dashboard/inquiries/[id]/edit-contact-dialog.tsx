@@ -2,7 +2,7 @@
 
 import { useState, type ReactElement } from "react";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@foundry/ui/toast";
 import { Loader2Icon, PencilIcon } from "lucide-react";
 import { formatPhone } from "@foundry/commons";
 import { Button } from "@foundry/ui/button";

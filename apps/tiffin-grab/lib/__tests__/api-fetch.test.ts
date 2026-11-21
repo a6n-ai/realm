@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const toastError = vi.fn();
-vi.mock("sonner", () => ({ toast: { error: (m: string) => toastError(m) } }));
+vi.mock("@foundry/ui/toast", () => ({ toast: { error: (m: string) => toastError(m) } }));
 
 import { apiFetch } from "../http/api-fetch";
 

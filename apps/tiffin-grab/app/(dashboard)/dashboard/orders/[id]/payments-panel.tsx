@@ -8,7 +8,7 @@ import { inStatuses, PAID, PENDING, UNPAID } from "@/lib/payments/status";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { CheckIcon, CopyIcon, CreditCardIcon, ExternalLinkIcon, MailIcon, RefreshCwIcon, Undo2Icon } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@foundry/ui/toast";
 import { formatMoney } from "@foundry/commons";
 import { Button } from "@foundry/ui/button";
 import { Badge } from "@/components/reui/badge";

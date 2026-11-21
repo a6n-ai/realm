@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { CheckCircle2Icon, CheckIcon, CopyIcon, ExternalLinkIcon, Loader2Icon, MailIcon, MessageCircleIcon } from "lucide-react";
 import { useState } from "react";
-import { toast } from "sonner";
+import { toast } from "@foundry/ui/toast";
 import { Button } from "@foundry/ui/button";
 import { ResponsiveDialog } from "@foundry/design-system";
 import { emailPaymentLinkAction } from "./actions";

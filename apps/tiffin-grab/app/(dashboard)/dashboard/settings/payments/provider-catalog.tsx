@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { PlusIcon } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@foundry/ui/toast";
 import { PAYMENT_PROVIDERS, type PaymentProviderDef } from "@foundry/payments/providers";
 import { Badge } from "@/components/reui/badge";
 import { Button } from "@foundry/ui/button";

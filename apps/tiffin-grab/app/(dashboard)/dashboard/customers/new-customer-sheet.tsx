@@ -4,7 +4,7 @@ import { unwrapAction } from "@/lib/actions/unwrap";
 import type { Country as CountryCode } from "react-phone-number-input";
 import { useState } from "react";
 import { Loader2Icon } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@foundry/ui/toast";
 import { cn } from "@foundry/ui/cn";
 import { Button } from "@foundry/ui/button";
 import dynamic from "next/dynamic";

@@ -1,7 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
-import { toast } from "sonner";
+import { toast } from "@foundry/ui/toast";
 import { Ban, CircleCheck, KeyRound, Trash2 } from "lucide-react";
 import { Role, type RoleValue } from "@foundry/commons";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";

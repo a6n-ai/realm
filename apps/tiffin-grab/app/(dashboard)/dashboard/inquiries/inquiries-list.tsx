@@ -7,7 +7,7 @@ import { useEffect, useState, useTransition, type ReactNode } from "react";
 import { cn } from "@foundry/ui/cn";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@foundry/ui/toast";
 import { formatPhone } from "@foundry/commons";
 import {
   CalendarClockIcon, ClipboardListIcon, MessageSquarePlusIcon, ShoppingBagIcon,

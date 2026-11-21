@@ -2,7 +2,7 @@
 
 import { useTransition } from "react";
 import { LinkIcon } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@foundry/ui/toast";
 import { RowActionButton } from "@/components/ds";
 import { resubscribeLink } from "./actions";
 

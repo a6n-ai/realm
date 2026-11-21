@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@foundry/ui/toast";
 import { ArrowLeftRightIcon, ArrowRightIcon, PencilIcon, PlusIcon, Trash2Icon, XIcon } from "lucide-react";
 import { SectionCard, DataTable, ResponsiveDialog, type Column } from "@/components/ds";
 import { Button } from "@foundry/ui/button";

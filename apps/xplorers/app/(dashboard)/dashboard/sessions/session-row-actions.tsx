@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { toast } from "sonner";
+import { toast } from "@foundry/ui/toast";
 import { EyeIcon, Trash2Icon } from "lucide-react";
 import { RowActionButton, RowActions } from "@foundry/design-system";
 import { ConfirmDialog } from "@/components/ds";

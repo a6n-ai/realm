@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { TicketPercentIcon } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@foundry/ui/toast";
 import { Button, EmptyState, Skeleton, buttonClass } from "@/components/kit";
 import { useAppCurrency } from "@/components/app-currency";
 import { formatDiscount } from "@/lib/format/currency";

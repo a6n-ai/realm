@@ -30,7 +30,7 @@ import {
 import { utcIso } from "@foundry/commons/util/dates";
 import { formatMoney } from "@foundry/commons";
 import { useAppCurrency } from "@/components/app-currency";
-import { toast } from "sonner";
+import { toast } from "@foundry/ui/toast";
 
 export type EnabledSlot = { key: string; label: string };
 

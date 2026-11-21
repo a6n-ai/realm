@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { useDebouncedAsync } from "@foundry/ui/use-debounced-async";
-import { toast } from "sonner";
+import { toast } from "@foundry/ui/toast";
 import { formatMoney } from "@foundry/commons";
 import { Button } from "@foundry/ui/button";
 import { makeImageThumbnail, ResponsiveDialog } from "@/components/ds";

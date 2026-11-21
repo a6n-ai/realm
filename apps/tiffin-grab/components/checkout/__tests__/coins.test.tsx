@@ -18,7 +18,7 @@ vi.mock("@foundry/design-system/timezone-provider", () => ({ useTimezone: () => 
 // more coins than the balance surfaces an inline error instead of silently
 // applying nothing.
 
-vi.mock("sonner", () => ({ toast: { error: vi.fn() } }));
+vi.mock("@foundry/ui/toast", () => ({ toast: { error: vi.fn() } }));
 const mockRouter = { push: vi.fn(), replace: vi.fn() };
 vi.mock("next/navigation", () => ({ useRouter: () => mockRouter }));
 vi.mock("@/lib/checkout/actions", () => ({ confirmSubscription: vi.fn() }));

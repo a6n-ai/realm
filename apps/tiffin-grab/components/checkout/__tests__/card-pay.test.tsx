@@ -15,7 +15,7 @@ vi.mock("@/components/app-currency", () => ({
 vi.mock("@foundry/design-system/timezone-provider", () => ({ useTimezone: () => "America/Toronto" }));
 
 const toast = vi.hoisted(() => Object.assign(vi.fn(), { error: vi.fn() }));
-vi.mock("sonner", () => ({ toast }));
+vi.mock("@foundry/ui/toast", () => ({ toast }));
 const mockRouter = { push: vi.fn(), replace: vi.fn() };
 let routerNow: typeof mockRouter = mockRouter;
 vi.mock("next/navigation", () => ({ useRouter: () => routerNow }));

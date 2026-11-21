@@ -3,7 +3,7 @@
 import { round2 } from "@foundry/commons/util/money";
 import { useEffect, useState } from "react";
 import { CheckIcon, CopyIcon } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@foundry/ui/toast";
 import { Button } from "@foundry/ui/button";
 import { Card, CardAction, CardDescription, CardHeader, CardTitle } from "@foundry/ui/card";
 import { Input } from "@foundry/ui/input";

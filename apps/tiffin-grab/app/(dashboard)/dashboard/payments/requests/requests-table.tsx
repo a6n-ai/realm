@@ -5,7 +5,7 @@ import { inStatuses, UNPAID } from "@/lib/payments/status";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { CheckIcon, EyeIcon, InboxIcon, MailIcon, XIcon } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@foundry/ui/toast";
 import { formatMoney } from "@foundry/commons";
 import { Button } from "@foundry/ui/button";
 import { TableCell } from "@foundry/ui/table";

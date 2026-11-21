@@ -4,7 +4,7 @@ import { LABEL_STATUS } from "@/lib/deliveries/label-status";
 import { isCutoffPassed } from "@/lib/dates/cutoff";
 import { useState, useTransition, type ReactNode } from "react";
 import { Check, Undo2 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@foundry/ui/toast";
 import { Button } from "@foundry/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@foundry/ui/dialog";
 import { Badge } from "@/components/reui/badge";

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { EllipsisIcon, PlusIcon, SearchXIcon } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@foundry/ui/toast";
 import type { PluginCatalogStatus } from "@foundry/crm";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { EmptyState, SearchInput } from "@/components/ds";

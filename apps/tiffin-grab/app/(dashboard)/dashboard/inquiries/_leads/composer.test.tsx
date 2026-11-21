@@ -10,7 +10,7 @@ const actions = vi.hoisted(() => ({
 }));
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: () => undefined }) }));
-vi.mock("sonner", () => ({ toast: { success: () => undefined, error: () => undefined } }));
+vi.mock("@foundry/ui/toast", () => ({ toast: { success: () => undefined, error: () => undefined } }));
 vi.mock("../actions", () => actions);
 
 const { Composer } = await import("./composer");

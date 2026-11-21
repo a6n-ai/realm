@@ -3,7 +3,7 @@
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { PowerIcon, PowerOffIcon, SettingsIcon } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@foundry/ui/toast";
 import { IntegrationPluginCard, IntegrationPluginCardSkeleton, type PluginCatalogStatus } from "@foundry/crm";
 import { Button } from "@foundry/ui/button";
 import Link from "next/link";

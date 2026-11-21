@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition, type ReactElement } from "react";
 import { EyeIcon, EyeOffIcon, PencilIcon } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@foundry/ui/toast";
 import { Button } from "@foundry/ui/button";
 import { Label } from "@foundry/ui/label";
 import { Textarea } from "@foundry/ui/textarea";

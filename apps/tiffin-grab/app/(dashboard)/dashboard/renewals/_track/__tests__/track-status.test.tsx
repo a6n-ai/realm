@@ -13,7 +13,7 @@ vi.mock("../../actions", () => ({
   addTrackNoteAction: vi.fn(async () => ({ ok: true })),
   logTrackActivityAction: vi.fn(async () => ({ ok: true })),
 }));
-vi.mock("sonner", () => ({ toast: Object.assign(vi.fn(), { error: vi.fn() }) }));
+vi.mock("@foundry/ui/toast", () => ({ toast: Object.assign(vi.fn(), { error: vi.fn() }) }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 
 const render = (ui: ReactElement) => rtlRender(<TimezoneProvider tz="America/Toronto">{ui}</TimezoneProvider>);

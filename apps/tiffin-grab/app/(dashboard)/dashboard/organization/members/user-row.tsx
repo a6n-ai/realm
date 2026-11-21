@@ -5,7 +5,7 @@ import Link from "next/link";
 import { formatPhone, type RoleValue } from "@foundry/commons";
 import { useTransition } from "react";
 import { KeyRound, SendHorizonal } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@foundry/ui/toast";
 import { Button } from "@foundry/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@foundry/ui/select";
 import { TableCell } from "@foundry/ui/table";

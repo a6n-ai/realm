@@ -2,7 +2,7 @@
 
 import { authClient } from "@/lib/auth/client";
 import { Button } from "@foundry/ui/button";
-import { toast } from "sonner";
+import { toast } from "@foundry/ui/toast";
 
 export function ResendVerification({ email }: { email: string }) {
   return (

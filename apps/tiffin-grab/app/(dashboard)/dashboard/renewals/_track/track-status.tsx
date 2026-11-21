@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { toast } from "sonner";
+import { toast } from "@foundry/ui/toast";
 import { useCardRefresh } from "@/components/dashboard/next-item/recommendation-card";
 import { Button } from "@foundry/ui/button";
 import {

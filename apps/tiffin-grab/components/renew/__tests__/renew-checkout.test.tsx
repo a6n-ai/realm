@@ -15,7 +15,7 @@ vi.mock("@/lib/wizard/actions", () => ({
 }));
 vi.mock("@/lib/checkout/actions", () => ({ confirmSubscription: vi.fn(), payCheckout: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => router }));
-vi.mock("sonner", () => ({ toast: { error: vi.fn() } }));
+vi.mock("@foundry/ui/toast", () => ({ toast: { error: vi.fn() } }));
 
 import { RenewCheckout } from "../../../app/(customer)/me/renew/quick-renew-client";
 

@@ -5,7 +5,7 @@ import { pageOffset } from "@foundry/design-system/filters/parse-filter-state";
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@foundry/ui/toast";
 import { BanIcon, TicketIcon } from "lucide-react";
 import { DataTable, ListPagination, RowActionTooltipButton, SectionCard, type Column, type FacetDef, type StatItem } from "@/components/ds";
 import { Badge } from "@/components/reui/badge";

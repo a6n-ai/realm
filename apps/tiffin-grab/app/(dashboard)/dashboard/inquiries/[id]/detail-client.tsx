@@ -6,7 +6,7 @@ import { useState, useTransition, type ReactNode } from "react";
 import {
   ArrowLeftIcon, ArrowRightIcon, MessageCircleIcon, PencilIcon, PhoneIcon, ShoppingBagIcon, StickyNoteIcon, type LucideIcon,
 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@foundry/ui/toast";
 import { Button } from "@foundry/ui/button";
 import { Avatar, AvatarFallback } from "@foundry/ui/avatar";
 import { Card, CardContent, CardHeader, CardTitle } from "@foundry/ui/card";

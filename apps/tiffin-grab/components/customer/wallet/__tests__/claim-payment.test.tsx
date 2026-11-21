@@ -13,7 +13,7 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ refresh: mockRefresh }),
 }));
 
-vi.mock("sonner", () => ({
+vi.mock("@foundry/ui/toast", () => ({
   toast: (...args: unknown[]) => mockToast(...args),
 }));
 

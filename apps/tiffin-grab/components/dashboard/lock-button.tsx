@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { LockIcon } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@foundry/ui/toast";
 import { lockSession } from "@/lib/auth/lock-actions";
 import { Button } from "@foundry/ui/button";
 

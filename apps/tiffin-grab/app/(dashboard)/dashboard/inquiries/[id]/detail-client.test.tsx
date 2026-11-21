@@ -6,7 +6,7 @@ import type { ReactNode } from "react";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: () => undefined }), useSearchParams: () => new URLSearchParams() }));
 vi.mock("next/link", () => ({ default: ({ children }: { children: ReactNode }) => children }));
-vi.mock("sonner", () => ({ toast: { success: () => undefined, error: () => undefined } }));
+vi.mock("@foundry/ui/toast", () => ({ toast: { success: () => undefined, error: () => undefined } }));
 vi.mock("@foundry/design-system/timezone-provider", () => ({ useTimezone: () => "UTC" }));
 vi.mock("../actions", () => ({ clearFollowUp: async () => ({ ok: true }), logActivity: async () => ({ ok: true }) }));
 vi.mock("../_leads/status-dialog", () => ({ NoteDialog: () => null, StatusBoard: () => null, StatusMenu: () => null }));

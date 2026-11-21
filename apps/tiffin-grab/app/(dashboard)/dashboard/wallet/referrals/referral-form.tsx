@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@foundry/ui/toast";
 import { unwrapAction } from "@/lib/actions/unwrap";
 import { SectionCard } from "@/components/ds";
 import { Button } from "@foundry/ui/button";

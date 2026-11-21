@@ -8,7 +8,7 @@ vi.mock("../actions", () => ({ addOrderNoteAction: vi.fn() }));
 vi.mock("../../_order/actions", () => ({ emailPaymentLinkAction: vi.fn() }));
 vi.mock("../[id]/actions", () => ({ cancel: vi.fn(async () => ({ ok: true })) }));
 vi.mock("../../payments/actions", () => ({ verifyPaymentAction: vi.fn() }));
-vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+vi.mock("@foundry/ui/toast", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }) }));
 const NOW = Date.UTC(2026, 10, 11, 12);
 const DAY = 86_400_000;

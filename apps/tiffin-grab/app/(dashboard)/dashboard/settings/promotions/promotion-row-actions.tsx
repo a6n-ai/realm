@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useTransition } from "react";
 import { PencilIcon } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@foundry/ui/toast";
 import { Switch } from "@foundry/ui/switch";
 import { RowActionTooltipButton } from "@/components/ds";
 import { setPromotionActiveAction } from "./actions";

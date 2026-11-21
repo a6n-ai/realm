@@ -6,7 +6,7 @@ import { inStatuses, UNPAID } from "@/lib/payments/status";
 import { useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { CreditCardIcon, EyeIcon, MailIcon, RefreshCwIcon, Undo2Icon } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@foundry/ui/toast";
 import { formatMoney } from "@foundry/commons";
 import { Badge } from "@/components/reui/badge";
 import { Button } from "@foundry/ui/button";

@@ -1,6 +1,6 @@
 "use client";
 
-import { toast } from "sonner";
+import { toast } from "@foundry/ui/toast";
 
 interface Problem {
   title?: string;

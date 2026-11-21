@@ -87,8 +87,8 @@ describe("RangeCalendarPicker popover", () => {
     const onChange = setup({ from: zonedDayStart("2026-11-03", TZ), to: zonedDayStart("2026-11-10", TZ) - 1 });
     expect(start().value).toBe("Nov 3, 2026");
     expect(end().value).toBe("Nov 9, 2026");
-    fireEvent.click(screen.getByRole("button", { name: /November 12th, 2026/ }));
-    fireEvent.click(screen.getByRole("button", { name: /November 14th, 2026/ }));
+    fireEvent.click(screen.getByRole("gridcell", { name: "Thursday, November 12, 2026" }));
+    fireEvent.click(screen.getByRole("gridcell", { name: "Saturday, November 14, 2026" }));
     expect(start().value).toBe("Nov 12, 2026");
     expect(end().value).toBe("Nov 14, 2026");
     expect(onChange).not.toHaveBeenCalled();

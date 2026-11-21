@@ -6,7 +6,7 @@ import { Poppins } from "next/font/google";
 import { geistSans, geistMono, geistPixelCircle } from "./fonts";
 import { ThemeProvider, themeInitScript } from "@foundry/themes";
 import { InlineScript } from "@foundry/ui/inline-script";
-import { Toaster } from "@foundry/ui/sonner";
+import { Toaster } from "@foundry/ui/toast";
 import { StaleDeployReloader } from "@/components/stale-deploy-reloader";
 import { NavPending } from "@/components/landing/nav-pending";
 import { BrowserChrome } from "@/components/browser-chrome";

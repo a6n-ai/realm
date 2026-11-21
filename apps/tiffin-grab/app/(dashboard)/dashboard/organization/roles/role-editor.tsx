@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeftIcon, LockIcon, Trash2Icon } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@foundry/ui/toast";
 import type { PermissionMap, ResourceLabel } from "@foundry/crm";
 import { Button } from "@foundry/ui/button";
 import {

@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { Role } from "@foundry/commons";
-import { Toaster } from "@foundry/ui/sonner";
+import { Toaster } from "@foundry/ui/toast";
 import { CrmShell } from "@foundry/crm";
 import { db } from "@/db/client";
 import { users } from "@/db/schema";

@@ -2,7 +2,7 @@
 
 import { useTransition } from "react";
 import { CalendarCheck, LinkIcon, SendHorizonal } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@foundry/ui/toast";
 import { RowActions } from "@/components/ds";
 import { RowActionTooltipButton } from "@/components/ds/row-action-tooltip-button";
 import { unwrapAction } from "@/lib/actions/unwrap";

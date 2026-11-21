@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi, beforeEach } from "vitest";
-import { toast } from "sonner";
+import { toast } from "@foundry/ui/toast";
 import { type WizardSelections } from "@/lib/wizard/selections";
 import { WIZARD_STORAGE_KEY } from "@/lib/wizard/session";
 import { Checkout } from "../checkout";
@@ -13,7 +13,7 @@ vi.mock("@/components/app-currency", () => ({
 }));
 vi.mock("@foundry/design-system/timezone-provider", () => ({ useTimezone: () => "America/Toronto" }));
 
-vi.mock("sonner", () => ({ toast: { error: vi.fn() } }));
+vi.mock("@foundry/ui/toast", () => ({ toast: { error: vi.fn() } }));
 const mockRouter = { push: vi.fn(), replace: vi.fn() };
 vi.mock("next/navigation", () => ({
   useRouter: () => mockRouter,

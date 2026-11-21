@@ -5,7 +5,7 @@ import type { Country as CountryCode } from "react-phone-number-input";
 import { useForm } from "react-hook-form";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { toast } from "sonner";
+import { toast } from "@foundry/ui/toast";
 import { Loader2 } from "lucide-react";
 import { Button } from "@foundry/ui/button";
 import {

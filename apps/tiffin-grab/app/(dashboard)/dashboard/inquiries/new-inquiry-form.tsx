@@ -1,7 +1,7 @@
 "use client";
 
 import { useDebouncedAsync } from "@foundry/ui/use-debounced-async";
-import { toast } from "sonner";
+import { toast } from "@foundry/ui/toast";
 import { ChevronDownIcon, HelpCircleIcon, Loader2Icon } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { Country as CountryCode } from "react-phone-number-input";

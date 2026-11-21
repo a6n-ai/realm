@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { PrinterIcon } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@foundry/ui/toast";
 import { Button } from "@foundry/ui/button";
 import {
   Dialog,

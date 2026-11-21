@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@foundry/ui/toast";
 import { RefreshCwIcon } from "lucide-react";
 import { Button } from "@foundry/ui/button";
 import { apiFetch } from "@relay/engine/ui/api-fetch";

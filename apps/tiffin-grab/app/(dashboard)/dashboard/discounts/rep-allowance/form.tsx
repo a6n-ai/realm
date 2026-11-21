@@ -3,7 +3,7 @@
 import { unwrapAction } from "@/lib/actions/unwrap";
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@foundry/ui/toast";
 import type { DiscountPolicy } from "@/db/schema/types";
 import { DataTable, RowActionTooltipButton, SectionCard, type Column, type FacetDef, type StatItem } from "@/components/ds";
 import { DiscountStats, DiscountStatsSkeleton } from "../discount-stats";

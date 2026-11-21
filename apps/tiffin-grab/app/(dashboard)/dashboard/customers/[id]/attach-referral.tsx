@@ -2,7 +2,7 @@
 
 import { unwrapAction } from "@/lib/actions/unwrap";
 import { useState, useTransition } from "react";
-import { toast } from "sonner";
+import { toast } from "@foundry/ui/toast";
 import { Button } from "@foundry/ui/button";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@foundry/ui/dialog";
 import { Input } from "@foundry/ui/input";

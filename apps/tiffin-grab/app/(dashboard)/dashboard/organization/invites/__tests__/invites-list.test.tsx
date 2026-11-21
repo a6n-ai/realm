@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { ReactElement } from "react";
 import { render as rtlRender, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
-import { toast } from "sonner";
+import { toast } from "@foundry/ui/toast";
 import { TimezoneProvider } from "@foundry/design-system/timezone-provider";
 import { InvitesList } from "../invites-list";
 
@@ -14,7 +14,7 @@ vi.mock("../../members/actions", () => ({
   cancelInvitation: vi.fn(async () => ({ ok: true })),
   resendInvite: vi.fn(async () => ({ ok: true, email: "e@x.com" })),
 }));
-vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+vi.mock("@foundry/ui/toast", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 // DataTable reads "q" URL state via next/navigation hooks; stub them for jsdom.
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: () => {}, push: () => {} }),

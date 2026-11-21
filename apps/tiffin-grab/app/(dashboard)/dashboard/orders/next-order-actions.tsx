@@ -1,7 +1,7 @@
 "use client";
 import { useState, useTransition } from "react";
 import { CheckCheckIcon, MailIcon, MessageSquarePlusIcon, PhoneIcon } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@foundry/ui/toast";
 import { formatPhone } from "@foundry/commons";
 import { Button } from "@foundry/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@foundry/ui/dialog";

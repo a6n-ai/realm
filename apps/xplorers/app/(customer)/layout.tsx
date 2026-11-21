@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { Bricolage_Grotesque, DM_Sans } from "next/font/google";
 import { Role } from "@foundry/commons";
-import { Toaster } from "@foundry/ui/sonner";
+import { Toaster } from "@foundry/ui/toast";
 import { db } from "@/db/client";
 import { users } from "@/db/schema";
 import { landingPathFor } from "@/lib/auth/landing";

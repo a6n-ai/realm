@@ -10,7 +10,7 @@ import {
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { toast } from "sonner";
+import { toast } from "@foundry/ui/toast";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@foundry/ui/select";

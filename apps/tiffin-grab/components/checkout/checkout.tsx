@@ -41,7 +41,7 @@ import type { CardSource } from "@/lib/payments/payment-stripe";
 import { createWebsiteInquiry } from "@/lib/landing/contact-actions";
 import { getCaptchaToken } from "@/lib/auth/captcha-client";
 import { needsCaptchaToken } from "@/lib/checkout/captcha-gate";
-import { toast } from "sonner";
+import { toast } from "@foundry/ui/toast";
 import { emailSchema, phoneSchema } from "@foundry/commons";
 import { asWizardOrigin, originHref, parsePlanSteps, wizardSession } from "@/lib/wizard/session";
 import { firstBlockedStep, mealNote, pickedAddons, reconcileSelections, type WizardOrigin, type WizardSelections } from "@/lib/wizard/selections";

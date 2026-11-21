@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useState, type ReactNode } from "react";
-import { toast } from "sonner";
+import { toast } from "@foundry/ui/toast";
 import dynamic from "next/dynamic";
 import { loadQuickAddData, type QuickAddData } from "@/app/(dashboard)/dashboard/_leads/quick-add-data";
 
