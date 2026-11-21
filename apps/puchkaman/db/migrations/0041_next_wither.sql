@@ -1,1 +1,0 @@
-ALTER TABLE "app" ADD COLUMN "min_order_value" numeric(10, 2);

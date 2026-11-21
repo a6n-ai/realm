@@ -27,7 +27,7 @@ export const emailBaseUrl = () => stripSlash(process.env.EMAIL_BASE_URL ?? DEFAU
 export const filesPublicBaseUrl = () => process.env.FILES_PUBLIC_BASE_URL ?? "/api/files";
 
 export const notifyReplyTo = () => process.env.NOTIFY_REPLY_TO ?? CONTACT_EMAIL;
-// SES MaxSendRate is 14/s on this account, shared with puchkaman (5/s); stay
+// SES MaxSendRate is 14/s on this account; stay
 // under it so a burst cannot trigger throttling, which damages sender reputation.
 export const notifySendRate = () => Number(process.env.NOTIFY_SEND_RATE ?? 8);
 export const unsubscribeSecret = () => process.env.UNSUBSCRIBE_SECRET;

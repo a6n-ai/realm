@@ -4,7 +4,7 @@ Description: >-
   with a custom MAIL FROM subdomain for SPF alignment. This domain's DNS is
   hosted at Hostinger (NOT Route 53), so this stack does NOT create DNS records
   — it outputs the DKIM CNAMEs and MAIL FROM MX/SPF values to enter by hand in
-  the Hostinger DNS panel. (Route-53-hosted domains like puchkaman can auto-add
+  the Hostinger DNS panel. (Route-53-hosted domains can auto-add
   records; tiffingrab cannot.)
 
 Parameters:

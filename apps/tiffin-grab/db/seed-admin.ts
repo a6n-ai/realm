@@ -1,8 +1,6 @@
 /**
  * One-off, idempotent seed: creates tiffin-grab's first admin so email/password
- * login works on a freshly migrated database. Mirrors
- * apps/puchkaman/db/seed-admin.ts.
- *
+ * login works on a freshly migrated database. *
  * The password comes from the environment and is never hardcoded. It is hashed
  * with scrypt via @foundry/auth — better-auth's email/password provider does NOT
  * read a `users.password` column (there isn't one); it reads the hash from an

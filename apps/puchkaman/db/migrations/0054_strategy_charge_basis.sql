@@ -1,1 +1,0 @@
-ALTER TABLE "delivery_strategies" ADD COLUMN "charge_basis" text DEFAULT 'once' NOT NULL;

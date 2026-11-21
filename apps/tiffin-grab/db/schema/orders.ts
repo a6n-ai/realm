@@ -77,7 +77,7 @@ export const orders = pgTable("orders", {
   // Google's formatted address/autocomplete has no reliable subpremise/unit
   // field — always a distinct, customer-typed field, never parsed out of
   // addressLine. deliveryInstructions is one free-text note (gate code,
-  // leave at door, etc.), matching puchkaman and Amazon's pattern of a
+  // leave at door, etc.), matching Amazon's pattern of a
   // single instructions field rather than a separate buzzer-code field.
   addressUnit: text("address_unit"),
   deliveryInstructions: text("delivery_instructions"),
@@ -128,8 +128,7 @@ export const orders = pgTable("orders", {
   // Reassignment: staff "my queue" views filter by current_owner.
   index("orders_current_owner_idx").on(t.currentOwner),
   index("orders_organization_idx").on(t.organizationId),
-  // Admin Orders list: default sort createdAt desc, status-pill filter. Mirrors
-  // puchkaman's orders_status_created_idx for the same query shape.
+  // Admin Orders list: default sort createdAt desc, status-pill filter.
   index("orders_status_created_idx").on(t.status, t.createdAt),
   // FK columns: plan/zone filters on the admin list and kitchen roll-ups.
   index("orders_plan_idx").on(t.planId),

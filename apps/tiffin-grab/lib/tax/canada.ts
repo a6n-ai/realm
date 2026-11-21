@@ -12,8 +12,8 @@ import type { TaxLine } from "@foundry/payments";
  * post-discount `computeTax` semantics rather than forking them.
  *
  * App-local for now per AGENTS.md ("stays in apps/<client> until a second client
- * proves it genuinely shared"). Puchkaman is also Canadian, so this is a likely
- * candidate to graduate into @foundry/payments later.
+ * proves it genuinely shared"). A likely candidate to graduate into
+ * @foundry/payments later.
  *
  * ⚠️ RATES ARE DEFAULTS, NOT TAX ADVICE. Two things need a real accountant's
  * sign-off before this bills anyone:

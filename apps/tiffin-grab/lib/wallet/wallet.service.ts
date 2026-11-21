@@ -42,7 +42,7 @@ const recordRedemptionDiscount: WalletDeps<BusinessEvent>["recordRedemptionDisco
     memo,
   }));
 
-// Shared @foundry/wallet factory (puchkaman reuses it); only the wallet cap is tiffin-grab-specific.
+// Shared @foundry/wallet factory; only the wallet cap is tiffin-grab-specific.
 export const walletService = createWalletService<BusinessEvent>({
   db,
   tables: { walletLedger, eventPayout, coinRate },

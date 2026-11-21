@@ -9,7 +9,7 @@ import { awsRegion } from "@/lib/runtime/env";
 const suggestSchema = z.object({ query: z.string().trim().min(1) });
 
 // Fires on every keystroke of a debounced typeahead — tighter budget lives on
-// /api/address/resolve (fires once per pick), same split as puchkaman.
+// /api/address/resolve (fires once per pick).
 const SUGGEST_LIMIT = 60;
 const SUGGEST_WINDOW_MS = 60_000;
 

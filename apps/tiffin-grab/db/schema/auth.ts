@@ -104,7 +104,7 @@ export const session = pgTable(
     // Declared by the admin plugin's schema; impersonation is not enabled here.
     impersonatedBy: text("impersonated_by"),
     // Declared by the organization plugin's schema; setActiveOrganization (the
-    // OrgSwitcher) writes it. No FK, same as puchkaman/xplorers.
+    // OrgSwitcher) writes it. No FK, same as xplorers.
     activeOrganizationId: text("active_organization_id"),
     userId: bigint("user_id", { mode: "bigint" }).notNull().references(() => users.id, { onDelete: "cascade" }),
     createdAt: timestamp("created_at").notNull().defaultNow(),

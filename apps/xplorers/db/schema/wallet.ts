@@ -6,7 +6,7 @@ import { bookings } from "./studio";
 
 /**
  * Unified app-wide event catalog. Wallet payouts AND notification templates key
- * off this single enum (same pattern as tiffin-grab / puchkaman). An event need
+ * off this single enum (same pattern as tiffin-grab). An event need
  * not have a payout or a template — each subsystem uses the subset that applies.
  * first_booking is the welcome bonus: once per family, on their first paid booking.
  */

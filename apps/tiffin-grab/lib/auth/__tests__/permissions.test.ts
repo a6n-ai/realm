@@ -29,8 +29,7 @@ describe("tiffin-grab permission map", () => {
   it("withholds list and get from admin — this is the customer origin", () => {
     // /admin/list-users and /admin/get-user would page through customer PII without
     // touching audit_log. Nothing in this app needs them: the users page reads the
-    // database directly. puchkaman DOES grant list, because its page gates on it and
-    // its user rows are staff.
+    // database directly.
     expect(roles.admin.authorize({ user: ["list"] }).success).toBe(false);
     expect(roles.admin.authorize({ user: ["get"] }).success).toBe(false);
   });

@@ -96,16 +96,11 @@ dump.rdb
 
 # real static assets, not scratch screenshots — allowlisted against the
 # blanket image ignore above
-!apps/puchkaman/public/instagram/*.jpg
 !apps/tiffin-grab/assets/refer/*.png
-!apps/puchkaman/public/about/*.jpg
-!apps/puchkaman/public/hero/*.jpg
 !apps/tiffin-grab/app/opengraph-image.png
 !apps/tiffin-grab/app/twitter-image.png
 !apps/xplorers/public/brand/*.png
 !apps/tiffin-grab/components/marketing/hero-thali.jpg
-!apps/puchkaman/public/fusion/*.jpg
-!apps/puchkaman/public/catering/*.png
 !apps/xplorers/public/studio/*.jpg
 !apps/tiffin-grab/public/landing/stock/*.jpg
 

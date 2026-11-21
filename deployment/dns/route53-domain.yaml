@@ -7,7 +7,7 @@ Description: >-
 Parameters:
   DomainName:
     Type: String
-    Description: Apex domain, no trailing dot (e.g. puchkaman.ca).
+    Description: Apex domain, no trailing dot (e.g. tiffingrab.ca).
     AllowedPattern: "^[a-z0-9.-]+\\.[a-z]{2,}$"
   TargetIp:
     Type: String

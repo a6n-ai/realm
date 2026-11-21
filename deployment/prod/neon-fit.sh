@@ -18,9 +18,8 @@ app=${1:-}
 hours=${2:-24}
 case $app in
   tiffin-grab) port=5433; region=us-east-1 ;;
-  puchkaman)   port=5434; region=us-east-1 ;;
   xplorers)    port=5435; region=ap-southeast-1 ;;
-  *) echo "usage: $(basename "$0") <tiffin-grab|puchkaman|xplorers> [hours]" >&2; exit 64 ;;
+  *) echo "usage: $(basename "$0") <tiffin-grab|xplorers> [hours]" >&2; exit 64 ;;
 esac
 
 url=$(aws ssm get-parameter --region "$region" --name "/$app/prod/DIRECT_DATABASE_URL" \

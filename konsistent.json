@@ -4,7 +4,7 @@
   "conventions": [
     {
       "name": "db-schema-barrel-purity",
-      "description": "apps/*/db/schema/index.ts re-exports its sibling schema files and nothing else — no local declarations, no non-schema imports. Evidence: sibling schema files re-exported via `export * from` across apps (tiffin-grab, puchkaman, xplorers).",
+      "description": "apps/*/db/schema/index.ts re-exports its sibling schema files and nothing else — no local declarations, no non-schema imports. Evidence: sibling schema files re-exported via `export * from` across apps (tiffin-grab, xplorers).",
       "severity": "error",
       "paths": "apps/*/db/schema/index.ts",
       "must": {
@@ -13,11 +13,10 @@
     },
     {
       "name": "component-file-exports-matching-pascal-case",
-      "description": "A component file components/**/{fileName}.tsx exports a symbol named PascalCase(fileName) — kebab-case filename, PascalCase component export. Evidence: manually verified across sampled files in tiffin-grab (identity-gate.tsx -> IdentityGate, status-banner.tsx -> StatusBanner, org-switcher.tsx -> OrgSwitcher, plan-hero.tsx -> PlanHero); consistent with the 228/228 kebab-case-filename finding from the broader evidence sweep. Files under __tests__ excluded (test files, not components). apps/puchkaman is excluded whole (sunsetted 2026-10-13, no active development). The other excludeFiles are multi-export 'collection' files (3-13 exports each: icon sets, chart groups, auth kits, legal and marketing primitives, shared class-name constants, the admin date/time/month inputs) — a genuinely different semantic cohort from 'one file = one component', confirmed by inspecting each file's actual export list before excluding.",
+      "description": "A component file components/**/{fileName}.tsx exports a symbol named PascalCase(fileName) — kebab-case filename, PascalCase component export. Evidence: manually verified across sampled files in tiffin-grab (identity-gate.tsx -> IdentityGate, status-banner.tsx -> StatusBanner, org-switcher.tsx -> OrgSwitcher, plan-hero.tsx -> PlanHero); consistent with the 228/228 kebab-case-filename finding from the broader evidence sweep. Files under __tests__ excluded (test files, not components). The other excludeFiles are multi-export 'collection' files (3-13 exports each: icon sets, chart groups, auth kits, legal and marketing primitives, shared class-name constants, the admin date/time/month inputs) — a genuinely different semantic cohort from 'one file = one component', confirmed by inspecting each file's actual export list before excluding.",
       "severity": "error",
       "paths": [
-        "apps/*/components/**/{fileName}.tsx",
-        "!apps/puchkaman/**"
+        "apps/*/components/**/{fileName}.tsx"
       ],
       "excludeFiles": [
         "**/__tests__/**",

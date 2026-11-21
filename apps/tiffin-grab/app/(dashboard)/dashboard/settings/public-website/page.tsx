@@ -4,8 +4,7 @@ import { Card, CardContent, CardHeader, PageHeader } from "@/components/ds";
 import { requirePagePermission } from "@/lib/auth/guards";
 
 // One content type today (FAQ); more public-site content graduates in here
-// as its own card once it needs admin editing too — same landing page shape
-// as apps/puchkaman's Settings > Public Website.
+// as its own card once it needs admin editing too.
 export default async function PublicWebsitePage() {
   await requirePagePermission({ settings: ["read"] });
 

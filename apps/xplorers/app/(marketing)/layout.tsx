@@ -7,8 +7,7 @@ import { getAppClock } from "@/lib/services/app-settings.service";
 import "@/app/marketing.css";
 
 // Layout reads app.timezone. Docker CI has no Postgres, so prerendering any
-// marketing page (/, /cancellation, …) crashes with ECONNREFUSED. Puchkaman's
-// marketing layout is force-dynamic for the same reason.
+// marketing page (/, /cancellation, …) crashes with ECONNREFUSED.
 export const dynamic = "force-dynamic";
 
 const display = Bricolage_Grotesque({

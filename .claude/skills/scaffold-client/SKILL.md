@@ -4,13 +4,13 @@ description: >
   Scaffold a new Realm client app under apps/<client> (Next.js 16, Better Auth,
   Foundry CRM). Use when adding a client, cloning Xplorers, creating apps/*,
   or when the user says scaffold, new app, new client, or worktree for a client.
-  Do not copy Puchkaman Clover/commerce. Pair with Foundry skills next-foundry-app
+  Do not copy Clover/commerce. Pair with Foundry skills next-foundry-app
   and foundry-auth.
 ---
 
 # /scaffold-client
 
-Lean copy of **`apps/xplorers`**, not Puchkaman or TiffinGrab. Product features
+Lean copy of **`apps/xplorers`**, not TiffinGrab. Product features
 come later. Shared packages stay in Foundry (`@foundry/*`) and Relay (`@relay/*`).
 
 If the current tree has unrelated dirty work, **create a git worktree** first
@@ -53,7 +53,7 @@ Full file checklist: [references/checklist.md](references/checklist.md)
 
 ## Do not
 
-- Copy Clover, Uber Eats, cart, products, orders, or Puchkaman brutalism.
+- Copy Clover, Uber Eats, cart, products, orders, or brutalism.
 - Put product-specific code in `@foundry/*` until a *second* client needs it.
 - Use `middleware.ts` — Next 16 route protection is `proxy.ts`.
 - Rewrite an applied migration.

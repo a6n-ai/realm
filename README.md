@@ -8,7 +8,8 @@ A multi-client CRM and subscription platform. Realm is a Turborepo of **apps**, 
 |---|---|---|---|
 | TiffinGrab | [`apps/tiffin-grab`](apps/tiffin-grab) | 3000 | Live at app.tiffingrab.ca: subscriptions, deliveries and OptimoRoute dispatch, payments (Stripe, e-Transfer), staff CRM and analytics |
 | Xplorers | [`apps/xplorers`](apps/xplorers) | 3002 | Marketing site, auth, classes and pricing |
-| Puchkaman | [`apps/puchkaman`](apps/puchkaman) | 3000 | Sunsetted: code kept, no active development |
+
+Puchkaman was retired and lives in [a6n-ai/archive](https://github.com/a6n-ai/archive).
 
 ## Quick start
 

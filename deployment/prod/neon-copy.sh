@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # One-time copy of an app's prod RDS into its Neon project.
 #
-#   ./deployment/prod/neon-copy.sh <app>      # xplorers | puchkaman | tiffin-grab
+#   ./deployment/prod/neon-copy.sh <app>      # xplorers | tiffin-grab
 #
 # Reads prod through the app's tunnel (./deployment/prod/db-tunnel.sh <app>),
 # writes only to Neon, prints no secrets. NEON_URL comes from the environment or
@@ -17,9 +17,8 @@ set -euo pipefail
 app=${1:-}
 case $app in
   tiffin-grab) port=5433; region=us-east-1 ;;
-  puchkaman)   port=5434; region=us-east-1 ;;
   xplorers)    port=5435; region=ap-southeast-1 ;;
-  *) echo "usage: $(basename "$0") <tiffin-grab|puchkaman|xplorers>" >&2; exit 64 ;;
+  *) echo "usage: $(basename "$0") <tiffin-grab|xplorers>" >&2; exit 64 ;;
 esac
 
 cd "$(dirname "$0")/$app"

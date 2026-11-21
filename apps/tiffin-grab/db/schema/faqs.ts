@@ -4,8 +4,7 @@ import { organization } from "./organizations";
 
 /**
  * Public-site FAQ, shown on /faq. Admin-editable (Settings → Public Website →
- * FAQ) instead of hardcoded page copy — same schema/service shape as
- * puchkaman's apps/puchkaman/db/schema/faqs.ts, the two callers a
+ * FAQ) instead of hardcoded page copy — same schema/service shape a
  * @foundry package for this can eventually graduate from.
  *
  * Client-scoping — null = shared brand default, set = one org's own override.

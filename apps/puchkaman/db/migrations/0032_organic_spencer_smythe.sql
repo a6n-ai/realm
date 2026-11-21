@@ -1,1 +1,0 @@
-ALTER TABLE "contact_list" ADD COLUMN "segment_def" jsonb;

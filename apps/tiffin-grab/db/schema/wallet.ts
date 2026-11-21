@@ -7,7 +7,7 @@ import { users } from "./auth";
 // Unified app-wide event catalog. Wallet payouts (event_payout) AND notification
 // templates key off this single enum. An event need not have a payout or a
 // template — each subsystem uses the subset that applies. It stays app-local:
-// puchkaman has its own value set under the same Postgres type name, which is
+// each app has its own value set under the same Postgres type name, which is
 // why the wallet tables come from a factory rather than being shared directly.
 export const appEvent = pgEnum("app_event", [
   "order_created", "order_activated", "order_completed", "order_cancelled", "order_paused",

@@ -123,7 +123,7 @@ export interface CreateOrderInput {
     // Always a distinct, customer-typed field — Google's formatted address has
     // no reliable subpremise/unit field, so this is never parsed out of
     // addressLine. deliveryInstructions is one free-text note (gate code,
-    // leave at door, etc.), same pattern as puchkaman/Amazon.
+    // leave at door, etc.), same pattern as Amazon.
     addressUnit?: string | null;
     city: string;
     postalCode: string;

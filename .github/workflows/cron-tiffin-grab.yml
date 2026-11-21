@@ -1,6 +1,6 @@
 name: cron-tiffin-grab
 
-# Scheduler for tiffin-grab's protected cron routes, same shape as cron-puchkaman.yml.
+# Scheduler for tiffin-grab's protected cron routes.
 # No abandoned-order sweep: unpaid orders stay open until staff cancel them
 # (they send payment reminders instead).
 #

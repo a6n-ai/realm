@@ -1,20 +1,18 @@
 # Production deploy runbook
 
 tiffin-grab and xplorers run ONLY on Cloudflare Workers (see `deployment/cloudflare/README.md`);
-their EC2 boxes and deploy configs are gone. This folder now serves **puchkaman** (retired
-2026-10-13, code kept, workflows manual-only): Box B, https://puchkaman.ca, **us-east-1**.
-Deploy steps: `puchkaman/RUNBOOK.md`.
+their EC2 boxes and deploy configs are gone. This folder keeps the shared Dockerfile and the
+Neon helpers. Puchkaman (the last EC2 app) was retired and lives in a6n-ai/archive.
 
 ## Folder layout (`deployment/prod/`)
 
 ```
 Dockerfile              shared, multi-app (--build-arg APP=<name>)
-puchkaman/              puchkaman compose + deploy.sh + RUNBOOK + its own Caddy (puchkaman/proxy/)
 neon-copy.sh, neon-fit.sh   Neon database helpers
 ```
 
 Two sections below (S3 file storage, Files CDN) describe buckets and CloudFormation
-stacks that are still live; their "redeploy the app on its box" steps apply to puchkaman only.
+stacks that are still live; their "redeploy the app on its box" steps no longer apply (no app runs on a box).
 
 ## File storage: S3 bucket (`tiffin-grab-files-<acct>-us-east-1-an`)
 
@@ -164,7 +162,7 @@ is the S3 **key prefix** the policy is scoped to. The rule, enforced in the file
    `thumb-*` static + `orig-*` secured — the `keyPrefix` split is exactly what separates them:
    thumbnails become `public/tickets/...`, originals stay `tickets/...`).
 3. Deploy the stack with `PublicKeyPattern=public/*`. Only use `PublicKeyPattern=*` when the
-   bucket has **zero** secured objects (puchkaman today) — and re-scope the day that changes.
+   bucket has **zero** secured objects — and re-scope the day that changes.
 
 Existing objects created before the CDN keep their frozen `/api/files/...` URLs and keep serving
 through the proxy; only new files get CDN URLs. No migration is required, and nothing breaks —
@@ -179,15 +177,6 @@ a bucket with **no** existing policy. A bucket that already has one (tiffin-grab
 statement merged in by CLI afterward. Both cases are shown below.
 
 ```bash
-# --- puchkaman: no pre-existing bucket policy → stack owns it. PublicKeyPattern='*'
-# is safe here (bucket has zero secured objects).
-aws cloudformation deploy --region us-east-1 \
-  --stack-name puchkaman-files-cdn \
-  --template-file deployment/cdn/cloudfront-files.yaml \
-  --parameter-overrides AppName=puchkaman \
-    FilesBucketName=puchkaman-files-<acct>-us-east-1-an \
-    PublicKeyPattern='*'
-
 # --- tiffin-grab: bucket already has DenyInsecureTransport → do NOT let CFN own the policy.
 aws cloudformation deploy --region us-east-1 \
   --stack-name tiffin-grab-files-cdn \
@@ -213,27 +202,20 @@ aws s3api put-bucket-policy --bucket "$B" --policy "{
      \"Condition\":{\"StringEquals\":{\"AWS:SourceArn\":\"arn:aws:cloudfront::<acct>:distribution/$DIST\"}}}
   ]}"
 
-# --- both apps: store the CDN base URL as the app's SSM param, then redeploy the app.
-URL=$(aws cloudformation describe-stacks --region us-east-1 --stack-name puchkaman-files-cdn \
+# --- store the CDN base URL as the app's SSM param, then redeploy the app.
+URL=$(aws cloudformation describe-stacks --region us-east-1 --stack-name tiffin-grab-files-cdn \
   --query "Stacks[0].Outputs[?OutputKey=='FilesPublicBaseUrl'].OutputValue" --output text)
 aws ssm put-parameter --region us-east-1 --overwrite --type SecureString \
-  --name /puchkaman/prod/FILES_PUBLIC_BASE_URL --value "$URL"
-# (repeat for tiffin-grab-files-cdn → /tiffin-grab/prod/FILES_PUBLIC_BASE_URL)
-
-# Redeploy each app on its box so deploy.sh pulls the new param into .env.production.
+  --name /tiffin-grab/prod/FILES_PUBLIC_BASE_URL --value "$URL"
 ```
 
-Custom domain (e.g. `cdn.puchkaman.ca`) is optional: pass `AlternateDomainName` +
+Custom domain (e.g. `cdn.tiffingrab.ca`) is optional: pass `AlternateDomainName` +
 `AcmCertificateArn` (cert must be in **us-east-1**) and point a DNS CNAME at the distribution.
 Without them the `*.cloudfront.net` domain works immediately, no DNS or cert needed.
 
 ## DB access from a laptop
 
-puchkaman's RDS admits 5432 only from its own security group, so the tunnel exits on its box via SSM:
-
-```bash
-./deployment/prod/db-tunnel.sh puchkaman     # localhost:5434  (us-east-1)
-```
-
-Point the IDE data source at `localhost:5434` with no tunnel configured. Needs
+`db-tunnel.sh` opens an SSM port-forward from an app's own box to its RDS. No app is
+registered in it now (tiffin-grab and xplorers are on Neon); add a `case` line with a fixed
+port per app if a box-hosted database returns. Needs
 `brew install --cask session-manager-plugin` once per laptop.

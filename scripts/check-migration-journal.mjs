@@ -69,7 +69,7 @@ for (const app of readdirSync("apps")) {
   });
 
   // Without a base, skip "new entry" checks — grandfathered round `when`s
-  // (e.g. puchkaman 0046) would otherwise fail every workflow_dispatch deploy.
+  // (e.g. an old round-number timestamp) would otherwise fail every workflow_dispatch deploy.
   if (!base) continue;
 
   const newest = baseEntries.length ? baseEntries[baseEntries.length - 1].when : 0;

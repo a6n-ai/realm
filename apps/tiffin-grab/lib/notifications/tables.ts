@@ -5,7 +5,7 @@ export { notificationTables };
 
 /**
  * The app's users table, narrowed to what the package reads. `notifyEmail` is
- * tiffin-grab-only — puchkaman has no such column and passes it undefined.
+ * tiffin-grab-only; other apps have no such column and pass it undefined.
  */
 export const usersRef: UsersRef = {
   table: users,

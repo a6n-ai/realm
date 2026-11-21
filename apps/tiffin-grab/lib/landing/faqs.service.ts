@@ -23,8 +23,7 @@ const faqService = new FaqService(new UpdatableRepository(db, publicFaqs, public
  * brand's null-org rows when the given org (the franchise the page is
  * rendered for) has none of its own. This app has
  * exactly one org today (see getBrandOrgId in organizations.service.ts), so the
- * override branch is inert until franchise creation ships — same shape as
- * apps/puchkaman/lib/landing/faqs.service.ts either way.
+ * override branch is inert until franchise creation ships.
  */
 export async function listPublicFaqs(orgId: string | null): Promise<Faq[]> {
   return publicPagesCache.getOrSet(`faqs:${orgId ?? "brand"}`, () => loadPublicFaqs(orgId));

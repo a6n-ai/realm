@@ -15,7 +15,7 @@ Description: >-
 # against exposing a `secured` object (presigned/token-gated, e.g. ticket
 # attachment originals) is this key pattern. Two safe configurations:
 #
-#   1. Bucket has NO secured objects at all (e.g. puchkaman): PublicKeyPattern=*
+#   1. Bucket has NO secured objects at all (a hypothetical all-public bucket): PublicKeyPattern=*
 #      is safe — every object is already public-static.
 #   2. Bucket mixes static + secured (e.g. tiffin-grab): the app MUST write all
 #      static/public files under a dedicated `public/` prefix and secured files
@@ -27,11 +27,11 @@ Description: >-
 Parameters:
   AppName:
     Type: String
-    Description: App slug, used for resource names/comments (e.g. puchkaman, tiffin-grab).
+    Description: App slug, used for resource names/comments (e.g. tiffin-grab).
     AllowedPattern: "[a-z0-9-]+"
   FilesBucketName:
     Type: String
-    Description: Existing private files bucket (e.g. puchkaman-files-<acct>-us-east-1-an).
+    Description: Existing private files bucket (e.g. tiffin-grab-files-<acct>-us-east-1-an).
   PublicKeyPattern:
     Type: String
     Default: "public/*"
@@ -41,7 +41,7 @@ Parameters:
   AlternateDomainName:
     Type: String
     Default: ""
-    Description: Optional custom domain (e.g. cdn.puchkaman.ca). Empty = use the *.cloudfront.net domain.
+    Description: Optional custom domain (e.g. cdn.tiffingrab.ca). Empty = use the *.cloudfront.net domain.
   AcmCertificateArn:
     Type: String
     Default: ""

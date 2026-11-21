@@ -2,7 +2,7 @@
 
 Realm client for [xplorers.life](https://xplorers.life/) — Science Explorers Club.
 
-Same login as TiffinGrab / Puchkaman (`user`, `admin`, `member`) on Better Auth.
+Same login as TiffinGrab (`user`, `admin`, `member`) on Better Auth.
 
 ## Local
 

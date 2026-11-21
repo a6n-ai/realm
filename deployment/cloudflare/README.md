@@ -52,7 +52,7 @@ copy its shape. Plan and history: `docs/superpowers/plans/2026-11-02-xplorers-wo
    `<app>-workers-iam`; parameters app, region, files bucket, SES identity + config set).
    It stores the key in Secrets Manager at `/<app>/workers/aws-access-key`; copy it into
    wrangler secrets.
-7. **Not yet solved for tiffin-grab/puchkaman:** the Redis BLPOP listener, in-process SSE
+7. **Not yet solved for tiffin-grab:** the Redis BLPOP listener, in-process SSE
    bus and background jobs need Queues, Cron Triggers and the realtime Worker first.
 
 ### Lessons from the xplorers port (2026-11-02)
