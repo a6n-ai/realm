@@ -83,8 +83,29 @@ import {
   clampSidebarWidth,
 } from "@/components/dashboard/sidebar-width";
 
-/** Icon tint from the app's --chart-N tokens (light and dark pairs); children take their section's. */
-export type NavColor = 1 | 2 | 3 | 4 | 5;
+// One hue per nav row, Linear-style (raw palette is fine for categorical identity; each has its dark pair).
+// `!` beats SidebarMenuSubButton's own `[&>svg]:text-*`. Literal strings so Tailwind sees every class.
+const TINTS = {
+  blue: "text-blue-500! dark:text-blue-400!",
+  orange: "text-orange-500! dark:text-orange-400!",
+  pink: "text-pink-500! dark:text-pink-400!",
+  violet: "text-violet-500! dark:text-violet-400!",
+  emerald: "text-emerald-500! dark:text-emerald-400!",
+  amber: "text-amber-500! dark:text-amber-400!",
+  rose: "text-rose-500! dark:text-rose-400!",
+  red: "text-red-500! dark:text-red-400!",
+  yellow: "text-yellow-500! dark:text-yellow-400!",
+  lime: "text-lime-500! dark:text-lime-400!",
+  green: "text-green-500! dark:text-green-400!",
+  teal: "text-teal-500! dark:text-teal-400!",
+  cyan: "text-cyan-500! dark:text-cyan-400!",
+  sky: "text-sky-500! dark:text-sky-400!",
+  indigo: "text-indigo-500! dark:text-indigo-400!",
+  purple: "text-purple-500! dark:text-purple-400!",
+  fuchsia: "text-fuchsia-500! dark:text-fuchsia-400!",
+  slate: "text-slate-500! dark:text-slate-400!",
+} as const;
+export type NavColor = keyof typeof TINTS;
 export type NavItem = { title: string; href: string; icon: LucideIcon; color?: NavColor; children?: NavItem[] };
 export type NavSection = {
   label: string;
@@ -113,11 +134,10 @@ function NavIcon({ icon: Icon, color }: { icon: LucideIcon; color?: NavColor }) 
   return pending ? (
     <Loader2Icon aria-hidden className="size-4 animate-spin" strokeWidth={1.5} />
   ) : (
-    <Icon className="size-4" strokeWidth={1.5} style={tint(color)} />
+    <Icon className={cn("size-4", color && TINTS[color])} strokeWidth={1.5} />
   );
 }
 
-const tint = (color?: NavColor) => (color ? { color: `var(--chart-${color})` } : undefined);
 
 /** Fired by MarkSectionRead so the sidebar clears a section's dot without a router.refresh(). */
 export const SECTION_READ_EVENT = "section-read";
@@ -136,13 +156,13 @@ export const SECTIONS: NavSection[] = [
     label: "Main",
     variant: "primary",
     items: [
-      { title: "Overview", href: "/dashboard", icon: LayoutGridIcon, color: 2 },
-      { title: "Orders", href: "/dashboard/orders", icon: BoxIcon, color: 1 },
-      { title: "Inquiries", href: "/dashboard/inquiries", icon: InboxIcon, color: 3 },
-      { title: "Customers", href: "/dashboard/customers", icon: UsersIcon, color: 4 },
-      { title: "Renewals", href: "/dashboard/renewals", icon: RefreshCwIcon, color: 5 },
-      { title: "Dispatch", href: "/dashboard/dispatch", icon: TruckIcon, color: 2 },
-      { title: "Tickets", href: "/dashboard/tickets", icon: LifeBuoyIcon, color: 3 },
+      { title: "Overview", href: "/dashboard", icon: LayoutGridIcon, color: "blue" },
+      { title: "Orders", href: "/dashboard/orders", icon: BoxIcon, color: "orange" },
+      { title: "Inquiries", href: "/dashboard/inquiries", icon: InboxIcon, color: "pink" },
+      { title: "Customers", href: "/dashboard/customers", icon: UsersIcon, color: "violet" },
+      { title: "Renewals", href: "/dashboard/renewals", icon: RefreshCwIcon, color: "emerald" },
+      { title: "Dispatch", href: "/dashboard/dispatch", icon: TruckIcon, color: "amber" },
+      { title: "Tickets", href: "/dashboard/tickets", icon: LifeBuoyIcon, color: "rose" },
     ],
   },
   {
@@ -151,42 +171,42 @@ export const SECTIONS: NavSection[] = [
     items: [
       {
         title: "Kitchen",
-        color: 1,
+        color: "red",
         href: "/dashboard/labels",
         icon: ChefHatIcon,
         children: [
-          { title: "Daily labels", href: "/dashboard/labels", icon: TagIcon },
-          { title: "Weekly Menus", href: "/dashboard/menus", icon: CalendarIcon },
-          { title: "Catalog", href: "/dashboard/catalog", icon: UtensilsCrossedIcon },
+          { title: "Daily labels", href: "/dashboard/labels", icon: TagIcon, color: "yellow" },
+          { title: "Weekly Menus", href: "/dashboard/menus", icon: CalendarIcon, color: "lime" },
+          { title: "Catalog", href: "/dashboard/catalog", icon: UtensilsCrossedIcon, color: "orange" },
         ],
       },
       {
         title: "Money",
-        color: 5,
+        color: "green",
         href: "/dashboard/payments",
         icon: WalletIcon,
         children: [
-          { title: "Payments", href: "/dashboard/payments", icon: WalletCardsIcon },
-          { title: "Wallet", href: "/dashboard/wallet", icon: CoinsIcon },
-          { title: "Discounts", href: "/dashboard/discounts", icon: TicketPercentIcon },
+          { title: "Payments", href: "/dashboard/payments", icon: WalletCardsIcon, color: "emerald" },
+          { title: "Wallet", href: "/dashboard/wallet", icon: CoinsIcon, color: "amber" },
+          { title: "Discounts", href: "/dashboard/discounts", icon: TicketPercentIcon, color: "pink" },
         ],
       },
       {
         title: "Engage",
-        color: 3,
+        color: "fuchsia",
         href: "/dashboard/notifications",
         icon: MegaphoneIcon,
         children: [
-          { title: "Notifications", href: "/dashboard/notifications", icon: BellIcon },
-          { title: "Customer groups", href: "/dashboard/customer-groups", icon: UsersIcon },
+          { title: "Notifications", href: "/dashboard/notifications", icon: BellIcon, color: "sky" },
+          { title: "Customer groups", href: "/dashboard/customer-groups", icon: UsersIcon, color: "violet" },
         ],
       },
       {
         title: "Insights",
-        color: 4,
+        color: "cyan",
         href: "/dashboard/analytics",
         icon: ChartLineIcon,
-        children: [{ title: "Analytics", href: "/dashboard/analytics", icon: BarChart3Icon }],
+        children: [{ title: "Analytics", href: "/dashboard/analytics", icon: BarChart3Icon, color: "indigo" }],
       },
     ],
   },
@@ -194,14 +214,14 @@ export const SECTIONS: NavSection[] = [
     label: "Administration",
     variant: "bottom",
     items: [
-      { title: "Settings", href: "/dashboard/settings", icon: SettingsIcon },
-      { title: "Organization", href: "/dashboard/organization", icon: Building2Icon },
+      { title: "Settings", href: "/dashboard/settings", icon: SettingsIcon, color: "slate" },
+      { title: "Organization", href: "/dashboard/organization", icon: Building2Icon, color: "teal" },
     ],
   },
   {
     label: "Personal",
     variant: "menu",
-    items: [{ title: "Account", href: "/dashboard/account", icon: UserIcon }],
+    items: [{ title: "Account", href: "/dashboard/account", icon: UserIcon, color: "purple" }],
   },
 ];
 
@@ -388,7 +408,7 @@ export function AppSidebar({
           onClick={() => setSectionOpen((prev) => ({ ...prev, [item.title]: !open }))}
           className={ROW}
         >
-          <item.icon className="size-4" strokeWidth={1.5} style={tint(item.color)} />
+          <item.icon className={cn("size-4", item.color && TINTS[item.color])} strokeWidth={1.5} />
           <span>{item.title}</span>
           {dot ? <span aria-label="New activity" className="bg-primary ml-auto size-2 shrink-0 rounded-full" /> : null}
           <ChevronRightIcon
@@ -419,7 +439,7 @@ export function AppSidebar({
                       />
                     }
                   >
-                    <NavIcon icon={child.icon} color={child.color ?? item.color} />
+                    <NavIcon icon={child.icon} color={child.color} />
                     <span>{child.title}</span>
                   </SidebarMenuSubButton>
                 </SidebarMenuSubItem>
