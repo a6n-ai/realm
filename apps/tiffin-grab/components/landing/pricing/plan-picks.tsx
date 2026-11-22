@@ -64,7 +64,7 @@ export async function PlanPicks({ plans, lengths, weekdayFreq, maxPct = 25 }: { 
                     <dl className="lp-pick__math">
                       <div><dt>Plan</dt>{" "}<dd>{days.length} {days.length === 1 ? "day" : "days"} × {length.weeks} wk</dd></div>
                       {length.off > 0 ? <div><dt>Length discount</dt>{" "}<dd>{length.off}% off</dd></div> : null}
-                      {delivery > 0 ? <div><dt>Delivery discount</dt>{" "}<dd>{delivery}% off</dd></div> : null}
+                      {delivery > 0 ? <div><dt>Delivery discount</dt>{" "}<dd>{weekday?.tiered ? "Up to " : ""}{delivery}% off</dd></div> : null}
                       <div className="lp-pick__total"><dt>Total, before tax</dt>{" "}<dd>{money(total)}</dd></div>
                     </dl>
                     <Link prefetch={false} href={`/subscribe?${q}`} className="lp-cta">Start this plan<ArrowRight aria-hidden className="size-4" strokeWidth={2.2} /></Link>

@@ -33,7 +33,7 @@ export function StepSchedule({
   // Display order only: the default selection below still follows catalog order.
   const frequencies = catalogFrequencies.toSorted((a, b) => (a.weekdays?.length ?? 0) - (b.weekdays?.length ?? 0));
   // The suggestion lives on the card it's about (the old top banner duplicated it): biggest saving reads "Best value".
-  const bestSave = Math.max(0, ...frequencies.map((f) => savePct(catalog.discounts, "delivery", f.publicId, selections.durationWeeks ?? 0, catalog.maxDiscountPct)));
+  const bestSave = Math.max(0, ...frequencies.map((f) => savePct(catalog.discounts, "delivery", f.publicId, selections.durationWeeks ?? 0, catalog.maxDiscountPct, selections.eatingDays?.length ?? 7)));
   const bounds = tiffinBounds(catalog);
   const row = frequencies.find((f) => f.key === selections.frequencyKey);
   const deliveryDays = (row?.weekdays ?? []) as DayOfWeek[];
@@ -122,7 +122,9 @@ export function StepSchedule({
         <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
           {frequencies.map((f) => {
             const active = f.key === selections.frequencyKey;
-            const save = savePct(catalog.discounts, "delivery", f.publicId, selections.durationWeeks ?? 0, catalog.maxDiscountPct);
+            const n = eating.length;
+            const save = savePct(catalog.discounts, "delivery", f.publicId, selections.durationWeeks ?? 0, catalog.maxDiscountPct, n);
+            const next = n < max ? savePct(catalog.discounts, "delivery", f.publicId, selections.durationWeeks ?? 0, catalog.maxDiscountPct, n + 1) : save;
             return (
               <OptionCard
                 key={f.key}
@@ -143,6 +145,7 @@ export function StepSchedule({
                 <span className={`text-subhead font-medium ${active ? "text-foreground" : "text-muted-foreground"}`}>
                   {(f.weekdays as DayOfWeek[]).map((d) => DAY_SHORT[d]).join(" · ")}
                 </span>
+                {next > save && <span className="text-muted-foreground text-footnote">Eat {n + 1} days: save {next}%</span>}
               </OptionCard>
             );
           })}

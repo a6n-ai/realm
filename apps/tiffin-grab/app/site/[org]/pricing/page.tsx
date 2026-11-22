@@ -16,7 +16,7 @@ import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { listableMealSizes } from "@/lib/catalog/types";
 import { effectivePrice } from "@/lib/pricing";
 import { tiffinBounds } from "@/lib/wizard/selections";
-import { savePct } from "@/lib/pricing/discounts";
+import { hasEatingTiers, savePct } from "@/lib/pricing/discounts";
 import { pageMeta } from "@/lib/landing/meta";
 import { breadcrumbJsonLd, jsonLdScript, pricingJsonLd } from "@/lib/landing/business-jsonld";
 import { publicOrigin } from "@/lib/routing/apex";
@@ -94,6 +94,7 @@ export default async function PricingPage() {
       name: f.name,
       days: f.weekdays!.filter((d): d is DayOfWeek => (WEEK_DAYS as readonly string[]).includes(d)),
       off: Object.fromEntries(weeksList.map((w) => [w, savePct(catalog.discounts, "delivery", f.publicId, w)])),
+      tiered: hasEatingTiers(catalog.discounts, f.publicId),
     }));
   // Like the engine: every duration rule that applies is summed, then capped.
   const lengths: MathLength[] = [...new Map(catalog.durations.map((d) => [d.weeks, d])).values()]

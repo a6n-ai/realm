@@ -12,7 +12,7 @@ import { round2 } from "@foundry/commons/util/money";
 export type MathSize = { id: string; name: string; rate: number; days: DayOfWeek[] };
 export type MathPlan = { key: string; label: string; sizes: MathSize[] };
 export type MathLength = { weeks: number; off: number };
-export type MathFrequency = { id: string; key: string; name: string; days: DayOfWeek[]; off: Record<number, number> };
+export type MathFrequency = { id: string; key: string; name: string; days: DayOfWeek[]; off: Record<number, number>; tiered?: boolean };
 
 const WEEK: { key: DayOfWeek; short: string }[] = [
   { key: "mon", short: "Mon" }, { key: "tue", short: "Tue" }, { key: "wed", short: "Wed" }, { key: "thu", short: "Thu" },
@@ -194,7 +194,7 @@ export function PriceMath({ plans, lengths, frequencies = [], bounds = { min: 3,
                 <button key={f.key} type="button" role="radio" aria-checked={f.key === freq?.key} aria-label={`${f.name}, ${f.days.length} ${f.days.length === 1 ? "delivery" : "deliveries"} a week${save > 0 ? `, save ${save}%` : ""}`} className="lp-math__freq" onClick={() => setFreqKey(f.key)}>
                   <span className="lp-math__freq-top">
                     <span><b className="tabular-nums">{f.days.length}×</b> a week</span>
-                    {save > 0 ? <span className="lp-math__save">Save {save}%</span> : null}
+                    {save > 0 ? <span className="lp-math__save">{f.tiered ? `Up to ${save}%` : `Save ${save}%`}</span> : null}
                   </span>
                   {trips ? (
                     <span className="lp-math__trips" aria-label={trips.map((t) => `${WEEK.find((d) => d.key === t.day)?.short}: ${t.units} ${t.units === 1 ? "tiffin" : "tiffins"}`).join(", ")}>

@@ -99,3 +99,26 @@ describe("StepSchedule", () => {
     expect(set).not.toHaveBeenCalledWith(expect.objectContaining({ eatingDays: expect.anything() }));
   });
 });
+
+describe("StepSchedule eating-day tiers", () => {
+  const tier = (key: string, percent: number, minEatingDays: number) => ({ key, name: key, kind: "delivery", targetPublicId: "frq_mwf", percent, minWeeks: null, minEatingDays });
+  const tiered = { ...catalog, discounts: [tier("t8", 8, 4), tier("t10", 10, 5), tier("t12", 12, 6)], frequencies: [freq("mwf", ["mon", "wed", "fri"])] } as unknown as ClientCatalogSnapshot;
+
+  it("3 eating days: no pill, hints the 4-day tier", () => {
+    render(<StepSchedule catalog={tiered} selections={sel(["mon", "wed", "fri"])} set={vi.fn()} />);
+    expect(screen.queryByLabelText(/^Save/)).toBeNull();
+    expect(screen.getByText("Eat 4 days: save 8%")).toBeTruthy();
+  });
+
+  it("4 eating days: Save 8% pill and the 5-day hint", () => {
+    render(<StepSchedule catalog={tiered} selections={sel(["mon", "tue", "wed", "thu"])} set={vi.fn()} />);
+    expect(screen.getByLabelText("Save 8%")).toBeTruthy();
+    expect(screen.getByText("Eat 5 days: save 10%")).toBeTruthy();
+  });
+
+  it("at max eating days: best-value pill, no hint despite a higher tier", () => {
+    render(<StepSchedule catalog={tiered} selections={sel(["mon", "tue", "wed", "thu", "fri"])} set={vi.fn()} />);
+    expect(screen.getByText("Best value · Save 10%")).toBeTruthy();
+    expect(screen.queryByText(/^Eat \d days/)).toBeNull();
+  });
+});
