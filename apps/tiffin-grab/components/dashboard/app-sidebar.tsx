@@ -55,6 +55,9 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
   SidebarSeparator,
   useSidebar,
 } from "@foundry/ui/sidebar";
@@ -80,7 +83,9 @@ import {
   clampSidebarWidth,
 } from "@/components/dashboard/sidebar-width";
 
-export type NavItem = { title: string; href: string; icon: LucideIcon; children?: NavItem[] };
+/** Icon tint from the app's --chart-N tokens (light and dark pairs); children take their section's. */
+export type NavColor = 1 | 2 | 3 | 4 | 5;
+export type NavItem = { title: string; href: string; icon: LucideIcon; color?: NavColor; children?: NavItem[] };
 export type NavSection = {
   label: string;
   items: NavItem[];
@@ -103,14 +108,16 @@ const ROW =
 // Swaps the nav icon for a spinner while this link's navigation is in flight.
 // Dashboard routes are dynamic and unprefetched, so a click otherwise shows
 // nothing until the server answers (300ms-1s+ from far regions).
-function NavIcon({ icon: Icon }: { icon: LucideIcon }) {
+function NavIcon({ icon: Icon, color }: { icon: LucideIcon; color?: NavColor }) {
   const { pending } = useLinkStatus();
   return pending ? (
     <Loader2Icon aria-hidden className="size-4 animate-spin" strokeWidth={1.5} />
   ) : (
-    <Icon className="size-4" strokeWidth={1.5} />
+    <Icon className="size-4" strokeWidth={1.5} style={tint(color)} />
   );
 }
+
+const tint = (color?: NavColor) => (color ? { color: `var(--chart-${color})` } : undefined);
 
 /** Fired by MarkSectionRead so the sidebar clears a section's dot without a router.refresh(). */
 export const SECTION_READ_EVENT = "section-read";
@@ -129,13 +136,13 @@ export const SECTIONS: NavSection[] = [
     label: "Main",
     variant: "primary",
     items: [
-      { title: "Overview", href: "/dashboard", icon: LayoutGridIcon },
-      { title: "Orders", href: "/dashboard/orders", icon: BoxIcon },
-      { title: "Inquiries", href: "/dashboard/inquiries", icon: InboxIcon },
-      { title: "Customers", href: "/dashboard/customers", icon: UsersIcon },
-      { title: "Renewals", href: "/dashboard/renewals", icon: RefreshCwIcon },
-      { title: "Dispatch", href: "/dashboard/dispatch", icon: TruckIcon },
-      { title: "Tickets", href: "/dashboard/tickets", icon: LifeBuoyIcon },
+      { title: "Overview", href: "/dashboard", icon: LayoutGridIcon, color: 2 },
+      { title: "Orders", href: "/dashboard/orders", icon: BoxIcon, color: 1 },
+      { title: "Inquiries", href: "/dashboard/inquiries", icon: InboxIcon, color: 3 },
+      { title: "Customers", href: "/dashboard/customers", icon: UsersIcon, color: 4 },
+      { title: "Renewals", href: "/dashboard/renewals", icon: RefreshCwIcon, color: 5 },
+      { title: "Dispatch", href: "/dashboard/dispatch", icon: TruckIcon, color: 2 },
+      { title: "Tickets", href: "/dashboard/tickets", icon: LifeBuoyIcon, color: 3 },
     ],
   },
   {
@@ -144,6 +151,7 @@ export const SECTIONS: NavSection[] = [
     items: [
       {
         title: "Kitchen",
+        color: 1,
         href: "/dashboard/labels",
         icon: ChefHatIcon,
         children: [
@@ -154,6 +162,7 @@ export const SECTIONS: NavSection[] = [
       },
       {
         title: "Money",
+        color: 5,
         href: "/dashboard/payments",
         icon: WalletIcon,
         children: [
@@ -164,6 +173,7 @@ export const SECTIONS: NavSection[] = [
       },
       {
         title: "Engage",
+        color: 3,
         href: "/dashboard/notifications",
         icon: MegaphoneIcon,
         children: [
@@ -173,6 +183,7 @@ export const SECTIONS: NavSection[] = [
       },
       {
         title: "Insights",
+        color: 4,
         href: "/dashboard/analytics",
         icon: ChartLineIcon,
         children: [{ title: "Analytics", href: "/dashboard/analytics", icon: BarChart3Icon }],
@@ -340,7 +351,7 @@ export function AppSidebar({
             />
           }
         >
-          <NavIcon icon={item.icon} />
+          <NavIcon icon={item.icon} color={item.color} />
           <span>{item.title}</span>
           {unread(item.href) ? (
             <span aria-label="New activity" className="bg-primary ml-auto size-2 shrink-0 rounded-full" />
@@ -377,7 +388,7 @@ export function AppSidebar({
           onClick={() => setSectionOpen((prev) => ({ ...prev, [item.title]: !open }))}
           className={ROW}
         >
-          <item.icon className="size-4" strokeWidth={1.5} />
+          <item.icon className="size-4" strokeWidth={1.5} style={tint(item.color)} />
           <span>{item.title}</span>
           {dot ? <span aria-label="New activity" className="bg-primary ml-auto size-2 shrink-0 rounded-full" /> : null}
           <ChevronRightIcon
@@ -392,28 +403,28 @@ export function AppSidebar({
         </SidebarMenuButton>
         <Collapsible open={open}>
           <CollapsibleContent id={panelId}>
-            <ul className="flex flex-col gap-0.5 pt-0.5">
-              {children.map((child) => {
-                const childActive = isNavActive(pathname, child.href);
-                return (
-                  <li key={child.href}>
-                    <Link
-                      href={child.href}
-                      prefetch={false}
-                      aria-current={childActive ? "page" : undefined}
-                      onMouseEnter={() => router.prefetch(child.href)}
-                      onFocus={() => router.prefetch(child.href)}
-                      className={cn(
-                        "text-muted-foreground hover:bg-muted/60 hover:text-foreground flex h-8 items-center rounded-(--ui-radius-control) pr-2 pl-8 text-footnote transition-colors",
-                        childActive && "bg-muted text-foreground",
-                      )}
-                    >
-                      {child.title}
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
+            <SidebarMenuSub className="mt-0.5">
+              {children.map((child) => (
+                <SidebarMenuSubItem key={child.href}>
+                  <SidebarMenuSubButton
+                    isActive={isNavActive(pathname, child.href)}
+                    className="text-muted-foreground hover:text-foreground data-active:text-foreground h-8 text-footnote transition-colors"
+                    render={
+                      <Link
+                        href={child.href}
+                        prefetch={false}
+                        aria-current={isNavActive(pathname, child.href) ? "page" : undefined}
+                        onMouseEnter={() => router.prefetch(child.href)}
+                        onFocus={() => router.prefetch(child.href)}
+                      />
+                    }
+                  >
+                    <NavIcon icon={child.icon} color={child.color ?? item.color} />
+                    <span>{child.title}</span>
+                  </SidebarMenuSubButton>
+                </SidebarMenuSubItem>
+              ))}
+            </SidebarMenuSub>
           </CollapsibleContent>
         </Collapsible>
       </SidebarMenuItem>

@@ -223,12 +223,15 @@ describe("AppSidebar list", () => {
     expect(within(panel as HTMLElement).getByRole("link", { name: "Catalog" })).toBeInTheDocument();
   });
 
-  it("indents child rows with no icons and a 13px label", () => {
+  it("renders child rows as sub-buttons with their icon in the section's colour", () => {
     renderSidebar();
     fireEvent.click(screen.getByRole("button", { name: "Kitchen" }));
     const child = screen.getByRole("link", { name: "Weekly Menus" });
-    expect(child).toHaveClass("pl-8", "text-footnote", "h-8");
-    expect(child.querySelector("svg")).toBeNull();
+    expect(child).toHaveAttribute("data-slot", "sidebar-menu-sub-button");
+    expect(child).toHaveClass("text-footnote", "h-8");
+    expect(child.querySelector("svg")).toHaveStyle({ color: "var(--chart-1)" });
+    const kitchenIcon = screen.getByRole("button", { name: "Kitchen" }).querySelector("svg");
+    expect(kitchenIcon).toHaveStyle({ color: "var(--chart-1)" });
   });
 
   it("rotates the chevron down while a section is open", () => {
@@ -244,7 +247,7 @@ describe("AppSidebar list", () => {
     renderSidebar({ pathname: "/dashboard/analytics" });
     expect(screen.getByRole("button", { name: "Insights" })).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByRole("button", { name: "Kitchen" })).toHaveAttribute("aria-expanded", "false");
-    expect(screen.getByRole("link", { name: "Analytics" })).toHaveClass("bg-muted", "text-foreground");
+    expect(screen.getByRole("link", { name: "Analytics" })).toHaveAttribute("data-active", "true");
     expect(screen.getByRole("link", { name: "Analytics" })).toHaveAttribute("aria-current", "page");
   });
 
@@ -336,7 +339,7 @@ describe("AppSidebar list", () => {
     renderSidebar();
     fireEvent.click(screen.getByRole("button", { name: "Kitchen" }));
     const icons = document.querySelectorAll('[data-slot="sidebar-content"] svg, [data-slot="sidebar-footer"] [data-slot="sidebar-menu"] svg');
-    expect(icons).toHaveLength(17);
+    expect(icons).toHaveLength(20);
     for (const icon of icons) {
       expect(icon).toHaveClass("size-4");
       expect(icon).toHaveAttribute("stroke-width", "1.5");
