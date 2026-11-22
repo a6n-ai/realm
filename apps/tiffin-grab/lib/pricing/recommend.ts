@@ -17,7 +17,9 @@ const dealBasis = (pct: number) => ({ total: 100 - pct, units: 1 });
 
 /** Per-tiffin discount of each plan length vs the shortest one (same delivery type), as whole percents. */
 export function durationSavings(snapshot: ClientCatalogSnapshot, selections: PricingSelections): Record<number, number> {
-  return snapshot.deals?.durationSavings[selections.frequencyKey] ?? {};
+  const days = selections.eatingDays?.length;
+  const exact = days ? snapshot.deals?.byDays?.[selections.frequencyKey]?.[days] : undefined;
+  return exact?.durationSavings ?? snapshot.deals?.durationSavings[selections.frequencyKey] ?? {};
 }
 
 type Alt = Parameters<typeof rankDeals<DealPayload>>[1][number];
@@ -25,7 +27,9 @@ type Alt = Parameters<typeof rankDeals<DealPayload>>[1][number];
 function options(snapshot: ClientCatalogSnapshot, selections: PricingSelections, vary?: "frequency" | "duration") {
   const eating = (selections.eatingDays ?? []) as DayOfWeek[];
   const table = snapshot.deals?.options;
-  const current = table?.[selections.frequencyKey]?.[selections.durationWeeks];
+  const byDays = snapshot.deals?.byDays;
+  const pick = (fKey: string, weeks: number) => (eating.length ? byDays?.[fKey]?.[eating.length]?.options[weeks] : undefined) ?? table?.[fKey]?.[weeks];
+  const current = pick(selections.frequencyKey, selections.durationWeeks);
   if (!table || !current) return null;
   let currentAlt: Alt | null = null;
   const alternatives: Alt[] = [];
@@ -39,7 +43,7 @@ function options(snapshot: ClientCatalogSnapshot, selections: PricingSelections,
     for (const d of snapshot.durations) {
       if (vary === "frequency" && d.weeks !== selections.durationWeeks) continue;
       const isCurrent = f.key === selections.frequencyKey && d.weeks === selections.durationWeeks;
-      const p = table[f.key]?.[d.weeks];
+      const p = pick(f.key, d.weeks);
       if (!p) continue;
       const alt: Alt = {
         id: `${f.key}:${d.weeks}`,

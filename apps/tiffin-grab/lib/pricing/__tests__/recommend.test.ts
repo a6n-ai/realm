@@ -29,6 +29,27 @@ const sel = (over: Partial<PricingSelections> = {}): PricingSelections => ({
 });
 const d = (key: string, kind: "delivery" | "duration", over = {}) => ({ key, name: key, kind, targetPublicId: null, percent: 10, minWeeks: null, minEatingDays: null, ...over });
 
+describe("eating-day tiers", () => {
+  const tiered = snapshot({ discounts: [d("dl", "delivery", { targetPublicId: "frq_3", percent: 10, minEatingDays: 5 })] });
+  const five = ["mon", "tue", "wed", "thu", "fri"] as never;
+  it("3 eating days on 5-day delivery: no MWF recommendation", () => {
+    expect(compareOptions({ snapshot: tiered, selections: sel(), vary: "frequency" }).state).toBe("none");
+  });
+  it("5 eating days still recommend MWF at 10%", () => {
+    const c = compareOptions({ snapshot: tiered, selections: sel({ eatingDays: five }), vary: "frequency" });
+    expect(c.state).toBe("recommend");
+    if (c.state === "recommend") expect(c.deal.payload.frequencyKey).toBe("3_day");
+  });
+  it("durationSavings for 3 eating days excludes the delivery tier", () => {
+    const s = snapshot({
+      durations: [{ publicId: "dur_1", weeks: 1 }, { publicId: "dur_12", weeks: 12 }] as never,
+      discounts: [d("dl", "delivery", { targetPublicId: "frq_3", percent: 10, minEatingDays: 5 }), d("d12", "duration", { targetPublicId: "dur_12", percent: 15 })],
+    });
+    expect(durationSavings(s, sel({ frequencyKey: "3_day" }))[12]).toBe(15);
+    expect(durationSavings(s, sel({ frequencyKey: "3_day", eatingDays: five }))[12]).toBe(17);
+  });
+});
+
 describe("compareOptions", () => {
   const disc = snapshot({ discounts: [d("dl", "delivery", { targetPublicId: "frq_3", percent: 10 })] });
   it("recommend when a cheaper option exists", () => {

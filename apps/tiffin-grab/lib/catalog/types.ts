@@ -52,6 +52,8 @@ export interface DealTable {
   options: Record<string, Record<number, DealOption>>;
   /** frequencyKey -> weeks -> whole-percent per-tiffin saving vs that frequency's shortest plan; only lengths saving at least 1%. */
   durationSavings: Record<string, Record<number, number>>;
+  /** Only for frequencies with eating-day tiers: frequencyKey -> eating days (1-7) -> the same two tables priced at that many days. */
+  byDays?: Record<string, Record<number, { options: Record<number, DealOption>; durationSavings: Record<number, number> }>>;
 }
 
 export interface CatalogDiscount {
