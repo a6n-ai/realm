@@ -54,8 +54,12 @@ export function buildPricingCatalog(snapshot: CatalogSnapshot, selections: Prici
   const duration = snapshot.durations.find((d) => d.weeks === selections.durationWeeks);
   if (!duration) throw new ValidationError("Invalid duration");
   const applicable = applicableRules(
-    (snapshot.discounts ?? []).map((d) => ({ key: d.key, kind: d.kind, percent: d.percent, targetKey: d.targetPublicId, minWeeks: d.minWeeks })),
-    { targets: { delivery: frequency.publicId, duration: duration.publicId }, weeks: selections.durationWeeks },
+    (snapshot.discounts ?? []).map((d) => ({ key: d.key, kind: d.kind, percent: d.percent, targetKey: d.targetPublicId, minWeeks: d.minWeeks, minEatingDays: d.minEatingDays })),
+    {
+      targets: { delivery: frequency.publicId, duration: duration.publicId },
+      weeks: selections.durationWeeks,
+      eatingDays: selections.eatingDays?.length ?? frequency.daysPerWeek + (selections.includeSaturday ? 1 : 0) + (selections.includeSunday ? 1 : 0),
+    },
   );
   const byKey = new Map((snapshot.discounts ?? []).map((d) => [d.key, d]));
   const discounts = applicable.map((d) => ({

@@ -5,6 +5,7 @@ import { postCatalogSubtotal } from "@/lib/pricing/discounts";
 import { priceSubscription } from "@/lib/pricing/engine";
 import { effectivePrice } from "@/lib/pricing/meal-size-discount";
 import type { PromoSavings } from "@/lib/landing/promo-types";
+import type { DayOfWeek } from "@/lib/deliveries/schedule/delivery-days";
 
 type CouponLike = { code: string; valuePct: string | null; valueAmount: string | null; minSubtotal: string | null };
 
@@ -25,7 +26,10 @@ function quote(snapshot: CatalogSnapshot, mealSizeId: string, frequencyKey: stri
   const plan = snapshot.plans.find((p) => p.key === size.planKey);
   const slot = plan?.offeredSlots[0];
   if (!slot) return null;
-  const selections = { mealSizeId, frequencyKey, persons: 1, mealSlots: [slot], includeSaturday: false, includeSunday: false, durationWeeks: weeks, startDate: "2000-01-03" };
+  // The receipt shows each frequency at its own eating days (a 5-day plan is Mon-Fri), so tiers resolve as they do at checkout.
+  const freq = snapshot.frequencies.find((f) => f.key === frequencyKey);
+  const eatingDays = freq?.weekdays?.length ? (freq.weekdays as DayOfWeek[]) : (["mon", "tue", "wed", "thu", "fri"] as DayOfWeek[]).slice(0, freq?.daysPerWeek ?? 5);
+  const selections = { mealSizeId, frequencyKey, persons: 1, mealSlots: [slot], eatingDays: eatingDays, includeSaturday: false, includeSunday: false, durationWeeks: weeks, startDate: "2000-01-03" };
   let priced;
   try {
     priced = priceSubscription(selections, buildPricingCatalog(snapshot, selections));

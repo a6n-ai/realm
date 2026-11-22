@@ -48,7 +48,7 @@ export interface DealOption {
 
 /** Server-computed deal numbers; the wizard only displays them. */
 export interface DealTable {
-  /** frequencyKey -> weeks -> option. Discounts are percentages of the food price, so it does not depend on what is picked. */
+  /** frequencyKey -> weeks -> option. Discounts are percentages of the food price, so it does not depend on what is picked. Percentages assume the best eating-day tier. */
   options: Record<string, Record<number, DealOption>>;
   /** frequencyKey -> weeks -> whole-percent per-tiffin saving vs that frequency's shortest plan; only lengths saving at least 1%. */
   durationSavings: Record<string, Record<number, number>>;

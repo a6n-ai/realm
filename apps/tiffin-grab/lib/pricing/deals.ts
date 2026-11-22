@@ -4,7 +4,7 @@ import { APP_DEFAULTS } from "@/db/schema/app-defaults";
 import { applicableRules } from "./discounts";
 
 export function buildDealTable(snapshot: Pick<CatalogSnapshot, "frequencies" | "durations" | "discounts" | "maxDiscountPct">): DealTable {
-  const rules = (snapshot.discounts ?? []).map((d) => ({ key: d.key, kind: d.kind, percent: d.percent, targetKey: d.targetPublicId, minWeeks: d.minWeeks }));
+  const rules = (snapshot.discounts ?? []).map((d) => ({ key: d.key, kind: d.kind, percent: d.percent, targetKey: d.targetPublicId, minWeeks: d.minWeeks, minEatingDays: d.minEatingDays }));
   const names = new Map((snapshot.discounts ?? []).map((d) => [d.key, d.name]));
   const maxDiscountPct = snapshot.maxDiscountPct ?? APP_DEFAULTS.maxDiscountPct;
   const weeks = snapshot.durations.map((d) => d.weeks).sort((a, b) => a - b);
@@ -14,7 +14,7 @@ export function buildDealTable(snapshot: Pick<CatalogSnapshot, "frequencies" | "
   for (const f of snapshot.frequencies) {
     options[f.key] = {};
     for (const d of snapshot.durations) {
-      const applicable = applicableRules(rules, { targets: { delivery: f.publicId, duration: d.publicId }, weeks: d.weeks });
+      const applicable = applicableRules(rules, { targets: { delivery: f.publicId, duration: d.publicId }, weeks: d.weeks, eatingDays: 7 });
       const pct = resolveCatalogDiscounts(applicable.map((r) => ({ key: r.key, name: "", kind: "", percent: r.percent })), { subtotal: 100, maxDiscountPct }).totalPercent;
       options[f.key]![d.weeks] = { pct, includes: applicable.map((r) => ({ name: names.get(r.key) ?? r.key, percent: r.percent })) };
     }

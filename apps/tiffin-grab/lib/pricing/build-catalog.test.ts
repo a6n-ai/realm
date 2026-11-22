@@ -2,6 +2,7 @@ import { ValidationError } from "@foundry/commons";
 import { describe, expect, it } from "vitest";
 import { buildPricingCatalog } from "./build-catalog";
 import type { CatalogSnapshot } from "@/lib/catalog/types";
+import { priceSubscription } from "./engine";
 import type { PricingSelections } from "./types";
 
 const snapshot: CatalogSnapshot = {
@@ -42,6 +43,32 @@ describe("buildPricingCatalog discounts", () => {
   it("respects minWeeks and null target", () => {
     expect(build([d("long", "duration", { minWeeks: 4 })]).discounts).toEqual([]);
     expect(build([d("all", "duration")]).discounts).toHaveLength(1);
+  });
+});
+
+describe("buildPricingCatalog eating-day tiers", () => {
+  const d = (key: string, kind: "delivery" | "duration", over = {}) => ({ key, name: key, kind, targetPublicId: null, percent: 10, minWeeks: null, minEatingDays: null, ...over });
+  const mwf = { id: BigInt(4), publicId: "frq_mwf", key: "mwf", name: "MWF", daysPerWeek: 3, weekdays: ["mon", "wed", "fri"] };
+  const tiered = [
+    d("t4", "delivery", { targetPublicId: "frq_mwf", percent: 8, minEatingDays: 4 }),
+    d("t5", "delivery", { targetPublicId: "frq_mwf", percent: 10, minEatingDays: 5 }),
+    d("len", "duration", { targetPublicId: "dur_1", percent: 10 }),
+  ] as CatalogSnapshot["discounts"];
+  const snap = { ...snapshot, frequencies: [...snapshot.frequencies, mwf] as CatalogSnapshot["frequencies"], discounts: tiered, maxDiscountPct: 15 };
+  const keys = (over: Partial<PricingSelections>) => buildPricingCatalog(snap, sel({ frequencyKey: "mwf", ...over })).discounts?.map((x) => x.key);
+  it("MWF with eatingDays [mon,wed,fri] has no delivery discount line", () => expect(keys({ eatingDays: ["mon", "wed", "fri"] })).toEqual(["len"]));
+  it("MWF with eatingDays mon-thu gets the 8% line", () => expect(keys({ eatingDays: ["mon", "tue", "wed", "thu"] })).toEqual(["t4", "len"]));
+  it("MWF with eatingDays mon-fri gets only the 10% line", () => expect(keys({ eatingDays: ["mon", "tue", "wed", "thu", "fri"] })).toEqual(["t5", "len"]));
+  it("no eatingDays falls back to daysPerWeek + weekend flags", () => {
+    expect(keys({})).toEqual(["len"]);
+    expect(keys({ includeSaturday: true })).toEqual(["t4", "len"]);
+    expect(keys({ includeSaturday: true, includeSunday: true })).toEqual(["t5", "len"]);
+  });
+  it("cap still applies", () => {
+    const s = sel({ frequencyKey: "mwf", eatingDays: ["mon", "tue", "wed", "thu", "fri"] });
+    const priced = priceSubscription(s, buildPricingCatalog(snap, s));
+    const off = priced.adjustments.reduce((t, a) => t + a.amount, 0);
+    expect(Math.round((off / 50) * 100)).toBe(15);
   });
 });
 
