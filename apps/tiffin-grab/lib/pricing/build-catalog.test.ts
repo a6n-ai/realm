@@ -27,7 +27,7 @@ const sel = (over: Partial<PricingSelections> = {}): PricingSelections => ({
 });
 
 describe("buildPricingCatalog discounts", () => {
-  const d = (key: string, kind: "delivery" | "duration", over = {}) => ({ key, name: key, kind, targetPublicId: null, percent: 10, minWeeks: null, ...over });
+  const d = (key: string, kind: "delivery" | "duration", over = {}) => ({ key, name: key, kind, targetPublicId: null, percent: 10, minWeeks: null, minEatingDays: null, ...over });
   const build = (discounts: CatalogSnapshot["discounts"], over: Partial<PricingSelections> = {}) => buildPricingCatalog({ ...snapshot, discounts, maxDiscountPct: 25 }, sel(over));
   it("resolves delivery + duration by target and labels them", () => {
     const c = build([d("a", "delivery", { targetPublicId: "frq_1", name: "Launch offer" }), d("b", "duration", { targetPublicId: "dur_1", percent: 5, name: " " }), d("c", "delivery", { targetPublicId: "frq_other" })]);

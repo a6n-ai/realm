@@ -1,0 +1,1 @@
+ALTER TABLE "discounts" ADD COLUMN "min_eating_days" integer;

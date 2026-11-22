@@ -27,7 +27,7 @@ const sel = (over: Partial<PricingSelections> = {}): PricingSelections => ({
   mealSizeId: "msz_1", frequencyKey: "5_day", eatingDays: ["mon", "wed", "fri"], persons: 1, mealSlots: ["lunch"],
   includeSaturday: false, includeSunday: false, durationWeeks: 1, startDate: "2026-06-23", ...over,
 });
-const d = (key: string, kind: "delivery" | "duration", over = {}) => ({ key, name: key, kind, targetPublicId: null, percent: 10, minWeeks: null, ...over });
+const d = (key: string, kind: "delivery" | "duration", over = {}) => ({ key, name: key, kind, targetPublicId: null, percent: 10, minWeeks: null, minEatingDays: null, ...over });
 
 describe("compareOptions", () => {
   const disc = snapshot({ discounts: [d("dl", "delivery", { targetPublicId: "frq_3", percent: 10 })] });

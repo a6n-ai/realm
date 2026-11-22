@@ -8,7 +8,7 @@ const size = (n: number, price: number): MealSizeView => ({
   discountType: "none", discountValue: 0, trial: false, custom: false, priceable: true, servesWeekends: false,
 });
 const dur = (weeks: number) => ({ id: BigInt(100 + weeks), publicId: `dur_${weeks}`, weeks });
-const off = (key: string, kind: "delivery" | "duration", target: string, percent: number) => ({ key, name: key, kind, targetPublicId: target, percent, minWeeks: null });
+const off = (key: string, kind: "delivery" | "duration", target: string, percent: number) => ({ key, name: key, kind, targetPublicId: target, percent, minWeeks: null, minEatingDays: null });
 
 // Prod rules on 2026-11-06: MWF 5%, 6w 9%, 8w 10%, 12w 15%; WELCOME10 $25 on $200+.
 const snapshot: CatalogSnapshot = {

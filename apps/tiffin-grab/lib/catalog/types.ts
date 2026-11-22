@@ -61,6 +61,7 @@ export interface CatalogDiscount {
   targetPublicId: string | null;
   percent: number;
   minWeeks: number | null;
+  minEatingDays: number | null;
 }
 
 export const WAIVER_KINDS = ["waiver_delivery", "waiver_base", "waiver_strategy", "waiver_tax"] as const;

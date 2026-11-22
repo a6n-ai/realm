@@ -198,7 +198,7 @@ async function fetchCatalogSnapshot(orgId?: string | null): Promise<CatalogSnaps
     // A row whose target is inactive/missing is dropped rather than widened to "all".
     discounts: additiveDiscountRows.flatMap((d) => {
       const targetPublicId = d.targetId == null ? null : publicIdByTarget.get(`${d.kind}:${d.targetId}`) ?? undefined;
-      return targetPublicId === undefined ? [] : [{ key: d.key, name: d.name, kind: d.kind, targetPublicId, percent: Number(d.percent), minWeeks: d.minWeeks }];
+      return targetPublicId === undefined ? [] : [{ key: d.key, name: d.name, kind: d.kind, targetPublicId, percent: Number(d.percent), minWeeks: d.minWeeks, minEatingDays: d.minEatingDays }];
     }),
     waivers,
     maxDiscountPct: settings.maxDiscountPct,
