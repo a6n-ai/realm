@@ -5,7 +5,7 @@ import { cn } from "@foundry/ui/cn";
 const DOT = { ok: "bg-success", warn: "bg-warning", muted: "bg-muted-foreground" } as const;
 
 /** One sidebar info-card row, like Vercel's Usage card: icon, muted label, right-aligned value, optional status dot. */
-export function CardRow({
+export function ClockCardRow({
   icon: Icon,
   label,
   value,

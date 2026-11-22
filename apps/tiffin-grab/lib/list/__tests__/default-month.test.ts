@@ -1,4 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+// withListDates reads the business timezone from app settings; the unit job has no database.
+vi.mock("@/lib/settings", () => ({ getAppSettings: async () => ({ timezone: "America/Toronto" }) }));
 import { explicitDates, fillDefaultMonth, withListDates } from "@/lib/list/default-month";
 import type { WithUrlDates } from "@/lib/dates/range-params";
 import { isoDateInZone } from "@foundry/commons/util/dates";

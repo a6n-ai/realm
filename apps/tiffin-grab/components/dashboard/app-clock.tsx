@@ -6,7 +6,7 @@ import { useNow } from "@/lib/hooks/use-now";
 import { cutoffNote, cutoffTime, formatCountdown, nextCutoff } from "@/lib/deliveries/view/cutoff";
 import { HoverHint } from "@/components/ds/hover-hint";
 import { TimerIcon } from "lucide-react";
-import { CardRow } from "./clock-card-row";
+import { ClockCardRow } from "./clock-card-row";
 
 // Live clock in the app-settings timezone, so staff in another zone (India) see
 // business time. Renders nothing until mounted: server and browser clocks differ,
@@ -47,7 +47,7 @@ export function AppClock({
             </span>
           </div>
         </HoverHint>
-        <CardRow
+        <ClockCardRow
           icon={TimerIcon}
           label="Cutoff"
           value={`${cutoffTime(cutoffHour)} · in ${formatCountdown(left.ms, true)}`}
