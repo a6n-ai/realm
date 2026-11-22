@@ -11,7 +11,7 @@ import { utcIso } from "@foundry/commons/util/dates";
 export type Catalog = {
   plans: { key: string; name: string }[];
   mealSizes: { id: string; name: string; diet: string; trial?: boolean; servesWeekends?: boolean; allowedDays?: DayOfWeek[] | null; addons?: CatalogAddon[] }[];
-  frequencies: { key: string; name: string; weekdays?: string[] | null; savePct?: number }[];
+  frequencies: { key: string; name: string; weekdays?: string[] | null; savePct?: number; tiered?: boolean }[];
   minTiffinsPerWeek?: number;
   timezone?: string;
   /** App-settings cutoff hour: a day whose cutoff has passed can't be a start date. */

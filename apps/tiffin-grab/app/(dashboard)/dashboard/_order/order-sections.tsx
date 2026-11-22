@@ -246,7 +246,7 @@ export function PlanSection({ d, catalog }: { d: Draft; catalog: Catalog }) {
                     <HoverHint key={f.key} text={(f.weekdays ?? []).map(dayName).join(" · ")}>
                       <ToggleGroupItem value={f.key}>
                         {f.name}
-                        {!!f.savePct && <span className="text-primary text-xs tabular-nums">Save {f.savePct}%</span>}
+                        {!!f.savePct && <span className="text-primary text-xs tabular-nums">{f.tiered ? "Up to" : "Save"} {f.savePct}%</span>}
                       </ToggleGroupItem>
                     </HoverHint>
                   ))}

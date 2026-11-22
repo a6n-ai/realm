@@ -1,5 +1,5 @@
 import { DAY_MS } from "@foundry/commons/util/dates";
-import { savePct } from "@/lib/pricing/discounts";
+import { hasEatingTiers, savePct } from "@/lib/pricing/discounts";
 import { Suspense } from "react";
 import { UsersIcon, PlusIcon, ShoppingBagIcon, RepeatIcon, UserPlusIcon, UserXIcon } from "lucide-react";
 import { StatCards, StatCardsSkeleton, type StatCardItem } from "@/components/dashboard/stat-cards";
@@ -174,7 +174,7 @@ async function NewCustomerAction() {
   const orderCatalog = {
     plans: catalog.plans.map((p) => ({ key: p.key, name: p.name })),
     mealSizes: listableMealSizes(catalog.mealSizes).map((m) => ({ id: m.publicId, name: m.name, diet: m.planKey, trial: m.trial, servesWeekends: m.servesWeekends, allowedDays: m.allowedDays ?? null, addons: m.trial ? [] : mealSizeAddons(catalog) })),
-    frequencies: catalog.frequencies.map((f) => ({ key: f.key, name: f.name, weekdays: f.weekdays, savePct: savePct(catalog.discounts, "delivery", f.publicId, 0, catalog.maxDiscountPct) })),
+    frequencies: catalog.frequencies.map((f) => ({ key: f.key, name: f.name, weekdays: f.weekdays, savePct: savePct(catalog.discounts, "delivery", f.publicId, 0, catalog.maxDiscountPct), tiered: hasEatingTiers(catalog.discounts, f.publicId) })),
     minTiffinsPerWeek: catalog.minTiffinsPerWeek,
     timezone: catalog.timezone,
     cutoffHour: catalog.cutoffHour,

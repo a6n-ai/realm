@@ -194,7 +194,7 @@ export function PriceMath({ plans, lengths, frequencies = [], bounds = { min: 3,
               // How this schedule brings the tiffins for the days picked: each delivery day and how many it carries.
               const trips = planWeek(f.days, eating);
               return (
-                <button key={f.key} type="button" role="radio" aria-checked={f.key === freq?.key} aria-label={`${f.name}, ${f.days.length} ${f.days.length === 1 ? "delivery" : "deliveries"} a week${save > 0 ? `, save ${save}%` : ""}`} className="lp-math__freq" onClick={() => setFreqKey(f.key)}>
+                <button key={f.key} type="button" role="radio" aria-checked={f.key === freq?.key} aria-label={`${f.name}, ${f.days.length} ${f.days.length === 1 ? "delivery" : "deliveries"} a week${save > 0 ? `, ${f.tiered ? "up to" : "save"} ${save}%` : ""}`} className="lp-math__freq" onClick={() => setFreqKey(f.key)}>
                   <span className="lp-math__freq-top">
                     <span><b className="tabular-nums">{f.days.length}×</b> a week</span>
                     {save > 0 ? <span className="lp-math__save">{f.tiered ? `Up to ${save}%` : `Save ${save}%`}</span> : null}

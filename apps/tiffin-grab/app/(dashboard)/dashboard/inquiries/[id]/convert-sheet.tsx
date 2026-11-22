@@ -17,7 +17,7 @@ import { OrderForm } from "../../_order/order-form";
 type Catalog = {
   plans: { key: string; name: string }[];
   mealSizes: { id: string; name: string; diet: string }[];
-  frequencies: { key: string; name: string; weekdays?: string[] | null; savePct?: number }[];
+  frequencies: { key: string; name: string; weekdays?: string[] | null; savePct?: number; tiered?: boolean }[];
   minTiffinsPerWeek?: number;
   maxTiffinsPerWeek?: number;
   durations: { weeks: number }[];
