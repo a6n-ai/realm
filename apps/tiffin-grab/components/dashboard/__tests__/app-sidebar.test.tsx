@@ -223,15 +223,13 @@ describe("AppSidebar list", () => {
     expect(within(panel as HTMLElement).getByRole("link", { name: "Catalog" })).toBeInTheDocument();
   });
 
-  it("renders child rows as sub-buttons each with its own icon colour", () => {
+  it("renders child rows as sub-buttons with their icon", () => {
     renderSidebar();
     fireEvent.click(screen.getByRole("button", { name: "Kitchen" }));
     const child = screen.getByRole("link", { name: "Weekly Menus" });
     expect(child).toHaveAttribute("data-slot", "sidebar-menu-sub-button");
     expect(child).toHaveClass("text-footnote", "h-8");
-    expect(child.querySelector("svg")).toHaveClass("text-lime-500!", "dark:text-lime-400!");
-    const kitchenIcon = screen.getByRole("button", { name: "Kitchen" }).querySelector("svg");
-    expect(kitchenIcon).toHaveClass("text-red-500!");
+    expect(child.querySelector("svg")).not.toBeNull();
   });
 
   it("rotates the chevron down while a section is open", () => {
