@@ -17,11 +17,11 @@ import { findExistingByContact } from "@/lib/services/customers.service";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { listableMealSizes, mealSizeAddons } from "@/lib/catalog/types";
 import { dishCategoriesService } from "@/lib/menu/dish-categories.service";
-import { Skeleton } from "@foundry/ui/skeleton";
 import { PageShell } from "@/components/ds";
 import type { SubStatus } from "@/lib/inquiries/status";
 import { interestToPrefill } from "../../_leads/interest-prefill";
 import { InquiryDetailClient } from "./detail-client";
+import { InquiryDetailSkeleton } from "./inquiry-detail-skeleton";
 import type { TimelineActivity } from "./inquiry-timeline";
 import { dayRange } from "@foundry/commons/util/dates";
 import { requestNow } from "@/lib/dates/request-now";
@@ -31,7 +31,7 @@ import { eq as facetEq } from "@foundry/commons/model/condition";
 export default function InquiryDetailPage({ params }: { params: Promise<{ id: string }> }) {
   return (
     <PageShell>
-      <Suspense fallback={<InquiryDetail.Skeleton />}>
+      <Suspense fallback={<InquiryDetailSkeleton />}>
         <InquiryDetail params={params} />
       </Suspense>
     </PageShell>
@@ -186,20 +186,3 @@ async function InquiryDetail({ params }: { params: Promise<{ id: string }> }) {
       />
   );
 }
-
-InquiryDetail.Skeleton = function InquiryDetailSkeleton() {
-  return (
-    <div className="flex flex-col gap-4">
-      <Skeleton className="h-32 w-full rounded-xl" />
-      <Skeleton className="h-12 w-full rounded-xl" />
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px] lg:gap-6">
-        <Skeleton className="h-96 w-full rounded-xl" />
-        <div className="flex flex-col gap-4">
-          <Skeleton className="h-32 w-full rounded-xl" />
-          <Skeleton className="h-40 w-full rounded-xl" />
-          <Skeleton className="h-24 w-full rounded-xl" />
-        </div>
-      </div>
-    </div>
-  );
-};

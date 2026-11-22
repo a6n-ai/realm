@@ -330,7 +330,7 @@ export function AppSidebar({
     return (
       <SidebarMenuItem key={item.href}>
         {/* No viewport prefetch (every nav item at once 503'd the box); prefetch
-            on intent instead, down to dashboard/loading.tsx. */}
+            on intent instead, down to the target page's own loading.tsx. */}
         <SidebarMenuButton
           isActive={active}
           tooltip={item.title}

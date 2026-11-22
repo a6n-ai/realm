@@ -20,7 +20,7 @@ const headers = () => screen.getAllByRole("columnheader").map((h) => h.textConte
 
 describe("section loading.tsx paints real chrome", () => {
   it("orders: title, tabs and column headers", async () => {
-    const { default: Loading } = await import("../orders/loading");
+    const { default: Loading } = await import("../orders/(index)/loading");
     show(<Loading />);
     expect(screen.getByRole("heading", { name: "Orders", level: 1 })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Missed deliveries" })).toBeInTheDocument();
@@ -28,7 +28,7 @@ describe("section loading.tsx paints real chrome", () => {
   });
 
   it("inquiries: title, queue tabs and column headers", async () => {
-    const { default: Loading } = await import("../inquiries/loading");
+    const { default: Loading } = await import("../inquiries/(index)/loading");
     show(<Loading />);
     expect(screen.getByRole("heading", { name: "Inquiries", level: 1 })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Due today" })).toBeInTheDocument();
@@ -43,10 +43,10 @@ describe("section loading.tsx paints real chrome", () => {
   });
 
   it.each([
-    ["customers", "Customers", ["Customer"]],
-    ["tickets", "Tickets", []],
-    ["renewals", "Renewals", []],
-    ["customer-groups", "Customer groups", []],
+    ["customers/(index)", "Customers", ["Customer"]],
+    ["tickets/(index)", "Tickets", []],
+    ["renewals/(index)", "Renewals", []],
+    ["customer-groups/(index)", "Customer groups", []],
   ])("%s: title and column headers", async (dir, title, cols) => {
     const { default: Loading } = await import(`../${dir}/loading`);
     show(<Loading />);
@@ -56,7 +56,7 @@ describe("section loading.tsx paints real chrome", () => {
   });
 
   it("customers: Payments tab, search and filter bar come from the shared chrome", async () => {
-    const { default: Loading } = await import("../customers/loading");
+    const { default: Loading } = await import("../customers/(index)/loading");
     show(<Loading />);
     expect(screen.getByRole("tab", { name: "Payments" })).toHaveAttribute("href", "/dashboard/customers?tab=payments");
     expect(screen.getByPlaceholderText("Search customers…")).toBeDisabled();
@@ -64,7 +64,7 @@ describe("section loading.tsx paints real chrome", () => {
   });
 
   it("renewals: tab hrefs come from renewalsQuery, like the page", async () => {
-    const { default: Loading } = await import("../renewals/loading");
+    const { default: Loading } = await import("../renewals/(index)/loading");
     show(<Loading />);
     expect(screen.getByRole("tab", { name: "Renewals" })).toHaveAttribute("href", "/dashboard/renewals?type=regular");
     expect(screen.getByRole("tab", { name: "Trial conversion" })).toHaveAttribute("href", "/dashboard/renewals?type=trial");
@@ -72,19 +72,19 @@ describe("section loading.tsx paints real chrome", () => {
   });
 
   it("tickets and customer-groups: search placeholder and subtitle", async () => {
-    const { default: Tickets } = await import("../tickets/loading");
+    const { default: Tickets } = await import("../tickets/(index)/loading");
     show(<Tickets />);
     expect(screen.getByPlaceholderText("Search tickets…")).toBeDisabled();
     cleanup();
-    const { default: Groups } = await import("../customer-groups/loading");
+    const { default: Groups } = await import("../customer-groups/(index)/loading");
     show(<Groups />);
     expect(screen.getByText(/Saved sets of customers/)).toBeInTheDocument();
     expect(screen.getByPlaceholderText("Search groups…")).toBeDisabled();
   });
 
   it.each([
-    ["settings/holidays", "Holidays", "Days the kitchen is closed."],
-    ["dispatch", "Dispatch", "Today's routes and driver assignments."],
+    ["settings/holidays/(index)", "Holidays", "Days the kitchen is closed."],
+    ["dispatch/(index)", "Dispatch", "Today's routes and driver assignments."],
     ["delivery/charges", "Delivery charges", /Base delivery fee/],
   ])("%s: real page header", async (dir, title, sub) => {
     const { default: Loading } = await import(`../${dir}/loading`);
@@ -121,13 +121,13 @@ describe("section loading.tsx paints real chrome", () => {
     ["wallet/ledger", "Ledger"],
     ["wallet/give", "Grant history"],
     ["wallet/referrals", "Referrals"],
-    ["notifications/campaigns", "Campaigns"],
-    ["notifications/logs", "Notification log"],
-    ["notifications/templates", "Templates"],
-    ["notifications/contact-lists", "Contact lists"],
+    ["notifications/campaigns/(index)", "Campaigns"],
+    ["notifications/logs/(index)", "Notification log"],
+    ["notifications/templates/(index)", "Templates"],
+    ["notifications/contact-lists/(index)", "Contact lists"],
     ["organization/roles", "Roles"],
-    ["organization/settings", "Clients"],
-    ["settings/logs", "Activity"],
+    ["organization/settings/(index)", "Clients"],
+    ["settings/logs/(index)", "Activity"],
     ["settings/logs/customers", "Customer activity"],
   ])("%s: card title and real column headers", async (dir, title) => {
     const { default: Loading } = await import(`../${dir}/loading`);

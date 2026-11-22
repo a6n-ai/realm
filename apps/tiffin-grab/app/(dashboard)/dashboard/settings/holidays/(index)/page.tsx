@@ -1,0 +1,44 @@
+import { Suspense } from "react";
+import { zonedDateIso } from "@foundry/commons";
+import { SectionCard } from "@/components/ds";
+import { HolidaysChrome } from "../holidays-chrome";
+import { requirePagePermission } from "@/lib/auth/guards";
+import { getSession } from "@/lib/auth/session";
+import { getAppSettings } from "@/lib/settings";
+import { listDeclarableOrganizations, listHolidays, listNeedsPlacing } from "@/lib/deliveries/holidays.service";
+import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
+import { HolidayDialog } from "../holiday-dialog";
+import { HolidaysTable, HolidaysTableSkeleton, NeedsPlacingTable } from "../holidays-table";
+import { requestNow } from "@/lib/dates/request-now";
+
+export default async function HolidaysPage() {
+  await requirePagePermission({ holiday: ["read"] });
+  const visible = await resolveSessionVisibleOrgIds(await getSession());
+  const [{ timezone }, rows, waiting, organizations] = await Promise.all([
+    getAppSettings(), listHolidays(visible), listNeedsPlacing(visible), listDeclarableOrganizations(visible),
+  ]);
+  const today = zonedDateIso(requestNow(), timezone);
+  const waitingBy = new Map<string, number>();
+  for (const w of waiting) waitingBy.set(w.holidayPublicId, (waitingBy.get(w.holidayPublicId) ?? 0) + 1);
+
+  return (
+    <HolidaysChrome
+      actions={<HolidayDialog today={today} organizations={organizations} />}
+      needsPlacing={
+        waiting.length > 0 && (
+          <SectionCard title="Needs placing">
+            <p className="text-muted-foreground mb-3 text-sm">
+              These closed days have no extra day yet. Pick the first day and the tiffins go on that plan&apos;s next free delivery days.
+            </p>
+            <NeedsPlacingTable rows={waiting} today={today} />
+          </SectionCard>
+        )
+      }
+      list={
+        <Suspense fallback={<HolidaysTableSkeleton />}>
+          <HolidaysTable rows={rows.map((r) => ({ ...r, needsPlacing: waitingBy.get(r.publicId) ?? 0 }))} today={today} />
+        </Suspense>
+      }
+    />
+  );
+}

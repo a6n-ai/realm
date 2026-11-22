@@ -46,7 +46,6 @@ import { formatEpoch } from "@/lib/format/datetime";
 import { projectedEndDate, tripsFor } from "@/lib/orders/bounded-deliveries";
 import { dayAllowed, orderDeliveryDays, planDeliveryDays, type DayOfWeek } from "@/lib/deliveries/schedule/delivery-days";
 import type { OrderPricingSnapshot } from "@/lib/pricing/types";
-import { Skeleton } from "@foundry/ui/skeleton";
 import { receiptPath } from "@/lib/billing/receipt-link";
 import { Can } from "@/components/auth/can";
 import { PaymentsSection } from "./payments-section";
@@ -62,9 +61,9 @@ import { LookOutControl } from "./look-out-control";
 import { findUnpaidRenewal } from "@/lib/renewals/quick-renew.service";
 import { TrialPill } from "../trial-pill";
 import { OrderActivityLog } from "./order-activity-log";
-import { DeliveriesSection, DeliveriesSectionSkeleton, loadSubscription } from "./deliveries-section";
-import { TabSkeleton } from "./tab-skeleton";
-import { StatCards, StatCardsSkeleton } from "@/components/dashboard/stat-cards";
+import { DeliveriesSection, loadSubscription } from "./deliveries-section";
+import { OrderDetailSkeleton } from "./order-detail-skeleton";
+import { StatCards } from "@/components/dashboard/stat-cards";
 import { stageCards } from "./stage-cards";
 import { isWeekendDay, utcIso } from "@foundry/commons/util/dates";
 import { requestNow } from "@/lib/dates/request-now";
@@ -84,7 +83,7 @@ export default function OrderDetailPage({
 }) {
   return (
     <PageShell>
-      <Suspense fallback={<OrderDetail.Skeleton />}>
+      <Suspense fallback={<OrderDetailSkeleton />}>
         <OrderDetail params={params} searchParams={searchParams} />
       </Suspense>
     </PageShell>
@@ -517,35 +516,3 @@ async function OrderDetail({
     </>
   );
 }
-
-OrderDetail.Skeleton = function OrderDetailSkeleton() {
-  return (
-    <>
-      <div className="flex items-center gap-3">
-        <Skeleton className="size-9 rounded-lg" />
-        <div className="space-y-2">
-          <Skeleton className="h-8 w-48" />
-          <Skeleton className="h-4 w-64" />
-        </div>
-      </div>
-      <StatCardsSkeleton count={5} />
-      <Skeleton className="h-9 w-full max-w-md" />
-      <TabSkeleton
-        deliveries={<DeliveriesSectionSkeleton />}
-        overview={
-          <div className="grid gap-4 lg:grid-cols-2">
-            {Array.from({ length: 2 }).map((_, i) => (
-              <SectionCard key={i} title={i === 0 ? "Plan & schedule" : "Customer & delivery"}>
-                <div className="space-y-3">
-                  {Array.from({ length: 8 }).map((_, j) => (
-                    <Skeleton key={j} className="h-4 w-full" />
-                  ))}
-                </div>
-              </SectionCard>
-            ))}
-          </div>
-        }
-      />
-    </>
-  );
-};

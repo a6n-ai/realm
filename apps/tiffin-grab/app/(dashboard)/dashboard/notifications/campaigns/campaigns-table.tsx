@@ -12,7 +12,7 @@ import { CampaignRetriggerButton } from "@relay/engine/ui/campaign-retrigger-but
 import type { ContactListOption } from "@relay/engine/ui/audience-builder";
 import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
 import type { SortState } from "@foundry/design-system/list-sort";
-import type { CampaignSortColumn } from "./page";
+import type { CampaignSortColumn } from "./(index)/page";
 import { TableRowsSkeleton } from "@/components/dashboard/table-rows-skeleton";
 
 export type CampaignRow = {

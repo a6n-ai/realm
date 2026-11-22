@@ -11,7 +11,7 @@ import { ContactListResyncButton } from "@relay/engine/ui/contact-list-resync-bu
 import { formatConsentDate } from "@relay/engine/ui/date";
 import { ReuiFacetFilters } from "@/components/filters/reui-facet-filters";
 import type { SortState } from "@foundry/design-system/list-sort";
-import type { ContactListSortColumn } from "./page";
+import type { ContactListSortColumn } from "./(index)/page";
 import { TableRowsSkeleton } from "@/components/dashboard/table-rows-skeleton";
 
 export type ContactListRow = {

@@ -20,14 +20,13 @@ import {
 import { listAssignableStaff } from "@/lib/staff/assignable-staff";
 import { canReassign } from "@/lib/staff/reassign";
 import { withAttachmentViews } from "@/lib/support/ticket-attachments";
-import { Skeleton } from "@foundry/ui/skeleton";
 import { PageShell, PageHeader, SectionCard } from "@/components/ds";
 import { TicketStatusBadge } from "../ticket-badges";
-import { TicketControls, ReplyBox, ReplyBoxSkeleton, StatusPills, TicketControlsSkeleton } from "./ticket-controls";
+import { TicketControls, ReplyBox, StatusPills } from "./ticket-controls";
+import { ChatListFallback, ConversationFallback, DetailsFallback } from "./ticket-skeleton";
 import { OrderStatusBadge } from "@/components/ds";
 import { CustomerPresenceDot } from "@/components/support/customer-presence-dot";
 import { cn } from "@foundry/ui/cn";
-import { ChatMessageListSkeleton } from "@foundry/design-system";
 import { ChatPane } from "./chat-pane";
 import { DONE_STATUSES } from "@/lib/support/ticket-status";
 
@@ -315,30 +314,6 @@ async function CustomerChatsData({ params }: { params: Promise<{ id: string }> }
           <ul className="space-y-1">{past.map(item)}</ul>
         </div>
       )}
-    </div>
-  );
-}
-
-function ChatListFallback() {
-  return (
-    <div className="space-y-2">
-      {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
-    </div>
-  );
-}
-
-function DetailsFallback() {
-  return <TicketControlsSkeleton />;
-}
-
-function ConversationFallback() {
-  return (
-    <div className="space-y-4">
-      <div className="flex justify-end">
-        <Skeleton className="h-4 w-24" />
-      </div>
-      <ChatMessageListSkeleton />
-      <ReplyBoxSkeleton />
     </div>
   );
 }

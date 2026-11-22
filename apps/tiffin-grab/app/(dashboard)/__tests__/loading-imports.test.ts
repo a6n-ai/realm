@@ -9,7 +9,7 @@ const FORBIDDEN = /db\/|\.service|lib\/auth\/guards/;
 // `import type` is erased at build time, so it cannot pull a module in.
 const SPEC = /^\s*(?:import|export)\s+(?!type\s)[^;]*?from\s+["']([^"']+)["']/gm;
 const EXTS = ["", ".ts", ".tsx", "/index.ts", "/index.tsx"];
-const LOADING = ["app/(dashboard)/dashboard/customers/loading.tsx", "app/(dashboard)/dashboard/customer-groups/loading.tsx"];
+const LOADING = ["app/(dashboard)/dashboard/customers/(index)/loading.tsx", "app/(dashboard)/dashboard/customer-groups/(index)/loading.tsx"];
 const DEPTH = 2;
 
 function imports(file: string): string[] {
