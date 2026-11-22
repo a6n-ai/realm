@@ -95,6 +95,9 @@ export default async function PricingPage() {
       days: f.weekdays!.filter((d): d is DayOfWeek => (WEEK_DAYS as readonly string[]).includes(d)),
       off: Object.fromEntries(weeksList.map((w) => [w, savePct(catalog.discounts, "delivery", f.publicId, w)])),
       tiered: hasEatingTiers(catalog.discounts, f.publicId),
+      ...(hasEatingTiers(catalog.discounts, f.publicId) && {
+        offByDays: Object.fromEntries([1, 2, 3, 4, 5, 6, 7].map((n) => [n, Object.fromEntries(weeksList.map((w) => [w, savePct(catalog.discounts, "delivery", f.publicId, w, undefined, n)]))])),
+      }),
     }));
   // Like the engine: every duration rule that applies is summed, then capped.
   const lengths: MathLength[] = [...new Map(catalog.durations.map((d) => [d.weeks, d])).values()]

@@ -12,7 +12,10 @@ import { round2 } from "@foundry/commons/util/money";
 export type MathSize = { id: string; name: string; rate: number; days: DayOfWeek[] };
 export type MathPlan = { key: string; label: string; sizes: MathSize[] };
 export type MathLength = { weeks: number; off: number };
-export type MathFrequency = { id: string; key: string; name: string; days: DayOfWeek[]; off: Record<number, number>; tiered?: boolean };
+export type MathFrequency = { id: string; key: string; name: string; days: DayOfWeek[]; off: Record<number, number>; offByDays?: Record<number, Record<number, number>>; tiered?: boolean };
+
+// Tiered frequencies price the picked eating days; the rest have one flat rate per plan length.
+export const deliveryOffFor = (f: Pick<MathFrequency, "off" | "offByDays"> | undefined, days: number, weeks: number) => f?.offByDays?.[days]?.[weeks] ?? f?.off[weeks] ?? 0;
 
 const WEEK: { key: DayOfWeek; short: string }[] = [
   { key: "mon", short: "Mon" }, { key: "tue", short: "Tue" }, { key: "wed", short: "Wed" }, { key: "thu", short: "Thu" },
@@ -105,7 +108,7 @@ export function PriceMath({ plans, lengths, frequencies = [], bounds = { min: 3,
   const tiffins = eating.length * (length?.weeks ?? 0);
   const gross = round2(rate * tiffins);
   const lenOff = length?.off ?? 0;
-  const delOff = freq?.off[length?.weeks ?? 0] ?? 0;
+  const delOff = deliveryOffFor(freq, eating.length, length?.weeks ?? 0);
   const pct = Math.min(maxPct, lenOff + delOff);
   const off = round2(gross * pct / 100);
   const total = useTween(gross - off);
