@@ -17,7 +17,7 @@ import {
   EventCalendarWeekView,
 } from "@/components/reui/event-calendar/event-calendar-time-grid"
 import type { CalendarView } from "@/components/reui/event-calendar/event-calendar-types"
-import { Slot } from "@foundry/ui/slot"
+import { Rendered } from "@foundry/ui/rendered"
 
 import { cn } from "@foundry/ui/cn"
 
@@ -35,12 +35,12 @@ interface EventCalendarContentProps extends HTMLAttributes<HTMLDivElement> {
   components?: Partial<Record<CalendarView, ComponentType>>
   /** Replaces the switchboard entirely; read useEventCalendarView() inside. */
   children?: ReactNode
-  asChild?: boolean
+  render?: React.ReactElement
 }
 
 function EventCalendarContent({
   className,
-  asChild = false,
+  render,
   components,
   children,
   ...props
@@ -58,10 +58,9 @@ function EventCalendarContent({
   // ? ProMonth : undefined }}` would erase the default and render <undefined />.
   const ActiveView = resolved[view] ?? DEFAULT_VIEW_COMPONENTS[view]
 
-  const Comp = asChild ? Slot : "div"
 
   return (
-    <Comp
+    <Rendered tag="div" render={render}
       data-slot="event-calendar-content"
       data-view={view}
       data-loading={loading || undefined}
@@ -74,7 +73,7 @@ function EventCalendarContent({
       {...props}
     >
       {children ?? <ActiveView />}
-    </Comp>
+    </Rendered>
   )
 }
 

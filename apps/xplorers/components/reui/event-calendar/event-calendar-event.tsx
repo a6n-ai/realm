@@ -32,7 +32,7 @@ import type {
   EventCalendarSegment,
 } from "@/components/reui/event-calendar/event-calendar-types"
 import { addDays, format } from "date-fns"
-import { Slot } from "@foundry/ui/slot"
+import { Rendered } from "@foundry/ui/rendered"
 
 import { cn } from "@foundry/ui/cn"
 import {
@@ -147,7 +147,7 @@ interface EventCalendarEventProps<TData = unknown> extends Omit<
    * handles, selection/drag state, focus or pointer events.
    */
   preview?: boolean
-  asChild?: boolean
+  render?: React.ReactElement
 }
 
 /**
@@ -158,7 +158,7 @@ interface EventCalendarEventProps<TData = unknown> extends Omit<
 function EventCalendarEvent<TData = unknown>({
   segment,
   className,
-  asChild = false,
+  render,
   children,
   preview = false,
   style,
@@ -443,10 +443,9 @@ function EventCalendarEvent<TData = unknown>({
     </>
   )
 
-  const Comp = asChild ? Slot : "button"
 
   const chip = (
-    <Comp
+    <Rendered tag="button" render={render}
       type="button"
       data-slot="event-calendar-event"
       data-view={view}
@@ -536,7 +535,7 @@ function EventCalendarEvent<TData = unknown>({
     >
       {content}
       {resizeHandles}
-    </Comp>
+    </Rendered>
   )
 
   return (

@@ -50,7 +50,7 @@ import type {
   EventCalendarSlotDraft,
 } from "@/components/reui/event-calendar/event-calendar-types"
 import { addDays, addMinutes, differenceInMinutes, format } from "date-fns"
-import { Slot } from "@foundry/ui/slot"
+import { Rendered } from "@foundry/ui/rendered"
 
 import { cn } from "@foundry/ui/cn"
 import { ScrollArea } from "@foundry/ui/scroll-area"
@@ -81,13 +81,13 @@ interface EventCalendarTimeGridProps extends HTMLAttributes<HTMLDivElement> {
   showAllDay?: boolean
   /** Gutter/gridline interval in minutes; defaults to the interval view config. */
   interval?: number
-  asChild?: boolean
+  render?: React.ReactElement
 }
 
 function EventCalendarTimeGrid({
   view,
   className,
-  asChild = false,
+  render,
   dayStartHour,
   dayEndHour,
   showAllDay = true,
@@ -269,11 +269,10 @@ function EventCalendarTimeGrid({
     </div>
   )
 
-  const Comp = asChild ? Slot : "div"
 
   return (
     <EventCalendarViewContext.Provider value={{ view }}>
-      <Comp
+      <Rendered tag="div" render={render}
         data-slot="event-calendar-time-grid"
         data-view={view}
         className={cn(
@@ -362,7 +361,7 @@ function EventCalendarTimeGrid({
         ) : (
           track
         )}
-      </Comp>
+      </Rendered>
     </EventCalendarViewContext.Provider>
   )
 }

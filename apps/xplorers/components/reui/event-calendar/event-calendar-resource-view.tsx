@@ -51,7 +51,7 @@ import type {
   EventCalendarSegment,
 } from "@/components/reui/event-calendar/event-calendar-types"
 import { addDays, addMinutes } from "date-fns"
-import { Slot } from "@foundry/ui/slot"
+import { Rendered } from "@foundry/ui/rendered"
 
 import { cn } from "@foundry/ui/cn"
 import { ScrollArea } from "@foundry/ui/scroll-area"
@@ -64,13 +64,13 @@ interface EventCalendarResourceViewProps extends HTMLAttributes<HTMLDivElement> 
   showAllDay?: boolean
   /** Gutter/gridline interval in minutes; defaults to the interval view config. */
   interval?: number
-  asChild?: boolean
+  render?: React.ReactElement
 }
 
 /** Leaf resources become booking columns for the anchor day. */
 function EventCalendarResourceView({
   className,
-  asChild = false,
+  render,
   dayStartHour,
   dayEndHour,
   showAllDay = true,
@@ -230,11 +230,10 @@ function EventCalendarResourceView({
     </div>
   )
 
-  const Comp = asChild ? Slot : "div"
 
   return (
     <EventCalendarViewContext.Provider value={{ view: "resource" }}>
-      <Comp
+      <Rendered tag="div" render={render}
         data-slot="event-calendar-resource-view"
         data-view="resource"
         className={cn(
@@ -336,7 +335,7 @@ function EventCalendarResourceView({
         ) : (
           track
         )}
-      </Comp>
+      </Rendered>
     </EventCalendarViewContext.Provider>
   )
 }

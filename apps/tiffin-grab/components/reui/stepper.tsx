@@ -14,7 +14,7 @@ import {
   useRef,
   useState,
 } from "react"
-import { Slot } from "@foundry/ui/slot"
+import { Rendered } from "@foundry/ui/rendered"
 
 import { cn } from "@foundry/ui/cn"
 
@@ -216,11 +216,11 @@ function StepperItem({
 }
 
 interface StepperTriggerProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  asChild?: boolean
+  render?: React.ReactElement
 }
 
 function StepperTrigger({
-  asChild = false,
+  render,
   className,
   children,
   tabIndex,
@@ -286,12 +286,8 @@ function StepperTrigger({
     }
   }
 
-  // `asChild` composes onto the consumer's element via Slot, so the trigger
-  // keeps its ref, tab semantics, and keyboard handlers either way.
-  const Comp = asChild ? Slot : "button"
-
   return (
-    <Comp
+    <Rendered tag="button" render={render}
       ref={btnRef}
       role="tab"
       id={id}
@@ -312,7 +308,7 @@ function StepperTrigger({
       {...props}
     >
       {children}
-    </Comp>
+    </Rendered>
   )
 }
 

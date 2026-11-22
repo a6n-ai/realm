@@ -143,10 +143,8 @@ export function ImageUploader({
             {busy ? <Loader2Icon className="size-5 animate-spin" /> : <UploadIcon className="size-5" />}
             <span>{busy ? "Uploading…" : edit ? "Drop an image to edit & upload" : "Drop an image or click to upload"}</span>
           </div>
-          <FileUploadTrigger asChild>
-            <Button type="button" variant="outline" size="sm" disabled={disabled || busy}>
-              Choose image
-            </Button>
+          <FileUploadTrigger render={<Button type="button" variant="outline" size="sm" disabled={disabled || busy} />}>
+            Choose image
           </FileUploadTrigger>
         </FileUploadDropzone>
       </FileUpload>

@@ -57,7 +57,7 @@ import type {
   EventCalendarViewSettings,
 } from "@/components/reui/event-calendar/event-calendar-types"
 import { addDays, type Locale } from "date-fns"
-import { Slot, Slottable } from "@foundry/ui/slot"
+import { Rendered } from "@foundry/ui/rendered"
 
 import { cn } from "@foundry/ui/cn"
 
@@ -1734,7 +1734,7 @@ interface EventCalendarProps<TData = unknown>
   calendar?: EventCalendarInstance<TData>
   /** Imperative escape hatch usable from outside the tree. */
   apiRef?: RefObject<EventCalendarApi<TData> | null>
-  asChild?: boolean
+  render?: React.ReactElement
   children?: ReactNode
 }
 
@@ -1820,7 +1820,7 @@ function EventCalendar<TData = unknown>({
   calendar,
   apiRef,
   className,
-  asChild = false,
+  render,
   children,
   ...props
 }: EventCalendarProps<TData>) {
@@ -1849,12 +1849,11 @@ function EventCalendar<TData = unknown>({
     [instance]
   )
 
-  const Comp = asChild ? Slot : "div"
 
   return (
     <EventCalendarContext.Provider value={instance}>
       <EventCalendarViewConfigContext.Provider value={viewConfig}>
-        <Comp
+        <Rendered tag="div" render={render}
           data-slot="event-calendar"
           ref={registerRoot}
           // text-xs is the calendar-wide default type size; because it sits
@@ -1867,15 +1866,13 @@ function EventCalendar<TData = unknown>({
           className={cn("flex min-h-0 min-w-0 flex-col text-xs", className)}
           {...rest}
         >
-          {/* Slottable keeps the announcer sibling legal when asChild slots
-              the consumer element (Slot allows one non-Slottable child). */}
-          <Slottable>{children}</Slottable>
+          {children}
           <div
             data-slot="event-calendar-announcer"
             aria-live="polite"
             className="sr-only"
           />
-        </Comp>
+        </Rendered>
       </EventCalendarViewConfigContext.Provider>
     </EventCalendarContext.Provider>
   )

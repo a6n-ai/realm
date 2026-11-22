@@ -117,18 +117,21 @@ export function AppSidebar({
                     : pathname.startsWith(item.href) || (item.also?.some((p) => pathname.startsWith(p)) ?? false);
                 return (
                   <SidebarMenuItem key={item.href}>
-                    <SidebarMenuButton asChild isActive={active}>
-                      {/* No viewport prefetch (every nav item at once overloads the box);
-                          prefetch on intent instead, down to dashboard/loading.tsx. */}
-                      <Link
-                        href={item.href}
-                        prefetch={false}
-                        onMouseEnter={() => router.prefetch(item.href)}
-                        onFocus={() => router.prefetch(item.href)}
-                      >
-                        <item.icon />
-                        <span>{item.title}</span>
-                      </Link>
+                    {/* No viewport prefetch (every nav item at once overloads the box);
+                        prefetch on intent instead, down to dashboard/loading.tsx. */}
+                    <SidebarMenuButton
+                      isActive={active}
+                      render={
+                        <Link
+                          href={item.href}
+                          prefetch={false}
+                          onMouseEnter={() => router.prefetch(item.href)}
+                          onFocus={() => router.prefetch(item.href)}
+                        />
+                      }
+                    >
+                      <item.icon />
+                      <span>{item.title}</span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 );

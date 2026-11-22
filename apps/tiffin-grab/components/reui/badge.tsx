@@ -1,5 +1,5 @@
 import { cva, type VariantProps } from "class-variance-authority"
-import { Slot } from "@foundry/ui/slot"
+import { Rendered } from "@foundry/ui/rendered"
 
 import { badgeTone } from "@foundry/ui/badge"
 import { cn } from "@foundry/ui/cn"
@@ -61,7 +61,7 @@ const badgeVariants = cva(
 
 interface BadgeProps
   extends React.ComponentProps<"span">, VariantProps<typeof badgeVariants> {
-  asChild?: boolean
+  render?: React.ReactElement
 }
 
 function Badge({
@@ -69,13 +69,12 @@ function Badge({
   variant,
   size,
   radius,
-  asChild = false,
+  render,
   ...props
 }: BadgeProps) {
-  const Comp = asChild ? Slot : "span"
 
   return (
-    <Comp
+    <Rendered tag="span" render={render}
       data-slot="badge"
       data-size={size ?? "default"}
       className={cn(badgeVariants({ variant, size, radius, className }))}

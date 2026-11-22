@@ -24,7 +24,7 @@ import type {
 } from "@/components/reui/event-calendar/event-calendar-types"
 import { IconStack } from "@foundry/ui/icon-stack"
 import { addDays, format } from "date-fns"
-import { Slot } from "@foundry/ui/slot"
+import { Rendered } from "@foundry/ui/rendered"
 
 import { cn } from "@foundry/ui/cn"
 import { ScrollArea } from "@foundry/ui/scroll-area"
@@ -33,12 +33,12 @@ import { CalendarIcon } from "lucide-react"
 // The agenda window length is the agendaDayCount SETTING (the store derives
 // visibleRange from it); a per-view prop here would silently disagree.
 interface EventCalendarAgendaViewProps extends HTMLAttributes<HTMLDivElement> {
-  asChild?: boolean
+  render?: React.ReactElement
 }
 
 function EventCalendarAgendaView({
   className,
-  asChild = false,
+  render,
   ...props
 }: EventCalendarAgendaViewProps) {
   const instance = useEventCalendar()
@@ -177,11 +177,10 @@ function EventCalendarAgendaView({
     </>
   )
 
-  const Comp = asChild ? Slot : "div"
 
   return (
     <EventCalendarViewContext.Provider value={{ view: "agenda" }}>
-      <Comp
+      <Rendered tag="div" render={render}
         data-slot="event-calendar-agenda-view"
         data-view="agenda"
         // Unlike the grid views the agenda has no row/column semantics to carry
@@ -209,7 +208,7 @@ function EventCalendarAgendaView({
         ) : (
           <ScrollArea className="h-full">{body}</ScrollArea>
         )}
-      </Comp>
+      </Rendered>
     </EventCalendarViewContext.Provider>
   )
 }

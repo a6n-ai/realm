@@ -19,7 +19,7 @@ import {
 import { toZoned } from "@/components/reui/event-calendar/event-calendar-lib"
 import type { CalendarView } from "@/components/reui/event-calendar/event-calendar-types"
 import { addDays, format } from "date-fns"
-import { Slot } from "@foundry/ui/slot"
+import { Rendered } from "@foundry/ui/rendered"
 
 import { cn } from "@foundry/ui/cn"
 import { Button } from "@foundry/ui/button"
@@ -102,7 +102,7 @@ type NavButtonProps = Omit<
    * them all off (its object form tunes side/delay/closeDelay/timeout).
    */
   tooltip?: ReactNode | null
-  asChild?: boolean
+  render?: React.ReactElement
 }
 
 /** Hover/focus-visible tooltip wrapper; renders the bare button when disabled
@@ -129,7 +129,7 @@ function NavTooltip({
 
 function EventCalendarNavToday({
   className,
-  asChild = false,
+  render,
   children,
   tooltip,
   ...props
@@ -156,7 +156,7 @@ function EventCalendarNavToday({
         data-active={isToday || undefined}
         className={cn(nav.className, className)}
         onClick={today}
-        asChild={asChild}
+        render={render}
         {...props}
       >
         {children ?? settings.i18n.labels.today}
@@ -167,7 +167,7 @@ function EventCalendarNavToday({
 
 function EventCalendarNavPrev({
   className,
-  asChild = false,
+  render,
   children,
   tooltip,
   ...props
@@ -186,7 +186,7 @@ function EventCalendarNavPrev({
         aria-label={settings.i18n.labels.previous}
         className={cn(nav.className, className)}
         onClick={prev}
-        asChild={asChild}
+        render={render}
         {...props}
       >
         {children ?? (
@@ -200,7 +200,7 @@ function EventCalendarNavPrev({
 
 function EventCalendarNavNext({
   className,
-  asChild = false,
+  render,
   children,
   tooltip,
   ...props
@@ -219,7 +219,7 @@ function EventCalendarNavNext({
         aria-label={settings.i18n.labels.next}
         className={cn(nav.className, className)}
         onClick={next}
-        asChild={asChild}
+        render={render}
         {...props}
       >
         {children ?? (
@@ -233,21 +233,20 @@ function EventCalendarNavNext({
 
 interface EventCalendarTitleProps extends HTMLAttributes<HTMLDivElement> {
   format?: (ctx: { title: string }) => ReactNode
-  asChild?: boolean
+  render?: React.ReactElement
 }
 
 function EventCalendarTitle({
   className,
-  asChild = false,
+  render,
   format: formatTitle,
   children,
   ...props
 }: EventCalendarTitleProps) {
   const { title } = useEventCalendarNavigation()
   const viewConfig = useEventCalendarViewConfig()
-  const Comp = asChild ? Slot : "div"
   return (
-    <Comp
+    <Rendered tag="div" render={render}
       data-slot="event-calendar-title"
       aria-live="polite"
       className={cn(
@@ -258,7 +257,7 @@ function EventCalendarTitle({
       {...props}
     >
       {children ?? formatTitle?.({ title }) ?? title}
-    </Comp>
+    </Rendered>
   )
 }
 
@@ -270,12 +269,12 @@ interface EventCalendarViewSwitcherProps extends Omit<
   /** Hover/focus-visible hint; defaults to the "Select view" label. Pass
    *  null to disable (overlay-opener policy). */
   tooltip?: ReactNode | null
-  asChild?: boolean
+  render?: React.ReactElement
 }
 
 function EventCalendarViewSwitcher({
   className,
-  asChild = false,
+  render,
   children,
   tooltip,
   ...props
@@ -336,7 +335,7 @@ function EventCalendarViewSwitcher({
                   data-slot="event-calendar-view-switcher"
                   aria-label={labels.selectView}
                   className={cn("gap-1", nav.className, className)}
-                  asChild={asChild}
+                  render={render}
                 >
                   {children ?? (
                     <>
@@ -436,7 +435,7 @@ interface EventCalendarDatePickerProps extends Omit<
   /** Hover/focus-visible hint; defaults to null - no tooltip, because the
    *  button opens an overlay (see the NavButtonProps tooltip policy). */
   tooltip?: ReactNode | null
-  asChild?: boolean
+  render?: React.ReactElement
 }
 
 /** Views whose period reads better as a highlighted range. */
@@ -452,7 +451,7 @@ const RANGE_VIEWS: CalendarView[] = ["week", "days", "agenda"]
  */
 function EventCalendarDatePicker({
   className,
-  asChild = false,
+  render,
   children,
   tooltip = null,
   mode,
@@ -492,7 +491,7 @@ function EventCalendarDatePicker({
               data-mode={resolved}
               aria-label={settings.i18n.labels.goToDate}
               className={cn(nav.className, className)}
-              asChild={asChild}
+              render={render}
             />
           }
         >
@@ -534,20 +533,19 @@ function EventCalendarDatePicker({
 }
 
 interface EventCalendarToolbarProps extends HTMLAttributes<HTMLDivElement> {
-  asChild?: boolean
+  render?: React.ReactElement
 }
 
 /** Free slot for consumer toolbar buttons; pure layout shell. */
 function EventCalendarToolbar({
   className,
-  asChild = false,
+  render,
   children,
   ...props
 }: EventCalendarToolbarProps) {
   const viewConfig = useEventCalendarViewConfig()
-  const Comp = asChild ? Slot : "div"
   return (
-    <Comp
+    <Rendered tag="div" render={render}
       data-slot="event-calendar-toolbar"
       className={cn(
         "flex items-center gap-2",
@@ -557,7 +555,7 @@ function EventCalendarToolbar({
       {...props}
     >
       {children}
-    </Comp>
+    </Rendered>
   )
 }
 
@@ -569,7 +567,7 @@ interface EventCalendarNavProps extends HTMLAttributes<HTMLDivElement> {
    * @default true
    */
   showViewSwitcher?: boolean
-  asChild?: boolean
+  render?: React.ReactElement
 }
 
 /**
@@ -578,15 +576,14 @@ interface EventCalendarNavProps extends HTMLAttributes<HTMLDivElement> {
  */
 function EventCalendarNav({
   className,
-  asChild = false,
+  render,
   children,
   showViewSwitcher = true,
   ...props
 }: EventCalendarNavProps) {
   const viewConfig = useEventCalendarViewConfig()
-  const Comp = asChild ? Slot : "div"
   return (
-    <Comp
+    <Rendered tag="div" render={render}
       data-slot="event-calendar-nav"
       className={cn(
         "flex min-w-0 flex-wrap items-center gap-1 px-2 py-2",
@@ -610,7 +607,7 @@ function EventCalendarNav({
           <div className="grow" />
         </>
       )}
-    </Comp>
+    </Rendered>
   )
 }
 

@@ -325,21 +325,26 @@ export function AppSidebar({
     const active = isNavActive(pathname, item.href);
     return (
       <SidebarMenuItem key={item.href}>
-        <SidebarMenuButton asChild isActive={active} tooltip={item.title} className={ROW}>
-          {/* No viewport prefetch (every nav item at once 503'd the box); prefetch
-              on intent instead, down to dashboard/loading.tsx. */}
-          <Link
-            href={item.href}
-            prefetch={false}
-            onMouseEnter={() => router.prefetch(item.href)}
-            onFocus={() => router.prefetch(item.href)}
-          >
-            <NavIcon icon={item.icon} />
-            <span>{item.title}</span>
-            {unread(item.href) ? (
-              <span aria-label="New activity" className="bg-primary ml-auto size-2 shrink-0 rounded-full" />
-            ) : null}
-          </Link>
+        {/* No viewport prefetch (every nav item at once 503'd the box); prefetch
+            on intent instead, down to dashboard/loading.tsx. */}
+        <SidebarMenuButton
+          isActive={active}
+          tooltip={item.title}
+          className={ROW}
+          render={
+            <Link
+              href={item.href}
+              prefetch={false}
+              onMouseEnter={() => router.prefetch(item.href)}
+              onFocus={() => router.prefetch(item.href)}
+            />
+          }
+        >
+          <NavIcon icon={item.icon} />
+          <span>{item.title}</span>
+          {unread(item.href) ? (
+            <span aria-label="New activity" className="bg-primary ml-auto size-2 shrink-0 rounded-full" />
+          ) : null}
         </SidebarMenuButton>
       </SidebarMenuItem>
     );

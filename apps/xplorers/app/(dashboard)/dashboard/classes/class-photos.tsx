@@ -113,10 +113,8 @@ export function ClassPhotosField({
               {busy ? <Loader2Icon className="size-5 animate-spin" /> : <UploadIcon className="size-5" />}
               <span>{busy ? "Uploading…" : "Drop photos or click to add"}</span>
             </div>
-            <FileUploadTrigger asChild>
-              <Button type="button" variant="outline" size="sm" disabled={busy}>
-                Add photos
-              </Button>
+            <FileUploadTrigger render={<Button type="button" variant="outline" size="sm" disabled={busy} />}>
+              Add photos
             </FileUploadTrigger>
           </FileUploadDropzone>
         </FileUpload>

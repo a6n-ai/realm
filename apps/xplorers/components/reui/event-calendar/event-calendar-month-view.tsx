@@ -49,7 +49,7 @@ import type {
   EventCalendarSegment,
 } from "@/components/reui/event-calendar/event-calendar-types"
 import { addDays, format, getWeek } from "date-fns"
-import { Slot } from "@foundry/ui/slot"
+import { Rendered } from "@foundry/ui/rendered"
 
 import { cn } from "@foundry/ui/cn"
 import {
@@ -105,12 +105,12 @@ function restoreChipFocus(
 
 interface EventCalendarMonthViewProps extends HTMLAttributes<HTMLDivElement> {
   maxEventsPerCell?: number | "auto"
-  asChild?: boolean
+  render?: React.ReactElement
 }
 
 function EventCalendarMonthView({
   className,
-  asChild = false,
+  render,
   maxEventsPerCell,
   ...props
 }: EventCalendarMonthViewProps) {
@@ -203,11 +203,10 @@ function EventCalendarMonthView({
   }, [autoFit, measureCap, weeks.length, anchorDate])
   const resolvedCap = cap === "auto" ? (autoFit ? (autoCap ?? 3) : 3) : cap
 
-  const Comp = asChild ? Slot : "div"
 
   return (
     <EventCalendarViewContext.Provider value={{ view: "month" }}>
-      <Comp
+      <Rendered tag="div" render={render}
         data-slot="event-calendar-month-view"
         data-view="month"
         role="grid"
@@ -308,7 +307,7 @@ function EventCalendarMonthView({
             className="pointer-events-none invisible absolute h-[var(--ec-month-bar-h,1.75rem)] w-0"
           />
         )}
-      </Comp>
+      </Rendered>
     </EventCalendarViewContext.Provider>
   )
 }
