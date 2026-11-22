@@ -40,7 +40,6 @@ import {
   DashboardSidebar,
 } from "@/components/dashboard/dashboard-frame";
 import { MobileOnly } from "@/components/dashboard/mobile-only";
-import { SectionTabs } from "@/components/dashboard/section-tabs";
 import { RouteStatus } from "@/components/dashboard/route-status";
 import { geistSansAdmin } from "./admin-font";
 import { requestNow } from "@/lib/dates/request-now";
@@ -212,7 +211,6 @@ export default async function DashboardLayout({ children }: { children: ReactNod
             ticketsBootstrap={realtimeTokens[TICKETS_INBOX]}
             paymentsBootstrap={realtimeTokens[PAYMENTS_INBOX]}
           />
-          <SectionTabs />
           {children}
           {/* Room to scroll the last row out from under the floating button. */}
           {hasRepAllowance && <div aria-hidden className="h-20" />}
