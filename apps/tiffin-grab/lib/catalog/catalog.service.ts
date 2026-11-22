@@ -219,7 +219,7 @@ class DiscountService extends SoftDeleteService<typeof discounts> {
   async update(id: string, patch: Record<string, unknown>) {
     const parsed = parsePatch(this.schema, patch);
     delete parsed.key; // immutable after create, like every keyed resource
-    const kind = (parsed.kind as string | undefined) ?? (parsed.targetId !== undefined ? ((await this.read(id)) as { kind: string }).kind : undefined);
+    const kind = (parsed.kind as string | undefined) ?? (parsed.targetId !== undefined || parsed.minEatingDays != null ? ((await this.read(id)) as { kind: string }).kind : undefined);
     return super.update(id, await this.toRow(parsed, kind));
   }
 
@@ -245,6 +245,7 @@ class DiscountService extends SoftDeleteService<typeof discounts> {
     // Flat $ only means something as a meal size's list price; the additive engine reads percent alone.
     if (parsed.amount != null && kind !== undefined && kind !== "meal_size") throw new ValidationError("A flat $ amount is only for meal-size discounts");
     if (parsed.amount != null && Number(parsed.percent ?? 0) > 0) throw new ValidationError("Use a percent or a flat $ amount, not both");
+    if (parsed.minEatingDays != null && kind !== undefined && kind !== "delivery") throw new ValidationError("Only delivery discounts use minimum eating days");
     if (kind?.startsWith("waiver_")) {
       // Waivers are always-on or date-windowed; only a strategy waiver names a target.
       if (parsed.minWeeks != null) throw new ValidationError("Waivers don't use a minimum plan length");

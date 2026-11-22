@@ -25,4 +25,15 @@ describe("fee waivers in the catalog snapshot", () => {
     await expect(discountService.create({ key: "zz-waiver-bad", name: "x", kind: "waiver_strategy", percent: "100", targetId: null })).rejects.toThrow(/Pick the strategy/);
     await expect(discountService.create({ key: "zz-waiver-bad2", name: "x", kind: "waiver_base", percent: "100", minWeeks: "4" })).rejects.toThrow(/minimum plan length/);
   });
+
+  it("min eating days is delivery only and capped at 7", async () => {
+    for (const kind of ["duration", "meal_size", "waiver_delivery"]) {
+      await expect(discountService.create({ key: "zz-waiver-eat", name: "x", kind, percent: "10", minEatingDays: "4" })).rejects.toThrow("Only delivery discounts use minimum eating days");
+    }
+    await expect(discountService.create({ key: "zz-waiver-eat", name: "x", kind: "delivery", percent: "10", minEatingDays: "8" })).rejects.toThrow(/Max 7 days/);
+    const row = await discountService.create({ key: "zz-waiver-eat", name: "x", kind: "delivery", percent: "10", minEatingDays: "4" });
+    expect(row.minEatingDays).toBe(4);
+    const dur = await discountService.create({ key: "zz-waiver-eat2", name: "x", kind: "duration", percent: "10" });
+    await expect(discountService.update(dur.publicId, { minEatingDays: "4" })).rejects.toThrow("Only delivery discounts use minimum eating days");
+  });
 });

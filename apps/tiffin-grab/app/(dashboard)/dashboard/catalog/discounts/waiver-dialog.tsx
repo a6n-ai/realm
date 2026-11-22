@@ -58,7 +58,7 @@ function Body({ onOpenChange, waiver, strategies }: WaiverDialogProps) {
       name: name.trim() || autoName,
       kind,
       targetId: kind === "waiver_strategy" ? target : null,
-      percent, amount: null, minWeeks: "", startsAt, endsAt, active,
+      percent, amount: null, minWeeks: "", minEatingDays: "", startsAt, endsAt, active,
     };
     const parsed = RESOURCES.discounts.schema.safeParse(values);
     if (!parsed.success) {

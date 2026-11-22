@@ -64,4 +64,18 @@ describe("DiscountDialog", () => {
     await waitFor(() => expect(saveItem).toHaveBeenCalled());
     expect(saveItem.mock.calls[0][2]).toMatchObject({ kind: "meal_size", targetId: "m1", percent: "0", amount: "2", minWeeks: "" });
   });
+
+  it("shows Min eating days for delivery only and sends it", async () => {
+    render(<DiscountDialog open onOpenChange={() => {}} prefill={{ kind: "delivery", targetPublicId: "f1", lockTarget: true }} options={options} />);
+    fireEvent.change(screen.getByLabelText("Discount %"), { target: { value: "10" } });
+    fireEvent.change(screen.getByLabelText("Min eating days (optional)"), { target: { value: "4" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(saveItem).toHaveBeenCalled());
+    expect(saveItem.mock.calls[0][2]).toMatchObject({ kind: "delivery", minEatingDays: "4" });
+  });
+
+  it("hides Min eating days for duration", () => {
+    render(<DiscountDialog open onOpenChange={() => {}} prefill={{ kind: "duration" }} options={options} />);
+    expect(screen.queryByLabelText("Min eating days (optional)")).toBeNull();
+  });
 });

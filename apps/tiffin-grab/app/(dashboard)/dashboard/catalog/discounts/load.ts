@@ -31,6 +31,7 @@ export async function loadDiscountData() {
     percent: Number(d.percent),
     amount: d.amount == null ? null : Number(d.amount),
     minWeeks: d.minWeeks,
+    minEatingDays: d.minEatingDays,
     startsAt: d.startsAt == null ? "" : zonedDateIso(Number(d.startsAt), timezone),
     endsAt: d.endsAt == null ? "" : zonedDateIso(Number(d.endsAt), timezone),
     active: d.active,

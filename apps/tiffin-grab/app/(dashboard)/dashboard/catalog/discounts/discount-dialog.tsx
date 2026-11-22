@@ -62,6 +62,7 @@ function Body({ onOpenChange, discount, prefill, options, onSaved }: DiscountDia
   const [unit, setUnit] = useState<"percent" | "amount">(discount?.amount != null && discount.amount > 0 ? "amount" : "percent");
   const [value, setValue] = useState(discount ? String(discount.amount != null && discount.amount > 0 ? discount.amount : discount.percent) : "");
   const [minWeeks, setMinWeeks] = useState(discount?.minWeeks != null ? String(discount.minWeeks) : "");
+  const [minEatingDays, setMinEatingDays] = useState(discount?.minEatingDays != null ? String(discount.minEatingDays) : "");
   const [startsAt, setStartsAt] = useState(discount?.startsAt ?? "");
   const [endsAt, setEndsAt] = useState(discount?.endsAt ?? "");
   const [active, setActive] = useState(discount?.active ?? true);
@@ -81,6 +82,7 @@ function Body({ onOpenChange, discount, prefill, options, onSaved }: DiscountDia
       percent: isFlat ? "0" : value,
       amount: isFlat ? value : null,
       minWeeks: kind === "meal_size" ? "" : minWeeks,
+      minEatingDays: kind === "delivery" ? minEatingDays : "",
       startsAt, endsAt, active,
     };
     const parsed = RESOURCES.discounts.schema.safeParse(values);
@@ -173,6 +175,13 @@ function Body({ onOpenChange, discount, prefill, options, onSaved }: DiscountDia
             {err("minWeeks")}
           </div>
         )}
+        {kind === "delivery" ? (
+          <div className="grid gap-1.5">
+            <Label htmlFor="dd-min-eat">Min eating days (optional)</Label>
+            <Input id="dd-min-eat" type="number" inputMode="numeric" min={1} max={7} value={minEatingDays} onChange={(e) => setMinEatingDays(e.target.value)} />
+            {err("minEatingDays")}
+          </div>
+        ) : null}
         <div className="grid gap-1.5">
           <Label htmlFor="dd-start">Start date (optional)</Label>
           <DateInput id="dd-start" clearable value={startsAt} onChange={setStartsAt} />

@@ -3,7 +3,7 @@ import { buildRows, discountStatus, type DiscountDto } from "./build-rows";
 
 const now = 1_000;
 const dto = (o: Partial<DiscountDto>): DiscountDto => ({
-  publicId: "d1", name: "n", kind: "delivery", targetPublicId: null, percent: 10, amount: null, minWeeks: null,
+  publicId: "d1", name: "n", kind: "delivery", targetPublicId: null, percent: 10, amount: null, minWeeks: null, minEatingDays: null,
   startsAt: "", endsAt: "", active: true, startsAtMs: null, endsAtMs: null, ...o,
 });
 
@@ -46,5 +46,9 @@ describe("buildRows", () => {
     expect(rows[3].href).toBeNull();
     expect(rows[5].href).toBe("/dashboard/discounts/coupons");
     expect(rows[6].status).toBe("expired");
+  });
+  it("shows min eating days in the value", () => {
+    const r = buildRows({ currency: "CAD", discounts: [dto({ minEatingDays: 4 })], frequencies: [], durations: [], mealSizes: [], coupons: [], now });
+    expect(r[0].value).toContain("4+ eating days");
   });
 });

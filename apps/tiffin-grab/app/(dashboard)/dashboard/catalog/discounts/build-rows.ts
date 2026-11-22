@@ -13,6 +13,7 @@ export interface DiscountDto {
   /** Flat $ off; meal_size only. */
   amount: number | null;
   minWeeks: number | null;
+  minEatingDays: number | null;
   startsAt: string;
   endsAt: string;
   active: boolean;
@@ -81,7 +82,7 @@ export function buildRows(input: {
       type: kind,
       typeLabel: TYPE_LABELS[kind],
       appliesTo: d.targetPublicId == null ? ALL_TARGETS_LABEL[kind] : (names[kind].get(d.targetPublicId) ?? "Unknown target"),
-      value: discountValueLabel(d, input.currency),
+      value: discountValueLabel(d, input.currency) + (d.minEatingDays != null ? ` · ${d.minEatingDays}+ eating days` : ""),
       status: discountStatus(d, input.now),
       href: null,
       discount: d,
