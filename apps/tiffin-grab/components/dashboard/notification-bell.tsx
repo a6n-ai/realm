@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { BellIcon, CheckCheckIcon } from "lucide-react";
+import { BellIcon, CheckCheckIcon, Trash2Icon, XIcon } from "lucide-react";
 import { Button } from "@foundry/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@foundry/ui/popover";
 import { Separator } from "@foundry/ui/separator";
@@ -57,7 +57,7 @@ export function filterNotifications(items: FeedItem[], tab: Tab): FeedItem[] {
 // outside the popover and sit on top of whatever is underneath (activity
 // timestamps, the Filter control, the log table).
 export function NotificationBell(props: UseNotificationsOptions = {}) {
-  const { items, unread, markAllRead, refresh } = useNotifications({ endpoint: ENDPOINT, ...props });
+  const { items, unread, markAllRead, clear, refresh } = useNotifications({ endpoint: ENDPOINT, ...props });
   const router = useRouter();
   const [tab, setTab] = React.useState<Tab>("all");
   const tabs = notificationTabs(items);
@@ -80,6 +80,9 @@ export function NotificationBell(props: UseNotificationsOptions = {}) {
     void markAllReadAction().then(() => router.refresh());
   };
 
+  // Clears what the current tab shows; on All that is the whole feed, past the loaded page too.
+  const clearShown = () => void clear(active === "all" ? undefined : shown.map((n) => n.publicId));
+
   return (
     <Popover>
       <PopoverTrigger render={<Button variant="ghost" size="icon" className="relative" aria-label="Notifications" />}>
@@ -93,10 +96,16 @@ export function NotificationBell(props: UseNotificationsOptions = {}) {
       <PopoverContent align="end" className="z-50 w-96 overflow-hidden p-0">
         <div className="flex items-center justify-between gap-2 px-3 py-2">
           <span className="text-sm font-medium">Notifications</span>
-          <Button variant="ghost" size="sm" onClick={markEverything}>
-            <CheckCheckIcon data-icon="inline-start" />
-            Mark all read
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button variant="ghost" size="sm" onClick={markEverything}>
+              <CheckCheckIcon data-icon="inline-start" />
+              Mark all read
+            </Button>
+            <Button variant="ghost" size="sm" onClick={clearShown} disabled={shown.length === 0}>
+              <Trash2Icon data-icon="inline-start" />
+              Clear
+            </Button>
+          </div>
         </div>
         <Tabs value={active} onValueChange={(v) => setTab(v as Tab)} className="gap-0">
           <TabsList variant="line" aria-label="Notification type" className="w-full justify-start px-3">
@@ -118,7 +127,7 @@ export function NotificationBell(props: UseNotificationsOptions = {}) {
             <ul className="divide-y">
               {shown.map((n) => {
                 const row = (
-                  <div className={cn("px-3 py-2.5", !n.readAt && "bg-muted/40")}>
+                  <div className={cn("py-2.5 pl-3 pr-10", !n.readAt && "bg-muted/40")}>
                     <div className="flex items-start justify-between gap-3">
                       <span className="flex min-w-0 items-center gap-2 text-sm font-medium">
                         {!n.readAt && <span aria-label="Unread" className="size-1.5 shrink-0 rounded-full bg-primary" />}
@@ -130,7 +139,7 @@ export function NotificationBell(props: UseNotificationsOptions = {}) {
                   </div>
                 );
                 return (
-                  <li key={n.publicId}>
+                  <li key={n.publicId} className="group relative">
                     {n.href ? (
                       <Link href={n.href} prefetch={false} className="block transition-colors hover:bg-accent" onClick={() => markOne(n)}>
                         {row}
@@ -140,6 +149,15 @@ export function NotificationBell(props: UseNotificationsOptions = {}) {
                         {row}
                       </button>
                     )}
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label={`Clear ${n.title}`}
+                      className="absolute right-1.5 top-1.5 opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
+                      onClick={() => void clear([n.publicId])}
+                    >
+                      <XIcon />
+                    </Button>
                   </li>
                 );
               })}

@@ -94,7 +94,7 @@ const PUBLIC_ACTIONS: Record<string, string> = {
 const REDIRECT_ONLY_PAGES: Record<string, string> = {
   "app/(dashboard)/dashboard/payments/page.tsx": "redirects to a sub-page",
   "app/(dashboard)/dashboard/customers/[id]/payments/page.tsx": "redirects to the merged Orders & payments tab (which gates payments on finance:read)",
-  "app/(dashboard)/dashboard/analytics/page.tsx": "redirects to a sub-page",
+  "app/(dashboard)/dashboard/analytics/(index)/page.tsx": "redirects to a sub-page",
   "app/(dashboard)/dashboard/delivery/page.tsx": "redirects to delivery/charges",
   "app/(dashboard)/dashboard/notifications/page.tsx": "redirects to notifications/templates",
   "app/(dashboard)/dashboard/notifications/campaigns/new/page.tsx": "redirects to the campaigns list",
