@@ -231,6 +231,7 @@ export function createMealResolveCache(
   return {
     cats: (planId: bigint) => once(`cats:${planId}`, () => dishCategoriesService.forPlan(planId)),
     dayItems: (weekId: bigint, day: DayOfWeek) => once(`items:${weekId}:${day}`, () => loadDayItems(weekId, day)),
+    weekItems: (weekId: bigint) => once(`weekItems:${weekId}`, async () => loadWeekItems(weekId)),
     // Every order's picks for that menu day in one query, keyed `${orderId}:${personIndex}`.
     dayPicks: (weekId: bigint, day: DayOfWeek) =>
       once(`picks:${weekId}:${day}`, async () => {
@@ -304,7 +305,7 @@ function sideResolver(
 
 function loadWeekItems(weekId: bigint) {
   return db
-    .select({ dayOfWeek: menuItems.dayOfWeek, slot: dishCategories.key, dishId: menuItems.dishId, isDefault: menuItems.isDefault, name: dishes.name, publicId: dishes.publicId, planId: dishes.planId })
+    .select({ dayOfWeek: menuItems.dayOfWeek, slot: dishCategories.key, dishId: menuItems.dishId, isDefault: menuItems.isDefault, name: dishes.name, publicId: dishes.publicId, planId: dishes.planId, image: dishes.image })
     .from(menuItems)
     .innerJoin(dishes, eq(menuItems.dishId, dishes.id))
     .innerJoin(dishCategories, eq(dishCategories.id, menuItems.categoryId))
@@ -409,18 +410,19 @@ export async function resolveDeliveryMealsForWeek(
   rowPlansByDay?: Map<DayOfWeek, RowPlans | null>,
   /** Filled with each day's applied swaps (Edit meal's side choices follow them). */
   swapsByDay?: Map<DayOfWeek, SwapRow[]>,
+  cache?: MealResolveCache,
 ): Promise<ResolvedMealsWeek> {
   const result: ResolvedMealsWeek = new Map();
-  const cats = await dishCategoriesService.forPlan(order.planId);
-  const items = await loadWeekItems(week.id);
+  const cats = cache ? await cache.cats(order.planId) : await dishCategoriesService.forPlan(order.planId);
+  const items = cache ? await cache.weekItems(week.id) : await loadWeekItems(week.id);
   const picks = await db.select({ dayOfWeek: mealSelections.dayOfWeek, slot: dishCategories.key, personIndex: mealSelections.personIndex, pickIndex: mealSelections.pickIndex, dishId: mealSelections.dishId })
     .from(mealSelections)
     .innerJoin(dishCategories, eq(dishCategories.id, mealSelections.categoryId))
     .where(and(eq(mealSelections.orderId, order.id), eq(mealSelections.menuWeekId, week.id)));
 
-  const { planDishIds, exclusiveDishIds, maxTuByCat, liveCounts, rules, rowPlans, roles } = await defaultPickContext(order);
+  const { planDishIds, exclusiveDishIds, maxTuByCat, liveCounts, rules, rowPlans, roles } = await defaultPickContext(order, cache);
   const baseCounts = liveCounts ?? order.categoryCounts ?? {};
-  const weekSides = roles ? await loadSideRules(week.id) : null;
+  const weekSides = roles ? await (cache ? cache.sideRules(week.id) : loadSideRules(week.id)) : null;
 
   // Batch-fetch this week's delivery rows (to map date -> delivery id) and every
   // swap applied to any of them, in two queries total rather than one lookup per

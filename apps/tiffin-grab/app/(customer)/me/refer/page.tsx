@@ -4,6 +4,7 @@ import { getAppSettings } from "@/lib/settings";
 import { getReferralSummary } from "@/lib/referrals/referrals.service";
 import { activeCoinRate } from "@/lib/referrals/offer";
 import { walletService } from "@/lib/wallet/wallet.service";
+import { displayBalance } from "@/lib/wallet/display-balance";
 import { PageHeader } from "@/components/kit";
 import { ReferView } from "@/components/customer/refer/refer-view";
 import { ReferSkeleton } from "@/components/customer/refer/refer-skeleton";
@@ -23,7 +24,7 @@ export default async function ReferPage() {
 async function ReferData({ userId }: { userId: bigint }) {
   const [summary, coins, { currency }] = await Promise.all([
     getReferralSummary(userId),
-    walletService.balance(userId),
+    displayBalance(userId),
     getAppSettings(),
   ]);
   const [dollars, rate] = await Promise.all([walletService.moneyValue(coins, currency), activeCoinRate(currency)]);

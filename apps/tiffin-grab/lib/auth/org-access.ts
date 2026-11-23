@@ -9,6 +9,15 @@ import { ac, appStatement, orgRoles } from "./permissions";
 import { getSession } from "./session";
 import { isCustomerRole } from "@/lib/roles";
 
+/** The caller's member role string in one org, or null with no member row there. Per request only. */
+export const memberRoleIn = cache(async (organizationId: string, userId: bigint): Promise<string | null> => {
+  const [row] = await db
+    .select({ role: member.role })
+    .from(member)
+    .where(and(eq(member.organizationId, organizationId), eq(member.userId, userId)));
+  return row?.role ?? null;
+});
+
 /** Access in one specific org: the caller's own member row there, never the active org's. */
 export const getOrgAccessFor = cache(async (organizationId: string): Promise<OrgAccess> => {
   const session = await getSession();
@@ -28,12 +37,8 @@ export const getOrgAccessFor = cache(async (organizationId: string): Promise<Org
   if (isCustomerRole(session.user.role)) return { kind: "none" };
   const dbUserId = await userIdByPublicId(session.user.id);
   if (!dbUserId) return { kind: "none" };
-  const [row] = await db
-    .select({ role: member.role })
-    .from(member)
-    .where(and(eq(member.organizationId, organizationId), eq(member.userId, dbUserId)));
-  if (!row) return { kind: "none" };
-  const memberRole = row.role;
+  const memberRole = await memberRoleIn(organizationId, dbUserId);
+  if (memberRole == null) return { kind: "none" };
   const custom = memberRole
     .split(",")
     .map((r) => r.trim())
@@ -137,11 +142,8 @@ export async function getActiveRoleLabel(): Promise<string | null> {
   const organizationId = session.session.activeOrganizationId;
   const dbUserId = organizationId ? await userIdByPublicId(session.user.id) : null;
   if (!organizationId || !dbUserId) return null;
-  const [row] = await db
-    .select({ role: member.role })
-    .from(member)
-    .where(and(eq(member.organizationId, organizationId), eq(member.userId, dbUserId)));
-  return row ? row.role.split(",").map((r) => r.trim().replaceAll("_", " ")).filter(Boolean).join(", ") : null;
+  const role = await memberRoleIn(organizationId, dbUserId);
+  return role != null ? role.split(",").map((r) => r.trim().replaceAll("_", " ")).filter(Boolean).join(", ") : null;
 }
 
 /** What the viewer may hand out: their roles combined (platform admins: every app permission). */

@@ -6,6 +6,7 @@ import { getSession } from "@/lib/auth/session";
 import { getAppSettings } from "@/lib/settings";
 import { requireActiveUser } from "@/lib/account/current-user";
 import { walletService } from "@/lib/wallet/wallet.service";
+import { displayBalance } from "@/lib/wallet/display-balance";
 import { ticketsService } from "@/lib/support/tickets.service";
 import { CustomerShell } from "@/components/customer/shell/customer-shell";
 import { AppCurrencyProvider } from "@/components/app-currency";
@@ -33,7 +34,7 @@ export default async function CustomerLayout({ children }: { children: ReactNode
   const notify = notifyChannel(user.publicId);
   const [{ timezone, cutoffHour, currency }, coinBalance, staffReplies, realtimeTokens] = await Promise.all([
     getAppSettings(),
-    walletService.balance(user.id),
+    displayBalance(user.id),
     ticketsService.latestStaffReplies(user.id),
     mintRealtimeTokens([notify]),
   ]);

@@ -1,9 +1,7 @@
 import type { Visible } from "@/lib/tenant/org-scope";
-import { and, eq } from "drizzle-orm";
 import { resolveVisibleOrgIds } from "@foundry/auth";
-import { db } from "@/db/client";
-import { member } from "@/db/schema";
 import { userIdByPublicId } from "@/lib/identity/user-ids";
+import { memberRoleIn } from "@/lib/auth/org-access";
 
 // Which orgs a session may see: the active organization only. super_admin bypasses to "all";
 // everyone else gets [activeOrganizationId] when they have a member row there. [] means
@@ -21,10 +19,6 @@ export async function resolveSessionVisibleOrgIds(
   if (!activeOrgId) return [];
   const userId = await userIdByPublicId(session.user.id);
   if (!userId) return [];
-  const [row] = await db
-    .select({ organizationId: member.organizationId })
-    .from(member)
-    .where(and(eq(member.userId, userId), eq(member.organizationId, activeOrgId)))
-    .limit(1);
-  return resolveVisibleOrgIds({ platformRole, memberOrgIds: row ? [row.organizationId] : [] });
+  const isMember = (await memberRoleIn(activeOrgId, userId)) != null;
+  return resolveVisibleOrgIds({ platformRole, memberOrgIds: isMember ? [activeOrgId] : [] });
 }

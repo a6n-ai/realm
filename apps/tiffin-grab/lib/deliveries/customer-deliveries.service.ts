@@ -11,7 +11,7 @@ import type { FileDetail } from "@foundry/storage/model";
 import { and, asc, desc, eq, gte, inArray, isNotNull, lte, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { orderPaymentStatuses } from "@/lib/payments/order-payments";
-import { deliveries, deliveryCategorySwaps, deliveryFrequencies, deliveryMoves, dishCategories, dishes, holidays, mealSizes, menuItems, orderActivities, orders, payments, plans } from "@/db/schema";
+import { deliveries, deliveryCategorySwaps, deliveryFrequencies, deliveryMoves, dishCategories, holidays, mealSizes, orderActivities, orders, payments, plans } from "@/db/schema";
 import { loadSubscriptionAddons, type SubscriptionAddon } from "@/lib/menu/order-addon-items";
 import { resolveTripDay, weekLoader } from "@/lib/menu/trip-meals";
 import { coveredDates, formatCoversLabel, swapAppliesTo } from "@/lib/deliveries/schedule/coverage";
@@ -27,7 +27,7 @@ import {
 } from "@/lib/menu/resolve-delivery-meal";
 import { allowedDishIdsForMealSize } from "@/lib/menu/dish-eligibility";
 import { isHiddenFromCustomer, orderDisplayStatus } from "@/lib/orders/display-status";
-import { assertOwnsOrder } from "@/lib/orders/access";
+import { assertOwnsOrder, orderRefByPublicId } from "@/lib/orders/access";
 import { dishCategoriesService } from "../menu/dish-categories.service";
 import { menuService } from "../menu/menu.service";
 import { autoResumeIfElapsed, lapseElapsedPausesSafe } from "./pause-days.service";
@@ -429,16 +429,12 @@ export async function myRenewalWindow(userId: bigint): Promise<{ earliestStart: 
 
 /** Original delivery id -> the day its tiffin moved to: the picked eat day for a single-day make-up, the make-up's date otherwise, or the first day a holiday added for it. */
 export async function makeupSourceIdsForOrder(orderPublicId: string): Promise<Map<string, string>> {
-  const [order] = await db
-    .select({ id: orders.id })
-    .from(orders)
-    .where(eq(orders.publicId, orderPublicId))
-    .limit(1);
+  const order = await orderRefByPublicId(orderPublicId);
   if (!order) return new Map();
   const rows = await db
     .select({ src: deliveries.makeupForDeliveryId, extraFor: deliveries.holidayExtraForDeliveryId, deliveryDate: deliveries.deliveryDate, coversDates: deliveries.coversDates })
     .from(deliveries)
-    .where(and(eq(deliveries.orderId, order.id), or(isNotNull(deliveries.makeupForDeliveryId), isNotNull(deliveries.holidayExtraForDeliveryId))))
+    .where(and(eq(deliveries.orderId, order.id),or(isNotNull(deliveries.makeupForDeliveryId), isNotNull(deliveries.holidayExtraForDeliveryId))))
     .orderBy(asc(deliveries.deliveryDate));
   const out = new Map<string, string>();
   for (const r of rows) {
@@ -451,13 +447,9 @@ export async function makeupSourceIdsForOrder(orderPublicId: string): Promise<Ma
 
 export async function myPausePanel(userId: bigint, orderPublicId: string) {
   await assertOwnsOrder(userId, orderPublicId); // IDOR gate — before the read
-  const [row] = await db
-    .select({ id: orders.id })
-    .from(orders)
-    .where(eq(orders.publicId, orderPublicId))
-    .limit(1);
+  const row = await orderRefByPublicId(orderPublicId);
   if (!row) throw new NotFoundError("Subscription not found");
-  const [limits, usage] = await Promise.all([getPauseLimits(row.id), getPauseUsage(row.id)]);
+  const [limits, usage] = await Promise.all([getPauseLimits(row.id, db, row.durationWeeks), getPauseUsage(row.id)]);
   return { limits, usage };
 }
 
@@ -763,14 +755,8 @@ export async function myCalendar(userId: bigint, orderPublicId: string, range: {
   const perWeek = await Promise.all(
     shownWeeks.map(async (week) => {
       const [resolved, items] = await Promise.all([
-        resolveDeliveryMealsForWeek({ id: order.id, planId: order.planId, mealSizeId: order.mealSizeId, categoryCounts: order.categoryCounts }, { id: week.id, weekStart: week.weekStart }, order.persons),
-        db
-          .select({ dayOfWeek: menuItems.dayOfWeek, slot: dishCategories.key, dishId: menuItems.dishId, publicId: dishes.publicId, name: dishes.name, image: dishes.image })
-          .from(menuItems)
-          .innerJoin(dishes, eq(menuItems.dishId, dishes.id))
-          .innerJoin(dishCategories, eq(dishCategories.id, menuItems.categoryId))
-          .where(eq(menuItems.menuWeekId, week.id))
-          .orderBy(asc(menuItems.position)),
+        resolveDeliveryMealsForWeek({ id: order.id, planId: order.planId, mealSizeId: order.mealSizeId, categoryCounts: order.categoryCounts }, { id: week.id, weekStart: week.weekStart }, order.persons, undefined, undefined, undefined, mealCache),
+        mealCache.weekItems(week.id),
       ]);
       return [week.id, { resolved, items }] as const;
     }),

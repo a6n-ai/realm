@@ -1,4 +1,5 @@
-import { requireCustomerIdOrRedirect } from "@/lib/account/customer";
+import { requireCustomerIdOrRedirect, requireCustomerSession } from "@/lib/account/customer";
+import { readUserRow } from "@/lib/account/current-user";
 import { Suspense } from "react";
 import { after } from "next/server";
 import { expireUnpaidStripeOrders } from "@/lib/orders/unpaid-checkouts";
@@ -22,7 +23,9 @@ async function MyDeliveriesData({ searchParams }: { searchParams: SearchParams }
   const userId = await requireCustomerIdOrRedirect();
   after(() => expireUnpaidStripeOrders({ userId }));
 
-  const data = await loadCustomerDeliveries(userId, await searchParams);
+  const session = await requireCustomerSession();
+  const user = await readUserRow(session.user.id); // the customer layout already read this row in the request
+  const data = await loadCustomerDeliveries(userId, await searchParams, user.name ?? null);
   if (data.kind === "none") return <NoPlan waitlisted={data.waitlisted} ended={data.ended} cardAvailable={data.cardAvailable} />;
 
   return (

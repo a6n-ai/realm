@@ -66,12 +66,16 @@ export async function assertOwnsDelivery(userId: bigint, deliveryPublicId: strin
 
 // Per request only (React cache): one /me render checks the same order up to three times. Never
 // across requests, so a changed owner is seen by the next request.
-const orderOwner = cache(async (orderPublicId: string): Promise<bigint | null> => {
-  const [row] = await db.select({ ownerId: orders.userId }).from(orders).where(eq(orders.publicId, orderPublicId)).limit(1);
-  return row?.ownerId ?? null;
+export const orderRefByPublicId = cache(async (orderPublicId: string) => {
+  const [row] = await db
+    .select({ id: orders.id, ownerId: orders.userId, durationWeeks: orders.durationWeeks })
+    .from(orders)
+    .where(eq(orders.publicId, orderPublicId))
+    .limit(1);
+  return row ?? null;
 });
 
 export async function assertOwnsOrder(userId: bigint, orderPublicId: string): Promise<void> {
-  const ownerId = await orderOwner(orderPublicId);
-  if (ownerId == null || ownerId !== userId) throw new NotFoundError("Subscription not found");
+  const ref = await orderRefByPublicId(orderPublicId);
+  if (ref == null || ref.ownerId !== userId) throw new NotFoundError("Subscription not found");
 }

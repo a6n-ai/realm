@@ -1,7 +1,7 @@
 import { requireCustomerSession } from "@/lib/account/customer";
 import { Suspense } from "react";
 import { getAppSettings } from "@/lib/settings";
-import { usersService } from "@/lib/services/users.service";
+import { readUserRow } from "@/lib/account/current-user";
 import { ticketsService } from "@/lib/support/tickets.service";
 import { getCustomerDashboard } from "@/lib/services/customers.service";
 import { PageHeader } from "@/components/kit";
@@ -67,7 +67,7 @@ async function TicketsData() {
 
   const [{ timezone }, user] = await Promise.all([
     getAppSettings(),
-    usersService.read(session.user.id),
+    readUserRow(session.user.id),
   ]);
   const tickets = await ticketsService.listForCustomer(user.id);
 

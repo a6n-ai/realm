@@ -1,14 +1,18 @@
+import { cache } from "react";
 import { redirect } from "next/navigation";
 import { NotFoundError, type RoleValue } from "@foundry/commons";
 import { getSession } from "@/lib/auth/session";
 import { usersService } from "@/lib/services/users.service";
+
+// Per request: the layout and the page read the same users row; status is still checked on every call.
+export const readUserRow = cache((publicId: string) => usersService.read(publicId));
 
 /**
  * The one "signed in and account active" gate, given a session's user id. A session that outlives its
  * user row (dev DB reseeded) is expired; a status flipped after the session was issued (suspend,
  * deactivate, self delete) ends it on the read path, not only at the next sign-in.
  */
-export async function requireActiveUser(userId: string, read: (id: string) => ReturnType<typeof usersService.read> = (id) => usersService.read(id)) {
+export async function requireActiveUser(userId: string, read: (id: string) => ReturnType<typeof usersService.read> = readUserRow) {
   let user;
   try {
     user = await read(userId);

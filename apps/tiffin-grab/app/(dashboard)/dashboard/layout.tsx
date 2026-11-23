@@ -16,8 +16,7 @@ import { getDiscountPolicy } from "@/lib/coupons/discount-policy-settings";
 import { getMemberOrganizations } from "@/lib/services/organizations.service";
 import { couponsService, type RepCouponToday } from "@/lib/coupons/coupons.service";
 import { repAllowanceFor } from "@/lib/coupons/rep-allowance";
-import { usersService } from "@/lib/services/users.service";
-import { requireActiveUser } from "@/lib/account/current-user";
+import { readUserRow, requireActiveUser } from "@/lib/account/current-user";
 import { newActivity } from "@/lib/services/section-seen.service";
 import { getFeed } from "@/lib/notifications/feed";
 import { mintRealtimeTokens } from "@/lib/realtime/mint";
@@ -97,7 +96,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
 
   // One read covers PIN state + the header avatar (name/image). Status is re-checked on the read
   // path: session.create.before only gates a session being CREATED.
-  const user = await requireActiveUser(session.user.id, (id) => timed("user", usersService.read(id)));
+  const user = await requireActiveUser(session.user.id, (id) => timed("user", readUserRow(id)));
 
   // First-login gate: an account still on its issued default password must set
   // its own before it can reach anything under /dashboard (customers and staff

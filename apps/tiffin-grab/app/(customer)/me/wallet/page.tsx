@@ -9,6 +9,7 @@ import { getCoinEarnPct } from "@/lib/wallet/wallet-settings";
 import { myBillsPage, myCouponsPage, myCouponTotals, myMoneyLedgerPage } from "@/lib/services/customer-finances.service";
 import { couponsService } from "@/lib/coupons/coupons.service";
 import { walletService } from "@/lib/wallet/wallet.service";
+import { displayBalance } from "@/lib/wallet/display-balance";
 import { parseFilterState } from "@/components/ds";
 import { PageHeader } from "@/components/kit";
 import { TabsSkeleton } from "@/components/kit/skeleton-parts";
@@ -86,7 +87,7 @@ async function CoinsPanel({ userId, searchParams }: { userId: bigint; searchPara
   const { condition, page } = parseFilterState(WALLET_FACETS, await withExplicitDates(await searchParams));
 
   const [balance, { earned, spent }, ledger, earnPct] = await Promise.all([
-    walletService.balance(userId),
+    displayBalance(userId),
     walletService.earnSpendTotals(userId),
     walletService.ledgerPage(userId, condition, page),
     getCoinEarnPct(),

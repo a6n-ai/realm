@@ -11,14 +11,18 @@ export function spanDays(from: string, until: string): number {
   return differenceInCalendarDays(parseISO(until), parseISO(from)) + 1;
 }
 
-export async function getPauseLimits(orderId: bigint, exec: Reader = db) {
-  const [order] = await exec.select({ weeks: orders.durationWeeks }).from(orders).where(eq(orders.id, orderId)).limit(1);
-  if (!order) throw new ValidationError("Order not found");
+export async function getPauseLimits(orderId: bigint, exec: Reader = db, weeks?: number | null) {
+  let durationWeeks = weeks;
+  if (durationWeeks == null) {
+    const [order] = await exec.select({ weeks: orders.durationWeeks }).from(orders).where(eq(orders.id, orderId)).limit(1);
+    if (!order) throw new ValidationError("Order not found");
+    durationWeeks = order.weeks;
+  }
   const [pkg] = await exec.select({
     maxPauses: durationPackages.maxPauses,
     maxPauseDaysTotal: durationPackages.maxPauseDaysTotal,
     maxPauseStretchDays: durationPackages.maxPauseStretchDays,
-  }).from(durationPackages).where(eq(durationPackages.weeks, order.weeks)).limit(1);
+  }).from(durationPackages).where(eq(durationPackages.weeks, durationWeeks)).limit(1);
   const [defs] = await exec.select({
     maxPauses: app.defaultMaxPauses,
     maxPauseDaysTotal: app.defaultMaxPauseDaysTotal,

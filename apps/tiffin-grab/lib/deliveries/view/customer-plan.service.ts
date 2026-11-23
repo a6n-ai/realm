@@ -38,16 +38,19 @@ import { defaultWeek, ISO, parseWeekParam, splitAgenda } from "./week";
 export type CustomerDeliveriesQuery = { week?: string; sub?: string; trip?: string; action?: string };
 
 /** Everything the customer deliveries page shows: the no-plan state, or one plan's view with its trips. */
-export async function loadCustomerDeliveries(userId: bigint, query: CustomerDeliveriesQuery) {
+/** `knownName`: the caller's name when it already has the session; omitted, it is read from users. */
+export async function loadCustomerDeliveries(userId: bigint, query: CustomerDeliveriesQuery, knownName?: string | null) {
   const { week: weekParam, sub: subParam, trip: tripParam, action: actionParam } = query;
   const { timezone, cutoffHour, currency } = await getAppSettings();
   const now = requestNow();
   const today = zonedDateIso(now, timezone);
-  const [allSubs, waitlisted, windows, [userRow]] = await Promise.all([
+  const [allSubs, waitlisted, windows, customerName] = await Promise.all([
     myActiveSubscriptions(userId),
     myWaitlistedSubscriptions(userId, now),
     mySubscriptionWindows(userId, today),
-    db.select({ name: users.name }).from(users).where(eq(users.id, userId)).limit(1),
+    knownName !== undefined
+      ? knownName
+      : db.select({ name: users.name }).from(users).where(eq(users.id, userId)).limit(1).then(([r]) => r?.name ?? null),
   ]);
   if (allSubs.length === 0) {
     const cardOk = waitlisted.some((s) => s.pay && !s.pay.expired) ? await stripeMethodAvailable() : true;
@@ -127,7 +130,7 @@ export async function loadCustomerDeliveries(userId: bigint, query: CustomerDeli
     firstWeek,
     lastWeek,
     now,
-    customerName: userRow?.name ?? null,
+    customerName,
     locked,
     claimPayment,
     cardAvailable,
