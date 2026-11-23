@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { planPaymentSql } from "@/lib/payments/status-sql";
 import { and, eq } from "drizzle-orm";
 import { NotFoundError, ValidationError } from "@foundry/commons";
@@ -63,11 +64,14 @@ export async function assertOwnsDelivery(userId: bigint, deliveryPublicId: strin
   if (!row || row.ownerId !== userId) throw new NotFoundError("Delivery not found");
 }
 
+// Per request only (React cache): one /me render checks the same order up to three times. Never
+// across requests, so a changed owner is seen by the next request.
+const orderOwner = cache(async (orderPublicId: string): Promise<bigint | null> => {
+  const [row] = await db.select({ ownerId: orders.userId }).from(orders).where(eq(orders.publicId, orderPublicId)).limit(1);
+  return row?.ownerId ?? null;
+});
+
 export async function assertOwnsOrder(userId: bigint, orderPublicId: string): Promise<void> {
-  const [row] = await db
-    .select({ ownerId: orders.userId })
-    .from(orders)
-    .where(eq(orders.publicId, orderPublicId))
-    .limit(1);
-  if (!row || row.ownerId !== userId) throw new NotFoundError("Subscription not found");
+  const ownerId = await orderOwner(orderPublicId);
+  if (ownerId == null || ownerId !== userId) throw new NotFoundError("Subscription not found");
 }

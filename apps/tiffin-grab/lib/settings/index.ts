@@ -41,7 +41,11 @@ export async function saveSetting(patch: Record<string, unknown>): Promise<void>
 
 export async function getAppSettings(): Promise<{ timezone: string; cutoffHour: number; currency: string; defaultCountry: CountryCode; minTiffinsPerWeek: number; maxTiffinsPerWeek: number; maxDiscountPct: number }> {
   return settingsCache.getOrSet("settings", async () => {
-    const [row] = await db.select().from(app).limit(1);
+    // Only the columns returned below: this is the cache-miss read of every isolate.
+    const [row] = await db
+      .select({ timezone: app.timezone, cutoffHour: app.cutoffHour, currency: app.currency, minTiffinsPerWeek: app.minTiffinsPerWeek, maxTiffinsPerWeek: app.maxTiffinsPerWeek, maxDiscountPct: app.maxDiscountPct, defaultCountry: app.defaultCountry })
+      .from(app)
+      .limit(1);
     const timezone = row?.timezone ?? APP_DEFAULTS.timezone;
     return {
       timezone,
