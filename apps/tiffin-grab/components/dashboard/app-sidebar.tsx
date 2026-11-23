@@ -9,6 +9,7 @@ import {
   BellIcon,
   Building2Icon,
   CalendarIcon,
+  CheckCheckIcon,
   CheckIcon,
   ChefHatIcon,
   ChartLineIcon,
@@ -463,21 +464,6 @@ export function AppSidebar({
           return null;
         })}
 
-        {activity && Object.values(activity).some(Boolean) && (
-          <SidebarGroup>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  onClick={() => { void markAllReadAction(); router.refresh(); }}
-                  tooltip="Mark all read"
-                >
-                  <CheckIcon className="size-4" strokeWidth={1.5} />
-                  <span>Mark all read</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroup>
-        )}
       </SidebarContent>
 
       {repCoupon && <RepCouponCard coupon={repCoupon} />}
@@ -494,6 +480,17 @@ export function AppSidebar({
             <span className="truncate text-sm font-medium">{user.name?.trim() || user.email}</span>
             <span className="text-muted-foreground text-xs capitalize">{user.role}</span>
           </div>
+          {activity && Object.values(activity).some(Boolean) && (
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Mark all read"
+              title="Mark all read"
+              onClick={() => { void markAllReadAction(); router.refresh(); }}
+            >
+              <CheckCheckIcon />
+            </Button>
+          )}
           {bell}
           <DropdownMenu>
             <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label="Account menu" />}>

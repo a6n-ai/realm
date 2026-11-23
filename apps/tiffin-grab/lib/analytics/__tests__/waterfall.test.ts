@@ -27,6 +27,13 @@ describe("buildProfitWaterfall", () => {
     expect(w.end.value).toBe(k.profit);
   });
 
+  it("shows coupons as their own step and keeps them out of deductions", () => {
+    const rows = [row({ revenue: 90, cashCollected: 110, coupons: 10, food: 40, costs: 40, profit: 50 })];
+    const w = buildProfitWaterfall(kpis(rows), costBreakdown(rows));
+    expect(w.steps.map((s) => [s.label, s.value])).toEqual([["Deductions", -10], ["Coupons", -10], ["Revenue", 90], ["Food", -40]]);
+    expect(run(w)).toBeCloseTo(w.end.value, 2);
+  });
+
   it("drops zero-cost steps and a zero deduction", () => {
     const rows = [row({ revenue: 100, cashCollected: 100, food: 40, costs: 40 })];
     expect(buildProfitWaterfall(kpis(rows), costBreakdown(rows)).steps.map((s) => s.label)).toEqual(["Revenue", "Food"]);

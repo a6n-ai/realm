@@ -16,19 +16,22 @@ export type WaterfallData = {
 };
 
 const DEDUCTION_FILL = "var(--chart-4)";
+const COUPON_FILL = "var(--chart-1)";
 const FREE_FILL = "var(--chart-5)";
 
 /**
- * Cash collected, less deductions (tax, and money for tiffins not delivered in this range), gives
- * revenue; then each non-zero cost as a negative step, ending at the profit the stat card shows.
+ * Cash collected, less deductions (tax, and money for tiffins not delivered in this range) and
+ * coupons, gives revenue; then each non-zero cost as a negative step, ending at the profit the stat card shows.
  */
 export function buildProfitWaterfall(
-  k: Pick<ProfitabilityKpis, "revenue" | "profit" | "cashCollected">,
+  k: Pick<ProfitabilityKpis, "revenue" | "profit" | "cashCollected" | "coupons">,
   costParts: CostPart[],
   free?: FreeTiffinCost,
 ): WaterfallData {
   const r2 = (n: number) => Math.round(n * 100) / 100;
-  const deductions = r2(k.revenue - k.cashCollected);
+  const coupons = r2(k.coupons);
+  // Revenue is already after coupons, so the coupon bar comes out of the deductions, not on top of them.
+  const deductions = r2(k.revenue + coupons - k.cashCollected);
   // Free tiffins' cost leaves Food, Driver and Other and shows as one bar, so the end is still profit.
   const share: Record<string, number> = free ? { Food: free.food, Driver: free.driver, Other: free.other } : {};
   const freeCost = r2(Object.values(share).reduce((s, v) => s + v, 0));
@@ -37,6 +40,7 @@ export function buildProfitWaterfall(
     start: { label: "Cash collected", value: k.cashCollected, fill: "var(--chart-3)" },
     steps: [
       ...(deductions !== 0 ? [{ label: "Deductions", value: deductions, fill: DEDUCTION_FILL }] : []),
+      ...(coupons !== 0 ? [{ label: "Coupons", value: -coupons, fill: COUPON_FILL }] : []),
       { label: "Revenue", value: k.revenue, total: true },
       ...(freeCost !== 0 ? [{ label: `Free tiffins (${free!.tiffins})`, value: -freeCost, fill: FREE_FILL }] : []),
       ...parts.filter((c) => c.value !== 0).map((c) => ({ label: c.label, value: -c.value })),

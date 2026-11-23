@@ -103,7 +103,7 @@ export default async function ProfitabilityAnalyticsPage({ searchParams }: { sea
               <Trend view={view} />
             </Suspense>
           </ChartCard>
-          <ChartCard title="Where the money goes" subtitle="Cash, deductions, revenue, then each cost down to profit" info="Cash collected in this range, less deductions (tax, and money paid for tiffins not delivered in this range), gives revenue. Then food, driver, marketing, salaries and other costs come off, ending at the profit shown above.">
+          <ChartCard title="Where the money goes" subtitle="Cash, deductions, coupons, revenue, then each cost down to profit" info="Cash collected in this range, less deductions (tax, and money paid for tiffins not delivered in this range) and coupon discounts, gives revenue. Then food, driver, marketing, salaries and other costs come off, ending at the profit shown above.">
             <Suspense fallback={<ChartSkeleton />}>
               <Costs view={view} />
             </Suspense>
