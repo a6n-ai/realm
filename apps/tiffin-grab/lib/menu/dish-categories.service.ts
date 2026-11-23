@@ -11,12 +11,16 @@ import { SessionUpdatableService } from "../services/session-service";
 import type { CatalogAddon } from "@/lib/catalog/types";
 import { parsePatch } from "../services/parse-patch";
 import { loadMealSizeItems, tuSlotsByCategory } from "@/lib/menu/meal-size-items";
+import { dishCategoryRef, invalidateDishCategories, type DishCategoryRow } from "@/lib/menu/dish-category-ref";
+import { invalidateMealSizeFacts, mealSizeFacts } from "@/lib/menu/meal-size-facts";
 
 // A slot shared by several plans joins once per plan; callers want it once.
 function dedupeByKey<T extends { key: string }>(rows: T[]): T[] {
   const seen = new Set<string>();
   return rows.filter((r) => (seen.has(r.key) ? false : (seen.add(r.key), true)));
 }
+
+const bySortOrder = (rows: DishCategoryRow[]) => [...rows].sort((a, b) => a.sortOrder - b.sortOrder);
 
 /** Postgres unique-violation on category_swap_pairs (from, to[, plan[, meal size]]) — drizzle wraps cause. */
 function isDuplicateSwapPair(err: unknown): boolean {
@@ -30,9 +34,16 @@ class DishCategoriesService extends SessionUpdatableService<typeof dishCategorie
   // New categories are enabled by default; retire/restore flips `enabled`.
   // planIds is membership in category_plans, not a column — split it out so the
   // generic catalog form can carry it like any other field.
+  // Category rows feed the dish-category ref and, through weekend flags, meal-size facts.
+  private async evictDerived() {
+    await invalidateDishCategories();
+    await invalidateMealSizeFacts();
+  }
+
   async create(values: Record<string, unknown>) {
     const { planIds, ...rest } = this.schema.parse(values);
     const row = await super.create({ ...rest, enabled: true });
+    await this.evictDerived();
     await this.setPlans(row.publicId, planIds as string[]);
     return row;
   }
@@ -40,15 +51,26 @@ class DishCategoriesService extends SessionUpdatableService<typeof dishCategorie
   async update(id: string, patch: Record<string, unknown>) {
     // The generic catalog retire/restore action toggles `active`; this table has
     // no `active` column, so map it onto `enabled` (its status column).
-    if ("active" in patch) return super.update(id, { enabled: Boolean(patch.active) });
+    if ("active" in patch) {
+      const row = await super.update(id, { enabled: Boolean(patch.active) });
+      await this.evictDerived();
+      return row;
+    }
     const { planIds, ...rest } = parsePatch(this.schema, patch);
-    const row = Object.keys(rest).length ? await super.update(id, rest) : await this.read(id);
+    let row;
+    if (Object.keys(rest).length) {
+      row = await super.update(id, rest);
+      await this.evictDerived();
+    } else {
+      row = await this.read(id);
+    }
     if (planIds) await this.setPlans(id, planIds as string[]);
     return row;
   }
 
   async delete(id: string): Promise<number> {
     await super.update(id, { enabled: false });
+    await this.evictDerived();
     return 1;
   }
 
@@ -70,6 +92,7 @@ class DishCategoriesService extends SessionUpdatableService<typeof dishCategorie
         await tx.insert(categoryPlans).values(planRows.map((p) => ({ categoryId: cat.id, planId: p.id })));
       }
     });
+    await this.evictDerived();
   }
 
   /** Plan public ids per category, for the admin form. */
@@ -140,22 +163,19 @@ class DishCategoriesService extends SessionUpdatableService<typeof dishCategorie
    * with an identical slot list and a meal-size form could not offer the right
    * categories for the plan it was scoped to.
    */
-  async forPlan(planId: bigint) {
-    return db
-      .select({
-        key: dishCategories.key,
-        label: dishCategories.label,
-        selectable: dishCategories.selectable,
-        sortOrder: dishCategories.sortOrder,
-        // TU facts for admin composition hints (natural-unit readouts) — not a second ratio store.
-        tuUnitType: dishCategories.tuUnitType,
-        tuUnitSize: dishCategories.tuUnitSize,
-        tuUnitLabel: dishCategories.tuUnitLabel,
-      })
-      .from(dishCategories)
-      .innerJoin(categoryPlans, eq(categoryPlans.categoryId, dishCategories.id))
-      .where(and(eq(categoryPlans.planId, planId), eq(dishCategories.enabled, true)))
-      .orderBy(asc(dishCategories.sortOrder));
+  async forPlan(planId: bigint, opts: { fresh?: boolean } = {}) {
+    const ref = await dishCategoryRef(opts);
+    const inPlan = new Set(ref.memberships.filter((m) => m.planId === planId).map((m) => m.categoryId));
+    return bySortOrder(ref.categories.filter((c) => c.enabled && inPlan.has(c.id))).map((c) => ({
+      key: c.key,
+      label: c.label,
+      selectable: c.selectable,
+      sortOrder: c.sortOrder,
+      // TU facts for admin composition hints (natural-unit readouts) — not a second ratio store.
+      tuUnitType: c.tuUnitType,
+      tuUnitSize: c.tuUnitSize,
+      tuUnitLabel: c.tuUnitLabel,
+    }));
   }
 
   /**
@@ -163,32 +183,30 @@ class DishCategoriesService extends SessionUpdatableService<typeof dishCategorie
    * every plan of that type, so this is the union of those plans' slots.
    */
   async forPlanType(planType: "tiffin" | "healthy") {
-    const rows = await db
-      .select({ key: dishCategories.key, label: dishCategories.label, selectable: dishCategories.selectable, sortOrder: dishCategories.sortOrder })
-      .from(dishCategories)
-      .innerJoin(categoryPlans, eq(categoryPlans.categoryId, dishCategories.id))
-      .innerJoin(plans, eq(plans.id, categoryPlans.planId))
-      .where(and(eq(plans.planType, planType), eq(dishCategories.enabled, true)))
-      .orderBy(asc(dishCategories.sortOrder));
-    return dedupeByKey(rows);
+    const ref = await dishCategoryRef();
+    const typePlanIds = new Set(ref.plans.filter((p) => p.planType === planType).map((p) => p.id));
+    const inType = new Set(ref.memberships.filter((m) => typePlanIds.has(m.planId)).map((m) => m.categoryId));
+    return dedupeByKey(
+      bySortOrder(ref.categories.filter((c) => c.enabled && inType.has(c.id))).map((c) => ({
+        key: c.key, label: c.label, selectable: c.selectable, sortOrder: c.sortOrder,
+      })),
+    );
   }
 
   async enabledCategories() {
-    const rows = await db
-      .select({
-        key: dishCategories.key,
-        label: dishCategories.label,
-        icon: dishCategories.icon,
-        selectable: dishCategories.selectable,
-        sortOrder: dishCategories.sortOrder,
-        tuUnitType: dishCategories.tuUnitType,
-        tuUnitSize: dishCategories.tuUnitSize,
-        tuUnitLabel: dishCategories.tuUnitLabel,
-      })
-      .from(dishCategories)
-      .where(eq(dishCategories.enabled, true))
-      .orderBy(asc(dishCategories.sortOrder));
-    return dedupeByKey(rows);
+    const ref = await dishCategoryRef();
+    return dedupeByKey(
+      bySortOrder(ref.categories.filter((c) => c.enabled)).map((c) => ({
+        key: c.key,
+        label: c.label,
+        icon: c.icon,
+        selectable: c.selectable,
+        sortOrder: c.sortOrder,
+        tuUnitType: c.tuUnitType,
+        tuUnitSize: c.tuUnitSize,
+        tuUnitLabel: c.tuUnitLabel,
+      })),
+    );
   }
 
   /**
@@ -395,20 +413,15 @@ class DishCategoriesService extends SessionUpdatableService<typeof dishCategorie
    * separate picks for selection; Max TU uses the simulated slot sum after swaps.
    */
   async swapCategoriesForMealSize(mealSizeId: bigint): Promise<Map<string, SwapCategory>> {
-    const [size] = await db.select({ planId: mealSizes.planId, custom: mealSizes.custom }).from(mealSizes).where(eq(mealSizes.id, mealSizeId)).limit(1);
+    const size = await mealSizeFacts(mealSizeId);
     if (!size) return new Map();
-    const [cats, items] = await Promise.all([
-      db
-        .select({ key: dishCategories.key, unitType: dishCategories.tuUnitType, unitLabel: dishCategories.tuUnitLabel, unitSize: dishCategories.tuUnitSize, maxPicksPerTiffin: dishCategories.maxPicksPerTiffin })
-        .from(dishCategories)
-        .innerJoin(categoryPlans, eq(categoryPlans.categoryId, dishCategories.id))
-        .where(and(eq(categoryPlans.planId, size.planId), eq(dishCategories.enabled, true))),
-      loadMealSizeItems(mealSizeId),
-    ]);
+    const [ref, items] = await Promise.all([dishCategoryRef(), loadMealSizeItems(mealSizeId)]);
+    const inPlan = new Set(ref.memberships.filter((m) => m.planId === size.planId).map((m) => m.categoryId));
+    const cats = bySortOrder(ref.categories.filter((c) => c.enabled && inPlan.has(c.id)));
     const rowTu = tuSlotsByCategory(items);
     const pickTu = new Map([...rowTu].map(([category, slots]) => [category, slots[0]!]));
     return new Map(cats.map((c) => [c.key, {
-      key: c.key, pickTu: pickTu.get(c.key) ?? null, ...(rowTu.has(c.key) ? { rowTu: rowTu.get(c.key) } : {}), unitType: c.unitType, unitLabel: c.unitLabel, unitSize: Number(c.unitSize), maxPicksPerTiffin: c.maxPicksPerTiffin,
+      key: c.key, pickTu: pickTu.get(c.key) ?? null, ...(rowTu.has(c.key) ? { rowTu: rowTu.get(c.key) } : {}), unitType: c.tuUnitType, unitLabel: c.tuUnitLabel, unitSize: Number(c.tuUnitSize), maxPicksPerTiffin: c.maxPicksPerTiffin,
       ...(size.custom && !pickTu.has(c.key) ? { addable: true } : {}),
     }]));
   }

@@ -4,7 +4,7 @@ import { AuthError, ForbiddenError } from "@foundry/commons";
 import { revalidatePath } from "next/cache";
 import { and, eq } from "drizzle-orm";
 import { assertHierarchyDepth } from "@foundry/auth";
-import { db } from "@/db/client";
+import { db, onCommit } from "@/db/client";
 import { member, organization } from "@/db/schema";
 import { systemUserId, userIdByPublicId } from "@/lib/identity/user-ids";
 import { requireCanActOnRoles, requireCanAssignRole, requireOwnerToGrant, requirePermission, requirePermissionIn } from "@/lib/auth/guards";
@@ -23,6 +23,7 @@ import {
   type UserSearchRow,
 } from "./organizations.service";
 import { evictPublicPages } from "@/lib/landing/public-cache";
+import { invalidateFilterOptions } from "@/lib/list/filter-options-cache";
 
 // The target member's current role, so removing or demoting an owner needs owner too.
 async function currentMemberRole(organizationId: string, userPublicId: string): Promise<string | null> {
@@ -98,6 +99,7 @@ export async function createFranchise(
       if (!created) throw new Error("Organization creation failed.");
 
       await tx.insert(member).values({ organizationId: created.id, userId: actingUserId, role: "owner" });
+      onCommit(invalidateFilterOptions);
       return created.id;
     });
 

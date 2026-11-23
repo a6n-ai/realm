@@ -2,13 +2,19 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq, inArray, like } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, dishes, mealSelections, menuItems, menuWeeks, orders, payments, users } from "@/db/schema";
-import { attachDishToPlans, categoryIdFor, testPlanId } from "@/db/test-helpers";
+import { attachDishToPlans, categoryIdFor, evictTestCaches, testPlanId } from "@/db/test-helpers";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 const { getKitchenPackingSheet } = await import("../kitchen-packing-sheet.service");
 const { extraTiffinLabel } = await import("../../deliveries/delivery-extras");
 const { selectionsService } = await import("@/lib/menu/selections.service");
+const { menuService } = await import("@/lib/menu/menu.service");
+
+async function evictCaches() {
+  await evictTestCaches();
+  await menuService.evictPublishedCache();
+}
 
 const MONDAY = (() => {
   const d = new Date(Date.now() + 70 * 86400000);
@@ -40,6 +46,7 @@ async function reset() {
   }
   await db.delete(dishes).where(like(dishes.name, `${DISH_PREFIX}%`));
   await db.delete(users).where(eq(users.email, USER_EMAIL));
+  await evictCaches();
 }
 
 describe("getKitchenPackingSheet", () => {
@@ -131,6 +138,7 @@ describe("getKitchenPackingSheet", () => {
       { menuWeekId: w.id, dayOfWeek: "mon", categoryId: riceCat, dishId: rice.id, isDefault: true, position: 1 },
       { menuWeekId: w.id, dayOfWeek: "mon", categoryId: rotiCat, dishId: roti.id, isDefault: true, position: 1 },
     ]);
+    await evictCaches();
   });
   afterAll(reset);
 

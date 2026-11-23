@@ -16,6 +16,10 @@ import {
 } from "@/lib/menu/admin-config-guards";
 import { getAppSettings } from "@/lib/settings";
 import { dishCategoriesService } from "../menu/dish-categories.service";
+import { invalidateDishCategories } from "@/lib/menu/dish-category-ref";
+import { invalidateMealSizeFacts } from "@/lib/menu/meal-size-facts";
+import { invalidatePausePackages } from "@/lib/deliveries/pause-package-cache";
+import { invalidateFilterOptions } from "@/lib/list/filter-options-cache";
 import { SessionUpdatableService } from "../services/session-service";
 import { parsePatch } from "../services/parse-patch";
 
@@ -34,11 +38,21 @@ class CatalogService<TTable extends PgTable> extends SoftDeleteService<TTable> {
   constructor(repo: UpdatableRepository<TTable>, private schema: z.ZodObject<z.ZodRawShape>) {
     super(repo);
   }
+  // Plans carry plan_type (dish-category ref); duration packages feed the pause-limit display cache.
   async create(values: Record<string, unknown>) {
-    return super.create(this.schema.parse(values));
+    const row = await super.create(this.schema.parse(values));
+    await this.evictDerived();
+    return row;
   }
   async update(id: string, patch: Record<string, unknown>) {
-    return super.update(id, parsePatch(this.schema, patch));
+    const row = await super.update(id, parsePatch(this.schema, patch));
+    await this.evictDerived();
+    return row;
+  }
+  private async evictDerived() {
+    await invalidateDishCategories();
+    await invalidatePausePackages();
+    await invalidateFilterOptions();
   }
 }
 
@@ -126,6 +140,8 @@ class MealSizeService extends SoftDeleteService<typeof mealSizes> {
     // and the audit-trail write.
     const parent = isCreate ? await super.create(parentPatch) : await super.update(id as string, parentPatch);
     const mealSizeId = (parent as { id: bigint }).id;
+    await invalidateMealSizeFacts();
+    await invalidateFilterOptions();
 
     if (rows !== undefined) {
       const itemRows = rows;
@@ -153,6 +169,8 @@ class MealSizeService extends SoftDeleteService<typeof mealSizes> {
           );
       });
     }
+    await invalidateMealSizeFacts();
+    await invalidateFilterOptions();
     return parent;
   }
 
@@ -178,7 +196,7 @@ export async function resolveCompositionRows(
 ): Promise<{ components: string[]; rows: (typeof mealSizeItems.$inferInsert)[] }> {
   const itemPlanIds = await Promise.all(items.map((i) => resolvePlanId(i.planId)));
   const catsByPlan = new Map(
-    await Promise.all([...new Set(itemPlanIds)].map(async (pid) => [pid, await dishCategoriesService.forPlan(pid)] as const)),
+    await Promise.all([...new Set(itemPlanIds)].map(async (pid) => [pid, await dishCategoriesService.forPlan(pid, { fresh: true })] as const)),
   );
   const rows = items.map((item, index) => {
     const label = catsByPlan.get(itemPlanIds[index])?.find((c) => c.key === item.category)?.label;

@@ -6,6 +6,7 @@ import { ValidationError } from "@foundry/commons";
 import { db } from "@/db/client";
 import { dishCategories, dishes, mealSizeItems, mealSizes, menuDaySides, menuSideDefaults, menuWeeks } from "@/db/schema";
 import { currentUserId } from "@/lib/services/session-service";
+import { dishCategoryRef } from "@/lib/menu/dish-category-ref";
 import type { DayOfWeek } from "@/lib/deliveries/schedule/delivery-days";
 import type { MealItemRole } from "@/lib/menu/side-rules";
 
@@ -47,27 +48,27 @@ const isSideRole = (role: string): role is SideRole => role === "side_1" || role
 export const menuSidesService = {
   /** Every side role an active standard meal uses, with its meals and standing source. */
   async sideSlots(): Promise<SideSlot[]> {
-    const [rows, defaults] = await Promise.all([
-      db.select({ category: mealSizeItems.category, role: mealSizeItems.role, label: dishCategories.label, meal: mealSizes.name, tu: mealSizeItems.tuAmount, unitSize: dishCategories.tuUnitSize, unitLabel: dishCategories.tuUnitLabel })
+    const [rows, defaults, ref] = await Promise.all([
+      db.select({ category: mealSizeItems.category, role: mealSizeItems.role, meal: mealSizes.name, tu: mealSizeItems.tuAmount })
         .from(mealSizeItems)
         .innerJoin(mealSizes, eq(mealSizes.id, mealSizeItems.mealSizeId))
-        .innerJoin(dishCategories, eq(dishCategories.key, mealSizeItems.category))
         .where(and(eq(mealSizes.active, true), eq(mealSizes.custom, false), ne(mealSizeItems.role, "main"))),
-      db.select({ categoryId: menuSideDefaults.categoryId, role: menuSideDefaults.role, source: dishCategories.key })
-        .from(menuSideDefaults)
-        .innerJoin(dishCategories, eq(dishCategories.id, menuSideDefaults.sourceCategoryId)),
+      db.select({ categoryId: menuSideDefaults.categoryId, role: menuSideDefaults.role, sourceCategoryId: menuSideDefaults.sourceCategoryId })
+        .from(menuSideDefaults),
+      dishCategoryRef(),
     ]);
-    const catIds = new Map(
-      (await db.select({ id: dishCategories.id, key: dishCategories.key }).from(dishCategories)).map((c) => [c.id, c.key]),
-    );
-    const defaultFor = new Map(defaults.map((d) => [`${catIds.get(d.categoryId)}:${d.role}`, d.source]));
+    const catByKey = new Map(ref.categories.map((c) => [c.key, c]));
+    const keyById = new Map(ref.categories.map((c) => [c.id, c.key]));
+    const defaultFor = new Map(defaults.map((d) => [`${keyById.get(d.categoryId)}:${d.role}`, keyById.get(d.sourceCategoryId) ?? null]));
     const slots = new Map<string, SideSlot>();
     for (const r of rows) {
       if (!isSideRole(r.role)) continue;
+      const cat = catByKey.get(r.category);
+      if (!cat) continue;
       const key = `${r.category}:${r.role}`;
-      const slot = slots.get(key) ?? { category: r.category, categoryLabel: r.label, role: r.role, meals: [], defaultSource: defaultFor.get(key) ?? null };
-      const oz = Math.round(Number(r.tu) * Number(r.unitSize));
-      const meal = `${r.meal} (${oz}${r.unitLabel})`;
+      const slot = slots.get(key) ?? { category: r.category, categoryLabel: cat.label, role: r.role, meals: [], defaultSource: defaultFor.get(key) ?? null };
+      const oz = Math.round(Number(r.tu) * Number(cat.tuUnitSize));
+      const meal = `${r.meal} (${oz}${cat.tuUnitLabel})`;
       if (!slot.meals.includes(meal)) slot.meals.push(meal);
       slots.set(key, slot);
     }
@@ -83,7 +84,7 @@ export const menuSidesService = {
       .from(menuDaySides)
       .leftJoin(dishes, eq(dishes.id, menuDaySides.dishId))
       .where(eq(menuDaySides.menuWeekId, id));
-    const keys = new Map((await db.select({ id: dishCategories.id, key: dishCategories.key }).from(dishCategories)).map((c) => [c.id, c.key]));
+    const keys = new Map((await dishCategoryRef()).categories.map((c) => [c.id, c.key]));
     return rows.flatMap((r) => {
       if (!isSideRole(r.role)) return [];
       const category = keys.get(r.categoryId);

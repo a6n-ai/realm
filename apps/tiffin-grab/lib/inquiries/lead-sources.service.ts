@@ -4,8 +4,20 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { leadSources, leadSubsources } from "@/db/schema";
 import { SessionUpdatableService } from "../services/session-service";
+import { invalidateFilterOptions } from "@/lib/list/filter-options-cache";
 
+// Sources feed the orders-list filter options; every write evicts them.
 class SoftDeleteService<TTable extends PgTable> extends SessionUpdatableService<TTable> {
+  async create(values: Record<string, unknown>) {
+    const row = await super.create(values);
+    await invalidateFilterOptions();
+    return row;
+  }
+  async update(id: string, patch: Record<string, unknown>) {
+    const row = await super.update(id, patch);
+    await invalidateFilterOptions();
+    return row;
+  }
   async delete(id: string): Promise<number> { await this.update(id, { active: false }); return 1; }
 }
 

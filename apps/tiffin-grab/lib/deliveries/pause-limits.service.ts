@@ -6,34 +6,80 @@ import { ValidationError } from "@foundry/commons";
 import { db } from "@/db/client";
 import { app, durationPackages, orders, subscriptionPauses } from "@/db/schema";
 import type { Reader } from "./pause-state";
+import { settingsCache } from "@/lib/settings";
+import { pausePkgCache } from "./pause-package-cache";
 
 export function spanDays(from: string, until: string): number {
   return differenceInCalendarDays(parseISO(until), parseISO(from)) + 1;
 }
 
+type PausePackage = { maxPauses: number | null; maxPauseDaysTotal: number | null; maxPauseStretchDays: number | null };
+type PauseDefaults = { defaultMaxPauses: number | null; defaultMaxPauseDaysTotal: number | null; defaultMaxPauseStretchDays: number | null };
+
+function combineLimits(pkg: Partial<PausePackage> | undefined, defs: Partial<PauseDefaults> | undefined) {
+  const pick = (p?: number | null, d?: number | null) => (p ?? d ?? null);
+  return {
+    maxPauses: pick(pkg?.maxPauses, defs?.defaultMaxPauses),
+    maxPauseDaysTotal: pick(pkg?.maxPauseDaysTotal, defs?.defaultMaxPauseDaysTotal),
+    maxPauseStretchDays: pick(pkg?.maxPauseStretchDays, defs?.defaultMaxPauseStretchDays),
+  };
+}
+
+async function orderWeeks(orderId: bigint, exec: Reader): Promise<number> {
+  const [order] = await exec.select({ weeks: orders.durationWeeks }).from(orders).where(eq(orders.id, orderId)).limit(1);
+  if (!order) throw new ValidationError("Order not found");
+  return order.weeks;
+}
+
 export async function getPauseLimits(orderId: bigint, exec: Reader = db, weeks?: number | null) {
-  let durationWeeks = weeks;
-  if (durationWeeks == null) {
-    const [order] = await exec.select({ weeks: orders.durationWeeks }).from(orders).where(eq(orders.id, orderId)).limit(1);
-    if (!order) throw new ValidationError("Order not found");
-    durationWeeks = order.weeks;
-  }
+  const durationWeeks = weeks ?? (await orderWeeks(orderId, exec));
   const [pkg] = await exec.select({
     maxPauses: durationPackages.maxPauses,
     maxPauseDaysTotal: durationPackages.maxPauseDaysTotal,
     maxPauseStretchDays: durationPackages.maxPauseStretchDays,
   }).from(durationPackages).where(eq(durationPackages.weeks, durationWeeks)).limit(1);
   const [defs] = await exec.select({
-    maxPauses: app.defaultMaxPauses,
-    maxPauseDaysTotal: app.defaultMaxPauseDaysTotal,
-    maxPauseStretchDays: app.defaultMaxPauseStretchDays,
+    defaultMaxPauses: app.defaultMaxPauses,
+    defaultMaxPauseDaysTotal: app.defaultMaxPauseDaysTotal,
+    defaultMaxPauseStretchDays: app.defaultMaxPauseStretchDays,
   }).from(app).limit(1);
-  const pick = (p?: number | null, d?: number | null) => (p ?? d ?? null);
-  return {
-    maxPauses: pick(pkg?.maxPauses, defs?.maxPauses),
-    maxPauseDaysTotal: pick(pkg?.maxPauseDaysTotal, defs?.maxPauseDaysTotal),
-    maxPauseStretchDays: pick(pkg?.maxPauseStretchDays, defs?.maxPauseStretchDays),
-  };
+  return combineLimits(pkg, defs);
+}
+
+// Display only (customer pause panel, staff order page). Enforcement reads getPauseLimits on the DB.
+// The defaults live in settingsCache: saveSetting evicts it.
+
+// { pkg } rather than the row itself: a weeks value with no package is cached too.
+function pausePackageFor(weeks: number): Promise<{ pkg: PausePackage | null }> {
+  return pausePkgCache.getOrSet(String(weeks), async () => {
+    const [pkg] = await db.select({
+      maxPauses: durationPackages.maxPauses,
+      maxPauseDaysTotal: durationPackages.maxPauseDaysTotal,
+      maxPauseStretchDays: durationPackages.maxPauseStretchDays,
+    }).from(durationPackages).where(eq(durationPackages.weeks, weeks)).limit(1);
+    return { pkg: pkg ?? null };
+  });
+}
+
+function appPauseDefaults(): Promise<PauseDefaults> {
+  return settingsCache.getOrSet("pauseDefaults", async () => {
+    const [defs] = await db.select({
+      defaultMaxPauses: app.defaultMaxPauses,
+      defaultMaxPauseDaysTotal: app.defaultMaxPauseDaysTotal,
+      defaultMaxPauseStretchDays: app.defaultMaxPauseStretchDays,
+    }).from(app).limit(1);
+    return {
+      defaultMaxPauses: defs?.defaultMaxPauses ?? null,
+      defaultMaxPauseDaysTotal: defs?.defaultMaxPauseDaysTotal ?? null,
+      defaultMaxPauseStretchDays: defs?.defaultMaxPauseStretchDays ?? null,
+    };
+  });
+}
+
+export async function getPauseLimitsForDisplay(orderId: bigint, weeks?: number | null) {
+  const durationWeeks = weeks ?? (await orderWeeks(orderId, db));
+  const [{ pkg }, defs] = await Promise.all([pausePackageFor(durationWeeks), appPauseDefaults()]);
+  return combineLimits(pkg ?? undefined, defs);
 }
 
 function chargedDays(row: { fromDate: string; untilDate: string; deliveryDates: string[] | null; releasedDates: string[] }): number {

@@ -3,6 +3,11 @@ import { count, eq, inArray, ne } from "drizzle-orm";
 import { db } from "./client";
 import { categoryPlans, dishCategories, dishes, notificationOutbox, plans, users } from "./schema";
 import { databaseUrl } from "../lib/runtime/env";
+import { invalidateDishCategories } from "../lib/menu/dish-category-ref";
+import { invalidateMealSizeFacts } from "../lib/menu/meal-size-facts";
+import { invalidateAssignableStaff } from "../lib/staff/assignable-staff";
+import { invalidatePausePackages } from "../lib/deliveries/pause-package-cache";
+import { invalidateFilterOptions } from "../lib/list/filter-options-cache";
 
 /**
  * inquiriesService.create resolves an inbound lead's owner to the system user and throws
@@ -13,6 +18,7 @@ export async function ensureSystemUser(): Promise<void> {
   const [sys] = await db.select({ id: users.id }).from(users).where(eq(users.isSystem, true)).limit(1);
   if (sys) return;
   await db.insert(users).values({ name: "System", email: "system@tiffingrab.internal", role: "admin", isSystem: true });
+  await invalidateAssignableStaff();
 }
 
 /**
@@ -23,6 +29,7 @@ export async function deleteNonSystemUsers(): Promise<void> {
   const ids = db.select({ id: users.id }).from(users).where(ne(users.isSystem, true));
   await db.delete(notificationOutbox).where(inArray(notificationOutbox.recipientId, ids));
   await db.delete(users).where(ne(users.isSystem, true));
+  await invalidateAssignableStaff();
 }
 
 /**
@@ -61,6 +68,8 @@ export async function attachCategoryToPlans(categoryId: bigint, planKeys?: strin
   if (rows.length === 0) throw new Error("attachCategoryToPlans: no plans found — is the catalog seeded?");
   await db.delete(categoryPlans).where(eq(categoryPlans.categoryId, categoryId));
   await db.insert(categoryPlans).values(rows.map((p) => ({ categoryId, planId: p.id })));
+  await invalidateDishCategories();
+  await invalidateMealSizeFacts();
 }
 
 /** Attach every existing dish_categories row to every plan. */
@@ -99,4 +108,26 @@ export async function ensureSeededCatalog(): Promise<void> {
   } finally {
     await raw.end();
   }
+}
+
+/**
+ * Drops every read-through cache fed by rows that suites write directly (catalog, staff, coin rates,
+ * meal rules). Call it from suites that write those rows directly.
+ */
+export async function evictTestCaches(): Promise<void> {
+  // Imported here, not at the top: these services would load the real session module into suites
+  // that mock it, ahead of their vi.mock calls.
+  const [{ coinRateCache }, { invalidateMealRules }, { evictReleasedWeeks }] = await Promise.all([
+    import("../lib/wallet/coin-rate-cache"),
+    import("../lib/menu/meal-rules.service"),
+    import("../lib/menu/menu.service"),
+  ]);
+  await coinRateCache.evictAll();
+  await invalidateMealRules();
+  await evictReleasedWeeks();
+  await invalidateDishCategories();
+  await invalidateMealSizeFacts();
+  await invalidateAssignableStaff();
+  await invalidatePausePackages();
+  await invalidateFilterOptions();
 }

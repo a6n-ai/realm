@@ -11,6 +11,7 @@ import { SessionUpdatableService } from "./session-service";
 import { requireUserId } from "@/lib/identity/user-ids";
 import { recordAudit } from "@/lib/identity/audit";
 import { pickUserWritable } from "./users-writable";
+import { invalidateAssignableStaff } from "@/lib/staff/assignable-staff";
 import { createLogger } from "@foundry/commons/logger";
 
 // Never let credential hashes reach the audit trail (brute-forceable), and drop
@@ -43,10 +44,14 @@ class UsersService extends SessionUpdatableService<typeof users> {
   }
 
   async create(values: Record<string, unknown>) {
-    return super.create(pickUserWritable(values));
+    const row = await super.create(pickUserWritable(values));
+    await invalidateAssignableStaff();
+    return row;
   }
   async update(id: string, patch: Record<string, unknown>) {
-    return super.update(id, pickUserWritable(patch));
+    const row = await super.update(id, pickUserWritable(patch));
+    await invalidateAssignableStaff();
+    return row;
   }
 
   /**
@@ -76,7 +81,9 @@ class UsersService extends SessionUpdatableService<typeof users> {
    */
   async setStatus(publicId: string, status: "active" | "inactive" | "suspended") {
     if (status !== "active") await this.revokeSessions(publicId);
-    return super.update(publicId, { status });
+    const row = await super.update(publicId, { status });
+    await invalidateAssignableStaff();
+    return row;
   }
 
   async revokeSessions(publicId: string) {
@@ -100,6 +107,7 @@ class UsersService extends SessionUpdatableService<typeof users> {
       phone: null,
     });
     await this.syncGroups(publicId);
+    await invalidateAssignableStaff();
     return res;
   }
 

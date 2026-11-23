@@ -8,7 +8,7 @@ import { db } from "@/db/client";
 import {
   couponRedemptions, deliveries, deliveryFrequencies, dishes, ledgerEntries, mealSelections, menuItems, menuWeeks, orders, payments, plans, users, walletLedger,
 } from "@/db/schema";
-import { attachDishToPlans, categoryIdFor, testPlanId, deleteNonSystemUsers } from "@/db/test-helpers";
+import { attachDishToPlans, categoryIdFor, testPlanId, deleteNonSystemUsers, evictTestCaches } from "@/db/test-helpers";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { thisWeekStartIso } from "@/lib/deliveries/schedule/delivery-dates";
 import type { GridCell } from "../grid-types";
@@ -17,6 +17,13 @@ vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 const { resolveDeliveryMeal } = await import("../resolve-delivery-meal");
 const { buildMealsGrid } = await import("../meals-grid");
 const { skipDelivery } = await import("@/lib/deliveries/deliveries.service");
+const { menuService } = await import("@/lib/menu/menu.service");
+
+// Direct writes to plans and menu weeks bypass the services; drop the caches those rows feed.
+async function evictCaches() {
+  await evictTestCaches();
+  await menuService.evictPublishedCache();
+}
 
 const SETTINGS = { timezone: "UTC", cutoffHour: 23 };
 const THIS_MONDAY = thisWeekStartIso(Date.now(), SETTINGS.timezone);
@@ -27,6 +34,7 @@ async function reset() {
   await db.delete(walletLedger); await db.delete(ledgerEntries); await db.delete(couponRedemptions); await db.delete(payments);
   await db.delete(orders); await db.delete(dishes); await deleteNonSystemUsers();
   await db.delete(plans).where(like(plans.key, "veg_no_sabzi_%"));
+  await evictCaches();
 }
 
 // A scheduled delivery row for THIS_MONDAY, far from its cutoff — the grid's read path only
@@ -64,6 +72,7 @@ async function makeOrder(planId: bigint, overrides: Partial<typeof orders.$infer
 
 async function makeWeek() {
   const [w] = await db.insert(menuWeeks).values({ weekStart: THIS_MONDAY, status: "released", orderCutoff: new Date("2999-01-01").getTime() }).returning();
+  await evictCaches();
   return w;
 }
 
@@ -144,6 +153,7 @@ describe("buildMealsGrid agrees with resolveDeliveryMeal", () => {
     await db.insert(plans).values({
       key: `veg_no_sabzi_${Math.floor(Math.random() * 1e6)}`, name: "Veg (no sabzi count)", planType: "tiffin",
     });
+    await evictCaches();
 
     await reset();
 
@@ -155,6 +165,7 @@ describe("buildMealsGrid agrees with resolveDeliveryMeal", () => {
     const [vegPlan] = await db.insert(plans).values({
       key: `veg_no_sabzi_${Math.floor(Math.random() * 1e6)}`, name: "Veg (no sabzi count)", planType: "tiffin",
     }).returning();
+    await evictCaches();
     // The omission now lives on the order snapshot, not the plan: sabzi intentionally omitted.
     const { order, mealOrder } = await makeOrder(vegPlan.id, { categoryCounts: { rice: 1, roti: 4, raita: 1, salad: 1 } });
     await seedMondayDelivery(order.id);

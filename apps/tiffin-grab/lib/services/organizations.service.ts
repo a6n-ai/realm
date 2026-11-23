@@ -4,6 +4,7 @@ import type { OrgLocation } from "@foundry/commons";
 import { db } from "@/db/client";
 import { member, organization, organizationRole, users } from "@/db/schema";
 import { userIdByPublicId } from "@/lib/identity/user-ids";
+import { invalidateFilterOptions } from "@/lib/list/filter-options-cache";
 
 // Per-request memoized: the dashboard shell resolves the same actor several times.
 
@@ -110,6 +111,7 @@ export async function updateOrganization(
         longitude: fields.longitude,
       })
       .where(eq(organization.id, id));
+    await invalidateFilterOptions();
     return { ok: true };
   } catch (e) {
     if (isClientCodeConflict(e)) return { ok: false, error: "That client code is already in use." };

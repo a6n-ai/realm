@@ -1,9 +1,10 @@
-import { orgScope, type Visible } from "@/lib/tenant/org-scope";
+import type { Visible } from "@/lib/tenant/org-scope";
 import { db } from "@/db/client";
 import { deliveryFrequencies, deliveryZones, leadSources, leadSubsources, mealSizes, organization, plans } from "@/db/schema";
-import { and, eq, inArray } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import type { Option } from "@foundry/design-system";
 import { listAssignableStaff } from "@/lib/staff/assignable-staff";
+import { filterOptionsCache } from "@/lib/list/filter-options-cache";
 
 // Owner facet: readable public ids in the URL, resolved to internal ids by the
 // service's subquery resolver. Scoped to assignable staff (the only users who
@@ -14,34 +15,46 @@ export async function loadOwnerOptions(): Promise<Option[]> {
   return staff.map((s) => ({ value: s.publicId, label: s.name }));
 }
 
-export async function loadSourceOptions(): Promise<{ sources: Option[]; subsources: Option[] }> {
-  const s = await db
-    .select({ value: leadSources.key, label: leadSources.label })
-    .from(leadSources);
-  const ss = await db
-    .select({ value: leadSubsources.key, label: leadSubsources.label, parentKey: leadSources.key })
-    .from(leadSubsources)
-    .innerJoin(leadSources, eq(leadSubsources.sourceId, leadSources.id));
-  return {
-    sources: s.map((r) => ({ value: r.value, label: r.label })),
-    subsources: ss.map((r) => ({ value: r.value, label: r.label, parent: r.parentKey })),
-  };
+export function loadSourceOptions(): Promise<{ sources: Option[]; subsources: Option[] }> {
+  return filterOptionsCache.getOrSet("sources", async () => {
+    const s = await db
+      .select({ value: leadSources.key, label: leadSources.label })
+      .from(leadSources);
+    const ss = await db
+      .select({ value: leadSubsources.key, label: leadSubsources.label, parentKey: leadSources.key })
+      .from(leadSubsources)
+      .innerJoin(leadSources, eq(leadSubsources.sourceId, leadSources.id));
+    return {
+      sources: s.map((r) => ({ value: r.value, label: r.label })),
+      subsources: ss.map((r) => ({ value: r.value, label: r.label, parent: r.parentKey })),
+    };
+  });
 }
 
-/** Orders-list filter options: plans, standard meal sizes, frequencies, and the zones/organizations the caller can see. */
+/**
+ * Orders-list filter options: plans, standard meal sizes, frequencies, and the zones/organizations the caller can see.
+ * One cache entry holds every row; the caller's org scope is applied in memory, so no session value becomes a cache key.
+ */
 export async function loadOrderFilterOptions(visible: Visible) {
-  const [planOptions, sizeOptions, zoneOptions, orgOptions, frequencyOptions] = await Promise.all([
+  const base = await filterOptionsCache.getOrSet("orders", fetchFilterBase);
+  const zoneOptions = [...new Map(
+    base.zones
+      .filter((z) => visible === "all" || (visible.length > 0 && z.organizationId != null && visible.includes(z.organizationId)))
+      .map((z) => [z.value, z] as const),
+  ).values()].map(({ value, label }) => ({ value, label }));
+  const orgOptions = visible === "all" ? base.orgs : visible.length > 1 ? base.orgs.filter((o) => visible.includes(o.value)) : [];
+  return { planOptions: base.planOptions, sizeOptions: base.sizeOptions, zoneOptions, orgOptions, frequencyOptions: base.frequencyOptions };
+}
+
+async function fetchFilterBase() {
+  const [planOptions, sizeOptions, zones, orgs, frequencyOptions] = await Promise.all([
     db.select({ value: plans.key, label: plans.name }).from(plans).orderBy(plans.name),
     db.select({ value: mealSizes.key, label: mealSizes.name }).from(mealSizes).where(eq(mealSizes.custom, false)).orderBy(mealSizes.name),
-    db.selectDistinct({ value: deliveryZones.name, label: deliveryZones.name }).from(deliveryZones)
-      .where(and(eq(deliveryZones.active, true), orgScope(deliveryZones.organizationId, visible)))
+    db.select({ value: deliveryZones.name, label: deliveryZones.name, organizationId: deliveryZones.organizationId }).from(deliveryZones)
+      .where(eq(deliveryZones.active, true))
       .orderBy(deliveryZones.name),
-    visible === "all"
-      ? db.select({ value: organization.id, label: organization.name }).from(organization).orderBy(organization.name)
-      : visible.length > 1
-        ? db.select({ value: organization.id, label: organization.name }).from(organization).where(inArray(organization.id, visible)).orderBy(organization.name)
-        : [],
+    db.select({ value: organization.id, label: organization.name }).from(organization).orderBy(organization.name),
     db.select({ value: deliveryFrequencies.key, label: deliveryFrequencies.name }).from(deliveryFrequencies).orderBy(deliveryFrequencies.name),
   ]);
-  return { planOptions, sizeOptions, zoneOptions, orgOptions, frequencyOptions };
+  return { planOptions, sizeOptions, zones, orgs, frequencyOptions };
 }

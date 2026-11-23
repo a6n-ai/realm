@@ -2,10 +2,11 @@
 import { and, eq } from "drizzle-orm";
 import { createHash } from "node:crypto";
 import { ValidationError } from "@foundry/commons";
-import { db, type Tx } from "./client";
+import { db, onCommit, type Tx } from "./client";
 import { customMealPricing, dishCategories, mealSizeItems, mealSizes, plans } from "./schema";
 import { resolveCompositionRows } from "@/lib/catalog/catalog.service";
 import { invalidateCatalogSnapshot } from "@/lib/catalog/load";
+import { invalidateMealSizeFacts } from "@/lib/menu/meal-size-facts";
 import { compositionName, mealPlanKey, normalizeItems, sizeCompositionKey, type CategoryUnit, type CustomMealItem } from "@/lib/custom-meal/composition";
 
 
@@ -96,6 +97,8 @@ export async function findOrCreateCustomMealSize(
       return { ...winner, created: false };
     }
     await tx.insert(mealSizeItems).values(rows.map((r) => ({ ...r, mealSizeId: size.id, createdBy: opts.actorId, updatedBy: opts.actorId })));
+    // Inside a caller's transaction: evict only once it commits, so no reader caches the pre-commit state.
+    onCommit(invalidateMealSizeFacts);
     return { ...size, created: true };
   };
   if (opts.tx) return run(opts.tx);

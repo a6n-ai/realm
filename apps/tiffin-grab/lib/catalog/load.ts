@@ -24,6 +24,10 @@ import {
   plans,
 } from "@/db/schema";
 import { dishCategoriesService } from "@/lib/menu/dish-categories.service";
+import { invalidateDishCategories } from "@/lib/menu/dish-category-ref";
+import { invalidateMealSizeFacts } from "@/lib/menu/meal-size-facts";
+import { invalidatePausePackages } from "@/lib/deliveries/pause-package-cache";
+import { invalidateFilterOptions } from "@/lib/list/filter-options-cache";
 import { formatTuHuman } from "@/lib/menu/format-tu";
 import { getAppSettings } from "@/lib/settings";
 import { WAIVER_KINDS, type CatalogSnapshot, type WaiverKind } from "./types";
@@ -39,6 +43,10 @@ const catalogCache = sharedCache("catalog", 60_000, 10 * 60_000);
 
 export async function invalidateCatalogSnapshot(): Promise<void> {
   await catalogCache.evictAll();
+  await invalidateDishCategories();
+  await invalidateMealSizeFacts();
+  await invalidatePausePackages();
+  await invalidateFilterOptions();
   revalidatePublicSite();
 }
 

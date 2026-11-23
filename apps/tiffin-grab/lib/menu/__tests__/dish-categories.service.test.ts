@@ -2,7 +2,7 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import { categoryPlans, dishCategories, plans } from "@/db/schema";
-import { attachCategoryToPlans } from "@/db/test-helpers";
+import { attachCategoryToPlans, evictTestCaches } from "@/db/test-helpers";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 const { dishCategoriesService } = await import("../dish-categories.service");
@@ -24,6 +24,7 @@ async function reset() {
     await db.delete(categoryPlans).where(inArray(categoryPlans.categoryId, own.map((r) => r.id)));
     await db.delete(dishCategories).where(inArray(dishCategories.key, OWN_KEYS));
   }
+  await evictTestCaches();
 }
 
 describe("dishCategoriesService.enabledCategories", () => {
@@ -34,6 +35,7 @@ describe("dishCategoriesService.enabledCategories", () => {
       { key: "lunch", label: "Lunch", enabled: true, sortOrder: 1 },
       { key: "dinner", label: "Dinner", enabled: false, sortOrder: 2 },
     ]);
+    await evictTestCaches();
     const own = await db
       .select({ id: dishCategories.id })
       .from(dishCategories)
@@ -59,11 +61,13 @@ async function ensureHealthyPlan() {
       planType: "healthy",
       allowedStartDays: ["mon", "tue", "wed", "thu", "fri"],
     }).onConflictDoNothing();
+    await evictTestCaches();
   }
 }
 
 async function cleanupHealthyPlan() {
   await db.delete(plans).where(eq(plans.key, "healthy"));
+  await evictTestCaches();
 }
 
 // `key` is globally unique now: a slot used by several plans is ONE row attached
@@ -87,6 +91,7 @@ describe("dishCategoriesService plan membership", () => {
         { key: "dinner", label: "Dinner", enabled: false, sortOrder: 2 },
       ])
       .returning({ id: dishCategories.id, key: dishCategories.key });
+    await evictTestCaches();
     return new Map(rows.map((r) => [r.key, r.id]));
   }
 

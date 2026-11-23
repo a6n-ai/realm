@@ -1,7 +1,7 @@
 import { appTodayIso } from "@/lib/dates/today";
 import { cutoffMsFor, ValidationError } from "@foundry/commons";
 import { ConflictError } from "@/lib/errors";
-import { sharedCache } from "@/lib/cache";
+import { configCache, sharedCache } from "@/lib/cache";
 import { BaseRepository, UpdatableRepository } from "@foundry/database";
 import { and, asc, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import { db } from "@/db/client";
@@ -26,9 +26,16 @@ const menuWeeksEntity = new SessionUpdatableService(new UpdatableRepository(db, 
 const menuItemsEntity = new SessionBaseService(new BaseRepository(db, menuItems, menuItems.publicId, menuItems.id));
 
 const publishedCache = sharedCache("published-week");
+// Exact released-week lookups, read on every Menu and Deliveries render; a status write evicts it at once.
+const releasedWeekCache = configCache("released-week");
+
+export async function evictReleasedWeeks() {
+  await releasedWeekCache.evictAll();
+}
 
 async function evictPublishedCache() {
   await publishedCache.evictAll();
+  await evictReleasedWeeks();
   revalidatePublicSite();
 }
 // Pick counts move slowly (weekly picks over 12 weeks); an hour stale is fine and spares the aggregate.
@@ -41,13 +48,15 @@ export type ReleasedWeekRef = {
   weekStart: string;
 };
 
-async function loadReleasedWeek(weekStart: string): Promise<ReleasedWeekRef | null> {
-  const [week] = await db
-    .select({ id: menuWeeks.id, publicId: menuWeeks.publicId, weekStart: menuWeeks.weekStart })
-    .from(menuWeeks)
-    .where(and(eq(menuWeeks.weekStart, weekStart), eq(menuWeeks.status, "released")))
-    .limit(1);
-  return week ?? null;
+function loadReleasedWeek(weekStart: string): Promise<ReleasedWeekRef | null> {
+  return releasedWeekCache.getOrSet(weekStart, async () => {
+    const [week] = await db
+      .select({ id: menuWeeks.id, publicId: menuWeeks.publicId, weekStart: menuWeeks.weekStart })
+      .from(menuWeeks)
+      .where(and(eq(menuWeeks.weekStart, weekStart), eq(menuWeeks.status, "released")))
+      .limit(1);
+    return week ?? null;
+  });
 }
 
 /**
@@ -463,6 +472,7 @@ export const menuService = {
     if (!week) throw new ValidationError("Week not found");
     if (week.status !== "draft") throw new ValidationError("Only a draft can be marked ready");
     await menuWeeksEntity.update(weekPublicId, { status: "ready" });
+    await evictReleasedWeeks();
   },
 
   async backToDraft(weekPublicId: string) {
@@ -470,6 +480,7 @@ export const menuService = {
     if (!week) throw new ValidationError("Week not found");
     if (week.status !== "ready") throw new ValidationError("Only a week marked ready can go back to draft");
     await menuWeeksEntity.update(weekPublicId, { status: "draft" });
+    await evictReleasedWeeks();
   },
 
   async release(weekPublicId: string) {

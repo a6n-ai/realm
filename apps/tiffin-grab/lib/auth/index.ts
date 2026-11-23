@@ -25,6 +25,7 @@ import {
 import { isWorkers } from "@foundry/commons/runtime/platform";
 import { trustedIpHeaders } from "@/lib/runtime/platform";
 import { recordAudit } from "@/lib/identity/audit";
+import { invalidateAssignableStaff } from "@/lib/staff/assignable-staff";
 
 import { AUTH_COOKIE_PREFIX } from "./cookie-prefix";
 import { authBaseUrl, authSecret, cookieDomain, e2eBaseUrl, isProduction } from "@/lib/runtime/env";
@@ -282,8 +283,16 @@ export const auth = betterAuth({
   databaseHooks: {
     // changeEmail and other Better Auth user writes bypass usersService; keep group send lists in step.
     user: {
+      create: {
+        // Better Auth creates users (invites, sign-up) without going through usersService.
+        after: async () => {
+          await invalidateAssignableStaff();
+        },
+      },
       update: {
         after: async (u) => {
+          // Better Auth writes role changes (admin plugin) without going through usersService.
+          await invalidateAssignableStaff();
           try {
             const { syncGroupsForUser } = await import("@/lib/customer-groups/customer-groups.service");
             await syncGroupsForUser(BigInt(u.id));

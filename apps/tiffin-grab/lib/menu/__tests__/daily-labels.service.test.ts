@@ -14,11 +14,18 @@ import {
   payments,
   users,
 } from "@/db/schema";
-import { attachDishToPlans, categoryIdFor, testPlanId } from "@/db/test-helpers";
+import { attachDishToPlans, categoryIdFor, evictTestCaches, testPlanId } from "@/db/test-helpers";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 const { dailyLabelSheet, dayServiceSummary } = await import("../daily-labels.service");
+const { menuService } = await import("../menu.service");
+
+// Suites write catalog and menu rows directly; drop the caches those rows feed.
+async function evictCaches() {
+  await evictTestCaches();
+  await menuService.evictPublishedCache();
+}
 
 // The Overview card counts labels without resolving dishes; it must always agree with the printed sheet.
 async function expectSummaryMatchesSheet(date: string, labels: { mealSizeName: string }[]) {
@@ -73,6 +80,7 @@ async function reset() {
 
   await db.delete(dishes).where(like(dishes.name, `${DISH_PREFIX}%`));
   await db.delete(users).where(like(users.email, `${USER_PREFIX}%@test.invalid`));
+  await evictCaches();
 }
 
 describe("dailyLabelSheet (integration)", () => {
@@ -143,6 +151,7 @@ describe("dailyLabelSheet (integration)", () => {
       })
       .returning();
     week = w;
+    await evictCaches();
 
     const [paneer] = await db.insert(dishes).values({ planId: await testPlanId(), name: `${DISH_PREFIX}Paneer`, category: "sabzi" }).returning();
     await attachDishToPlans(paneer.id);
@@ -166,6 +175,7 @@ describe("dailyLabelSheet (integration)", () => {
       { mealSizeId, planId: mealSizePlanId, name: "Main", category: "sabzi", tuAmount: "1.50", sortOrder: 1 },
       { mealSizeId, planId: mealSizePlanId, name: "Side", category: "sabzi", tuAmount: "1.00", sortOrder: 2 },
     ]);
+    await evictCaches();
   });
   afterAll(reset);
 
@@ -264,6 +274,7 @@ describe("dailyLabelSheet (integration)", () => {
     await db.insert(mealSizeItems).values({
       mealSizeId, planId: mealSizePlanId, name: "Daal", category: "daal", tuAmount: "1.00", sortOrder: 3,
     });
+    await evictCaches();
 
     const [delivery] = await db.select().from(deliveries).where(eq(deliveries.orderId, order.id));
     await db.insert(deliveryCategorySwaps).values({
@@ -293,6 +304,7 @@ describe("dailyLabelSheet (integration)", () => {
     await db.insert(mealSizeItems).values({
       mealSizeId, planId: mealSizePlanId, name: "Daal", category: "daal", tuAmount: "1.00", sortOrder: 3,
     });
+    await evictCaches();
 
     const [delivery] = await db.select().from(deliveries).where(eq(deliveries.orderId, order.id));
     // The 12oz Sabzi given up, received as 6oz Daal (override), not a like-for-like 12oz.
@@ -326,6 +338,7 @@ describe("dailyLabelSheet (integration)", () => {
 
   it("resolves nothing when the week is not released, rather than guessing a menu", async () => {
     await db.update(menuWeeks).set({ status: "draft" }).where(eq(menuWeeks.id, week.id));
+    await evictCaches();
     const sheet = await dailyLabelSheet(MONDAY);
     expect(sheet.menuWeekPublicId).toBeNull();
     expect(sheet.labels).toEqual([]);

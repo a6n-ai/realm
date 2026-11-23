@@ -36,9 +36,9 @@ import { toDropOffValues } from "./address-drop-off.service";
 import type { DropOffValue } from "@/lib/catalog/drop-off";
 import { earliestNewPlanStart, lastRunningTiffinDate } from "../orders/order-window";
 import { getAppSettings } from "@/lib/settings";
-import { getPauseLimits, getPauseUsage } from "./pause-limits.service";
+import { getPauseLimitsForDisplay, getPauseUsage } from "./pause-limits.service";
 import { deliveredTiffinCount, scheduledTiffinCount, type DeliveryForCounts } from "./tiffin-counts";
-import { mealSizeAllowedDays, mealSizeServesWeekends } from "./weekend-dish";
+import { mealSizeFacts } from "@/lib/menu/meal-size-facts";
 import { isoToUtcDate, mondayOfIso } from "@foundry/commons/util/dates";
 
 type Delivery = typeof deliveries.$inferSelect;
@@ -371,21 +371,24 @@ export async function orderTiffinCounts(orderPublicId: string): Promise<TiffinCo
     .limit(1);
   if (!order) throw new NotFoundError("Subscription not found");
 
-  const rows = await db
-    .select({
-      id: deliveries.id,
-      status: deliveries.status,
-      cutoffAt: deliveries.cutoffAt,
-      makeupForDeliveryId: deliveries.makeupForDeliveryId,
-      holidayExtraForDeliveryId: deliveries.holidayExtraForDeliveryId,
-      pooledAt: deliveries.pooledAt,
-      mergedIntoDeliveryId: deliveries.mergedIntoDeliveryId,
-      deliveryDate: deliveries.deliveryDate,
-      tiffinUnits: deliveries.tiffinUnits,
-      optimoCompletionStatus: deliveries.optimoCompletionStatus,
-    })
-    .from(deliveries)
-    .where(eq(deliveries.orderId, order.id));
+  const [rows, facts] = await Promise.all([
+    db
+      .select({
+        id: deliveries.id,
+        status: deliveries.status,
+        cutoffAt: deliveries.cutoffAt,
+        makeupForDeliveryId: deliveries.makeupForDeliveryId,
+        holidayExtraForDeliveryId: deliveries.holidayExtraForDeliveryId,
+        pooledAt: deliveries.pooledAt,
+        mergedIntoDeliveryId: deliveries.mergedIntoDeliveryId,
+        deliveryDate: deliveries.deliveryDate,
+        tiffinUnits: deliveries.tiffinUnits,
+        optimoCompletionStatus: deliveries.optimoCompletionStatus,
+      })
+      .from(deliveries)
+      .where(eq(deliveries.orderId, order.id)),
+    mealSizeFacts(order.mealSizeId),
+  ]);
 
   const delivered = deliveredTiffinCount(rows as DeliveryForCounts[]);
   // A day whose tiffin went to another row is not the last one (HOLDS_DAY).
@@ -409,8 +412,8 @@ export async function orderTiffinCounts(orderPublicId: string): Promise<TiffinCo
     lastDeliveryDate,
     deliveryWeekdays,
     eatingWeekdays: order.eatingDays?.length ? (order.eatingDays as string[]) : null,
-    servesWeekends: await mealSizeServesWeekends(order.mealSizeId),
-    mealDays: await mealSizeAllowedDays(order.mealSizeId),
+    servesWeekends: facts?.servesWeekends ?? false,
+    mealDays: facts?.allowedDays ?? null,
   };
 }
 
@@ -449,7 +452,7 @@ export async function myPausePanel(userId: bigint, orderPublicId: string) {
   await assertOwnsOrder(userId, orderPublicId); // IDOR gate — before the read
   const row = await orderRefByPublicId(orderPublicId);
   if (!row) throw new NotFoundError("Subscription not found");
-  const [limits, usage] = await Promise.all([getPauseLimits(row.id, db, row.durationWeeks), getPauseUsage(row.id)]);
+  const [limits, usage] = await Promise.all([getPauseLimitsForDisplay(row.id, row.durationWeeks), getPauseUsage(row.id)]);
   return { limits, usage };
 }
 

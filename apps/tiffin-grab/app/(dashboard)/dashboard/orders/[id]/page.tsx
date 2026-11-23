@@ -25,7 +25,7 @@ import { complimentaryBlocker, orderDisplayStatus } from "@/lib/orders/display-s
 import { listDeliveries } from "@/lib/deliveries/deliveries.service";
 import { lapseElapsedPausesSafe } from "@/lib/deliveries/pause-days.service";
 import { isOrderFullyPaused } from "@/lib/deliveries/pause-state";
-import { getPauseLimits, getPauseUsage } from "@/lib/deliveries/pause-limits.service";
+import { getPauseLimitsForDisplay, getPauseUsage } from "@/lib/deliveries/pause-limits.service";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { getAppSettings } from "@/lib/settings";
 import { getPaymentConfig } from "@/lib/payments/payment-config";
@@ -176,7 +176,7 @@ async function OrderDetail({
     ended ? orderTiffinCounts(order.publicId) : null,
     order.userId != null ? runningPlans(db, order.userId) : [],
     running
-      ? Promise.all([getPauseUsage(order.id), getPauseLimits(order.id)]).then(([u, l]) => ({ daysUsed: u.daysUsed, maxDays: l.maxPauseDaysTotal }))
+      ? Promise.all([getPauseUsage(order.id), getPauseLimitsForDisplay(order.id)]).then(([u, l]) => ({ daysUsed: u.daysUsed, maxDays: l.maxPauseDaysTotal }))
       : null,
   ]);
   // The customer's other running plans: a renewal's days sit on its own order, not this one.

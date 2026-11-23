@@ -1,6 +1,7 @@
 import { and, asc, inArray, isNotNull, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { addons as addonCatalog, dishCategories, orderAddons, plans } from "@/db/schema";
+import { addons as addonCatalog, orderAddons, plans } from "@/db/schema";
+import { dishCategoryRef } from "./dish-category-ref";
 import { slotRowsAfterSwaps, type MealSizeItemRow, type PortionSwap } from "./pick-size";
 import { formatTuHuman, isCountCategory, type TuCategory } from "./format-tu";
 
@@ -78,7 +79,7 @@ export async function loadSubscriptionAddons(orderIds: bigint[]): Promise<Map<bi
     .orderBy(asc(orderAddons.id));
   if (rows.length === 0) return new Map();
   const cats = new Map<string, TuCategory>(
-    (await db.select({ key: dishCategories.key, selectable: dishCategories.selectable, tuUnitType: dishCategories.tuUnitType, tuUnitSize: dishCategories.tuUnitSize, tuUnitLabel: dishCategories.tuUnitLabel }).from(dishCategories))
+    (await dishCategoryRef()).categories
       .map((c) => [c.key, { selectable: c.selectable, tuUnitType: c.tuUnitType, tuUnitSize: Number(c.tuUnitSize), tuUnitLabel: c.tuUnitLabel }]),
   );
   return buildSubscriptionAddons(rows, cats);
