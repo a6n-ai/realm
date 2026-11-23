@@ -5,18 +5,37 @@ import { getSession } from "./session";
 import { isForbiddenDenial } from "./forbidden-denial";
 import { effectivePermissions, getOrgAccess, getOrgAccessFor, rolePermissions } from "./org-access";
 import { orgRoles } from "./permissions";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { recordAudit } from "@/lib/identity/audit";
+import { shouldAuditBypass } from "./bypass-audit";
 import { userIdByPublicId } from "@/lib/identity/user-ids";
 import { isStaffRole } from "@/lib/roles";
 
-const onPlatformBypass = async (userId: string, perms: Record<string, string[]>) =>
-  recordAudit({
+const seenPerRequest = new WeakMap<object, Set<string>>();
+
+function bypassesSeenThisRequest(): Set<string> {
+  let ctx: object | undefined;
+  try {
+    ctx = getCloudflareContext().ctx;
+  } catch {
+    ctx = undefined;
+  }
+  if (!ctx) return new Set(); // off Workers (dev, tests): no request scope, nothing to dedupe against
+  let seen = seenPerRequest.get(ctx);
+  if (!seen) seenPerRequest.set(ctx, (seen = new Set()));
+  return seen;
+}
+
+const onPlatformBypass = async (userId: string, perms: Record<string, string[]>) => {
+  if (!shouldAuditBypass(bypassesSeenThisRequest(), userId, perms)) return;
+  return recordAudit({
     entity: "auth",
     entityPublicId: userId,
     operation: "update",
     changes: { _action: "platform_bypass", perms },
     createdBy: (await userIdByPublicId(userId)) ?? null,
   });
+};
 
 export const { can, requirePermission } = createOrgPermissionGuards({ getAccess: getOrgAccess, onPlatformBypass });
 
