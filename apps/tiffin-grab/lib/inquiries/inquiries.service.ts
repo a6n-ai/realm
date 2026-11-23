@@ -842,11 +842,12 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
             select count(*) from inquiry_activities a
             where a.inquiry_id = ${inquiries.id} and a.type = 'call'
           ) as int)`,
-          lastNote: sql<string | null>`(
+          // Falls back to the note typed on the create form, which lives on the inquiry, not in an activity.
+          lastNote: sql<string | null>`coalesce((
             select a.note from inquiry_activities a
             where a.inquiry_id = ${inquiries.id} and a.note is not null
             order by a.created_at desc limit 1
-          )`,
+          ), nullif(trim(${inquiries.notes}), ''))`,
           lastNoteAt: sql<number | null>`(
             select a.created_at from inquiry_activities a
             where a.inquiry_id = ${inquiries.id} and a.note is not null

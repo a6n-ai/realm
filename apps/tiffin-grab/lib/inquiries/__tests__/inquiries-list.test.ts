@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { like } from "drizzle-orm";
 import { and, eq as cEq, like as cLike } from "@foundry/commons/model/condition";
 import { db } from "@/db/client";
-import { inquiries, leadSources } from "@/db/schema";
+import { inquiries, inquiryActivities, leadSources } from "@/db/schema";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 const { inquiriesService } = await import("../inquiries.service");
@@ -30,7 +30,7 @@ describe("inquiriesService.list (server-side filter + pagination)", () => {
     await db.insert(inquiries).values([
       { fullName: `${RUN}_a`, phone: `${RUN}_1`, sourceId: src.id, stage: "converted" },
       { fullName: `${RUN}_b`, phone: `${RUN}_2`, sourceId: src.id, stage: "converted" },
-      { fullName: `${RUN}_c`, phone: `${RUN}_3`, sourceId: src.id, stage: "lost" },
+      { fullName: `${RUN}_c`, phone: `${RUN}_3`, sourceId: src.id, stage: "lost", notes: "form note" },
     ]);
   });
 
@@ -68,5 +68,14 @@ describe("inquiriesService.list (server-side filter + pagination)", () => {
     expect(p1.page).toBe(1);
     expect(p1.total).toBe(2);
     expect(p1.items.length).toBe(1);
+  });
+
+  it("last note falls back to the create-form note, and a logged note wins over it", async () => {
+    const lastNote = async () =>
+      (await inquiriesService.listForPipeline(scoped(cEq("stage", "lost")), { page: 0, size: 1 })).items[0]?.lastNote;
+    expect(await lastNote()).toBe("form note");
+    const [c] = await db.select({ id: inquiries.id }).from(inquiries).where(like(inquiries.fullName, `${RUN}_c`));
+    await db.insert(inquiryActivities).values({ inquiryId: c!.id, type: "note", note: "logged note" });
+    expect(await lastNote()).toBe("logged note");
   });
 });
