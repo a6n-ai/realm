@@ -9,7 +9,6 @@ import {
   BellIcon,
   Building2Icon,
   CalendarIcon,
-  CheckCheckIcon,
   CheckIcon,
   ChefHatIcon,
   ChartLineIcon,
@@ -39,7 +38,6 @@ import {
 } from "lucide-react";
 import { signOut } from "@/lib/auth/client";
 import { lockSession } from "@/lib/auth/lock-actions";
-import { markAllReadAction } from "@/lib/services/section-seen.actions";
 import type { Section } from "@/lib/services/section-seen.service";
 import Link, { useLinkStatus } from "next/link";
 import { BrandMark, BrandWordmark } from "@/components/brand-logo";
@@ -480,17 +478,6 @@ export function AppSidebar({
             <span className="truncate text-sm font-medium">{user.name?.trim() || user.email}</span>
             <span className="text-muted-foreground text-xs capitalize">{user.role}</span>
           </div>
-          {activity && Object.values(activity).some(Boolean) && (
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label="Mark all read"
-              title="Mark all read"
-              onClick={() => { void markAllReadAction(); router.refresh(); }}
-            >
-              <CheckCheckIcon />
-            </Button>
-          )}
           {bell}
           <DropdownMenu>
             <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label="Account menu" />}>
