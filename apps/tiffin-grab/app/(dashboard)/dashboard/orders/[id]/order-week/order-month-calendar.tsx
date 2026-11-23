@@ -1,15 +1,19 @@
 "use client";
 
 import { isCutoffPassed } from "@/lib/dates/cutoff";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Truck } from "lucide-react";
-import { EventCalendar } from "@foundry/design-system/event-calendar/event-calendar";
+import { Listbox, ListboxGroup, ListboxGroupLabel, ListboxItem } from "@ui-sdk/react/listbox";
+import { Button } from "@foundry/ui/button";
+import { ToggleGroup, ToggleGroupItem } from "@foundry/ui/toggle-group";
+import { EventCalendar, useEventCalendarNavigation } from "@foundry/design-system/event-calendar/event-calendar";
 import { EventCalendarContent } from "@foundry/design-system/event-calendar/event-calendar-content";
 import { EventCalendarNav } from "@foundry/design-system/event-calendar/event-calendar-nav";
 import type { CalendarEvent } from "@foundry/design-system/event-calendar/event-calendar-types";
 import { LABEL_STATUS } from "@/lib/deliveries/label-status";
 import { STATUS_COLOR, STATUS_LABEL, deliveryTripState, type DeliveryStatus } from "@/lib/deliveries/status";
 import type { Agenda, AgendaDot } from "@/lib/deliveries/view/week";
+import { humanDate } from "@/lib/deliveries/view";
 import { addDaysIso, isoToLocalDate, localIso } from "@foundry/commons/util/dates";
 
 // The statuses staff set in the delivery status dropdown, which splits two the customer strip merges:
@@ -39,6 +43,104 @@ export function boxStatus(d: AgendaDot, now: number): BoxStatus {
  * The whole plan as a month calendar, the Deliveries tab's only navigator. Read-only on purpose:
  * every change goes through the day panel's sheets, which own the cutoff and hold-day rules.
  */
+type CalendarMode = "month" | "deliveries";
+type DeliveryDay = { date: string; units: number; status: BoxStatus };
+
+const MONTH_LABEL = new Intl.DateTimeFormat("en-CA", { month: "long", year: "numeric", timeZone: "UTC" });
+const monthLabel = (iso: string) => MONTH_LABEL.format(Date.UTC(Number(iso.slice(0, 4)), Number(iso.slice(5, 7)) - 1, 1));
+
+export function deliveryDays(agenda: Agenda, now: number): DeliveryDay[] {
+  return Object.keys(agenda)
+    .sort()
+    .flatMap((date) => {
+      const trucks = agenda[date].filter((d) => d.truck);
+      const units = trucks.reduce((n, d) => n + d.units, 0);
+      return units > 0 ? [{ date, units, status: boxStatus(trucks[0], now) }] : [];
+    });
+}
+
+export function lastTiffinDay(agenda: Agenda): string | null {
+  return Object.keys(agenda).filter((d) => agenda[d].length > 0).sort().at(-1) ?? null;
+}
+
+function CalendarToolbar({ mode, onMode, lastDay, onPickDay }: {
+  mode: CalendarMode;
+  onMode: (mode: CalendarMode) => void;
+  lastDay: string | null;
+  onPickDay: (iso: string) => void;
+}) {
+  const { goTo } = useEventCalendarNavigation();
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-2 pb-2">
+      <ToggleGroup type="single" variant="outline" size="sm" aria-label="Calendar view" value={mode} onValueChange={(v) => v && onMode(v as CalendarMode)}>
+        <ToggleGroupItem value="month">Month</ToggleGroupItem>
+        <ToggleGroupItem value="deliveries">Delivery days</ToggleGroupItem>
+      </ToggleGroup>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        disabled={!lastDay}
+        onClick={() => {
+          if (!lastDay) return;
+          goTo(isoToLocalDate(lastDay));
+          onPickDay(lastDay);
+        }}
+      >
+        Last tiffin{lastDay && <span className="text-muted-foreground tabular-nums">{humanDate(lastDay)}</span>}
+      </Button>
+    </div>
+  );
+}
+
+function DeliveryDaysList({ days, selectedDay, onPickDay }: { days: DeliveryDay[]; selectedDay: string | null; onPickDay: (iso: string) => void }) {
+  const { goTo } = useEventCalendarNavigation();
+  if (days.length === 0) return <p className="text-muted-foreground py-6 text-center text-sm">No delivery days on this plan yet.</p>;
+  const months = days.reduce<{ month: string; days: DeliveryDay[] }[]>((acc, d) => {
+    const month = d.date.slice(0, 7);
+    if (acc.at(-1)?.month === month) acc.at(-1)!.days.push(d);
+    else acc.push({ month, days: [d] });
+    return acc;
+  }, []);
+  return (
+    <Listbox
+      aria-label="Delivery days"
+      value={days.some((d) => d.date === selectedDay) ? selectedDay : null}
+      onValueChange={(v) => {
+        if (typeof v !== "string") return;
+        goTo(isoToLocalDate(v));
+        onPickDay(v);
+      }}
+      className="min-h-0 flex-1 overflow-y-auto outline-none"
+    >
+      {months.map((m) => (
+        <ListboxGroup key={m.month}>
+          <ListboxGroupLabel className="text-muted-foreground px-2 pt-3 pb-1 text-xs font-medium">
+            {monthLabel(m.month)} · {m.days.length} {m.days.length === 1 ? "delivery" : "deliveries"}
+          </ListboxGroupLabel>
+          {m.days.map((d) => (
+            <ListboxItem
+              key={d.date}
+              value={d.date}
+              className="data-[highlighted]:bg-muted data-[selected]:bg-primary/10 flex cursor-pointer items-center gap-3 rounded-md px-2 py-1.5 text-sm transition-colors"
+            >
+              <span className="w-28 font-medium tabular-nums">{humanDate(d.date)}</span>
+              <span className="text-muted-foreground inline-flex items-center gap-1 tabular-nums">
+                <Truck className="size-3.5" aria-hidden />
+                {d.units} {d.units === 1 ? "tiffin" : "tiffins"}
+              </span>
+              <span className="ml-auto inline-flex items-center gap-1.5 text-xs">
+                <span className="size-2 rounded-full" style={{ backgroundColor: BOX_COLOR[d.status] }} aria-hidden />
+                {BOX_LABEL[d.status]}
+              </span>
+            </ListboxItem>
+          ))}
+        </ListboxGroup>
+      ))}
+    </Listbox>
+  );
+}
+
 export function OrderMonthCalendar({ agenda, focus, selectedDay, now, onPickDay }: {
   agenda: Agenda;
   /** The day the calendar opens on. */
@@ -48,6 +150,9 @@ export function OrderMonthCalendar({ agenda, focus, selectedDay, now, onPickDay 
   now: number;
   onPickDay: (iso: string) => void;
 }) {
+  const [mode, setMode] = useState<CalendarMode>("month");
+  const days = useMemo(() => deliveryDays(agenda, now), [agenda, now]);
+  const lastDay = useMemo(() => lastTiffinDay(agenda), [agenda]);
   const events = useMemo<CalendarEvent<{ date: string }>[]>(
     () =>
       Object.entries(agenda).flatMap(([date, dots]) =>
@@ -103,12 +208,19 @@ export function OrderMonthCalendar({ agenda, focus, selectedDay, now, onPickDay 
       }}
       className="min-h-0 flex-1"
     >
-      <EventCalendarNav showViewSwitcher={false} />
-      <EventCalendarContent />
-      <p className="text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-1 px-1 pt-2 text-xs">
-        <span className="inline-flex items-center gap-1"><Truck className="size-3.5" aria-hidden />Delivery day, with the number of tiffins it brings</span>
-        <span>Days with a chip but no truck are eaten from an earlier delivery.</span>
-      </p>
+      <CalendarToolbar mode={mode} onMode={setMode} lastDay={lastDay} onPickDay={onPickDay} />
+      {mode === "deliveries" ? (
+        <DeliveryDaysList days={days} selectedDay={selectedDay} onPickDay={onPickDay} />
+      ) : (
+        <>
+          <EventCalendarNav showViewSwitcher={false} />
+          <EventCalendarContent />
+          <p className="text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-1 px-1 pt-2 text-xs">
+            <span className="inline-flex items-center gap-1"><Truck className="size-3.5" aria-hidden />Delivery day, with the number of tiffins it brings</span>
+            <span>Days with a chip but no truck are eaten from an earlier delivery.</span>
+          </p>
+        </>
+      )}
     </EventCalendar>
   );
 }
