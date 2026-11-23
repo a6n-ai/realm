@@ -34,6 +34,9 @@ describe("app/site", () => {
       const src = readFileSync(file, "utf8");
       // A server action runs per call, never during the cached render, so it is out of scope entirely.
       if (/^\s*["']use server["']/.test(src)) continue;
+      // The base every service extends (lib/menu, lib/settings ... reach it directly). It reads the
+      // session only inside write/audit methods, never at import or render, like the services above it.
+      if (file.endsWith("/lib/services/session-service.ts")) continue;
       const isClient = /^\s*["']use client["']/.test(src);
       if (FORBIDDEN.some((re) => re.test(src)) || (!isClient && SERVER_GET_SESSION.test(src))) {
         const chain: string[] = [];

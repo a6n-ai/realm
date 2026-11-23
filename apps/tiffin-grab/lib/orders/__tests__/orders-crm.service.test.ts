@@ -5,6 +5,12 @@ vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 const session: { user: { id: string; role: string } | null } = { user: null };
 vi.mock("@/lib/auth/guards", () => ({ can: async () => true }));
 vi.mock("@/lib/auth/session", () => ({ getSession: async () => (session.user ? session : null) }));
+// The ticket test acts as a platform admin (sees every org); every other test keeps real visibility.
+const orgs = vi.hoisted(() => ({ override: null as "all" | null }));
+vi.mock("@/lib/auth/visible-orgs", async (orig) => {
+  const real = await orig<typeof import("@/lib/auth/visible-orgs")>();
+  return { ...real, resolveSessionVisibleOrgIds: ((...a: Parameters<typeof real.resolveSessionVisibleOrgIds>) => orgs.override ?? real.resolveSessionVisibleOrgIds(...a)) as typeof real.resolveSessionVisibleOrgIds };
+});
 
 const { db } = await import("@/db/client");
 const { deleteNonSystemUsers } = await import("@/db/test-helpers");
@@ -262,6 +268,7 @@ describe("order CRM queries (integration)", () => {
     const [ticket] = await db.insert(schema.tickets).values({ publicId: "tkt_lookout_reopen", raisedBy: userId!, subject: "Missing roti", category: "order", orderId: id, createdAt: Date.now(), updatedAt: Date.now() }).returning();
     await lookOutForTicket(id, ticket.subject);
     session.user = { id: staff.publicId, role: "admin" };
+    orgs.override = "all";
     try {
       await ticketsService.changeStatus(ticket.publicId, "resolved");
       expect(await countLookOutOrders("all")).toBe(0);
@@ -270,6 +277,7 @@ describe("order CRM queries (integration)", () => {
       expect(row.note).toBe("Support ticket: Missing roti");
     } finally {
       session.user = null;
+      orgs.override = null;
       await db.delete(schema.ticketMessages).where(eq(schema.ticketMessages.ticketId, ticket.id));
       await db.delete(schema.tickets).where(eq(schema.tickets.id, ticket.id));
     }

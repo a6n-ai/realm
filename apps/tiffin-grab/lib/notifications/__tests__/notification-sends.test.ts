@@ -5,6 +5,8 @@ import { nextWeekday } from "@foundry/commons";
 const session: { user: { id: string; role: string } | null } = { user: null };
 vi.mock("@/lib/auth/guards", () => ({ can: async () => true }));
 vi.mock("@/lib/auth/session", () => ({ getSession: async () => (session.user ? session : null) }));
+// Org scoping has its own tests (tickets.service.test); here staff see every org, as a platform admin does.
+vi.mock("@/lib/auth/visible-orgs", () => ({ resolveSessionVisibleOrgIds: async () => "all" as const }));
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 vi.mock("@/lib/payments/stripe", async (orig) => ({
   ...(await orig<object>()),
