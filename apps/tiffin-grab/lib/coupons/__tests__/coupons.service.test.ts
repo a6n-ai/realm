@@ -3,6 +3,8 @@ import { and, eq } from "drizzle-orm";
 import { ValidationError, nextWeekday } from "@foundry/commons";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
+const { revalidateSitePaths } = vi.hoisted(() => ({ revalidateSitePaths: vi.fn() }));
+vi.mock("@/lib/landing/revalidate-site", async (orig) => ({ ...(await orig<object>()), revalidateSitePaths }));
 
 const { db } = await import("@/db/client");
 const { deleteNonSystemUsers } = await import("@/db/test-helpers");
@@ -196,6 +198,24 @@ describe("couponsService.redeem (integration)", () => {
     expect(await db.select().from(couponRedemptions).where(eq(couponRedemptions.orderId, order.id))).toHaveLength(0);
 
     await redeem();
+  });
+
+  it("refreshes the public promos after the commit that uses the last redemption, and after the release that frees it", async () => {
+    const order = await makeOrder();
+    const [coupon] = await db
+      .insert(coupons)
+      .values({ code: "TWICE", kind: "fixed", name: "Twice", valueAmount: "5", maxRedemptions: 2 })
+      .returning();
+    const redeem = () => db.transaction((tx) => couponsService.redeem(tx, { coupon, userId: order.userId!, orderId: order.id, amountApplied: 5 }));
+    revalidateSitePaths.mockClear();
+
+    await redeem();
+    expect(revalidateSitePaths).not.toHaveBeenCalled(); // 1 of 2: still offered
+    await redeem();
+    expect(revalidateSitePaths).toHaveBeenCalledTimes(1); // used up: drop it from the promos
+
+    await db.transaction((tx) => couponsService.releaseForOrder(tx, order.id));
+    expect(revalidateSitePaths).toHaveBeenCalledTimes(2); // freed: offer it again
   });
 });
 

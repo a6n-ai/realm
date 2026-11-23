@@ -7,7 +7,7 @@ import { randomInt } from "node:crypto";
 import { ValidationError } from "@foundry/commons";
 import { UpdatableRepository } from "@foundry/database";
 import { and, eq, inArray, ne, notInArray, sql } from "drizzle-orm";
-import { db, type Tx } from "@/db/client";
+import { db, onCommit, type Tx } from "@/db/client";
 import { couponRedemptions, coupons, customerGroupMembers, orders, payments, users } from "@/db/schema";
 import type { CouponConfig, CouponKind } from "@/db/schema/coupons";
 import type { PricingLine } from "@/lib/pricing";
@@ -160,6 +160,12 @@ export interface RepCouponToday {
   capPct: number | null;
   capAmount: number | null;
 }
+
+// The landing promos (publicApiCache, up to 1 h) list a coupon only while it has uses left, so
+// they are refreshed once a redemption uses the last one or a release frees one. Start/end times
+// are covered by the site's boundary wake (site-boundaries.ts).
+const refreshPublicPromos = async (): Promise<void> => (await import("@/lib/landing/revalidate-site")).revalidateSitePaths();
+const usedUp = (c: { count: number; max: number | null }) => c.max != null && c.count >= c.max;
 
 class CouponsService extends SessionUpdatableService<typeof coupons> {
   // Soft-delete: a coupon is never hard-deleted (redemptions reference it).
@@ -384,8 +390,9 @@ class CouponsService extends SessionUpdatableService<typeof coupons> {
       .update(coupons)
       .set({ redemptionCount: sql`${coupons.redemptionCount} + 1` })
       .where(and(...conds))
-      .returning({ id: coupons.id });
+      .returning({ id: coupons.id, count: coupons.redemptionCount, max: coupons.maxRedemptions });
     if (bumped.length === 0) throw new ValidationError("Coupon redemption limit reached");
+    if (usedUp(bumped[0]!)) onCommit(refreshPublicPromos);
 
     // Per-user cap: counted AFTER the lock above so concurrent same-user redeems
     // serialize and the loser sees the winner's committed redemption. Throwing
@@ -423,10 +430,13 @@ class CouponsService extends SessionUpdatableService<typeof coupons> {
       .where(eq(couponRedemptions.orderId, orderId))
       .returning({ couponId: couponRedemptions.couponId });
     for (const r of released) {
-      await tx
+      const [row] = await tx
         .update(coupons)
         .set({ redemptionCount: sql`greatest(${coupons.redemptionCount} - 1, 0)` })
-        .where(eq(coupons.id, r.couponId));
+        .where(eq(coupons.id, r.couponId))
+        .returning({ count: coupons.redemptionCount, max: coupons.maxRedemptions });
+      // Back from used up: it is offered again.
+      if (row && row.max != null && row.count === row.max - 1) onCommit(refreshPublicPromos);
     }
   }
 

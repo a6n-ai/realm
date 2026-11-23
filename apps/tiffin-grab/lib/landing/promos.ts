@@ -7,6 +7,7 @@ import { promoSavings } from "@/lib/landing/savings";
 import { couponsService, type AvailableCoupon } from "@/lib/coupons/coupons.service";
 import { hasPlacement } from "@/lib/promotions/live";
 import { promotionsService, type Promotion } from "@/lib/promotions/promotions.service";
+import { publicApiCache } from "@/lib/landing/revalidate-site";
 
 import type { LandingPromo, LandingPromos } from "@/lib/landing/promo-types";
 
@@ -76,10 +77,15 @@ function fromPromotion(p: Promotion, coupons: Map<string, AvailableCoupon>, snap
 
 const PROMOS_NONE: LandingPromos = { sticker: null, popup: null, sections: [] };
 
-/** Optional content: any failure reads as "no promos". */
+/**
+ * Optional content: any failure reads as "no promos". Every public page's shell (404s and bot
+ * probes included) renders this, so it reads through publicApiCache: promotion and coupon writes,
+ * their start/end times (site boundary wake) and a coupon's last use all evict it.
+ */
 export async function loadLandingPromos(): Promise<LandingPromos> {
   try {
-    return await buildLandingPromos();
+    // A failed build throws through getOrSet, so the fallback below is never cached.
+    return await publicApiCache.getOrSet("landing-promos", buildLandingPromos);
   } catch {
     return PROMOS_NONE;
   }
