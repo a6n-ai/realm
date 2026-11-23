@@ -17,6 +17,7 @@ import { coinRate, eventPayout, ledgerEntries, orderActivities, orders, users, w
 import type { OrderPricingSnapshot } from "@/lib/pricing";
 import { coinsUnderCap, earnCoins, earnsOrderCoins } from "@/lib/wallet/earn-coins";
 import { getAppSettings } from "@/lib/settings";
+import { coinRateCache } from "@/lib/wallet/coin-rate-cache";
 import { getCoinEarnPct, getMaxWalletBalance } from "@/lib/wallet/wallet-settings";
 import { lockUser } from "@/lib/identity/lock-user";
 import { walletBalanceSql } from "@/lib/wallet/balance-sql";
@@ -52,6 +53,7 @@ export const walletService = createWalletService<BusinessEvent>({
   // Wallet cap (Coin Rate page; NULL = unlimited) is enforced by the package:
   // award() skips, adjust() refuses, filterUnderCap() splits a batch.
   maxBalance: () => getMaxWalletBalance(),
+  rateCache: coinRateCache,
 });
 
 // No cap check on either: these SPEND coins, and spending can only move a

@@ -115,3 +115,19 @@ describe("walletBalanceStats", () => {
     expect(wide.outstanding).toBe(none.outstanding); // both clamp to now
   });
 });
+
+describe("saveCoinRate", () => {
+  it("applies to the very next activeRate read (rate cache evicted)", async () => {
+    const { saveCoinRate } = await import("../wallet-balances.service");
+    const { walletService } = await import("../wallet.service");
+    const currency = "ZZT"; // a test-only currency, so no real rate is touched
+    try {
+      await saveCoinRate(currency, 0.1);
+      expect(await walletService.activeRate(currency)).toBe(0.1);
+      await saveCoinRate(currency, 0.3);
+      expect(await walletService.activeRate(currency)).toBe(0.3);
+    } finally {
+      await db.delete(coinRate).where(eq(coinRate.currency, currency));
+    }
+  });
+});

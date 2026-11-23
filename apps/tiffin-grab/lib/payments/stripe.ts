@@ -14,7 +14,7 @@ import {
 } from "@foundry/payments/stripe";
 import { db } from "@/db/client";
 import { payments, users } from "@/db/schema";
-import { getIntegrationsConfigFresh, setIntegrationsConfig } from "@/lib/payments/integrations-config";
+import { getIntegrationsConfig, getIntegrationsConfigFresh, setIntegrationsConfig } from "@/lib/payments/integrations-config";
 import { getPaymentConfig } from "@/lib/payments/payment-config";
 import { appOrigin, integrationsMasterKey } from "@/lib/runtime/env";
 
@@ -63,10 +63,14 @@ export async function clearStripeCustomers(): Promise<void> {
   await db.update(users).set({ stripeCustomerId: null }).where(isNotNull(users.stripeCustomerId));
 }
 
+// getStripe only reads the config, and runs on every checkout, tax and wallet render: the cached
+// read is safe there. Connect/disconnect keep stripeDeps (fresh read-modify-write).
+const runtimeDeps: ConnectDeps = { ...stripeDeps, store: { get: getIntegrationsConfig, set: setIntegrationsConfig } };
+
 /** Null when Stripe is not usable right now. Callers hide the card option instead of failing. */
 export async function stripeRuntime(): Promise<{ stripe: Stripe; cfg: StripePluginConfig } | null> {
   try {
-    return await getStripe(stripeDeps);
+    return await getStripe(runtimeDeps);
   } catch (e) {
     if (!(e instanceof StripeNotConfiguredError)) log.error({ err: e }, "stripe runtime unavailable");
     return null;

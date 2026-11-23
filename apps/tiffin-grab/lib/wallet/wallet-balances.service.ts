@@ -5,6 +5,7 @@ import { earnedCoinsSql, spentCoinsSql, unexpired } from "@foundry/wallet";
 import { pageOrder } from "@foundry/database";
 import { coinRate, users, walletLedger } from "@/db/schema";
 import { signedCoinsSql } from "@/lib/wallet/balance-sql";
+import { coinRateCache } from "@/lib/wallet/coin-rate-cache";
 
 type Range = { from: number; to: number };
 
@@ -33,6 +34,7 @@ export async function currentRate(): Promise<number | null> {
 /** Rates are append-only: the newest row is the rate in force. */
 export async function saveCoinRate(currency: string, valuePerCoin: number): Promise<void> {
   await db.insert(coinRate).values({ currency, valuePerCoin: valuePerCoin.toFixed(4) });
+  await coinRateCache.evictAll();
 }
 
 const money = (coins: number, rate: number | null) => (rate == null ? null : Number((coins * rate).toFixed(2)));
