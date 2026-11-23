@@ -1,6 +1,7 @@
 // Single source of truth for "what a subscriber receives" for a given order/week/day/person:
 // buildMealsGrid must show exactly what this resolves, so any fulfillment/kitchen read
 // reuses this instead of re-deriving the pick → isDefault fallback.
+import { requestMemo } from "@foundry/commons";
 import { loadMealSizeItems } from "@/lib/menu/meal-size-items";
 import { and, asc, eq, gte, inArray, lte, notInArray } from "drizzle-orm";
 import { db } from "@/db/client";
@@ -226,11 +227,7 @@ export function createMealResolveCache(
   // Every order this cache will resolve, from addonItemsByOrder; an order missing from it has none.
   addonsByOrder?: Map<bigint, AddonItemRow[]>,
 ) {
-  const memo = new Map<string, Promise<unknown>>();
-  const once = <T>(key: string, load: () => Promise<T>): Promise<T> => {
-    if (!memo.has(key)) memo.set(key, load());
-    return memo.get(key) as Promise<T>;
-  };
+  const once = requestMemo();
   return {
     cats: (planId: bigint) => once(`cats:${planId}`, () => dishCategoriesService.forPlan(planId)),
     dayItems: (weekId: bigint, day: DayOfWeek) => once(`items:${weekId}:${day}`, () => loadDayItems(weekId, day)),
