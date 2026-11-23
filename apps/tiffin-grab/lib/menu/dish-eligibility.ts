@@ -33,9 +33,13 @@ export const exclusiveDishIdsForPlan = dishIdsForPlan;
  * rows, not the order's single planId. A meal size whose items are all on one
  * plan (the common case) reduces to exactly dishIdsForPlan(that plan).
  */
-export async function allowedDishIdsForMealSize(mealSizeId: bigint): Promise<Set<bigint>> {
+export async function allowedDishIdsForMealSize(
+  mealSizeId: bigint,
+  // A caller that also needs a plan's dishes passes a memoised lookup, so each plan is read once.
+  dishIdsFor: (planId: bigint) => Promise<Set<bigint>> = dishIdsForPlan,
+): Promise<Set<bigint>> {
   const rows = await db.selectDistinct({ planId: mealSizeItems.planId }).from(mealSizeItems).where(eq(mealSizeItems.mealSizeId, mealSizeId));
-  const sets = await Promise.all(rows.map((r) => dishIdsForPlan(r.planId)));
+  const sets = await Promise.all(rows.map((r) => dishIdsFor(r.planId)));
   const out = new Set<bigint>();
   for (const s of sets) for (const id of s) out.add(id);
   return out;

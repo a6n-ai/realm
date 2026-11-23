@@ -5,10 +5,10 @@ vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
 const { db } = await import("@/db/client");
 const { dishes, mealRuleConditions, mealRules, mealSizes, plans } = await import("@/db/schema");
-const { mealRulesService } = await import("../meal-rules.service");
+const { mealRulesService, invalidateMealRules } = await import("../meal-rules.service");
 
 /**
- * Scope and enablement are decided in SQL, so they need a real database — the
+ * Scope and enablement filter rows loaded from a real database, so these need one — the
  * pure-engine tests can only assert what happens to rules already handed over.
  */
 async function reset() {
@@ -17,6 +17,7 @@ async function reset() {
     await db.delete(mealRuleConditions).where(inArray(mealRuleConditions.ruleId, ids.map((r) => r.id)));
   }
   await db.delete(mealRules);
+  await invalidateMealRules();
 }
 
 async function ids() {
@@ -51,6 +52,8 @@ async function makeRule(over: {
     operator: "is",
     valueKeys: [over.categoryKey ?? "sabzi"],
   });
+  // Written straight to the table, past the service's eviction.
+  await invalidateMealRules();
   return r!;
 }
 
@@ -110,6 +113,18 @@ describe("rule scope", () => {
   it("a disabled rule is never loaded", async () => {
     const { veg, sizeA } = await ids();
     await makeRule({ enabled: false });
+    expect(await mealRulesService.listEnabledForOrder({ planId: veg, mealSizeId: sizeA })).toHaveLength(0);
+  });
+
+  it("an admin edit through the service applies to the next resolve (cache evicted)", async () => {
+    const { veg, sizeA } = await ids();
+    const rule = await makeRule({});
+    expect(await mealRulesService.listEnabledForOrder({ planId: veg, mealSizeId: sizeA })).toHaveLength(1);
+    await mealRulesService.updateRule(rule.publicId, { enabled: false });
+    expect(await mealRulesService.listEnabledForOrder({ planId: veg, mealSizeId: sizeA })).toHaveLength(0);
+    await mealRulesService.updateRule(rule.publicId, { enabled: true });
+    expect(await mealRulesService.listEnabledForOrder({ planId: veg, mealSizeId: sizeA })).toHaveLength(1);
+    await mealRulesService.deleteRule(rule.publicId);
     expect(await mealRulesService.listEnabledForOrder({ planId: veg, mealSizeId: sizeA })).toHaveLength(0);
   });
 

@@ -185,15 +185,22 @@ export function resolveCategoriesForDay(
 // Everything defaultPickContext reads except the order's own add-ons: shared by every
 // order on the same plan + meal size, which is what lets MealResolveCache load it once.
 function loadSizeContext(order: Order) {
+  // The order's plan is usually one of the meal size's plans: read each plan's dishes once.
+  const byPlan = new Map<bigint, Promise<Set<bigint>>>();
+  const dishIds = (planId: bigint) => {
+    if (!byPlan.has(planId)) byPlan.set(planId, exclusiveDishIdsForPlan(planId));
+    return byPlan.get(planId)!;
+  };
+  const size = db.select({ custom: mealSizes.custom }).from(mealSizes).where(eq(mealSizes.id, order.mealSizeId)).limit(1);
   return Promise.all([
     // The union of every plan this meal size's OWN composition rows target — not
     // just the order's own plan. A meal size can carry two sabzi rows (one veg,
     // one non-veg), and both must be servable to the subscriber.
-    allowedDishIdsForMealSize(order.mealSizeId),
-    exclusiveDishIdsForPlan(order.planId),
+    allowedDishIdsForMealSize(order.mealSizeId, dishIds),
+    dishIds(order.planId),
     loadMealSizeItems(order.mealSizeId),
-    mealRulesService.listEnabledForOrder({ planId: order.planId, mealSizeId: order.mealSizeId }),
-    db.select({ custom: mealSizes.custom }).from(mealSizes).where(eq(mealSizes.id, order.mealSizeId)).limit(1),
+    size.then(([s]) => mealRulesService.listEnabledForOrder({ planId: order.planId, mealSizeId: order.mealSizeId, custom: s?.custom ?? false })),
+    size,
   ]);
 }
 

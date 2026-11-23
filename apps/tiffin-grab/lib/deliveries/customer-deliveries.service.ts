@@ -19,6 +19,7 @@ import type { ExchangeOverride } from "@/lib/menu/swap-rules";
 import { handedOnIds } from "@/lib/deliveries/row-state";
 import { planDeliveryDays, type DayOfWeek } from "@/lib/deliveries/schedule/delivery-days";
 import {
+  createMealResolveCache,
   resolveDeliveryMeal,
   resolveDeliveryMealsForWeek,
   resolvedMealsWeekKey,
@@ -737,6 +738,8 @@ export async function myCalendar(userId: bigint, orderPublicId: string, range: {
   });
 
   const loadWeek = weekLoader();
+  // One per calendar load: every carried day shares the order's plan and meal-size lookups.
+  const mealCache = createMealResolveCache();
   const carriedFields = async (row: CustomerDelivery) => {
     const carried = await Promise.all(
       coveredDates(row)
@@ -745,7 +748,7 @@ export async function myCalendar(userId: bigint, orderPublicId: string, range: {
           const w = await loadWeek(date);
           if (!w) return null;
           const daySwaps = swapRows.filter((s) => s.deliveryId === row.id && swapAppliesTo(s.forDate, row.deliveryDate, date));
-          return [date, await resolveTripDay(order, w, date, 1, daySwaps)] as const;
+          return [date, await resolveTripDay(order, w, date, 1, daySwaps, mealCache)] as const;
         }),
     );
     const carriedMeals: Record<string, ResolvedMeal> = {};

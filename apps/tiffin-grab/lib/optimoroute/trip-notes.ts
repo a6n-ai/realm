@@ -5,6 +5,7 @@ import { deliveryCategorySwaps } from "@/db/schema";
 import { coveredDates } from "@/lib/deliveries/schedule/coverage";
 import { loadExtraDates } from "@/lib/deliveries/delivery-extras";
 import { resolveTripDay, swapsForDay, weekLoader } from "@/lib/menu/trip-meals";
+import { createMealResolveCache } from "@/lib/menu/resolve-delivery-meal";
 import type { DayDeliveryRow } from "@/lib/deliveries/day-deliveries";
 import { DAY_NAMES } from "@foundry/commons/util/dates";
 
@@ -57,6 +58,8 @@ export async function loadTripDetails(rows: DayDeliveryRow[]): Promise<Map<bigin
         .where(inArray(deliveryCategorySwaps.deliveryId, multi.map((r) => r.delivery.id)))
         .orderBy(asc(deliveryCategorySwaps.id));
   const loadWeek = weekLoader();
+  // One per call: every stop on the day shares its menu, plan and meal-size lookups.
+  const mealCache = createMealResolveCache();
 
   for (const row of rows) {
     const extraDates = extrasById.get(row.delivery.id) ?? [];
@@ -67,7 +70,7 @@ export async function loadTripDetails(rows: DayDeliveryRow[]): Promise<Map<bigin
         const week = await loadWeek(date);
         if (!week) continue;
         // Person 1 stands for the order: a stop note is a heads-up, the labels carry every person's pick.
-        const resolved = await resolveTripDay(row.order, week, date, 1, swapsForDay(swaps, row.delivery, date));
+        const resolved = await resolveTripDay(row.order, week, date, 1, swapsForDay(swaps, row.delivery, date), mealCache);
         const names = resolved.flatMap((c) => c.picks.map((p) => p.name));
         const extraCount = extraDates.filter((d) => d === date).length;
         const suffix = extraCount > 0 ? ` x${extraCount + 1}` : "";

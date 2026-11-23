@@ -1,6 +1,6 @@
 import { ValidationError } from "@foundry/commons";
 import { UpdatableRepository } from "@foundry/database";
-import { and, asc, desc, eq, inArray, isNull, or } from "drizzle-orm";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import { dishes, mealRuleConditions, mealRules, mealSizes, plans } from "@/db/schema";
 import {
@@ -11,6 +11,7 @@ import type { MealRule, MealRuleCondition, MealRuleAction, MealRuleField, MealRu
 import { assertValidRuleInput, type RuleInput } from "@/lib/menu/meal-rule-input";
 import { dishCategoriesService } from "./dish-categories.service";
 import { SessionUpdatableService } from "../services/session-service";
+import { configCache } from "@/lib/cache";
 
 export type BuilderCondition = {
   field: MealRuleField;
@@ -60,21 +61,23 @@ export type MealRuleListItem = {
   enabled: boolean;
 };
 
-class MealRulesService extends SessionUpdatableService<typeof mealRules> {
-  /**
-   * Enabled rules whose SCOPE covers this order, with their conditions.
-   *
-   * A NULL scope column means "every plan" / "every meal size", so the filter is
-   * `is null OR equals` — a rule left unscoped must apply everywhere rather than
-   * silently matching nothing.
-   */
-  async listEnabledForOrder(scope: { planId: bigint; mealSizeId?: bigint | null }): Promise<MealRule[]> {
-    // A custom meal's composition (diet per row) is what the customer bought, so plan-wide
-    // limits like "one non-veg curry" must not cap it. Product decision pending (2026-09-30).
-    if (scope.mealSizeId != null) {
-      const [size] = await db.select({ custom: mealSizes.custom }).from(mealSizes).where(eq(mealSizes.id, scope.mealSizeId)).limit(1);
-      if (size?.custom) return [];
-    }
+// Every enabled rule with its scope, read on every meal resolution (~20k/11 days). configCache:
+// 5s per-isolate on Workers, evicted on every rule write below, so an admin edit applies at once.
+const rulesCache = configCache("meal-rules");
+
+export async function invalidateMealRules(): Promise<void> {
+  await rulesCache.evictAll();
+}
+
+const evicted = async <T>(value: T): Promise<T> => {
+  await invalidateMealRules();
+  return value;
+};
+
+type ScopedRule = MealRule & { scopePlanId: bigint | null; scopeMealSizeId: bigint | null };
+
+function enabledRules(): Promise<ScopedRule[]> {
+  return rulesCache.getOrSet("enabled", async () => {
     const rows = await db
       .select({
         id: mealRules.id,
@@ -85,17 +88,11 @@ class MealRulesService extends SessionUpdatableService<typeof mealRules> {
         action: mealRules.action,
         actionValue: mealRules.actionValue,
         priority: mealRules.priority,
+        scopePlanId: mealRules.scopePlanId,
+        scopeMealSizeId: mealRules.scopeMealSizeId,
       })
       .from(mealRules)
-      .where(
-        and(
-          eq(mealRules.enabled, true),
-          or(isNull(mealRules.scopePlanId), eq(mealRules.scopePlanId, scope.planId)),
-          scope.mealSizeId == null
-            ? isNull(mealRules.scopeMealSizeId)
-            : or(isNull(mealRules.scopeMealSizeId), eq(mealRules.scopeMealSizeId, scope.mealSizeId)),
-        ),
-      )
+      .where(eq(mealRules.enabled, true))
       .orderBy(desc(mealRules.priority), asc(mealRules.id));
     if (rows.length === 0) return [];
 
@@ -133,11 +130,37 @@ class MealRulesService extends SessionUpdatableService<typeof mealRules> {
         action: r.action,
         actionValue: r.actionValue,
         priority: r.priority,
+        scopePlanId: r.scopePlanId,
+        scopeMealSizeId: r.scopeMealSizeId,
         conditions: byRule.get(r.id.toString()) ?? [],
       }))
       // A rule with no conditions would match nothing and can only confuse the
       // picker list; writes reject it, but historical rows must not leak through.
       .filter((r) => r.conditions.length > 0);
+  });
+}
+
+class MealRulesService extends SessionUpdatableService<typeof mealRules> {
+  /**
+   * Enabled rules whose SCOPE covers this order, with their conditions.
+   *
+   * A NULL scope column means "every plan" / "every meal size", so the filter is
+   * `is null OR equals` — a rule left unscoped must apply everywhere rather than
+   * silently matching nothing.
+   */
+  // `custom`: the caller already knows the meal size's custom flag (saves re-reading it).
+  async listEnabledForOrder(scope: { planId: bigint; mealSizeId?: bigint | null; custom?: boolean }): Promise<MealRule[]> {
+    // A custom meal's composition (diet per row) is what the customer bought, so plan-wide
+    // limits like "one non-veg curry" must not cap it. Product decision pending (2026-09-30).
+    if (scope.mealSizeId != null) {
+      const custom = scope.custom ?? (await db.select({ custom: mealSizes.custom }).from(mealSizes).where(eq(mealSizes.id, scope.mealSizeId)).limit(1))[0]?.custom;
+      if (custom) return [];
+    }
+    return (await enabledRules())
+      .filter((r) =>
+        (r.scopePlanId == null || r.scopePlanId === scope.planId) &&
+        (r.scopeMealSizeId == null || (scope.mealSizeId != null && r.scopeMealSizeId === scope.mealSizeId)))
+      .map(({ scopePlanId: _p, scopeMealSizeId: _m, ...rule }) => rule);
   }
 
   /**
@@ -317,7 +340,7 @@ class MealRulesService extends SessionUpdatableService<typeof mealRules> {
         })),
       );
       return { publicId: rulePublicId };
-    });
+    }).then(evicted);
   }
 
   async listAll(): Promise<MealRuleListItem[]> {
@@ -411,7 +434,7 @@ class MealRulesService extends SessionUpdatableService<typeof mealRules> {
         { ruleId: ruleId.id, field: "dish_plan", operator: "is", valueIds: [input.planId] },
       ]);
       return { publicId: ruleId.publicId };
-    });
+    }).then(evicted);
   }
 
   async upsertByPlanPublicId(input: {
@@ -447,11 +470,13 @@ class MealRulesService extends SessionUpdatableService<typeof mealRules> {
         ...(patch.enabled != null ? { enabled: patch.enabled } : {}),
       })
       .where(eq(mealRules.id, row.id));
+    await invalidateMealRules();
   }
 
   async deleteRule(publicId: string): Promise<void> {
     const deleted = await db.delete(mealRules).where(eq(mealRules.publicId, publicId)).returning({ id: mealRules.id });
     if (deleted.length === 0) throw new ValidationError("Meal rule not found");
+    await invalidateMealRules();
   }
 }
 
