@@ -28,6 +28,7 @@ async function cleanup() {
     await db.delete(users).where(inArray(users.id, ids));
   }
   if (rateId) await db.delete(coinRate).where(eq(coinRate.id, rateId));
+  await (await import("@/lib/wallet/coin-rate-cache")).coinRateCache.evictAll(); // direct coin_rate write
   rateId = undefined;
 }
 
@@ -46,6 +47,7 @@ beforeEach(async () => {
     entry(b, "debit", "redemption", 20, { createdAt: old }),
   ]);
   const [r] = await db.insert(coinRate).values({ currency: "CAD", valuePerCoin: "0.2500" }).returning();
+  await (await import("@/lib/wallet/coin-rate-cache")).coinRateCache.evictAll(); // direct coin_rate write
   rateId = r.id;
 });
 
@@ -128,6 +130,7 @@ describe("saveCoinRate", () => {
       expect(await walletService.activeRate(currency)).toBe(0.3);
     } finally {
       await db.delete(coinRate).where(eq(coinRate.currency, currency));
+      await (await import("@/lib/wallet/coin-rate-cache")).coinRateCache.evictAll(); // direct coin_rate write
     }
   });
 });

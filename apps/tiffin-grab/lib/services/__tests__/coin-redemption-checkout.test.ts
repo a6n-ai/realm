@@ -114,6 +114,7 @@ describe("createOrder — coin redemption", () => {
   beforeEach(async () => {
     await reset();
     const [cr] = await db.insert(coinRate).values({ currency: "CAD", valuePerCoin: RATE.toFixed(4) }).returning();
+    await (await import("@/lib/wallet/coin-rate-cache")).coinRateCache.evictAll(); // direct coin_rate write
     coinRateId = cr.id;
   });
   // Delete THIS test's row right after it runs — beforeEach overwrites coinRateId
@@ -122,6 +123,7 @@ describe("createOrder — coin redemption", () => {
   // block's row entirely).
   afterEach(async () => {
     await db.delete(coinRate).where(eq(coinRate.id, coinRateId));
+    await (await import("@/lib/wallet/coin-rate-cache")).coinRateCache.evictAll(); // direct coin_rate write
   });
   afterAll(async () => {
     await reset();
@@ -285,7 +287,9 @@ describe("createOrder — coin redemption", () => {
     // latest by createdAt, and two inserts can land in the same millisecond.
     // Reassigning coinRateId keeps afterEach's single-row cleanup exact.
     await db.delete(coinRate).where(eq(coinRate.id, coinRateId));
+    await (await import("@/lib/wallet/coin-rate-cache")).coinRateCache.evictAll(); // direct coin_rate write
     const [cr] = await db.insert(coinRate).values({ currency: "CAD", valuePerCoin: "0.0001" }).returning();
+    await (await import("@/lib/wallet/coin-rate-cache")).coinRateCache.evictAll(); // direct coin_rate write
     coinRateId = cr.id;
 
     const owner = await seedUserWithCoins(50);
@@ -325,6 +329,7 @@ describe("verifyPayment — settles deferred coin redemption", () => {
   beforeEach(async () => {
     await reset();
     const [cr] = await db.insert(coinRate).values({ currency: "CAD", valuePerCoin: RATE.toFixed(4) }).returning();
+    await (await import("@/lib/wallet/coin-rate-cache")).coinRateCache.evictAll(); // direct coin_rate write
     coinRateId = cr.id;
     await setPaymentConfig({
       methods: [
@@ -343,6 +348,7 @@ describe("verifyPayment — settles deferred coin redemption", () => {
   // Same reasoning as the block above: delete per-test, not just at the end.
   afterEach(async () => {
     await db.delete(coinRate).where(eq(coinRate.id, coinRateId));
+    await (await import("@/lib/wallet/coin-rate-cache")).coinRateCache.evictAll(); // direct coin_rate write
   });
   afterAll(async () => {
     await reset();
@@ -484,10 +490,12 @@ describe("createOrder — admin coin limit and provincial tax", () => {
   beforeEach(async () => {
     await reset();
     const [cr] = await db.insert(coinRate).values({ currency: "CAD", valuePerCoin: RATE.toFixed(4) }).returning();
+    await (await import("@/lib/wallet/coin-rate-cache")).coinRateCache.evictAll(); // direct coin_rate write
     coinRateId = cr.id;
   });
   afterEach(async () => {
     await db.delete(coinRate).where(eq(coinRate.id, coinRateId));
+    await (await import("@/lib/wallet/coin-rate-cache")).coinRateCache.evictAll(); // direct coin_rate write
   });
   afterAll(async () => {
     await reset();

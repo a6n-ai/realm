@@ -1,5 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { like, ne } from "drizzle-orm";
+import { eq, like, ne } from "drizzle-orm";
 import { nextWeekday } from "@foundry/commons";
 
 vi.mock("@/lib/auth", () => ({ auth: async () => null }));
@@ -172,7 +172,9 @@ describe("coupons apply after catalog discounts", () => {
 
   it("the estimate applies the customer's max coins by default, a lower count on request, and matches the order", async () => {
     const { coinRate } = await import("@/db/schema");
-    await db.insert(coinRate).values({ currency: "CAD", valuePerCoin: "0.2500" });
+    const [rate] = await db.insert(coinRate).values({ currency: "CAD", valuePerCoin: "0.2500" }).returning({ id: coinRate.id });
+    await (await import("@/lib/wallet/coin-rate-cache")).coinRateCache.evictAll(); // direct coin_rate write
+    try {
     const input = await inputFor("M5V 2T6");
     const [u] = await db.insert(users).values({ email: input.contact.email, role: "user" }).returning({ id: users.id });
     await db.insert(walletLedger).values({ userId: u!.id, direction: "credit", sourceType: "seed", sourceId: "estimate-coins", coins: 40 });
@@ -193,5 +195,9 @@ describe("coupons apply after catalog discounts", () => {
     await createOrder({ ...input, coins: 12 }, {});
     const [order] = await db.select().from(orders).where(ne(orders.deploymentId, ""));
     expect(Number(order!.total)).toBeCloseTo(some.preview.total, 2);
+    } finally {
+      await db.delete(coinRate).where(eq(coinRate.id, rate!.id));
+      await (await import("@/lib/wallet/coin-rate-cache")).coinRateCache.evictAll(); // direct coin_rate write
+    }
   });
 });

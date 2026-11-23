@@ -125,7 +125,8 @@ describe("order sends", () => {
     await createOrder(input(first.toISOString().slice(0, 10), email));
     const [u] = await db.select({ id: users.id }).from(users).where(eq(users.email, email));
     userIds.push(u.id);
-    await db.insert(coinRate).values({ currency: "CAD", valuePerCoin: "0.2500" });
+    const [rate] = await db.insert(coinRate).values({ currency: "CAD", valuePerCoin: "0.2500" }).returning({ id: coinRate.id });
+    await (await import("@/lib/wallet/coin-rate-cache")).coinRateCache.evictAll(); // direct coin_rate write
     await db.insert(walletLedger).values({ userId: u.id, direction: "credit", eventType: "order_activated", sourceType: "seed", sourceId: `ns-${R}`, coins: 200 });
     const second = new Date(first);
     second.setUTCDate(second.getUTCDate() + 7);
@@ -133,7 +134,9 @@ describe("order sends", () => {
     const rows = await rowsFor("wallet_redeemed", u.id);
     expect(channelsOf(rows)).toEqual(["email", "in_app"]);
     expect(rows.every((r) => r.dedupeKey?.startsWith(`wallet_redeemed:${publicId}`))).toBe(true);
-    await db.delete(coinRate).where(eq(coinRate.currency, "CAD"));
+    // Only this test's rate: deleting every CAD row also removed the seeded rate other suites need.
+    await db.delete(coinRate).where(eq(coinRate.id, rate!.id));
+    await (await import("@/lib/wallet/coin-rate-cache")).coinRateCache.evictAll(); // direct coin_rate write
   });
 });
 

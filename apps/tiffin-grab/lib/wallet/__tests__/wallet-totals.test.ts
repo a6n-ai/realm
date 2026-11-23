@@ -6,6 +6,7 @@ import { walletService } from "../wallet.service";
 
 let userId: bigint;
 let reversedId: bigint;
+let rateId: bigint;
 
 beforeAll(async () => {
   const [u] = await db.insert(users).values({ email: "wallet-totals@throwaway.local" }).returning();
@@ -26,14 +27,17 @@ beforeAll(async () => {
     { userId: reversedId, direction: "credit", eventType: null, sourceType: "redemption_reversal", sourceId: "t-r2", coins: 30, memo: null },
   ]);
 
-  await db.insert(coinRate).values({ currency: "CAD", valuePerCoin: "0.01" });
+  ;[{ id: rateId }] = await db.insert(coinRate).values({ currency: "CAD", valuePerCoin: "0.01" }).returning({ id: coinRate.id });
+  await (await import("@/lib/wallet/coin-rate-cache")).coinRateCache.evictAll(); // direct coin_rate write
 });
 
 afterAll(async () => {
   await db.delete(walletLedger).where(eq(walletLedger.userId, userId));
   await db.delete(walletLedger).where(eq(walletLedger.userId, reversedId));
   await db.delete(users).where(eq(users.id, reversedId));
-  await db.delete(coinRate).where(eq(coinRate.currency, "CAD"));
+  // Only this suite's rate: deleting every CAD row also removed the seeded rate other suites need.
+  await db.delete(coinRate).where(eq(coinRate.id, rateId));
+  await (await import("@/lib/wallet/coin-rate-cache")).coinRateCache.evictAll(); // direct coin_rate write
   await db.delete(users).where(eq(users.id, userId));
 });
 

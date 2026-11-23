@@ -83,6 +83,7 @@ beforeAll(async () => {
   orderId3 = o3.id;
 
   const [cr] = await db.insert(coinRate).values({ currency: "CAD", valuePerCoin: "0.1000" }).returning();
+  await (await import("@/lib/wallet/coin-rate-cache")).coinRateCache.evictAll(); // direct coin_rate write
   coinRateId = cr.id;
 });
 
@@ -98,6 +99,7 @@ afterAll(async () => {
   await db.delete(ledgerEntries).where(eq(ledgerEntries.orderId, orderId3));
   await db.delete(walletLedger).where(eq(walletLedger.userId, userId));
   await db.delete(coinRate).where(eq(coinRate.id, coinRateId));
+  await (await import("@/lib/wallet/coin-rate-cache")).coinRateCache.evictAll(); // direct coin_rate write
   await db.delete(orders).where(eq(orders.id, orderId));
   await db.delete(orders).where(eq(orders.id, orderId2));
   await db.delete(orders).where(eq(orders.id, orderId3));
@@ -144,11 +146,13 @@ describe("WalletService redeem", () => {
     // balance is now 20 + 50 = 70; 50*0.07=3.50 > 3.00 — triggers the cap
     // Use orderId2 (a fresh order) so the idempotency guard does not fire
     const [cr07] = await db.insert(coinRate).values({ currency: "CAD", valuePerCoin: "0.0700" }).returning();
+    await (await import("@/lib/wallet/coin-rate-cache")).coinRateCache.evictAll(); // direct coin_rate write
     try {
       const r = await walletService.redeem(userId, 50, { id: orderId2, total: 3.00, currency: "CAD" });
       expect(r.currencyValue).toBeLessThanOrEqual(3.00);
     } finally {
       await db.delete(coinRate).where(eq(coinRate.id, cr07.id));
+      await (await import("@/lib/wallet/coin-rate-cache")).coinRateCache.evictAll(); // direct coin_rate write
     }
   });
 

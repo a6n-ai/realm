@@ -151,6 +151,7 @@ describe("payCheckout", () => {
 
   it("with coins applied, a retry after a decline cancels the older order and does not double-hold the coins", async () => {
     const [rate] = await db.insert(coinRate).values({ currency: "CAD", valuePerCoin: "0.1000" }).returning();
+    await (await import("@/lib/wallet/coin-rate-cache")).coinRateCache.evictAll(); // direct coin_rate write
     try {
       await db.insert(walletLedger).values({ userId: sessionUserId!, direction: "credit", eventType: "signup", sourceType: "signup", sourceId: "pay-coins", coins: 400, memo: null });
       await db.insert(coupons).values({ code: "PAYTEST5", kind: "fixed", name: "Pay test", valueAmount: "5" });
@@ -170,6 +171,7 @@ describe("payCheckout", () => {
       expect(await walletService.balance(sessionUserId!)).toBe(100);
     } finally {
       await db.delete(coinRate).where(eq(coinRate.id, rate!.id));
+      await (await import("@/lib/wallet/coin-rate-cache")).coinRateCache.evictAll(); // direct coin_rate write
     }
   });
 
