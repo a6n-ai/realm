@@ -64,7 +64,9 @@
         "!EXTRACTION.md",
         "!PROJECT.md",
         "!README.md",
-        "!SECURITY.md"
+        "!SECURITY.md",
+        "!opencode.json",
+        "!skills-lock.json"
       ],
       "must": {
         "haveType": "directory"
