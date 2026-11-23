@@ -60,4 +60,17 @@ describe("audit logging via the intermediate layer (integration)", () => {
     ).resolves.toBeUndefined();
     expect(logError).toHaveBeenCalled();
   });
+
+  it("skips a repeat inside the window but keeps a different actor, change or op", async () => {
+    const base = { entity: "users", entityPublicId: "usr_dedupe", operation: "read" as const, changes: null, createdBy: null };
+    const opts = { skipRepeatWithinMs: 60_000 };
+    await recordAudit(base, opts);
+    await recordAudit(base, opts);
+    await recordAudit({ ...base, changes: { _action: "platform_bypass", perms: { order: ["read"] } } }, opts);
+    await recordAudit({ ...base, changes: { _action: "platform_bypass", perms: { order: ["read"] } } }, opts);
+    await recordAudit({ ...base, operation: "update" }, opts);
+    await recordAudit(base); // no window: always written
+    const rows = await db.select().from(auditLog).where(eq(auditLog.entityPublicId, "usr_dedupe"));
+    expect(rows.map((r) => r.operation).toSorted()).toEqual(["read", "read", "read", "update"]);
+  });
 });

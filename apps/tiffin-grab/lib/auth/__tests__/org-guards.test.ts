@@ -8,7 +8,7 @@ const dbRows = vi.fn();
 vi.mock("@/db/client", () => ({
   db: { select: () => ({ from: () => ({ where: () => dbRows() }) }) },
 }));
-vi.mock("@/lib/identity/audit", () => ({ recordAudit: vi.fn() }));
+vi.mock("@/lib/identity/audit", () => ({ recordAudit: vi.fn(), AUDIT_REPEAT_WINDOW_MS: 600_000 }));
 vi.mock("@/lib/identity/user-ids", () => ({ userIdByPublicId: vi.fn(async () => 7n) }));
 
 const { getSession } = await import("@/lib/auth/session");
@@ -40,6 +40,7 @@ describe("org guards", () => {
     await expect(requirePermission({ finance: ["read"] })).resolves.toBeUndefined();
     expect(recordAudit).toHaveBeenCalledWith(
       expect.objectContaining({ entity: "auth", operation: "update", changes: { _action: "platform_bypass", perms: { finance: ["read"] } } }),
+      { skipRepeatWithinMs: 600_000 },
     );
     expect(dbRows).not.toHaveBeenCalled();
   });

@@ -1,5 +1,6 @@
 import { stripManaged } from "@foundry/database";
 import { createLogger } from "@foundry/commons/logger";
+import { and, eq, gt, isNull, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { auditLog } from "@/db/schema";
 
@@ -53,13 +54,41 @@ function jsonSafe(value: Record<string, unknown> | null): Record<string, unknown
   return coerceBigints(value) as Record<string, unknown>;
 }
 
-export async function recordAudit(entry: AuditEntry): Promise<void> {
+/** Repeat views (reads, platform bypasses) inside this window are one access, not new rows. */
+export const AUDIT_REPEAT_WINDOW_MS = 10 * 60_000;
+
+// Same actor, entity, operation and changes recorded inside the window. Served by
+// audit_log_entity_idx (entity, entity_public_id, created_at).
+async function recentlyRecorded(entry: AuditEntry, changes: Record<string, unknown> | null, windowMs: number) {
+  const [hit] = await db
+    .select({ one: sql`1` })
+    .from(auditLog)
+    .where(and(
+      eq(auditLog.entity, entry.entity),
+      eq(auditLog.entityPublicId, entry.entityPublicId),
+      gt(auditLog.createdAt, Date.now() - windowMs),
+      eq(auditLog.operation, entry.operation),
+      entry.createdBy == null ? isNull(auditLog.createdBy) : eq(auditLog.createdBy, entry.createdBy),
+      changes == null ? isNull(auditLog.changes) : sql`${auditLog.changes} = ${JSON.stringify(changes)}::jsonb`,
+    ))
+    .limit(1);
+  return Boolean(hit);
+}
+
+/**
+ * `skipRepeatWithinMs` drops a row identical to one already written in that window. Only
+ * for idempotent access events; never for logins or failed logins, whose repeats are the
+ * signal (brute force), nor for writes.
+ */
+export async function recordAudit(entry: AuditEntry, opts: { skipRepeatWithinMs?: number } = {}): Promise<void> {
   try {
+    const changes = jsonSafe(entry.changes);
+    if (opts.skipRepeatWithinMs && (await recentlyRecorded(entry, changes, opts.skipRepeatWithinMs))) return;
     await db.insert(auditLog).values({
       entity: entry.entity,
       entityPublicId: entry.entityPublicId,
       operation: entry.operation,
-      changes: jsonSafe(entry.changes),
+      changes,
       createdBy: entry.createdBy,
     });
   } catch (err) {

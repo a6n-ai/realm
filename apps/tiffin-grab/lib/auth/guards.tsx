@@ -6,7 +6,7 @@ import { isForbiddenDenial } from "./forbidden-denial";
 import { effectivePermissions, getOrgAccess, getOrgAccessFor, rolePermissions } from "./org-access";
 import { orgRoles } from "./permissions";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
-import { recordAudit } from "@/lib/identity/audit";
+import { AUDIT_REPEAT_WINDOW_MS, recordAudit } from "@/lib/identity/audit";
 import { shouldAuditBypass } from "./bypass-audit";
 import { userIdByPublicId } from "@/lib/identity/user-ids";
 import { isStaffRole } from "@/lib/roles";
@@ -34,7 +34,7 @@ const onPlatformBypass = async (userId: string, perms: Record<string, string[]>)
     operation: "update",
     changes: { _action: "platform_bypass", perms },
     createdBy: (await userIdByPublicId(userId)) ?? null,
-  });
+  }, { skipRepeatWithinMs: AUDIT_REPEAT_WINDOW_MS });
 };
 
 export const { can, requirePermission } = createOrgPermissionGuards({ getAccess: getOrgAccess, onPlatformBypass });

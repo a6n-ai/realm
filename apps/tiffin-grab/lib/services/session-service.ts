@@ -2,7 +2,7 @@ import { BaseService, UpdatableService, stripManaged } from "@foundry/database";
 import type { PgTable } from "drizzle-orm/pg-core";
 import { getSession } from "@/lib/auth/session";
 import { userIdByPublicId } from "@/lib/identity/user-ids";
-import { diffChanges, recordAudit } from "@/lib/identity/audit";
+import { AUDIT_REPEAT_WINDOW_MS, diffChanges, recordAudit } from "@/lib/identity/audit";
 import { AUDIT_UPDATE_SKIP } from "./audit-config";
 import { rethrowNextInternal } from "@foundry/auth/next-bailout";
 
@@ -42,7 +42,7 @@ export class SessionBaseService<TTable extends PgTable> extends BaseService<TTab
         operation: "read",
         changes: null,
         createdBy: await this.currentUserId(),
-      });
+      }, { skipRepeatWithinMs: AUDIT_REPEAT_WINDOW_MS });
     }
     return row;
   }
@@ -89,7 +89,7 @@ export class SessionUpdatableService<TTable extends PgTable> extends UpdatableSe
         operation: "read",
         changes: null,
         createdBy: await this.currentUserId(),
-      });
+      }, { skipRepeatWithinMs: AUDIT_REPEAT_WINDOW_MS });
     }
     return row;
   }

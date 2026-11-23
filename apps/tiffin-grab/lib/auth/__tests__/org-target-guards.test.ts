@@ -7,7 +7,7 @@ const memberRows = vi.fn();
 vi.mock("@/db/client", () => ({
   db: { select: () => ({ from: () => ({ where: () => memberRows() }) }) },
 }));
-vi.mock("@/lib/identity/audit", () => ({ recordAudit: vi.fn() }));
+vi.mock("@/lib/identity/audit", () => ({ recordAudit: vi.fn(), AUDIT_REPEAT_WINDOW_MS: 600_000 }));
 vi.mock("@/lib/identity/user-ids", () => ({ userIdByPublicId: vi.fn(async () => 7n) }));
 
 const { getSession } = await import("@/lib/auth/session");
@@ -41,7 +41,7 @@ describe("requirePermissionIn (target org)", () => {
   it("super_admin is allowed and audited", async () => {
     session.mockResolvedValue(sess("super_admin", null));
     await expect(requirePermissionIn("brand", { member: ["update"] })).resolves.toBeUndefined();
-    expect(recordAudit).toHaveBeenCalledWith(expect.objectContaining({ changes: { _action: "platform_bypass", perms: { member: ["update"] } } }));
+    expect(recordAudit).toHaveBeenCalledWith(expect.objectContaining({ changes: { _action: "platform_bypass", perms: { member: ["update"] } } }), { skipRepeatWithinMs: 600_000 });
   });
 });
 

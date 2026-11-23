@@ -4,6 +4,8 @@ import type { PgTable } from "drizzle-orm/pg-core";
 const auditRows: Record<string, unknown>[] = [];
 vi.mock("@/db/client", () => ({
   db: {
+    // Repeat-window lookup (recordAudit skipRepeatWithinMs): nothing recent.
+    select: () => ({ from: () => ({ where: () => ({ limit: async () => [] }) }) }),
     insert: () => ({
       values: (v: Record<string, unknown>) => {
         auditRows.push(v);
