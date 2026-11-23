@@ -158,3 +158,30 @@ subdomain is its own SES identity, so it builds separate DKIM reputation.
    `identity/notify.tiffingrab.ca` next to `identity/tiffingrab.ca`.
 4. SSM: set `CAMPAIGN_FROM_EMAIL=info@tiffingrab.ca` **first**, then
    `NOTIFY_FROM_EMAIL=hi@notify.tiffingrab.ca`, then redeploy.
+
+## Tracking domain (`track.tiffingrab.ca`)
+
+Open/click tracking on `tiffin-grab-prod` and `tiffin-grab-transactional-tracked` rewrites links
+through `track.tiffingrab.ca` instead of SES's shared `awstrack.me`, so link reputation is ours and
+links read as the brand. `tiffin-grab-transactional` (OTP, auth, orders) has no tracking and is untouched.
+
+- **DNS (Cloudflare):** `track.tiffingrab.ca` CNAME `r.us-east-1.awstrack.me`, **proxied**. The zone's
+  SSL mode is `full` (Cloudflare reaches AWS over TLS without matching its cert, which `awstrack.me`
+  cannot have for our name). Use a **one-level** subdomain: Universal SSL covers `*.tiffingrab.ca`
+  only, so `track.notify.tiffingrab.ca` fails the TLS handshake. `tiffingrab.ca` is a verified SES
+  identity, which is all SES needs for the subdomain.
+- **SES:** stack parameter `TrackingDomain` (`HttpsPolicy: REQUIRE`). Change it with a change set that
+  keeps every other parameter (`UsePreviousValue=true`), review it, then execute:
+  ```bash
+  aws cloudformation create-change-set --region us-east-1 --stack-name tiffin-grab-ses-suppression \
+    --change-set-name tracking-domain --template-body file://deployment/email/ses-suppression.yaml \
+    --parameters ParameterKey=AlertEmail,UsePreviousValue=true \
+      ParameterKey=TransactionalConfigurationSetName,UsePreviousValue=true \
+      ParameterKey=TrackedConfigurationSetName,UsePreviousValue=true \
+      ParameterKey=ConfigurationSetName,UsePreviousValue=true \
+      ParameterKey=WebhookEndpoint,UsePreviousValue=true \
+      ParameterKey=TrackingDomain,ParameterValue=track.tiffingrab.ca
+  ```
+  Empty `TrackingDomain` reverts to `awstrack.me`.
+- **Verify:** `curl -I https://track.tiffingrab.ca/favicon.ico` returns 200 with
+  `x-amz-ses-request-protocol: https`; links in a test campaign point at `track.tiffingrab.ca`.
