@@ -1,3 +1,4 @@
+import { postgresOptions } from "@foundry/database";
 import { count, eq, inArray, ne } from "drizzle-orm";
 import { db } from "./client";
 import { categoryPlans, dishCategories, dishes, notificationOutbox, plans, users } from "./schema";
@@ -89,7 +90,7 @@ export async function ensureSeededCatalog(): Promise<void> {
   if (Number(row?.count ?? 0) >= 10) return;
   const dbUrl = databaseUrl();
   const postgres = (await import("postgres")).default;
-  const raw = postgres(dbUrl, { prepare: false, max: 1 });
+  const raw = postgres(dbUrl, { ...postgresOptions, prepare: false, max: 1 });
   try {
     const { readFileSync } = await import("node:fs");
     const { fileURLToPath } = await import("node:url");

@@ -1,0 +1,1 @@
+CREATE INDEX "coupons_code_upper_idx" ON "coupons" USING btree (upper("code"));

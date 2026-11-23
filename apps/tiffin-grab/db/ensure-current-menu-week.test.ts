@@ -1,3 +1,4 @@
+import { postgresOptions } from "@foundry/database";
 // @vitest-environment node
 /**
  * Ensures a released tiffin menu_week for app-tz "this Monday" so deliveries
@@ -46,7 +47,7 @@ describe("ensure current menu week", () => {
         const { readFileSync } = await import("node:fs");
         const { fileURLToPath } = await import("node:url");
         const postgres = (await import("postgres")).default;
-        const raw = postgres(process.env.DATABASE_URL!, { prepare: false, max: 1 });
+        const raw = postgres(process.env.DATABASE_URL!, { ...postgresOptions, prepare: false, max: 1 });
         try {
           await raw.unsafe(readFileSync(fileURLToPath(new URL("./seed.sql", import.meta.url)), "utf8"));
         } finally {

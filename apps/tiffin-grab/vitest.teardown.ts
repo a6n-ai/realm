@@ -1,3 +1,4 @@
+import { postgresOptions } from "@foundry/database";
 import { databaseUrl } from "./lib/runtime/env";
 // Before the whole run: clear the wallet tables that reference `users`. Each
 // live-DB suite's `delete users where is_system<>true` assumes no user-FK rows
@@ -20,7 +21,7 @@ export async function setup() {
   // Dedicated one-shot client, closed immediately — importing @/db/client here
   // would open its long-lived pool in the main process and hang vitest's exit.
   const postgres = (await import("postgres")).default;
-  const client = postgres(dbUrl, { prepare: false, max: 1 });
+  const client = postgres(dbUrl, { ...postgresOptions, prepare: false, max: 1 });
   try {
     await client`TRUNCATE wallet_ledger, event_payout`;
     // Customer-group rows left by an aborted run block every suite's user delete.
@@ -56,7 +57,7 @@ export async function teardown() {
   if (!isLocalDb(dbUrl)) return; // never reseed prod
 
   const postgres = (await import("postgres")).default;
-  const client = postgres(dbUrl, { prepare: false, max: 1 });
+  const client = postgres(dbUrl, { ...postgresOptions, prepare: false, max: 1 });
   try {
     const { readFileSync } = await import("node:fs");
     const { fileURLToPath } = await import("node:url");

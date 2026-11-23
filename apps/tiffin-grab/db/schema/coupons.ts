@@ -68,6 +68,8 @@ export const coupons = pgTable("coupons", {
   customerGroupId: bigint("customer_group_id", { mode: "bigint" }).references(() => customerGroups.id),
 }, (t) => [
   index("coupons_kind_active_idx").on(t.kind, t.active),
+  // Code lookups match case-insensitively (promotions/coupons services); without this every check was a full scan.
+  index("coupons_code_upper_idx").on(sql`upper(${t.code})`),
   // One rep_daily coupon per rep per allowance day (app-settings timezone; column keeps its ist_date name).
   uniqueIndex("coupons_rep_daily_unique")
     .on(t.ownerUserId, t.istDate)

@@ -1,5 +1,5 @@
 import "server-only";
-import { and, inArray, sql, type SQL } from "drizzle-orm";
+import { and, eq, gte, inArray, isNotNull, lte, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db/client";
 import { deliveries, ledgerEntries, mealSizes, orders, payments, plans } from "@/db/schema";
 import { CAPTURED, PAID } from "@/lib/payments/status";
@@ -187,37 +187,39 @@ export async function freeTiffins(scope: AnalyticsScope, now = Date.now()): Prom
   if (noOrgs(scope)) return { count: 0, orders: 0, valued: 0, notValued: 0, amount: 0, byReason: [] };
   const from = isoDateInZone(scope.fromMs, scope.tz);
   const to = [isoDateInZone(scope.toMs, scope.tz), isoDateInZone(now, scope.tz)].sort()[0]!;
-  const rows = rowsOf(
-    await db.execute(sql`
-      select trim(${deliveries.complimentaryNote}) as reason,
-        coalesce(sum(${deliveries.tiffinUnits}), 0)::int::text as count,
-        array_agg(distinct ${orders.id}::text) as order_ids,
-        (coalesce(sum(${deliveries.tiffinUnits}) filter (where ${FREE_VALUED}), 0))::int::text as valued,
-        coalesce(sum(case when ${FREE_VALUED} then ${deliveries.tiffinUnits}::numeric * ${FREE_PRICE} end), 0)::text as amount
-      from ${deliveries} inner join ${orders} on ${orders.id} = ${deliveries.orderId}
-      where ${and(
-        sql`${deliveries.complimentaryNote} is not null`,
-        sql`${deliveries.status} = 'scheduled'`,
-        sql`${deliveries.deliveryDate} >= ${from}`,
-        sql`${deliveries.deliveryDate} <= ${to}`,
-        ordersScope(scope),
-      )}
-      group by 1`),
-  );
+  const reason = sql<string | null>`trim(${deliveries.complimentaryNote})`;
+  const rows = await db
+    .select({
+      reason,
+      count: sql<number>`coalesce(sum(${deliveries.tiffinUnits}), 0)::int`.mapWith(Number),
+      orderIds: sql<string[]>`array_agg(distinct ${orders.publicId})`,
+      valued: sql<number>`coalesce(sum(${deliveries.tiffinUnits}) filter (where ${FREE_VALUED}), 0)::int`.mapWith(Number),
+      amount: sql<number>`coalesce(sum(case when ${FREE_VALUED} then ${deliveries.tiffinUnits}::numeric * ${FREE_PRICE} end), 0)`.mapWith(Number),
+    })
+    .from(deliveries)
+    .innerJoin(orders, eq(orders.id, deliveries.orderId))
+    .where(and(
+      isNotNull(deliveries.complimentaryNote),
+      eq(deliveries.status, "scheduled"),
+      gte(deliveries.deliveryDate, from),
+      lte(deliveries.deliveryDate, to),
+      ordersScope(scope),
+    ))
+    .groupBy(reason);
   // Summed unrounded and rounded once; reasons are rounded per row.
-  const count = rows.reduce((s, r) => s + n2(r.count), 0);
-  const valued = rows.reduce((s, r) => s + n2(r.valued), 0);
+  const count = rows.reduce((s, r) => s + r.count, 0);
+  const valued = rows.reduce((s, r) => s + r.valued, 0);
   // Reasons are grouped apart, so one order can sit under several; count it once.
-  const orderIds = new Set(rows.flatMap((r) => (r.order_ids as string[] | null) ?? []));
+  const orderIds = new Set(rows.flatMap((r) => r.orderIds));
   const merged = new Map<string, { count: number; amount: number }>();
   for (const r of rows) {
     const key = r.reason || "No reason given";
     const m = merged.get(key) ?? { count: 0, amount: 0 };
-    m.count += n2(r.count);
-    m.amount += n2(r.amount);
+    m.count += r.count;
+    m.amount += r.amount;
     merged.set(key, m);
   }
   const byReason = [...merged].map(([reason, m]) => ({ reason, count: m.count, amount: round2(m.amount) }))
     .sort((a, b) => b.count - a.count || b.amount - a.amount || a.reason.localeCompare(b.reason));
-  return { count, orders: orderIds.size, valued, notValued: count - valued, amount: round2(rows.reduce((s, r) => s + n2(r.amount), 0)), byReason };
+  return { count, orders: orderIds.size, valued, notValued: count - valued, amount: round2(rows.reduce((s, r) => s + r.amount, 0)), byReason };
 }
