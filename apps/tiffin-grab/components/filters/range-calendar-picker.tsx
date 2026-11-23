@@ -10,6 +10,7 @@ import { Calendar } from "@foundry/ui/calendar";
 import { zonedEndOfDay, zonedStartOfDay } from "@foundry/ui/date-range-picker";
 import { Input } from "@foundry/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@foundry/ui/popover";
+import { isSubmitEnter } from "@/lib/enter-key";
 
 type DateRange = { from: Date; to?: Date };
 
@@ -106,7 +107,7 @@ export function RangeCalendarPicker({
   };
 
   const onEnter = (event: React.KeyboardEvent) => {
-    if (event.key !== "Enter") return;
+    if (!isSubmitEnter(event)) return;
     event.preventDefault();
     apply();
   };
