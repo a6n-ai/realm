@@ -8,7 +8,7 @@ import {
 import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { inquiries, leadSources, leadSubsources } from "@/db/schema";
-import { parsePhone } from "@/lib/services/contact";
+import { appPhoneCountry, parsePhone } from "@/lib/services/contact";
 import { inquiriesService } from "@/lib/inquiries/inquiries.service";
 import { metaPixel } from "@/lib/services/meta-pixel/config";
 import { sendMetaCrmLeadCreated } from "./crm-lead";
@@ -97,7 +97,7 @@ async function ingestOneLeadgen(
 
   const email = lead.email?.trim() || null;
   const rawPhone = lead.phone?.trim() || null;
-  const phone = usablePhone(rawPhone);
+  const phone = await usablePhone(rawPhone);
   // Email-only forms have no name or phone. A name is required to open the inquiry.
   let fullName = lead.fullName?.trim() || null;
   if (!fullName && !phone && email) fullName = email.split("@")[0] || null;
@@ -151,11 +151,10 @@ async function ensureInstantFormsSubsource(): Promise<void> {
   });
 }
 
-function usablePhone(raw: string | null): string | null {
+async function usablePhone(raw: string | null): Promise<string | null> {
   if (!raw) return null;
   try {
-    parsePhone(raw);
-    return raw;
+    return parsePhone(raw, await appPhoneCountry());
   } catch {
     return null;
   }

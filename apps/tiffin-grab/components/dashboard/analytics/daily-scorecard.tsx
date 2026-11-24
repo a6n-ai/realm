@@ -168,7 +168,6 @@ export function DailyScorecard({
               r ? (
                 <div key={r.date}>
                   {figureCard(fmt, dayLabel(r.date).split(" · ")[0]!, r, {
-                    href: r.href,
                     muted: mondayIndex(r.date) >= 5 || r.deliveries === 0,
                     orders: ordersByDay[r.date] ?? [],
                   })}
