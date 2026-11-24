@@ -80,7 +80,7 @@ function stopAnalytics() {
   const host = location.hostname.split(".").slice(-2).join(".");
   for (const c of document.cookie.split("; ")) {
     const name = c.split("=")[0];
-    if (name && /^(_ga|_fbp|_fbc)/.test(name)) {
+    if (name && /^(_ga|_fbp|_fbc|tg_mxid)/.test(name)) {
       for (const domain of ["", `; Domain=.${host}`]) document.cookie = `${name}=; Max-Age=0; Path=/${domain}`;
     }
   }

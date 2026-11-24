@@ -22,7 +22,7 @@ import { Alert, AlertDescription } from "@/components/reui/alert";
 import { getProfitabilityReport } from "@/lib/analytics/profitability.service";
 import { navScope, type Grain, type ProfitabilityKpis } from "@/lib/analytics/profitability";
 import { currentMonth, monthBounds } from "@/lib/dates/epoch-window";
-import { getOrderWeeks } from "@/lib/analytics/order-weeks.service";
+import { getOrderCostReport } from "@/lib/analytics/order-weeks.service";
 import { ManualRefresh } from "@/components/dashboard/analytics/manual-refresh";
 import { AssumptionChips } from "./assumption-chips";
 import { DayCards } from "./day-cards";
@@ -87,7 +87,7 @@ export default async function ProfitabilityAnalyticsPage({ searchParams }: { sea
 
         <ChartCard
           title={CARDS_TITLE[grain]}
-          subtitle="Each day: revenue, costs and profit" info="Revenue is allocated to the day the tiffin went out, not the day the customer paid. Open a card for its cost breakdown. Each column is shaded on its own scale; weekends and days without deliveries are muted. Monthly costs are company-wide."
+          subtitle="Each day: revenue, costs and profit" info="Revenue is allocated to the day the tiffin went out, not the day the customer paid. Open a day for each order's price / tiffin, food, driver and contribution. Monthly marketing and salaries stay on the day total. Each column is shaded on its own scale; weekends and days without deliveries are muted."
         >
           <Suspense fallback={<ChartSkeleton height={320} />}>
             <Cards view={view} />
@@ -135,6 +135,13 @@ const loadReport = cache((month: string, grain: Grain, scope: AnalyticsScope) =>
 );
 
 const reportFrom = ({ month, grain, scope }: View) => loadReport(month, grain, scope);
+
+const loadOrderCosts = cache((scope: AnalyticsScope, from: string, to: string) => getOrderCostReport(scope, from, to));
+
+function orderCostRange(view: View, from: string, to: string) {
+  // A 12-month range would be ~52 tables; the monthly view lists the selected month only.
+  return view.grain === "monthly" ? monthBounds(view.month) : { from, to };
+}
 
 async function Nav({ view }: { view: View }) {
   const report = await reportFrom(view);
@@ -245,9 +252,9 @@ function HeadlineCards({ kpis, range, cashHref, toDate, money }: { kpis: Profita
 
 async function OrderWeeks({ view }: { view: View }) {
   const report = await reportFrom(view);
-  // A 12-month range would be ~52 tables; the monthly view lists the selected month only.
-  const range = view.grain === "monthly" ? monthBounds(view.month) : { from: report.from, to: report.to };
-  return <OrderWeeksTable weeks={await getOrderWeeks(view.scope, range.from, range.to)} />;
+  const range = orderCostRange(view, report.from, report.to);
+  const { weeks } = await loadOrderCosts(view.scope, range.from, range.to);
+  return <OrderWeeksTable weeks={weeks} />;
 }
 
 async function Trend({ view }: { view: View }) {
@@ -257,7 +264,9 @@ async function Trend({ view }: { view: View }) {
 
 async function Cards({ view }: { view: View }) {
   const report = await reportFrom(view);
-  return <DayCards rows={report.rows} grain={report.grain} from={report.from} to={report.to} />;
+  const range = orderCostRange(view, report.from, report.to);
+  const { byDay } = report.grain === "daily" ? await loadOrderCosts(view.scope, range.from, range.to) : { byDay: {} };
+  return <DayCards rows={report.rows} grain={report.grain} from={report.from} to={report.to} ordersByDay={byDay} />;
 }
 
 async function Costs({ view }: { view: View }) {

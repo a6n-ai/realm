@@ -62,6 +62,7 @@ SELECT v.public_id,
 FROM (VALUES ('lss_web_direct', 'website', 'direct', 'Direct'),
              ('lss_fb_feed', 'facebook', 'facebook_feed', 'Facebook Feed'),
              ('lss_fb_ads', 'facebook', 'facebook_ads', 'Facebook Ads'),
+             ('lss_fb_instant', 'facebook', 'instant_forms', 'Instant Forms'),
              ('lss_ig_reels', 'instagram', 'instagram_reels',
               'Instagram Reels')) AS v(public_id, source_key, key, label)
 WHERE NOT EXISTS (SELECT 1 FROM lead_subsources s WHERE s.key = v.key);

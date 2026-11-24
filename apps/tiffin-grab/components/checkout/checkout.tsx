@@ -25,6 +25,7 @@ import {
 import { confirmSubscription, payCheckout } from "@/lib/checkout/actions";
 import { abandonCard, confirmReturn, newCustomerSession } from "@/lib/payments/pay-actions";
 import { trackMeta } from "@foundry/meta-pixel/client";
+import { trackMetaCustom } from "@/lib/meta/browser";
 import { sendMetaClientEvent } from "@/lib/meta/actions";
 import { orderSubmittedEventId } from "@/lib/meta/event-ids";
 import { CardPay, CardPayProvider, ExpressPay, PaidSwitch, useWarmStripe, type PaidInfo, type ReceiptView } from "@/components/payments/card-pay";
@@ -355,7 +356,7 @@ export function Checkout({
     purchasePixelFired.current = true;
     const value = etransfer.receipt.total / 100;
     const eventId = orderSubmittedEventId(etransfer.paymentPublicId);
-    trackMeta(
+    trackMetaCustom(
       "order_submitted",
       {
         value,

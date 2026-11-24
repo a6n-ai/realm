@@ -188,6 +188,7 @@ export interface CreateOrderOptions {
     fbp?: string;
     fbc?: string;
     eventSourceUrl?: string;
+    externalId?: string;
   } | null;
   /** False for renewals — Purchase CAPI is first-plan only. Default true. */
   metaPurchaseEligible?: boolean;

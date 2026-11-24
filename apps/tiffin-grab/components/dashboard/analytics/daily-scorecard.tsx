@@ -3,9 +3,11 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@foundry/ui/tabs";
 import { ChartEmpty } from "@/components/dashboard/analytics/chart-boundary";
 import { DayCard, DayGridView, signedMoney } from "@/components/dashboard/analytics/day-card";
+import { DayOrdersDialog } from "@/components/dashboard/analytics/day-orders-dialog";
 import { useFormatMoney } from "@/components/app-currency";
 import { dayGrid } from "@/lib/analytics/day-grid";
 import { addDaysIso, isoToUtcDate, mondayIndex } from "@foundry/commons/util/dates";
+import type { OrderCostRow } from "@/lib/analytics/order-weeks.service";
 
 export type ScorecardDay = {
   date: string;
@@ -23,11 +25,11 @@ type Column = { key: Exclude<keyof ScorecardDay, "date" | "href">; label: string
 
 const COLUMNS: Column[] = [
   { key: "revenue", label: "Net revenue", money: true },
-  { key: "orders", label: "Orders" },
-  { key: "deliveries", label: "Deliveries to date" },
-  { key: "skipped", label: "Skipped" },
-  { key: "signups", label: "Signups" },
-  { key: "complaints", label: "Complaints" },
+  { key: "orders", label: "Orders", money: false },
+  { key: "deliveries", label: "Deliveries to date", money: false },
+  { key: "skipped", label: "Skipped", money: false },
+  { key: "signups", label: "Signups", money: false },
+  { key: "complaints", label: "Complaints", money: false },
   { key: "profit", label: "Profit", money: true },
 ];
 
@@ -80,7 +82,51 @@ function figures(r: Figures, fmt: Fmt): [string, string][] {
   });
 }
 
-function figureCard(fmt: Fmt, title: string, r: Figures, extra: { href?: string; muted?: boolean }) {
+function DayFace({ title, r, fmt }: { title: string; r: Figures; fmt: Fmt }) {
+  const tone =
+    r.profit == null || r.profit === 0
+      ? "text-muted-foreground"
+      : r.profit < 0
+        ? "text-destructive"
+        : "text-success-foreground dark:text-success";
+  return (
+    <>
+      <span className="font-medium">{title}</span>
+      <dl className="flex flex-col gap-0.5 text-xs tabular-nums">
+        <div className="flex justify-between gap-2">
+          <dt className="text-muted-foreground">Net revenue</dt>
+          <dd>{fmt(r.revenue)}</dd>
+        </div>
+        <div className="flex justify-between gap-2">
+          <dt className="text-muted-foreground">Deliveries</dt>
+          <dd>{num(r.deliveries)}</dd>
+        </div>
+      </dl>
+      <span className={`text-sm font-semibold tabular-nums ${tone}`}>{r.profit == null ? "—" : signedMoney(r.profit, fmt)}</span>
+    </>
+  );
+}
+
+function figureCard(
+  fmt: Fmt,
+  title: string,
+  r: Figures & { date?: string; href?: string },
+  extra: { muted?: boolean; orders?: OrderCostRow[] },
+) {
+  const details = figures(r, fmt);
+  // Week totals keep the light popover; day cards with finance profit open the order dialog.
+  if (r.date != null && r.profit != null && extra.orders !== undefined) {
+    return (
+      <DayOrdersDialog
+        title={dayLabel(r.date)}
+        trigger={<DayFace title={title} r={r} fmt={fmt} />}
+        summary={details}
+        orders={extra.orders}
+        dayProfit={r.profit}
+        muted={extra.muted}
+      />
+    );
+  }
   return (
     <DayCard
       title={title}
@@ -89,14 +135,22 @@ function figureCard(fmt: Fmt, title: string, r: Figures, extra: { href?: string;
         ["Deliveries", num(r.deliveries)],
       ]}
       profit={r.profit}
-      details={figures(r, fmt)}
-      {...extra}
+      details={details}
+      href={r.href}
+      muted={extra.muted}
     />
   );
 }
 
-/** Per-day figures as Mon–Sun cards; "By week" shows week totals. A day's popover links to that day's orders. */
-export function DailyScorecard({ rows }: { rows: ScorecardDay[] }) {
+/** Per-day figures as Mon–Sun cards; "By week" shows week totals. A day's dialog lists orders used for that day's profit. */
+export function DailyScorecard({
+  rows,
+  ordersByDay = {},
+}: {
+  rows: ScorecardDay[];
+  /** Delivered-order costing keyed by ISO date; only days with finance profit use it. */
+  ordersByDay?: Record<string, OrderCostRow[]>;
+}) {
   const fmt = useFormatMoney();
   if (rows.length === 0) return <ChartEmpty message="No days in this range." />;
   const weeks = groupByWeek(rows);
@@ -110,7 +164,17 @@ export function DailyScorecard({ rows }: { rows: ScorecardDay[] }) {
         <DayGridView
           columns={7}
           weeks={dayGrid(rows).map((w) =>
-            w.map((r) => (r ? <div key={r.date}>{figureCard(fmt, dayLabel(r.date).split(" · ")[0]!, r, { href: r.href, muted: mondayIndex(r.date) >= 5 || r.deliveries === 0 })}</div> : null)),
+            w.map((r) =>
+              r ? (
+                <div key={r.date}>
+                  {figureCard(fmt, dayLabel(r.date).split(" · ")[0]!, r, {
+                    href: r.href,
+                    muted: mondayIndex(r.date) >= 5 || r.deliveries === 0,
+                    orders: ordersByDay[r.date] ?? [],
+                  })}
+                </div>
+              ) : null,
+            ),
           )}
         />
       </TabsContent>

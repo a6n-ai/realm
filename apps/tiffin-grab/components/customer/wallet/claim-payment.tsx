@@ -13,8 +13,8 @@ import { claimPaymentAction } from "@/lib/payments/customer-actions";
 import type { ClaimPaymentContext } from "@/lib/payments/verification";
 import { sanitizeClientError } from "@foundry/commons/util/client-error";
 import { PaymentInstructions } from "@/components/payment-instructions";
-import { trackMeta } from "@foundry/meta-pixel/client";
 import { gtagEvent } from "@foundry/google-analytics/client";
+import { trackMetaCustom } from "@/lib/meta/browser";
 import { orderSubmittedEventId } from "@/lib/meta/event-ids";
 import { formatMoney } from "@foundry/commons";
 
@@ -109,7 +109,7 @@ export function ClaimPayment({
         if (!orderSubmittedPixelFired.current) {
           orderSubmittedPixelFired.current = true;
           const eventId = orderSubmittedEventId(ctx.paymentPublicId);
-          trackMeta(
+          trackMetaCustom(
             "order_submitted",
             { value: Number(ctx.amount), currency, num_items: 1 },
             eventId,

@@ -11,8 +11,8 @@ import { makeImageThumbnail } from "@/components/ds";
 import { claimPaymentAction } from "@/lib/payments/customer-actions";
 import { sanitizeClientError } from "@foundry/commons/util/client-error";
 import { PaymentInstructions } from "@/components/payment-instructions";
-import { trackMeta } from "@foundry/meta-pixel/client";
 import { gtagEvent } from "@foundry/google-analytics/client";
+import { trackMetaCustom } from "@/lib/meta/browser";
 import { orderSubmittedEventId } from "@/lib/meta/event-ids";
 
 const ACCEPT = ["image/png", "image/jpeg", "image/webp", "image/gif"];
@@ -79,7 +79,7 @@ export function EtransferDialog({ open, onOpenChange, payment, renderSubmitted, 
         if (!orderSubmittedPixelFired.current) {
           orderSubmittedPixelFired.current = true;
           const eventId = orderSubmittedEventId(payment.paymentPublicId);
-          trackMeta(
+          trackMetaCustom(
             "order_submitted",
             { value: payment.amount, currency, num_items: 1 },
             eventId,

@@ -7,7 +7,7 @@ import { getMetaPixelStatus } from "@/lib/services/meta-pixel/config";
 import { MetaPixelForm, SendTestEvent } from "./meta-pixel-form";
 
 const EVENTS = [
-  { name: "PageView", where: "Every public and customer page. Browser and server share one event_id." },
+  { name: "PageView", where: "Every public and customer page. Browser and server share one event_id, plus the same external_id and fbp when available." },
   { name: "ViewContent", where: "Menu, weekly menu, and plans. Browser and server." },
   { name: "FindLocation", where: "Delivery area tap on the map. Browser and server share one event_id." },
   { name: "AddToCart", where: "Plan chosen in the subscribe wizard. Browser and server." },
@@ -19,7 +19,7 @@ const EVENTS = [
   { name: "QualifiedLead", where: "Inquiry convert (took plan/trial) with a Meta lead id. Optimize Instant Forms campaigns to this event." },
   { name: "Contact", where: "WhatsApp chat. Browser and server." },
   { name: "CompleteRegistration", where: "New account from the sign-up page. Server." },
-  { name: "order_submitted", where: "Offline (e-Transfer/cash): when proof or a reference is submitted. Browser and server share one id. Not a Purchase." },
+  { name: "order_submitted", where: "Offline (e-Transfer/cash): when proof or a reference is submitted. Custom Pixel event (trackCustom) so eventID is kept; browser and server share one id. Not a Purchase." },
   { name: "Purchase", where: "Card: when the charge settles (full amount incl. tax/surcharge). Offline: when staff verifies payment. Browser and server share one id (card); offline Purchase is server-only. Idempotent via metaPurchaseSentAt." },
 ];
 

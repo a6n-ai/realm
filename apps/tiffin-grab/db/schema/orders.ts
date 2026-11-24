@@ -117,6 +117,8 @@ export const orders = pgTable("orders", {
     fbp?: string;
     fbc?: string;
     eventSourceUrl?: string;
+    /** First-party id shared with Pixel init, so Purchase can dedupe after the browser is gone. */
+    externalId?: string;
   } | null>(),
   // False for renewals — Purchase CAPI fires only for first-time plan purchases.
   metaPurchaseEligible: boolean("meta_purchase_eligible").notNull().default(true),

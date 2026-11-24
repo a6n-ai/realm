@@ -5,6 +5,7 @@ import type { MetaCustomData } from "@foundry/meta-pixel";
 import { requestIp } from "@/lib/runtime/platform";
 import { requestHasAnalyticsConsent } from "@/lib/consent.server";
 import { sendMetaEvent } from "@/lib/meta/capi";
+import { META_EXTERNAL_ID_COOKIE, metaExternalIdFromCookie } from "@/lib/meta/external-id";
 import { googleAnalytics } from "@/lib/services/google-analytics/config";
 
 export type BrowserSignals = {
@@ -12,6 +13,8 @@ export type BrowserSignals = {
   userAgent: string | null;
   fbp: string | null;
   fbc: string | null;
+  /** Raw first-party id shared with Pixel init. Null when the cookie is absent. */
+  externalId: string | null;
   gaClientId: string | null;
   sourceUrl: string | null;
 };
@@ -25,11 +28,12 @@ export async function requestBrowser(): Promise<BrowserSignals> {
       userAgent: h.get("user-agent"),
       fbp: c.get("_fbp")?.value ?? null,
       fbc: c.get("_fbc")?.value ?? null,
+      externalId: metaExternalIdFromCookie(c.get(META_EXTERNAL_ID_COOKIE)?.value) ?? null,
       gaClientId: clientIdFromGaCookie(c.get("_ga")?.value),
       sourceUrl: h.get("referer"),
     };
   } catch {
-    return { ip: null, userAgent: null, fbp: null, fbc: null, gaClientId: null, sourceUrl: null };
+    return { ip: null, userAgent: null, fbp: null, fbc: null, externalId: null, gaClientId: null, sourceUrl: null };
   }
 }
 
@@ -93,6 +97,8 @@ export function trackConversion(input: ConversionInput, opts: { withRequest?: bo
         eventSourceUrl: sourceUrl,
         userData: {
           ...input.user,
+          // Cookie wins over an account id: the Pixel init used the cookie.
+          externalId: browser?.externalId ?? input.user.externalId,
           clientIpAddress: browser?.ip,
           clientUserAgent: browser?.userAgent,
           fbp: browser?.fbp,

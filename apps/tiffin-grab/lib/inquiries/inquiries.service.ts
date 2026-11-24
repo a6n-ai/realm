@@ -828,6 +828,7 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
           whatsappPhone: inquiries.whatsappPhone,
           email: inquiries.email,
           source: leadSources.label,
+          subSource: leadSubsources.label,
           stage: inquiries.stage,
           subStatus: inquiries.subStatus,
           ownerId: users.publicId,
@@ -874,6 +875,7 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
         })
         .from(inquiries)
         .innerJoin(leadSources, eq(inquiries.sourceId, leadSources.id))
+        .leftJoin(leadSubsources, eq(inquiries.subSourceId, leadSubsources.id))
         .leftJoin(users, eq(inquiries.currentOwner, users.id))
         .leftJoin(agg, eq(agg.inquiryId, inquiries.id))
         .where(where)

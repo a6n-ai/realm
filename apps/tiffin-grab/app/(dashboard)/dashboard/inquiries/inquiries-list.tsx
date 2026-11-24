@@ -51,6 +51,12 @@ const COLUMNS: readonly Column<InquirySortColumn | "select" | "lastNote" | "acti
 // ponytail: only open sub-statuses plus Undeliverable; Lost needs a per-lead reason, took_* is convert-only.
 const BULK_STATUSES = SUB_STATUSES.filter(isBulkSettable);
 
+function leadMeta(r: Pick<PipelineRow, "phone" | "source" | "subSource">): string {
+  const bits = [r.phone ? formatPhone(r.phone) : "No phone", r.source];
+  if (r.subSource) bits.push(r.subSource);
+  return bits.join(" · ");
+}
+
 type RowDialog =
   | { id: string; kind: "note"; note: NoteKind };
 
@@ -222,7 +228,7 @@ export function InquiriesList({
                   <Link href={`/dashboard/inquiries/${r.publicId}`} className="truncate font-medium">{displayName(r)}</Link>
                   <ReinquiryHeatIcon reinquiry={r.reinquiry} />
                 </span>
-                <span className="text-muted-foreground text-xs">{r.phone ? formatPhone(r.phone) : "No phone"} · {r.source}</span>
+                <span className="text-muted-foreground text-xs">{leadMeta(r)}</span>
                 <div><StatusMenu inquiryId={r.publicId} subStatus={sub} /></div>
               </div>
               <RowActions r={r} onOpenDialog={setDialog} />
@@ -252,7 +258,7 @@ export function InquiriesList({
                   <ReinquiryHeatIcon reinquiry={r.reinquiry} />
                 </span>
                 <div className="text-muted-foreground truncate text-xs">
-                  {r.phone ? formatPhone(r.phone) : "No phone"} · {r.source}
+                  {leadMeta(r)}
                 </div>
               </TableCell>
               <TableCell>

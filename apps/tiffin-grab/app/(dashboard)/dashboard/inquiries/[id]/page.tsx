@@ -5,7 +5,7 @@ import { eq } from "drizzle-orm";
 import { NotFoundError, zonedDateIso } from "@foundry/commons";
 import { describeActivityActor } from "@/lib/order-activity/order-activity-describe";
 import { db } from "@/db/client";
-import { leadSources, orders, users } from "@/db/schema";
+import { leadSources, leadSubsources, orders, users } from "@/db/schema";
 import { canReassign } from "@/lib/staff/reassign";
 import { listAssignableStaff } from "@/lib/staff/assignable-staff";
 import { reassignInquiry } from "../actions";
@@ -51,11 +51,14 @@ async function InquiryDetail({ params }: { params: Promise<{ id: string }> }) {
     throw e;
   }
 
-  const [catalog, slots, existing, [source], activities, { currency, timezone }, [owner], mayReassign] = await Promise.all([
+  const [catalog, slots, existing, [source], [subSource], activities, { currency, timezone }, [owner], mayReassign] = await Promise.all([
     loadCatalogSnapshot(),
     dishCategoriesService.enabledCategories(),
     inq.phone || inq.email ? findExistingByContact(inq.phone, inq.email) : null,
     db.select({ label: leadSources.label }).from(leadSources).where(eq(leadSources.id, inq.sourceId)).limit(1),
+    inq.subSourceId
+      ? db.select({ label: leadSubsources.label }).from(leadSubsources).where(eq(leadSubsources.id, inq.subSourceId)).limit(1)
+      : Promise.resolve([] as { label: string }[]),
     inquiriesService.listActivities(id),
     getAppSettings(),
     inq.currentOwner
@@ -161,7 +164,7 @@ async function InquiryDetail({ params }: { params: Promise<{ id: string }> }) {
           metaLeadId: inq.metaLeadId,
         }}
         canEditContact={inq.stage !== "converted"}
-        sourceLabel={source?.label ?? ""}
+        sourceLabel={[source?.label, subSource?.label].filter(Boolean).join(" · ")}
         owner={{ publicId: owner?.publicId ?? null, name: owner?.name ?? null }}
         reassign={mayReassign ? { staff: await listAssignableStaff(), action: reassignInquiry } : null}
         notes={inq.notes}

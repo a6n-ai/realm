@@ -47,7 +47,9 @@ export async function sendMetaClientEvent(input: MetaClientEventInput): Promise<
     eventSourceUrl: ctx.eventSourceUrl ?? input.eventSourceUrl,
     userData: {
       email: user?.email,
-      externalId: user?.id,
+      // The Pixel was inited with this cookie, not the account id. A different
+      // external_id on the server would miss Meta's fallback dedupe key.
+      externalId: ctx.externalId,
       postalCode: input.postalCode,
       country: "ca",
       clientIpAddress: ctx.clientIpAddress,

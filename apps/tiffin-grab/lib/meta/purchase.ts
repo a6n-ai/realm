@@ -5,6 +5,7 @@ import { createLogger } from "@foundry/commons/logger";
 import { db } from "@/db/client";
 import { mealSizes, orders, payments, plans, users } from "@/db/schema";
 import type { MetaAttribution } from "./types";
+import { dedupeExternalId } from "./external-id";
 import { sendMetaEventAwait } from "./capi";
 
 const log = createLogger("meta-purchase");
@@ -108,7 +109,10 @@ export async function sendMetaPurchaseOnce(paymentPublicId: string): Promise<voi
         province: claimed.user?.province,
         postalCode: claimed.order.postalCode,
         country: "ca",
-        externalId: claimed.user?.publicId,
+        externalId: dedupeExternalId(
+          (attr as { externalId?: string } | null)?.externalId,
+          claimed.user?.publicId,
+        ),
         clientIpAddress: attr?.clientIpAddress,
         clientUserAgent: attr?.clientUserAgent,
         fbp: attr?.fbp,

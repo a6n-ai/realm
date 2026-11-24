@@ -73,6 +73,7 @@ export async function POST(request: Request) {
     eventSourceUrl: ctx.eventSourceUrl ?? eventSourceUrl,
     userData: {
       country: "ca",
+      externalId: ctx.externalId,
       clientIpAddress: ctx.clientIpAddress,
       clientUserAgent: ctx.clientUserAgent,
       fbp: ctx.fbp,

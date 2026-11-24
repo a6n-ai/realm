@@ -5,6 +5,7 @@ import type { MetaEventName } from "@foundry/meta-pixel";
 import { db } from "@/db/client";
 import { mealSizes, orders, payments, plans, users } from "@/db/schema";
 import type { MetaAttribution } from "./types";
+import { dedupeExternalId } from "./external-id";
 import { sendMetaEventAwait } from "./capi";
 import { orderSubmittedEventId } from "./event-ids";
 
@@ -73,7 +74,7 @@ export async function sendMetaOrderSubmitted(paymentPublicId: string): Promise<v
         province: user?.province,
         postalCode: order.postalCode,
         country: "ca",
-        externalId: user?.publicId,
+        externalId: dedupeExternalId((attr as { externalId?: string } | null)?.externalId, user?.publicId),
         clientIpAddress: attr?.clientIpAddress,
         clientUserAgent: attr?.clientUserAgent,
         fbp: attr?.fbp,

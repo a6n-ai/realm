@@ -20,12 +20,14 @@ import { getRevenueReport, getRevenueCohortMix } from "@/lib/analytics/revenue.s
 import { getComplaintKpis } from "@/lib/analytics/complaints.service";
 import { getProfitabilityReport } from "@/lib/analytics/profitability.service";
 import { getDailyScorecard, getTrialToPlanConversion } from "@/lib/analytics/overview.service";
+import { getOrderCostsByDay } from "@/lib/analytics/order-weeks.service";
 import { getSubscriptionMix } from "@/lib/analytics/customers.service";
 import { DATE_BASIS_LABEL } from "@/lib/analytics/metrics/scope";
 import { type AnalyticsScope } from "@/lib/analytics/scope-types";
 import { analyticsHref, type AnalyticsSearchParams } from "@/lib/analytics/shared-filter-params";
 import { getMoneyFormatter } from "@/lib/settings";
 import { OPEN_STATUSES } from "@/lib/support/ticket-status";
+import { isoDateInZone } from "@foundry/commons/util/dates";
 
 type SearchParams = Promise<AnalyticsSearchParams>;
 
@@ -84,7 +86,7 @@ export default async function OverviewAnalyticsPage({ searchParams }: { searchPa
 
         <ChartCard
           title="Day by day"
-          subtitle="Each day: revenue, costs and profit" info="Each column is shaded on its own scale. Weekends and days without deliveries are muted. Open a day to see its orders. Monthly costs are company-wide."
+          subtitle="Each day: revenue, costs and profit" info="Each column is shaded on its own scale. Weekends and days without deliveries are muted. Open a day for the orders behind that day's profit (price / tiffin, food, driver, contribution). Monthly overhead stays on the day total, not on each order."
         >
           <Suspense fallback={<ChartSkeleton height={320} />}>
             <Scorecard scope={scope} />
@@ -245,9 +247,13 @@ async function StatusSplit({ scope }: { scope: AnalyticsScope }) {
 }
 
 async function Scorecard({ scope }: { scope: AnalyticsScope }) {
-  const rows = await getDailyScorecard(scope, { profit: await loadProfit(scope) });
+  const profit = await loadProfit(scope);
+  const rows = await getDailyScorecard(scope, { profit });
   if (!rows) return <p className="text-muted-foreground py-8 text-center text-sm">Pick a range up to 3 months to see day by day.</p>;
-  return <DailyScorecard rows={rows} />;
+  const from = isoDateInZone(scope.fromMs, scope.tz);
+  const to = isoDateInZone(scope.toMs, scope.tz);
+  const ordersByDay = await getOrderCostsByDay(scope, from, to);
+  return <DailyScorecard rows={rows} ordersByDay={ordersByDay} />;
 }
 
 async function CohortChart({ scope }: { scope: AnalyticsScope }) {
