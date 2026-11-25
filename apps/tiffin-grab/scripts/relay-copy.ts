@@ -296,15 +296,30 @@ export async function run(mode: "copy" | "verify", sql: postgres.Sql, post: Post
   return totals;
 }
 
+/** A dropped connection or a 5xx is retried (imports are idempotent, so a repeat is safe); a 4xx is returned at once. */
+export async function withRetry(call: () => Promise<Response>, tries = 4, waitMs = 2000): Promise<Response> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      const res = await call();
+      if (res.status < 500 || attempt >= tries) return res;
+    } catch (err) {
+      if (attempt >= tries) throw err;
+    }
+    await new Promise((r) => setTimeout(r, waitMs * attempt));
+  }
+}
+
 async function post(path: string, rows: unknown[]) {
   const base = process.env.RELAY_URL;
   const key = process.env.RELAY_API_KEY;
   if (!base || !key) throw new Error("RELAY_URL and RELAY_API_KEY are required");
-  const res = await fetch(`${base.replace(/\/+$/, "")}${path}`, {
-    method: "POST",
-    headers: { authorization: `Bearer ${key}`, "content-type": "application/json" },
-    body: JSON.stringify({ rows }),
-  });
+  const res = await withRetry(() =>
+    fetch(`${base.replace(/\/+$/, "")}${path}`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${key}`, "content-type": "application/json" },
+      body: JSON.stringify({ rows }),
+    }),
+  );
   if (!res.ok) throw new Error(`relay ${path} failed: ${res.status}`);
   return ((await res.json()) as { data: { created: number; existing: number; ids?: Record<string, string> } }).data;
 }

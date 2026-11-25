@@ -10,6 +10,7 @@ import {
   mismatches,
   splitName,
   tally,
+  withRetry,
 } from "./relay-copy";
 
 describe("mapReason", () => {
@@ -149,5 +150,23 @@ describe("mapMessage", () => {
 
   it("marks marketing rows and falls back to the event name for the subject", () => {
     expect(mapMessage({ ...base, kind: "marketing", payload: {} })).toMatchObject({ stream: "marketing", subject: "order_created" });
+  });
+});
+
+describe("withRetry", () => {
+  it("retries a dropped connection and a 5xx, and returns a 4xx at once", async () => {
+    let calls = 0;
+    const flaky = async () => {
+      calls++;
+      if (calls === 1) throw new Error("ECONNRESET");
+      if (calls === 2) return new Response("", { status: 503 });
+      return new Response("{}", { status: 200 });
+    };
+    expect((await withRetry(flaky, 4, 0)).status).toBe(200);
+    expect(calls).toBe(3);
+    let bad = 0;
+    expect((await withRetry(async () => (bad++, new Response("", { status: 400 })), 4, 0)).status).toBe(400);
+    expect(bad).toBe(1);
+    await expect(withRetry(async () => { throw new Error("down"); }, 2, 0)).rejects.toThrow("down");
   });
 });
