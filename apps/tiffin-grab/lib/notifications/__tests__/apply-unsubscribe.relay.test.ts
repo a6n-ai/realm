@@ -26,18 +26,18 @@ afterEach(() => {
 });
 
 describe("applyUnsubscribe under EMAIL_VIA_RELAY", () => {
-  it("suppresses once in Relay for a valid token and answers the same page", async () => {
+  it("writes the engine suppression and makes no Relay call in the request", async () => {
     vi.stubEnv("EMAIL_VIA_RELAY", "1");
     expect(await applyUnsubscribe(url, "link")).toEqual({ applied: true, address: "Ana@Example.test" });
-    expect(suppress).toHaveBeenCalledTimes(1);
-    expect(suppress).toHaveBeenCalledWith({ email: "ana@example.test", reason: "unsubscribe", stream: "marketing" });
-    expect(engine.handleUnsubscribe).not.toHaveBeenCalled();
+    expect(engine.handleUnsubscribe).toHaveBeenCalledTimes(1);
+    expect(suppress).not.toHaveBeenCalled();
   });
 
-  it("does not suppress for a token that does not verify", async () => {
+  it("answers the same page for a token that does not verify, and still writes the engine row", async () => {
     vi.stubEnv("EMAIL_VIA_RELAY", "1");
     engine.verifyUnsubscribeToken.mockReturnValue(false);
     expect(await applyUnsubscribe(url, "one-click")).toEqual({ applied: false, address: null });
+    expect(engine.handleUnsubscribe).toHaveBeenCalledTimes(1);
     expect(suppress).not.toHaveBeenCalled();
   });
 

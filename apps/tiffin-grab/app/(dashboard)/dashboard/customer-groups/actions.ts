@@ -13,6 +13,7 @@ import { searchCustomers } from "@/lib/services/customers.service";
 import { currentUserId } from "@/lib/services/session-service";
 import { userIdByPublicId } from "@/lib/identity/user-ids";
 import { emailViaRelay } from "@/lib/runtime/env";
+import { assertCampaignsOnEngine } from "@/lib/notifications/relay-moved";
 import {
   addGroupMembers,
   createCustomerGroup,
@@ -138,7 +139,10 @@ export async function emailGroupAction(groupPublicId: string): Promise<ActionRes
 }
 
 export async function emailAwardedMembersAction(actionPublicId: string): Promise<ActionResult<{ campaignPublicId: string }>> {
-  return staffAction(GROUPS, async () => emailAwardedMembers(parseInput(idSchema, actionPublicId), await currentUserId()));
+  return staffAction(GROUPS, async () => {
+    assertCampaignsOnEngine();
+    return emailAwardedMembers(parseInput(idSchema, actionPublicId), await currentUserId());
+  });
 }
 
 export async function exportGroupCsvAction(groupPublicId: string): Promise<ActionResult<{ csv: string }>> {

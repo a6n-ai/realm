@@ -12,6 +12,7 @@ export async function runTick() {
   const { computeNotifyNextAt, earliestPendingAt } = await import("@/lib/notifications/notify-next");
   const materialized = await materializeDue();
   const processed = await drainPending();
+  if (emailViaRelay()) await (await import("@/lib/relay/suppression-sync")).syncSuppressionsToRelay();
   const relay = emailViaRelay() ? await (await import("@/lib/relay/forward")).forwardRelayOutbox() : null;
   const [scheduledAt, pendingAt] = await Promise.all([computeNotifyNextAt(), earliestPendingAt()]);
   const relayAt = relay?.retryAfterMs == null ? null : Date.now() + relay.retryAfterMs;
