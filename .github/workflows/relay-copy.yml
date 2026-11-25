@@ -36,6 +36,11 @@ jobs:
         with:
           role-to-assume: arn:aws:iam::947042607945:role/realm-github-deploy-tiffin-grab
           aws-region: us-east-1
+      # RDS certificates chain to Amazon's RDS CA, which Node does not ship; trust it rather than skip verification.
+      - name: Trust the RDS CA
+        run: |
+          curl -fsSL https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem -o "$RUNNER_TEMP/rds-ca.pem"
+          echo "NODE_EXTRA_CA_CERTS=$RUNNER_TEMP/rds-ca.pem" >> "$GITHUB_ENV"
       - name: Resolve DB URL
         run: |
           url=$(aws ssm get-parameter --name /tiffin-grab/prod/DIRECT_DATABASE_URL --with-decryption --query Parameter.Value --output text)
