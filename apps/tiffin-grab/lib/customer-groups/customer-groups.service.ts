@@ -1,4 +1,7 @@
 import { csvCell } from "@/lib/csv-cell";
+import { relayRpc } from "@/lib/relay/client";
+import { checkConsoleUrl } from "@/lib/relay/console-url";
+import { relayConsoleUrl } from "@/lib/runtime/env";
 import { pageOffset } from "@foundry/design-system/filters/parse-filter-state";
 import "server-only";
 import { ValidationError, normalizeAddress } from "@foundry/commons";
@@ -811,6 +814,13 @@ export async function staleGroupsForCampaign(campaignPublicId: string): Promise<
     }
   }
   return stale;
+}
+
+// Under EMAIL_VIA_RELAY: Relay pulls the group's members at send time through the audience hook, and the console builds the message.
+export async function emailGroupConsole(groupPublicId: string): Promise<{ consoleUrl: string }> {
+  const group = await groupByPublicId(groupPublicId);
+  const { consoleUrl } = await relayRpc().createCampaign({ name: `${group.name} email`, audienceKind: "hook", audienceQuery: `group:${groupPublicId}` });
+  return { consoleUrl: checkConsoleUrl(consoleUrl, relayConsoleUrl()) };
 }
 
 export async function emailGroup(groupPublicId: string, actorId: bigint | null): Promise<{ campaignPublicId: string }> {

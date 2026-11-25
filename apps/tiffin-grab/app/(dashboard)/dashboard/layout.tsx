@@ -1,4 +1,5 @@
 import { isCustomerRole } from "@/lib/roles";
+import { emailViaRelay, relayConsoleUrl } from "@/lib/runtime/env";
 import "@/app/styles/app.css";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
@@ -159,6 +160,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
           brand={<AppBrand href="/dashboard" subtitle="Operations" />}
           sidebar={
             <DashboardSidebar
+              relayConsoleUrl={emailViaRelay() ? (relayConsoleUrl() ?? null) : null}
               user={{ email, role: roleLabel, name: user.name ?? null, image: user.image ?? null }}
               hasPin={hasPin}
               repCoupon={repCoupon}

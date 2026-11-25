@@ -3,6 +3,7 @@ import { problem } from "@foundry/routes";
 import { scheduleCampaign, zonedLocalToEpoch } from "@relay/engine";
 import { staleGroupsForCampaign } from "@/lib/customer-groups/customer-groups.service";
 import { adminIdRoute } from "@/lib/notifications/admin-route";
+import { campaignsMovedResponse } from "@/lib/notifications/relay-moved";
 import { footerConfigured } from "@/lib/notifications/campaign-config";
 import { scheduleCampaignWake } from "@/lib/runtime/workflow-wake";
 import { getAppSettings } from "@/lib/settings";
@@ -10,6 +11,8 @@ import { campaignDeps } from "@/lib/notifications/deps";
 
 /** `{ localDateTime: "YYYY-MM-DDTHH:mm" | null }` in the app-settings timezone; null unschedules. */
 export const POST = adminIdRoute(async (req, id) => {
+  const moved = campaignsMovedResponse();
+  if (moved) return moved;
   const body = await readBody<{ localDateTime?: unknown } | null>(req);
   let scheduledAt: number | null = null;
   if (body?.localDateTime != null) {

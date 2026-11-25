@@ -1,12 +1,14 @@
 import { sql } from "drizzle-orm";
-import { notificationOutbox } from "@/db/schema";
+import { notificationOutbox, relayOutbox } from "@/db/schema";
 
 export const CUSTOMER_INVITATION_EVENT = "customer_invitation" as const;
 
-/** True when this address has an invite email queued or sent (a failed send counts as not sent). */
+/** True when this address has an invite email queued or sent (a failed send counts as not sent). Engine and relay_outbox. */
 export const inviteAlreadySent = (email: unknown) =>
-  sql`exists (select 1 from ${notificationOutbox} o where o.event = ${CUSTOMER_INVITATION_EVENT} and o.channel = 'email'
-    and o.recipient_email = ${email} and o.status <> 'failed')`;
+  sql`(exists (select 1 from ${notificationOutbox} o where o.event = ${CUSTOMER_INVITATION_EVENT} and o.channel = 'email'
+    and o.recipient_email = ${email} and o.status <> 'failed')
+    or exists (select 1 from ${relayOutbox} r where r.event = ${CUSTOMER_INVITATION_EVENT}
+    and r.recipient_email = ${email} and r.status <> 'failed'))`;
 
 /** Latest invite row's send state for an address; `stateJson` is the caller's SendState projection. */
 export const lastInviteState = (email: unknown, stateJson: unknown) =>

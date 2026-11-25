@@ -5,7 +5,7 @@ import { UNPAID } from "@/lib/payments/status";
 import { paymentStatusIn, planPaymentSql } from "@/lib/payments/status-sql";
 import type { Page, PageRequest } from "@foundry/commons/util/pagination";
 import { db } from "@/db/client";
-import { deliveries, ledgerEntries, mealSizes, messageSuppression, notificationOutbox, orders, payments, plans, tickets, users, walletLedger } from "@/db/schema";
+import { deliveries, ledgerEntries, mealSizes, messageSuppression, notificationOutbox, orders, payments, plans, relayOutbox, tickets, users, walletLedger } from "@/db/schema";
 import { unexpired } from "@foundry/wallet";
 import { renewalQueueFilter, type PlanType, type RenewalQueue, type RenewalRange, type RenewalsFilter } from "@/lib/renewals/filters";
 import { UNASSIGNED_OWNER } from "@/lib/list/presets";
@@ -19,6 +19,41 @@ import { netSpendSql } from "@/lib/payments/net-spend-sql";
 import { pageRows } from "@foundry/commons";
 import { loadPlanFacts, ownerIdOf, visibleTo, type PlanFact } from "./renewal-facts";
 import { renewalMatches, renewalOrder } from "./renewal-filter";
+import { emailViaRelay } from "@/lib/runtime/env";
+import { deliveryState, engineStatus, relayAllStreamReason } from "@/lib/relay/delivery-state";
+
+// Last 50 renewal reminders to one customer. Under the flag, relay_outbox rows (with Relay's delivery state over the local one)
+// are merged with the engine rows sent before the flip, so pre-flip history stays visible.
+async function reminderRowsFor(userId: bigint) {
+  const engine = await db
+    .select({
+      sentAt: notificationOutbox.createdAt,
+      status: notificationOutbox.status,
+      key: notificationOutbox.dedupeKey,
+      deliveredAt: notificationOutbox.deliveredAt,
+      error: notificationOutbox.lastError,
+    })
+    .from(notificationOutbox)
+    .where(and(eq(notificationOutbox.recipientId, userId), like(notificationOutbox.dedupeKey, "renewal:%")))
+    .orderBy(desc(notificationOutbox.createdAt))
+    .limit(50);
+  if (!emailViaRelay()) return engine;
+  const local = await db
+    .select({ key: relayOutbox.idempotencyKey, sentAt: relayOutbox.createdAt, status: relayOutbox.status, error: relayOutbox.lastError })
+    .from(relayOutbox)
+    .where(and(eq(relayOutbox.recipientId, userId), like(relayOutbox.idempotencyKey, "renewal:%")))
+    .orderBy(desc(relayOutbox.createdAt))
+    .limit(50);
+  const state = await deliveryState(local.map((r) => r.key));
+  const relay = local.map((r) => {
+    const s = state.get(r.key);
+    const raw = s?.status ?? r.status;
+    const error = s?.error ?? r.error;
+    // A relay skip reads as the engine's: status sent, error "skipped: ...".
+    return { sentAt: r.sentAt, status: engineStatus(raw), key: r.key, deliveredAt: s?.deliveredAt ?? null, error: raw === "skipped" ? `skipped: ${error ?? ""}` : error };
+  });
+  return [...relay, ...engine].sort((a, b) => Number(b.sentAt) - Number(a.sentAt)).slice(0, 50);
+}
 
 export type RenewalRow = {
   orderPublicId: string;
@@ -368,7 +403,8 @@ export type RenewalReminder = {
 };
 
 /** The customer's address is blocked after a hard bounce or spam complaint: no email reaches them. */
-export type EmailBlock = { reason: "bounce" | "complaint" | "other"; since: number };
+/** since is null for a Relay suppression, which carries no date here. */
+export type EmailBlock = { reason: "bounce" | "complaint" | "other"; since: number | null };
 
 export type CustomerRenewal = {
   customer: { publicId: string; name: string; phone: string | null; email: string | null };
@@ -386,7 +422,7 @@ export type CustomerRenewal = {
 export function reminderDelivery(status: string, deliveredAt: number | null, sentAt: number, block: EmailBlock | null): ReminderDelivery {
   if (status === "failed") return "failed";
   if (status === "pending" || status === "processing") return "queued";
-  const after = block != null && block.since >= sentAt;
+  const after = block != null && block.since != null && block.since >= sentAt;
   if (deliveredAt != null) return after && block.reason === "complaint" ? "spam" : "delivered";
   return after && block.reason === "bounce" ? "bounced" : "sent";
 }
@@ -453,18 +489,7 @@ export async function getCustomerRenewal(visible: Visible, customerPublicId: str
   });
 
   const [reminderRows, money] = await Promise.all([
-    db
-      .select({
-        sentAt: notificationOutbox.createdAt,
-        status: notificationOutbox.status,
-        key: notificationOutbox.dedupeKey,
-        deliveredAt: notificationOutbox.deliveredAt,
-        error: notificationOutbox.lastError,
-      })
-      .from(notificationOutbox)
-      .where(and(eq(notificationOutbox.recipientId, user.id), like(notificationOutbox.dedupeKey, "renewal:%")))
-      .orderBy(desc(notificationOutbox.createdAt))
-      .limit(50),
+    reminderRowsFor(user.id),
     renewalMoney([{ id: rows[rows.length - 1].id, userId: user.id }]),
   ]);
   // Bounces and complaints are kept per address (all channels' "all" scope), not per message.
@@ -475,9 +500,13 @@ export async function getCustomerRenewal(visible: Visible, customerPublicId: str
         .where(and(eq(messageSuppression.address, user.email.trim().toLowerCase()), eq(messageSuppression.channel, "email"), eq(messageSuppression.scope, "all")))
         .limit(1)
     : [];
+  // Under the flag, a Relay all-stream suppression carries Relay's reason but no date.
+  const relayReason = !block && emailViaRelay() && user.email ? await relayAllStreamReason(user.email) : null;
   const emailBlock: EmailBlock | null = block
     ? { reason: /complaint/i.test(block.reason) ? "complaint" : /bounce/i.test(block.reason) ? "bounce" : "other", since: Number(block.since) }
-    : null;
+    : relayReason
+      ? { reason: relayReason === "complaint" ? "complaint" : relayReason === "bounce" ? "bounce" : "other", since: null }
+      : null;
   // Key shape: renewal:<orderPublicId>:<lastTiffin>:<daysLeft | staff-<date>>:<channel>.
   // Only reminders for plans this staff member can see: another franchise's plans stay hidden.
   const visiblePlans = new Set(rows.map((r) => r.orderPublicId));

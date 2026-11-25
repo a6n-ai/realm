@@ -4,6 +4,7 @@ import openNext from "../.open-next/worker.js";
 
 export * from "../.open-next/worker.js";
 export { CampaignWake, SiteRefreshWake } from "./workflows.js";
+import { WorkerEntrypoint } from "cloudflare:workers";
 import { bootOnce } from "./bootstrap.js";
 import { consume } from "./queue-consumer.js";
 import { cachedPage, edgeTtl, isCacheablePage } from "./page-cache.js";
@@ -76,6 +77,19 @@ async function cachedImage(request, env, ctx) {
   // Browsers and any shared cache in between must also key on Accept.
   out.headers.set("vary", "accept");
   return out;
+}
+
+// Relay pulls campaign audiences through this entrypoint (binding AUDIENCE_BINDINGS = TIFFIN_AUDIENCE).
+export class RelayAudience extends WorkerEntrypoint {
+  async resolveAudience(request) {
+    const res = await this.env.WORKER_SELF_REFERENCE.fetch("https://internal/api/relay/audience", {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: "Bearer " + this.env.CRON_SECRET },
+      body: JSON.stringify(request),
+    });
+    if (!res.ok) throw new Error("audience unavailable " + res.status);
+    return res.json();
+  }
 }
 
 // Same scanner denylist as proxy.ts (one JSON source) — belt for hosts that skip the Next proxy matcher.

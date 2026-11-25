@@ -3,8 +3,10 @@ import { pageOffset, parseFilterState } from "@foundry/design-system/filters/par
 import { eq, ilike, inArray, or, sql, and, type SQL } from "drizzle-orm";
 import { pageOrder } from "@foundry/database";
 import { db } from "@/db/client";
-import { ledgerEntries, notificationOutbox, orderActivities, orders, payments, stripeEvents, users } from "@/db/schema";
+import { ledgerEntries, notificationOutbox, orderActivities, orders, payments, relayOutbox, stripeEvents, users } from "@/db/schema";
 import type { SendState } from "@/lib/notifications/send-state";
+import { deliveryState, relaySendState, type DeliveryState } from "@/lib/relay/delivery-state";
+import { emailViaRelay } from "@/lib/runtime/env";
 import { NOTE_AMOUNT_MISMATCH, NOTE_CANCELLED_ORDER, NOTE_CC_NO_SURCHARGE, NOTE_DUPLICATE_CHARGE, NOTE_PI_OTHER_PAYMENT } from "@/lib/payments/stripe-notes";
 import { parseSort, type SortState } from "@foundry/design-system/list-sort";
 import { epochBoundsWhere, epochBoundsWhereSql, withListDates } from "@/lib/list/default-month";
@@ -204,6 +206,8 @@ export async function getLogKpis(sp: { from?: string; to?: string }) {
   return { ...a, events: a.claimed + a.verified + a.rejected + e.events, webhooks: e.events, webhookErrors: e.errors };
 }
 
+type ReminderRow = (SendState & { key?: string }) | null;
+
 /** Order owner by staff publicId; "none" = unowned. Unknown ids match nothing. */
 function ownerWhere(v?: string) {
   if (!v) return undefined;
@@ -280,7 +284,21 @@ export async function listPayments(
         isAddon: sql<boolean>`${payments.addonRequest} is not null`,
         expiresAt: payments.expiresAt,
         // Latest payment-reminder email for this order (its vars carry the order code).
-        lastReminder: sql<SendState | null>`(select json_build_object('status', o.status, 'at', o.created_at, 'deliveredAt', o.delivered_at, 'openedAt', o.opened_at)
+        // Under the flag the Relay row wins and the engine row covers reminders sent before the flip; a Relay row's
+        // delivery state is overlaid after the query (relaySendState).
+        lastReminder: emailViaRelay()
+          ? sql<ReminderRow>`coalesce(
+              (select json_build_object('status', o.status, 'at', o.created_at, 'key', o.idempotency_key)
+              from ${relayOutbox} o
+              where o.event = 'payment_reminder' and o.recipient_email = ${users.email}
+                and o.payload->'vars'->'payment'->>'orderCode' = ${orders.deploymentId}
+              order by o.created_at desc limit 1),
+              (select json_build_object('status', o.status, 'at', o.created_at, 'deliveredAt', o.delivered_at, 'openedAt', o.opened_at)
+              from ${notificationOutbox} o
+              where o.event = 'payment_reminder' and o.channel = 'email' and o.recipient_email = ${users.email}
+                and o.payload->'vars'->'payment'->>'orderCode' = ${orders.deploymentId}
+              order by o.created_at desc limit 1))`
+          : sql<ReminderRow>`(select json_build_object('status', o.status, 'at', o.created_at, 'deliveredAt', o.delivered_at, 'openedAt', o.opened_at)
           from ${notificationOutbox} o
           where o.event = 'payment_reminder' and o.channel = 'email' and o.recipient_email = ${users.email}
             and o.payload->'vars'->'payment'->>'orderCode' = ${orders.deploymentId}
@@ -296,9 +314,12 @@ export async function listPayments(
       .offset(opts.unpaged ? 0 : pageOffset(page.page, page.size)),
   ]);
 
+  const relayState = emailViaRelay() ? await deliveryState(rows.flatMap((r) => (r.lastReminder?.key ? [r.lastReminder.key] : []))) : new Map<string, DeliveryState>();
+  const withReminder = rows.map(({ lastReminder, ...r }) => ({ ...r, lastReminder: relaySendState(lastReminder, relayState) }));
+
   return {
     rows: await Promise.all(
-      rows.map(async ({ proof, ...r }) => {
+      withReminder.map(async ({ proof, ...r }) => {
         const view = await proofView(proof, [`payments/${r.publicId}`, `payments/${r.orderPublicId}`]);
         return { ...r, proofThumb: view?.thumbUrl ?? null, proofHref: view?.href ?? null, proofName: proof?.name ?? null };
       }),

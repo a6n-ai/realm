@@ -12,6 +12,8 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 `next dev` has no outbox listener or Queue consumer. To send queued emails locally, call `POST /api/cron/notifications?mode=tick` with the `CRON_SECRET` bearer.
 
+`EMAIL_VIA_RELAY=1` (queue mail to Relay through the `RELAY` binding) is unsupported locally: there is no Relay binding off Workers, so forwarding fails. Leave it unset in dev and tests.
+
 ## ui-sdk
 
 Before using ui-sdk, follow the `ui-sdk` skill if it's installed, and read `node_modules/@ui-sdk/react/docs/llms.txt`. To build a new component, also search `node_modules/@ui-sdk/react/docs/core.md` by heading, and read `rendering.md` next to it.

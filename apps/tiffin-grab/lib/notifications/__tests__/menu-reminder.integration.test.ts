@@ -1,10 +1,10 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { eq, inArray } from "drizzle-orm";
 import { runSystemCampaign, suppress } from "@relay/engine";
 import { db } from "@/db/client";
-import { messageSuppression, notificationOutbox, users } from "@/db/schema";
+import { messageSuppression, notificationOutbox, relayOutbox, users } from "@/db/schema";
 import { notificationTables, usersRef } from "@/lib/notifications/tables";
-import { ensureMenuReminder, MENU_REMINDER_KEY } from "@/lib/notifications/menu-reminder";
+import { ensureMenuReminder, MENU_REMINDER_KEY, runMenuReminder } from "@/lib/notifications/menu-reminder";
 
 const MARK = "menu-reminder-int";
 const created: bigint[] = [];
@@ -20,7 +20,9 @@ const rowsFor = (id: bigint) =>
   db.select({ id: notificationOutbox.id }).from(notificationOutbox).where(eq(notificationOutbox.recipientId, id));
 
 afterEach(async () => {
+  vi.unstubAllEnvs();
   await db.delete(notificationOutbox).where(inArray(notificationOutbox.recipientId, created));
+  await db.delete(relayOutbox).where(inArray(relayOutbox.recipientId, created));
   await db.delete(messageSuppression).where(eq(messageSuppression.address, `${MARK}-b@example.test`));
   await db.delete(users).where(inArray(users.id, created));
   created.length = 0;
@@ -47,5 +49,28 @@ describe("weekly menu reminder (system campaign)", () => {
     const r = await runSystemCampaign(deps, MENU_REMINDER_KEY, { runKey: "week:2099-01-05", recipients: [{ userId: id }] });
     expect(r).toEqual({ queued: 0 });
     expect(await rowsFor(id)).toHaveLength(0);
+  });
+
+  it("with EMAIL_VIA_RELAY on, queues marketing mail in relay_outbox under the same run key", async () => {
+    vi.stubEnv("EMAIL_VIA_RELAY", "1");
+    const id = await makeUser(`${MARK}-c@example.test`);
+    expect(await runMenuReminder("2099-01-05", "week:2099-01-05", [{ userId: id, name: "C" }])).toEqual({ queued: 1 });
+    const rows = await db.select().from(relayOutbox).where(eq(relayOutbox.recipientId, id));
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ stream: "marketing", event: null, status: "pending" });
+    // The engine's stored key for this run: cmp:<campaign>:<runKey>:<user>:email.
+    const { publicId } = await ensureMenuReminder();
+    expect(rows[0]!.idempotencyKey).toBe(`cmp:${publicId}:week:2099-01-05:${id}:email`);
+    expect(rows[0]!.payload).toMatchObject({ event: MENU_REMINDER_KEY, vars: { weekLabel: expect.any(String), url: expect.any(String) } });
+    expect(await rowsFor(id)).toHaveLength(0);
+  });
+
+  it("with EMAIL_VIA_RELAY on, does not queue a week the engine already reminded", async () => {
+    await ensureMenuReminder();
+    const id = await makeUser(`${MARK}-d@example.test`);
+    await runSystemCampaign(deps, MENU_REMINDER_KEY, { runKey: "week:2099-01-19", recipients: [{ userId: id }] });
+    vi.stubEnv("EMAIL_VIA_RELAY", "1");
+    expect(await runMenuReminder("2099-01-19", "week:2099-01-19", [{ userId: id, name: "D" }])).toEqual({ queued: 0 });
+    expect(await db.select().from(relayOutbox).where(eq(relayOutbox.recipientId, id))).toHaveLength(0);
   });
 });

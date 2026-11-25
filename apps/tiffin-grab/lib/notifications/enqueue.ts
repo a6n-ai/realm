@@ -4,6 +4,8 @@ import { enqueue, enqueueMany, type EnqueueInput } from "@relay/engine";
 import type { Tx } from "@/db/client";
 import { member, users } from "@/db/schema";
 import { notificationTables, usersRef } from "./tables";
+import { emailViaRelay } from "@/lib/runtime/env";
+import { enqueueViaRelay } from "@/lib/relay/enqueue";
 import { markOutboxDirty } from "./outbox-dirty";
 import { EVENTS, type AppEvent } from "./events";
 
@@ -16,10 +18,9 @@ export type { EnqueueInput };
  * the outbox; db.transaction signals the consumer once the transaction commits.
  */
 export async function enqueueNotification(tx: Tx, input: EnqueueInput & { event: Event }): Promise<void> {
-  await enqueue(tx, notificationTables, usersRef, {
-    ...input,
-    channels: input.channels ?? EVENTS[input.event].channels,
-  });
+  const withChannels = { ...input, channels: input.channels ?? EVENTS[input.event].channels };
+  if (emailViaRelay()) await enqueueViaRelay(tx, [withChannels]);
+  else await enqueue(tx, notificationTables, usersRef, withChannels);
   markOutboxDirty();
 }
 
@@ -46,17 +47,14 @@ export async function enqueueStaffNotification(tx: Tx, input: StaffInput): Promi
     .from(users)
     .where(and(inArray(users.role, STAFF_ROLES), eq(users.status, "active"), canSee));
   const channels = rest.channels ?? (rest.event ? EVENTS[rest.event].channels : undefined);
-  await enqueueMany(
-    tx,
-    notificationTables,
-    usersRef,
-    staff.map((s) => ({
-      ...rest,
-      recipientId: s.id,
-      channels,
-      // Keep this suffix: already-queued rows were keyed with it.
-      dedupeKey: rest.dedupeKey ? `${rest.dedupeKey}:u${s.id}` : undefined,
-    })),
-  );
+  const rows = staff.map((s) => ({
+    ...rest,
+    recipientId: s.id,
+    channels,
+    // Keep this suffix: already-queued rows were keyed with it.
+    dedupeKey: rest.dedupeKey ? `${rest.dedupeKey}:u${s.id}` : undefined,
+  }));
+  if (emailViaRelay()) await enqueueViaRelay(tx, rows);
+  else await enqueueMany(tx, notificationTables, usersRef, rows);
   markOutboxDirty();
 }

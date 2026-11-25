@@ -26,6 +26,7 @@ export async function applyUnsubscribe(
   const campaignIdParam = url.searchParams.get("campaignId");
   const campaignId = campaignIdParam && /^\d+$/.test(campaignIdParam) ? BigInt(campaignIdParam) : undefined;
   const applied = !!address && !!token && verifyUnsubscribeToken(secret, address, token);
+  // The engine table is the record and is always written first. Under the Relay flag, the next tick copies it to Relay.
   await handleUnsubscribe(db, notificationTables, { address, token, secret, campaignId, source });
   return { applied, address: applied ? address : null };
 }
