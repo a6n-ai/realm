@@ -32,8 +32,7 @@ describe("renderRelayEmail", () => {
 
   it("keeps the unsubscribe token literal in marketing mail, with the postal address", async () => {
     const out = await renderRelayEmail({ ...base, stream: "marketing" }, null);
-    expect(out).not.toBe("disabled");
-    if (out === "disabled") return;
+    if (typeof out === "string") throw new Error("unexpected");
     expect(out.html).toContain(UNSUBSCRIBE_TOKEN);
     expect(out.text).toContain(UNSUBSCRIBE_TOKEN);
     expect(out.html).toContain("1 Main St, Toronto");
@@ -42,7 +41,7 @@ describe("renderRelayEmail", () => {
   it("escapes customer values in html only; subject and text stay raw", async () => {
     const hostile = "<script>x</script> \"><img src=x>";
     const out = await renderRelayEmail({ ...base, vars: { payment: { ...vars.payment, customerName: hostile } } }, null);
-    if (out === "disabled") throw new Error("unexpected");
+    if (typeof out === "string") throw new Error("unexpected");
     expect(out.html).not.toContain("<script>x</script>");
     expect(out.html).not.toContain("\"><img src=x>");
     expect(out.html).toContain("&lt;script&gt;x&lt;/script&gt; &quot;&gt;&lt;img src=x&gt;");
