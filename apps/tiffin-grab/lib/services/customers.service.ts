@@ -1,6 +1,8 @@
 import { formatAddressLine } from "@/lib/catalog/address-line";
 import type { SendState } from "@/lib/notifications/send-state";
-import { inviteAlreadySent, lastInviteState } from "@/lib/notifications/invite-state";
+import { CUSTOMER_INVITATION_EVENT, inviteAlreadySent, lastInviteState } from "@/lib/notifications/invite-state";
+import { deliveryState, relaySendState, suppressedEmails } from "@/lib/relay/delivery-state";
+import { emailViaRelay } from "@/lib/runtime/env";
 import { resolveUserId } from "@/lib/identity/user-ids";
 import { appPhoneCountry, parseCustomerContact, requireEmail } from "@/lib/services/contact";
 import { inOrderStatuses, RUNNING } from "@/lib/orders/status";
@@ -17,7 +19,7 @@ import { auditLog, customerAddresses, orderActivities, walletLedger } from "@/db
 import { alias } from "drizzle-orm/pg-core";
 import { unexpired } from "@foundry/wallet";
 import { walletEntryLabel } from "@/lib/wallet/source-labels";
-import { account, campaign, deliveries, inquiries, leadSources, mealSizes, messageSuppression, notificationOutbox, orders, payments, plans, users } from "@/db/schema";
+import { account, campaign, deliveries, inquiries, leadSources, mealSizes, messageSuppression, notificationOutbox, orders, payments, plans, relayOutbox, users } from "@/db/schema";
 import { MENU_REMINDER_KEY } from "@/lib/notifications/menu-reminder";
 import type { SortState } from "@foundry/design-system/list-sort";
 import type { CustomerSortColumn } from "@/lib/customers/customer-list-keys";
@@ -181,8 +183,18 @@ const pendingInvite = and(
   sql`not ${inviteAlreadySent(users.email)}`,
 );
 
+/** Pending invitees. Under the flag Relay's all-stream suppressions drop out too (the engine table is in the SQL). */
+async function pendingEmails(): Promise<string[]> {
+  const rows = await db.select({ email: users.email }).from(users).where(pendingInvite);
+  const emails = rows.flatMap((r) => (r.email ? [r.email] : []));
+  if (!emailViaRelay()) return emails;
+  const suppressed = await suppressedEmails(emails);
+  return emails.filter((e) => !suppressed.has(e.trim().toLowerCase()));
+}
+
 export async function countPendingInvites(): Promise<number> {
-  return db.$count(users, pendingInvite);
+  if (!emailViaRelay()) return db.$count(users, pendingInvite);
+  return (await pendingEmails()).length;
 }
 
 /**
@@ -191,12 +203,12 @@ export async function countPendingInvites(): Promise<number> {
  * time stays under it. A failure is counted and skipped, never stops the rest.
  */
 export async function invitePendingCustomers(): Promise<{ sent: number; failed: number }> {
-  const rows = await db.select({ email: users.email }).from(users).where(pendingInvite);
+  const emails = await pendingEmails();
   let sent = 0;
   let failed = 0;
-  for (const { email } of rows) {
+  for (const email of emails) {
     try {
-      await sendCustomerInviteLink(email!);
+      await sendCustomerInviteLink(email);
       sent += 1;
     } catch {
       failed += 1;
@@ -266,6 +278,19 @@ export type CustomerRow = {
 };
 
 const sendStateJson = sql`json_build_object('status', o.status, 'at', o.created_at, 'deliveredAt', o.delivered_at, 'openedAt', o.opened_at)`;
+// Under the flag the rows are relay_outbox ones; `key` lets Relay's state overlay them, then it is dropped.
+type RelaySendRow = (SendState & { key?: string }) | null;
+const relaySendJson = sql`json_build_object('status', o.status, 'at', o.created_at, 'deliveredAt', null, 'openedAt', null, 'key', o.idempotency_key)`;
+const relayLastInvite = sql`(select ${relaySendJson} from ${relayOutbox} o
+  where o.event = ${CUSTOMER_INVITATION_EVENT} and o.recipient_email = ${users.email}
+  order by o.created_at desc limit 1)`;
+const relayLastReminder = sql`(select ${relaySendJson} from ${relayOutbox} o
+  where o.payload->>'event' = ${MENU_REMINDER_KEY} and o.recipient_id = ${users.id}
+  order by o.created_at desc limit 1)`;
+const engineLastReminder = sql`(select ${sendStateJson} from ${notificationOutbox} o
+  join ${campaign} c on c.id = o.campaign_id and c.system_key = ${MENU_REMINDER_KEY}
+  where o.channel = 'email' and o.recipient_id = ${users.id}
+  order by o.created_at desc limit 1)`;
 
 export type { CustomerSortColumn } from "@/lib/customers/customer-list-keys";
 
@@ -407,17 +432,22 @@ export async function listCustomersPage(
         // Correlated, but only for the page's rows (25ish). The invite row carries
         // only an address (no account id on it), hence the email match.
         // ponytail: unindexed recipient_email scan per row; add an index if the outbox grows large.
-        lastInvite: sql<SendState | null>`${lastInviteState(users.email, sendStateJson)}`,
-        lastReminder: sql<SendState | null>`(select ${sendStateJson} from ${notificationOutbox} o
-          join ${campaign} c on c.id = o.campaign_id and c.system_key = ${MENU_REMINDER_KEY}
-          where o.channel = 'email' and o.recipient_id = ${users.id}
-          order by o.created_at desc limit 1)`,
+        lastInvite: sql<RelaySendRow>`${emailViaRelay() ? relayLastInvite : lastInviteState(users.email, sendStateJson)}`,
+        lastReminder: sql<RelaySendRow>`${emailViaRelay() ? relayLastReminder : engineLastReminder}`,
       })
       .from(users)
       .leftJoin(orders, eq(orders.userId, users.id))
       .where(inArray(users.id, pageIds.map((r) => r.id)))
       .groupBy(users.id, users.publicId, users.name, users.email, users.phone);
-  const byId = new Map(detail.map(({ id, ...row }) => [id, row]));
+  const relay = emailViaRelay()
+    ? await deliveryState(detail.flatMap((d) => [d.lastInvite?.key, d.lastReminder?.key]).filter((k): k is string => !!k))
+    : null;
+  const byId = new Map(
+    detail.map(({ id, ...row }) => [
+      id,
+      relay ? { ...row, lastInvite: relaySendState(row.lastInvite, relay), lastReminder: relaySendState(row.lastReminder, relay) } : row,
+    ]),
+  );
   const items = pageIds.flatMap((r) => byId.get(r.id) ?? []);
 
   return { items, page: page.page, size: page.size, total: count };

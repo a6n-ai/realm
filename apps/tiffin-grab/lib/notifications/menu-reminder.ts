@@ -11,6 +11,7 @@ import { render } from "react-email";
 import { MENU_REMINDER } from "@/emails/transactional";
 import { DEFAULT_ORIGIN, campaignBaseUrl, emailViaRelay } from "@/lib/runtime/env";
 import { enqueueViaRelay } from "@/lib/relay/enqueue";
+import { sentKeysWithPrefix } from "@/lib/relay/delivery-state";
 
 export const MENU_REMINDER_KEY = "menu_reminder";
 
@@ -56,21 +57,27 @@ export async function runMenuReminder(weekStart: string, runKey: string, recipie
   const url = new URL("/me/deliveries", base || DEFAULT_ORIGIN).toString();
   const vars = { weekLabel: formatDateOnly(weekStart, { mode: "long" }), url };
   if (emailViaRelay()) {
-    // Relay path: the code copy renders in forward.ts, so no campaign row is needed. The dedupe key keeps runKey.
-    const inputs: EnqueueInput[] = recipients.map((r) => ({
-      event: MENU_REMINDER_KEY,
-      kind: "marketing",
-      channels: ["email"],
-      recipientId: r.userId,
-      title: "",
-      body: "",
-      data: vars,
-      dedupeKey: `${MENU_REMINDER_KEY}:${runKey}:${r.userId}`,
-    }));
+    // Relay path: the code copy renders in forward.ts. The key is the engine's own (cmp:<campaign>:<runKey>:<user>, +":email"
+    // from planOutboxRows), so a recipient the engine already reminded this run is skipped and Relay dedupes the rest.
+    const { publicId } = await ensureMenuReminder();
+    const prefix = `cmp:${publicId}:${runKey}:`;
+    const sent = await sentKeysWithPrefix(prefix);
+    const inputs: EnqueueInput[] = recipients
+      .filter((r) => !sent.has(`${prefix}${r.userId}`))
+      .map((r) => ({
+        event: MENU_REMINDER_KEY,
+        kind: "marketing",
+        channels: ["email"],
+        recipientId: r.userId,
+        title: "",
+        body: "",
+        data: vars,
+        dedupeKey: `${prefix}${r.userId}`,
+      }));
     await db.transaction((tx) => enqueueViaRelay(tx, inputs));
     await signalOutbox();
     // enqueueViaRelay does not report counts; Relay drops suppressed addresses after this.
-    return { queued: recipients.length };
+    return { queued: inputs.length };
   }
   await ensureMenuReminder();
   const result = await runSystemCampaign({ db, tables: notificationTables, users: usersRef }, MENU_REMINDER_KEY, {

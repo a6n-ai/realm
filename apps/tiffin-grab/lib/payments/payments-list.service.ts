@@ -5,7 +5,7 @@ import { pageOrder } from "@foundry/database";
 import { db } from "@/db/client";
 import { ledgerEntries, notificationOutbox, orderActivities, orders, payments, relayOutbox, stripeEvents, users } from "@/db/schema";
 import type { SendState } from "@/lib/notifications/send-state";
-import { deliveryState, type DeliveryState } from "@/lib/relay/delivery-state";
+import { deliveryState, relaySendState, type DeliveryState } from "@/lib/relay/delivery-state";
 import { emailViaRelay } from "@/lib/runtime/env";
 import { NOTE_AMOUNT_MISMATCH, NOTE_CANCELLED_ORDER, NOTE_CC_NO_SURCHARGE, NOTE_DUPLICATE_CHARGE, NOTE_PI_OTHER_PAYMENT } from "@/lib/payments/stripe-notes";
 import { parseSort, type SortState } from "@foundry/design-system/list-sort";
@@ -209,15 +209,6 @@ export async function getLogKpis(sp: { from?: string; to?: string }) {
 /** Order owner by staff publicId; "none" = unowned. Unknown ids match nothing. */
 type ReminderRow = (SendState & { key?: string }) | null;
 
-// Relay's delivery state wins over the local row when Relay has one; the relay key never leaves the server.
-function relayReminder(last: ReminderRow, state: Map<string, DeliveryState>): SendState | null {
-  if (!last) return null;
-  const { key, ...base } = last;
-  const s = key ? state.get(key) : undefined;
-  if (!s) return base;
-  return { status: s.status, at: base.at, deliveredAt: s.deliveredAt, openedAt: s.opens > 0 ? s.sentAt : null };
-}
-
 function ownerWhere(v?: string) {
   if (!v) return undefined;
   if (v === UNASSIGNED_OWNER) return sql`${payments.orderId} in (select id from ${orders} where current_owner is null)`;
@@ -293,7 +284,7 @@ export async function listPayments(
         isAddon: sql<boolean>`${payments.addonRequest} is not null`,
         expiresAt: payments.expiresAt,
         // Latest payment-reminder email for this order (its vars carry the order code).
-        // Under the flag the row is the relay_outbox one; its delivery state is overlaid after the query (relayReminder).
+        // Under the flag the row is the relay_outbox one; its delivery state is overlaid after the query (relaySendState).
         lastReminder: emailViaRelay()
           ? sql<ReminderRow>`(select json_build_object('status', o.status, 'at', o.created_at, 'key', o.idempotency_key)
           from ${relayOutbox} o
@@ -317,7 +308,7 @@ export async function listPayments(
   ]);
 
   const relayState = emailViaRelay() ? await deliveryState(rows.flatMap((r) => (r.lastReminder?.key ? [r.lastReminder.key] : []))) : new Map<string, DeliveryState>();
-  const withReminder = rows.map(({ lastReminder, ...r }) => ({ ...r, lastReminder: relayReminder(lastReminder, relayState) }));
+  const withReminder = rows.map(({ lastReminder, ...r }) => ({ ...r, lastReminder: relaySendState(lastReminder, relayState) }));
 
   return {
     rows: await Promise.all(

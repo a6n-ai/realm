@@ -1,6 +1,7 @@
 import { and, eq, inArray, like } from "drizzle-orm";
 import { db } from "@/db/client";
 import { messageSuppression, notificationOutbox, relayOutbox } from "@/db/schema";
+import type { SendState } from "@/lib/notifications/send-state";
 import { relayRpc, type RelayMessageByKey } from "./client";
 
 export type DeliveryState = {
@@ -18,7 +19,20 @@ const CHUNK = 100;
 const chunks = <T>(xs: T[]): T[][] => Array.from({ length: Math.ceil(xs.length / CHUNK) }, (_, i) => xs.slice(i * CHUNK, i * CHUNK + CHUNK));
 const likePrefix = (prefix: string) => `${prefix.replace(/[\\%_]/g, "\\$&")}%`;
 
-/** Dedupe keys starting with `prefix`, from the engine outbox and relay_outbox. Relay's ":email" suffix is dropped; match by prefix only. */
+/** Relay's view of a relay_outbox row: Relay wins over the local row when Relay has one; a "skipped" reads as the engine's "sent". */
+export function engineStatus(status: string): string {
+  return status === "skipped" ? "sent" : status;
+}
+
+export function relaySendState(last: (SendState & { key?: string }) | null, state: Map<string, DeliveryState>): SendState | null {
+  if (!last) return null;
+  const { key, ...base } = last;
+  const s = key ? state.get(key) : undefined;
+  if (!s) return { ...base, status: engineStatus(base.status) };
+  return { status: engineStatus(s.status), at: base.at, deliveredAt: s.deliveredAt, openedAt: s.opens > 0 ? s.sentAt : null };
+}
+
+/** Dedupe keys starting with `prefix`, from the engine outbox and relay_outbox, without the ":email" suffix. */
 export async function sentKeysWithPrefix(prefix: string): Promise<Set<string>> {
   const pattern = likePrefix(prefix);
   const [engine, relay] = await Promise.all([
@@ -26,7 +40,7 @@ export async function sentKeysWithPrefix(prefix: string): Promise<Set<string>> {
     db.select({ key: relayOutbox.idempotencyKey }).from(relayOutbox).where(like(relayOutbox.idempotencyKey, pattern)),
   ]);
   const keys = new Set<string>();
-  for (const r of engine) if (r.key) keys.add(r.key);
+  for (const r of engine) if (r.key) keys.add(r.key.replace(/:email$/, ""));
   for (const r of relay) keys.add(r.key.replace(/:email$/, ""));
   return keys;
 }

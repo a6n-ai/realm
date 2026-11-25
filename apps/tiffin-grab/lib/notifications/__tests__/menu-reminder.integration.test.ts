@@ -58,8 +58,19 @@ describe("weekly menu reminder (system campaign)", () => {
     const rows = await db.select().from(relayOutbox).where(eq(relayOutbox.recipientId, id));
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({ stream: "marketing", event: null, status: "pending" });
-    expect(rows[0]!.idempotencyKey).toMatch(new RegExp(`^${MENU_REMINDER_KEY}:week:2099-01-05:${id}:`));
+    // The engine's stored key for this run: cmp:<campaign>:<runKey>:<user>:email.
+    const { publicId } = await ensureMenuReminder();
+    expect(rows[0]!.idempotencyKey).toBe(`cmp:${publicId}:week:2099-01-05:${id}:email`);
     expect(rows[0]!.payload).toMatchObject({ event: MENU_REMINDER_KEY, vars: { weekLabel: expect.any(String), url: expect.any(String) } });
     expect(await rowsFor(id)).toHaveLength(0);
+  });
+
+  it("with EMAIL_VIA_RELAY on, does not queue a week the engine already reminded", async () => {
+    await ensureMenuReminder();
+    const id = await makeUser(`${MARK}-d@example.test`);
+    await runSystemCampaign(deps, MENU_REMINDER_KEY, { runKey: "week:2099-01-19", recipients: [{ userId: id }] });
+    vi.stubEnv("EMAIL_VIA_RELAY", "1");
+    expect(await runMenuReminder("2099-01-19", "week:2099-01-19", [{ userId: id, name: "D" }])).toEqual({ queued: 0 });
+    expect(await db.select().from(relayOutbox).where(eq(relayOutbox.recipientId, id))).toHaveLength(0);
   });
 });

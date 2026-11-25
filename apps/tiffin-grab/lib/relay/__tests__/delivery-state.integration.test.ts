@@ -5,7 +5,7 @@ import { makePublicId } from "@foundry/database";
 import { db } from "@/db/client";
 import { messageSuppression, relayOutbox } from "@/db/schema";
 import { setRelayClientForTests, type RelayClient } from "@/lib/relay/client";
-import { deliveryState, sentKeysWithPrefix, suppressedEmails } from "@/lib/relay/delivery-state";
+import { deliveryState, relaySendState, sentKeysWithPrefix, suppressedEmails } from "@/lib/relay/delivery-state";
 
 const MARK = "ds-int";
 const keys = [`${MARK}:a_b:1:email`, `${MARK}:axb:1:email`, `${MARK}:local:1:email`];
@@ -105,5 +105,15 @@ describe("suppressedEmails", () => {
   it("keeps the engine table when Relay throws", async () => {
     setRelayClientForTests(fakeClient({ suppressionStatus: vi.fn(async () => { throw new Error("down"); }) }));
     expect([...(await suppressedEmails([supAddr[0]!]))]).toEqual([supAddr[0]]);
+  });
+});
+
+describe("relaySendState", () => {
+  it("reads a relay skip as the engine's sent, and lets Relay's view win", () => {
+    const local = { status: "skipped", at: 1, deliveredAt: null, openedAt: null, key: "k" };
+    expect(relaySendState(local, new Map())).toEqual({ status: "sent", at: 1, deliveredAt: null, openedAt: null });
+    const state = new Map([["k", { key: "k", status: "delivered", sentAt: 5, deliveredAt: 6, bouncedAt: null, complainedAt: null, opens: 2, error: null }]]);
+    expect(relaySendState({ status: "sent", at: 1, deliveredAt: null, openedAt: null, key: "k" }, state)).toEqual({ status: "delivered", at: 1, deliveredAt: 6, openedAt: 5 });
+    expect(relaySendState(null, state)).toBeNull();
   });
 });

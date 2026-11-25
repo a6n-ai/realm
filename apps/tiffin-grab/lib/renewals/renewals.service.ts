@@ -20,7 +20,7 @@ import { pageRows } from "@foundry/commons";
 import { loadPlanFacts, ownerIdOf, visibleTo, type PlanFact } from "./renewal-facts";
 import { renewalMatches, renewalOrder } from "./renewal-filter";
 import { emailViaRelay } from "@/lib/runtime/env";
-import { deliveryState, suppressedEmails } from "@/lib/relay/delivery-state";
+import { deliveryState, engineStatus, suppressedEmails } from "@/lib/relay/delivery-state";
 
 // Last 50 renewal reminders to one customer. Under the flag they come from relay_outbox, with Relay's delivery state over the local one.
 async function reminderRowsFor(userId: bigint) {
@@ -47,7 +47,10 @@ async function reminderRowsFor(userId: bigint) {
   const state = await deliveryState(local.map((r) => r.key));
   return local.map((r) => {
     const s = state.get(r.key);
-    return { sentAt: r.sentAt, status: s?.status ?? r.status, key: r.key, deliveredAt: s?.deliveredAt ?? null, error: s?.error ?? r.error };
+    const raw = s?.status ?? r.status;
+    const error = s?.error ?? r.error;
+    // A relay skip reads as the engine's: status sent, error "skipped: ...".
+    return { sentAt: r.sentAt, status: engineStatus(raw), key: r.key, deliveredAt: s?.deliveredAt ?? null, error: raw === "skipped" ? `skipped: ${error ?? ""}` : error };
   });
 }
 
