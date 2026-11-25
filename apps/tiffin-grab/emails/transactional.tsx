@@ -7,7 +7,7 @@
  * `{{var}}` placeholders pass through untouched for @relay/engine to fill at send.
  * Inline styles and tables only — email clients ignore <style> and flexbox.
  */
-import { createContext, useContext, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { Body, Container, Font, Head, Html, Img, Link, Preview, Section, Text } from "react-email";
 import { OTP_TTL_MINUTES } from "@foundry/commons";
 import { emailBaseUrl } from "@/lib/runtime/env";
@@ -142,11 +142,9 @@ function P({ children }: { children: ReactNode }) {
   return <Text style={{ margin: "0 0 16px", fontSize: "16px", lineHeight: "24px", color: C.ink }}>{children}</Text>;
 }
 
-/** Relay's override.intro, when set, replaces this paragraph (render.ts supplies it). */
-export const IntroContext = createContext<string | null>(null);
-function Lead({ children }: { children: ReactNode }) {
-  const intro = useContext(IntroContext);
-  return <P>{intro ?? children}</P>;
+/** Relay's override.intro replaces this paragraph's text: render.ts finds Lead elements in the tree. */
+export function Lead({ children }: { children: ReactNode }) {
+  return <P>{children}</P>;
 }
 
 function Note({ children }: { children: ReactNode }) {

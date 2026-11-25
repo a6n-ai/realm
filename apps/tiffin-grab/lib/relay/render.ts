@@ -1,7 +1,7 @@
-import { createElement, type ReactElement } from "react";
+import { Children, cloneElement, isValidElement, type ReactElement, type ReactNode } from "react";
 import { render } from "react-email";
 import { appendUnsubscribeFooter, interpolate, renderEmailForEvent } from "@relay/engine";
-import { IntroContext, MENU_REMINDER, TEMPLATES } from "@/emails/transactional";
+import { Lead, MENU_REMINDER, TEMPLATES } from "@/emails/transactional";
 import { db } from "@/db/client";
 import { notificationTables } from "@/db/schema";
 import { campaignConfig } from "@/lib/notifications/campaign-config";
@@ -41,8 +41,8 @@ export async function renderRelayEmail(
   const code = CODE_DEFAULTS.get(row.event);
   let out: RenderedEmail;
   if (code) {
-    // override.intro replaces the lead paragraph; a template with no Lead paragraph ignores it. The preheader keeps the default lead.
-    const el = createElement(IntroContext.Provider, { value: override?.intro || null }, code.element);
+    // override.intro replaces the Lead paragraph's text; React escapes it in the html. Templates with no Lead ignore it.
+    const el = override?.intro ? (withIntro(code.element, override.intro) as ReactElement) : code.element;
     const html = await render(el);
     const text = await render(el, { plainText: true });
     // Interpolate before the footer: the footer's literal token must survive, and interpolate blanks unknown tokens.
@@ -71,4 +71,12 @@ export async function renderRelayEmail(
       address: config.sender.postalAddress,
     }),
   };
+}
+
+// Context would be simpler, but these templates are imported by server code, where createContext does not exist.
+function withIntro(node: ReactNode, intro: string): ReactNode {
+  if (!isValidElement<{ children?: ReactNode }>(node)) return node;
+  if (node.type === Lead) return cloneElement(node, undefined, intro);
+  const { children } = node.props;
+  return children === undefined ? node : cloneElement(node, undefined, Children.map(children, (c) => withIntro(c, intro)));
 }
