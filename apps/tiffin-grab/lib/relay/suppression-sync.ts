@@ -27,10 +27,16 @@ export async function syncSuppressionsToRelay(limit = 100): Promise<{ pushed: nu
     try {
       await rpc.suppress(suppressInput(r));
     } catch (err) {
+      const message = err instanceof Error ? err.message : "unknown";
       // Logs the message only: the address is personal data.
-      console.error("relay suppression sync failed", { err: err instanceof Error ? err.message : "unknown" });
-      next = Math.min(next, at - 1);
-      break;
+      console.error("relay suppression sync failed", { err: message });
+      // Relay will never accept a malformed row, so skip it rather than stall every later opt-out.
+      if (message !== "invalid input") {
+        next = Math.min(next, at - 1);
+        break;
+      }
+      next = at;
+      continue;
     }
     next = at;
     pushed++;

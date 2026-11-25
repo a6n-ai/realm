@@ -11,11 +11,11 @@ vi.mock("@/lib/runtime/lease", () => ({
   }),
 }));
 
-function fakeRelay(failOn?: string): { client: RelayClient; calls: unknown[] } {
+function fakeRelay(failOn?: string, error = "relay down"): { client: RelayClient; calls: unknown[] } {
   const calls: unknown[] = [];
   const client = {
     suppress: vi.fn(async (input: { email: string }) => {
-      if (input.email === failOn) throw new Error("relay down");
+      if (input.email === failOn) throw new Error(error);
       calls.push(input);
       return { created: true };
     }),
@@ -65,6 +65,21 @@ describe("syncSuppressionsToRelay", () => {
     expect(await syncSuppressionsToRelay()).toEqual({ pushed: 1 });
     expect(calls).toEqual([{ email: "a@x.ca", reason: "unsubscribe", stream: null }]);
     expect(state.cursor).toBe("100");
+    setRelayClientForTests(null);
+  });
+
+  it("skips a row Relay rejects as invalid input, so later opt-outs still sync", async () => {
+    state.cursor = null;
+    state.rows = [
+      { created_at: 100, address: "a@x.ca", scope: "all", reason: "unsubscribe" },
+      { created_at: 200, address: "not-an-email", scope: "all", reason: "unsubscribe" },
+      { created_at: 300, address: "c@x.ca", scope: "marketing", reason: "unsubscribe" },
+    ];
+    const { client, calls } = fakeRelay("not-an-email", "invalid input");
+    setRelayClientForTests(client);
+    expect(await syncSuppressionsToRelay()).toEqual({ pushed: 2 });
+    expect(calls).toHaveLength(2);
+    expect(state.cursor).toBe("300");
     setRelayClientForTests(null);
   });
 });
