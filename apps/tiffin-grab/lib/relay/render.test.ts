@@ -62,7 +62,7 @@ describe("renderRelayEmail", () => {
 
   it("renders a stored template when there is no code copy, and refuses when there is none", async () => {
     const stored = vi.mocked(renderEmailForEvent);
-    await expect(renderRelayEmail({ ...base, event: "menu_released" }, null)).rejects.toThrow("no email template for menu_released");
+    await expect(renderRelayEmail({ ...base, event: "menu_released" }, null)).resolves.toBe("missing");
     stored.mockResolvedValue({ subject: "Stored {{payment.customerName}}", html: "<p>h</p>", text: "t" });
     await expect(renderRelayEmail({ ...base, event: "menu_released" }, null)).resolves.toEqual({ subject: "Stored {{payment.customerName}}", html: "<p>h</p>", text: "t" });
     stored.mockResolvedValue(null);

@@ -8,8 +8,8 @@ let cached: { at: number; map: Map<string, RelayTemplateOverride> } | null = nul
 
 export const overrideKey = (event: string, locale: string) => `${event}:${locale}`;
 
-/** Relay's template overrides keyed `event:locale`, cached per isolate. Relay down: the last map, else none (code defaults). */
-export async function getTemplateOverrides(): Promise<Map<string, RelayTemplateOverride>> {
+/** Relay's template overrides keyed `event:locale`, cached per isolate. Relay down: the last map, or null when none was ever read. */
+export async function getTemplateOverrides(): Promise<Map<string, RelayTemplateOverride> | null> {
   if (cached && Date.now() - cached.at < TTL_MS) return cached.map;
   try {
     const rows = await relayRpc().templateOverrides();
@@ -17,8 +17,8 @@ export async function getTemplateOverrides(): Promise<Map<string, RelayTemplateO
     cached = { at: Date.now(), map };
     return map;
   } catch (err) {
-    log.warn({ err: (err as Error).message }, "template overrides unavailable; using code defaults");
-    return cached?.map ?? new Map();
+    log.warn({ err: err instanceof Error ? err.message : "unknown" }, "template overrides unavailable");
+    return cached?.map ?? null;
   }
 }
 

@@ -93,13 +93,46 @@ describe("forwardRelayOutbox", () => {
     expect(await rowOf(row.id)).toMatchObject({ status: "sent", relayMessageId: "m-old" });
   });
 
-  it("fails a row whose template is disabled in Relay, without calling send", async () => {
+  it("skips a row whose template is disabled in Relay, without calling send or retrying", async () => {
     overrides = [{ event: "payment_received", locale: "en", subject: "x", intro: null, enabled: false }];
     const row = await addRow(`${MARK}-5:email`);
-    const out = await forwardRelayOutbox();
-    expect(out.failed).toBe(1);
+    await forwardRelayOutbox();
     expect(send).not.toHaveBeenCalled();
-    expect(await rowOf(row.id)).toMatchObject({ status: "failed", lastError: "template disabled" });
+    expect(await rowOf(row.id)).toMatchObject({ status: "skipped", lastError: "template disabled", attempts: 0 });
+  });
+
+  it("skips a row whose event has no template at all", async () => {
+    const row = await addRow(`${MARK}-12:email`, { payload: { event: "order_created", locale: "en", vars: {} } });
+    await forwardRelayOutbox();
+    expect(send).not.toHaveBeenCalled();
+    expect(await rowOf(row.id)).toMatchObject({ status: "skipped", lastError: "template missing", attempts: 0 });
+  });
+
+  it("defers the batch without an attempt when Relay's overrides are unknown, and never renders", async () => {
+    setRelayClientForTests({ send: (input: unknown) => send(input), templateOverrides: async () => { throw new Error("relay down"); } } as unknown as RelayClient);
+    const row = await addRow(`${MARK}-10:email`);
+    await forwardRelayOutbox();
+    expect(send).not.toHaveBeenCalled();
+    const after = await rowOf(row.id);
+    expect(after).toMatchObject({ status: "pending", attempts: 0 });
+    expect(Number(after.nextAttemptAt) - Date.now()).toBeLessThanOrEqual(16_000);
+  });
+
+  it("does not overwrite a row that another forwarder re-claimed after this one's lease", async () => {
+    const row = await addRow(`${MARK}-11:email`);
+    send.mockImplementationOnce(async () => {
+      await db.update(relayOutbox).set({ nextAttemptAt: 4_102_444_800_000 }).where(eq(relayOutbox.id, row.id));
+      return { messageId: "m-late", status: "queued", duplicate: false };
+    });
+    await forwardRelayOutbox();
+    expect(await rowOf(row.id)).toMatchObject({ status: "pending", relayMessageId: null, nextAttemptAt: 4_102_444_800_000 });
+  });
+
+  it("stores a Relay failed result as failed with its status as the error", async () => {
+    send.mockResolvedValueOnce({ messageId: "m-f", status: "failed", duplicate: false });
+    const row = await addRow(`${MARK}-13:email`);
+    await forwardRelayOutbox();
+    expect(await rowOf(row.id)).toMatchObject({ status: "failed", lastError: "failed", relayMessageId: "m-f" });
   });
 
   it("sends each row once when two forwarders run at the same time", async () => {
@@ -119,7 +152,7 @@ describe("forwardRelayOutbox", () => {
     try {
       const row = await addRow(`${MARK}-7:email`, { payload: { event: "payment_received", locale: "en", vars: { payment: { customerName: "Ann" } }, attachments: att } });
       await forwardRelayOutbox();
-      expect(fetchSpy).toHaveBeenCalledWith("https://files.test/r.pdf");
+      expect(fetchSpy).toHaveBeenCalledWith("https://files.test/r.pdf", expect.objectContaining({ signal: expect.any(AbortSignal) }));
       expect(send.mock.calls[0]![0]).toMatchObject({
         fromName: expect.any(String),
         replyTo: expect.any(String),

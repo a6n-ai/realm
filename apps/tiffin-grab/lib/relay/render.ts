@@ -31,17 +31,17 @@ function escapeVars(v: unknown): unknown {
 /**
  * The email the engine path would send for this event, with Relay's override applied: subject
  * replaces the default; enabled=false is "disabled". Marketing mail gets the CASL footer with the
- * unsubscribe token left literal, for Relay to fill at delivery.
+ * unsubscribe token left literal, for Relay to fill at delivery. No code copy and no stored template: "missing".
  */
 export async function renderRelayEmail(
   row: RelayRenderRow,
   override: RelayTemplateOverride | null,
-): Promise<RenderedEmail | "disabled"> {
+): Promise<RenderedEmail | "disabled" | "missing"> {
   if (override?.enabled === false) return "disabled";
   const code = CODE_DEFAULTS.get(row.event);
   let out: RenderedEmail;
   if (code) {
-    // override.intro replaces the lead paragraph; a template with no Lead paragraph ignores it.
+    // override.intro replaces the lead paragraph; a template with no Lead paragraph ignores it. The preheader keeps the default lead.
     const el = createElement(IntroContext.Provider, { value: override?.intro || null }, code.element);
     const html = await render(el);
     const text = await render(el, { plainText: true });
@@ -55,7 +55,7 @@ export async function renderRelayEmail(
     // The engine renders html and text from the same vars, so render twice: html gets escaped vars, text and subject raw.
     const raw = await renderEmailForEvent(db, notificationTables, row.event, row.locale, row.vars);
     const safe = await renderEmailForEvent(db, notificationTables, row.event, row.locale, escapeVars(row.vars) as Record<string, unknown>);
-    if (!raw || !safe) throw new Error(`no email template for ${row.event}`);
+    if (!raw || !safe) return "missing";
     out = { subject: raw.subject, html: safe.html, text: raw.text };
   }
   if (override?.subject) out.subject = interpolate(override.subject, row.vars);

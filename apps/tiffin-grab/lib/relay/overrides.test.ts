@@ -41,8 +41,8 @@ describe("getTemplateOverrides", () => {
     }
   });
 
-  it("returns an empty map (code defaults) when Relay fails and nothing is cached", async () => {
+  it("returns null when Relay fails and nothing was ever read", async () => {
     setRelayClientForTests(fakeClient(async () => { throw new Error("relay down"); }));
-    await expect(getTemplateOverrides()).resolves.toEqual(new Map());
+    await expect(getTemplateOverrides()).resolves.toBeNull();
   });
 });
