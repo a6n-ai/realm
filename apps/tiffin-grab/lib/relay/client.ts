@@ -7,7 +7,8 @@ export type RelayStatus = "queued" | "sent" | "failed" | "suppressed";
 
 export type RelaySendInput = {
   stream: RelayStream;
-  from: string;
+  /** Omitted: Relay uses the app's default sender for the stream, with its name and reply-to. */
+  from?: string;
   /** ≤100 chars. */
   fromName?: string;
   replyTo?: string;

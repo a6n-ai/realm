@@ -146,16 +146,18 @@ describe("forwardRelayOutbox", () => {
     expect(keys.sort()).toEqual([`${MARK}-6-0:email`, `${MARK}-6-1:email`, `${MARK}-6-2:email`]);
   });
 
-  it("fetches receipt attachments and sends them as base64, with the sender name and reply-to", async () => {
+  it("fetches receipt attachments and sends them as base64, and leaves the sender to Relay", async () => {
     const att = [{ filename: "receipt.pdf", url: "https://files.test/r.pdf", contentType: "application/pdf" }];
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(new Uint8Array([1, 2, 3])));
     try {
       const row = await addRow(`${MARK}-7:email`, { payload: { event: "payment_received", locale: "en", vars: { payment: { customerName: "Ann" } }, attachments: att } });
       await forwardRelayOutbox();
       expect(fetchSpy).toHaveBeenCalledWith("https://files.test/r.pdf", expect.objectContaining({ signal: expect.any(AbortSignal) }));
-      expect(send.mock.calls[0]![0]).toMatchObject({
-        fromName: expect.any(String),
-        replyTo: expect.any(String),
+      const sent = send.mock.calls[0]![0] as Record<string, unknown>;
+      expect(sent).not.toHaveProperty("from");
+      expect(sent).not.toHaveProperty("fromName");
+      expect(sent).not.toHaveProperty("replyTo");
+      expect(sent).toMatchObject({
         attachments: [{ filename: "receipt.pdf", contentType: "application/pdf", content: "AQID" }],
       });
       expect(await rowOf(row.id)).toMatchObject({ status: "sent" });

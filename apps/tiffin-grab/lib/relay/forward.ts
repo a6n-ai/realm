@@ -2,8 +2,6 @@ import { and, asc, eq, inArray, lte, min } from "drizzle-orm";
 import { createLogger } from "@foundry/commons/logger";
 import { db } from "@/db/client";
 import { relayOutbox } from "@/db/schema";
-import { campaignConfig } from "@/lib/notifications/campaign-config";
-import { notifyFrom, notifyReplyTo } from "@/lib/runtime/env";
 import { relayRpc, type RelayStream, type RelayTemplateOverride } from "./client";
 import { getTemplateOverrides, overrideKey } from "./overrides";
 import { renderRelayEmail } from "./render";
@@ -90,16 +88,11 @@ async function deliver(row: Row, overrides: Map<string, RelayTemplateOverride>):
     return (await settle(row, { status: "skipped", lastError })) ? "skipped" : "lost";
   }
 
-  const config = row.stream === "marketing" ? await campaignConfig() : null;
-  const fallback = notifyFrom();
   let res;
   try {
     const attachments = await fetchAttachments(payload.attachments ?? []);
     res = await relayRpc().send({
       stream: row.stream as RelayStream,
-      from: config?.sender.email ?? fallback.email,
-      fromName: config?.sender.name ?? fallback.name,
-      replyTo: notifyReplyTo(),
       to: row.recipientEmail,
       subject: rendered.subject.replace(/[\r\n]/g, ""),
       html: rendered.html,
