@@ -26,8 +26,8 @@ vi.mock("@/components/ds", () => ({
 }));
 
 const mockTrackMeta = vi.fn();
-vi.mock("@foundry/meta-pixel/client", () => ({
-  trackMeta: (...args: unknown[]) => mockTrackMeta(...args),
+vi.mock("@/lib/meta/browser", () => ({
+  trackMetaCustom: (...args: unknown[]) => mockTrackMeta(...args),
 }));
 
 const mockGtagEvent = vi.fn();

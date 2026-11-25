@@ -27,6 +27,16 @@ Parameters:
   AlertEmail:
     Type: String
     Description: Address that gets the SES reputation alarm emails (confirm the SNS subscription mail once).
+  TrackingDomain:
+    Type: String
+    Default: ""
+    Description: >-
+      Custom open/click tracking domain for the two tracked sets (empty = SES's shared awstrack.me).
+      A one-level subdomain of a verified identity, CNAME to r.us-east-1.awstrack.me, Cloudflare-proxied
+      with zone SSL "Full" (Universal SSL covers one level only). See README "Tracking domain".
+
+Conditions:
+  HasTrackingDomain: !Not [!Equals [!Ref TrackingDomain, ""]]
 
 Resources:
   ConfigSet:
@@ -35,6 +45,11 @@ Resources:
     UpdateReplacePolicy: Retain
     Properties:
       Name: !Ref ConfigurationSetName
+      TrackingOptions: !If
+        - HasTrackingDomain
+        - CustomRedirectDomain: !Ref TrackingDomain
+          HttpsPolicy: REQUIRE
+        - !Ref AWS::NoValue
 
   FeedbackTopic:
     Type: AWS::SNS::Topic
@@ -94,6 +109,11 @@ Resources:
     UpdateReplacePolicy: Retain
     Properties:
       Name: !Ref TrackedConfigurationSetName
+      TrackingOptions: !If
+        - HasTrackingDomain
+        - CustomRedirectDomain: !Ref TrackingDomain
+          HttpsPolicy: REQUIRE
+        - !Ref AWS::NoValue
 
   AlertTopic:
     Type: AWS::SNS::Topic

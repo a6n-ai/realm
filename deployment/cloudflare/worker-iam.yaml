@@ -100,7 +100,7 @@ Resources:
             - SesEventSettings
             - Sid: SesEventSettings
               Effect: Allow
-              Action: [ses:GetConfigurationSetEventDestinations, ses:UpdateConfigurationSetEventDestination]
+              Action: [ses:GetConfigurationSetEventDestinations, ses:UpdateConfigurationSetEventDestination, ses:GetConfigurationSet, ses:PutConfigurationSetTrackingOptions]
               Resource:
                 - !Sub
                   - "arn:aws:ses:${ResourceRegion}:${AWS::AccountId}:configuration-set/${Name}"
