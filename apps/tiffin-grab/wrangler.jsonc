@@ -43,7 +43,11 @@
     { "pattern": "www.tiffingrab.ca", "custom_domain": true },
     { "pattern": "app.tiffingrab.ca", "custom_domain": true }
   ],
-  "services": [{ "binding": "WORKER_SELF_REFERENCE", "service": "tiffin-grab" }],
+  "services": [
+    { "binding": "WORKER_SELF_REFERENCE", "service": "tiffin-grab" },
+    // Relay's RPC entrypoint (Phase 6b). Relay is not deployed with this yet; calls fail until it is.
+    { "binding": "RELAY", "service": "relay-v2", "entrypoint": "RelayRpc" },
+  ],
   // Workflows replaced the per-minute cron and worker.js has no scheduled(). An omitted
   // "triggers" key leaves the old cron in place, firing a failing invocation every minute.
   "triggers": { "crons": [] },

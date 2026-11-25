@@ -38,6 +38,7 @@ export const notifyFrom = () => ({
   email: process.env.NOTIFY_FROM_EMAIL ?? "noreply@tiffingrab.ca",
   name: process.env.NOTIFY_FROM_NAME ?? BRAND_NAME,
 });
+export const emailViaRelay = () => process.env.EMAIL_VIA_RELAY === "1";
 export const sesConfigSet = () => process.env.SES_CONFIGURATION_SET;
 export const sesTransactionalConfigSet = () => process.env.SES_TRANSACTIONAL_CONFIGURATION_SET;
 export const sesTrackedConfigSet = () => process.env.SES_TRACKED_CONFIGURATION_SET;

@@ -30,6 +30,9 @@ export type CfEnv = {
   IMAGES: Images & { input(stream: ReadableStream): unknown };
   CAMPAIGN_WAKE: Workflow;
   SITE_REFRESH_WAKE: Workflow;
+  RELAY?: Record<string, (...args: unknown[]) => Promise<unknown>>;
+  /** Worker secret, not a wrangler binding. */
+  RELAY_API_KEY?: string;
 };
 
 export const cfEnv = (): CfEnv => getCloudflareContext().env as unknown as CfEnv;
