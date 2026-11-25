@@ -1,4 +1,6 @@
+import { runInBackground } from "@foundry/cloud/background";
 import { cfEnv } from "@/lib/runtime/cf-env";
+import { emailViaRelay } from "@/lib/runtime/env";
 import { createLogger } from "@foundry/commons/logger";
 import { isWorkers } from "@foundry/commons/runtime/platform";
 
@@ -12,6 +14,11 @@ const log = createLogger("outbox-signal");
  */
 export async function signalOutbox(): Promise<void> {
   if (!isWorkers()) return;
+  // Fast path: hand due relay_outbox rows to Relay now, after the response. The claim is SKIP LOCKED with a lease
+  // and Relay dedupes on idempotencyKey, so a race with the tick sends once; anything left waits for the tick.
+  if (emailViaRelay()) {
+    runInBackground(async () => (await import("@/lib/relay/forward")).forwardRelayOutbox(), "relay fast path");
+  }
   try {
     await cfEnv().OUTBOX.send({ at: Date.now() });
   } catch (err) {

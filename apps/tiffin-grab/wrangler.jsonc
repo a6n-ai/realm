@@ -65,7 +65,8 @@
   "kv_namespaces": [{ "binding": "CACHE", "id": "c74de8bc0b00407992ad1650561866bf" }], // tiffin-grab-cache
   "queues": {
     "producers": [{ "binding": "OUTBOX", "queue": "tiffin-outbox" }],
-    "consumers": [{ "queue": "tiffin-outbox", "max_batch_size": 10, "max_retries": 5, "dead_letter_queue": "tiffin-outbox-dlq" }]
+    // max_batch_timeout 0: start the consumer as soon as a signal arrives (the 5 s default delayed every email).
+    "consumers": [{ "queue": "tiffin-outbox", "max_batch_size": 10, "max_batch_timeout": 0, "max_retries": 5, "dead_letter_queue": "tiffin-outbox-dlq" }]
   },
   "r2_buckets": [
     { "binding": "NEXT_INC_CACHE_R2_BUCKET", "bucket_name": "tiffin-grab-inc-cache" },
