@@ -1,7 +1,7 @@
 import { postgresOptions } from "@foundry/database";
 import { count, eq, inArray, ne } from "drizzle-orm";
 import { db } from "./client";
-import { categoryPlans, dishCategories, dishes, notificationOutbox, plans, users } from "./schema";
+import { categoryPlans, dishCategories, dishes, notificationOutbox, plans, relayOutbox, users } from "./schema";
 import { databaseUrl } from "../lib/runtime/env";
 import { invalidateDishCategories } from "../lib/menu/dish-category-ref";
 import { invalidateMealSizeFacts } from "../lib/menu/meal-size-facts";
@@ -28,6 +28,7 @@ export async function ensureSystemUser(): Promise<void> {
 export async function deleteNonSystemUsers(): Promise<void> {
   const ids = db.select({ id: users.id }).from(users).where(ne(users.isSystem, true));
   await db.delete(notificationOutbox).where(inArray(notificationOutbox.recipientId, ids));
+  await db.delete(relayOutbox).where(inArray(relayOutbox.recipientId, ids));
   await db.delete(users).where(ne(users.isSystem, true));
   await invalidateAssignableStaff();
 }

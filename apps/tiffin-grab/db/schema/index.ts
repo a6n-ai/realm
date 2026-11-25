@@ -26,6 +26,7 @@ export * from "./wallet";
 export * from "./referrals";
 export * from "./shortlinks";
 export * from "./notifications";
+export * from "./relay-outbox";
 export * from "./files";
 export * from "./subscription-pauses";
 export * from "./organizations";
