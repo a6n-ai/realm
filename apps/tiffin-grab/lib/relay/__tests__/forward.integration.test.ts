@@ -112,4 +112,43 @@ describe("forwardRelayOutbox", () => {
     const keys = send.mock.calls.map((c) => (c[0] as { idempotencyKey: string }).idempotencyKey);
     expect(keys.sort()).toEqual([`${MARK}-6-0:email`, `${MARK}-6-1:email`, `${MARK}-6-2:email`]);
   });
+
+  it("fetches receipt attachments and sends them as base64, with the sender name and reply-to", async () => {
+    const att = [{ filename: "receipt.pdf", url: "https://files.test/r.pdf", contentType: "application/pdf" }];
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(new Uint8Array([1, 2, 3])));
+    try {
+      const row = await addRow(`${MARK}-7:email`, { payload: { event: "payment_received", locale: "en", vars: { payment: { customerName: "Ann" } }, attachments: att } });
+      await forwardRelayOutbox();
+      expect(fetchSpy).toHaveBeenCalledWith("https://files.test/r.pdf");
+      expect(send.mock.calls[0]![0]).toMatchObject({
+        fromName: expect.any(String),
+        replyTo: expect.any(String),
+        attachments: [{ filename: "receipt.pdf", contentType: "application/pdf", content: "AQID" }],
+      });
+      expect(await rowOf(row.id)).toMatchObject({ status: "sent" });
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it("keeps a row pending with attempts 1 when the attachment fetch fails, and never sends it", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("nope", { status: 500 }));
+    try {
+      const row = await addRow(`${MARK}-8:email`, {
+        payload: { event: "payment_received", locale: "en", vars: { payment: { customerName: "Ann" } }, attachments: [{ filename: "r.pdf", url: "https://files.test/x", contentType: "application/pdf" }] },
+      });
+      await forwardRelayOutbox();
+      expect(send).not.toHaveBeenCalled();
+      expect(await rowOf(row.id)).toMatchObject({ status: "pending", attempts: 1, lastError: "attachment r.pdf fetch 500" });
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it("stores a suppressed result as suppressed, not sent", async () => {
+    send.mockResolvedValueOnce({ messageId: "m-s", status: "suppressed", duplicate: false });
+    const row = await addRow(`${MARK}-9:email`);
+    await forwardRelayOutbox();
+    expect(await rowOf(row.id)).toMatchObject({ status: "suppressed", relayMessageId: "m-s" });
+  });
 });

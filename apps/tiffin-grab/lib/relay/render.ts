@@ -1,7 +1,7 @@
-import type { ReactElement } from "react";
+import { createElement, type ReactElement } from "react";
 import { render } from "react-email";
 import { appendUnsubscribeFooter, interpolate, renderEmailForEvent } from "@relay/engine";
-import { TEMPLATES } from "@/emails/transactional";
+import { IntroContext, MENU_REMINDER, TEMPLATES } from "@/emails/transactional";
 import { db } from "@/db/client";
 import { notificationTables } from "@/db/schema";
 import { campaignConfig } from "@/lib/notifications/campaign-config";
@@ -12,10 +12,21 @@ export const UNSUBSCRIBE_TOKEN = "{{unsubscribe_url}}";
 export type RelayRenderRow = { event: string; locale: string; vars: Record<string, unknown>; stream: RelayStream };
 export type RenderedEmail = { subject: string; html: string; text: string };
 
+type Code = { subject: string; element: ReactElement };
 // Code copy from the same source the seed renders. Events without it render the stored template, as the engine does.
-const CODE_DEFAULTS = new Map<string, { subject: string; element: ReactElement }>(
-  TEMPLATES.map((t) => [t.event, { subject: t.subject, element: t.element as ReactElement }]),
-);
+const CODE_DEFAULTS = new Map<string, Code>([
+  ...TEMPLATES.map((t): [string, Code] => [t.event, { subject: t.subject, element: t.element as ReactElement }]),
+  ["menu_reminder", { subject: MENU_REMINDER.subject, element: MENU_REMINDER.element as ReactElement }],
+]);
+
+const ESCAPES: Record<string, string> = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
+/** Customer-typed values reach the HTML as text, so escape every string at any depth. */
+function escapeVars(v: unknown): unknown {
+  if (typeof v === "string") return v.replace(/[&<>"']/g, (c) => ESCAPES[c]!);
+  if (Array.isArray(v)) return v.map(escapeVars);
+  if (v && typeof v === "object") return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, escapeVars(x)]));
+  return v;
+}
 
 /**
  * The email the engine path would send for this event, with Relay's override applied: subject
@@ -30,14 +41,22 @@ export async function renderRelayEmail(
   const code = CODE_DEFAULTS.get(row.event);
   let out: RenderedEmail;
   if (code) {
-    const html = await render(code.element);
-    const text = await render(code.element, { plainText: true });
+    // override.intro replaces the lead paragraph; a template with no Lead paragraph ignores it.
+    const el = createElement(IntroContext.Provider, { value: override?.intro || null }, code.element);
+    const html = await render(el);
+    const text = await render(el, { plainText: true });
     // Interpolate before the footer: the footer's literal token must survive, and interpolate blanks unknown tokens.
-    out = { subject: interpolate(code.subject, row.vars), html: interpolate(html, row.vars), text: interpolate(text, row.vars) };
+    out = {
+      subject: interpolate(code.subject, row.vars),
+      html: interpolate(html, escapeVars(row.vars) as Record<string, unknown>),
+      text: interpolate(text, row.vars),
+    };
   } else {
-    const stored = await renderEmailForEvent(db, notificationTables, row.event, row.locale, row.vars);
-    if (!stored) throw new Error(`no email template for ${row.event}`);
-    out = stored;
+    // The engine renders html and text from the same vars, so render twice: html gets escaped vars, text and subject raw.
+    const raw = await renderEmailForEvent(db, notificationTables, row.event, row.locale, row.vars);
+    const safe = await renderEmailForEvent(db, notificationTables, row.event, row.locale, escapeVars(row.vars) as Record<string, unknown>);
+    if (!raw || !safe) throw new Error(`no email template for ${row.event}`);
+    out = { subject: raw.subject, html: safe.html, text: raw.text };
   }
   if (override?.subject) out.subject = interpolate(override.subject, row.vars);
   if (row.stream !== "marketing") return out;

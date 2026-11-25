@@ -8,12 +8,17 @@ export type RelayStatus = "queued" | "sent" | "failed" | "suppressed";
 export type RelaySendInput = {
   stream: RelayStream;
   from: string;
+  /** ≤100 chars. */
+  fromName?: string;
+  replyTo?: string;
   to: string;
   subject: string;
   html: string;
   text: string;
   event?: string;
   idempotencyKey?: string;
+  /** ≤3 files, each ≤5 MB decoded. */
+  attachments?: { filename: string; contentType: string; content: string }[];
 };
 export type RelaySendResult = { messageId: string; status: RelayStatus; duplicate: boolean };
 

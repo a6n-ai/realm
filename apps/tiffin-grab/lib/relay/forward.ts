@@ -3,7 +3,7 @@ import { createLogger } from "@foundry/commons/logger";
 import { db } from "@/db/client";
 import { relayOutbox } from "@/db/schema";
 import { campaignConfig } from "@/lib/notifications/campaign-config";
-import { notifyFrom } from "@/lib/runtime/env";
+import { notifyFrom, notifyReplyTo } from "@/lib/runtime/env";
 import { relayRpc, type RelayStream, type RelayTemplateOverride } from "./client";
 import { getTemplateOverrides, overrideKey } from "./overrides";
 import { renderRelayEmail } from "./render";
@@ -15,7 +15,8 @@ const BASE_BACKOFF_MS = 30_000;
 const MAX_ATTEMPTS = 6;
 
 type Row = typeof relayOutbox.$inferSelect;
-type Payload = { event: string | null; locale: string; vars: Record<string, unknown>; attachments?: unknown[] };
+type Attachment = { filename: string; url: string; contentType: string };
+type Payload = { event: string | null; locale: string; vars: Record<string, unknown>; attachments?: Attachment[] };
 
 // Rows due now, leased in a short transaction. SKIP LOCKED lets two forwarders (queue + cron) run without blocking.
 async function claim(limit: number): Promise<Row[]> {
@@ -33,7 +34,18 @@ async function claim(limit: number): Promise<Row[]> {
   });
 }
 
-async function finish(row: Row, status: "sent" | "failed", fields: Partial<Row> = {}): Promise<"sent" | "failed"> {
+// Fetched at forward time: the signed url may be stale at enqueue, and a failed fetch retries like an RPC error.
+async function fetchAttachments(list: Attachment[]) {
+  return Promise.all(
+    list.map(async (a) => {
+      const res = await fetch(a.url);
+      if (!res.ok) throw new Error(`attachment ${a.filename} fetch ${res.status}`);
+      return { filename: a.filename, contentType: a.contentType, content: Buffer.from(await res.arrayBuffer()).toString("base64") };
+    }),
+  );
+}
+
+async function finish(row: Row, status: "sent" | "failed" | "suppressed", fields: Partial<Row> = {}): Promise<"sent" | "failed" | "suppressed"> {
   await db.update(relayOutbox).set({ status, ...fields }).where(eq(relayOutbox.id, row.id));
   return status;
 }
@@ -52,14 +64,8 @@ async function retry(row: Row, lastError: string): Promise<"retry" | "failed"> {
   return "retry";
 }
 
-async function deliver(row: Row, overrides: Map<string, RelayTemplateOverride>): Promise<"sent" | "failed" | "retry"> {
+async function deliver(row: Row, overrides: Map<string, RelayTemplateOverride>): Promise<"sent" | "failed" | "suppressed" | "retry"> {
   const payload = row.payload as Payload;
-  // Relay's send takes no attachments. Failing the row keeps the mail from going out without its file.
-  if (payload.attachments?.length) {
-    await finish(row, "failed", { lastError: "attachments are not sent through Relay" });
-    return "failed";
-  }
-
   let rendered;
   try {
     rendered = await renderRelayEmail(
@@ -77,20 +83,25 @@ async function deliver(row: Row, overrides: Map<string, RelayTemplateOverride>):
   }
 
   const config = row.stream === "marketing" ? await campaignConfig() : null;
-  const from = config?.sender.email ?? notifyFrom().email;
+  const fallback = notifyFrom();
   try {
+    const attachments = await fetchAttachments(payload.attachments ?? []);
     const res = await relayRpc().send({
       stream: row.stream as RelayStream,
-      from,
+      from: config?.sender.email ?? fallback.email,
+      fromName: config?.sender.name ?? fallback.name,
+      replyTo: notifyReplyTo(),
       to: row.recipientEmail,
       subject: rendered.subject,
       html: rendered.html,
       text: rendered.text,
       event: payload.event ?? undefined,
       idempotencyKey: row.idempotencyKey,
+      ...(attachments.length ? { attachments } : {}),
     });
     // A duplicate means an earlier attempt reached Relay: same outcome as a fresh send.
-    return finish(row, "sent", { relayMessageId: res.messageId, sentAt: Date.now(), lastError: null });
+    const status = res.status === "suppressed" ? "suppressed" : "sent";
+    return finish(row, status, { relayMessageId: res.messageId, sentAt: Date.now(), lastError: null });
   } catch (err) {
     const msg = (err as Error).message ?? "relay send failed";
     log.warn({ outboxId: row.publicId, attempts: row.attempts + 1 }, "relay send failed");

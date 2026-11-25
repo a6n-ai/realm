@@ -6,6 +6,7 @@ import { notificationPrefs, notifications, relayOutbox, users } from "@/db/schem
 import { broadcast } from "@/lib/notifications/broadcast";
 import { emailProviderFor } from "@/lib/notifications/email-provider-for";
 import { notificationTables } from "@/lib/notifications/tables";
+import { EVENTS } from "@/lib/notifications/events";
 
 /**
  * Flag-on enqueue. Channel rules are the engine's (planOutboxRows, same prefs and notify_email); suppression is
@@ -48,7 +49,8 @@ export async function enqueueViaRelay(tx: Tx, inputs: EnqueueInput[]): Promise<v
         publicId,
         // Dedupe key + ":email" (planOutboxRows adds the suffix). Rows without one are keyed by their own id.
         idempotencyKey: p.dedupeKey ?? publicId,
-        event: event as never,
+        // The column is the app_event enum; a template key outside it (menu_reminder) lives only in payload.event.
+        event: (event && event in EVENTS ? event : null) as never,
         recipientId: p.recipientId,
         recipientEmail: p.recipientEmail,
         stream,

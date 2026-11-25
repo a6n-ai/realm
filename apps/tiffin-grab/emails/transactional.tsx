@@ -7,7 +7,7 @@
  * `{{var}}` placeholders pass through untouched for @relay/engine to fill at send.
  * Inline styles and tables only — email clients ignore <style> and flexbox.
  */
-import type { ReactNode } from "react";
+import { createContext, useContext, type ReactNode } from "react";
 import { Body, Container, Font, Head, Html, Img, Link, Preview, Section, Text } from "react-email";
 import { OTP_TTL_MINUTES } from "@foundry/commons";
 import { emailBaseUrl } from "@/lib/runtime/env";
@@ -140,6 +140,13 @@ function Title({ lead, accent }: { lead: string; accent: string }) {
 
 function P({ children }: { children: ReactNode }) {
   return <Text style={{ margin: "0 0 16px", fontSize: "16px", lineHeight: "24px", color: C.ink }}>{children}</Text>;
+}
+
+/** Relay's override.intro, when set, replaces this paragraph (render.ts supplies it). */
+export const IntroContext = createContext<string | null>(null);
+function Lead({ children }: { children: ReactNode }) {
+  const intro = useContext(IntroContext);
+  return <P>{intro ?? children}</P>;
 }
 
 function Note({ children }: { children: ReactNode }) {
@@ -330,7 +337,7 @@ export const MENU_REMINDER = {
     <Layout preview="The menu for the week of {{weekLabel}} is live. Pick your meals before the cutoff.">
       <Eyebrow>This week's menu</Eyebrow>
       <Title lead="Your menu is" accent="out." />
-      <P>The menu for the week of {"{{weekLabel}}"} is live. Pick your meals before the cutoff, or keep the default and we'll cook that.</P>
+      <Lead>The menu for the week of {"{{weekLabel}}"} is live. Pick your meals before the cutoff, or keep the default and we'll cook that.</Lead>
       <Cta href="{{url}}">Choose my meals</Cta>
       <Note>Swap dishes, change portions, move a tiffin to another day or send one day to a different address, all from your account.</Note>
     </Layout>
@@ -353,7 +360,7 @@ export const TEMPLATES: EmailTemplate[] = [
       <Layout preview="One tap and your Tiffin Grab account is ready.">
         <Eyebrow>Welcome</Eyebrow>
         <Title lead="Confirm your" accent="email." />
-        <P>One tap and your account is ready. You'll use this address to sign in and get delivery updates.</P>
+        <Lead>One tap and your account is ready. You'll use this address to sign in and get delivery updates.</Lead>
         <Cta href="{{url}}">Confirm email</Cta>
         <Note>Didn't create a Tiffin Grab account? You can ignore this email.</Note>
       </Layout>
@@ -367,7 +374,7 @@ export const TEMPLATES: EmailTemplate[] = [
       <Layout preview={`Your code is {{otp}}. It expires in ${OTP_TTL_MINUTES} minutes.`}>
         <Eyebrow>Password reset</Eyebrow>
         <Title lead="Reset your" accent="password." />
-        <P>Enter this code to choose a new password.</P>
+        <Lead>Enter this code to choose a new password.</Lead>
         <Code value="{{otp}}" />
         <Note>{`It expires in ${OTP_TTL_MINUTES} minutes. Didn't ask for this? Ignore it — your password stays the same.`}</Note>
       </Layout>
@@ -380,7 +387,7 @@ export const TEMPLATES: EmailTemplate[] = [
       <Layout preview={`Your code is {{otp}}. It expires in ${OTP_TTL_MINUTES} minutes.`}>
         <Eyebrow>Verification</Eyebrow>
         <Title lead="Here's your" accent="code." />
-        <P>Enter this code to continue.</P>
+        <Lead>Enter this code to continue.</Lead>
         <Code value="{{otp}}" />
         <Note>{`It expires in ${OTP_TTL_MINUTES} minutes. Didn't request it? You can ignore this email.`}</Note>
       </Layout>
@@ -393,7 +400,7 @@ export const TEMPLATES: EmailTemplate[] = [
       <Layout preview="Your Tiffin Grab account has been deleted.">
         <Eyebrow>Account</Eyebrow>
         <Title lead="Your account was" accent="deleted." />
-        <P>As you asked, we deleted your Tiffin Grab account and signed you out everywhere. Your personal details are removed from it.</P>
+        <Lead>As you asked, we deleted your Tiffin Grab account and signed you out everywhere. Your personal details are removed from it.</Lead>
         <Note>Didn't do this? Reply to this email right away and we'll look into it. You're always welcome to sign up again.</Note>
       </Layout>
     ),
@@ -405,7 +412,7 @@ export const TEMPLATES: EmailTemplate[] = [
       <Layout preview="If this was you, there's nothing to do.">
         <Eyebrow>Security</Eyebrow>
         <Title lead="Your password was" accent="changed." />
-        <P>The password on your Tiffin Grab account was just changed. If that was you, there's nothing to do.</P>
+        <Lead>The password on your Tiffin Grab account was just changed. If that was you, there's nothing to do.</Lead>
         <Cta href={`${BASE}/forgot-password`}>Reset password</Cta>
         <Note>Didn't change it? Reset your password now, then let us know from Help &amp; support.</Note>
       </Layout>
@@ -437,9 +444,9 @@ export const TEMPLATES: EmailTemplate[] = [
       <Layout preview="You've been invited to join the Tiffin Grab team as {{role}}.">
         <Eyebrow>Team invite</Eyebrow>
         <Title lead="Join the Tiffin Grab" accent="team." />
-        <P>
+        <Lead>
           You've been invited as <strong>{"{{role}}"}</strong>. The link below signs you in and sets up your access.
-        </P>
+        </Lead>
         <Cta href="{{inviteUrl}}">Accept invitation</Cta>
         <Note>This invite expires in 7 days.</Note>
       </Layout>
@@ -452,10 +459,10 @@ export const TEMPLATES: EmailTemplate[] = [
       <Layout preview="Your tiffin. Your rules. Pick meals, move a tiffin, change an address, any day, in a few taps.">
         <Eyebrow>Now live · Your account</Eyebrow>
         <Title lead="Your tiffin. Your" accent="rules." />
-        <P>
+        <Lead>
           Welcome to the new Tiffin Grab. Everything about your tiffin now lives in one place, and you can change it
           yourself, any day, in a few taps.
-        </P>
+        </Lead>
         <Features
           items={[
             ["Subscribe to a bundle", "Choose a meal size, set your delivery days and start in minutes."],
@@ -480,7 +487,7 @@ export const TEMPLATES: EmailTemplate[] = [
       <Layout preview="{{payment.instructions}}">
         <Eyebrow>Payment pending</Eyebrow>
         <Title lead="Your payment is still" accent="pending." />
-        <P>Hi {"{{payment.customerName}}"}, we haven't received this payment yet.</P>
+        <Lead>Hi {"{{payment.customerName}}"}, we haven't received this payment yet.</Lead>
         <Details
           rows={[
             ["Amount", "{{payment.amount}}"],
@@ -504,7 +511,7 @@ export const TEMPLATES: EmailTemplate[] = [
       <Layout preview="We'll confirm your payment shortly.">
         <Eyebrow>Payment received</Eyebrow>
         <Title lead="Thanks, we've got your" accent="details." />
-        <P>Hi {"{{payment.customerName}}"}, our team will check your payment and email you once it's confirmed.</P>
+        <Lead>Hi {"{{payment.customerName}}"}, our team will check your payment and email you once it's confirmed.</Lead>
         <Details
           rows={[
             ["Amount", "{{payment.amount}}"],
@@ -523,7 +530,7 @@ export const TEMPLATES: EmailTemplate[] = [
       <Layout preview="Your payment is confirmed and your plan is set.">
         <Eyebrow>Payment confirmed</Eyebrow>
         <Title lead="You're all" accent="set." />
-        <P>Hi {"{{payment.customerName}}"}, your payment of {"{{payment.amount}}"} is confirmed.</P>
+        <Lead>Hi {"{{payment.customerName}}"}, your payment of {"{{payment.amount}}"} is confirmed.</Lead>
         <Details
           rows={[
             ["Order", "{{payment.orderCode}}"],
@@ -547,7 +554,7 @@ export const TEMPLATES: EmailTemplate[] = [
       <Layout preview="We added a complimentary tiffin to your plan.">
         <Eyebrow>Complimentary tiffin</Eyebrow>
         <Title lead="This one is" accent="on us." />
-        <P>Hi {"{{order.customerName}}"}, we added a free tiffin to your plan.</P>
+        <Lead>Hi {"{{order.customerName}}"}, we added a free tiffin to your plan.</Lead>
         <Details
           rows={[
             ["Delivery", "{{order.date}}"],
@@ -567,7 +574,7 @@ export const TEMPLATES: EmailTemplate[] = [
       <Layout preview="You keep every tiffin.">
         <Eyebrow>Holiday</Eyebrow>
         <Title lead="We are closed for" accent="{{order.holidayName}}." />
-        <P>Hi {"{{order.customerName}}"}, our kitchen is closed on {"{{order.date}}"}. You keep every tiffin and there is nothing you need to do.</P>
+        <Lead>Hi {"{{order.customerName}}"}, our kitchen is closed on {"{{order.date}}"}. You keep every tiffin and there is nothing you need to do.</Lead>
         <P>{"{{order.outcome}}"}</P>
         <Details
           rows={[
@@ -587,7 +594,7 @@ export const TEMPLATES: EmailTemplate[] = [
       <Layout preview="An earlier closure notice has changed.">
         <Eyebrow>Update</Eyebrow>
         <Title lead="An update on" accent="{{order.date}}." />
-        <P>Hi {"{{order.customerName}}"}, we told you our kitchen would be closed on {"{{order.date}}"} for {"{{order.holidayName}}"}.</P>
+        <Lead>Hi {"{{order.customerName}}"}, we told you our kitchen would be closed on {"{{order.date}}"} for {"{{order.holidayName}}"}.</Lead>
         <P>{"{{order.outcome}}"}</P>
         <Details rows={[["Order", "{{order.code}}"]]} />
         <Cta href={`${BASE}/me/deliveries`}>View my deliveries</Cta>
@@ -601,7 +608,7 @@ export const TEMPLATES: EmailTemplate[] = [
       <Layout preview="Same meal, new dates. Renew in one tap.">
         <Eyebrow>Your plan</Eyebrow>
         <Title lead="Keep your tiffins" accent="coming." />
-        <P>Hi {"{{order.customerName}}"}, your {"{{order.mealSize}}"} plan ends {"{{order.lastTiffinWhen}}"}.</P>
+        <Lead>Hi {"{{order.customerName}}"}, your {"{{order.mealSize}}"} plan ends {"{{order.lastTiffinWhen}}"}.</Lead>
         <Details
           rows={[
             ["Last tiffin", "{{order.lastTiffin}}"],
@@ -620,7 +627,7 @@ export const TEMPLATES: EmailTemplate[] = [
       <Layout preview="Your receipt is attached as a PDF.">
         <Eyebrow>Receipt</Eyebrow>
         <Title lead="Here's your" accent="receipt." />
-        <P>Hi {"{{order.customerName}}"}, your receipt for order {"{{order.code}}"} ({"{{order.mealSize}}"}) is attached as a PDF.</P>
+        <Lead>Hi {"{{order.customerName}}"}, your receipt for order {"{{order.code}}"} ({"{{order.mealSize}}"}) is attached as a PDF.</Lead>
         <Cta href={`${BASE}/me/wallet?tab=bills`}>View my bills</Cta>
         <Note>It lists the order, any add-ons, and every payment with its method and transaction ID.</Note>
       </Layout>
@@ -633,7 +640,7 @@ export const TEMPLATES: EmailTemplate[] = [
       <Layout preview="Every tiffin on your plan has been delivered.">
         <Eyebrow>Plan complete</Eyebrow>
         <Title lead="Every tiffin is" accent="delivered." />
-        <P>Hi {"{{order.customerName}}"}, every tiffin on order {"{{order.code}}"} has been delivered. Thanks for eating with us.</P>
+        <Lead>Hi {"{{order.customerName}}"}, every tiffin on order {"{{order.code}}"} has been delivered. Thanks for eating with us.</Lead>
         <Cta href={`${BASE}/me/renew`}>Renew my plan</Cta>
         <Note>Same meal, new dates. You can change the start date and number of weeks before you pay.</Note>
       </Layout>
@@ -646,7 +653,7 @@ export const TEMPLATES: EmailTemplate[] = [
       <Layout preview="Your order has been cancelled.">
         <Eyebrow>Order</Eyebrow>
         <Title lead="Your order was" accent="cancelled." />
-        <P>Hi {"{{order.customerName}}"}, order {"{{order.code}}"} has been cancelled and no more tiffins will be delivered for it.</P>
+        <Lead>Hi {"{{order.customerName}}"}, order {"{{order.code}}"} has been cancelled and no more tiffins will be delivered for it.</Lead>
         <Cta href={`${BASE}/me/deliveries`}>View my deliveries</Cta>
         <Note>Questions? Just reply to this email.</Note>
       </Layout>
@@ -659,7 +666,7 @@ export const TEMPLATES: EmailTemplate[] = [
       <Layout preview="We refunded your payment.">
         <Eyebrow>Refund</Eyebrow>
         <Title lead="Your refund is" accent="on its way." />
-        <P>Hi {"{{payment.customerName}}"}, we refunded part or all of your payment.</P>
+        <Lead>Hi {"{{payment.customerName}}"}, we refunded part or all of your payment.</Lead>
         <Details
           rows={[
             ["Refunded", "{{payment.amount}}"],
@@ -678,7 +685,7 @@ export const TEMPLATES: EmailTemplate[] = [
       <Layout preview="Your coins were applied to your order.">
         <Eyebrow>Wallet</Eyebrow>
         <Title lead="Coins" accent="applied." />
-        <P>Hi {"{{wallet.customerName}}"}, we applied your coins to order {"{{wallet.orderCode}}"}.</P>
+        <Lead>Hi {"{{wallet.customerName}}"}, we applied your coins to order {"{{wallet.orderCode}}"}.</Lead>
         <Details
           rows={[
             ["Coins spent", "{{wallet.coins}}"],
@@ -697,7 +704,7 @@ export const TEMPLATES: EmailTemplate[] = [
       <Layout preview="Our team replied to {{ticket.subject}}.">
         <Eyebrow>Support</Eyebrow>
         <Title lead="We replied to your" accent="ticket." />
-        <P>Our team replied to your ticket "{"{{ticket.subject}}"}".</P>
+        <Lead>Our team replied to your ticket "{"{{ticket.subject}}"}".</Lead>
         <Cta href={`${BASE}/me/support/{{ticket.code}}`}>Read the reply</Cta>
       </Layout>
     ),
@@ -709,7 +716,7 @@ export const TEMPLATES: EmailTemplate[] = [
       <Layout preview="Your ticket has been marked resolved.">
         <Eyebrow>Support</Eyebrow>
         <Title lead="Your ticket is" accent="resolved." />
-        <P>We marked your ticket "{"{{ticket.subject}}"}" as resolved.</P>
+        <Lead>We marked your ticket "{"{{ticket.subject}}"}" as resolved.</Lead>
         <Cta href={`${BASE}/me/support/{{ticket.code}}`}>View the ticket</Cta>
         <Note>Still need help? Open it and let us know, or start a new ticket.</Note>
       </Layout>
@@ -722,7 +729,7 @@ export const TEMPLATES: EmailTemplate[] = [
       <Layout preview="Your order is set up.">
         <Eyebrow>Welcome</Eyebrow>
         <Title lead="Welcome to Tiffin" accent="Grab." />
-        <P>Hi {"{{order.customerName}}"}, we set up order {"{{order.code}}"} for you. Sign in to pick meals, move a tiffin or change an address any day.</P>
+        <Lead>Hi {"{{order.customerName}}"}, we set up order {"{{order.code}}"} for you. Sign in to pick meals, move a tiffin or change an address any day.</Lead>
         <Cta href={`${BASE}/me/deliveries`}>View my deliveries</Cta>
         <Note>Questions? Just reply to this email.</Note>
       </Layout>
