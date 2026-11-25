@@ -46,10 +46,22 @@ export function splitName(name: string | null): { firstName?: string; lastName?:
   return { firstName: n.slice(0, at).slice(0, 80), ...(last ? { lastName: last.slice(0, 80) } : {}) };
 }
 
-/** Phone-only members (no email) cannot be sent to, so they are skipped. */
-export function mapMember(r: { email: string | null; name: string | null }) {
+/** Phone-only members (no email) cannot be sent to, so they are skipped. consentAt keeps the CASL clock at the import date. */
+export function mapMember(r: { email: string | null; name: string | null; created_at: unknown }) {
   if (!isEmail(r.email)) return null;
-  return { email: r.email.trim().toLowerCase(), ...splitName(r.name) };
+  return { email: r.email.trim().toLowerCase(), ...splitName(r.name), consentAt: Number(r.created_at) };
+}
+
+/** Relay's members import answers added/existing/suppressed; suppressed members are still counted as existing. */
+export function tally(res: { created?: number; added?: number; existing?: number; suppressed?: number }) {
+  return { created: res.created ?? res.added ?? 0, existing: (res.existing ?? 0) + (res.suppressed ?? 0) };
+}
+
+/** Verify passes when every source row is created, existing, or skipped. */
+export function mismatches(totals: Record<string, { source: number; created: number; existing: number; skipped: SkipCounts }>) {
+  return Object.entries(totals)
+    .filter(([, t]) => t.created + t.existing !== t.source - Object.values(t.skipped).reduce((a, b) => a + b, 0))
+    .map(([k]) => k);
 }
 
 export function mapList(r: { public_id: string; name: string; consent_source: string; consent_note: string | null }) {
@@ -77,7 +89,8 @@ export function mapTemplate(r: {
     event: r.event,
     locale: r.locale,
     subject: oneLine(r.subject),
-    intro: r.body,
+    // The engine body is editor HTML, not a lead sentence; Relay's intro stays unset.
+    intro: null,
     html: r.html ?? "",
     text: r.text ?? "",
     enabled: r.enabled,
@@ -157,7 +170,7 @@ export function mapMessage(r: {
   };
 }
 
-type Post = (path: string, rows: unknown[]) => Promise<{ created: number; existing: number; ids?: Record<string, string> }>;
+type Post = (path: string, rows: unknown[]) => Promise<{ created?: number; added?: number; existing?: number; suppressed?: number; ids?: Record<string, string> }>;
 
 const CHUNK = 500;
 const MEMBER_CHUNK = 1000;
@@ -173,7 +186,7 @@ export async function run(mode: "copy" | "verify", sql: postgres.Sql, post: Post
   };
   const send = async (k: string, path: string, rows: unknown[], size: number) => {
     for (const slice of chunks(rows, size)) {
-      const res = await post(path, slice);
+      const res = tally(await post(path, slice));
       kind(k).created += res.created;
       kind(k).existing += res.existing;
     }
@@ -195,8 +208,8 @@ export async function run(mode: "copy" | "verify", sql: postgres.Sql, post: Post
   const relayIds: Record<string, string> = {};
   for (const slice of chunks(listRows, CHUNK)) {
     const res = await post("/api/v1/import/lists", slice);
-    kind("lists").created += res.created;
-    kind("lists").existing += res.existing;
+    kind("lists").created += tally(res).created;
+    kind("lists").existing += tally(res).existing;
     Object.assign(relayIds, res.ids ?? {});
   }
   const extraUnsub: NonNullable<ReturnType<typeof mapSuppression>>[] = [];
@@ -206,12 +219,12 @@ export async function run(mode: "copy" | "verify", sql: postgres.Sql, post: Post
     if (!relayId) continue;
     let after = 0;
     for (;;) {
-      const page = await sql`select id, email, phone, name, unsubscribed_at from contact_list_member
+      const page = await sql`select id, email, phone, name, unsubscribed_at, created_at from contact_list_member
         where list_id = ${listId} and id > ${after} order by id limit ${MEMBER_CHUNK}`;
       if (page.length === 0) break;
       after = Number(page[page.length - 1]!.id);
       kind("members").source += page.length;
-      const rows: { email: string; firstName?: string; lastName?: string }[] = [];
+      const rows: NonNullable<ReturnType<typeof mapMember>>[] = [];
       for (const m of page) {
         const mapped = mapMember(m as never);
         if (!mapped) {
@@ -298,10 +311,13 @@ async function main() {
   // Read-only session: the server refuses writes, and the script issues none.
   const sql = postgres(url, { max: 1, prepare: false, connection: { options: "-c default_transaction_read_only=on" } });
   try {
+    // Poolers can drop the startup option, so the session is checked rather than trusted.
+    const [ro] = await sql`show default_transaction_read_only`;
+    if (ro?.default_transaction_read_only !== "on") throw new Error("refusing to run: session is not read-only");
     const totals = await run(mode, sql, post, (line) => console.log(line));
-    const bad = Object.entries(totals).filter(([, t]) => t.created + t.existing !== t.source - Object.values(t.skipped).reduce((a, b) => a + b, 0));
+    const bad = mismatches(totals);
     if (mode === "verify" && bad.length) {
-      console.error(JSON.stringify({ mismatch: bad.map(([k]) => k) }));
+      console.error(JSON.stringify({ mismatch: bad }));
       process.exitCode = 1;
     }
   } finally {

@@ -1,5 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { mapCampaign, mapCampaignStatus, mapMember, mapMessage, mapReason, mapSuppression, mapTemplate, splitName } from "./relay-copy";
+import {
+  mapCampaign,
+  mapCampaignStatus,
+  mapMember,
+  mapMessage,
+  mapReason,
+  mapSuppression,
+  mapTemplate,
+  mismatches,
+  splitName,
+  tally,
+} from "./relay-copy";
 
 describe("mapReason", () => {
   it("maps the old reason text to Relay's four reasons", () => {
@@ -37,11 +48,31 @@ describe("splitName", () => {
 
 describe("mapMember", () => {
   it("skips phone-only members", () => {
-    expect(mapMember({ email: null, name: "Ana" })).toBeNull();
+    expect(mapMember({ email: null, name: "Ana", created_at: new Date(0) })).toBeNull();
   });
 
-  it("lowercases the email and splits the name", () => {
-    expect(mapMember({ email: "Ana@X.ca", name: "Ana Lopez" })).toEqual({ email: "ana@x.ca", firstName: "Ana", lastName: "Lopez" });
+  it("lowercases the email, splits the name, and keeps the member created_at (epoch ms) as consentAt", () => {
+    const created = new Date("2025-03-01T12:00:00Z");
+    expect(mapMember({ email: "Ana@X.ca", name: "Ana Lopez", created_at: created })).toEqual({
+      email: "ana@x.ca",
+      firstName: "Ana",
+      lastName: "Lopez",
+      consentAt: created.getTime(),
+    });
+  });
+});
+
+describe("members import tally and verify", () => {
+  it("counts Relay's added as created and folds suppressed into existing", () => {
+    expect(tally({ added: 3, existing: 2, suppressed: 1 })).toEqual({ created: 3, existing: 3 });
+    expect(tally({ created: 4, existing: 1 })).toEqual({ created: 4, existing: 1 });
+  });
+
+  it("passes verify when created + existing + skipped covers every source row, and reports the rest", () => {
+    const ok = { members: { source: 5, created: 3, existing: 1, skipped: { no_email: 1 } } };
+    expect(mismatches(ok)).toEqual([]);
+    const bad = { members: { source: 5, created: 3, existing: 0, skipped: { no_email: 1 } }, lists: { source: 2, created: 2, existing: 0, skipped: {} } };
+    expect(mismatches(bad)).toEqual(["members"]);
   });
 });
 
@@ -70,9 +101,9 @@ describe("mapCampaign", () => {
 });
 
 describe("mapTemplate", () => {
-  it("names the template by event and locale and puts the old body into intro", () => {
-    const out = mapTemplate({ public_id: "ntp_1", event: "order_created", locale: "en", subject: "Hi\r\nthere", body: "Lead", html: "<p>h</p>", text: "t", enabled: true });
-    expect(out).toMatchObject({ importRef: "ntp_1", name: "order_created:en", subject: "Hi there", intro: "Lead", enabled: true });
+  it("names the template by event and locale, sends no intro (the engine body is editor HTML)", () => {
+    const out = mapTemplate({ public_id: "ntp_1", event: "order_created", locale: "en", subject: "Hi\r\nthere", body: "<p>Lead</p>", html: "<p>h</p>", text: "t", enabled: true });
+    expect(out).toMatchObject({ importRef: "ntp_1", name: "order_created:en", subject: "Hi there", intro: null, enabled: true });
   });
 });
 
