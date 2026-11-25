@@ -25,6 +25,8 @@ export const PUBLIC_API = [
   "/api/meta/events",
   "/api/health",
   "/api/public",
+  // Relay's audience pull over the RELAY_AUDIENCE binding; self-auths with the CRON_SECRET bearer.
+  "/api/relay/audience",
 ];
 
 export const isPublicApi = (pathname: string): boolean => PUBLIC_API.some((p) => pathname === p || pathname.startsWith(`${p}/`));
