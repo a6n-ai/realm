@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import { eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import { relayOutbox, users } from "@/db/schema";
@@ -8,7 +8,7 @@ import { clearTemplateOverrideCache } from "@/lib/relay/overrides";
 
 const MARK = "fwd-int";
 const created: bigint[] = [];
-let send: ReturnType<typeof vi.fn>;
+let send: Mock<(input: unknown) => Promise<unknown>>;
 let overrides: RelayTemplateOverride[];
 
 async function makeUser(): Promise<bigint> {
@@ -40,7 +40,7 @@ async function addRow(key: string, extra: Partial<typeof relayOutbox.$inferInser
 const rowOf = async (id: bigint) => (await db.select().from(relayOutbox).where(eq(relayOutbox.id, id)))[0]!;
 
 beforeEach(async () => {
-  send = vi.fn(async () => ({ messageId: "m-1", status: "queued", duplicate: false }));
+  send = vi.fn(async (_input: unknown) => ({ messageId: "m-1", status: "queued", duplicate: false }));
   overrides = [];
   clearTemplateOverrideCache();
   setRelayClientForTests({
@@ -103,7 +103,7 @@ describe("forwardRelayOutbox", () => {
   });
 
   it("sends each row once when two forwarders run at the same time", async () => {
-    send.mockImplementation(async () => {
+    send.mockImplementation(async (_input: unknown) => {
       await new Promise((r) => setTimeout(r, 30));
       return { messageId: "m", status: "queued", duplicate: false };
     });
