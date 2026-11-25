@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import { render } from "react-email";
-import { interpolate } from "@relay/engine";
+import { interpolate, renderEmailForEvent } from "@relay/engine";
 
+vi.mock("@relay/engine", async (orig) => ({ ...(await orig<object>()), renderEmailForEvent: vi.fn(async () => null) }));
 vi.mock("@/lib/notifications/campaign-config", () => ({
   campaignConfig: async () => ({ sender: { name: "Tiffin Grab", postalAddress: "1 Main St, Toronto" } }),
 }));
@@ -38,10 +39,16 @@ describe("renderRelayEmail", () => {
     expect(out.html).toContain("1 Main St, Toronto");
   });
 
-  it("refuses an event with no copy, and order_created without an override subject", async () => {
-    await expect(renderRelayEmail({ ...base, event: "signup" }, null)).rejects.toThrow("no email template for signup");
-    await expect(renderRelayEmail({ ...base, event: "order_created" }, null)).rejects.toThrow("no email template for order_created");
-    const out = await renderRelayEmail({ ...base, event: "order_created" }, { event: "order_created", locale: "en", subject: "Order {{order.code}}", intro: null, enabled: true });
-    expect(out).toMatchObject({ subject: "Order " });
+  it("renders a stored template when there is no code copy, and refuses when there is none", async () => {
+    const stored = vi.mocked(renderEmailForEvent);
+    await expect(renderRelayEmail({ ...base, event: "menu_released" }, null)).rejects.toThrow("no email template for menu_released");
+    stored.mockResolvedValueOnce({ subject: "Stored {{payment.customerName}}", html: "<p>h</p>", text: "t" });
+    await expect(renderRelayEmail({ ...base, event: "menu_released" }, null)).resolves.toEqual({ subject: "Stored {{payment.customerName}}", html: "<p>h</p>", text: "t" });
+  });
+
+  it("applies the override subject to stored copy too", async () => {
+    vi.mocked(renderEmailForEvent).mockResolvedValueOnce({ subject: "old", html: "h", text: "t" });
+    const out = await renderRelayEmail({ ...base, event: "menu_released" }, { event: "menu_released", locale: "en", subject: "New {{payment.customerName}}", intro: null, enabled: true });
+    expect(out).toMatchObject({ subject: "New Ann" });
   });
 });
