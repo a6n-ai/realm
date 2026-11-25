@@ -1,6 +1,8 @@
 # One-off copy of TiffinGrab's email data into Relay (apps/tiffin-grab/scripts/relay-copy.ts).
 # Manual only: it runs here because the owner's network proxy blocks scripted HTTPS to relay.a6n.ai.
-# The script is idempotent and logs counts only. Delete this workflow after the cutover.
+# The script is idempotent and logs counts only. After the switch, run it daily with only=suppressions:
+# opt-outs from links in pre-switch mail still land in TiffinGrab's table. Delete it with those tables (Phase 6c),
+# after one last suppressions run.
 name: relay-copy
 
 on:
@@ -11,6 +13,11 @@ on:
         type: choice
         options: [copy, verify]
         default: copy
+      only:
+        description: all, or suppressions (the daily top-up after the switch)
+        type: choice
+        options: [all, suppressions]
+        default: all
 
 permissions:
   contents: read
@@ -52,10 +59,12 @@ jobs:
         env:
           RELAY_URL: https://relay.a6n.ai
           RELAY_API_KEY: ${{ secrets.RELAY_COPY_KEY }}
-        run: pnpm exec tsx scripts/relay-copy.ts --mode=copy
+          ONLY: ${{ inputs.only }}
+        run: pnpm exec tsx scripts/relay-copy.ts --mode=copy --only="$ONLY"
       - name: Verify
         working-directory: apps/tiffin-grab
         env:
           RELAY_URL: https://relay.a6n.ai
           RELAY_API_KEY: ${{ secrets.RELAY_COPY_KEY }}
-        run: pnpm exec tsx scripts/relay-copy.ts --mode=verify
+          ONLY: ${{ inputs.only }}
+        run: pnpm exec tsx scripts/relay-copy.ts --mode=verify --only="$ONLY"

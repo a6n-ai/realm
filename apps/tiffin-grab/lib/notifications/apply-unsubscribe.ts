@@ -1,6 +1,6 @@
 import { handleUnsubscribe, verifyUnsubscribeToken } from "@relay/engine";
 import { db } from "@/db/client";
-import { unsubscribeSecret } from "@/lib/runtime/env";
+import { emailViaRelay, unsubscribeSecret } from "@/lib/runtime/env";
 import { notificationTables } from "@/lib/notifications/tables";
 
 /**
@@ -26,7 +26,17 @@ export async function applyUnsubscribe(
   const campaignIdParam = url.searchParams.get("campaignId");
   const campaignId = campaignIdParam && /^\d+$/.test(campaignIdParam) ? BigInt(campaignIdParam) : undefined;
   const applied = !!address && !!token && verifyUnsubscribeToken(secret, address, token);
-  // The engine table is the record and is always written first. Under the Relay flag, the next tick copies it to Relay.
+  // The engine table is the record and is always written first. Under the Relay flag Relay is told at once; if that
+  // call fails, the daily `relay-copy --only=suppressions` run copies the row over.
   await handleUnsubscribe(db, notificationTables, { address, token, secret, campaignId, source });
+  if (applied && emailViaRelay()) {
+    try {
+      const { relayRpc } = await import("@/lib/relay/client");
+      await relayRpc().suppress({ email: address.trim().toLowerCase(), reason: "unsubscribe", stream: "marketing" });
+    } catch (err) {
+      // The message only: the address is personal data.
+      console.error("relay unsubscribe failed", { err: err instanceof Error ? err.message : "unknown" });
+    }
+  }
   return { applied, address: applied ? address : null };
 }

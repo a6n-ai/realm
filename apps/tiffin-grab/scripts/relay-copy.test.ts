@@ -10,6 +10,7 @@ import {
   mismatches,
   splitName,
   tally,
+  run,
   withRetry,
 } from "./relay-copy";
 
@@ -168,5 +169,21 @@ describe("withRetry", () => {
     expect((await withRetry(async () => (bad++, new Response("", { status: 400 })), 4, 0)).status).toBe(400);
     expect(bad).toBe(1);
     await expect(withRetry(async () => { throw new Error("down"); }, 2, 0)).rejects.toThrow("down");
+  });
+});
+
+describe("run --only=suppressions", () => {
+  it("posts only suppressions and reads no other table", async () => {
+    const queries: string[] = [];
+    const sql = ((strings: TemplateStringsArray) => {
+      queries.push(strings.join("?"));
+      return Promise.resolve([{ address: "A@x.ca", channel: "email", scope: "all", reason: "SES hard bounce" }]);
+    }) as never;
+    const paths: string[] = [];
+    const post = async (path: string, rows: unknown[]) => (paths.push(path), { created: rows.length, existing: 0 });
+    const totals = await run("copy", sql, post, () => {}, "suppressions");
+    expect(paths).toEqual(["/api/v1/import/suppressions"]);
+    expect(queries).toHaveLength(1);
+    expect(totals).toEqual({ suppressions: { source: 1, created: 1, existing: 0, skipped: {} } });
   });
 });

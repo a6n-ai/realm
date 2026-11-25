@@ -183,7 +183,10 @@ const MEMBER_CHUNK = 1000;
 const chunks = <T>(xs: T[], n: number): T[][] => Array.from({ length: Math.ceil(xs.length / n) }, (_, i) => xs.slice(i * n, i * n + n));
 
 /** Runs the copy (or re-runs it for verify: Relay answers existing for rows it already has). Returns per-kind totals. */
-export async function run(mode: "copy" | "verify", sql: postgres.Sql, post: Post, log: (line: string) => void) {
+/** "suppressions" is the daily top-up after the switch: opt-outs from links in pre-switch mail still land in TiffinGrab's table. */
+export type Only = "all" | "suppressions";
+
+export async function run(mode: "copy" | "verify", sql: postgres.Sql, post: Post, log: (line: string) => void, only: Only = "all") {
   const totals: Record<string, { source: number; created: number; existing: number; skipped: SkipCounts }> = {};
   const kind = (k: string) => (totals[k] ??= { source: 0, created: 0, existing: 0, skipped: {} });
   const skip = (k: string, why: string) => {
@@ -205,6 +208,11 @@ export async function run(mode: "copy" | "verify", sql: postgres.Sql, post: Post
   kind("suppressions").source = suppressions.length;
   const suppressionRows = suppressions.filter((x): x is NonNullable<typeof x> => x !== null);
   suppressions.forEach((x) => x === null && skip("suppressions", "invalid"));
+  if (only === "suppressions") {
+    await send("suppressions", "/api/v1/import/suppressions", suppressionRows, CHUNK);
+    for (const [k, t] of Object.entries(totals)) log(JSON.stringify({ mode, kind: k, ...t }));
+    return totals;
+  }
 
   // 2. Lists, then members per list. Members are read in keyset pages so a large list never loads at once.
   const lists = await sql`select id, public_id, name, consent_source, consent_note from contact_list order by id`;
@@ -327,6 +335,8 @@ async function post(path: string, rows: unknown[]) {
 async function main() {
   const mode = process.argv.find((a) => a.startsWith("--mode="))?.slice("--mode=".length) ?? "copy";
   if (mode !== "copy" && mode !== "verify") throw new Error("--mode must be copy or verify");
+  const only = process.argv.find((a) => a.startsWith("--only="))?.slice("--only=".length) ?? "all";
+  if (only !== "all" && only !== "suppressions") throw new Error("--only must be all or suppressions");
   const url = process.env.DATABASE_URL;
   if (!url) throw new Error("DATABASE_URL is required");
   // Read-only session: the server refuses writes, and the script issues none.
@@ -335,7 +345,7 @@ async function main() {
     // Poolers can drop the startup option, so the session is checked rather than trusted.
     const [ro] = await sql`show default_transaction_read_only`;
     if (ro?.default_transaction_read_only !== "on") throw new Error("refusing to run: session is not read-only");
-    const totals = await run(mode, sql, post, (line) => console.log(line));
+    const totals = await run(mode, sql, post, (line) => console.log(line), only);
     const bad = mismatches(totals);
     if (mode === "verify" && bad.length) {
       console.error(JSON.stringify({ mismatch: bad }));
