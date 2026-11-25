@@ -27,6 +27,7 @@ afterEach(() => {
 
 describe("emailGroup under EMAIL_VIA_RELAY", () => {
   it("creates a hook campaign for the group in Relay and returns its console URL", async () => {
+    vi.stubEnv("RELAY_CONSOLE_URL", "https://relay.example.test");
     const createCampaign = vi.fn(async () => ({ id: "c1", consoleUrl: "https://relay.example.test/c1" }));
     setRelayClientForTests({ createCampaign } as unknown as RelayClient);
     expect(await emailGroupConsole(publicId)).toEqual({ consoleUrl: "https://relay.example.test/c1" });
