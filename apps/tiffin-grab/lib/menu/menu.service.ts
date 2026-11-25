@@ -9,6 +9,8 @@ import { enqueueMany } from "@relay/engine";
 import { activeCustomers } from "@/lib/notifications/active-customers";
 import { EVENTS } from "@/lib/notifications/events";
 import { markOutboxDirty } from "@/lib/notifications/outbox-dirty";
+import { enqueueViaRelay } from "@/lib/relay/enqueue";
+import { emailViaRelay } from "@/lib/runtime/env";
 import { notificationTables, usersRef } from "@/lib/notifications/tables";
 import { formatDateOnly } from "@/lib/format/datetime";
 import { dishCategories, dishes, mealSelections, mealSizeItems, mealSizes, menuItems, menuWeeks, organization, plans } from "@/db/schema";
@@ -110,8 +112,8 @@ async function announceRelease(weekPublicId: string, weekStart: string) {
   const weekLabel = formatDateOnly(weekStart, { mode: "long" });
   const customers = await activeCustomers();
   await db.transaction(async (tx) => {
-    await enqueueMany(tx, notificationTables, usersRef, customers.map((c) => ({
-      event: "menu_released",
+    const rows = customers.map((c) => ({
+      event: "menu_released" as const,
       kind: "marketing" as const,
       channels: EVENTS.menu_released.channels,
       recipientId: c.userId,
@@ -120,7 +122,9 @@ async function announceRelease(weekPublicId: string, weekStart: string) {
       href: "/me/deliveries",
       data: { menuWeek: { weekStartIso: weekLabel } },
       dedupeKey: `menu_released:${weekPublicId}:${c.userId}`,
-    })));
+    }));
+    if (emailViaRelay()) await enqueueViaRelay(tx, rows);
+    else await enqueueMany(tx, notificationTables, usersRef, rows);
     markOutboxDirty();
   });
 }
