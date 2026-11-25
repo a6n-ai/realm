@@ -137,6 +137,14 @@ describe("mapMessage", () => {
     expect(mapMessage({ ...base, dedupe_key: null })).toMatchObject({ importRef: "nob:nob_1" });
   });
 
+  it("hashes a dedupe key longer than Relay's 200 characters, the same way every run", () => {
+    const long = "k".repeat(201);
+    const ref = mapMessage({ ...base, dedupe_key: long })!.importRef;
+    expect(ref).toMatch(/^sha256:[0-9a-f]{64}$/);
+    expect(mapMessage({ ...base, dedupe_key: long })!.importRef).toBe(ref);
+    expect(mapMessage({ ...base, dedupe_key: "k".repeat(200) })!.importRef).toBe("k".repeat(200));
+  });
+
   it("skips pending and processing rows (the engine still sends them)", () => {
     expect(mapMessage({ ...base, status: "pending" })).toBeNull();
     expect(mapMessage({ ...base, status: "processing" })).toBeNull();

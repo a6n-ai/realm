@@ -7,6 +7,7 @@
  * Reads are in a read-only session (the connection itself is read-only; no write is issued). Logs counts only:
  * no address, name or message body is printed.
  */
+import { createHash } from "node:crypto";
 import postgres from "postgres";
 
 type Json = Record<string, unknown>;
@@ -130,6 +131,12 @@ export function mapCampaign(
 }
 
 /** Only sent and failed rows are copied; pending and processing rows are still sent by the engine. */
+/** The engine's stored key already ends in ":email", the key Relay dedupes on: import it as-is when it fits Relay's
+ * 200-character limit. A longer one becomes a stable hash, so a re-run still finds the row it imported. */
+export function importRef(key: string): string {
+  return key.length <= 200 ? key : `sha256:${createHash("sha256").update(key).digest("hex")}`;
+}
+
 export function mapMessage(r: {
   public_id: string;
   dedupe_key: string | null;
@@ -151,8 +158,7 @@ export function mapMessage(r: {
   if (r.channel !== "email" || (r.status !== "sent" && r.status !== "failed") || !isEmail(r.recipient_email)) return null;
   const subject = typeof r.payload?.subject === "string" ? r.payload.subject : (r.event ?? "");
   return {
-    // The engine's stored key already ends in ":email", the key Relay dedupes on: import it as-is.
-    importRef: r.dedupe_key ?? `nob:${r.public_id}`,
+    importRef: importRef(r.dedupe_key ?? `nob:${r.public_id}`),
     toEmail: r.recipient_email.trim().toLowerCase(),
     stream: r.kind === "marketing" ? ("marketing" as const) : ("transactional" as const),
     event: r.event,
