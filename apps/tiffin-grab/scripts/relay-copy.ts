@@ -131,10 +131,10 @@ export function mapCampaign(
 }
 
 /** Only sent and failed rows are copied; pending and processing rows are still sent by the engine. */
-/** The engine's stored key already ends in ":email", the key Relay dedupes on: import it as-is when it fits Relay's
- * 200-character limit. A longer one becomes a stable hash, so a re-run still finds the row it imported. */
-export function importRef(key: string): string {
-  return key.length <= 200 ? key : `sha256:${createHash("sha256").update(key).digest("hex")}`;
+/** Engine dedupe keys can embed sign-in links with live tokens and can pass Relay's 200-character limit, so each
+ * is imported as a stable hash: a re-run still finds the row it imported, and no token reaches Relay. */
+export function importRef(dedupeKey: string | null, publicId: string): string {
+  return dedupeKey === null ? `nob:${publicId}` : `sha256:${createHash("sha256").update(dedupeKey).digest("hex")}`;
 }
 
 export function mapMessage(r: {
@@ -158,7 +158,7 @@ export function mapMessage(r: {
   if (r.channel !== "email" || (r.status !== "sent" && r.status !== "failed") || !isEmail(r.recipient_email)) return null;
   const subject = typeof r.payload?.subject === "string" ? r.payload.subject : (r.event ?? "");
   return {
-    importRef: importRef(r.dedupe_key ?? `nob:${r.public_id}`),
+    importRef: importRef(r.dedupe_key, r.public_id),
     toEmail: r.recipient_email.trim().toLowerCase(),
     stream: r.kind === "marketing" ? ("marketing" as const) : ("transactional" as const),
     event: r.event,

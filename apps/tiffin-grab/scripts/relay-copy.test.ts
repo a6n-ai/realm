@@ -128,21 +128,18 @@ describe("mapMessage", () => {
   };
 
   it("copies sent and failed rows with the payload subject", () => {
-    expect(mapMessage(base)).toMatchObject({ importRef: "cmp:cmp_1:week:2099-01-05:42:email", toEmail: "ana@x.ca", stream: "transactional", subject: "Your order", status: "sent", deliveredAt: 1700000001000 });
+    expect(mapMessage(base)).toMatchObject({ toEmail: "ana@x.ca", stream: "transactional", subject: "Your order", status: "sent", deliveredAt: 1700000001000 });
     expect(mapMessage({ ...base, status: "failed", last_error: "x".repeat(600) })).toMatchObject({ status: "failed", error: "x".repeat(500) });
   });
 
-  it("imports the engine's dedupe key as stored, and nob:<public_id> when there is none", () => {
-    expect(mapMessage(base)).toMatchObject({ importRef: "cmp:cmp_1:week:2099-01-05:42:email" });
-    expect(mapMessage({ ...base, dedupe_key: null })).toMatchObject({ importRef: "nob:nob_1" });
-  });
-
-  it("hashes a dedupe key longer than Relay's 200 characters, the same way every run", () => {
-    const long = "k".repeat(201);
-    const ref = mapMessage({ ...base, dedupe_key: long })!.importRef;
+  it("imports the dedupe key as a stable sha256, never as stored, and nob:<public_id> when there is none", () => {
+    const withToken = "staff_invitation:a@x.ca:https://app.tiffingrab.ca/verify?token=secret" + "k".repeat(200) + ":email";
+    const ref = mapMessage({ ...base, dedupe_key: withToken })!.importRef;
     expect(ref).toMatch(/^sha256:[0-9a-f]{64}$/);
-    expect(mapMessage({ ...base, dedupe_key: long })!.importRef).toBe(ref);
-    expect(mapMessage({ ...base, dedupe_key: "k".repeat(200) })!.importRef).toBe("k".repeat(200));
+    expect(ref).not.toContain("token");
+    expect(mapMessage({ ...base, dedupe_key: withToken })!.importRef).toBe(ref);
+    expect(mapMessage(base)!.importRef).not.toBe(ref);
+    expect(mapMessage({ ...base, dedupe_key: null })).toMatchObject({ importRef: "nob:nob_1" });
   });
 
   it("skips pending and processing rows (the engine still sends them)", () => {
