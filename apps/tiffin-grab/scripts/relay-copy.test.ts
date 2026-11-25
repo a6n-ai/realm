@@ -79,6 +79,7 @@ describe("mapTemplate", () => {
 describe("mapMessage", () => {
   const base = {
     public_id: "nob_1",
+    dedupe_key: "cmp:cmp_1:week:2099-01-05:42:email",
     recipient_email: "Ana@x.ca",
     channel: "email",
     kind: "transactional",
@@ -96,8 +97,13 @@ describe("mapMessage", () => {
   };
 
   it("copies sent and failed rows with the payload subject", () => {
-    expect(mapMessage(base)).toMatchObject({ importRef: "nob_1", toEmail: "ana@x.ca", stream: "transactional", subject: "Your order", status: "sent", deliveredAt: 1700000001000 });
+    expect(mapMessage(base)).toMatchObject({ importRef: "cmp:cmp_1:week:2099-01-05:42:email", toEmail: "ana@x.ca", stream: "transactional", subject: "Your order", status: "sent", deliveredAt: 1700000001000 });
     expect(mapMessage({ ...base, status: "failed", last_error: "x".repeat(600) })).toMatchObject({ status: "failed", error: "x".repeat(500) });
+  });
+
+  it("imports the engine's dedupe key as stored, and nob:<public_id> when there is none", () => {
+    expect(mapMessage(base)).toMatchObject({ importRef: "cmp:cmp_1:week:2099-01-05:42:email" });
+    expect(mapMessage({ ...base, dedupe_key: null })).toMatchObject({ importRef: "nob:nob_1" });
   });
 
   it("skips pending and processing rows (the engine still sends them)", () => {

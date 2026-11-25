@@ -2,14 +2,18 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
-import { customerGroupMembers, customerGroups, users } from "@/db/schema";
+import { customerGroupMembers, customerGroups, orders, payments, users } from "@/db/schema";
 import { resolveAudiencePage } from "@/lib/relay/audience";
 import { POST } from "@/app/api/relay/audience/route";
+
+vi.mock("@/lib/auth", () => ({ auth: async () => null }));
 
 const MARK = "aud-int";
 const userIds: bigint[] = [];
 let groupId: bigint;
 let groupPublicId: string;
+const TRIP_DEPS = ["SUB-AUDPAID01", "SUB-AUDPAID02"];
+const TRIP_PFX = "audpaid";
 
 async function makeUser(tag: string, over: Partial<typeof users.$inferInsert> = {}): Promise<bigint> {
   const [u] = await db
@@ -21,6 +25,7 @@ async function makeUser(tag: string, over: Partial<typeof users.$inferInsert> = 
 }
 
 beforeAll(async () => {
+  const { makeTripOrder } = await import("@/lib/services/__tests__/trip-fixture");
   vi.stubEnv("CRON_SECRET", "s3cret");
   const good = [await makeUser("a"), await makeUser("b"), await makeUser("c")];
   const excluded = [
@@ -32,9 +37,17 @@ beforeAll(async () => {
   groupId = g!.id;
   groupPublicId = g!.publicId;
   await db.insert(customerGroupMembers).values([...good, ...excluded].map((userId) => ({ groupId, userId })));
+  // a and b bought something (implied consent); c never paid, so is not mailed.
+  for (const [i, buyer] of [good[0]!, good[1]!].entries()) {
+    const { order } = await makeTripOrder(TRIP_DEPS[i]!, TRIP_PFX);
+    await db.update(orders).set({ userId: buyer }).where(eq(orders.id, order.id));
+    await db.insert(payments).values({ orderId: order.id, amount: "9.00", method: "stripe", status: "paid" });
+  }
 });
 
 afterAll(async () => {
+  const { resetTrips } = await import("@/lib/services/__tests__/trip-fixture");
+  for (const dep of TRIP_DEPS) await resetTrips(dep, TRIP_PFX);
   if (!userIds.length) return;
   await db.delete(customerGroupMembers).where(eq(customerGroupMembers.groupId, groupId));
   await db.delete(customerGroups).where(eq(customerGroups.id, groupId));
@@ -42,7 +55,7 @@ afterAll(async () => {
 });
 
 describe("resolveAudiencePage", () => {
-  it("pages by user id and drops inactive, notify-off and no-email customers", async () => {
+  it("pages by user id and drops inactive, notify-off, no-email and never-paid customers", async () => {
     const audience = `group:${groupPublicId}`;
     const emails: string[] = [];
     let cursor: string | null = null;
@@ -55,7 +68,7 @@ describe("resolveAudiencePage", () => {
       pages += 1;
     } while (cursor !== null && pages < 10);
     expect(pages).toBe(3);
-    expect(emails).toEqual(["aud-int-a@example.test", "aud-int-b@example.test", "aud-int-c@example.test"]);
+    expect(emails).toEqual(["aud-int-a@example.test", "aud-int-b@example.test"]);
   });
 
   it("returns implied consent with the name split at the first space", async () => {
@@ -95,7 +108,7 @@ describe("POST /api/relay/audience", () => {
     const res = await POST(req("Bearer s3cret"));
     expect(res.status).toBe(200);
     const body = (await res.json()) as { recipients: unknown[]; nextCursor: unknown };
-    expect(body.recipients).toHaveLength(3);
+    expect(body.recipients).toHaveLength(2);
     expect(body.nextCursor).toBeNull();
   });
 });

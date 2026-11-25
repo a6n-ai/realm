@@ -41,7 +41,8 @@ async function audienceIds(audience: string): Promise<bigint[] | null> {
 
 /**
  * One page of the audience Relay pulls for a campaign. Relay never rechecks notifyEmail, so every
- * filter here is the send rule. Consent is "implied" at the latest paid order (Relay applies the 730-day rule).
+ * filter here is the send rule. Consent is "implied" by a purchase: the latest paid order's created_at (Relay applies the
+ * 730-day rule). A customer with no paid order has no implied consent, so is left out.
  */
 export async function resolveAudiencePage(audience: string | null, cursor: string | null, limit: number): Promise<AudiencePage> {
   if (!audience) return EMPTY;
@@ -58,7 +59,7 @@ export async function resolveAudiencePage(audience: string | null, cursor: strin
 
   const size = Math.min(Math.max(1, Math.floor(limit)), HOOK_LIMIT);
   const rows = await db
-    .select({ id: users.id, name: users.name, email: users.email, createdAt: users.createdAt })
+    .select({ id: users.id, name: users.name, email: users.email })
     .from(users)
     .where(
       and(
@@ -85,15 +86,19 @@ export async function resolveAudiencePage(audience: string | null, cursor: strin
     .groupBy(orders.userId);
   const paidAt = new Map(paid.map((r) => [String(r.userId), Number(r.at)]));
 
-  const recipients = page.map((u): HookRecipient => {
+  const recipients = page.flatMap((u): HookRecipient[] => {
+    const consentAt = paidAt.get(String(u.id));
+    if (consentAt === undefined) return [];
     const name = u.name?.trim();
     const space = name?.indexOf(" ") ?? -1;
-    return {
-      email: u.email!,
-      ...(name ? { firstName: space < 0 ? name : name.slice(0, space), ...(space < 0 ? {} : { lastName: name!.slice(space + 1).trim() }) } : {}),
-      consent: "implied",
-      consentAt: paidAt.get(String(u.id)) ?? u.createdAt,
-    };
+    return [
+      {
+        email: u.email!,
+        ...(name ? { firstName: space < 0 ? name : name.slice(0, space), ...(space < 0 ? {} : { lastName: name!.slice(space + 1).trim() }) } : {}),
+        consent: "implied",
+        consentAt,
+      },
+    ];
   });
   return { recipients, nextCursor: hasMore ? String(page[page.length - 1]!.id) : null };
 }

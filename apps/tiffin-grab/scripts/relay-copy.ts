@@ -119,6 +119,7 @@ export function mapCampaign(
 /** Only sent and failed rows are copied; pending and processing rows are still sent by the engine. */
 export function mapMessage(r: {
   public_id: string;
+  dedupe_key: string | null;
   recipient_email: string | null;
   channel: string;
   kind: string;
@@ -137,7 +138,8 @@ export function mapMessage(r: {
   if (r.channel !== "email" || (r.status !== "sent" && r.status !== "failed") || !isEmail(r.recipient_email)) return null;
   const subject = typeof r.payload?.subject === "string" ? r.payload.subject : (r.event ?? "");
   return {
-    importRef: r.public_id,
+    // The engine's stored key already ends in ":email", the key Relay dedupes on: import it as-is.
+    importRef: r.dedupe_key ?? `nob:${r.public_id}`,
     toEmail: r.recipient_email.trim().toLowerCase(),
     stream: r.kind === "marketing" ? ("marketing" as const) : ("transactional" as const),
     event: r.event,
@@ -253,7 +255,7 @@ export async function run(mode: "copy" | "verify", sql: postgres.Sql, post: Post
   // 5. Message history (sent and failed email rows, keyset pages).
   let after = 0;
   for (;;) {
-    const page = await sql`select id, public_id, recipient_email, channel, kind, event, status, payload, last_error,
+    const page = await sql`select id, public_id, dedupe_key, recipient_email, channel, kind, event, status, payload, last_error,
         provider_message_id, created_at, opened_at, clicked_at, delivered_at, bounced_at, complained_at
       from notification_outbox where channel = 'email' and id > ${after} order by id limit ${CHUNK}`;
     if (page.length === 0) break;
