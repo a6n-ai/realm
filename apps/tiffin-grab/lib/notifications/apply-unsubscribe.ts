@@ -1,7 +1,8 @@
 import { handleUnsubscribe, verifyUnsubscribeToken } from "@relay/engine";
 import { db } from "@/db/client";
-import { unsubscribeSecret } from "@/lib/runtime/env";
+import { emailViaRelay, unsubscribeSecret } from "@/lib/runtime/env";
 import { notificationTables } from "@/lib/notifications/tables";
+import { relayRpc } from "@/lib/relay/client";
 
 /**
  * One-click unsubscribe. The token IS the auth, so no session is needed — a
@@ -26,6 +27,11 @@ export async function applyUnsubscribe(
   const campaignIdParam = url.searchParams.get("campaignId");
   const campaignId = campaignIdParam && /^\d+$/.test(campaignIdParam) ? BigInt(campaignIdParam) : undefined;
   const applied = !!address && !!token && verifyUnsubscribeToken(secret, address, token);
+  if (emailViaRelay()) {
+    // Relay keeps the suppression; the campaign id and source are not carried over.
+    if (applied) await relayRpc().suppress({ email: address!.trim().toLowerCase(), reason: "unsubscribe", stream: "marketing" });
+    return { applied, address: applied ? address : null };
+  }
   await handleUnsubscribe(db, notificationTables, { address, token, secret, campaignId, source });
   return { applied, address: applied ? address : null };
 }

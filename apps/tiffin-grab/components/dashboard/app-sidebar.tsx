@@ -229,6 +229,7 @@ export function AppSidebar({
   orgSwitcher,
   bell,
   clock,
+  relayConsoleUrl,
 }: {
   user: { email: string; role: string; name: string | null; image: string | null };
   hasPin: boolean;
@@ -238,6 +239,8 @@ export function AppSidebar({
   initialWidth?: number;
   /** Find box (GlobalSearch); a slot because the search imports SECTIONS from this module. */
   search?: ReactNode;
+  /** Relay console, when EMAIL_VIA_RELAY is on: the Notifications item links there instead of the local page. */
+  relayConsoleUrl?: string | null;
   /** Org switcher; renders nothing for a single-org session. */
   orgSwitcher?: ReactNode;
   /** Notification bell for the footer user row. */
@@ -324,8 +327,11 @@ export function AppSidebar({
   const allowedItems = (items: NavItem[]) => items.filter((item) => navAllowed(item.href));
   const allowedChildren = (item: NavItem) => (item.children ?? []).filter((child) => navAllowed(child.href));
 
+  // Notifications goes to the Relay console when EMAIL_VIA_RELAY is on; every other href is unchanged.
+  const hrefFor = (href: string) => (relayConsoleUrl && href === "/dashboard/notifications" ? relayConsoleUrl : href);
   const renderItem = (item: NavItem) => {
     const active = isNavActive(pathname, item.href);
+    const external = hrefFor(item.href) !== item.href ? hrefFor(item.href) : null;
     return (
       <SidebarMenuItem key={item.href}>
         {/* No viewport prefetch (every nav item at once 503'd the box); prefetch
@@ -336,10 +342,10 @@ export function AppSidebar({
           className={ROW}
           render={
             <Link
-              href={item.href}
+              href={external ?? item.href}
               prefetch={false}
-              onMouseEnter={() => router.prefetch(item.href)}
-              onFocus={() => router.prefetch(item.href)}
+              onMouseEnter={() => !external && router.prefetch(item.href)}
+              onFocus={() => !external && router.prefetch(item.href)}
             />
           }
         >
@@ -403,11 +409,11 @@ export function AppSidebar({
                     className="text-muted-foreground hover:text-foreground data-active:text-foreground h-8 text-footnote transition-colors [&>svg]:text-current"
                     render={
                       <Link
-                        href={child.href}
+                        href={hrefFor(child.href)}
                         prefetch={false}
                         aria-current={isNavActive(pathname, child.href) ? "page" : undefined}
-                        onMouseEnter={() => router.prefetch(child.href)}
-                        onFocus={() => router.prefetch(child.href)}
+                        onMouseEnter={() => hrefFor(child.href) === child.href && router.prefetch(child.href)}
+                        onFocus={() => hrefFor(child.href) === child.href && router.prefetch(child.href)}
                       />
                     }
                   >

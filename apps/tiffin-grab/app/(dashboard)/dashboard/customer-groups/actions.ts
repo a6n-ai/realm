@@ -12,11 +12,13 @@ import { users, walletLedger } from "@/db/schema";
 import { searchCustomers } from "@/lib/services/customers.service";
 import { currentUserId } from "@/lib/services/session-service";
 import { userIdByPublicId } from "@/lib/identity/user-ids";
+import { emailViaRelay } from "@/lib/runtime/env";
 import {
   addGroupMembers,
   createCustomerGroup,
   emailAwardedMembers,
   emailGroup,
+  emailGroupConsole,
   getCoinsActionMembers,
   giveGroupCoins,
   groupMembersCsv,
@@ -128,8 +130,11 @@ export async function getCoinsActionMembersAction(
   return staffAction(READ_WALLET, async () => ({ rows: await getCoinsActionMembers(parseInput(idSchema, actionPublicId)) }));
 }
 
-export async function emailGroupAction(groupPublicId: string): Promise<ActionResult<{ campaignPublicId: string }>> {
-  return staffAction(GROUPS, async () => emailGroup(parseInput(idSchema, groupPublicId), await currentUserId()));
+export async function emailGroupAction(groupPublicId: string): Promise<ActionResult<{ campaignPublicId: string } | { consoleUrl: string }>> {
+  return staffAction(GROUPS, async () => {
+    const id = parseInput(idSchema, groupPublicId);
+    return emailViaRelay() ? emailGroupConsole(id) : emailGroup(id, await currentUserId());
+  });
 }
 
 export async function emailAwardedMembersAction(actionPublicId: string): Promise<ActionResult<{ campaignPublicId: string }>> {

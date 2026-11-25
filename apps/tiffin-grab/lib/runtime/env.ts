@@ -39,6 +39,7 @@ export const notifyFrom = () => ({
   name: process.env.NOTIFY_FROM_NAME ?? BRAND_NAME,
 });
 export const emailViaRelay = () => process.env.EMAIL_VIA_RELAY === "1";
+export const relayConsoleUrl = () => process.env.RELAY_CONSOLE_URL;
 export const sesConfigSet = () => process.env.SES_CONFIGURATION_SET;
 export const sesTransactionalConfigSet = () => process.env.SES_TRANSACTIONAL_CONFIGURATION_SET;
 export const sesTrackedConfigSet = () => process.env.SES_TRACKED_CONFIGURATION_SET;
