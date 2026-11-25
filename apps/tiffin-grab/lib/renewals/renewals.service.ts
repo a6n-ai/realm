@@ -5,7 +5,7 @@ import { UNPAID } from "@/lib/payments/status";
 import { paymentStatusIn, planPaymentSql } from "@/lib/payments/status-sql";
 import type { Page, PageRequest } from "@foundry/commons/util/pagination";
 import { db } from "@/db/client";
-import { deliveries, ledgerEntries, mealSizes, messageSuppression, notificationOutbox, orders, payments, plans, tickets, users, walletLedger } from "@/db/schema";
+import { deliveries, ledgerEntries, mealSizes, messageSuppression, notificationOutbox, orders, payments, plans, relayOutbox, tickets, users, walletLedger } from "@/db/schema";
 import { unexpired } from "@foundry/wallet";
 import { renewalQueueFilter, type PlanType, type RenewalQueue, type RenewalRange, type RenewalsFilter } from "@/lib/renewals/filters";
 import { UNASSIGNED_OWNER } from "@/lib/list/presets";
@@ -19,6 +19,37 @@ import { netSpendSql } from "@/lib/payments/net-spend-sql";
 import { pageRows } from "@foundry/commons";
 import { loadPlanFacts, ownerIdOf, visibleTo, type PlanFact } from "./renewal-facts";
 import { renewalMatches, renewalOrder } from "./renewal-filter";
+import { emailViaRelay } from "@/lib/runtime/env";
+import { deliveryState, suppressedEmails } from "@/lib/relay/delivery-state";
+
+// Last 50 renewal reminders to one customer. Under the flag they come from relay_outbox, with Relay's delivery state over the local one.
+async function reminderRowsFor(userId: bigint) {
+  if (!emailViaRelay()) {
+    return db
+      .select({
+        sentAt: notificationOutbox.createdAt,
+        status: notificationOutbox.status,
+        key: notificationOutbox.dedupeKey,
+        deliveredAt: notificationOutbox.deliveredAt,
+        error: notificationOutbox.lastError,
+      })
+      .from(notificationOutbox)
+      .where(and(eq(notificationOutbox.recipientId, userId), like(notificationOutbox.dedupeKey, "renewal:%")))
+      .orderBy(desc(notificationOutbox.createdAt))
+      .limit(50);
+  }
+  const local = await db
+    .select({ key: relayOutbox.idempotencyKey, sentAt: relayOutbox.createdAt, status: relayOutbox.status, error: relayOutbox.lastError })
+    .from(relayOutbox)
+    .where(and(eq(relayOutbox.recipientId, userId), like(relayOutbox.idempotencyKey, "renewal:%")))
+    .orderBy(desc(relayOutbox.createdAt))
+    .limit(50);
+  const state = await deliveryState(local.map((r) => r.key));
+  return local.map((r) => {
+    const s = state.get(r.key);
+    return { sentAt: r.sentAt, status: s?.status ?? r.status, key: r.key, deliveredAt: s?.deliveredAt ?? null, error: s?.error ?? r.error };
+  });
+}
 
 export type RenewalRow = {
   orderPublicId: string;
@@ -453,18 +484,7 @@ export async function getCustomerRenewal(visible: Visible, customerPublicId: str
   });
 
   const [reminderRows, money] = await Promise.all([
-    db
-      .select({
-        sentAt: notificationOutbox.createdAt,
-        status: notificationOutbox.status,
-        key: notificationOutbox.dedupeKey,
-        deliveredAt: notificationOutbox.deliveredAt,
-        error: notificationOutbox.lastError,
-      })
-      .from(notificationOutbox)
-      .where(and(eq(notificationOutbox.recipientId, user.id), like(notificationOutbox.dedupeKey, "renewal:%")))
-      .orderBy(desc(notificationOutbox.createdAt))
-      .limit(50),
+    reminderRowsFor(user.id),
     renewalMoney([{ id: rows[rows.length - 1].id, userId: user.id }]),
   ]);
   // Bounces and complaints are kept per address (all channels' "all" scope), not per message.
@@ -475,9 +495,13 @@ export async function getCustomerRenewal(visible: Visible, customerPublicId: str
         .where(and(eq(messageSuppression.address, user.email.trim().toLowerCase()), eq(messageSuppression.channel, "email"), eq(messageSuppression.scope, "all")))
         .limit(1)
     : [];
+  // Under the flag, a Relay all-stream suppression has no bounce or complaint detail here: it reads as "other".
+  const relaySuppressed = !block && emailViaRelay() && user.email ? (await suppressedEmails([user.email])).size > 0 : false;
   const emailBlock: EmailBlock | null = block
     ? { reason: /complaint/i.test(block.reason) ? "complaint" : /bounce/i.test(block.reason) ? "bounce" : "other", since: Number(block.since) }
-    : null;
+    : relaySuppressed
+      ? { reason: "other", since: 0 }
+      : null;
   // Key shape: renewal:<orderPublicId>:<lastTiffin>:<daysLeft | staff-<date>>:<channel>.
   // Only reminders for plans this staff member can see: another franchise's plans stay hidden.
   const visiblePlans = new Set(rows.map((r) => r.orderPublicId));
