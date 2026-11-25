@@ -24,6 +24,10 @@ Parameters:
     Type: String
     Default: tiffin-grab-transactional-tracked
     Description: Config set for tracked (open/click) transactional mail. Put this in SSM SES_TRACKED_CONFIGURATION_SET, then redeploy the app.
+  RelaySesEventsTopicArn:
+    Type: String
+    Default: ""
+    Description: ARN of Relay's relay-ses-events SNS topic in us-east-1 (output of deployment/aws/relay-ses-events.yaml). Empty = no Relay feed. Relay receives these sets' send, delivery, bounce, complaint and reject events, plus opens and clicks on the tracked sets.
   AlertEmail:
     Type: String
     Description: Address that gets the SES reputation alarm emails (confirm the SNS subscription mail once).
@@ -37,6 +41,7 @@ Parameters:
 
 Conditions:
   HasTrackingDomain: !Not [!Equals [!Ref TrackingDomain, ""]]
+  HasRelayFeed: !Not [!Equals [!Ref RelaySesEventsTopicArn, ""]]
 
 Resources:
   ConfigSet:
@@ -114,6 +119,42 @@ Resources:
         - CustomRedirectDomain: !Ref TrackingDomain
           HttpsPolicy: REQUIRE
         - !Ref AWS::NoValue
+
+  # Relay's feed on the three sets, beside TiffinGrab's own destinations (which the app manages via SESv2).
+  # The name relay-ses-events is the one the app's event settings skip when it picks its own SNS destination.
+  RelayEventsDestinationProd:
+    Type: AWS::SES::ConfigurationSetEventDestination
+    Condition: HasRelayFeed
+    Properties:
+      ConfigurationSetName: !Ref ConfigurationSetName
+      EventDestination:
+        Name: relay-ses-events
+        Enabled: true
+        MatchingEventTypes: [send, delivery, bounce, complaint, reject, deliveryDelay, renderingFailure, open, click]
+        SnsDestination:
+          TopicARN: !Ref RelaySesEventsTopicArn
+  RelayEventsDestinationTransactional:
+    Type: AWS::SES::ConfigurationSetEventDestination
+    Condition: HasRelayFeed
+    Properties:
+      ConfigurationSetName: !Ref TransactionalConfigurationSetName
+      EventDestination:
+        Name: relay-ses-events
+        Enabled: true
+        MatchingEventTypes: [send, delivery, bounce, complaint, reject, deliveryDelay, renderingFailure]
+        SnsDestination:
+          TopicARN: !Ref RelaySesEventsTopicArn
+  RelayEventsDestinationTracked:
+    Type: AWS::SES::ConfigurationSetEventDestination
+    Condition: HasRelayFeed
+    Properties:
+      ConfigurationSetName: !Ref TrackedConfigurationSetName
+      EventDestination:
+        Name: relay-ses-events
+        Enabled: true
+        MatchingEventTypes: [send, delivery, bounce, complaint, reject, deliveryDelay, renderingFailure, open, click]
+        SnsDestination:
+          TopicARN: !Ref RelaySesEventsTopicArn
 
   AlertTopic:
     Type: AWS::SNS::Topic
