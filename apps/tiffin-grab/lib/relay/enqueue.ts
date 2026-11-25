@@ -4,7 +4,6 @@ import { planOutboxRows, renderInAppForEvent, type EnqueueInput, type PrefRow } 
 import { onCommit, type Tx } from "@/db/client";
 import { notificationPrefs, notifications, relayOutbox, users } from "@/db/schema";
 import { broadcast } from "@/lib/notifications/broadcast";
-import { emailProviderFor } from "@/lib/notifications/email-provider-for";
 import { notificationTables } from "@/lib/notifications/tables";
 import { EVENTS } from "@/lib/notifications/events";
 
@@ -43,7 +42,7 @@ export async function enqueueViaRelay(tx: Tx, inputs: EnqueueInput[]): Promise<v
     if (p.channel === "email") {
       if (!p.recipientEmail) continue;
       const event = p.event;
-      const stream = p.kind === "marketing" ? "marketing" : event && (await emailProviderFor(event)) ? "tracked" : "transactional";
+      const stream = p.kind === "marketing" ? "marketing" : event && (await isTrackedEvent(event)) ? "tracked" : "transactional";
       const publicId = makePublicId("rob")();
       emailRows.push({
         publicId,
@@ -75,4 +74,16 @@ export async function enqueueViaRelay(tx: Tx, inputs: EnqueueInput[]): Promise<v
     }
   }
   if (emailRows.length) await tx.insert(relayOutbox).values(emailRows).onConflictDoNothing({ target: relayOutbox.idempotencyKey });
+}
+
+// Lazy: lib/settings sits behind this import, and loading it at module init closes a cycle
+// (session-service -> ... -> notifications/enqueue -> here -> settings -> session-service).
+// Relay owns the SES streams, so only the admin's tracked-event setting matters here, not TiffinGrab's SES config.
+async function isTrackedEvent(event: string): Promise<boolean> {
+  const [{ eventCategory }, { getTrackedEmailEvents }] = await Promise.all([
+    import("@/lib/notifications/events"),
+    import("@/lib/notifications/tracked-email-events"),
+  ]);
+  if (eventCategory(event) === "account") return false;
+  return (await getTrackedEmailEvents()).includes(event);
 }
