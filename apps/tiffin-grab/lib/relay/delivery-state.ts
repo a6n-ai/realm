@@ -2,7 +2,7 @@ import { and, eq, inArray, like } from "drizzle-orm";
 import { db } from "@/db/client";
 import { messageSuppression, notificationOutbox, relayOutbox } from "@/db/schema";
 import type { SendState } from "@/lib/notifications/send-state";
-import { relayRpc, type RelayMessageByKey } from "./client";
+import { relayRpc, type RelayMessageByKey, type RelaySuppressionStatus } from "./client";
 
 export type DeliveryState = {
   key: string;
@@ -77,6 +77,16 @@ export async function deliveryState(keys: string[]): Promise<Map<string, Deliver
     // Relay unreachable: the local status stands.
   }
   return out;
+}
+
+/** Relay's all-stream suppression reason for one address, or null (none, or Relay unreachable: the local table stands). */
+export async function relayAllStreamReason(email: string): Promise<RelaySuppressionStatus["reason"] | null> {
+  try {
+    const found = (await relayRpc().suppressionStatus([email.trim().toLowerCase()])).find((s) => s.stream === null);
+    return found?.reason ?? null;
+  } catch {
+    return null;
+  }
 }
 
 /** Addresses under an "all"-scope suppression: the engine table, plus Relay's all-stream suppressions (stream null). */

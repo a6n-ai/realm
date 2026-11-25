@@ -25,4 +25,16 @@ describe("payments list date basis", () => {
     expect(await ids({ ...OCT, basis: "money" })).toEqual([]);
     expect(await ids({ ...NOV, basis: "money" })).toEqual([p.publicId]);
   });
+
+  // The reminder column is a coalesce of the Relay and engine rows under the flag; this runs that query.
+  it("lists under EMAIL_VIA_RELAY with no reminder on the row", async () => {
+    vi.stubEnv("EMAIL_VIA_RELAY", "1");
+    try {
+      const p = await makeStripePayment({ amount: "10.00", piId: "pi_flag_list", paid: true });
+      const { rows } = await listPayments({}, { allTime: true });
+      expect(rows.find((r) => r.publicId === p.publicId)?.lastReminder).toBeNull();
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
 });

@@ -206,9 +206,9 @@ export async function getLogKpis(sp: { from?: string; to?: string }) {
   return { ...a, events: a.claimed + a.verified + a.rejected + e.events, webhooks: e.events, webhookErrors: e.errors };
 }
 
-/** Order owner by staff publicId; "none" = unowned. Unknown ids match nothing. */
 type ReminderRow = (SendState & { key?: string }) | null;
 
+/** Order owner by staff publicId; "none" = unowned. Unknown ids match nothing. */
 function ownerWhere(v?: string) {
   if (!v) return undefined;
   if (v === UNASSIGNED_OWNER) return sql`${payments.orderId} in (select id from ${orders} where current_owner is null)`;
@@ -284,13 +284,20 @@ export async function listPayments(
         isAddon: sql<boolean>`${payments.addonRequest} is not null`,
         expiresAt: payments.expiresAt,
         // Latest payment-reminder email for this order (its vars carry the order code).
-        // Under the flag the row is the relay_outbox one; its delivery state is overlaid after the query (relaySendState).
+        // Under the flag the Relay row wins and the engine row covers reminders sent before the flip; a Relay row's
+        // delivery state is overlaid after the query (relaySendState).
         lastReminder: emailViaRelay()
-          ? sql<ReminderRow>`(select json_build_object('status', o.status, 'at', o.created_at, 'key', o.idempotency_key)
-          from ${relayOutbox} o
-          where o.event = 'payment_reminder' and o.recipient_email = ${users.email}
-            and o.payload->'vars'->'payment'->>'orderCode' = ${orders.deploymentId}
-          order by o.created_at desc limit 1)`
+          ? sql<ReminderRow>`coalesce(
+              (select json_build_object('status', o.status, 'at', o.created_at, 'key', o.idempotency_key)
+              from ${relayOutbox} o
+              where o.event = 'payment_reminder' and o.recipient_email = ${users.email}
+                and o.payload->'vars'->'payment'->>'orderCode' = ${orders.deploymentId}
+              order by o.created_at desc limit 1),
+              (select json_build_object('status', o.status, 'at', o.created_at, 'deliveredAt', o.delivered_at, 'openedAt', o.opened_at)
+              from ${notificationOutbox} o
+              where o.event = 'payment_reminder' and o.channel = 'email' and o.recipient_email = ${users.email}
+                and o.payload->'vars'->'payment'->>'orderCode' = ${orders.deploymentId}
+              order by o.created_at desc limit 1))`
           : sql<ReminderRow>`(select json_build_object('status', o.status, 'at', o.created_at, 'deliveredAt', o.delivered_at, 'openedAt', o.opened_at)
           from ${notificationOutbox} o
           where o.event = 'payment_reminder' and o.channel = 'email' and o.recipient_email = ${users.email}

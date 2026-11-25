@@ -91,7 +91,8 @@ export function RenewalSections({
             <Alert variant="destructive">
               <AlertTitle>{data.emailBlock.reason === "complaint" ? "Customer marked our email as spam" : "Customer's email address bounces"}</AlertTitle>
               <AlertDescription>
-                Since {formatEpoch(data.emailBlock.since, { mode: "date", timeZone: timezone })} no email reaches {customer.email}, renewal reminders included. Call or WhatsApp instead.
+                {data.emailBlock.since != null && <>Since {formatEpoch(data.emailBlock.since, { mode: "date", timeZone: timezone })} </>}
+                no email reaches {customer.email}, renewal reminders included. Call or WhatsApp instead.
               </AlertDescription>
             </Alert>
           )}

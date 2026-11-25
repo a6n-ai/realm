@@ -432,8 +432,9 @@ export async function listCustomersPage(
         // Correlated, but only for the page's rows (25ish). The invite row carries
         // only an address (no account id on it), hence the email match.
         // ponytail: unindexed recipient_email scan per row; add an index if the outbox grows large.
-        lastInvite: sql<RelaySendRow>`${emailViaRelay() ? relayLastInvite : lastInviteState(users.email, sendStateJson)}`,
-        lastReminder: sql<RelaySendRow>`${emailViaRelay() ? relayLastReminder : engineLastReminder}`,
+        // Under the flag Relay's row wins, and the engine row covers sends from before the flip.
+        lastInvite: sql<RelaySendRow>`${emailViaRelay() ? sql`coalesce(${relayLastInvite}, ${lastInviteState(users.email, sendStateJson)})` : lastInviteState(users.email, sendStateJson)}`,
+        lastReminder: sql<RelaySendRow>`${emailViaRelay() ? sql`coalesce(${relayLastReminder}, ${engineLastReminder})` : engineLastReminder}`,
       })
       .from(users)
       .leftJoin(orders, eq(orders.userId, users.id))
