@@ -45,9 +45,8 @@
   ],
   "services": [
     { "binding": "WORKER_SELF_REFERENCE", "service": "tiffin-grab" },
-    // Relay's RPC entrypoint (Phase 6b). Off until the relay-v2 Worker exists (Phase 7): a binding to a
-    // missing Worker can fail the deploy. EMAIL_VIA_RELAY stays off until then, so nothing calls it.
-    // { "binding": "RELAY", "service": "relay-v2", "entrypoint": "RelayRpc" },
+    // Relay's RPC entrypoint. Nothing calls it while EMAIL_VIA_RELAY is off.
+    { "binding": "RELAY", "service": "relay", "entrypoint": "RelayRpc" },
   ],
   // Workflows replaced the per-minute cron and worker.js has no scheduled(). An omitted
   // "triggers" key leaves the old cron in place, firing a failing invocation every minute.
