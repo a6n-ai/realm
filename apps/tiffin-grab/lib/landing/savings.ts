@@ -18,17 +18,20 @@ function frequencyName(snapshot: CatalogSnapshot, key: string): string {
   return days.length > 0 ? days.map((d) => DAY[d] ?? d).join(", ") : f.name;
 }
 
-interface Quote { lines: PromoLine[]; size: string; tiffins: number; perTiffin: number; frequency: string; weeks: number; saving: number }
+interface Quote { lines: PromoLine[]; size: string; eats: string | null; tiffins: number; perTiffin: number; frequency: string; weeks: number; saving: number }
 
 /** Prices one plan through the checkout engine, then the coupon on what is left, as checkout does. */
-function quote(snapshot: CatalogSnapshot, mealSizeId: string, frequencyKey: string, weeks: number, coupon: CouponLike | null, currency: string): Quote | null {
+function quote(snapshot: CatalogSnapshot, mealSizeId: string, frequencyKey: string, weeks: number, coupon: CouponLike | null, currency: string, everyWeekday = false): Quote | null {
   const size = snapshot.mealSizes.find((m) => m.publicId === mealSizeId)!;
   const plan = snapshot.plans.find((p) => p.key === size.planKey);
   const slot = plan?.offeredSlots[0];
   if (!slot) return null;
   // The receipt shows each frequency at its own eating days (a 5-day plan is Mon-Fri), so tiers resolve as they do at checkout.
   const freq = snapshot.frequencies.find((f) => f.key === frequencyKey);
-  const eatingDays = freq?.weekdays?.length ? (freq.weekdays as DayOfWeek[]) : (["mon", "tue", "wed", "thu", "fri"] as DayOfWeek[]).slice(0, freq?.daysPerWeek ?? 5);
+  // everyWeekday: the best case eats Mon to Fri on any delivery schedule (MWF delivers Tue and Thu food a
+  // day early), which is what reaches the top eating-day tier at checkout.
+  const weekdays = ["mon", "tue", "wed", "thu", "fri"] as DayOfWeek[];
+  const eatingDays = everyWeekday ? weekdays : freq?.weekdays?.length ? (freq.weekdays as DayOfWeek[]) : weekdays.slice(0, freq?.daysPerWeek ?? 5);
   const selections = { mealSizeId, frequencyKey, persons: 1, mealSlots: [slot], eatingDays: eatingDays, includeSaturday: false, includeSunday: false, durationWeeks: weeks, startDate: "2000-01-03" };
   let priced;
   try {
@@ -54,7 +57,8 @@ function quote(snapshot: CatalogSnapshot, mealSizeId: string, frequencyKey: stri
     const figure = pct > 0 ? `${pct}%` : formatMoney(Math.floor(amount), currency, { whole: true });
     if (amount > 0) lines.push({ label: `Code ${coupon.code}`, amount, figure, perk: `off with code ${coupon.code}`, short: `Code ${coupon.code}` });
   }
-  return { lines, size: size.name, tiffins: priced.tiffinCount, perTiffin: priced.perTiffinPrice, frequency: freqName, weeks, saving: round2(lines.reduce((s, l) => s + l.amount, 0)) };
+  const eats = eatingDays.length > (freq?.weekdays?.length ?? eatingDays.length) ? `Eats ${eatingDays.length} days, delivered ${freqName === "Mon, Wed, Fri" ? "MWF" : freqName}` : null;
+  return { lines, size: size.name, eats, tiffins: priced.tiffinCount, perTiffin: priced.perTiffinPrice, frequency: freqName, weeks, saving: round2(lines.reduce((s, l) => s + l.amount, 0)) };
 }
 
 function receipt(q: Quote, currency: string, named = false): PromoReceipt {
@@ -64,6 +68,7 @@ function receipt(q: Quote, currency: string, named = false): PromoReceipt {
     subtotal: round2(q.tiffins * q.perTiffin),
     lines: q.lines,
     total: q.saving,
+    ...(named && q.eats ? { note: q.eats } : {}),
   };
 }
 
@@ -90,7 +95,7 @@ export function promoSavings(snapshot: CatalogSnapshot, coupon: CouponLike | nul
   // The receipt that stacks the most discounts wins (then the bigger saving): every offer shows up
   // on one real plan, and the bar, tag and list all quote that same plan.
   const best = snapshot.frequencies
-    .map((f) => quote(snapshot, sizes.at(-1)!.publicId, f.key, longest, coupon, currency))
+    .map((f) => quote(snapshot, sizes.at(-1)!.publicId, f.key, longest, coupon, currency, true))
     .filter((q): q is Quote => q != null)
     .sort((a, b) => b.lines.length - a.lines.length || b.saving - a.saving)[0];
   // Plan length first, then the schedule, then the code: the order a visitor builds a plan in.

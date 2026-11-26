@@ -127,6 +127,7 @@ export function ReceiptSale({ promo }: { promo: LandingPromo }) {
               <dl className="lp-till__items">
                 <div><dt>{meal}</dt><dd /></div>
                 <div className="lp-till__sub"><dt>{plan.join(" · ")}</dt><dd /></div>
+                {best.note ? <div className="lp-till__sub"><dt>{best.note}</dt><dd /></div> : null}
                 <div><dt>{best.subtotalLabel}</dt><dd className="lp-till__old">{usd(best.subtotal)}<svg viewBox="0 0 100 20" preserveAspectRatio="none" aria-hidden><path d="M2 14 C 30 6, 64 12, 98 5" /></svg></dd></div>
                 {lines.map((l) => (
                   <div key={l.label} className="lp-till__off"><dt>{l.label}</dt><dd>−{usd(l.amount)}</dd></div>

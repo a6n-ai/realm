@@ -37,14 +37,14 @@ describe("promoSavings", () => {
       { label: "8-week plan (10%)", amount: 30.72 },
       { label: "Code WELCOME10", amount: 25 },
     ]);
-    // The stacked receipt: $16 x 36 MWF tiffins, 15% + 5% + $25.
-    expect(s.upTo).toBe(140.2);
+    // The stacked receipt: $16 x 60 tiffins eaten Mon to Fri, delivered MWF: 15% + 5% + $25.
+    expect(s.upTo).toBe(217);
   });
 
   it("shows the dearest meal on the plan that stacks every discount, in dollars", () => {
     const s = promoSavings(snapshot, welcome, "CAD")!;
-    // $16 x 36 MWF tiffins = $576: 15% ($86.40) + 5% ($28.80) + $25 beats Mon to Fri's two lines.
-    expect(s.best).toMatchObject({ example: "K3, 12 weeks, Mon, Wed, Fri", subtotal: 576 });
+    // $16 x 60 tiffins = $960, eaten every weekday on MWF delivery: 15% + 5% + $25 beats Mon to Fri's two lines.
+    expect(s.best).toMatchObject({ example: "K3, 12 weeks, Mon, Wed, Fri", subtotal: 960 });
     expect(s.perks.map((l) => `${l.figure} ${l.perk}`)).toEqual([
       "15% off 12-week plans",
       "5% off Mon, Wed, Fri delivery",

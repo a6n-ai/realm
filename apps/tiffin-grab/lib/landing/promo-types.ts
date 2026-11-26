@@ -41,6 +41,8 @@ export interface PromoReceipt {
   subtotal: number;
   lines: PromoLine[];
   total: number;
+  /** "Eats 5 days, delivered MWF" when eating days exceed delivery days. */
+  note?: string;
 }
 
 /** An honest example receipt: what one real plan saves at checkout today. */

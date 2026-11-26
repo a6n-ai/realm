@@ -163,9 +163,8 @@ export function Story() {
 
 export function OfferBand({ promos, photo }: { promos: LandingPromo[]; photo: StaticImageData }) {
   const sale = promos.find((p) => p.sale && p.upTo && p.savings?.best);
-  const rest = sale ? promos.filter((p) => p !== sale) : promos;
-  if (sale && rest.length === 0) return <ReceiptSale promo={sale} />;
-  if (sale) return <><ReceiptSale promo={sale} /><OfferBand promos={rest} photo={photo} /></>;
+  // While a sale runs it is the only offer on the page; the coupon carousel returns when it ends.
+  if (sale) return <ReceiptSale promo={sale} />;
   return (
     <section className="lp-section lp-offers" aria-labelledby="lp-offer">
       <div className="lp-wrap">
