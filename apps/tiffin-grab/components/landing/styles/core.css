@@ -316,6 +316,36 @@ html[data-nav="pending"][data-dock] body::before { display: none; }
 .tg-code { position: relative; display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 16px; border-radius: 14px; border: 1.5px dashed color-mix(in oklch, var(--foreground) 45%, transparent); background: color-mix(in srgb, var(--card) 70%, transparent); color: var(--foreground); font: inherit; font-weight: 700; letter-spacing: 0.06em; cursor: pointer; }
 .tg-code:hover { border-color: var(--foreground); }
 .tg-code:active { transform: scale(0.98); }
+/* Promo bar: an ink ticker above the floating header. It scrolls away with the page; the header
+   stays sticky. The whole strip is one link, so the hover answer is the arrow and the CTA fill. */
+.tg-sale { --sale-ink: #1F4232; position: relative; z-index: 41; display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 6px 0 var(--gutter, 16px); background: var(--sale-ink); color: var(--tg-cream); text-decoration: none; font-size: var(--text-sm); line-height: 1; -webkit-font-smoothing: antialiased; }
+.tg-sale:focus-visible { outline: 2px solid var(--tg-saffron); outline-offset: -4px; }
+.tg-sale__mark { flex: none; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--tg-saffron); }
+.tg-sale__lead { flex: none; padding: 6px 10px; border-radius: 999px; background: var(--tg-cream); color: var(--tg-green-text); font-weight: 700; font-variant-numeric: tabular-nums; }
+.tg-sale__ticker { flex: 1; min-width: 0; overflow: hidden; -webkit-mask-image: linear-gradient(90deg, transparent, #000 24px, #000 calc(100% - 24px), transparent); mask-image: linear-gradient(90deg, transparent, #000 24px, #000 calc(100% - 24px), transparent); }
+.tg-sale__track { display: flex; width: max-content; }
+.tg-sale__run { display: flex; flex: none; }
+.tg-sale__item { display: inline-flex; align-items: center; gap: 10px; padding-inline: 14px; white-space: nowrap; font-weight: 600; color: rgb(251 244 231 / 0.88); font-variant-numeric: tabular-nums; }
+.tg-sale__spark { flex: none; color: var(--tg-saffron); }
+.tg-sale__cta { flex: none; display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px 0 14px; border-radius: 999px; background: var(--tg-saffron); color: var(--tg-ink-warm); font-weight: 700; transition: background-color 160ms ease, scale 160ms var(--ease-soft); }
+.tg-sale__cta > svg { transition: translate 200ms var(--ease-soft); }
+.tg-sale:active .tg-sale__cta { scale: 0.96; }
+@media (hover: hover) and (pointer: fine) {
+  .tg-sale:hover .tg-sale__cta { background: var(--tg-peach); }
+  .tg-sale:hover .tg-sale__cta > svg { translate: 3px 0; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .tg-sale__track { animation: tg-sale-run 38s linear infinite; }
+  .tg-sale:is(:hover, :focus-visible) .tg-sale__track { animation-play-state: paused; }
+}
+@media (prefers-reduced-motion: reduce) { .tg-sale__run[aria-hidden] { display: none; } }
+@keyframes tg-sale-run { to { translate: -50% 0; } }
+@media (max-width: 760px) {
+  .tg-sale { gap: 8px; height: 40px; }
+  .tg-sale__lead { display: none; }
+  .tg-sale__cta { width: 32px; padding: 0; justify-content: center; }
+  .tg-sale__cta-text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+}
 .lp-promo-frame { display: block; width: 100%; min-height: 0; border: 0; background: transparent; }
 .lp-cta, .tg-cta, .tg-promo-cta, .tg-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 52px; padding: 0 24px; border: 1.5px solid transparent; border-radius: 999px; background-color: var(--primary); color: var(--primary-foreground, #fff); font-size: var(--text-callout); font-weight: 600; text-decoration: none; white-space: nowrap; user-select: none; touch-action: manipulation; box-shadow: var(--c-shadow-cta); }
 .tg-btn { background-color: transparent; border-color: var(--foreground); color: var(--foreground); box-shadow: none; }

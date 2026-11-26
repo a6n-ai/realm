@@ -6,6 +6,7 @@ import { FaqAccordion } from "@/components/landing/faq-accordion";
 import { BuildTiffinLink } from "@/components/landing/build-tiffin-link";
 import { ArrowRight, Calculator, CalendarDays, CalendarRange, ChevronRight, Coins, CookingPot, Salad, Share2, UtensilsCrossed, type LucideIcon } from "lucide-react";
 import { OfferCarousel } from "@/components/landing/promo/offer-carousel";
+import { ReceiptSale } from "@/components/landing/home/receipt-sale";
 import type { LandingPromo } from "@/lib/landing/promo-types";
 import { referHeadline } from "@/lib/referrals/headline";
 import type { ReferralOffer } from "@/lib/referrals/offer";
@@ -30,7 +31,30 @@ function dayRange(days: string[]): string {
 
 /** The running promotion as a die-cut sticker on the hero: short headline in the middle,
  *  the offer text circling it. Staff pick it with the "Hero sticker" placement. */
+/** Seasonal sale tag: a saffron price tag hanging on a cord over the hero, swinging a little at
+ *  rest. The figure is the best receipt's real saving, so the tag never says more than checkout. */
+function SaleTag({ promo }: { promo: LandingPromo }) {
+  return (
+    <Link prefetch={false} href={promo.href} className="lp-hangtag">
+      <span className="lp-hangtag__cord" aria-hidden />
+      <span className="lp-hangtag__body">
+        <span className="lp-hangtag__name">{promo.title}</span>
+        <span className="lp-hangtag__small">Up to</span>
+        <strong className="lp-hangtag__fig">{promo.upToPct}</strong>
+        <span className="lp-hangtag__small lp-hangtag__off">off</span>
+        {promo.savings?.perks.length ? (
+          <ul className="lp-hangtag__list">
+            {promo.savings.perks.map((l) => <li key={l.label}><b>{l.figure}</b> {l.short}</li>)}
+          </ul>
+        ) : null}
+        <span className="lp-hangtag__cta">Order now<ArrowRight aria-hidden className="size-3.5" strokeWidth={2.4} /></span>
+      </span>
+    </Link>
+  );
+}
+
 function OfferSticker({ promo }: { promo: LandingPromo }) {
+  if (promo.sale && promo.upTo) return <SaleTag promo={promo} />;
   const headline = promo.badge ?? promo.title;
   // The ring holds ~46 characters at its font size; a short phrase repeated reads cleaner than a
   // long blurb squeezed to fit.
@@ -85,11 +109,19 @@ export function Hero({
             {hasMenu ? <a href="#menu" className="lp-textlink lp-textlink--light">This week&apos;s menu <ChevronRight aria-hidden className="size-4" strokeWidth={2} /></a> : null}
           </div>
           {offer ? (
-            <Link prefetch={false} href={offer.href} className="lp-ticket">
-              <span className="lp-ticket__main">
-                <strong>{offer.badge ?? offer.title}</strong>
-                <small>{offer.blurb ?? offer.cta}</small>
-              </span>
+            <Link prefetch={false} href={offer.href} className={offer.sale && offer.upTo ? "lp-ticket lp-ticket--sale" : "lp-ticket"}>
+              {offer.sale && offer.upTo ? (
+                <span className="lp-ticket__main">
+                  <em className="lp-ticket__kicker">{offer.title}</em>
+                  <strong>Up to {offer.upToPct ?? offer.upTo} off</strong>
+                  {offer.endsLabel ? <small>{offer.endsLabel}</small> : null}
+                </span>
+              ) : (
+                <span className="lp-ticket__main">
+                  <strong>{offer.badge ?? offer.title}</strong>
+                  <small>{offer.blurb ?? offer.cta}</small>
+                </span>
+              )}
               <span className="lp-ticket__stub">{offer.code ?? offer.cta}<ArrowRight aria-hidden className="size-4" strokeWidth={2.2} /></span>
             </Link>
           ) : null}
@@ -130,6 +162,10 @@ export function Story() {
 }
 
 export function OfferBand({ promos, photo }: { promos: LandingPromo[]; photo: StaticImageData }) {
+  const sale = promos.find((p) => p.sale && p.upTo && p.savings?.best);
+  const rest = sale ? promos.filter((p) => p !== sale) : promos;
+  if (sale && rest.length === 0) return <ReceiptSale promo={sale} />;
+  if (sale) return <><ReceiptSale promo={sale} /><OfferBand promos={rest} photo={photo} /></>;
   return (
     <section className="lp-section lp-offers" aria-labelledby="lp-offer">
       <div className="lp-wrap">

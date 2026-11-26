@@ -2,7 +2,7 @@ import { updatableColumns } from "@foundry/database";
 import { bigint, boolean, index, integer, pgTable, text } from "drizzle-orm/pg-core";
 import { organization } from "./organizations";
 
-export const PROMO_PLACEMENTS = ["sticker", "popup", "section"] as const;
+export const PROMO_PLACEMENTS = ["sticker", "popup", "section", "bar"] as const;
 
 // Marketing promotion shown on the public landing page. `body` is the editor source (HTML or
 // React); `html` is the sanitized render the public page uses.

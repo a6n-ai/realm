@@ -2,14 +2,14 @@
 
 import { useFormatMoney } from "@/components/app-currency";
 import { useEffect, useRef, useState } from "react";
-import type { PromoSavings } from "@/lib/landing/promo-types";
+import type { PromoReceipt } from "@/lib/landing/promo-types";
 import { round2 } from "@foundry/commons/util/money";
 
 const COUNT_MS = 900;
 
 /** A glass checkout receipt for one real plan: lines drop in once it is in view, then the
  *  saving counts up to its total. Reduced motion shows the finished receipt straight away. */
-export function SavingsReceipt({ savings, className }: { savings: PromoSavings; className?: string }) {
+export function SavingsReceipt({ savings, className, label = "Example plan" }: { savings: PromoReceipt & { upTo?: number | null }; className?: string; label?: string }) {
   const usd = useFormatMoney();
   const ref = useRef<HTMLDivElement>(null);
   const [shown, setShown] = useState(false);
@@ -40,7 +40,7 @@ export function SavingsReceipt({ savings, className }: { savings: PromoSavings; 
   return (
     <div ref={ref} className={`tg-receipt${shown ? " is-shown" : ""}${className ? ` ${className}` : ""}`}>
       <p className="tg-receipt__head">
-        <span>Example plan</span>
+        <span>{label}</span>
         <span>{savings.example}</span>
       </p>
       <dl className="tg-receipt__lines">

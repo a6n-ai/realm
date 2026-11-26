@@ -32,13 +32,24 @@ describe("promoSavings", () => {
     expect(s.total).toBe(71.08);
     expect(s.headline).toBe("Save over $70");
     expect(s.example).toBe("8 weeks, Mon, Wed, Fri");
-    expect(s.lines).toEqual([
+    expect(s.lines).toMatchObject([
       { label: "Mon, Wed, Fri (5%)", amount: 15.36 },
       { label: "8-week plan (10%)", amount: 30.72 },
       { label: "Code WELCOME10", amount: 25 },
     ]);
-    // $16 x 60 tiffins, 15% + $25.
-    expect(s.upTo).toBe(169);
+    // The stacked receipt: $16 x 36 MWF tiffins, 15% + 5% + $25.
+    expect(s.upTo).toBe(140.2);
+  });
+
+  it("shows the dearest meal on the plan that stacks every discount, in dollars", () => {
+    const s = promoSavings(snapshot, welcome, "CAD")!;
+    // $16 x 36 MWF tiffins = $576: 15% ($86.40) + 5% ($28.80) + $25 beats Mon to Fri's two lines.
+    expect(s.best).toMatchObject({ example: "K3, 12 weeks, Mon, Wed, Fri", subtotal: 576 });
+    expect(s.perks.map((l) => `${l.figure} ${l.perk}`)).toEqual([
+      "15% off 12-week plans",
+      "5% off Mon, Wed, Fri delivery",
+      "$25 off with code WELCOME10",
+    ]);
   });
 
   it("leaves the coupon out when the plan is under its minimum after discounts", () => {

@@ -12,6 +12,7 @@ import { LocationPicker } from "@/components/marketing/location-picker";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import { loadReferralOffer } from "@/lib/referrals/offer";
 import { loadLandingPromos } from "@/lib/landing/promos";
+import { PromoBar } from "@/components/landing/promo-bar";
 import { referHeadline } from "@/lib/referrals/headline";
 import { ActionPill } from "@/components/landing/refer/action-pill";
 import { EdgeTint } from "@/components/landing/edge-tint";
@@ -26,11 +27,12 @@ export async function PublicShell({ children }: { children: ReactNode }) {
   const [offer, promos] = await Promise.all([loadReferralOffer(), loadLandingPromos()]);
   const sticker = promos?.sticker ?? null;
   // The dock's promotion face: the computed saving when there is one, else the promo's own badge.
-  const dockPromo = sticker ? { text: sticker.savings?.headline ?? sticker.badge ?? sticker.title, code: sticker.code, href: sticker.href } : null;
+  const dockPromo = sticker ? { text: sticker.sale && sticker.upToPct ? `Up to ${sticker.upToPct} off` : (sticker.savings?.headline ?? sticker.badge ?? sticker.title), code: sticker.code, href: sticker.href } : null;
   return (
     <div className="tg-light-root">
     <div className="tg-land customer-app">
       <WebMcpTools />
+      {promos.bar ? <PromoBar promo={promos.bar} /> : null}
       <LandingHeader refer={offer?.on ?? false} rating={<Suspense fallback={null}><NavRating /></Suspense>} />
       {/* Route changes cross-fade the page under a header that stays put (see landing.css). Keyed by
           path: an unkeyed default also ran on every streamed Suspense reveal, so the first visit

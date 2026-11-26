@@ -41,7 +41,7 @@ export function deliveryBody(f: SiteFacts, catalog: CatalogSnapshot, origin: str
 
 export function promotionsBody(p: LandingPromos, origin: string) {
   const seen = new Set<string>();
-  const shown = [p.sticker, p.popup, ...p.sections].filter((x): x is LandingPromo => !!x && !seen.has(x.id) && !!seen.add(x.id));
+  const shown = [p.bar, p.sticker, p.popup, ...p.sections].filter((x): x is LandingPromo => !!x && !seen.has(x.id) && !!seen.add(x.id));
   return {
     promotions: shown.map((x) => ({ title: x.title, description: x.blurb, code: x.code, url: new URL(x.href, origin).href, badge: x.badge ?? null })),
   };

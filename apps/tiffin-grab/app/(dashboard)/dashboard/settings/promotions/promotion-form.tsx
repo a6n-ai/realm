@@ -21,6 +21,7 @@ const PLACEMENTS = [
   { value: "sticker", label: "Hero sticker", hint: "A round sticker on the home page video: the short headline and the offer text." },
   { value: "popup", label: "Popup", hint: "Opens once per visitor on the home page. Highest priority wins if several are on." },
   { value: "section", label: "Landing section", hint: "A slide in the home page offers carousel. Every live one shows, highest priority first." },
+  { value: "bar", label: "Promo bar", hint: "A thin strip above the header on every public page. Highest priority wins if several are on." },
 ] as const;
 
 const NO_COUPON = "__none__";

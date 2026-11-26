@@ -1,6 +1,7 @@
 import { BRAND_HOST } from "@/lib/brand";
 import { getAppSettings } from "@/lib/settings";
 import { formatDiscount } from "@/lib/format/currency";
+import { formatMoney } from "@foundry/commons/util/money";
 import { loadCatalogSnapshot } from "@/lib/catalog/load";
 import type { CatalogSnapshot } from "@/lib/catalog/types";
 import { promoSavings } from "@/lib/landing/savings";
@@ -57,7 +58,25 @@ export function ownImagePath(url: string | null): string | null {
   }
 }
 
-function fromPromotion(p: Promotion, coupons: Map<string, AvailableCoupon>, snapshot: CatalogSnapshot | null, currency: string): LandingPromo {
+// The last full day, so an end of Dec 2 00:00 reads "Ends Tue, Dec 1".
+export function endsLabel(endsAt: number | null, timezone: string): string | null {
+  if (endsAt == null) return null;
+  return `Ends ${new Intl.DateTimeFormat("en-CA", { timeZone: timezone, weekday: "short", month: "short", day: "numeric" }).format(endsAt - 1)}`;
+}
+
+/** Plan discounts only, as a share of the subtotal ("25%"): a fixed code is money, not a percent. */
+export function planPercentOff(r: { subtotal: number; lines: { label: string; amount: number }[] }): string | null {
+  if (r.subtotal <= 0) return null;
+  const off = r.lines.filter((l) => !l.label.startsWith("Code ")).reduce((s, l) => s + l.amount, 0);
+  // The epsilon keeps an exact 25% from flooring to 24 on float noise.
+  const pct = Math.floor((off / r.subtotal) * 100 + 1e-9);
+  return pct > 0 ? `${pct}%` : null;
+}
+
+// shortcut: seasonal look keyed off the title, until promotions get a staff-picked theme column.
+const SALE_TITLE = /black friday|cyber monday|boxing day/i;
+
+function fromPromotion(p: Promotion, coupons: Map<string, AvailableCoupon>, snapshot: CatalogSnapshot | null, currency: string, timezone: string): LandingPromo {
   const coupon = p.couponCode ? coupons.get(p.couponCode.toUpperCase()) : undefined;
   const savings = coupon && snapshot ? promoSavings(snapshot, coupon, currency) : null;
   return {
@@ -72,10 +91,16 @@ function fromPromotion(p: Promotion, coupons: Map<string, AvailableCoupon>, snap
     code: p.couponCode,
     href: p.ctaHref || subscribeHref(p.couponCode),
     cta: p.ctaLabel,
+    endsLabel: endsLabel(p.endsAt, timezone),
+    endsAt: p.endsAt,
+    sale: SALE_TITLE.test(p.title),
+    upTo: savings?.best ? formatMoney(Math.floor(savings.best.total), currency, { whole: true }) : null,
+    upToPct: savings?.best ? planPercentOff(savings.best) : null,
+    minSpend: coupon?.minSubtotal && Number(coupon.minSubtotal) > 0 ? formatMoney(Number(coupon.minSubtotal), currency, { whole: true }) : null,
   };
 }
 
-const PROMOS_NONE: LandingPromos = { sticker: null, popup: null, sections: [] };
+const PROMOS_NONE: LandingPromos = { sticker: null, popup: null, sections: [], bar: null };
 
 /**
  * Optional content: any failure reads as "no promos". Every public page's shell (404s and bot
@@ -93,18 +118,19 @@ export async function loadLandingPromos(): Promise<LandingPromos> {
 
 /** Throws on failure: for callers that must not cache a fallback (the public API keeps answers for an hour). */
 export async function buildLandingPromos(): Promise<LandingPromos> {
-  const [coupons, live, snapshot, { currency }] = await Promise.all([
+  const [coupons, live, snapshot, { currency, timezone }] = await Promise.all([
     couponsService.listAvailable().catch(() => [] as AvailableCoupon[]),
     promotionsService.listLive().catch(() => [] as Promotion[]),
     loadCatalogSnapshot().catch(() => null),
     getAppSettings(),
   ]);
   const byCode = new Map(coupons.map((c) => [c.code.toUpperCase(), c]));
-  const placed = (placement: string) => live.filter((x) => hasPlacement(x, placement)).map((p) => fromPromotion(p, byCode, snapshot, currency));
+  const placed = (placement: string) => live.filter((x) => hasPlacement(x, placement)).map((p) => fromPromotion(p, byCode, snapshot, currency, timezone));
   const strongest = coupons.toSorted((a, b) => strength(b) - strength(a))[0];
   return {
     sticker: placed("sticker")[0] ?? (strongest ? fromCoupon(strongest, snapshot, currency) : null),
     popup: placed("popup")[0] ?? null,
     sections: placed("section"),
+    bar: placed("bar")[0] ?? null,
   };
 }
