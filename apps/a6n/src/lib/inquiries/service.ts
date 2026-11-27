@@ -175,7 +175,8 @@ export function createInquiriesService(db: CrmDb) {
 
     async claim(id: string, actor: Actor): Promise<{ ok: true } | Refusal> {
       const [upd] = await atomic(db, () => [
-        sql`UPDATE inquiries SET owner_id = ${actor.userId} WHERE id = ${id} AND owner_id IS NULL AND closed_at IS NULL`,
+        sql`UPDATE inquiries SET owner_id = ${actor.userId} WHERE id = ${id} AND owner_id IS NULL AND closed_at IS NULL
+          AND EXISTS (SELECT 1 FROM users WHERE id = ${actor.userId} AND status = 'active')`,
         {
           onlyIfPreviousChanged: 1,
           query: sql`INSERT INTO inquiry_activities (id, created_at, inquiry_id, type, from_owner_id, to_owner_id, actor_id)
