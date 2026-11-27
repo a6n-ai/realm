@@ -68,3 +68,10 @@ describe("roles", () => {
     expect((await svc("org_r2").list()).map((r) => r.name)).not.toContain("lead");
   });
 });
+
+test("nobody edits or deletes a role holding permissions they lack", async () => {
+  await svc().create("lead", ["inquiry:read", "inquiry:assign"], owner);
+  const editor = { ...actorOf("usr_m", "Max", "member"), permissions: ["ac:update", "ac:delete", "inquiry:read"] as never };
+  expect(await svc().update("lead", ["inquiry:read"], editor)).toEqual({ ok: false, code: "role_not_grantable" });
+  expect(await svc().remove("lead", editor)).toEqual({ ok: false, code: "role_not_grantable" });
+});

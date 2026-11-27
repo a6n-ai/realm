@@ -3,7 +3,7 @@ import { sql } from "drizzle-orm";
 import type { CrmDb } from "../../db/client";
 import type { Actor } from "../auth/actor";
 import { canGrant, listOrgRoles } from "../auth/membership";
-import { isBuiltInRole, isPermission, type OrgPermission } from "../auth/permissions";
+import { isBuiltInRole, isPermission, permissionsOf, type OrgPermission, type Statements } from "../auth/permissions";
 
 export type RoleRow = { name: string; builtIn: boolean; permissions: OrgPermission[]; memberCount: number };
 export type RoleResult = { ok: true } | { ok: false; code: "invalid" | "builtin_role" | "name_taken" | "role_not_grantable" | "role_in_use" | "not_found" };
@@ -31,6 +31,14 @@ export function createRolesService(db: CrmDb, org: string) {
     if (!canGrant(actor.permissions, permissions as OrgPermission[])) return { ok: false, code: "role_not_grantable" };
     return null;
   };
+  // Editing or deleting a role is as strong as granting it: refuse when it holds anything the actor lacks.
+  const currentPermissions = async (name: string): Promise<OrgPermission[] | null> => {
+    const [row] = await db.all<{ permission: string }>(
+      sql`SELECT permission FROM organization_roles WHERE organization_id = ${org} AND role = ${name}`,
+    );
+    return row ? permissionsOf(JSON.parse(row.permission) as Statements) : null;
+  };
+
   return {
     async list(): Promise<RoleRow[]> {
       const roles = await listOrgRoles(db, org);
@@ -59,10 +67,9 @@ export function createRolesService(db: CrmDb, org: string) {
     async update(name: string, permissions: string[], actor: Actor): Promise<RoleResult> {
       const refused = check(name, permissions, actor);
       if (refused) return refused;
-      const [current] = await db.all<{ permission: string }>(
-        sql`SELECT permission FROM organization_roles WHERE organization_id = ${org} AND role = ${name}`,
-      );
+      const current = await currentPermissions(name);
       if (!current) return { ok: false, code: "not_found" };
+      if (!canGrant(actor.permissions, current)) return { ok: false, code: "role_not_grantable" };
       const [upd] = await atomic(db, () => [
         sql`UPDATE organization_roles SET permission = ${toStatements(permissions as OrgPermission[])}, updated_at = ${Date.now()}
           WHERE organization_id = ${org} AND role = ${name}`,
@@ -74,6 +81,9 @@ export function createRolesService(db: CrmDb, org: string) {
 
     async remove(name: string, actor: Actor): Promise<RoleResult> {
       if (isBuiltInRole(name)) return { ok: false, code: "builtin_role" };
+      const current = await currentPermissions(name);
+      if (!current) return { ok: false, code: "not_found" };
+      if (!canGrant(actor.permissions, current)) return { ok: false, code: "role_not_grantable" };
       const [row] = await db.all<{ n: number }>(sql`SELECT ${holders(org, name)} AS n`);
       if (Number(row?.n ?? 0) > 0) return { ok: false, code: "role_in_use" };
       const [del] = await atomic(db, () => [
