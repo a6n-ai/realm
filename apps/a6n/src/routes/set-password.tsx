@@ -1,8 +1,7 @@
-import { AuthPanel, AuthScreen } from "@foundry/auth-ui";
 import { passwordSchema } from "@foundry/commons";
 import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
-import { AuthLogo, AuthPage, appAuthUi } from "../components/auth/auth-kit";
+import { AuthCard, appAuthUi } from "../components/auth/auth-kit";
 import { errorText } from "../lib/error-copy";
 import { getShell, setPasswordFn } from "../lib/auth/shell.fns";
 
@@ -44,10 +43,8 @@ function SetPasswordPage() {
   }
 
   return (
-    <AuthPage>
-      <AuthScreen>
-        <AuthPanel art={<AuthLogo />} title="Set your password" tagline="Choose a password to finish setting up your account.">
-          <form method="post" onSubmit={submit} className="grid gap-5">
+    <AuthCard title="Set your password" text="Choose a password to finish setting up your account.">
+          <form method="post" onSubmit={submit} className="flex flex-col gap-3">
             <Field label="New password" type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
             <Field label="Confirm password" type="password" autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} required />
             {error ? (
@@ -59,8 +56,6 @@ function SetPasswordPage() {
               Save password
             </Button>
           </form>
-        </AuthPanel>
-      </AuthScreen>
-    </AuthPage>
+    </AuthCard>
   );
 }

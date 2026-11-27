@@ -1,8 +1,7 @@
-import { AUTH_LINK, AuthPanel, AuthScreen, authErrorMessage, EmailCodeSignIn } from "@foundry/auth-ui";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@foundry/ui/tabs";
+import { authErrorMessage, EmailCodeSignIn } from "@foundry/auth-ui";
 import { createFileRoute, Link, redirect, useRouter } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
-import { AuthLogo, AuthPage, appAuthUi } from "../components/auth/auth-kit";
+import { AUTH_QUIET_LINK, AuthCard, appAuthUi } from "../components/auth/auth-kit";
 import { authClient } from "../lib/auth/client";
 import { safeRedirect } from "../lib/auth/redirect";
 import { getShell } from "../lib/auth/shell.fns";
@@ -45,7 +44,7 @@ function PasswordForm({ onDone, defaultEmail }: { onDone: () => Promise<void>; d
   }
 
   return (
-    <form method="post" onSubmit={submit} className="grid gap-5">
+    <form method="post" onSubmit={submit} className="flex flex-col gap-3">
       <Field label="Email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
       <Field label="Password" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
       {error ? (
@@ -54,10 +53,10 @@ function PasswordForm({ onDone, defaultEmail }: { onDone: () => Promise<void>; d
         </p>
       ) : null}
       <Button type="submit" pending={pending}>
-        Sign in
+        Continue with password
       </Button>
-      <Link to="/forgot-password" className={`${AUTH_LINK} inline-flex items-center justify-center`}>
-        Forgot your password?
+      <Link to="/forgot-password" className={AUTH_QUIET_LINK}>
+        Forgot password?
       </Link>
     </form>
   );
@@ -75,34 +74,28 @@ function LoginPage() {
   };
 
   return (
-    <AuthPage>
-      <AuthScreen>
-        <AuthPanel
-          art={<AuthLogo />}
-          title={search.invited ? "Welcome to a6n" : "Sign in"}
-          tagline={search.invited ? "Enter your email and we'll send you a sign-in code." : "Use your password or a code sent to your email."}
-        >
-          <Tabs value={tab} onValueChange={(v) => setTab(String(v))}>
-            <TabsList>
-              <TabsTrigger value="password">Password</TabsTrigger>
-              <TabsTrigger value="code">Email code</TabsTrigger>
-            </TabsList>
-            <TabsContent value="password" className="pt-4">
-              <PasswordForm onDone={done} defaultEmail={email} />
-            </TabsContent>
-            <TabsContent value="code" className="pt-4">
-              <EmailCodeSignIn
-                compact
-                ui={appAuthUi}
-                defaultEmail={email}
-                onSendCode={(to) => authClient.emailOtp.sendVerificationOtp({ email: to, type: "sign-in" })}
-                onVerify={(to, otp) => authClient.signIn.emailOtp({ email: to, otp })}
-                onSuccess={done}
-              />
-            </TabsContent>
-          </Tabs>
-        </AuthPanel>
-      </AuthScreen>
-    </AuthPage>
+    <AuthCard
+      title={search.invited ? "Welcome to a6n" : "Log in to a6n"}
+      text={search.invited ? "Enter your email and we'll send you a sign-in code." : undefined}
+      footer="Access is by invite. Ask your a6n admin."
+    >
+      <div className="flex flex-col gap-3">
+        {tab === "password" ? (
+          <PasswordForm onDone={done} defaultEmail={email} />
+        ) : (
+          <EmailCodeSignIn
+            compact
+            ui={appAuthUi}
+            defaultEmail={email}
+            onSendCode={(to) => authClient.emailOtp.sendVerificationOtp({ email: to, type: "sign-in" })}
+            onVerify={(to, otp) => authClient.signIn.emailOtp({ email: to, otp })}
+            onSuccess={done}
+          />
+        )}
+        <button type="button" className={AUTH_QUIET_LINK} onClick={() => setTab(tab === "password" ? "code" : "password")}>
+          {tab === "password" ? "Use an email code instead" : "Sign in with password"}
+        </button>
+      </div>
+    </AuthCard>
   );
 }
