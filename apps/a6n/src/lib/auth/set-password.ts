@@ -18,7 +18,7 @@ export async function setPasswordCore(env: Env, headers: Headers, password: stri
   }
   const db = getDb(env);
   try {
-    await createAuth(env).api.setPassword({ body: { newPassword: password }, headers });
+    await (await createAuth(env)).api.setPassword({ body: { newPassword: password }, headers });
   } catch (err) {
     if (!(err instanceof APIError)) throw err;
     const [user] = await db.select({ passwordSet: users.passwordSet }).from(users).where(eq(users.id, actor.userId));

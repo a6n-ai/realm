@@ -2,6 +2,7 @@ import type { Env } from "../../env";
 import { consoleMailer } from "./console-mailer";
 import { memoryMailer } from "./memory-mailer";
 import { RelayMailer } from "./relay-mailer";
+import { readSecret } from "../secrets";
 
 // "unknown": Relay returned no status for the key, or the status lookup failed.
 export type InviteStatus = "queued" | "sent" | "delivered" | "bounced" | "failed" | "suppressed" | "unknown";
@@ -39,8 +40,11 @@ export function mailerFor(env: Pick<Env, "MAILER" | "RELAY" | "RELAY_API_KEY">):
   }
 }
 
-/** Relay is usable only with both the service binding and its API key. */
-export const relayState = (env: Pick<Env, "RELAY" | "RELAY_API_KEY">): "bound" | "missing" =>
-  env.RELAY && env.RELAY_API_KEY ? "bound" : "missing";
+/** Relay is usable only with both the service binding and a readable API key. */
+export async function relayState(env: Pick<Env, "RELAY" | "RELAY_API_KEY">): Promise<"bound" | "missing"> {
+  if (!env.RELAY) return "missing";
+  const key = await readSecret(env.RELAY_API_KEY).catch(() => undefined);
+  return key ? "bound" : "missing";
+}
 
 export type { RelayRpcLike } from "./relay-mailer";

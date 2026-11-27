@@ -31,11 +31,18 @@ describe("mailerFor", () => {
     expect(() => mailerFor({ MAILER: "relay", RELAY, RELAY_API_KEY: "" })).toThrow(MailUnavailableError);
     expect(() => mailerFor({ MAILER: "relay", RELAY })).toThrow(MailUnavailableError);
   });
-  it("relayState needs both the binding and the key", () => {
+  it("relayState needs both the binding and a readable key", async () => {
     const RELAY = asBinding(fakeRelay().rpc);
-    expect(relayState({ RELAY, RELAY_API_KEY: "k" })).toBe("bound");
-    expect(relayState({ RELAY, RELAY_API_KEY: "" })).toBe("missing");
-    expect(relayState({ RELAY: undefined as never, RELAY_API_KEY: "k" })).toBe("missing");
+    expect(await relayState({ RELAY, RELAY_API_KEY: "k" })).toBe("bound");
+    expect(await relayState({ RELAY, RELAY_API_KEY: "" })).toBe("missing");
+    expect(await relayState({ RELAY: undefined as never, RELAY_API_KEY: "k" })).toBe("missing");
+  });
+  it("reads a Secrets Store binding; a missing store secret reports missing", async () => {
+    const RELAY = asBinding(fakeRelay().rpc);
+    const stored = { get: async () => "store-key" };
+    const gone = { get: async () => Promise.reject(new Error("secret not found")) };
+    expect(await relayState({ RELAY, RELAY_API_KEY: stored })).toBe("bound");
+    expect(await relayState({ RELAY, RELAY_API_KEY: gone })).toBe("missing");
   });
   it("MAILER=console picks ConsoleMailer", () => {
     expect(mailerFor({ MAILER: "console", RELAY: undefined as never })).toBe(consoleMailer);
@@ -50,6 +57,11 @@ describe("mailerFor", () => {
 });
 
 describe("RelayMailer", () => {
+  it("reads its API key from a Secrets Store binding at send time", async () => {
+    const { rpc, calls } = fakeRelay();
+    await new RelayMailer(rpc, { get: async () => "store_key" }).sendSignInCode("a@b.co", "123456");
+    expect(calls[0]![0]).toBe("store_key");
+  });
   it("sendInvite sends the exact payload", async () => {
     const { rpc, calls } = fakeRelay();
     const r = await new RelayMailer(rpc, "key_1").sendInvite("a@b.co", "https://x/invite/t", "Sam", "invite:usr_x:1");

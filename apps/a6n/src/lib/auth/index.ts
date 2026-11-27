@@ -12,6 +12,7 @@ import type { Env } from "../../env";
 import { mailerFor } from "../mail/mailer";
 import { trustedIpHeaders } from "../runtime/platform";
 import { ac, roles } from "./permissions";
+import { readSecret } from "../secrets";
 
 const ID_PREFIX: Record<string, string> = {
   user: "usr",
@@ -51,13 +52,13 @@ const TEN_MIN_S = 600;
 const otpRule = { window: TEN_MIN_S, max: 5 };
 
 // The one options source: createAuth builds from it and the schema test reads its plugins.
-export function authOptions(env: Env) {
-  if (!env.BETTER_AUTH_SECRET) throw new Error("BETTER_AUTH_SECRET is missing");
+export function authOptions(env: Env, secret: string | undefined) {
+  if (!secret) throw new Error("BETTER_AUTH_SECRET is missing");
   if (!env.BETTER_AUTH_URL) throw new Error("BETTER_AUTH_URL is missing");
   const db = getDb(env);
   return {
     appName: "a6n",
-    secret: env.BETTER_AUTH_SECRET,
+    secret,
     baseURL: env.BETTER_AUTH_URL,
     trustedOrigins: [env.BETTER_AUTH_URL],
     disabledPaths: ADMIN_DISABLED_PATHS,
@@ -146,6 +147,6 @@ export function authOptions(env: Env) {
   } satisfies BetterAuthOptions;
 }
 
-export function createAuth(env: Env) {
-  return betterAuth(authOptions(env));
+export async function createAuth(env: Env) {
+  return betterAuth(authOptions(env, await readSecret(env.BETTER_AUTH_SECRET)));
 }

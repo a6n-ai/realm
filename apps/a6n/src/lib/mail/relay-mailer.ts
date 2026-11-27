@@ -1,4 +1,5 @@
-import type { InviteStatus, Mailer } from "./mailer";
+import { type InviteStatus, MailUnavailableError, type Mailer } from "./mailer";
+import { readSecret, type SecretValue } from "../secrets";
 import { inviteMail, signInCodeMail } from "./templates";
 
 // Copied from apps/tiffin-grab/lib/relay/client.ts, trimmed to send + messagesByKeys.
@@ -39,16 +40,22 @@ export function mapRelayStatus(m: Pick<RelayMessageByKey, "status" | "deliveredA
 export class RelayMailer implements Mailer {
   constructor(
     private rpc: RelayRpcLike,
-    private apiKey: string,
+    private key: SecretValue,
   ) {}
 
+  private async apiKey(): Promise<string> {
+    const key = await readSecret(this.key);
+    if (!key) throw new MailUnavailableError("RELAY_API_KEY missing");
+    return key;
+  }
+
   async sendSignInCode(to: string, code: string): Promise<void> {
-    await this.rpc.send(this.apiKey, { stream: "transactional", to, ...signInCodeMail(code) });
+    await this.rpc.send(await this.apiKey(), { stream: "transactional", to, ...signInCodeMail(code) });
   }
 
   async sendInvite(to: string, link: string, inviterName: string, idempotencyKey: string) {
     try {
-      const r = await this.rpc.send(this.apiKey, {
+      const r = await this.rpc.send(await this.apiKey(), {
         stream: "transactional",
         to,
         ...inviteMail(link, inviterName),
@@ -62,7 +69,7 @@ export class RelayMailer implements Mailer {
 
   async statusByKeys(keys: string[]): Promise<Record<string, InviteStatus>> {
     if (keys.length === 0) return {};
-    const rows = await this.rpc.messagesByKeys(this.apiKey, keys);
+    const rows = await this.rpc.messagesByKeys(await this.apiKey(), keys);
     return Object.fromEntries(rows.map((m) => [m.key, mapRelayStatus(m)]));
   }
 }

@@ -10,7 +10,8 @@ export default defineConfig({
   plugins: [
     tanstackStart(),
     cloudflareTest({
-      wrangler: { configPath: "./wrangler.jsonc" },
+      // env.test drops the Secrets Store bindings (bindings are not inherited), so the strings below are used.
+      wrangler: { configPath: "./wrangler.jsonc", environment: "test" },
       miniflare: {
         d1Databases: ["DB"],
         serviceBindings: { RELAY: () => new Response("no relay in tests", { status: 503 }) },

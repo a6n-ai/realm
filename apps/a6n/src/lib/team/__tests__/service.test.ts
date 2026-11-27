@@ -258,7 +258,7 @@ describe("invite", () => {
 
   test("after removal and re-invite the same row is reactivated and the old password fails", async () => {
     const { svc } = mk();
-    const ctx = await createAuth(env).$context;
+    const ctx = await (await createAuth(env)).$context;
     await env.DB.prepare(
       "insert into accounts (id, user_id, account_id, provider_id, password, created_at, updated_at) values ('acc_pw', 'usr_sam', 'usr_sam', 'credential', ?, ?, ?)",
     ).bind(await ctx.password.hash("old-password-1"), NOW, NOW).run();

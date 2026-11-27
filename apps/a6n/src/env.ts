@@ -1,4 +1,5 @@
 import type { RelayRpcLike } from "./lib/mail/relay-mailer";
+import type { SecretValue } from "./lib/secrets";
 
 declare global {
   namespace Cloudflare {
@@ -7,8 +8,8 @@ declare global {
       RELAY: Fetcher & RelayRpcLike;
       ASSETS: Fetcher;
       BETTER_AUTH_URL: string;
-      BETTER_AUTH_SECRET: string;
-      RELAY_API_KEY?: string;
+      BETTER_AUTH_SECRET: SecretValue;
+      RELAY_API_KEY?: SecretValue;
       MAILER?: string;
     }
   }

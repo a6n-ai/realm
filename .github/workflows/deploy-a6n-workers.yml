@@ -1,6 +1,7 @@
 # a6n on Cloudflare Workers + D1. Push to main deploys production; a manual run on main redeploys it.
-# Repo secrets: CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID. BETTER_AUTH_SECRET and RELAY_API_KEY are
-# Worker secrets, set once with `wrangler secret put`.
+# Repo secrets: CLOUDFLARE_API_TOKEN (needs Account Secrets Store Edit to deploy the store bindings),
+# CLOUDFLARE_ACCOUNT_ID. BETTER_AUTH_SECRET and RELAY_API_KEY live in the account Secrets Store as
+# A6N_BETTER_AUTH_SECRET / A6N_RELAY_API_KEY (apps/a6n/wrangler.jsonc), set by an owner in the dashboard.
 name: deploy-a6n-workers
 
 on:

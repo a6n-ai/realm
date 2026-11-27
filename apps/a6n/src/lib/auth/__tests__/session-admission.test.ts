@@ -47,7 +47,7 @@ describe("session admission", () => {
   test("after removal and re-invite the old password fails", async () => {
     const email = `p-${freshId()}@a6n.test`;
     const id = await insertUser(email, "sales");
-    const ctx = await createAuth(env).$context;
+    const ctx = await (await createAuth(env)).$context;
     const now = Date.now();
     await env.DB.prepare(
       "insert into accounts (id, user_id, account_id, provider_id, password, created_at, updated_at) values (?, ?, ?, 'credential', ?, ?, ?)",

@@ -15,6 +15,10 @@ TanStack Start on Cloudflare Workers + D1. Skills to load for framework work:
 
 Realm's Next rules (`proxy.ts`, `node_modules/next/dist/docs`, `transpilePackages`, `"use client"`) and caching rules 1, 2 and 7 do not apply: this app is not Next or OpenNext. The repo-level ReUI block does not apply either: the UI uses `@foundry/console` and `@foundry/ui` (ui-sdk) only.
 
+## Secrets
+
+Production secrets live in the account Secrets Store (`secrets_store_secrets` in `wrangler.jsonc`, names `A6N_*`), set by an owner in the dashboard; no script or agent sets them. Read every secret through `readSecret()` (`src/lib/secrets.ts`), never `env.X` directly: in production the binding is a store object (`await .get()`), in tests and local dev a plain string. `env.dev` (`pnpm dev`) and `env.test` (vitest) bind no store, so `.dev.vars` and the vitest bindings supply readable test values of 32+ characters.
+
 ## Data
 
 One database, D1. Migrations are for D1 only (`drizzle/`).

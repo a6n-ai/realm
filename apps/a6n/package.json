@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite dev --port 3003",
+    "dev": "CLOUDFLARE_ENV=dev vite dev --port 3003",
     "build": "vite build",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",

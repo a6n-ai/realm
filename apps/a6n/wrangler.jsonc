@@ -1,4 +1,5 @@
-// Secrets (never in this file): BETTER_AUTH_SECRET, RELAY_API_KEY. Set with `wrangler secret put`.
+// Secrets come from the account Secrets Store (`secrets_store_secrets` below); values are never in this
+// file. Code reads them with readSecret() (src/lib/secrets.ts). Tests and local dev pass plain strings.
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "a6n",
@@ -24,4 +25,23 @@
     },
   ],
   "services": [{ "binding": "RELAY", "service": "relay", "entrypoint": "RelayRpc" }],
+  "secrets_store_secrets": [
+    { "binding": "BETTER_AUTH_SECRET", "store_id": "d374ac890df14bff9410ff67ae23f88b", "secret_name": "A6N_BETTER_AUTH_SECRET" },
+    { "binding": "RELAY_API_KEY", "store_id": "d374ac890df14bff9410ff67ae23f88b", "secret_name": "A6N_RELAY_API_KEY" },
+  ],
+  // Bindings are not inherited by environments, so neither of these binds the Secrets Store.
+  "env": {
+    // `pnpm dev` (CLOUDFLARE_ENV=dev): same local D1 and Relay; secrets and vars come from .dev.vars as plain strings.
+    "dev": {
+      "d1_databases": [
+        { "binding": "DB", "database_name": "a6n", "database_id": "86dbfd5e-da90-4243-8474-a045d7c1ffe1", "migrations_dir": "drizzle" },
+      ],
+      "services": [{ "binding": "RELAY", "service": "relay", "entrypoint": "RelayRpc" }],
+      "routes": [],
+      "vars": { "BETTER_AUTH_URL": "http://localhost:3003", "MAILER": "console" },
+      "secrets_store_secrets": [],
+    },
+    // Vitest (vitest.config.ts): the test pool supplies D1, Relay and plain-string secrets.
+    "test": { "routes": [], "vars": {}, "secrets_store_secrets": [] },
+  },
 }

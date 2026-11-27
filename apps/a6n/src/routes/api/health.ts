@@ -10,7 +10,7 @@ export const Route = createFileRoute("/api/health")({
           (row) => row !== null,
           () => false,
         );
-        return Response.json({ ok: db, db, relay: relayState(env) });
+        return Response.json({ ok: db, db, relay: await relayState(env) });
       },
     },
   },

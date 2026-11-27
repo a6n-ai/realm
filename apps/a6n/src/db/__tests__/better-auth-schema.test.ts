@@ -14,7 +14,7 @@ const COMPATIBLE: Record<string, string[]> = {
 const schemaMap: Record<string, object> = typedMap;
 
 describe("Better Auth schema coverage", () => {
-  const authTables = getAuthTables(authOptions(env));
+  const authTables = getAuthTables(authOptions(env, "schema-test-secret-schema-test-secret"));
 
   test("every Better Auth model is mapped", () => {
     for (const key of Object.keys(authTables)) expect(schemaMap, `model ${key}`).toHaveProperty(key);
