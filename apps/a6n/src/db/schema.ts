@@ -3,6 +3,12 @@ import { tables } from "./tables";
 
 export const {
   users,
+  organizations,
+  members,
+  invitations,
+  teams,
+  teamMembers,
+  organizationRoles,
   sessions,
   accounts,
   verifications,

@@ -5,7 +5,10 @@ import { applyMigrations } from "../../../test/migrate";
 const TABLES = [
   "users", "sessions", "accounts", "verifications", "rate_limits", "invites", "companies",
   "lead_sources", "lead_subsources", "inquiries", "inquiry_activities", "audit_log",
+  "organizations", "members", "invitations", "teams", "team_members", "organization_roles",
 ];
+// Organisation-scoped business tables (migration A: nullable until the backfill, then required).
+const ORG_SCOPED = ["inquiries", "inquiry_activities", "companies", "lead_sources", "lead_subsources", "invites", "audit_log"];
 const INDEXES = [
   "users_email_uq", "sessions_token_uq", "session_user_id_idx", "account_user_id_idx",
   "verification_identifier_idx", "rate_limits_key_uq", "invites_idempotency_key_uq", "invites_user_n_uq",
@@ -60,5 +63,31 @@ describe("schema", () => {
       /CHECK constraint failed/,
     );
     await insert("inq_phone", { phone: "1", next_follow_up_at: Date.now() });
+  });
+});
+
+describe("organisations (migration A)", () => {
+  test("every business table carries organization_id", async () => {
+    for (const table of ORG_SCOPED) {
+      const cols = await rows<{ name: string }>(`pragma table_info(${table})`);
+      expect(cols.map((c) => c.name), table).toContain("organization_id");
+    }
+  });
+
+  test("sessions remember the active organisation and team", async () => {
+    const cols = (await rows<{ name: string }>("pragma table_info(sessions)")).map((c) => c.name);
+    expect(cols).toEqual(expect.arrayContaining(["active_organization_id", "active_team_id"]));
+  });
+
+  test("one membership per person per organisation", async () => {
+    const now = Date.now();
+    await env.DB.batch([
+      env.DB.prepare("insert into users (id, name, email, created_at, updated_at) values ('usr_m', 'M', 'm@x.com', ?, ?)").bind(now, now),
+      env.DB.prepare("insert into organizations (id, name, slug, created_at) values ('org_m', 'M', 'm', ?)").bind(now),
+      env.DB.prepare("insert into members (id, organization_id, user_id, role, created_at) values ('mem_1', 'org_m', 'usr_m', 'owner', ?)").bind(now),
+    ]);
+    await expect(
+      env.DB.prepare("insert into members (id, organization_id, user_id, role, created_at) values ('mem_2', 'org_m', 'usr_m', 'member', ?)").bind(now).run(),
+    ).rejects.toThrow(/UNIQUE/);
   });
 });
