@@ -76,7 +76,7 @@ const CUSTOMER_SELF_SERVICE_ACTIONS: Record<string, string> = {
 // Actions that are public or self-authenticating by design, keyed file:export.
 const PUBLIC_ACTIONS: Record<string, string> = {
   "app/(auth)/accept-invitation/actions.ts:acceptInvitationAction": "invitation token is the credential",
-  "app/(public)/resubscribe/actions.ts:confirmResubscribe": "resubscribe token checked by handleResubscribe",
+  "app/(public)/resubscribe/actions.ts:confirmResubscribe": "resubscribe token checked by verifyResubscribeToken",
   "lib/auth/lock-actions.ts:lockSession": "sets the caller's own lock cookie, no data read",
   "lib/auth/lock-actions.ts:clearLockSession": "clears the caller's own lock cookie",
   "lib/auth/organization-actions.ts:switchActiveOrganization": "Better Auth validates the session and membership",

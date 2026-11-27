@@ -5,7 +5,7 @@ import { Button } from "@foundry/ui/button";
 import { confirmResubscribe } from "./actions";
 
 export function ResubscribeForm({ address, token }: { address: string; token: string }) {
-  const [state, setState] = useState<"idle" | "done" | "invalid">("idle");
+  const [state, setState] = useState<"idle" | "done" | "invalid" | "unavailable">("idle");
   const [pending, start] = useTransition();
 
   if (state === "done") {
@@ -25,12 +25,17 @@ export function ResubscribeForm({ address, token }: { address: string; token: st
       {state === "invalid" && (
         <p className="mt-3 text-sm text-destructive">This link is not valid. Ask us for a new one.</p>
       )}
+      {state === "unavailable" && (
+        <p role="alert" className="mt-3 text-sm text-destructive">
+          We could not update your preference right now. Please try again in a few minutes.
+        </p>
+      )}
       <Button
         className="mt-6"
         disabled={pending}
         onClick={() =>
           start(async () => {
-            setState((await confirmResubscribe(address, token)) ? "done" : "invalid");
+            setState(await confirmResubscribe(address, token));
           })
         }
       >
