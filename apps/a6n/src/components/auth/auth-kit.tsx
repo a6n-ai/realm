@@ -3,8 +3,8 @@ import { Button } from "@foundry/ui/button";
 import { Input } from "@foundry/ui/input";
 import { Label } from "@foundry/ui/label";
 import { Link } from "@tanstack/react-router";
-import { Loader2 } from "lucide-react";
-import { type ReactNode, useId } from "react";
+import { EyeIcon, EyeOffIcon, Loader2 } from "lucide-react";
+import { type ReactNode, useId, useState } from "react";
 
 const VARIANT = { primary: "default", outline: "outline", quiet: "ghost", danger: "destructive" } as const;
 
@@ -26,9 +26,30 @@ function KitButton({ variant = "primary", pending, pendingLabel, disabled, type 
   );
 }
 
-function KitField({ label, error, trailing, id, ref, className, placeholder, ...input }: AuthFieldProps) {
+// Vercel's password reveal: an eye icon button inside the field. Replaces @foundry/auth-ui's text "Show"/"Hide" toggle.
+function RevealButton({ shown, onToggle }: { shown: boolean; onToggle: () => void }) {
+  const Icon = shown ? EyeOffIcon : EyeIcon;
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-label={shown ? "Hide password" : "Show password"}
+      aria-pressed={shown}
+      className="absolute top-1/2 right-1.5 grid size-8 -translate-y-1/2 place-items-center rounded-md text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      <Icon aria-hidden className="size-4" />
+    </button>
+  );
+}
+
+function KitField({ label, error, trailing: _authUiToggle, id, ref, className, placeholder, ...input }: AuthFieldProps) {
   const auto = useId();
   const fieldId = id ?? auto;
+  const [shown, setShown] = useState(false);
+  // auth-ui flips type itself only through its own toggle, which we drop; a field that starts as a password keeps ours.
+  const isPassword = input.type === "password" || (_authUiToggle != null && input.type === "text");
+  const trailing = isPassword ? <RevealButton shown={shown} onToggle={() => setShown((s) => !s)} /> : null;
+  if (isPassword) input = { ...input, type: shown ? "text" : "password" };
   const control = (
     <Input
       id={fieldId}
