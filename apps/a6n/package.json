@@ -13,7 +13,7 @@
     "deploy": "node scripts/deploy.ts",
     "deploy:apply": "node scripts/deploy.ts --apply",
     "db:seed:local": "wrangler d1 execute a6n --local --file scripts/.seed.sql",
-    "db:seed:remote": "wrangler d1 execute a6n --remote --file scripts/.seed.sql",
+    "db:seed:remote": "wrangler d1 execute a6n --remote --command \"$(cat scripts/.seed.sql)\"",
     "db:promote:local": "wrangler d1 execute a6n --local --file scripts/.promote.sql"
   },
   "dependencies": {
