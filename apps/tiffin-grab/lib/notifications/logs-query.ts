@@ -1,9 +1,10 @@
 import { DAY_MS } from "@foundry/commons/util/dates";
-import { pageOffset } from "@foundry/design-system/filters/parse-filter-state";
+import type { Condition } from "@foundry/commons/model/condition";
+import { pageOffset, type PageState } from "@foundry/design-system/filters/parse-filter-state";
 import { and, count, eq } from "drizzle-orm";
 import { notificationOutcomeWhere, parseNotificationOutcome } from "@/lib/notifications/outcome";
 import { conditionToSql, columnResolver, pageOrder } from "@foundry/database";
-import { canClearSuppression, suppressionKind } from "@relay/engine";
+import { suppressionKind } from "@relay/engine";
 import { eventLabel } from "@relay/engine/ui/template-status";
 import { NOTIFICATION_EVENTS } from "./events";
 import { db } from "@/db/client";
@@ -11,9 +12,11 @@ import { campaign, messageSuppression, notificationOutbox, users } from "@/db/sc
 import { parseSort, type SortState } from "@foundry/design-system/list-sort";
 import { parseFilterState, type FacetDef } from "@foundry/design-system";
 import { withExplicitDates, withListDates } from "@/lib/list/default-month";
+import { relayRpc, type RelayBlock, type RelayBlockQuery, type RelayBlockReason, type RelayBlockSource, type RelayStream } from "@/lib/relay/client";
+import { emailViaRelay } from "@/lib/runtime/env";
 
 export type LogSortColumn = "time" | "event" | "channel" | "recipient" | "status";
-export type SuppressedSortColumn = "time" | "address" | "channel" | "scope" | "reason";
+export type SuppressedSortColumn = "time" | "address" | "scope" | "reason";
 
 const SORT_COL = {
   time: notificationOutbox.createdAt,
@@ -154,7 +157,6 @@ export async function loadNotificationLogs(
 const SUPPRESSION_SORT_COL = {
   time: messageSuppression.createdAt,
   address: messageSuppression.address,
-  channel: messageSuppression.channel,
   scope: messageSuppression.scope,
   reason: messageSuppression.reason,
 } as const;
@@ -165,7 +167,7 @@ export const SUPPRESSED_SPEC: FacetDef[] = [
     field: "scope",
     label: "Scope",
     options: [
-      { value: "all", label: "All (bounce/complaint/STOP)" },
+      { value: "all", label: "All (bounce/complaint)" },
       { value: "marketing", label: "Marketing only (unsubscribe)" },
     ],
   },
@@ -182,22 +184,13 @@ export const SUPPRESSED_SPEC: FacetDef[] = [
   },
   {
     kind: "select",
-    field: "channel",
-    label: "Channel",
-    options: [
-      { value: "email", label: "Email" },
-      { value: "sms", label: "SMS" },
-      { value: "whatsapp", label: "WhatsApp" },
-    ],
-  },
-  {
-    kind: "select",
     field: "source",
     label: "Source",
     options: [
       { value: "link", label: "Unsubscribe link" },
       { value: "one-click", label: "Mail client button" },
       { value: "admin", label: "Added by staff" },
+      { value: "ses", label: "Amazon SES" },
     ],
   },
   { kind: "dateRange", field: "createdAt", label: "Time" },
@@ -214,26 +207,73 @@ export interface SuppressedAddressRow {
   source: string | null;
   campaignPublicId: string | null;
   campaignName: string | null;
-  /** Staff may clear it: provider feedback or a staff block, never a recipient's own opt-out. */
+  /** Staff may clear it: a bounce or a staff block, never a complaint or a recipient's own opt-out. */
   clearable: boolean;
 }
+
+/** The kind staff may clear, or null. An unrecognised reason is never clearable. */
+export function clearableKind(reason: string): "bounce" | "manual" | null {
+  const kind = suppressionKind(reason);
+  return kind === "bounce" || kind === "manual" ? kind : null;
+}
+
+export function toBlockQuery(condition: Condition | undefined, page: PageState, sort: SortState<SuppressedSortColumn>): RelayBlockQuery {
+  const query: RelayBlockQuery = {
+    sort: sort.column === "scope" ? "stream" : sort.column,
+    dir: sort.dir,
+    offset: pageOffset(page.page, page.size),
+    limit: page.size,
+  };
+  const words: string[] = [];
+  const visit = (c: Condition) => {
+    if (c.type === "complex") return c.conditions.forEach(visit);
+    if (c.field === "scope") query.streams = [c.value as RelayStream | "all"];
+    else if (c.field === "reason") query.reasons = [c.value as RelayBlockReason];
+    else if (c.field === "source") query.sources = [c.value as RelayBlockSource];
+    // parseFilterState wraps each search word in %.
+    else if (c.field === "address") words.push(String(c.value).slice(1, -1));
+    else if (c.operator === "between") [query.from, query.to] = c.value as [number, number];
+    else if (c.operator === "gte") query.from = c.value as number;
+    else query.to = c.value as number;
+  };
+  if (condition) visit(condition);
+  // shortcut: Relay matches one substring, so a multi-word search finds nothing; addresses hold no spaces.
+  if (words.length) query.search = words.join(" ");
+  return query;
+}
+
+const relayRow = (b: RelayBlock): SuppressedAddressRow => ({
+  publicId: `${b.email}|${b.reason}`,
+  address: b.email,
+  channel: "email",
+  scope: b.stream ?? "all",
+  reason: b.reason,
+  createdAt: b.createdAt,
+  source: b.source,
+  campaignPublicId: b.campaignRef,
+  campaignName: b.campaignName,
+  clearable: clearableKind(b.reason) !== null,
+});
 
 export async function loadSuppressedAddresses(
   sp: Record<string, string | undefined>,
 ): Promise<{ rows: SuppressedAddressRow[]; sort: SortState<SuppressedSortColumn>; total: number; page: number; size: number }> {
   // All time by default: this is a do-not-mail list, not a month of activity.
-  const sort: SortState<SuppressedSortColumn> = parseSort(sp, ["time", "address", "channel", "scope", "reason"], {
+  const sort: SortState<SuppressedSortColumn> = parseSort(sp, ["time", "address", "scope", "reason"], {
     column: "time",
     dir: "desc",
   });
 
   const { condition, page } = parseFilterState(SUPPRESSED_SPEC, await withExplicitDates(sp));
+  if (emailViaRelay()) {
+    const { rows, total } = await relayRpc().listSuppressions(toBlockQuery(condition, page, sort));
+    return { rows: rows.map(relayRow), sort, total, page: page.page, size: page.size };
+  }
   const where = conditionToSql(
     condition,
     columnResolver({
       scope: messageSuppression.scope,
       reason: messageSuppression.reason,
-      channel: messageSuppression.channel,
       createdAt: messageSuppression.createdAt,
       address: messageSuppression.address,
       source: messageSuppression.source,
@@ -266,7 +306,7 @@ export async function loadSuppressedAddresses(
   ]);
 
   return {
-    rows: rows.map((r) => ({ ...r, clearable: canClearSuppression(r.reason) })),
+    rows: rows.map((r) => ({ ...r, clearable: clearableKind(r.reason) !== null })),
     sort,
     total: Number(totalRow?.n ?? 0),
     page: page.page,
@@ -296,6 +336,7 @@ export function summarizeSuppressions(rows: { reason: string; createdAt: number 
 }
 
 export async function suppressionSummary(now = Date.now()) {
+  if (emailViaRelay()) return relayRpc().suppressionSummary();
   // ponytail: loads every row's reason + time; switch to a grouped SQL count if the table passes ~50k rows.
   const rows = await db
     .select({ reason: messageSuppression.reason, createdAt: messageSuppression.createdAt })

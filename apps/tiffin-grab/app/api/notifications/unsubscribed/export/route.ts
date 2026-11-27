@@ -6,13 +6,13 @@ import { loadSuppressedAddresses } from "@/lib/notifications/logs-query";
 
 export const GET = adminRoute(async (req) => {
   const sp = Object.fromEntries(new URL(req.url).searchParams);
-  const lines = [["address", "channel", "reason", "scope", "source", "campaign", "date"].join(",")];
+  const lines = [["address", "reason", "scope", "source", "campaign", "date"].join(",")];
   // ponytail: pages through the table query, capped at 200 pages; stream if the list outgrows that.
   for (let page = 0; page < 200; page++) {
     const { rows, total } = await loadSuppressedAddresses({ ...sp, page: String(page), size: "100" });
     for (const r of rows) {
       lines.push(
-        [r.address, r.channel, r.reason, r.scope, r.source, r.campaignName, new Date(r.createdAt).toISOString()].map(csvCell).join(","),
+        [r.address, r.reason, r.scope, r.source, r.campaignName, new Date(r.createdAt).toISOString()].map(csvCell).join(","),
       );
     }
     if (lines.length - 1 >= total) break;

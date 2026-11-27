@@ -18,7 +18,6 @@ import { TableRowsSkeleton } from "@/components/dashboard/table-rows-skeleton";
 type Row = {
   publicId: string;
   address: string;
-  channel: string;
   scope: string;
   reason: string;
   createdAt: number;
@@ -30,7 +29,6 @@ type Row = {
 const COLUMNS: readonly Column<SuppressedSortColumn | "campaign" | "actions">[] = [
   { key: "time", label: "Time", sortable: true },
   { key: "address", label: "Address", sortable: true },
-  { key: "channel", label: "Channel", sortable: true },
   { key: "scope", label: "Scope", sortable: true },
   { key: "reason", label: "Reason", sortable: true },
   { key: "campaign", label: "Campaign" },
@@ -75,7 +73,6 @@ export function SuppressedTable({
           <>
             <TableCell numeric className="whitespace-nowrap tabular-nums text-muted-foreground">{fmt(r.createdAt)}</TableCell>
             <TableCell className="text-sm">{r.address}</TableCell>
-            <TableCell className="text-muted-foreground">{r.channel}</TableCell>
             <TableCell>
               <Badge variant={r.scope === "all" ? "destructive" : "outline"}>{r.scope}</Badge>
             </TableCell>
@@ -90,9 +87,9 @@ export function SuppressedTable({
               )}
             </TableCell>
             <TableCell className="text-right">
-              {/* A recipient's own opt-out is theirs to undo; staff may clear provider feedback and staff blocks. */}
+              {/* A recipient's own opt-out or complaint is theirs to undo; staff may clear bounces and staff blocks. */}
               {r.reason === "unsubscribe" && <ResubscribeLinkButton address={r.address} />}
-              {r.clearable && <ClearSuppressionButton publicId={r.publicId} address={r.address} />}
+              {r.clearable && <ClearSuppressionButton publicId={r.publicId} address={r.address} reason={r.reason} />}
             </TableCell>
           </>
         )}

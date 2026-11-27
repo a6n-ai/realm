@@ -47,16 +47,15 @@ describe("block queue", () => {
   });
 
   it("queues a manual add", async () => {
-    await suppressManuallyAction("BlockQ-Manual@example.test", "email");
+    await suppressManuallyAction("BlockQ-Manual@example.test");
     expect(await local(MANUAL)).toHaveLength(1);
     expect(await queued()).toMatchObject([{ email: MANUAL, reason: "manual", stream: "marketing", source: "admin" }]);
     expect(signalOutbox).toHaveBeenCalledTimes(1);
   });
 
   it("queues nothing for an invalid address or a phone number", async () => {
-    await expect(suppressManuallyAction("not-an-email", "email")).rejects.toThrow("valid email");
-    await suppressManuallyAction("+14165550199", "sms");
+    await expect(suppressManuallyAction("not-an-email")).rejects.toThrow("valid email");
+    await expect(suppressManuallyAction("+14165550199")).rejects.toThrow("valid email");
     expect(await queued()).toEqual([]);
-    await db.delete(messageSuppression).where(inArray(messageSuppression.address, ["+14165550199"]));
   });
 });
