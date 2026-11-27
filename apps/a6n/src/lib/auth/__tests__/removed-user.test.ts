@@ -22,17 +22,34 @@ describe("removed users", () => {
   test("reset-password is refused and writes no credential; re-invite leaves passwordSet false", async () => {
     const email = `rp-${freshId()}@a6n.test`;
     const id = await insertUser(email, "sales", "removed");
-    const res = await post("/email-otp/reset-password", { email, otp: "123456", password: "chosen-password-1" });
-    expect(res.status).toBe(403);
-    for (const path of ["/email-otp/request-password-reset", "/forget-password/email-otp"]) {
-      expect((await post(path, { email })).status).toBe(403);
-    }
+    await post("/email-otp/reset-password", { email, otp: "123456", password: "chosen-password-1" });
+    for (const path of ["/email-otp/request-password-reset", "/forget-password/email-otp"]) await post(path, { email });
     const accounts = await env.DB.prepare("select * from accounts where user_id = ?").bind(id).all();
     expect(accounts.results).toHaveLength(0);
     await env.DB.prepare("update users set status = 'active', password_set = 0 where id = ?").bind(id).run();
     const row = await env.DB.prepare("select password_set from users where id = ?").bind(id).first<{ password_set: number }>();
     expect(row?.password_set).toBe(0);
     expect((await post("/sign-in/email", { email, password: "chosen-password-1" })).status).toBeGreaterThanOrEqual(400);
+  });
+});
+
+const GUARDED: [string, (email: string) => unknown][] = [
+  ["/sign-in/email", (email) => ({ email, password: "chosen-password-1" })],
+  ["/sign-in/email-otp", (email) => ({ email, otp: "123456" })],
+  ["/email-otp/check-verification-otp", (email) => ({ email, type: "sign-in", otp: "123456" })],
+  ["/email-otp/verify-email", (email) => ({ email, otp: "123456" })],
+  ["/email-otp/request-password-reset", (email) => ({ email })],
+  ["/forget-password/email-otp", (email) => ({ email })],
+  ["/email-otp/reset-password", (email) => ({ email, otp: "123456", password: "chosen-password-1" })],
+];
+
+describe("removed users answer like unknown emails", () => {
+  test.each(GUARDED)("%s", async (path, body) => {
+    const removed = `an-${freshId()}@a6n.test`;
+    await insertUser(removed, "sales", "removed");
+    const a = await post(path, body(removed));
+    const b = await post(path, body(`nobody-${freshId()}@a6n.test`));
+    expect({ status: a.status, body: await a.text() }).toEqual({ status: b.status, body: await b.text() });
   });
 });
 
