@@ -1,7 +1,7 @@
 import { env, SELF } from "cloudflare:test";
 import { beforeAll, describe, expect, test } from "vitest";
 import { applyMigrations } from "../../../../test/migrate";
-import { BASE, freshId, freshIp, headersFor, insertUser, json, signIn } from "../../../../test/helpers";
+import { addMember, BASE, freshId, freshIp, headersFor, insertOrg, insertUser, json, signIn } from "../../../../test/helpers";
 import { createAuth } from "../index";
 import { getSession } from "../session";
 
@@ -14,6 +14,29 @@ const remove = async (id: string) => {
     env.DB.prepare("delete from accounts where user_id = ? and provider_id = 'credential'").bind(id),
   ]);
 };
+
+describe("active organisation on sign-in", () => {
+  const activeOrg = async (userId: string) =>
+    (await env.DB.prepare("select active_organization_id as org from sessions where user_id = ? order by created_at desc").bind(userId).first<{ org: string | null }>())?.org;
+
+  test("a member signs in to their most recent organisation", async () => {
+    const email = `o-${freshId()}@a6n.test`;
+    const id = await insertUser(email, "sales");
+    const older = await insertOrg();
+    const newer = await insertOrg();
+    await addMember(id, older, "member", 1);
+    await addMember(id, newer, "admin", 2);
+    await signIn(email);
+    expect(await activeOrg(id)).toBe(newer);
+  });
+
+  test("a user with no membership signs in with no active organisation", async () => {
+    const email = `n-${freshId()}@a6n.test`;
+    const id = await insertUser(email, "sales");
+    await signIn(email);
+    expect(await activeOrg(id)).toBeNull();
+  });
+});
 
 describe("session admission", () => {
   test("an active user can sign in and holds a session", async () => {

@@ -4,14 +4,27 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { APIError, createAuthMiddleware } from "better-auth/api";
 import { admin } from "better-auth/plugins/admin";
 import { emailOTP } from "better-auth/plugins/email-otp";
+import { organization } from "better-auth/plugins/organization";
 import { waitUntil } from "cloudflare:workers";
-import { eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { getDb } from "../../db/client";
-import { accounts, rateLimits, sessions, users, verifications } from "../../db/schema";
+import {
+  accounts,
+  invitations,
+  members,
+  organizationRoles,
+  organizations,
+  rateLimits,
+  sessions,
+  teamMembers,
+  teams,
+  users,
+  verifications,
+} from "../../db/schema";
 import type { Env } from "../../env";
 import { mailerFor } from "../mail/mailer";
 import { trustedIpHeaders } from "../runtime/platform";
-import { ac, roles } from "./permissions";
+import { orgAc, orgRoles, platformAc, platformRoles } from "./permissions";
 import { readSecret } from "../secrets";
 
 const ID_PREFIX: Record<string, string> = {
@@ -20,6 +33,12 @@ const ID_PREFIX: Record<string, string> = {
   account: "acc",
   verification: "ver",
   rateLimit: "rlm",
+  organization: "org",
+  member: "mem",
+  invitation: "ivt",
+  team: "tea",
+  teamMember: "tmm",
+  organizationRole: "orl",
 };
 
 export function prefixFor(model: string): string {
@@ -29,13 +48,34 @@ export function prefixFor(model: string): string {
 }
 
 // The adapter looks up singular keys while the tables are plural.
-export const authSchemaMap = { user: users, session: sessions, account: accounts, verification: verifications, rateLimit: rateLimits };
+export const authSchemaMap = {
+  user: users,
+  session: sessions,
+  account: accounts,
+  verification: verifications,
+  rateLimit: rateLimits,
+  organization: organizations,
+  member: members,
+  invitation: invitations,
+  team: teams,
+  teamMember: teamMembers,
+  organizationRole: organizationRoles,
+};
 
 // Every admin-plugin route except has-permission; roles carry no user/session resources, so these are also denied by permissions.
 const ADMIN_DISABLED_PATHS = [
   "set-role", "get-user", "create-user", "update-user", "list-users", "list-user-sessions", "unban-user", "ban-user",
   "impersonate-user", "stop-impersonating", "revoke-user-session", "revoke-user-sessions", "remove-user", "set-user-password",
 ].map((p) => `/admin/${p}`);
+
+// Organisation changes run through the console's server functions (their own permission checks and guards, such as
+// the last owner), which call auth.api directly. Over HTTP only the read and set-active routes stay open.
+const ORG_DISABLED_PATHS = [
+  "create", "delete", "update", "invite-member", "accept-invitation", "reject-invitation", "cancel-invitation",
+  "get-invitation", "list-invitations", "list-user-invitations", "leave", "remove-member", "update-member-role",
+  "create-role", "update-role", "delete-role", "create-team", "update-team", "remove-team", "add-team-member",
+  "remove-team-member", "check-slug",
+].map((p) => `/organization/${p}`);
 
 // Routes that take an email and can mint a session or write a credential.
 const GUARDED_PATHS = new Set([
@@ -61,7 +101,7 @@ export function authOptions(env: Env, secret: string | undefined) {
     secret,
     baseURL: env.BETTER_AUTH_URL,
     trustedOrigins: [env.BETTER_AUTH_URL],
-    disabledPaths: ADMIN_DISABLED_PATHS,
+    disabledPaths: [...ADMIN_DISABLED_PATHS, ...ORG_DISABLED_PATHS],
     // The adapter's `transaction` option is left at its default (off): D1 has no interactive transactions.
     database: drizzleAdapter(db, { provider: "sqlite", schema: authSchemaMap }),
     user: {
@@ -120,9 +160,17 @@ export function authOptions(env: Env, secret: string | undefined) {
     databaseHooks: {
       session: {
         create: {
+          // Starts every session in the person's most recent organisation; the switcher changes it later.
           before: async (session: { userId: string }) => {
             const [row] = await db.select({ status: users.status }).from(users).where(eq(users.id, session.userId));
             if (row?.status !== "active") throw new APIError("FORBIDDEN", { message: "account not active" });
+            const [membership] = await db
+              .select({ organizationId: members.organizationId })
+              .from(members)
+              .where(eq(members.userId, session.userId))
+              .orderBy(desc(members.createdAt))
+              .limit(1);
+            return { data: { ...session, activeOrganizationId: membership?.organizationId ?? null } };
           },
           // Kept on the user row: sessions are deleted on sign-out and expiry, so they cannot answer "last sign-in".
           after: async (session: { userId: string }) => {
@@ -132,7 +180,14 @@ export function authOptions(env: Env, secret: string | undefined) {
       },
     },
     plugins: [
-      admin({ ac, roles, defaultRole: "sales" }),
+      admin({ ac: platformAc, roles: platformRoles, adminRoles: ["super_admin"], defaultRole: "user" }),
+      organization({
+        ac: orgAc,
+        roles: orgRoles,
+        allowUserToCreateOrganization: false,
+        teams: { enabled: true, defaultTeam: { enabled: false } },
+        dynamicAccessControl: { enabled: true },
+      }),
       emailOTP({
         disableSignUp: true,
         // Resolved at send time so a missing Relay binding never breaks password sign-in.

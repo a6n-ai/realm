@@ -56,3 +56,17 @@ export async function signIn(email: string): Promise<string> {
     .map((c) => c.split(";")[0])
     .join("; ");
 }
+
+export async function insertOrg(slug = `org-${freshId()}`): Promise<string> {
+  const id = `org_${freshId()}`;
+  await env.DB.prepare("insert into organizations (id, name, slug, created_at) values (?, ?, ?, ?)").bind(id, slug, slug, Date.now()).run();
+  return id;
+}
+
+export async function addMember(userId: string, organizationId: string, role = "member", at = Date.now()): Promise<string> {
+  const id = `mem_${freshId()}`;
+  await env.DB.prepare("insert into members (id, organization_id, user_id, role, created_at) values (?, ?, ?, ?, ?)")
+    .bind(id, organizationId, userId, role, at)
+    .run();
+  return id;
+}
