@@ -1,0 +1,71 @@
+import { CreateDialog } from "@foundry/console/create-dialog";
+import { FormError } from "@foundry/console/form-error";
+import { confirmAction } from "@foundry/console/run-action";
+import { Button } from "@foundry/ui/button";
+import { Input } from "@foundry/ui/input";
+import { Label } from "@foundry/ui/label";
+import { Textarea } from "@foundry/ui/textarea";
+import { useRouter } from "@tanstack/react-router";
+import { useState, type FormEvent } from "react";
+import { errorText } from "../../lib/error-copy";
+import { updateContactFn } from "../../lib/inquiries/inquiries.fns";
+
+type Contact = { id: string; contactName: string | null; phone: string | null; email: string | null; requirements: string | null };
+
+function Form({ contact, done }: { contact: Contact; done: () => void }) {
+  const router = useRouter();
+  const [contactName, setName] = useState(contact.contactName ?? "");
+  const [phone, setPhone] = useState(contact.phone ?? "");
+  const [email, setEmail] = useState(contact.email ?? "");
+  const [requirements, setRequirements] = useState(contact.requirements ?? "");
+  const [error, setError] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    if (!contactName.trim() && !phone.trim()) return setError("Keep a contact name or a phone number.");
+    setError(null);
+    setPending(true);
+    try {
+      await confirmAction(() => updateContactFn({ data: { id: contact.id, contactName, phone, email, requirements } }), "Contact updated", () => router.invalidate(), errorText);
+      done();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : errorText(err));
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <form onSubmit={submit} className="grid gap-4">
+      <div className="grid gap-2">
+        <Label htmlFor="ec-name">Contact name</Label>
+        <Input id="ec-name" value={contactName} onChange={(e) => setName(e.target.value)} />
+      </div>
+      <div className="grid gap-2">
+        <Label htmlFor="ec-phone">Phone</Label>
+        <Input id="ec-phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} />
+      </div>
+      <div className="grid gap-2">
+        <Label htmlFor="ec-email">Email</Label>
+        <Input id="ec-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+      </div>
+      <div className="grid gap-2">
+        <Label htmlFor="ec-req">Requirements</Label>
+        <Textarea id="ec-req" rows={4} value={requirements} onChange={(e) => setRequirements(e.target.value)} />
+      </div>
+      <FormError error={error} />
+      <Button type="submit" disabled={pending}>
+        Save contact
+      </Button>
+    </form>
+  );
+}
+
+export function EditContactDialog({ contact }: { contact: Contact }) {
+  return (
+    <CreateDialog trigger="Edit contact" title="Edit contact">
+      {(done) => <Form contact={contact} done={done} />}
+    </CreateDialog>
+  );
+}

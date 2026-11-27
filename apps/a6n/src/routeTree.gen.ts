@@ -9,13 +9,60 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as AppRouteImport } from './routes/_app'
+import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as SetPasswordRouteImport } from './routes/set-password'
+import { Route as AppIndexRouteImport } from './routes/_app/index'
+import { Route as AppAccountRouteImport } from './routes/_app/account'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
+import { Route as AppInquiriesIndexRouteImport } from './routes/_app/inquiries/index'
+import { Route as AppInquiriesIdRouteImport } from './routes/_app/inquiries/$id'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 
+const AppRoute = AppRouteImport.update({
+  id: '/_app',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
+  id: '/forgot-password',
+  path: '/forgot-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SetPasswordRoute = SetPasswordRouteImport.update({
+  id: '/set-password',
+  path: '/set-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppIndexRoute = AppIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAccountRoute = AppAccountRouteImport.update({
+  id: '/account',
+  path: '/account',
+  getParentRoute: () => AppRoute,
+} as any)
 const ApiHealthRoute = ApiHealthRouteImport.update({
   id: '/api/health',
   path: '/api/health',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AppInquiriesIndexRoute = AppInquiriesIndexRouteImport.update({
+  id: '/inquiries/',
+  path: '/inquiries/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppInquiriesIdRoute = AppInquiriesIdRouteImport.update({
+  id: '/inquiries/$id',
+  path: '/inquiries/$id',
+  getParentRoute: () => AppRoute,
 } as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
@@ -24,39 +71,150 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
 } as any)
 
 export interface FileRoutesByFullPath {
+  '/': typeof AppIndexRoute
+  '/forgot-password': typeof ForgotPasswordRoute
+  '/login': typeof LoginRoute
+  '/set-password': typeof SetPasswordRoute
+  '/account': typeof AppAccountRoute
   '/api/health': typeof ApiHealthRoute
+  '/inquiries/$id': typeof AppInquiriesIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/inquiries/': typeof AppInquiriesIndexRoute
 }
 export interface FileRoutesByTo {
+  '/forgot-password': typeof ForgotPasswordRoute
+  '/login': typeof LoginRoute
+  '/set-password': typeof SetPasswordRoute
+  '/account': typeof AppAccountRoute
   '/api/health': typeof ApiHealthRoute
+  '/': typeof AppIndexRoute
+  '/inquiries/$id': typeof AppInquiriesIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/inquiries': typeof AppInquiriesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
+  '/_app': typeof AppRouteWithChildren
+  '/forgot-password': typeof ForgotPasswordRoute
+  '/login': typeof LoginRoute
+  '/set-password': typeof SetPasswordRoute
+  '/_app/account': typeof AppAccountRoute
   '/api/health': typeof ApiHealthRoute
+  '/_app/': typeof AppIndexRoute
+  '/_app/inquiries/$id': typeof AppInquiriesIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/_app/inquiries/': typeof AppInquiriesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/api/health' | '/api/auth/$'
+  fullPaths:
+    | '/'
+    | '/forgot-password'
+    | '/login'
+    | '/set-password'
+    | '/account'
+    | '/api/health'
+    | '/inquiries/$id'
+    | '/api/auth/$'
+    | '/inquiries/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/api/health' | '/api/auth/$'
-  id: '__root__' | '/api/health' | '/api/auth/$'
+  to:
+    | '/forgot-password'
+    | '/login'
+    | '/set-password'
+    | '/account'
+    | '/api/health'
+    | '/'
+    | '/inquiries/$id'
+    | '/api/auth/$'
+    | '/inquiries'
+  id:
+    | '__root__'
+    | '/_app'
+    | '/forgot-password'
+    | '/login'
+    | '/set-password'
+    | '/_app/account'
+    | '/api/health'
+    | '/_app/'
+    | '/_app/inquiries/$id'
+    | '/api/auth/$'
+    | '/_app/inquiries/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
+  AppRoute: typeof AppRouteWithChildren
+  ForgotPasswordRoute: typeof ForgotPasswordRoute
+  LoginRoute: typeof LoginRoute
+  SetPasswordRoute: typeof SetPasswordRoute
   ApiHealthRoute: typeof ApiHealthRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/_app': {
+      id: '/_app'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/forgot-password': {
+      id: '/forgot-password'
+      path: '/forgot-password'
+      fullPath: '/forgot-password'
+      preLoaderRoute: typeof ForgotPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/set-password': {
+      id: '/set-password'
+      path: '/set-password'
+      fullPath: '/set-password'
+      preLoaderRoute: typeof SetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_app/': {
+      id: '/_app/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof AppIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/account': {
+      id: '/_app/account'
+      path: '/account'
+      fullPath: '/account'
+      preLoaderRoute: typeof AppAccountRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/api/health': {
       id: '/api/health'
       path: '/api/health'
       fullPath: '/api/health'
       preLoaderRoute: typeof ApiHealthRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_app/inquiries/': {
+      id: '/_app/inquiries/'
+      path: '/inquiries'
+      fullPath: '/inquiries/'
+      preLoaderRoute: typeof AppInquiriesIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/inquiries/$id': {
+      id: '/_app/inquiries/$id'
+      path: '/inquiries/$id'
+      fullPath: '/inquiries/$id'
+      preLoaderRoute: typeof AppInquiriesIdRouteImport
+      parentRoute: typeof AppRoute
     }
     '/api/auth/$': {
       id: '/api/auth/$'
@@ -68,7 +226,27 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AppRouteChildren {
+  AppAccountRoute: typeof AppAccountRoute
+  AppIndexRoute: typeof AppIndexRoute
+  AppInquiriesIdRoute: typeof AppInquiriesIdRoute
+  AppInquiriesIndexRoute: typeof AppInquiriesIndexRoute
+}
+
+const AppRouteChildren: AppRouteChildren = {
+  AppAccountRoute: AppAccountRoute,
+  AppIndexRoute: AppIndexRoute,
+  AppInquiriesIdRoute: AppInquiriesIdRoute,
+  AppInquiriesIndexRoute: AppInquiriesIndexRoute,
+}
+
+const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
+  AppRoute: AppRouteWithChildren,
+  ForgotPasswordRoute: ForgotPasswordRoute,
+  LoginRoute: LoginRoute,
+  SetPasswordRoute: SetPasswordRoute,
   ApiHealthRoute: ApiHealthRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
 }

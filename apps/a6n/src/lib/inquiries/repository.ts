@@ -20,7 +20,7 @@ export type InquiryRow = {
   overdue: boolean;
 };
 
-export type ListFilters = { stage?: string; sourceId?: string; overdue?: boolean };
+export type ListFilters = { stage?: string; sourceId?: string; ownerId?: string; overdue?: boolean };
 
 export class InquiriesRepository extends UpdatableRepository<typeof inquiries, CrmDb, string> {
   constructor(db: CrmDb) {
@@ -42,6 +42,7 @@ export class InquiriesRepository extends UpdatableRepository<typeof inquiries, C
     if (view === "unassigned") where.push(isNull(inquiries.ownerId), isNull(inquiries.closedAt));
     if (filters.stage) where.push(eq(inquiries.stage, filters.stage));
     if (filters.sourceId) where.push(eq(inquiries.sourceId, filters.sourceId));
+    if (filters.ownerId) where.push(eq(inquiries.ownerId, filters.ownerId));
     if (filters.overdue) where.push(isNull(inquiries.closedAt), lt(inquiries.nextFollowUpAt, now));
     const q = search?.trim();
     if (q) {
