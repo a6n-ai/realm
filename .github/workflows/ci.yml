@@ -91,7 +91,7 @@ jobs:
       # Structural conventions from konsistent.json: stray top-level files,
       # component file/export naming, schema barrels.
       - run: pnpm konsistent
-      - run: pnpm turbo typecheck --filter=tiffin-grab --filter=xplorers
+      - run: pnpm turbo typecheck --filter=tiffin-grab --filter=xplorers --filter=a6n
       # The live-DB vitest project needs Postgres + Redis, so CI runs only the pure
       # projects (job below); the db project runs locally before a push.
 
@@ -113,3 +113,21 @@ jobs:
       - run: pnpm install --frozen-lockfile
       # `unit` + `unit-mocked` never reach Postgres or Redis (vitest.config sorts files by what they import).
       - run: pnpm --filter tiffin-grab exec vitest run --project unit --project unit-mocked --shard=${{ matrix.shard }}/3
+
+  # a6n is TanStack Start on Workers with D1. Its tests run in the Workers pool on Miniflare D1;
+  # `vite build` catches server code leaking into the client bundle. `node scripts/*.ts` needs
+  # Node's type stripping (22.18+; "22" resolves to the latest 22.x).
+  a6n:
+    name: a6n test and build
+    needs: [relay, foundry]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter a6n test
+      - run: pnpm --filter a6n build

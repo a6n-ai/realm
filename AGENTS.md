@@ -6,7 +6,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 # Realm — agent guide
 
-Realm is a **multi-client Turborepo of apps** (TiffinGrab, Xplorers). Puchkaman was retired and lives in a6n-ai/archive. Shared packages are `@foundry/*` from [a6n-ai/foundry](https://github.com/a6n-ai/foundry) (Monarch AI packages go there too). Notifications are `@relay/*` from [a6n-ai/relay](https://github.com/a6n-ai/relay). Orientation:
+Realm is a **multi-client Turborepo of apps** (TiffinGrab, Xplorers, and a6n, the internal a6n app: TanStack Start on Cloudflare Workers with D1, port 3003). Puchkaman was retired and lives in a6n-ai/archive. Shared packages are `@foundry/*` from [a6n-ai/foundry](https://github.com/a6n-ai/foundry) (Monarch AI packages go there too). Notifications are `@relay/*` from [a6n-ai/relay](https://github.com/a6n-ai/relay). Orientation:
 [`PROJECT.md`](PROJECT.md) (product + roles + roadmap) and
 [`docs/realm/`](docs/realm/) (structure, add-a-client, add-a-package, dev/build).
 
@@ -101,6 +101,10 @@ day and $3-4 every day after, because the cache did not survive deploys (October
    `getBuildId` still exist with the same meaning, and run
    `cloudflare/data-cache.test.ts`. Both overrides lean on internals.
 
+## Next-app rules vs a6n
+
+The Next.js 16 notes, the `transpilePackages` rule, the `"use client"` checks and caching rules 1, 2 and 7 target the Next apps (tiffin-grab, xplorers). `apps/a6n` is TanStack Start on Workers; `apps/a6n/AGENTS.md` holds that app's rules.
+
 ## Migrations — strict rules
 
 drizzle's migrator applies a journal entry **only if its `when` is later than the
@@ -144,6 +148,12 @@ below comes from an incident (2026-09-24/25).
    next `db:generate` diffs against the latest snapshot, and without it re-creates every
    table). Never commit a stray `.sql`/snapshot, and never edit or delete a shipped one.
    `.githooks/pre-push` and CI enforce this with `scripts/check-migration-journal.mjs`.
+D1 (`apps/a6n`, migrations in `apps/a6n/drizzle`): applied with `wrangler d1 migrations apply`,
+which tracks files by name in `d1_migrations` and ignores `when`. The filename rule replaces
+rule 4's ordering concern: `.sql` filenames strictly increase, and a shipped file is never
+renamed, edited or deleted (`scripts/check-migration-journal.mjs` enforces it). Rule 10's
+verify step is the deploy plan's `verify` step.
+
 10. **Verify after deploy.** Row count and newest `created_at` in prod
    `__drizzle_migrations` must match the repo journal. The deploy log alone proves
    nothing.

@@ -1,6 +1,6 @@
 # Realm
 
-A multi-client CRM + subscription **platform**. Realm is **apps** (TiffinGrab, Xplorers). `@foundry/*` (including `@foundry/ai` for Monarch) comes from [a6n-ai/foundry](https://github.com/a6n-ai/foundry). `@relay/*` comes from [a6n-ai/relay](https://github.com/a6n-ai/relay). See [EXTRACTION.md](EXTRACTION.md).
+A multi-client CRM + subscription **platform**. Realm is **apps** (TiffinGrab, Xplorers, a6n). `@foundry/*` (including `@foundry/ai` for Monarch) comes from [a6n-ai/foundry](https://github.com/a6n-ai/foundry). `@relay/*` comes from [a6n-ai/relay](https://github.com/a6n-ai/relay). See [EXTRACTION.md](EXTRACTION.md).
 
 **TiffinGrab** is the first client — a customizable tiffin (home-style meal) delivery service in the Greater Toronto Area (GTA). **Xplorers** is the Science Explorers Club ([xplorers.life](https://xplorers.life/)).
 
@@ -113,7 +113,8 @@ immutable vs updatable base DTOs in `@foundry/database`.
 realm/
 ├─ apps/
 │  ├─ tiffin-grab/             # first client app (Next.js 16)
-│  └─ xplorers/                # Science Explorers Club (xplorers.life)
+│  ├─ xplorers/                # Science Explorers Club (xplorers.life)
+│  └─ a6n/                     # internal a6n app: TanStack Start on Workers, D1, port 3003
 ├─ docs/realm/                 # platform docs (structure, add-a-*, workflow)
 ├─ turbo.json
 ├─ pnpm-workspace.yaml         # apps/*; @foundry/* and @relay/* from git

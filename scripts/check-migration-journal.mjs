@@ -26,6 +26,12 @@ import { join } from "node:path";
 // recreated to match. The base journal now starts at the first baseline's `when`.
 const SQUASHED_FROM = { xplorers: 1791188313266 };
 
+// Apps whose migrations live elsewhere than db/migrations. D1 apps are applied by
+// `wrangler d1 migrations apply`, which tracks files by name in d1_migrations and
+// ignores `when`, so filenames (not `when`) carry the ordering guarantee.
+const MIGRATION_DIRS = { a6n: "drizzle" };
+const D1_APPS = new Set(["a6n"]);
+
 const base = process.argv[2] && !/^0+$/.test(process.argv[2]) ? process.argv[2] : null;
 const now = Date.now();
 const errors = [];
@@ -39,7 +45,7 @@ function gitShow(ref, path) {
 }
 
 for (const app of readdirSync("apps")) {
-  const dir = join("apps", app, "db", "migrations");
+  const dir = join("apps", app, MIGRATION_DIRS[app] ?? join("db", "migrations"));
   const journalPath = join(dir, "meta", "_journal.json");
   if (!existsSync(journalPath)) continue;
   const entries = JSON.parse(readFileSync(journalPath, "utf8")).entries;
@@ -48,6 +54,8 @@ for (const app of readdirSync("apps")) {
     if (i > 0 && e.when <= entries[i - 1].when) errors.push(`${app}: ${e.tag} when ${e.when} is not after ${entries[i - 1].tag}`);
     if (e.when > now + 5 * 60_000) errors.push(`${app}: ${e.tag} when ${e.when} is in the future`);
   });
+
+  if (D1_APPS.has(app)) checkD1Filenames(app, dir, entries);
 
   const baseJson = base ? gitShow(base, journalPath) : null;
   const parsedBase = baseJson ? JSON.parse(baseJson).entries : [];
@@ -62,6 +70,7 @@ for (const app of readdirSync("apps")) {
     }
     if (cur.when !== b.when) errors.push(`${app}: ${b.tag} when changed ${b.when} → ${cur.when}; never edit when`);
     const sqlPath = join(dir, `${b.tag}.sql`);
+    if (D1_APPS.has(app) && !existsSync(sqlPath)) errors.push(`${app}: ${b.tag}.sql was deleted after it shipped`);
     const baseSql = gitShow(base, sqlPath);
     if (baseSql != null && existsSync(sqlPath) && readFileSync(sqlPath, "utf8") !== baseSql) {
       errors.push(`${app}: ${b.tag}.sql changed after it shipped; add a new migration instead`);
@@ -79,6 +88,18 @@ for (const app of readdirSync("apps")) {
   }
 
   checkFileSet(app, dir, entries.filter((x) => !known.has(x.tag)));
+}
+
+// Wrangler applies pending files in filename order and remembers them by name, so a rename or
+// a name sorting before an applied one would run out of order (or twice).
+function checkD1Filenames(app, dir, entries) {
+  entries.forEach((e, i) => {
+    if (i > 0 && e.tag <= entries[i - 1].tag) errors.push(`${app}: ${e.tag} filename does not sort after ${entries[i - 1].tag}`);
+  });
+  const tags = new Set(entries.map((e) => e.tag));
+  for (const f of readdirSync(dir).filter((n) => n.endsWith(".sql"))) {
+    if (!tags.has(f.slice(0, -4))) errors.push(`${app}: ${join(dir, f)} has no journal entry`);
+  }
 }
 
 // A migration ships as exactly three generated files: <tag>.sql, meta/<NNNN>_snapshot.json and its

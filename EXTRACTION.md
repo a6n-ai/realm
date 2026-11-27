@@ -38,5 +38,5 @@ That clones or fast-forwards `~/a6n-ai/{realm,foundry,relay}` (`A6N_ROOT` to ove
 ```bash
 node scripts/assert-foundry-from-git.mjs
 node scripts/assert-relay-from-git.mjs
-pnpm turbo typecheck --filter=tiffin-grab --filter=xplorers
+pnpm turbo typecheck --filter=tiffin-grab --filter=xplorers --filter=a6n
 ```
