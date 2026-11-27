@@ -7,9 +7,13 @@ import { readFileSync, realpathSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const PACKAGES = ["email", "engine", "sdk", "sms", "ui", "whatsapp"];
-
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
+
+// The root package.json is the list, so dropping a @relay dependency cannot leave this check stale.
+const rootPkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
+const PACKAGES = Object.keys({ ...rootPkg.dependencies, ...rootPkg.devDependencies })
+  .filter((dep) => dep.startsWith("@relay/"))
+  .map((dep) => dep.slice("@relay/".length));
 
 for (const name of PACKAGES) {
   const real = realpathSync(join(root, "node_modules/@relay", name));
