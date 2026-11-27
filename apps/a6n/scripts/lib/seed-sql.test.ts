@@ -33,6 +33,15 @@ describe("seedSql", () => {
     expect(await env.DB.prepare("select 1 from accounts where user_id = 'usr_system'").first()).toBeNull();
   });
 
+  it("writes no credential for a seeded email whose user is removed", async () => {
+    await env.DB.prepare(
+      "insert into users (id, name, email, role, status, created_at, updated_at) values ('usr_gone', 'G', 'gone@x.com', 'admin', 'removed', 1, 1)",
+    ).run();
+    await run(await seedSql([{ email: "gone@x.com", name: "G", passwordHash: "h" }]));
+    expect(await env.DB.prepare("select 1 from accounts where user_id = 'usr_gone'").first()).toBeNull();
+    expect(await env.DB.prepare("select status from users where id = 'usr_gone'").first()).toEqual({ status: "removed" });
+  });
+
   it("seeds sources and sub-sources", async () => {
     const rows = await env.DB.prepare(
       "select s.key as s, group_concat(ss.key) as subs from lead_sources s join lead_subsources ss on ss.source_id = s.id group by s.key order by s.key",

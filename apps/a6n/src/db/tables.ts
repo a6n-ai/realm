@@ -12,6 +12,7 @@ const users = defineTable(
     role: c.string("role").notNull().default("sales"),
     status: c.string("status").notNull().default("active"),
     passwordSet: c.bool("password_set").notNull().default(false),
+    lastSignInAt: c.timestamp("last_sign_in_at"),
     banned: c.bool("banned").default(false),
     banReason: c.text("ban_reason"),
     banExpires: c.timestamp("ban_expires"),

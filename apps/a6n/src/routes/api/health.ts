@@ -1,5 +1,6 @@
 import { env } from "cloudflare:workers";
 import { createFileRoute } from "@tanstack/react-router";
+import { relayState } from "../../lib/mail/mailer";
 
 export const Route = createFileRoute("/api/health")({
   server: {
@@ -9,7 +10,7 @@ export const Route = createFileRoute("/api/health")({
           (row) => row !== null,
           () => false,
         );
-        return Response.json({ ok: db, db, relay: env.RELAY ? "bound" : "missing" });
+        return Response.json({ ok: db, db, relay: relayState(env) });
       },
     },
   },

@@ -36,6 +36,9 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Check migration journals
         run: node scripts/check-migration-journal.mjs ${{ github.event.before }}
+      # No secrets here: the suite runs on local Miniflare D1 with test bindings.
+      - name: Test a6n
+        run: pnpm --filter a6n test
       # build, migrate (d1 migrations apply --remote), deploy, verify; stops at the first failed step.
       - run: pnpm --filter a6n run deploy:apply
         env:

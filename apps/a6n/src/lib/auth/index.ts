@@ -47,8 +47,8 @@ const GUARDED_PATHS = new Set([
   "/email-otp/reset-password",
 ]);
 
-const SIX_MIN_S = 600;
-const otpRule = { window: SIX_MIN_S, max: 5 };
+const TEN_MIN_S = 600;
+const otpRule = { window: TEN_MIN_S, max: 5 };
 
 // The one options source: createAuth builds from it and the schema test reads its plugins.
 export function authOptions(env: Env) {
@@ -72,6 +72,10 @@ export function authOptions(env: Env) {
     emailAndPassword: {
       enabled: true,
       disableSignUp: true,
+      // Matches the seed's owner-password rule.
+      minPasswordLength: 12,
+      // A reset is often a response to a leaked password, so it signs every device out.
+      revokeSessionsOnPasswordReset: true,
       onPasswordReset: async ({ user }: { user: { id: string } }) => {
         await db.update(users).set({ passwordSet: true }).where(eq(users.id, user.id));
       },
@@ -97,7 +101,7 @@ export function authOptions(env: Env) {
         "/sign-in/email-otp": otpRule,
         "/email-otp/request-password-reset": otpRule,
         "/email-otp/reset-password": otpRule,
-        "/sign-in/email": { window: SIX_MIN_S, max: 10 },
+        "/sign-in/email": { window: TEN_MIN_S, max: 10 },
       },
     },
     hooks: {
@@ -118,6 +122,10 @@ export function authOptions(env: Env) {
           before: async (session: { userId: string }) => {
             const [row] = await db.select({ status: users.status }).from(users).where(eq(users.id, session.userId));
             if (row?.status !== "active") throw new APIError("FORBIDDEN", { message: "account not active" });
+          },
+          // Kept on the user row: sessions are deleted on sign-out and expiry, so they cannot answer "last sign-in".
+          after: async (session: { userId: string }) => {
+            await db.update(users).set({ lastSignInAt: new Date() }).where(eq(users.id, session.userId));
           },
         },
       },

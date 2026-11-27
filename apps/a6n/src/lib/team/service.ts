@@ -6,7 +6,10 @@ import { MailUnavailableError, type InviteStatus, type Mailer } from "../mail/ma
 
 export type InviteResult =
   | { ok: true; sent: boolean; inviteLink: string }
-  | { ok: false; code: "already_active" | "mail_unavailable" | "not_found" };
+  | { ok: false; code: "already_active" | "mail_unavailable" | "not_found" | "invalid" };
+
+// The seed's system actor owns audit rows; it is never a team member.
+const SYSTEM_ID = "usr_system";
 
 export type RemoveResult = { removed: true } | { removed: false; reason: "last_admin" | "self" | "already_removed" };
 
@@ -90,7 +93,7 @@ export function createTeamService(db: CrmDb, mailer: Mailer | (() => Mailer), au
         sql`INSERT INTO users (id, name, email, role, status, password_set, email_verified, created_at, updated_at)
           VALUES (${newId("usr")}, ${name}, ${email}, 'sales', 'active', 0, 0, ${now}, ${now})
           ON CONFLICT(email) DO UPDATE SET name = excluded.name, role = 'sales', status = 'active', password_set = 0, updated_at = ${now}
-          WHERE users.status = 'removed'`,
+          WHERE users.status = 'removed' AND users.id <> ${SYSTEM_ID}`,
         {
           onlyIfPreviousChanged: 1,
           query: sql`INSERT INTO invites (id, created_at, created_by, user_id, invited_by, n, idempotency_key)
@@ -100,7 +103,10 @@ export function createTeamService(db: CrmDb, mailer: Mailer | (() => Mailer), au
             FROM users u WHERE u.email = ${email}`,
         },
       ]);
-      if (changed(upsert) === 0) return { ok: false, code: "already_active" };
+      if (changed(upsert) === 0) {
+        const [hit] = await db.all<{ id: string }>(sql`SELECT id FROM users WHERE email = ${email}`);
+        return { ok: false, code: hit?.id === SYSTEM_ID ? "invalid" : "already_active" };
+      }
       if (changed(invite) !== 1) return { ok: false, code: "not_found" };
       return deliver(m, email, actor, inviteId);
     },
@@ -134,7 +140,14 @@ export function createTeamService(db: CrmDb, mailer: Mailer | (() => Mailer), au
       }
       const m = resolveMailer();
       if (!m || Object.keys(keys).length === 0) return out;
-      const statuses = await m.statusByKeys(Object.keys(keys));
+      let statuses: Record<string, InviteStatus>;
+      try {
+        statuses = await m.statusByKeys(Object.keys(keys));
+      } catch (e) {
+        // A Relay outage must not take the team page (and its copy-link fallback) down with it.
+        console.error("invite status lookup failed", e);
+        statuses = Object.fromEntries(Object.keys(keys).map((k) => [k, "unknown" as const]));
+      }
       for (const [key, status] of Object.entries(statuses)) if (keys[key]) out[keys[key]] = status;
       return out;
     },
@@ -177,7 +190,7 @@ export function createTeamService(db: CrmDb, mailer: Mailer | (() => Mailer), au
         open: number; last_sign_in: number | null; n: number | null; key: string | null; msg: string | null; sent_at: number | null;
       }>(sql`SELECT u.id, u.name, u.email, u.role, u.status, u.password_set,
           (SELECT count(*) FROM inquiries WHERE owner_id = u.id AND closed_at IS NULL) AS open,
-          (SELECT max(created_at) FROM sessions WHERE user_id = u.id) AS last_sign_in,
+          u.last_sign_in_at AS last_sign_in,
           i.n, i.idempotency_key AS key, i.relay_message_id AS msg, i.sent_at
         FROM users u LEFT JOIN invites i ON i.user_id = u.id AND i.n = (SELECT max(n) FROM invites WHERE user_id = u.id)
         ORDER BY u.name, u.id`);

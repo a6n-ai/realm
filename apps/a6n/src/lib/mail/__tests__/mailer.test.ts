@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { Env } from "../../../env";
 import { consoleMailer } from "../console-mailer";
-import { MailUnavailableError, mailerFor } from "../mailer";
+import { MailUnavailableError, mailerFor, relayState } from "../mailer";
 import { memoryMailer } from "../memory-mailer";
 import { RelayMailer, type RelayRpcLike } from "../relay-mailer";
 
@@ -25,6 +25,17 @@ describe("mailerFor", () => {
   });
   it("MAILER=relay without RELAY throws MailUnavailableError", () => {
     expect(() => mailerFor({ MAILER: "relay", RELAY: undefined as never })).toThrow(MailUnavailableError);
+  });
+  it("MAILER=relay with an empty RELAY_API_KEY throws MailUnavailableError", () => {
+    const RELAY = asBinding(fakeRelay().rpc);
+    expect(() => mailerFor({ MAILER: "relay", RELAY, RELAY_API_KEY: "" })).toThrow(MailUnavailableError);
+    expect(() => mailerFor({ MAILER: "relay", RELAY })).toThrow(MailUnavailableError);
+  });
+  it("relayState needs both the binding and the key", () => {
+    const RELAY = asBinding(fakeRelay().rpc);
+    expect(relayState({ RELAY, RELAY_API_KEY: "k" })).toBe("bound");
+    expect(relayState({ RELAY, RELAY_API_KEY: "" })).toBe("missing");
+    expect(relayState({ RELAY: undefined as never, RELAY_API_KEY: "k" })).toBe("missing");
   });
   it("MAILER=console picks ConsoleMailer", () => {
     expect(mailerFor({ MAILER: "console", RELAY: undefined as never })).toBe(consoleMailer);

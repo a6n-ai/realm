@@ -1,7 +1,7 @@
 import { Badge } from "@foundry/ui/badge";
 import type { InviteStatus } from "../../lib/mail/mailer";
 
-type Shown = InviteStatus | "unknown";
+type Shown = InviteStatus;
 
 const TONE: Record<Shown, "neutral" | "info" | "warning" | "success" | "danger"> = {
   queued: "neutral",

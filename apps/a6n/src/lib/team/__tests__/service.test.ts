@@ -1,5 +1,5 @@
 import { env, SELF } from "cloudflare:test";
-import { beforeAll, beforeEach, describe, expect, test } from "vitest";
+import { beforeAll, beforeEach, describe, expect, test, vi } from "vitest";
 import { applyMigrations } from "../../../../test/migrate";
 import { BASE, freshIp, json } from "../../../../test/helpers";
 import { getDb } from "../../../db/client";
@@ -212,6 +212,29 @@ describe("invite", () => {
     expect(await svc.inviteStatuses(ids)).toEqual({ [ids[0]!]: "sent", [ids[1]!]: "failed" });
   });
 
+  test("a Relay status failure maps every looked-up member to unknown instead of throwing", async () => {
+    const { svc, mailer } = mk();
+    await svc.invite({ email: "s@x.io", name: "S" }, admin);
+    mailer.failInvites(true);
+    await svc.invite({ email: "t@x.io", name: "T" }, admin);
+    const ids = (await all<{ id: string }>("select id from users where email in ('s@x.io','t@x.io') order by email")).map((r) => r.id);
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    const down = createTeamService(getDb(env), { ...mailer, statusByKeys: async () => { throw new Error("relay down"); } }, AUTH_URL);
+    expect(await down.inviteStatuses(ids)).toEqual({ [ids[0]!]: "unknown", [ids[1]!]: "failed" });
+    log.mockRestore();
+  });
+
+  test("inviting the system actor's email is refused as invalid and does not reactivate it", async () => {
+    await env.DB.prepare(
+      "insert into users (id, name, email, role, status, created_at, updated_at) values ('usr_system', 'System', 'system@crm.a6n.ai', 'sales', 'removed', ?, ?)",
+    ).bind(NOW, NOW).run();
+    const { svc, mailer } = mk();
+    expect(await svc.invite({ email: "system@crm.a6n.ai", name: "Sys" }, admin)).toEqual({ ok: false, code: "invalid" });
+    expect(await all("select status from users where id = 'usr_system'")).toEqual([{ status: "removed" }]);
+    expect(await all("select * from invites")).toHaveLength(0);
+    expect(mailer.sent).toHaveLength(0);
+  });
+
   test("list returns open inquiry counts and the latest invite", async () => {
     await env.DB.batch([inquiry("inq_1", "usr_sam", false), inquiry("inq_2", "usr_sam", true)]);
     const { svc } = mk();
@@ -221,10 +244,8 @@ describe("invite", () => {
     expect(rows.find((r) => r.email === "l@x.io")).toMatchObject({ latestInvite: { n: 1 }, passwordSet: false });
   });
 
-  test("list returns the latest session time per user, null without sessions; pendingLink only for pending members", async () => {
-    const ses = (id: string, at: number) =>
-      env.DB.prepare("insert into sessions (id, user_id, token, expires_at, created_at, updated_at) values (?, 'usr_sam', ?, ?, ?, ?)").bind(id, id, NOW + 9e6, at, at);
-    await env.DB.batch([ses("ses_old", NOW - 5000), ses("ses_new", NOW - 1000)]);
+  test("list reads users.last_sign_in_at, which outlives sessions; pendingLink only for pending members", async () => {
+    await env.DB.prepare("update users set last_sign_in_at = ? where id = 'usr_sam'").bind(NOW - 1000).run();
     const { svc } = mk();
     const rows = await svc.list();
     expect(rows.find((r) => r.id === "usr_sam")!.lastSignIn).toBe(NOW - 1000);

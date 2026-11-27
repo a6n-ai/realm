@@ -17,6 +17,8 @@ export default defineConfig({
         bindings: {
           TEST_MIGRATIONS: migrations,
           MAILER: "memory",
+          // Placeholder so /api/health sees a configured Relay; tests never call Relay.
+          RELAY_API_KEY: "test-placeholder",
           BETTER_AUTH_SECRET: "k7Qz2mVx9LrT4wNp8sHc3YbF6jDa1eUg0oRi5tKl",
           BETTER_AUTH_URL: "http://localhost",
         },

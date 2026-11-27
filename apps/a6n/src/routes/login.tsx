@@ -80,7 +80,7 @@ function LoginPage() {
         <AuthPanel
           art={<AuthLogo />}
           title={search.invited ? "Welcome to a6n CRM" : "Sign in"}
-          tagline={search.invited ? "We emailed you a code. Enter it to finish setting up your account." : "Use your password or a code sent to your email."}
+          tagline={search.invited ? "Enter your email and we'll send you a sign-in code." : "Use your password or a code sent to your email."}
         >
           <Tabs value={tab} onValueChange={(v) => setTab(String(v))}>
             <TabsList>

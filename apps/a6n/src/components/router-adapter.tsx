@@ -9,9 +9,22 @@ function splitTo(to: string, search?: Record<string, unknown>): { to: string; se
 }
 
 export const tanstackConsoleRouter: ConsoleRouter = {
+  // Console owns aria-current. TanStack sets aria-current="page" (and class "active") on every active link, and
+  // by default "active" is fuzzy, so a parent nav item would read as current on its child pages. Exact matching
+  // limits TanStack's marker to a link to this very URL, where it agrees with console; empty activeProps drops the class.
   Link: ({ to, search, replace, ref, ...rest }) => {
     const target = splitTo(to, search);
-    return <Link ref={ref} to={target.to as never} search={target.search as never} replace={replace} {...rest} />;
+    return (
+      <Link
+        ref={ref}
+        to={target.to as never}
+        search={target.search as never}
+        replace={replace}
+        activeOptions={{ exact: true }}
+        activeProps={{}}
+        {...rest}
+      />
+    );
   },
   useSearch: () => useSearch({ strict: false }) as Record<string, unknown>,
   usePathname: () => useLocation().pathname,

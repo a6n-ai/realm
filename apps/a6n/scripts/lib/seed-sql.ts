@@ -30,8 +30,8 @@ export async function seedSql(admins: SeedAdmin[], now = Date.now()): Promise<st
     const id = await emailId("usr", email);
     out.push(
       `INSERT INTO users (id, name, email, email_verified, role, status, password_set, created_at, updated_at) VALUES (${q(id)}, ${q(a.name)}, ${q(email)}, 1, 'admin', 'active', 1, ${now}, ${now}) ON CONFLICT DO NOTHING`,
-      // Selects the user by email: the row may already exist under another id.
-      `INSERT INTO accounts (id, user_id, account_id, provider_id, password, created_at, updated_at) SELECT ${q(await emailId("acc", email))}, id, id, 'credential', ${q(a.passwordHash)}, ${now}, ${now} FROM users WHERE email = ${q(email)} ON CONFLICT DO NOTHING`,
+      // Selects the user by email: the row may already exist under another id. A removed user gets no credential.
+      `INSERT INTO accounts (id, user_id, account_id, provider_id, password, created_at, updated_at) SELECT ${q(await emailId("acc", email))}, id, id, 'credential', ${q(a.passwordHash)}, ${now}, ${now} FROM users WHERE email = ${q(email)} AND status = 'active' ON CONFLICT DO NOTHING`,
     );
   }
   out.push(
