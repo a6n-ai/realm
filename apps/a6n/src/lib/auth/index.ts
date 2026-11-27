@@ -103,11 +103,12 @@ export function authOptions(env: Env) {
     hooks: {
       // A removed user must not mint a session or write a credential through any email route, and must answer
       // exactly like an unknown email: the request carries on with an address that cannot exist.
+      // Normalise exactly like Better Auth (lowercase, no trim): a padded email must fail its validation the same way.
       before: createAuthMiddleware(async (ctx) => {
         if (!GUARDED_PATHS.has(ctx.path)) return;
         const email = (ctx.body as { email?: unknown } | undefined)?.email;
         if (typeof email !== "string") return;
-        const [row] = await db.select({ status: users.status }).from(users).where(eq(users.email, email.trim().toLowerCase()));
+        const [row] = await db.select({ status: users.status }).from(users).where(eq(users.email, email.toLowerCase()));
         if (row && row.status !== "active") return { context: { body: { ...(ctx.body as object), email: `${crypto.randomUUID()}@removed.invalid` } } };
       }),
     },

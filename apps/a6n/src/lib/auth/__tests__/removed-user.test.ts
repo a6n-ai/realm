@@ -51,6 +51,14 @@ describe("removed users answer like unknown emails", () => {
     const b = await post(path, body(`nobody-${freshId()}@a6n.test`));
     expect({ status: a.status, body: await a.text() }).toEqual({ status: b.status, body: await b.text() });
   });
+
+  test.each(GUARDED)("%s with a whitespace-padded email", async (path, body) => {
+    const removed = `an-${freshId()}@a6n.test`;
+    await insertUser(removed, "sales", "removed");
+    const a = await post(path, body(` ${removed} `));
+    const b = await post(path, body(` nobody-${freshId()}@a6n.test `));
+    expect({ status: a.status, body: await a.text() }).toEqual({ status: b.status, body: await b.text() });
+  });
 });
 
 describe("admin plugin routes", () => {
