@@ -51,8 +51,8 @@ export async function pushBlocks(maxBatches = 4): Promise<{ pushed: number; pend
       if (batch.length < IMPORT_BATCH) return { pushed, pending: false };
     }
   } catch (err) {
-    // The message only: an error object can carry addresses.
-    log.warn({ error: err instanceof Error ? err.message : "unknown" }, "relay block push failed");
+    // The name only: a query error message carries its parameters, which are addresses.
+    log.warn({ error: err instanceof Error ? err.name : "unknown" }, "relay block push failed");
   }
   return { pushed, pending: true };
 }
