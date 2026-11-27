@@ -1,7 +1,7 @@
 import { newId } from "@foundry/database";
 import { betterAuth, type BetterAuthOptions } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { APIError } from "better-auth/api";
+import { APIError, createAuthMiddleware } from "better-auth/api";
 import { admin } from "better-auth/plugins/admin";
 import { emailOTP } from "better-auth/plugins/email-otp";
 import { waitUntil } from "cloudflare:workers";
@@ -30,6 +30,23 @@ export function prefixFor(model: string): string {
 // The adapter looks up singular keys while the tables are plural.
 export const authSchemaMap = { user: users, session: sessions, account: accounts, verification: verifications, rateLimit: rateLimits };
 
+// Every admin-plugin route except has-permission; roles carry no user/session resources, so these are also denied by permissions.
+const ADMIN_DISABLED_PATHS = [
+  "set-role", "get-user", "create-user", "update-user", "list-users", "list-user-sessions", "unban-user", "ban-user",
+  "impersonate-user", "stop-impersonating", "revoke-user-session", "revoke-user-sessions", "remove-user", "set-user-password",
+].map((p) => `/admin/${p}`);
+
+// Routes that take an email and can mint a session or write a credential.
+const GUARDED_PATHS = new Set([
+  "/sign-in/email",
+  "/sign-in/email-otp",
+  "/email-otp/check-verification-otp",
+  "/email-otp/verify-email",
+  "/email-otp/request-password-reset",
+  "/forget-password/email-otp",
+  "/email-otp/reset-password",
+]);
+
 const SIX_MIN_S = 600;
 const otpRule = { window: SIX_MIN_S, max: 5 };
 
@@ -43,6 +60,7 @@ export function authOptions(env: Env) {
     secret: env.BETTER_AUTH_SECRET,
     baseURL: env.BETTER_AUTH_URL,
     trustedOrigins: [env.BETTER_AUTH_URL],
+    disabledPaths: ADMIN_DISABLED_PATHS,
     // The adapter's `transaction` option is left at its default (off): D1 has no interactive transactions.
     database: drizzleAdapter(db, { provider: "sqlite", schema: authSchemaMap }),
     user: {
@@ -82,6 +100,16 @@ export function authOptions(env: Env) {
         "/sign-in/email": { window: SIX_MIN_S, max: 10 },
       },
     },
+    hooks: {
+      // A removed user must not mint a session or write a credential through any email route.
+      before: createAuthMiddleware(async (ctx) => {
+        if (!GUARDED_PATHS.has(ctx.path)) return;
+        const email = (ctx.body as { email?: unknown } | undefined)?.email;
+        if (typeof email !== "string") return;
+        const [row] = await db.select({ status: users.status }).from(users).where(eq(users.email, email.trim().toLowerCase()));
+        if (row && row.status !== "active") throw new APIError("FORBIDDEN", { message: "account not active" });
+      }),
+    },
     databaseHooks: {
       session: {
         create: {
@@ -98,6 +126,9 @@ export function authOptions(env: Env) {
         disableSignUp: true,
         // Resolved at send time so a missing Relay binding never breaks password sign-in.
         sendVerificationOTP: async ({ email, otp }) => {
+          // Silent for removed users: no code, and no difference a caller can observe.
+          const [row] = await db.select({ status: users.status }).from(users).where(eq(users.email, email.toLowerCase()));
+          if (row && row.status !== "active") return;
           await mailerFor(env).sendSignInCode(email, otp);
         },
       }),

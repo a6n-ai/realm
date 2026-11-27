@@ -1,7 +1,7 @@
 import { env, SELF } from "cloudflare:test";
 import { beforeAll, describe, expect, test } from "vitest";
 import { applyMigrations } from "../../../../test/migrate";
-import { BASE, freshId, freshIp, headersFor, insertUser, json, signIn, signInResponse } from "../../../../test/helpers";
+import { BASE, freshId, freshIp, headersFor, insertUser, json, signIn } from "../../../../test/helpers";
 import { createAuth } from "../index";
 import { getSession } from "../session";
 
@@ -26,7 +26,11 @@ describe("session admission", () => {
   test("a removed user is rejected at sign-in", async () => {
     const email = `r-${freshId()}@a6n.test`;
     await insertUser(email, "sales", "removed");
-    const res = await signInResponse(email);
+    const res = await SELF.fetch(`${BASE}/sign-in/email-otp`, {
+      method: "POST",
+      headers: { ...json, ...freshIp() },
+      body: JSON.stringify({ email, otp: "123456" }),
+    });
     expect(res.status).toBeGreaterThanOrEqual(400);
     expect(res.headers.getSetCookie()).toEqual([]);
   });
