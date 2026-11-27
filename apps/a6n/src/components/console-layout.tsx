@@ -19,7 +19,7 @@ function Brand() {
 export default function ConsoleLayout({ shell }: { shell: Shell }) {
   return (
     <CreateProvider>
-      <AppShell nav={visibleNav(shell.user.role, shell.unassigned)} brand={<Brand />} find={<FindPalette role={shell.user.role} />} userMenu={<UserMenu name={shell.user.name} />}>
+      <AppShell nav={visibleNav(shell.user.role, shell.unassigned)} brand={<Brand />} find={<FindPalette role={shell.user.role} />} userMenu={<UserMenu name={shell.user.name} email={shell.user.email} />}>
         <Outlet />
       </AppShell>
     </CreateProvider>

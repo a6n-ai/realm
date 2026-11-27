@@ -2,9 +2,9 @@ import { describe, expect, test } from "vitest";
 import { findEntries } from "../find";
 
 describe("findEntries", () => {
-  test("a sales user finds the inquiry pages, Settings and New inquiry only", () => {
+  test("a sales user finds the inquiry pages, Settings, Account settings and New inquiry only", () => {
     const e = findEntries("sales");
-    expect(e.map((x) => x.label)).toEqual(["Inquiries", "Unassigned", "Settings", "New inquiry"]);
+    expect(e.map((x) => x.label)).toEqual(["Inquiries", "Unassigned", "Settings", "Account settings", "New inquiry"]);
     expect(e.find((x) => x.label === "Unassigned")?.to).toBe("/inquiries?view=unassigned");
   });
 
