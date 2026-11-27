@@ -6,7 +6,6 @@ import { useUrlFilter } from "@foundry/console/use-url-filter";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 import { FilterBar } from "../../../components/page/filter-bar";
-import { SettingsCard } from "../../../components/page/settings-card";
 import { filterMembers, MEMBER_FACETS } from "../../../components/team/members";
 import { InviteForm } from "../../../components/team/invite-dialog";
 import { TeamTable } from "../../../components/team/team-table";
@@ -32,11 +31,7 @@ export const Route = createFileRoute("/_app/settings/members")({
 
 function InviteCard() {
   const [round, setRound] = useState(0);
-  return (
-    <SettingsCard title="Invite Team Members" description="They get an email to set a password. New members are added as sales." >
-      <InviteForm key={round} inline done={() => setRound(round + 1)} />
-    </SettingsCard>
-  );
+  return <InviteForm key={round} inline done={() => setRound(round + 1)} />;
 }
 
 function MembersPage() {
@@ -50,7 +45,7 @@ function MembersPage() {
   return (
     <>
       <InviteCard />
-      <section aria-label="Members" className="-mx-4 grid">
+      <section aria-label="Members" className="grid [&>div:first-child]:px-0 [&_[data-slot=card-content]]:mx-0 [&_[data-slot=card-content]]:mb-0">
         <Toolbar
           search={<SearchInput value={q} onChange={setQ} placeholder="Search name or email" />}
           filters={<FilterBar facets={MEMBER_FACETS} value={search} onChange={(next) => navigate({ search: next, replace: true })} />}

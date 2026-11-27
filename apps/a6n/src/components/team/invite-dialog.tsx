@@ -5,7 +5,8 @@ import { Input } from "@foundry/ui/input";
 import { Label } from "@foundry/ui/label";
 import { toast } from "@foundry/ui/toast";
 import { useRouter } from "@tanstack/react-router";
-import { useState, type FormEvent } from "react";
+import { useId, useState, type FormEvent } from "react";
+import { SettingsCard } from "../page/settings-card";
 import { errorText } from "../../lib/error-copy";
 import { inviteFn } from "../../lib/team/team.fns";
 
@@ -20,7 +21,7 @@ export async function copyLink(link: string) {
 
 type Result = { sent: boolean; inviteLink: string; email: string };
 
-// `inline` lays the fields in one row, for the card at the top of the members page.
+// `inline` renders the form as the members page card: fields in one row, Invite in the card footer.
 export function InviteForm({ done, inline = false }: { done: () => void; inline?: boolean }) {
   const router = useRouter();
   const [email, setEmail] = useState("");
@@ -28,6 +29,7 @@ export function InviteForm({ done, inline = false }: { done: () => void; inline?
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [result, setResult] = useState<Result | null>(null);
+  const formId = useId();
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -46,7 +48,7 @@ export function InviteForm({ done, inline = false }: { done: () => void; inline?
   }
 
   if (result) {
-    return (
+    const finished = (
       <div className="grid gap-4">
         <p className="text-sm" role="status">
           {result.sent ? `Invite sent to ${result.email}.` : `The invite to ${result.email} could not be sent. Copy the link and send it another way.`}
@@ -62,10 +64,11 @@ export function InviteForm({ done, inline = false }: { done: () => void; inline?
         </div>
       </div>
     );
+    return inline ? <SettingsCard title="Invite Team Members">{finished}</SettingsCard> : finished;
   }
 
-  return (
-    <form onSubmit={submit} className={inline ? "grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-start" : "grid gap-4"}>
+  const form = (
+    <form id={formId} onSubmit={submit} className={inline ? "grid gap-3 sm:grid-cols-2" : "grid gap-4"}>
       <div className="grid gap-2">
         <Label htmlFor="inv-email">Email</Label>
         <Input id="inv-email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
@@ -74,13 +77,26 @@ export function InviteForm({ done, inline = false }: { done: () => void; inline?
         <Label htmlFor="inv-name">Name</Label>
         <Input id="inv-name" required value={name} onChange={(e) => setName(e.target.value)} />
       </div>
-      <Button type="submit" disabled={pending} className={inline ? "sm:mt-[1.625rem]" : undefined}>
-        {inline ? "Invite" : "Send invite"}
-      </Button>
-      <div className={inline ? "sm:col-span-3" : undefined}>
+      {inline ? null : <Button type="submit" disabled={pending}>Send invite</Button>}
+      <div className={inline ? "sm:col-span-2" : undefined}>
         <FormError error={error} />
       </div>
     </form>
+  );
+  if (!inline) return form;
+  return (
+    <SettingsCard
+      title="Invite Team Members"
+      description="They get an email to set a password."
+      footer="New members join as sales."
+      action={
+        <Button type="submit" form={formId} disabled={pending}>
+          Invite
+        </Button>
+      }
+    >
+      {form}
+    </SettingsCard>
   );
 }
 

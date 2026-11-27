@@ -22,6 +22,7 @@ import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as AppInquiriesIndexRouteImport } from './routes/_app/inquiries/index'
 import { Route as AppInquiriesIdRouteImport } from './routes/_app/inquiries/$id'
 import { Route as AppSettingsIndexRouteImport } from './routes/_app/settings/index'
+import { Route as AppSettingsAccountRouteImport } from './routes/_app/settings/account'
 import { Route as AppSettingsMembersRouteImport } from './routes/_app/settings/members'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 
@@ -89,6 +90,11 @@ const AppSettingsIndexRoute = AppSettingsIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppSettingsRoute,
 } as any)
+const AppSettingsAccountRoute = AppSettingsAccountRouteImport.update({
+  id: '/account',
+  path: '/account',
+  getParentRoute: () => AppSettingsRoute,
+} as any)
 const AppSettingsMembersRoute = AppSettingsMembersRouteImport.update({
   id: '/members',
   path: '/members',
@@ -111,6 +117,7 @@ export interface FileRoutesByFullPath {
   '/team': typeof AppTeamRoute
   '/api/health': typeof ApiHealthRoute
   '/inquiries/$id': typeof AppInquiriesIdRoute
+  '/settings/account': typeof AppSettingsAccountRoute
   '/settings/members': typeof AppSettingsMembersRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/inquiries/': typeof AppInquiriesIndexRoute
@@ -126,6 +133,7 @@ export interface FileRoutesByTo {
   '/api/health': typeof ApiHealthRoute
   '/': typeof AppIndexRoute
   '/inquiries/$id': typeof AppInquiriesIdRoute
+  '/settings/account': typeof AppSettingsAccountRoute
   '/settings/members': typeof AppSettingsMembersRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/inquiries': typeof AppInquiriesIndexRoute
@@ -144,6 +152,7 @@ export interface FileRoutesById {
   '/api/health': typeof ApiHealthRoute
   '/_app/': typeof AppIndexRoute
   '/_app/inquiries/$id': typeof AppInquiriesIdRoute
+  '/_app/settings/account': typeof AppSettingsAccountRoute
   '/_app/settings/members': typeof AppSettingsMembersRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/_app/inquiries/': typeof AppInquiriesIndexRoute
@@ -162,6 +171,7 @@ export interface FileRouteTypes {
     | '/team'
     | '/api/health'
     | '/inquiries/$id'
+    | '/settings/account'
     | '/settings/members'
     | '/api/auth/$'
     | '/inquiries/'
@@ -177,6 +187,7 @@ export interface FileRouteTypes {
     | '/api/health'
     | '/'
     | '/inquiries/$id'
+    | '/settings/account'
     | '/settings/members'
     | '/api/auth/$'
     | '/inquiries'
@@ -194,6 +205,7 @@ export interface FileRouteTypes {
     | '/api/health'
     | '/_app/'
     | '/_app/inquiries/$id'
+    | '/_app/settings/account'
     | '/_app/settings/members'
     | '/api/auth/$'
     | '/_app/inquiries/'
@@ -302,6 +314,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSettingsIndexRouteImport
       parentRoute: typeof AppSettingsRoute
     }
+    '/_app/settings/account': {
+      id: '/_app/settings/account'
+      path: '/account'
+      fullPath: '/settings/account'
+      preLoaderRoute: typeof AppSettingsAccountRouteImport
+      parentRoute: typeof AppSettingsRoute
+    }
     '/_app/settings/members': {
       id: '/_app/settings/members'
       path: '/members'
@@ -320,11 +339,13 @@ declare module '@tanstack/react-router' {
 }
 
 interface AppSettingsRouteChildren {
+  AppSettingsAccountRoute: typeof AppSettingsAccountRoute
   AppSettingsMembersRoute: typeof AppSettingsMembersRoute
   AppSettingsIndexRoute: typeof AppSettingsIndexRoute
 }
 
 const AppSettingsRouteChildren: AppSettingsRouteChildren = {
+  AppSettingsAccountRoute: AppSettingsAccountRoute,
   AppSettingsMembersRoute: AppSettingsMembersRoute,
   AppSettingsIndexRoute: AppSettingsIndexRoute,
 }

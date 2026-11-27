@@ -11,10 +11,12 @@ function SettingsLayout() {
   const tabs = [
     { to: "/settings", label: "General" },
     ...(allows(shell.user.role, "team:manage") ? [{ to: "/settings/members", label: "Members" }] : []),
+    { to: "/settings/account", label: "Account" },
   ];
+  const tab = tabs.find((t) => t.to === pathname);
   return (
     <>
-      <PageHeader crumbs={[{ label: "Settings" }]} />
+      <PageHeader title="Settings" crumbs={[{ label: "Settings" }, ...(tab ? [{ label: tab.label }] : [])]} />
       <div className="grid gap-6 px-4 pb-8 md:grid-cols-[12rem_minmax(0,1fr)]">
         <nav aria-label="Settings" className="flex gap-1 overflow-x-auto md:flex-col">
           {tabs.map((t) => (
