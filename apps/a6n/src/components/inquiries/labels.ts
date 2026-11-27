@@ -1,3 +1,4 @@
+import type { Activity } from "../../lib/inquiries/queries";
 import { STAGES, type Stage } from "../../lib/inquiries/stages";
 
 export const STAGE_LABEL: Record<Stage, string> = {
@@ -27,3 +28,22 @@ export const ACTIVITY_TYPES = [
 ] as const;
 
 export const stageLabel = (s: string): string => (STAGES as readonly string[]).includes(s) ? STAGE_LABEL[s as Stage] : s;
+
+const TYPE_LABEL: Record<string, string> = { note: "Note", call: "Call", whatsapp: "WhatsApp", email: "Email" };
+
+export function describeActivity(a: Activity): string {
+  switch (a.type) {
+    case "created":
+      return "Inquiry created";
+    case "stage_change":
+      return `Stage changed from ${stageLabel(a.fromStage ?? "")} to ${stageLabel(a.toStage ?? "")}`;
+    case "reopened":
+      return `Reopened at ${stageLabel(a.toStage ?? "")}`;
+    case "reassigned":
+      if (!a.fromOwnerName && a.toOwnerName === a.actorName) return `Claimed by ${a.toOwnerName}`;
+      if (a.fromOwnerName && !a.toOwnerName) return `Reassigned from ${a.fromOwnerName} (removed)`;
+      return `Assigned to ${a.toOwnerName ?? "nobody"}${a.fromOwnerName ? ` (was ${a.fromOwnerName})` : ""}`;
+    default:
+      return TYPE_LABEL[a.type] ?? a.type;
+  }
+}

@@ -7,7 +7,7 @@ TanStack Start on Cloudflare Workers + D1. Skills to load for framework work:
 
 ## Server and client rules (same as relay-v2)
 
-- Only `*.fns.ts` files, route files and `src/server.ts` import `cloudflare:workers`. Business code takes `env` or `db` as a parameter so tests can pass `env` from `cloudflare:test`.
+- Only `*.fns.ts` files, route files and `src/server.ts` import `cloudflare:workers`. Business code takes `env` or `db` as a parameter so tests can pass `env` from `cloudflare:test`. Exception: `src/lib/auth/index.ts` may import `waitUntil` from `cloudflare:workers` (relay-v2 precedent).
 - Zod schemas live in `schemas.ts` files, not as top-level constants in route or server-function files.
 - Build the Drizzle `db` per call from `env`; never hold it in a module.
 
@@ -18,6 +18,10 @@ Realm's Next rules (`proxy.ts`, `node_modules/next/dist/docs`, `transpilePackage
 ## Data
 
 One database, D1. Migrations are for D1 only (`drizzle/`).
+
+## Vite
+
+`optimizeDeps.exclude: ["@foundry/console"]` in `vite.config.ts` works around a dev-only duplicated router context (`ConsoleRouterProvider is missing`) while `@foundry/console` is placed locally. Re-check it when it becomes a git dependency (Task 20).
 
 ## Scripts
 
