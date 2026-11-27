@@ -21,7 +21,7 @@ One database, D1. Migrations are for D1 only (`drizzle/`).
 
 ## Vite
 
-`optimizeDeps.exclude: ["@foundry/console"]` in `vite.config.ts` works around a dev-only duplicated router context (`ConsoleRouterProvider is missing`) while `@foundry/console` is placed locally. Re-check it when it becomes a git dependency (Task 20).
+`optimizeDeps.exclude: ["@foundry/console"]` in `vite.config.ts` works around a dev-only duplicated router context (`ConsoleRouterProvider is missing`) seen when Vite pre-bundled `@foundry/console`. Kept after the move to the git dependency: excluding a source-only package from pre-bundling costs nothing.
 
 ## Scripts
 

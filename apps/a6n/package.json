@@ -22,6 +22,7 @@
     "@foundry/auth": "github:a6n-ai/foundry#path:packages/auth",
     "@foundry/auth-ui": "github:a6n-ai/foundry#path:packages/auth-ui",
     "@foundry/commons": "github:a6n-ai/foundry#path:packages/commons",
+    "@foundry/console": "github:a6n-ai/foundry#path:packages/console",
     "@foundry/database": "github:a6n-ai/foundry#path:packages/database",
     "@foundry/themes": "github:a6n-ai/foundry#path:packages/themes",
     "@foundry/ui": "github:a6n-ai/foundry#path:packages/ui",
