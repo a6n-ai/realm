@@ -1,10 +1,6 @@
-import { EmptyState } from "@foundry/console/empty-state";
 import { DeniedState, ErrorState } from "@foundry/console/error-state";
 import type { Facet } from "@foundry/console/filters";
-import { withoutKey } from "@foundry/console/filters";
-import { FilterMenu } from "@foundry/console/filter-menu";
 import { ListSkeleton } from "@foundry/console/list-skeleton";
-import { PageHeader } from "@foundry/console/page-header";
 import { Pager } from "@foundry/console/pager";
 import { ResourceTable } from "@foundry/console/resource-table";
 import { useConsoleRouter } from "@foundry/console/router";
@@ -13,11 +9,14 @@ import { SearchInput, Toolbar } from "@foundry/console/toolbar";
 import { useUrlFilter } from "@foundry/console/use-url-filter";
 import { Button } from "@foundry/ui/button";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
-import { InboxIcon, PlusIcon } from "lucide-react";
-import { useState } from "react";
+import { InboxIcon } from "lucide-react";
 import { inquiryColumns, inquiryLabel } from "../../../components/inquiries/columns";
 import { STAGE_LABEL } from "../../../components/inquiries/labels";
-import { NewInquiryDialog } from "../../../components/inquiries/new-inquiry-dialog";
+import { FilterBar } from "../../../components/page/filter-bar";
+import { EmptyState } from "../../../components/page/empty-state";
+import { Panel } from "../../../components/page/panel";
+import { useCreate } from "../../../components/shell/create-dialogs";
+import { PageHeader } from "../../../components/shell/page-header";
 import { errorText } from "../../../lib/error-copy";
 import { listActiveSourcesFn, listInquiriesFn, listOwnersFn } from "../../../lib/inquiries/inquiries.fns";
 import { STAGES } from "../../../lib/inquiries/stages";
@@ -73,7 +72,7 @@ function InquiriesPage() {
   const router = useConsoleRouter();
   const navigate = router.useNavigate();
   const [q, setQ] = useUrlFilter("q", { reset: ["page"] });
-  const [creating, setCreating] = useState(false);
+  const create = useCreate();
 
   if (!list) {
     return (
@@ -94,15 +93,7 @@ function InquiriesPage() {
 
   return (
     <>
-      <PageHeader
-        crumbs={[{ label: "Inquiries" }]}
-        actions={
-          <Button onClick={() => setCreating(true)}>
-            <PlusIcon />
-            New inquiry
-          </Button>
-        }
-      />
+      <PageHeader crumbs={[{ label: "Inquiries" }]} />
       <SearchTabs
         param="view"
         reset={["page"]}
@@ -114,35 +105,36 @@ function InquiriesPage() {
       />
       <Toolbar
         search={<SearchInput value={q} onChange={setQ} placeholder="Search name, company, email or phone" />}
-        filters={<FilterMenu facets={facets} value={search} onChange={(next) => navigate({ search: withoutKey(next, "page"), replace: true })} />}
+        filters={<FilterBar facets={facets} value={search} onChange={(next) => navigate({ search: next, replace: true })} prefer={{ owner: shell.user.id }} />}
       />
-      <ResourceTable
-        label="Inquiries"
-        columns={inquiryColumns}
-        rows={list.rows}
-        rowKey={(r) => r.id}
-        rowLabel={inquiryLabel}
-        rowHref={(r) => ({ to: `/inquiries/${r.id}` })}
-        offset={(list.page - 1) * 50}
-        empty={
-          <EmptyState
-            icon={InboxIcon}
-            title={filtered ? "No inquiries match" : "No inquiries here yet"}
-            description={filtered ? "Try a different search or clear the filters." : "New inquiries you log or claim will show up here."}
-            action={
-              filtered ? (
-                <Button variant="outline" onClick={clear}>
-                  Clear filters
-                </Button>
-              ) : (
-                <Button onClick={() => setCreating(true)}>New inquiry</Button>
-              )
-            }
-          />
-        }
-      />
+      <Panel>
+        <ResourceTable
+          label="Inquiries"
+          columns={inquiryColumns}
+          rows={list.rows}
+          rowKey={(r) => r.id}
+          rowLabel={inquiryLabel}
+          rowHref={(r) => ({ to: `/inquiries/${r.id}` })}
+          offset={(list.page - 1) * 50}
+          empty={
+            <EmptyState
+              icon={InboxIcon}
+              title={filtered ? "No inquiries match" : "No inquiries here yet"}
+              description={filtered ? "Try a different search or clear the filters." : "New inquiries you log or claim will show up here."}
+              action={
+                filtered ? (
+                  <Button variant="outline" onClick={clear}>
+                    Clear filters
+                  </Button>
+                ) : (
+                  <Button onClick={() => create("inquiry")}>New inquiry</Button>
+                )
+              }
+            />
+          }
+        />
+      </Panel>
       <Pager page={list.page} hasNext={list.hasNext} />
-      <NewInquiryDialog open={creating} onOpenChange={setCreating} sources={sources?.sources ?? []} subsources={sources?.subsources ?? []} />
     </>
   );
 }

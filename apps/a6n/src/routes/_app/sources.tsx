@@ -1,13 +1,17 @@
 import { DeniedState, ErrorState } from "@foundry/console/error-state";
 import { ListSkeleton } from "@foundry/console/list-skeleton";
-import { PageHeader } from "@foundry/console/page-header";
+import { useConsoleRouter } from "@foundry/console/router";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
-import { SourceDialog } from "../../components/sources/source-dialog";
+import { FilterBar } from "../../components/page/filter-bar";
+import { PageHeader } from "../../components/shell/page-header";
 import { SourcesTable } from "../../components/sources/sources-table";
 import { errorText } from "../../lib/error-copy";
 import { listSourcesFn } from "../../lib/inquiries/sources.fns";
 
+const FACETS = [{ key: "active", label: "Status", options: [{ value: "yes", label: "Active" }, { value: "no", label: "Inactive" }] }];
+
 export const Route = createFileRoute("/_app/sources")({
+  validateSearch: (s: Record<string, unknown>): { active?: "yes" | "no" } => ({ active: s.active === "yes" || s.active === "no" ? s.active : undefined }),
   loader: () => listSourcesFn(),
   pendingComponent: () => (
     <>
@@ -29,6 +33,8 @@ export const Route = createFileRoute("/_app/sources")({
 
 function SourcesPage() {
   const data = Route.useLoaderData();
+  const search = Route.useSearch();
+  const navigate = useConsoleRouter().useNavigate();
   if (!data) {
     return (
       <>
@@ -37,10 +43,14 @@ function SourcesPage() {
       </>
     );
   }
+  const shown = search.active ? data.sources.filter((s) => !!s.active === (search.active === "yes")) : data.sources;
   return (
     <>
-      <PageHeader crumbs={[{ label: "Sources" }]} actions={<SourceDialog mode={{ kind: "create" }} />} />
-      <SourcesTable sources={data.sources} subsources={data.subsources} />
+      <PageHeader crumbs={[{ label: "Sources" }]} description="The channels inquiries come from." />
+      <div className="px-4 pb-4">
+        <FilterBar facets={FACETS} value={search} onChange={(next) => navigate({ search: next, replace: true })} />
+      </div>
+      <SourcesTable sources={shown} subsources={data.subsources} filtered={Boolean(search.active)} />
     </>
   );
 }
