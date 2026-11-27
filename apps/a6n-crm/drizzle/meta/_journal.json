@@ -1,0 +1,13 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1795759493347,
+      "tag": "0000_zippy_lifeguard",
+      "breakpoints": true
+    }
+  ]
+}
