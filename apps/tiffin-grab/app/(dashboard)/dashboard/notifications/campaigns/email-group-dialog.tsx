@@ -32,10 +32,6 @@ export function EmailGroupDialog({ presetGroup = null, groupMissing = false }: {
     setError(null);
     try {
       const result = await unwrapAction(emailGroupAction(group.publicId));
-      if ("consoleUrl" in result) {
-        window.location.assign(result.consoleUrl);
-        return;
-      }
       router.push(`/dashboard/notifications/campaigns/${result.campaignPublicId}?step=content`);
       return;
     } catch (e) {

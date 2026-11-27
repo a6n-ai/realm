@@ -58,7 +58,8 @@ export interface RelayClient {
   messagesByKeys(keys: string[]): Promise<RelayMessageByKey[]>;
   suppressionStatus(emails: string[]): Promise<RelaySuppressionStatus[]>;
   suppress(input: { email: string; reason: "unsubscribe" | "manual"; stream: "marketing" | null }): Promise<{ created: boolean }>;
-  createCampaign(input: { name: string; audienceKind?: "lists" | "hook"; audienceQuery?: string | null }): Promise<{ id: string; consoleUrl: string }>;
+  /** True when Relay holds an opt-out, bounce or complaint for this address on this stream; `from` scopes brand opt-outs. */
+  isSuppressed(email: string, stream: "marketing", from?: string): Promise<boolean>;
   /** Relay's MessageView, not copied: no caller reads it yet. */
   getMessage(id: string): Promise<unknown>;
 }
@@ -90,7 +91,7 @@ export function relayRpc(): RelayClient {
     messagesByKeys: (keys) => call("messagesByKeys", keys),
     suppressionStatus: (emails) => call("suppressionStatus", emails),
     suppress: (input) => call("suppress", input),
-    createCampaign: (input) => call("createCampaign", input),
+    isSuppressed: (email, stream, from) => call("isSuppressed", email, stream, from),
     getMessage: (id) => call("getMessage", id),
   };
 }

@@ -48,22 +48,6 @@ const savedCookie = () =>
     .find((c) => c.startsWith(`${COOKIE}=`))
     ?.split("=")[1];
 
-describe("Notifications link under EMAIL_VIA_RELAY", () => {
-  const CONSOLE = "https://relay.example.test/console";
-
-  it("sends Notifications to the Relay console when a console URL is given", () => {
-    renderSidebar({ pathname: "/dashboard/notifications", relayConsoleUrl: CONSOLE });
-    expect(document.querySelector(`a[href="${CONSOLE}"]`)).not.toBeNull();
-    expect(document.querySelector('a[href="/dashboard/notifications"]')).toBeNull();
-  });
-
-  it("keeps the local Notifications link when no console URL is given", () => {
-    renderSidebar({ pathname: "/dashboard/notifications" });
-    expect(document.querySelector('a[href="/dashboard/notifications"]')).not.toBeNull();
-    expect(document.querySelector(`a[href="${CONSOLE}"]`)).toBeNull();
-  });
-});
-
 describe("sidebar nav filter", () => {
   it("leaves Roles to the Organization tabs", () => {
     expect(ALL_HREFS).not.toContain("/dashboard/organization/roles");
@@ -140,21 +124,18 @@ function tree({
   open = true,
   width = 255,
   clock,
-  relayConsoleUrl,
 }: {
   hrefs?: readonly string[];
   pathname?: string;
   open?: boolean;
   width?: number;
   clock?: ReactNode;
-  relayConsoleUrl?: string | null;
 } = {}) {
   nav.pathname = pathname;
   return (
     <NavAccessProvider hrefs={hrefs}>
       <SidebarProvider defaultOpen={open} style={{ "--sidebar-width": `${width}px` } as CSSProperties}>
         <AppSidebar
-          relayConsoleUrl={relayConsoleUrl}
           user={{ email: "ana@example.com", role: "admin", name: "Ana", image: null }}
           hasPin={false}
           activity={null}
