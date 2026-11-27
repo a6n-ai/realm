@@ -19,8 +19,7 @@
     {
       "binding": "DB",
       "database_name": "a6n",
-      // set after: wrangler d1 create a6n (owner approval)
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      "database_id": "86dbfd5e-da90-4243-8474-a045d7c1ffe1",
       "migrations_dir": "drizzle",
     },
   ],
