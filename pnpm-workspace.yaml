@@ -26,10 +26,6 @@ overrides:
   "@foundry/ui": "github:a6n-ai/foundry#path:packages/ui"
   "@relay/email": "github:a6n-ai/relay#path:packages/email"
   "@relay/engine": "github:a6n-ai/relay#path:packages/engine"
-  "@relay/sdk": "github:a6n-ai/relay#path:packages/sdk"
-  "@relay/sms": "github:a6n-ai/relay#path:packages/sms"
-  "@relay/ui": "github:a6n-ai/relay#path:packages/ui"
-  "@relay/whatsapp": "github:a6n-ai/relay#path:packages/whatsapp"
   "postcss@<8.5.23": ">=8.5.26"
   # One copy only: sonner keeps toasts in a module-level store, so a second copy
   # (relay's) toasts into a store the app's <Toaster> never reads.

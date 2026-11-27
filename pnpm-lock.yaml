@@ -23,10 +23,6 @@ overrides:
   '@foundry/ui': github:a6n-ai/foundry#path:packages/ui
   '@relay/email': github:a6n-ai/relay#path:packages/email
   '@relay/engine': github:a6n-ai/relay#path:packages/engine
-  '@relay/sdk': github:a6n-ai/relay#path:packages/sdk
-  '@relay/sms': github:a6n-ai/relay#path:packages/sms
-  '@relay/ui': github:a6n-ai/relay#path:packages/ui
-  '@relay/whatsapp': github:a6n-ai/relay#path:packages/whatsapp
   postcss@<8.5.23: '>=8.5.26'
   sonner: 2.0.8
   esbuild@<0.25.0: '>=0.25.0'
@@ -117,18 +113,6 @@ importers:
       '@relay/engine':
         specifier: github:a6n-ai/relay#path:packages/engine
         version: https://codeload.github.com/a6n-ai/relay/tar.gz/303158e26d13e2d71e2e0550e580347bfa3d9b24#path:packages/engine(@opennextjs/cloudflare@1.20.13(next@16.4.3(@babel/core@7.29.7(supports-color@10.2.2))(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.5)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(supports-color@10.2.2)(wrangler@4.152.0(@cloudflare/workers-types@5.20261125.1)(@types/node@26.6.5)))(@types/react@19.3.0)(drizzle-orm@0.45.4(@cloudflare/workers-types@5.20261125.1)(@opentelemetry/api@1.9.1)(knex@2.4.2(mysql2@3.24.6(@types/node@26.6.5))(pg@8.11.6)(supports-color@10.2.2))(kysely@0.29.2)(mysql2@3.24.6(@types/node@26.6.5))(pg@8.11.6)(postgres@3.4.9))(mysql2@3.24.6(@types/node@26.6.5))(next@16.4.3(@babel/core@7.29.7(supports-color@10.2.2))(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.5)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(postgres@3.4.9)(react-dom@19.2.4(react@19.2.4))(react-is@17.0.2)(react@19.2.4)(supports-color@10.2.2)
-      '@relay/sdk':
-        specifier: github:a6n-ai/relay#path:packages/sdk
-        version: https://codeload.github.com/a6n-ai/relay/tar.gz/303158e26d13e2d71e2e0550e580347bfa3d9b24#path:packages/sdk
-      '@relay/sms':
-        specifier: github:a6n-ai/relay#path:packages/sms
-        version: https://codeload.github.com/a6n-ai/relay/tar.gz/303158e26d13e2d71e2e0550e580347bfa3d9b24#path:packages/sms(3ea38378030a522940213b7a45bba150)
-      '@relay/ui':
-        specifier: github:a6n-ai/relay#path:packages/ui
-        version: https://codeload.github.com/a6n-ai/relay/tar.gz/303158e26d13e2d71e2e0550e580347bfa3d9b24#path:packages/ui(@opennextjs/cloudflare@1.20.13(next@16.4.3(@babel/core@7.29.7(supports-color@10.2.2))(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.5)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(supports-color@10.2.2)(wrangler@4.152.0(@cloudflare/workers-types@5.20261125.1)(@types/node@26.6.5)))(@types/react@19.3.0)(drizzle-orm@0.45.4(@cloudflare/workers-types@5.20261125.1)(@opentelemetry/api@1.9.1)(knex@2.4.2(mysql2@3.24.6(@types/node@26.6.5))(pg@8.11.6)(supports-color@10.2.2))(kysely@0.29.2)(mysql2@3.24.6(@types/node@26.6.5))(pg@8.11.6)(postgres@3.4.9))(mysql2@3.24.6(@types/node@26.6.5))(next@16.4.3(@babel/core@7.29.7(supports-color@10.2.2))(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.5)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(postgres@3.4.9)(react-dom@19.2.4(react@19.2.4))(react-is@17.0.2)(react@19.2.4)(supports-color@10.2.2)
-      '@relay/whatsapp':
-        specifier: github:a6n-ai/relay#path:packages/whatsapp
-        version: https://codeload.github.com/a6n-ai/relay/tar.gz/303158e26d13e2d71e2e0550e580347bfa3d9b24#path:packages/whatsapp(3ea38378030a522940213b7a45bba150)
     devDependencies:
       '@foundry/realtime-worker':
         specifier: github:a6n-ai/foundry#path:services/realtime
@@ -1807,7 +1791,7 @@ packages:
     version: 0.0.0
 
   '@foundry/console@https://codeload.github.com/a6n-ai/foundry/tar.gz/b6335fd7411c4cd369f9da5c9fc23dfbd80dd508#path:packages/console':
-    resolution: {gitHosted: true, path: packages/console, tarball: https://codeload.github.com/a6n-ai/foundry/tar.gz/b6335fd7411c4cd369f9da5c9fc23dfbd80dd508}
+    resolution: {gitHosted: true, integrity: sha512-PgVPkL058ASg6E9yyrCo1wiYwPPKz6XfsrKHslKtK3HRH2UnO+kYUWUN1JGrtWK9wzmijxGHFnwv2y8iu2hBew==, path: packages/console, tarball: https://codeload.github.com/a6n-ai/foundry/tar.gz/b6335fd7411c4cd369f9da5c9fc23dfbd80dd508}
     version: 0.0.0
     peerDependencies:
       react: ^19
@@ -2643,28 +2627,6 @@ packages:
       drizzle-orm: 0.45.4
       next: 16.4.3
       react: ^19
-
-  '@relay/sdk@https://codeload.github.com/a6n-ai/relay/tar.gz/303158e26d13e2d71e2e0550e580347bfa3d9b24#path:packages/sdk':
-    resolution: {gitHosted: true, integrity: sha512-3QCCEg+CElMFVT5UZsXP1xHEL3kFHKl5o5E26g6YEA4ZMVCdmgUuV6M4YL3i+JMypLD/zOVO2n2q8T7ess3wiw==, path: packages/sdk, tarball: https://codeload.github.com/a6n-ai/relay/tar.gz/303158e26d13e2d71e2e0550e580347bfa3d9b24}
-    version: 0.0.0
-
-  '@relay/sms@https://codeload.github.com/a6n-ai/relay/tar.gz/303158e26d13e2d71e2e0550e580347bfa3d9b24#path:packages/sms':
-    resolution: {gitHosted: true, integrity: sha512-3QCCEg+CElMFVT5UZsXP1xHEL3kFHKl5o5E26g6YEA4ZMVCdmgUuV6M4YL3i+JMypLD/zOVO2n2q8T7ess3wiw==, path: packages/sms, tarball: https://codeload.github.com/a6n-ai/relay/tar.gz/303158e26d13e2d71e2e0550e580347bfa3d9b24}
-    version: 0.0.0
-    peerDependencies:
-      '@relay/engine': workspace:*
-
-  '@relay/ui@https://codeload.github.com/a6n-ai/relay/tar.gz/303158e26d13e2d71e2e0550e580347bfa3d9b24#path:packages/ui':
-    resolution: {gitHosted: true, integrity: sha512-3QCCEg+CElMFVT5UZsXP1xHEL3kFHKl5o5E26g6YEA4ZMVCdmgUuV6M4YL3i+JMypLD/zOVO2n2q8T7ess3wiw==, path: packages/ui, tarball: https://codeload.github.com/a6n-ai/relay/tar.gz/303158e26d13e2d71e2e0550e580347bfa3d9b24}
-    version: 0.0.0
-    peerDependencies:
-      react: ^19
-
-  '@relay/whatsapp@https://codeload.github.com/a6n-ai/relay/tar.gz/303158e26d13e2d71e2e0550e580347bfa3d9b24#path:packages/whatsapp':
-    resolution: {gitHosted: true, integrity: sha512-3QCCEg+CElMFVT5UZsXP1xHEL3kFHKl5o5E26g6YEA4ZMVCdmgUuV6M4YL3i+JMypLD/zOVO2n2q8T7ess3wiw==, path: packages/whatsapp, tarball: https://codeload.github.com/a6n-ai/relay/tar.gz/303158e26d13e2d71e2e0550e580347bfa3d9b24}
-    version: 0.0.0
-    peerDependencies:
-      '@relay/engine': workspace:*
 
   '@rolldown/binding-android-arm-eabi@1.2.19':
     resolution: {integrity: sha512-e+Ebe0WT+9tbXmNKPIiC8YrWAHYwug3m6i4p3rZGGulfZri1jtI4HslT+OZnFf/OIHowWF71DTlHwXBP2SiA7A==}
@@ -11053,39 +11015,6 @@ snapshots:
       - redux
       - supports-color
       - utf-8-validate
-
-  '@relay/sdk@https://codeload.github.com/a6n-ai/relay/tar.gz/303158e26d13e2d71e2e0550e580347bfa3d9b24#path:packages/sdk':
-    dependencies:
-      zod: 4.6.7
-
-  '@relay/sms@https://codeload.github.com/a6n-ai/relay/tar.gz/303158e26d13e2d71e2e0550e580347bfa3d9b24#path:packages/sms(3ea38378030a522940213b7a45bba150)':
-    dependencies:
-      '@foundry/commons': https://codeload.github.com/a6n-ai/foundry/tar.gz/b6335fd7411c4cd369f9da5c9fc23dfbd80dd508#path:packages/commons
-      '@relay/engine': https://codeload.github.com/a6n-ai/relay/tar.gz/303158e26d13e2d71e2e0550e580347bfa3d9b24#path:packages/engine(@opennextjs/cloudflare@1.20.13(next@16.4.3(@babel/core@7.29.7(supports-color@10.2.2))(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.5)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(supports-color@10.2.2)(wrangler@4.152.0(@cloudflare/workers-types@5.20261125.1)(@types/node@26.6.5)))(@types/react@19.3.0)(drizzle-orm@0.45.4(@cloudflare/workers-types@5.20261125.1)(@opentelemetry/api@1.9.1)(knex@2.4.2(mysql2@3.24.6(@types/node@26.6.5))(pg@8.11.6)(supports-color@10.2.2))(kysely@0.29.2)(mysql2@3.24.6(@types/node@26.6.5))(pg@8.11.6)(postgres@3.4.9))(mysql2@3.24.6(@types/node@26.6.5))(next@16.4.3(@babel/core@7.29.7(supports-color@10.2.2))(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.5)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(postgres@3.4.9)(react-dom@19.2.4(react@19.2.4))(react-is@17.0.2)(react@19.2.4)(supports-color@10.2.2)
-
-  '@relay/ui@https://codeload.github.com/a6n-ai/relay/tar.gz/303158e26d13e2d71e2e0550e580347bfa3d9b24#path:packages/ui(@opennextjs/cloudflare@1.20.13(next@16.4.3(@babel/core@7.29.7(supports-color@10.2.2))(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.5)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(supports-color@10.2.2)(wrangler@4.152.0(@cloudflare/workers-types@5.20261125.1)(@types/node@26.6.5)))(@types/react@19.3.0)(drizzle-orm@0.45.4(@cloudflare/workers-types@5.20261125.1)(@opentelemetry/api@1.9.1)(knex@2.4.2(mysql2@3.24.6(@types/node@26.6.5))(pg@8.11.6)(supports-color@10.2.2))(kysely@0.29.2)(mysql2@3.24.6(@types/node@26.6.5))(pg@8.11.6)(postgres@3.4.9))(mysql2@3.24.6(@types/node@26.6.5))(next@16.4.3(@babel/core@7.29.7(supports-color@10.2.2))(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.5)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(postgres@3.4.9)(react-dom@19.2.4(react@19.2.4))(react-is@17.0.2)(react@19.2.4)(supports-color@10.2.2)':
-    dependencies:
-      '@relay/engine': https://codeload.github.com/a6n-ai/relay/tar.gz/303158e26d13e2d71e2e0550e580347bfa3d9b24#path:packages/engine(@opennextjs/cloudflare@1.20.13(next@16.4.3(@babel/core@7.29.7(supports-color@10.2.2))(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.5)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(supports-color@10.2.2)(wrangler@4.152.0(@cloudflare/workers-types@5.20261125.1)(@types/node@26.6.5)))(@types/react@19.3.0)(drizzle-orm@0.45.4(@cloudflare/workers-types@5.20261125.1)(@opentelemetry/api@1.9.1)(knex@2.4.2(mysql2@3.24.6(@types/node@26.6.5))(pg@8.11.6)(supports-color@10.2.2))(kysely@0.29.2)(mysql2@3.24.6(@types/node@26.6.5))(pg@8.11.6)(postgres@3.4.9))(mysql2@3.24.6(@types/node@26.6.5))(next@16.4.3(@babel/core@7.29.7(supports-color@10.2.2))(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.5)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(postgres@3.4.9)(react-dom@19.2.4(react@19.2.4))(react-is@17.0.2)(react@19.2.4)(supports-color@10.2.2)
-      react: 19.2.4
-    transitivePeerDependencies:
-      - '@libsql/client'
-      - '@opennextjs/cloudflare'
-      - '@types/react'
-      - bufferutil
-      - drizzle-orm
-      - mysql2
-      - next
-      - postgres
-      - react-dom
-      - react-is
-      - redux
-      - supports-color
-      - utf-8-validate
-
-  '@relay/whatsapp@https://codeload.github.com/a6n-ai/relay/tar.gz/303158e26d13e2d71e2e0550e580347bfa3d9b24#path:packages/whatsapp(3ea38378030a522940213b7a45bba150)':
-    dependencies:
-      '@foundry/commons': https://codeload.github.com/a6n-ai/foundry/tar.gz/b6335fd7411c4cd369f9da5c9fc23dfbd80dd508#path:packages/commons
-      '@relay/engine': https://codeload.github.com/a6n-ai/relay/tar.gz/303158e26d13e2d71e2e0550e580347bfa3d9b24#path:packages/engine(@opennextjs/cloudflare@1.20.13(next@16.4.3(@babel/core@7.29.7(supports-color@10.2.2))(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.5)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(supports-color@10.2.2)(wrangler@4.152.0(@cloudflare/workers-types@5.20261125.1)(@types/node@26.6.5)))(@types/react@19.3.0)(drizzle-orm@0.45.4(@cloudflare/workers-types@5.20261125.1)(@opentelemetry/api@1.9.1)(knex@2.4.2(mysql2@3.24.6(@types/node@26.6.5))(pg@8.11.6)(supports-color@10.2.2))(kysely@0.29.2)(mysql2@3.24.6(@types/node@26.6.5))(pg@8.11.6)(postgres@3.4.9))(mysql2@3.24.6(@types/node@26.6.5))(next@16.4.3(@babel/core@7.29.7(supports-color@10.2.2))(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.5)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(postgres@3.4.9)(react-dom@19.2.4(react@19.2.4))(react-is@17.0.2)(react@19.2.4)(supports-color@10.2.2)
 
   '@rolldown/binding-android-arm-eabi@1.2.19':
     optional: true
