@@ -71,6 +71,8 @@ export function createTeamService(db: CrmDb, mailer: Mailer | (() => Mailer), au
   };
 
   return {
+    inviteLink: linkFor,
+
     async invite(input: { email: string; name: string }, actor: Actor): Promise<InviteResult> {
       const email = input.email.trim().toLowerCase();
       const name = input.name.trim();

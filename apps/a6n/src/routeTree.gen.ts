@@ -15,6 +15,8 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as SetPasswordRouteImport } from './routes/set-password'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppAccountRouteImport } from './routes/_app/account'
+import { Route as AppSourcesRouteImport } from './routes/_app/sources'
+import { Route as AppTeamRouteImport } from './routes/_app/team'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as AppInquiriesIndexRouteImport } from './routes/_app/inquiries/index'
 import { Route as AppInquiriesIdRouteImport } from './routes/_app/inquiries/$id'
@@ -49,6 +51,16 @@ const AppAccountRoute = AppAccountRouteImport.update({
   path: '/account',
   getParentRoute: () => AppRoute,
 } as any)
+const AppSourcesRoute = AppSourcesRouteImport.update({
+  id: '/sources',
+  path: '/sources',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppTeamRoute = AppTeamRouteImport.update({
+  id: '/team',
+  path: '/team',
+  getParentRoute: () => AppRoute,
+} as any)
 const ApiHealthRoute = ApiHealthRouteImport.update({
   id: '/api/health',
   path: '/api/health',
@@ -76,6 +88,8 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/set-password': typeof SetPasswordRoute
   '/account': typeof AppAccountRoute
+  '/sources': typeof AppSourcesRoute
+  '/team': typeof AppTeamRoute
   '/api/health': typeof ApiHealthRoute
   '/inquiries/$id': typeof AppInquiriesIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -86,6 +100,8 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/set-password': typeof SetPasswordRoute
   '/account': typeof AppAccountRoute
+  '/sources': typeof AppSourcesRoute
+  '/team': typeof AppTeamRoute
   '/api/health': typeof ApiHealthRoute
   '/': typeof AppIndexRoute
   '/inquiries/$id': typeof AppInquiriesIdRoute
@@ -99,6 +115,8 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/set-password': typeof SetPasswordRoute
   '/_app/account': typeof AppAccountRoute
+  '/_app/sources': typeof AppSourcesRoute
+  '/_app/team': typeof AppTeamRoute
   '/api/health': typeof ApiHealthRoute
   '/_app/': typeof AppIndexRoute
   '/_app/inquiries/$id': typeof AppInquiriesIdRoute
@@ -113,6 +131,8 @@ export interface FileRouteTypes {
     | '/login'
     | '/set-password'
     | '/account'
+    | '/sources'
+    | '/team'
     | '/api/health'
     | '/inquiries/$id'
     | '/api/auth/$'
@@ -123,6 +143,8 @@ export interface FileRouteTypes {
     | '/login'
     | '/set-password'
     | '/account'
+    | '/sources'
+    | '/team'
     | '/api/health'
     | '/'
     | '/inquiries/$id'
@@ -135,6 +157,8 @@ export interface FileRouteTypes {
     | '/login'
     | '/set-password'
     | '/_app/account'
+    | '/_app/sources'
+    | '/_app/team'
     | '/api/health'
     | '/_app/'
     | '/_app/inquiries/$id'
@@ -195,6 +219,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAccountRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/sources': {
+      id: '/_app/sources'
+      path: '/sources'
+      fullPath: '/sources'
+      preLoaderRoute: typeof AppSourcesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/team': {
+      id: '/_app/team'
+      path: '/team'
+      fullPath: '/team'
+      preLoaderRoute: typeof AppTeamRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/api/health': {
       id: '/api/health'
       path: '/api/health'
@@ -228,6 +266,8 @@ declare module '@tanstack/react-router' {
 
 interface AppRouteChildren {
   AppAccountRoute: typeof AppAccountRoute
+  AppSourcesRoute: typeof AppSourcesRoute
+  AppTeamRoute: typeof AppTeamRoute
   AppIndexRoute: typeof AppIndexRoute
   AppInquiriesIdRoute: typeof AppInquiriesIdRoute
   AppInquiriesIndexRoute: typeof AppInquiriesIndexRoute
@@ -235,6 +275,8 @@ interface AppRouteChildren {
 
 const AppRouteChildren: AppRouteChildren = {
   AppAccountRoute: AppAccountRoute,
+  AppSourcesRoute: AppSourcesRoute,
+  AppTeamRoute: AppTeamRoute,
   AppIndexRoute: AppIndexRoute,
   AppInquiriesIdRoute: AppInquiriesIdRoute,
   AppInquiriesIndexRoute: AppInquiriesIndexRoute,

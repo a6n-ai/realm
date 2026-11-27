@@ -1,9 +1,9 @@
 import { createServerFn } from "@tanstack/react-start";
 import { getRequestHeaders } from "@tanstack/react-start/server";
 import { env } from "cloudflare:workers";
-import { ConsoleError, refusing, requireActor, toResponseError } from "../auth/actor";
-import type { Permission } from "../auth/permissions";
+import { refusing } from "../auth/actor";
 import { depsFor } from "../deps";
+import { read, WRITE } from "../guarded.fns";
 import { validate } from "../schemas";
 import {
   runAddActivity,
@@ -32,16 +32,6 @@ import {
 } from "./schemas";
 import { createSourcesService } from "./sources";
 
-// A read the actor may not make is null, and the page renders DeniedState with status 200.
-async function read<T>(permission: Permission, run: (actor: Awaited<ReturnType<typeof requireActor>>) => Promise<T>): Promise<T | null> {
-  try {
-    return await run(await requireActor(env, getRequestHeaders(), { permission }));
-  } catch (err) {
-    if (err instanceof ConsoleError && err.status === 403) return null;
-    return toResponseError(err);
-  }
-}
-
 export const listInquiriesFn = createServerFn({ method: "GET" })
   .validator(validate(listInquiriesSchema))
   .handler(({ data }) => read("inquiry:read", (actor) => listInquiriesPage(depsFor(env).db, actor.userId, data)));
@@ -59,8 +49,6 @@ export const listActiveSourcesFn = createServerFn({ method: "GET" }).handler(() 
 );
 
 export const listOwnersFn = createServerFn({ method: "GET" }).handler(() => read("inquiry:read", () => listOwners(depsFor(env).db)));
-
-const WRITE = (permission: Permission) => ({ permission, write: true });
 
 export const createInquiryFn = createServerFn({ method: "POST" })
   .validator(validate(createInquirySchema))

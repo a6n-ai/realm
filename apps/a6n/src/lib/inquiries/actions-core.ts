@@ -19,6 +19,18 @@ export type ActionResult<T = unknown> = ({ ok: true } & T) | { ok: false; code: 
 const forbidden = { ok: false, code: "forbidden" } as const;
 const invalid = { ok: false, code: "invalid" } as const;
 
+// Shared by the team and source cores: permission first, then the schema.
+export function gate<S extends z.ZodType>(
+  permission: Permission,
+  schema: S,
+  actor: Actor,
+  input: unknown,
+): { data: z.output<S> } | { refusal: typeof forbidden | typeof invalid } {
+  if (!allows(actor.role, permission)) return { refusal: forbidden };
+  const parsed = schema.safeParse(input);
+  return parsed.success ? { data: parsed.data } : { refusal: invalid };
+}
+
 // Permission first, then the schema, then the service: every expected failure is a result, never a throw.
 function action<S extends z.ZodType, T = unknown>(
   permission: Permission,
