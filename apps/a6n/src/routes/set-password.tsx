@@ -43,7 +43,7 @@ function SetPasswordPage() {
   }
 
   return (
-    <AuthCard title="Set your password" text="Choose a password to finish setting up your account.">
+    <AuthCard title="Set your password" text="You will use it to log in from now on.">
           <form method="post" onSubmit={submit} className="flex flex-col gap-3">
             <Field label="New password" type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
             <Field label="Confirm password" type="password" autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} required />

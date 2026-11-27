@@ -76,7 +76,7 @@ function LoginPage() {
   return (
     <AuthCard
       title={search.invited ? "Welcome to a6n" : "Log in to a6n"}
-      text={search.invited ? "Enter your email and we'll send you a sign-in code." : undefined}
+      text={search.invited ? "We'll email you a code to confirm it's you. Then you'll set your password." : undefined}
       footer="Access is by invite. Ask your a6n admin."
     >
       <div className="flex flex-col gap-3">
