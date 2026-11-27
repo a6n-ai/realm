@@ -1,10 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
-import { getRequestHeaders } from "@tanstack/react-start/server";
 import { env } from "cloudflare:workers";
 import { sql } from "drizzle-orm";
-import { refusing } from "../auth/actor";
 import { depsFor } from "../deps";
-import { read, WRITE } from "../guarded.fns";
+import { read, refusing, WRITE } from "../guarded.fns";
 import { validate } from "../schemas";
 import { createTeamSchema, renameTeamSchema, teamIdSchema, teamMemberSchema } from "./schemas";
 import { createTeamsService } from "./service";
@@ -24,24 +22,24 @@ export const listTeamsFn = createServerFn({ method: "GET" }).handler(() =>
 
 export const createTeamFn = createServerFn({ method: "POST" })
   .validator(validate(createTeamSchema))
-  .handler(({ data }) => refusing(env, getRequestHeaders(), WRITE("team:create"), (actor) => svc(actor.organizationId).create(data.name, actor)));
+  .handler(({ data }) => refusing(WRITE("team:create"), (actor) => svc(actor.organizationId).create(data.name, actor)));
 
 export const renameTeamFn = createServerFn({ method: "POST" })
   .validator(validate(renameTeamSchema))
-  .handler(({ data }) => refusing(env, getRequestHeaders(), WRITE("team:update"), (actor) => svc(actor.organizationId).rename(data.id, data.name, actor)));
+  .handler(({ data }) => refusing(WRITE("team:update"), (actor) => svc(actor.organizationId).rename(data.id, data.name, actor)));
 
 export const deleteTeamFn = createServerFn({ method: "POST" })
   .validator(validate(teamIdSchema))
-  .handler(({ data }) => refusing(env, getRequestHeaders(), WRITE("team:delete"), (actor) => svc(actor.organizationId).remove(data.id, actor)));
+  .handler(({ data }) => refusing(WRITE("team:delete"), (actor) => svc(actor.organizationId).remove(data.id, actor)));
 
 export const addTeamMemberFn = createServerFn({ method: "POST" })
   .validator(validate(teamMemberSchema))
   .handler(({ data }) =>
-    refusing(env, getRequestHeaders(), WRITE("team:update"), (actor) => svc(actor.organizationId).addMember(data.teamId, data.userId, actor)),
+    refusing(WRITE("team:update"), (actor) => svc(actor.organizationId).addMember(data.teamId, data.userId, actor)),
   );
 
 export const removeTeamMemberFn = createServerFn({ method: "POST" })
   .validator(validate(teamMemberSchema))
   .handler(({ data }) =>
-    refusing(env, getRequestHeaders(), WRITE("team:update"), (actor) => svc(actor.organizationId).removeMember(data.teamId, data.userId, actor)),
+    refusing(WRITE("team:update"), (actor) => svc(actor.organizationId).removeMember(data.teamId, data.userId, actor)),
   );

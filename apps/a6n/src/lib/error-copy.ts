@@ -3,7 +3,6 @@ import { createErrorText } from "@foundry/console/error-text";
 export const { errorText, reasonText } = createErrorText({
   forbidden: "You do not have access to do that.",
   unauthorized: "Your session ended. Sign in again.",
-  "cross-origin write": "That request was blocked. Reload the page and try again.",
   invalid: "Check the details and try again.",
   stale: "Changed by someone else. Reload and try again.",
   already_claimed: "Someone else already took this inquiry.",

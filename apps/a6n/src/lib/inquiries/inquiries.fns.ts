@@ -1,9 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
-import { getRequestHeaders } from "@tanstack/react-start/server";
 import { env } from "cloudflare:workers";
-import { refusing } from "../auth/actor";
 import { depsFor } from "../deps";
-import { read, WRITE } from "../guarded.fns";
+import { read, refusing, WRITE } from "../guarded.fns";
 import { validate } from "../schemas";
 import {
   runAddActivity,
@@ -52,32 +50,32 @@ export const listOwnersFn = createServerFn({ method: "GET" }).handler(() => read
 
 export const createInquiryFn = createServerFn({ method: "POST" })
   .validator(validate(createInquirySchema))
-  .handler(({ data }) => refusing(env, getRequestHeaders(), WRITE("inquiry:create"), (actor) => runCreateInquiry(actor, depsFor(env), data)));
+  .handler(({ data }) => refusing(WRITE("inquiry:create"), (actor) => runCreateInquiry(actor, depsFor(env), data)));
 
 export const changeStageFn = createServerFn({ method: "POST" })
   .validator(validate(changeStageSchema))
-  .handler(({ data }) => refusing(env, getRequestHeaders(), WRITE("inquiry:update"), (actor) => runChangeStage(actor, depsFor(env), data)));
+  .handler(({ data }) => refusing(WRITE("inquiry:update"), (actor) => runChangeStage(actor, depsFor(env), data)));
 
 export const reopenFn = createServerFn({ method: "POST" })
   .validator(validate(reopenSchema))
-  .handler(({ data }) => refusing(env, getRequestHeaders(), WRITE("inquiry:update"), (actor) => runReopen(actor, depsFor(env), data)));
+  .handler(({ data }) => refusing(WRITE("inquiry:update"), (actor) => runReopen(actor, depsFor(env), data)));
 
 export const addActivityFn = createServerFn({ method: "POST" })
   .validator(validate(addActivitySchema))
-  .handler(({ data }) => refusing(env, getRequestHeaders(), WRITE("inquiry:note"), (actor) => runAddActivity(actor, depsFor(env), data)));
+  .handler(({ data }) => refusing(WRITE("inquiry:note"), (actor) => runAddActivity(actor, depsFor(env), data)));
 
 export const setFollowUpFn = createServerFn({ method: "POST" })
   .validator(validate(setFollowUpSchema))
-  .handler(({ data }) => refusing(env, getRequestHeaders(), WRITE("inquiry:update"), (actor) => runSetFollowUp(actor, depsFor(env), data)));
+  .handler(({ data }) => refusing(WRITE("inquiry:update"), (actor) => runSetFollowUp(actor, depsFor(env), data)));
 
 export const claimFn = createServerFn({ method: "POST" })
   .validator(validate(claimSchema))
-  .handler(({ data }) => refusing(env, getRequestHeaders(), WRITE("inquiry:claim"), (actor) => runClaim(actor, depsFor(env), data)));
+  .handler(({ data }) => refusing(WRITE("inquiry:claim"), (actor) => runClaim(actor, depsFor(env), data)));
 
 export const assignFn = createServerFn({ method: "POST" })
   .validator(validate(assignSchema))
-  .handler(({ data }) => refusing(env, getRequestHeaders(), WRITE("inquiry:assign"), (actor) => runAssign(actor, depsFor(env), data)));
+  .handler(({ data }) => refusing(WRITE("inquiry:assign"), (actor) => runAssign(actor, depsFor(env), data)));
 
 export const updateContactFn = createServerFn({ method: "POST" })
   .validator(validate(updateContactSchema))
-  .handler(({ data }) => refusing(env, getRequestHeaders(), WRITE("inquiry:update"), (actor) => runUpdateContact(actor, depsFor(env), data)));
+  .handler(({ data }) => refusing(WRITE("inquiry:update"), (actor) => runUpdateContact(actor, depsFor(env), data)));

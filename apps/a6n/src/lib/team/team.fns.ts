@@ -1,9 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
-import { getRequestHeaders } from "@tanstack/react-start/server";
 import { env } from "cloudflare:workers";
-import { refusing } from "../auth/actor";
 import { depsFor } from "../deps";
-import { read, WRITE } from "../guarded.fns";
+import { read, refusing, WRITE } from "../guarded.fns";
 import { validate } from "../schemas";
 import { runChangeRole, runInvite, runRemove, runResendInvite } from "./actions-core";
 import { changeRoleSchema, inviteSchema, memberIdSchema } from "./schemas";
@@ -37,16 +35,16 @@ export const listTeamFn = createServerFn({ method: "GET" }).handler(() =>
 
 export const inviteFn = createServerFn({ method: "POST" })
   .validator(validate(inviteSchema))
-  .handler(({ data }) => refusing(env, getRequestHeaders(), WRITE("invitation:create"), (actor) => runInvite(actor, depsFor(env), data)));
+  .handler(({ data }) => refusing(WRITE("invitation:create"), (actor) => runInvite(actor, depsFor(env), data)));
 
 export const resendInviteFn = createServerFn({ method: "POST" })
   .validator(validate(memberIdSchema))
-  .handler(({ data }) => refusing(env, getRequestHeaders(), WRITE("invitation:create"), (actor) => runResendInvite(actor, depsFor(env), data)));
+  .handler(({ data }) => refusing(WRITE("invitation:create"), (actor) => runResendInvite(actor, depsFor(env), data)));
 
 export const removeFn = createServerFn({ method: "POST" })
   .validator(validate(memberIdSchema))
-  .handler(({ data }) => refusing(env, getRequestHeaders(), WRITE("member:delete"), (actor) => runRemove(actor, depsFor(env), data)));
+  .handler(({ data }) => refusing(WRITE("member:delete"), (actor) => runRemove(actor, depsFor(env), data)));
 
 export const changeRoleFn = createServerFn({ method: "POST" })
   .validator(validate(changeRoleSchema))
-  .handler(({ data }) => refusing(env, getRequestHeaders(), WRITE("member:update"), (actor) => runChangeRole(actor, depsFor(env), data)));
+  .handler(({ data }) => refusing(WRITE("member:update"), (actor) => runChangeRole(actor, depsFor(env), data)));
