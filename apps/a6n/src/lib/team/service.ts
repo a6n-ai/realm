@@ -41,7 +41,7 @@ export function createTeamService(db: CrmDb, mailer: Mailer | (() => Mailer), au
       throw e;
     }
   };
-  const linkFor = (email: string) => `${authUrl}/login?email=${encodeURIComponent(email)}&invited=1`;
+  const linkFor = (email: string) => `${authUrl.replace(/\/+$/, "")}/login?email=${encodeURIComponent(email)}&invited=1`;
 
   // Writes the next invites row for the user; n and the key come from SQL so concurrent calls differ.
   const insertInvite = async (userId: string, actor: Actor, id: string): Promise<number> => {
@@ -76,20 +76,25 @@ export function createTeamService(db: CrmDb, mailer: Mailer | (() => Mailer), au
       const name = input.name.trim();
       const m = resolveMailer();
       if (!m) return { ok: false, code: "mail_unavailable" };
-      const [existing] = await db.all<{ status: string }>(sql`SELECT status FROM users WHERE email = ${email}`);
-      if (existing?.status === "active") return { ok: false, code: "already_active" };
-
       const now = Date.now();
       const inviteId = newId("inv");
-      // Insert, or reactivate a removed row; an active row is left alone (changes() = 0), so the invite insert is skipped.
-      await atomic(db, () => [
+      // One unit: the user row is created or reactivated (changes() = 0 means an active user exists, so the invite is skipped).
+      const [upsert, invite] = await atomic(db, () => [
         sql`INSERT INTO users (id, name, email, role, status, password_set, email_verified, created_at, updated_at)
           VALUES (${newId("usr")}, ${name}, ${email}, 'sales', 'active', 0, 0, ${now}, ${now})
           ON CONFLICT(email) DO UPDATE SET name = excluded.name, role = 'sales', status = 'active', password_set = 0, updated_at = ${now}
           WHERE users.status = 'removed'`,
+        {
+          onlyIfPreviousChanged: 1,
+          query: sql`INSERT INTO invites (id, created_at, created_by, user_id, invited_by, n, idempotency_key)
+            SELECT ${inviteId}, ${now}, ${actor.userId}, u.id, ${actor.userId},
+              (SELECT count(*) + 1 FROM invites WHERE user_id = u.id),
+              'invite:' || u.id || ':' || (SELECT count(*) + 1 FROM invites WHERE user_id = u.id)
+            FROM users u WHERE u.email = ${email}`,
+        },
       ]);
-      const [u] = await db.all<{ id: string }>(sql`SELECT id FROM users WHERE email = ${email} AND status = 'active'`);
-      if (!u || (await insertInvite(u.id, actor, inviteId)) !== 1) return { ok: false, code: "already_active" };
+      if (changed(upsert) === 0) return { ok: false, code: "already_active" };
+      if (changed(invite) !== 1) return { ok: false, code: "not_found" };
       return deliver(m, email, actor, inviteId);
     },
 
@@ -133,23 +138,25 @@ export function createTeamService(db: CrmDb, mailer: Mailer | (() => Mailer), au
       );
       if (!target) return { removed: false, reason: "already_removed" };
       const now = Date.now();
-      // updated_at = now marks "this batch's step 1 changed the row", so a repeat removal cannot re-run steps 2-5.
-      // shortcut: two removals of one user in the same millisecond could both pass; the second audit row is the only effect.
-      const removedByMe = sql`EXISTS (SELECT 1 FROM users WHERE id = ${userId} AND status = 'removed' AND updated_at = ${now})`;
+      const auditId = newId("aud");
+      const mine = sql`EXISTS (SELECT 1 FROM audit_log WHERE id = ${auditId})`;
+      const e = target.email;
       const [upd] = await atomic(db, () => [
         sql`UPDATE users SET status = 'removed', updated_at = ${now}
           WHERE id = ${userId} AND status = 'active' AND id <> ${actor.userId}
             AND (role <> 'admin' OR (SELECT count(*) FROM users WHERE role = 'admin' AND status = 'active') > 1)`,
+        {
+          onlyIfPreviousChanged: 1,
+          query: sql`INSERT INTO audit_log (id, created_at, created_by, action, actor_id, target, data)
+            SELECT ${auditId}, ${now}, ${actor.userId}, 'team.remove', ${actor.userId}, ${userId}, json_object('email', ${e})`,
+        },
         sql`INSERT INTO inquiry_activities (id, created_at, inquiry_id, type, from_owner_id, to_owner_id, actor_id)
           SELECT ${sqlNewId("iac", "sqlite")}, ${now}, id, 'reassigned', ${userId}, NULL, ${actor.userId}
-          FROM inquiries WHERE owner_id = ${userId} AND closed_at IS NULL AND ${removedByMe}`,
-        sql`UPDATE inquiries SET owner_id = NULL WHERE owner_id = ${userId} AND closed_at IS NULL AND ${removedByMe}`,
-        sql`DELETE FROM sessions WHERE user_id = ${userId} AND ${removedByMe}`,
-        sql`DELETE FROM accounts WHERE user_id = ${userId} AND provider_id = 'credential' AND ${removedByMe}`,
-        sql`DELETE FROM verifications WHERE substr(identifier, -length(${target.email})) = ${target.email} AND ${removedByMe}`,
-        sql`INSERT INTO audit_log (id, created_at, created_by, action, actor_id, target, data)
-          SELECT ${newId("aud")}, ${now}, ${actor.userId}, 'team.remove', ${actor.userId}, ${userId}, json_object('email', ${target.email})
-          WHERE ${removedByMe}`,
+          FROM inquiries WHERE owner_id = ${userId} AND closed_at IS NULL AND ${mine}`,
+        sql`UPDATE inquiries SET owner_id = NULL WHERE owner_id = ${userId} AND closed_at IS NULL AND ${mine}`,
+        sql`DELETE FROM sessions WHERE user_id = ${userId} AND ${mine}`,
+        sql`DELETE FROM accounts WHERE user_id = ${userId} AND provider_id = 'credential' AND ${mine}`,
+        sql`DELETE FROM verifications WHERE identifier IN ('sign-in-otp-' || ${e}, 'email-verification-otp-' || ${e}, 'forget-password-otp-' || ${e}) AND ${mine}`,
       ]);
       if (changed(upd) === 1) return { removed: true };
       const [now1] = await db.all<{ status: string }>(sql`SELECT status FROM users WHERE id = ${userId}`);

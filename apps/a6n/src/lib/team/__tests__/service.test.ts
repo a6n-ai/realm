@@ -119,7 +119,46 @@ describe("remove", () => {
   });
 });
 
+describe("remove isolation and claim", () => {
+  test("deletes only the removed user's codes, not a longer email's", async () => {
+    const ver = (id: string, ident: string) =>
+      env.DB.prepare("insert into verifications (id, identifier, value, expires_at, created_at, updated_at) values (?, ?, 'v', ?, ?, ?)").bind(id, ident, NOW + 1e6, NOW, NOW);
+    await env.DB.batch([
+      user("usr_b", "sales").bind("usr_b", "usr_b", "b@x.com", "sales", "active", NOW, NOW),
+      ver("v1", "sign-in-otp-b@x.com"),
+      ver("v2", "forget-password-otp-b@x.com"),
+      ver("v3", "sign-in-otp-a.b@x.com"),
+      ver("v4", "email-verification-otp-a.b@x.com"),
+    ]);
+    expect(await mk().svc.remove("usr_b", admin)).toEqual({ removed: true });
+    expect((await all<{ id: string }>("select id from verifications order by id")).map((r) => r.id)).toEqual(["v3", "v4"]);
+  });
+
+  test("a claim after removal is refused and owner stays null", async () => {
+    await inquiry("inq_a", null, false).run();
+    await mk().svc.remove("usr_sam", admin);
+    expect(await createInquiriesService(getDb(env)).claim("inq_a", { userId: "usr_sam" })).toMatchObject({ ok: false });
+    expect(await all("select owner_id from inquiries where id = 'inq_a'")).toEqual([{ owner_id: null }]);
+  });
+});
+
 describe("invite", () => {
+  test("two concurrent invites of one new email: one ok, one already_active, one row, one mail", async () => {
+    const mailer = createMemoryMailer();
+    const a = createTeamService(getDb(env), mailer, AUTH_URL);
+    const b = createTeamService(getDb(env), mailer, AUTH_URL);
+    const r = await Promise.all([a.invite({ email: "race@x.io", name: "R" }, admin), b.invite({ email: "race@x.io", name: "R" }, admin)]);
+    expect(r.filter((x) => x.ok)).toHaveLength(1);
+    expect(r.filter((x) => !x.ok)).toEqual([{ ok: false, code: "already_active" }]);
+    expect(await all("select * from invites")).toHaveLength(1);
+    expect(mailer.sent).toHaveLength(1);
+  });
+
+  test("a trailing slash on authUrl does not double up in the link", async () => {
+    const svc = createTeamService(getDb(env), createMemoryMailer(), "http://localhost/");
+    expect(await svc.invite({ email: "s@x.io", name: "S" }, admin)).toMatchObject({ inviteLink: "http://localhost/login?email=s%40x.io&invited=1" });
+  });
+
   test("creates the user and an invites row, sends the link and records the message id", async () => {
     const { svc, mailer } = mk();
     const r = await svc.invite({ email: "New@X.io", name: "New" }, admin);
