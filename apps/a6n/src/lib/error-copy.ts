@@ -17,6 +17,9 @@ export const { errorText, reasonText } = createErrorText({
   last_owner: "An organisation needs at least one owner.",
   role_not_grantable: "You cannot give or take away a role with access you do not have.",
   unknown_role: "That role does not exist.",
+  builtin_role: "Built-in roles cannot be changed.",
+  name_taken: "A role with that name already exists.",
+  role_in_use: "Someone still has this role. Give them another role first.",
   self: "You cannot remove yourself.",
   already_removed: "That person is already removed.",
   // Relay send refusals, shown when an invite could not be mailed.

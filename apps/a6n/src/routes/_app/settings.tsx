@@ -11,6 +11,7 @@ function SettingsLayout() {
   const tabs = [
     { to: "/settings", label: "General" },
     ...(canManageMembers(shell.permissions) ? [{ to: "/settings/members", label: "Members" }] : []),
+    ...(shell.permissions.includes("ac:read") ? [{ to: "/settings/roles", label: "Roles" }] : []),
     { to: "/settings/account", label: "Account" },
   ];
   const tab = tabs.find((t) => t.to === pathname);

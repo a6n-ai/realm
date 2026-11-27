@@ -24,6 +24,7 @@ import { Route as AppInquiriesIdRouteImport } from './routes/_app/inquiries/$id'
 import { Route as AppSettingsIndexRouteImport } from './routes/_app/settings/index'
 import { Route as AppSettingsAccountRouteImport } from './routes/_app/settings/account'
 import { Route as AppSettingsMembersRouteImport } from './routes/_app/settings/members'
+import { Route as AppSettingsRolesRouteImport } from './routes/_app/settings/roles'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 
 const AppRoute = AppRouteImport.update({
@@ -100,6 +101,11 @@ const AppSettingsMembersRoute = AppSettingsMembersRouteImport.update({
   path: '/members',
   getParentRoute: () => AppSettingsRoute,
 } as any)
+const AppSettingsRolesRoute = AppSettingsRolesRouteImport.update({
+  id: '/roles',
+  path: '/roles',
+  getParentRoute: () => AppSettingsRoute,
+} as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
   path: '/api/auth/$',
@@ -119,6 +125,7 @@ export interface FileRoutesByFullPath {
   '/inquiries/$id': typeof AppInquiriesIdRoute
   '/settings/account': typeof AppSettingsAccountRoute
   '/settings/members': typeof AppSettingsMembersRoute
+  '/settings/roles': typeof AppSettingsRolesRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/inquiries/': typeof AppInquiriesIndexRoute
   '/settings/': typeof AppSettingsIndexRoute
@@ -135,6 +142,7 @@ export interface FileRoutesByTo {
   '/inquiries/$id': typeof AppInquiriesIdRoute
   '/settings/account': typeof AppSettingsAccountRoute
   '/settings/members': typeof AppSettingsMembersRoute
+  '/settings/roles': typeof AppSettingsRolesRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/inquiries': typeof AppInquiriesIndexRoute
   '/settings': typeof AppSettingsIndexRoute
@@ -154,6 +162,7 @@ export interface FileRoutesById {
   '/_app/inquiries/$id': typeof AppInquiriesIdRoute
   '/_app/settings/account': typeof AppSettingsAccountRoute
   '/_app/settings/members': typeof AppSettingsMembersRoute
+  '/_app/settings/roles': typeof AppSettingsRolesRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/_app/inquiries/': typeof AppInquiriesIndexRoute
   '/_app/settings/': typeof AppSettingsIndexRoute
@@ -173,6 +182,7 @@ export interface FileRouteTypes {
     | '/inquiries/$id'
     | '/settings/account'
     | '/settings/members'
+    | '/settings/roles'
     | '/api/auth/$'
     | '/inquiries/'
     | '/settings/'
@@ -189,6 +199,7 @@ export interface FileRouteTypes {
     | '/inquiries/$id'
     | '/settings/account'
     | '/settings/members'
+    | '/settings/roles'
     | '/api/auth/$'
     | '/inquiries'
     | '/settings'
@@ -207,6 +218,7 @@ export interface FileRouteTypes {
     | '/_app/inquiries/$id'
     | '/_app/settings/account'
     | '/_app/settings/members'
+    | '/_app/settings/roles'
     | '/api/auth/$'
     | '/_app/inquiries/'
     | '/_app/settings/'
@@ -328,6 +340,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSettingsMembersRouteImport
       parentRoute: typeof AppSettingsRoute
     }
+    '/_app/settings/roles': {
+      id: '/_app/settings/roles'
+      path: '/roles'
+      fullPath: '/settings/roles'
+      preLoaderRoute: typeof AppSettingsRolesRouteImport
+      parentRoute: typeof AppSettingsRoute
+    }
     '/api/auth/$': {
       id: '/api/auth/$'
       path: '/api/auth/$'
@@ -341,12 +360,14 @@ declare module '@tanstack/react-router' {
 interface AppSettingsRouteChildren {
   AppSettingsAccountRoute: typeof AppSettingsAccountRoute
   AppSettingsMembersRoute: typeof AppSettingsMembersRoute
+  AppSettingsRolesRoute: typeof AppSettingsRolesRoute
   AppSettingsIndexRoute: typeof AppSettingsIndexRoute
 }
 
 const AppSettingsRouteChildren: AppSettingsRouteChildren = {
   AppSettingsAccountRoute: AppSettingsAccountRoute,
   AppSettingsMembersRoute: AppSettingsMembersRoute,
+  AppSettingsRolesRoute: AppSettingsRolesRoute,
   AppSettingsIndexRoute: AppSettingsIndexRoute,
 }
 

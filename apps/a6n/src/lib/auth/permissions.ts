@@ -65,3 +65,41 @@ export function builtInPermissions(role: OrgRole): OrgPermission[] {
 /** People who can see the Members page. */
 export const canManageMembers = (p: readonly OrgPermission[]) =>
   p.includes("invitation:create") || p.includes("member:update") || p.includes("member:delete");
+
+/** Labels for the permission grid on the Roles page, grouped by resource. */
+export const PERMISSION_GROUPS: { resource: string; label: string; actions: { permission: OrgPermission; label: string }[] }[] = [
+  { resource: "inquiry", label: "Inquiries", actions: [
+    { permission: "inquiry:read", label: "View inquiries" },
+    { permission: "inquiry:create", label: "Add inquiries" },
+    { permission: "inquiry:update", label: "Edit inquiries and stages" },
+    { permission: "inquiry:note", label: "Add notes" },
+    { permission: "inquiry:claim", label: "Take unassigned inquiries" },
+    { permission: "inquiry:assign", label: "Assign inquiries to anyone" },
+  ] },
+  { resource: "source", label: "Sources", actions: [
+    { permission: "source:read", label: "See sources" },
+    { permission: "source:manage", label: "Manage sources" },
+  ] },
+  { resource: "member", label: "Members", actions: [
+    { permission: "invitation:create", label: "Invite people" },
+    { permission: "invitation:cancel", label: "Cancel invites" },
+    { permission: "member:create", label: "Add members" },
+    { permission: "member:update", label: "Change roles" },
+    { permission: "member:delete", label: "Remove members" },
+  ] },
+  { resource: "team", label: "Teams", actions: [
+    { permission: "team:create", label: "Create teams" },
+    { permission: "team:update", label: "Edit teams and their members" },
+    { permission: "team:delete", label: "Delete teams" },
+  ] },
+  { resource: "ac", label: "Roles", actions: [
+    { permission: "ac:read", label: "See roles" },
+    { permission: "ac:create", label: "Create roles" },
+    { permission: "ac:update", label: "Edit roles" },
+    { permission: "ac:delete", label: "Delete roles" },
+  ] },
+  { resource: "organization", label: "Organisation", actions: [
+    { permission: "organization:update", label: "Edit organisation details" },
+    { permission: "organization:delete", label: "Delete the organisation" },
+  ] },
+];
