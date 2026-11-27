@@ -17,6 +17,7 @@ export type MemberRow = {
   role: string;
   status: string;
   passwordSet: boolean;
+  lastSignIn: number | null;
   openInquiries: number;
   latestInvite: { n: number; idempotencyKey: string; relayMessageId: string | null; sentAt: number | null } | null;
 };
@@ -72,6 +73,10 @@ export function createTeamService(db: CrmDb, mailer: Mailer | (() => Mailer), au
 
   return {
     inviteLink: linkFor,
+
+    // Only a pending (active, no password yet) member has a usable invite link.
+    pendingLink: (m: Pick<MemberRow, "email" | "status" | "passwordSet">): string | null =>
+      !m.passwordSet && m.status === "active" ? linkFor(m.email) : null,
 
     async invite(input: { email: string; name: string }, actor: Actor): Promise<InviteResult> {
       const email = input.email.trim().toLowerCase();
@@ -169,9 +174,10 @@ export function createTeamService(db: CrmDb, mailer: Mailer | (() => Mailer), au
     async list(): Promise<MemberRow[]> {
       const rows = await db.all<{
         id: string; name: string; email: string; role: string; status: string; password_set: number;
-        open: number; n: number | null; key: string | null; msg: string | null; sent_at: number | null;
+        open: number; last_sign_in: number | null; n: number | null; key: string | null; msg: string | null; sent_at: number | null;
       }>(sql`SELECT u.id, u.name, u.email, u.role, u.status, u.password_set,
           (SELECT count(*) FROM inquiries WHERE owner_id = u.id AND closed_at IS NULL) AS open,
+          (SELECT max(created_at) FROM sessions WHERE user_id = u.id) AS last_sign_in,
           i.n, i.idempotency_key AS key, i.relay_message_id AS msg, i.sent_at
         FROM users u LEFT JOIN invites i ON i.user_id = u.id AND i.n = (SELECT max(n) FROM invites WHERE user_id = u.id)
         ORDER BY u.name, u.id`);
@@ -182,6 +188,7 @@ export function createTeamService(db: CrmDb, mailer: Mailer | (() => Mailer), au
         role: r.role,
         status: r.status,
         passwordSet: !!r.password_set,
+        lastSignIn: r.last_sign_in === null ? null : Number(r.last_sign_in),
         openInquiries: Number(r.open),
         latestInvite: r.n === null ? null : { n: r.n, idempotencyKey: r.key!, relayMessageId: r.msg, sentAt: r.sent_at },
       }));

@@ -20,7 +20,7 @@ export const listTeamFn = createServerFn({ method: "GET" }).handler(() =>
     const svc = service();
     const members = await svc.list();
     const statuses = await svc.inviteStatuses(members.filter((m) => m.latestInvite).map((m) => m.id));
-    return { members: members.map((m) => ({ ...m, inviteLink: svc.inviteLink(m.email) })), statuses };
+    return { members: members.map((m) => ({ ...m, inviteLink: svc.pendingLink(m) })), statuses };
   }),
 );
 

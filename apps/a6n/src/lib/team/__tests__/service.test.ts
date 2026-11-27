@@ -221,6 +221,20 @@ describe("invite", () => {
     expect(rows.find((r) => r.email === "l@x.io")).toMatchObject({ latestInvite: { n: 1 }, passwordSet: false });
   });
 
+  test("list returns the latest session time per user, null without sessions; pendingLink only for pending members", async () => {
+    const ses = (id: string, at: number) =>
+      env.DB.prepare("insert into sessions (id, user_id, token, expires_at, created_at, updated_at) values (?, 'usr_sam', ?, ?, ?, ?)").bind(id, id, NOW + 9e6, at, at);
+    await env.DB.batch([ses("ses_old", NOW - 5000), ses("ses_new", NOW - 1000)]);
+    const { svc } = mk();
+    const rows = await svc.list();
+    expect(rows.find((r) => r.id === "usr_sam")!.lastSignIn).toBe(NOW - 1000);
+    expect(rows.find((r) => r.id === "usr_admin")!.lastSignIn).toBeNull();
+    const m = { email: "a@x.io", status: "active", passwordSet: false };
+    expect(svc.pendingLink(m)).toContain("invited=1");
+    expect(svc.pendingLink({ ...m, passwordSet: true })).toBeNull();
+    expect(svc.pendingLink({ ...m, status: "removed" })).toBeNull();
+  });
+
   test("after removal and re-invite the same row is reactivated and the old password fails", async () => {
     const { svc } = mk();
     const ctx = await createAuth(env).$context;

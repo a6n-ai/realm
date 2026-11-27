@@ -6,6 +6,7 @@ import { toast } from "@foundry/ui/toast";
 import { useRouter } from "@tanstack/react-router";
 import { UsersIcon } from "lucide-react";
 import { useState } from "react";
+import { LocalTime } from "../local-time";
 import { errorText } from "../../lib/error-copy";
 import type { MemberRow } from "../../lib/team/service";
 import { resendInviteFn } from "../../lib/team/team.fns";
@@ -14,7 +15,7 @@ import { copyLink, InviteDialog } from "./invite-dialog";
 import { InviteStatusBadge } from "./invite-status";
 import { RemoveMemberDialog } from "./remove-member-dialog";
 
-export type TeamMember = MemberRow & { inviteLink: string };
+export type TeamMember = MemberRow & { inviteLink: string | null };
 
 const columns = (statuses: Record<string, InviteStatus>): Column<TeamMember>[] => [
   {
@@ -37,6 +38,7 @@ const columns = (statuses: Record<string, InviteStatus>): Column<TeamMember>[] =
       ),
   },
   { header: "Invite", secondary: true, cell: (m) => <InviteStatusBadge hasInvite={m.latestInvite !== null} status={statuses[m.id]} /> },
+  { header: "Last sign-in", secondary: true, cell: (m) => (m.lastSignIn === null ? "—" : <LocalTime at={m.lastSignIn} />) },
   { header: "Open inquiries", numeric: true, secondary: true, cell: (m) => m.openInquiries },
 ];
 
@@ -60,7 +62,7 @@ export function TeamTable({ members, statuses, selfId }: { members: TeamMember[]
     const active = m.status === "active";
     return [
       { label: "Resend invite", onSelect: () => void resend(m), hidden: !active || m.passwordSet },
-      { label: "Copy invite link", onSelect: () => void copyLink(m.inviteLink), hidden: !active || m.passwordSet },
+      { label: "Copy invite link", onSelect: () => void copyLink(m.inviteLink!), hidden: !m.inviteLink },
       { label: "Remove", destructive: true, onSelect: () => setRemoving(m), hidden: !active || m.id === selfId },
     ];
   };
