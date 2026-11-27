@@ -17,6 +17,7 @@ import { FollowUpBadge } from "./follow-up-badge";
 import { OwnerControl } from "./owner-control";
 import { StageBadge } from "./stage-badge";
 import { StageControl } from "./stage-control";
+import { LINK } from "../link-class";
 
 function Panel({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -69,8 +70,8 @@ export function InquiryDetail({ inquiry: i, owners, canAssign }: { inquiry: Deta
           <Panel title="Contact">
             <dl className="grid gap-3">
               <Fact label="Name">{i.contactName}</Fact>
-              <Fact label="Phone">{i.phone ? <a className="text-primary underline" href={`tel:${i.phone}`}>{i.phone}</a> : null}</Fact>
-              <Fact label="Email">{i.email ? <a className="text-primary underline" href={`mailto:${i.email}`}>{i.email}</a> : null}</Fact>
+              <Fact label="Phone">{i.phone ? <a className={LINK} href={`tel:${i.phone}`}>{i.phone}</a> : null}</Fact>
+              <Fact label="Email">{i.email ? <a className={LINK} href={`mailto:${i.email}`}>{i.email}</a> : null}</Fact>
               <Fact label="Company">{i.company}</Fact>
               <Fact label="Source">
                 {i.source}

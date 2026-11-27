@@ -64,10 +64,22 @@ function KitField({ label, error, trailing, id, ref, className, placeholder, ...
 
 export const appAuthUi: Partial<AuthUi> = { Button: KitButton, Field: KitField };
 
+// The a6n mark in theme colours: black on light, white on dark (Vercel-style monochrome).
+export function AppMark({ className = "size-7" }: { className?: string }) {
+  return (
+    <span
+      aria-hidden
+      className={`grid shrink-0 place-items-center rounded-md bg-(--brand) font-bold text-(--brand-foreground) text-[0.8em] leading-none ${className}`}
+    >
+      a6
+    </span>
+  );
+}
+
 export function AuthLogo() {
   return (
     <Link to="/" aria-label="a6n home" className="flex items-center gap-2 font-semibold text-(--strong)">
-      <img src="/icon.svg" alt="" className="size-7" />
+      <AppMark />
       a6n
     </Link>
   );
