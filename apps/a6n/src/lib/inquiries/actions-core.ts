@@ -45,13 +45,13 @@ function action<S extends z.ZodType, T = unknown>(
   };
 }
 
-const svc = (deps: Deps) => createInquiriesService(deps.db);
+const svc = (deps: Deps, actor: Actor) => createInquiriesService(deps.db, actor.organizationId);
 
 export const runCreateInquiry = action<typeof createInquirySchema, { id: string }>(
   "inquiry:create",
   createInquirySchema,
   async (d, actor, deps) => {
-    const res = await svc(deps).ingest(
+    const res = await svc(deps, actor).ingest(
       {
         source: d.source,
         subSource: d.subSource,
@@ -69,28 +69,28 @@ export const runCreateInquiry = action<typeof createInquirySchema, { id: string 
 );
 
 export const runChangeStage = action("inquiry:update", changeStageSchema, (d, actor, deps) =>
-  svc(deps).changeStage(d.id, d.from, d.to, { lostReason: d.lostReason }, actor),
+  svc(deps, actor).changeStage(d.id, d.from, d.to, { lostReason: d.lostReason }, actor),
 );
 
 export const runReopen = action("inquiry:update", reopenSchema, (d, actor, deps) =>
-  svc(deps).reopen(d.id, d.stage, d.nextFollowUpAt, actor),
+  svc(deps, actor).reopen(d.id, d.stage, d.nextFollowUpAt, actor),
 );
 
 export const runAddActivity = action("inquiry:note", addActivitySchema, (d, actor, deps) =>
-  svc(deps).addActivity(d.id, { type: d.type, note: d.note }, actor),
+  svc(deps, actor).addActivity(d.id, { type: d.type, note: d.note }, actor),
 );
 
 export const runSetFollowUp = action("inquiry:update", setFollowUpSchema, (d, actor, deps) =>
-  svc(deps).setFollowUp(d.id, d.at, actor),
+  svc(deps, actor).setFollowUp(d.id, d.at, actor),
 );
 
-export const runClaim = action("inquiry:claim", claimSchema, (d, actor, deps) => svc(deps).claim(d.id, actor));
+export const runClaim = action("inquiry:claim", claimSchema, (d, actor, deps) => svc(deps, actor).claim(d.id, actor));
 
 export const runAssign = action("inquiry:assign", assignSchema, (d, actor, deps) =>
-  svc(deps).assign(d.id, d.fromOwnerId, d.toOwnerId, actor),
+  svc(deps, actor).assign(d.id, d.fromOwnerId, d.toOwnerId, actor),
 );
 
 export const runUpdateContact = action("inquiry:update", updateContactSchema, (d, actor, deps) => {
   const { id, ...patch } = d;
-  return svc(deps).updateContact(id, patch, actor);
+  return svc(deps, actor).updateContact(id, patch, actor);
 });

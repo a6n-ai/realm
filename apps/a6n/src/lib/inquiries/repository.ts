@@ -28,6 +28,7 @@ export class InquiriesRepository extends UpdatableRepository<typeof inquiries, C
   }
 
   async listForView(args: {
+    organizationId: string;
     view: InquiryView;
     userId: string;
     filters?: ListFilters;
@@ -37,7 +38,7 @@ export class InquiriesRepository extends UpdatableRepository<typeof inquiries, C
   }): Promise<{ rows: InquiryRow[]; hasNext: boolean }> {
     const { view, userId, filters = {}, search, page = 0 } = args;
     const now = args.now ?? Date.now();
-    const where: (SQL | undefined)[] = [];
+    const where: (SQL | undefined)[] = [eq(inquiries.organizationId, args.organizationId)];
     if (view === "mine") where.push(eq(inquiries.ownerId, userId), isNull(inquiries.closedAt));
     if (view === "unassigned") where.push(isNull(inquiries.ownerId), isNull(inquiries.closedAt));
     if (filters.stage) where.push(eq(inquiries.stage, filters.stage));
@@ -93,14 +94,14 @@ export class InquiriesRepository extends UpdatableRepository<typeof inquiries, C
     };
   }
 
-  async unassignedCounts(now: number = Date.now()): Promise<{ total: number; overdue: number }> {
+  async unassignedCounts(organizationId: string, now: number = Date.now()): Promise<{ total: number; overdue: number }> {
     const [row] = await this.db
       .select({
         total: sql<number>`count(*)`,
         overdue: sql<number>`coalesce(sum(case when ${inquiries.nextFollowUpAt} < ${now} then 1 else 0 end), 0)`,
       })
       .from(inquiries)
-      .where(and(isNull(inquiries.ownerId), isNull(inquiries.closedAt)));
+      .where(and(eq(inquiries.organizationId, organizationId), isNull(inquiries.ownerId), isNull(inquiries.closedAt)));
     return { total: Number(row?.total ?? 0), overdue: Number(row?.overdue ?? 0) };
   }
 }
@@ -108,4 +109,5 @@ export class InquiriesRepository extends UpdatableRepository<typeof inquiries, C
 export const listForView = (db: CrmDb, args: Parameters<InquiriesRepository["listForView"]>[0]) =>
   new InquiriesRepository(db).listForView(args);
 
-export const unassignedCounts = (db: CrmDb, now?: number) => new InquiriesRepository(db).unassignedCounts(now);
+export const unassignedCounts = (db: CrmDb, organizationId: string, now?: number) =>
+  new InquiriesRepository(db).unassignedCounts(organizationId, now);

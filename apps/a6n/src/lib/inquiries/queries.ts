@@ -7,10 +7,15 @@ import type { z } from "zod";
 export type ListInput = z.output<typeof listInquiriesSchema>;
 export type InquiryPage = { rows: InquiryRow[]; hasNext: boolean; page: number };
 
-export async function listInquiriesPage(db: CrmDb, userId: string, input: ListInput): Promise<InquiryPage> {
+export async function listInquiriesPage(
+  db: CrmDb,
+  actor: { userId: string; organizationId: string },
+  input: ListInput,
+): Promise<InquiryPage> {
   const res = await listForView(db, {
+    organizationId: actor.organizationId,
     view: input.view,
-    userId,
+    userId: actor.userId,
     filters: { stage: input.stage, sourceId: input.source, ownerId: input.owner, overdue: input.due === "1" },
     search: input.q,
     page: input.page - 1,
@@ -51,7 +56,7 @@ export type InquiryDetail = {
   activities: Activity[];
 };
 
-export async function getInquiryDetail(db: CrmDb, id: string, now: number = Date.now()): Promise<InquiryDetail | null> {
+export async function getInquiryDetail(db: CrmDb, organizationId: string, id: string, now: number = Date.now()): Promise<InquiryDetail | null> {
   const [row] = await db.all<Omit<InquiryDetail, "activities" | "ownerRemoved" | "overdue"> & { ownerStatus: string | null }>(sql`
     SELECT i.id, i.contact_name AS contactName, i.phone, i.email, c.name AS company, s.label AS source,
       ss.label AS subSource, i.requirements, i.stage, i.lost_reason AS lostReason, i.owner_id AS ownerId,
@@ -62,7 +67,7 @@ export async function getInquiryDetail(db: CrmDb, id: string, now: number = Date
     LEFT JOIN lead_subsources ss ON ss.id = i.sub_source_id
     LEFT JOIN companies c ON c.id = i.company_id
     LEFT JOIN users o ON o.id = i.owner_id
-    WHERE i.id = ${id}`);
+    WHERE i.id = ${id} AND i.organization_id = ${organizationId}`);
   if (!row) return null;
   const activities = await db.all<Activity>(sql`
     SELECT a.id, a.created_at AS createdAt, a.type, a.note, a.from_stage AS fromStage, a.to_stage AS toStage,
@@ -82,5 +87,8 @@ export async function getInquiryDetail(db: CrmDb, id: string, now: number = Date
   };
 }
 
-export const listOwners = (db: CrmDb) =>
-  db.all<{ id: string; name: string }>(sql`SELECT id, name FROM users WHERE status = 'active' ORDER BY name`);
+// People who can own this organisation's inquiries: its active members.
+export const listOwners = (db: CrmDb, organizationId: string) =>
+  db.all<{ id: string; name: string }>(sql`SELECT u.id, u.name FROM users u
+    JOIN members m ON m.user_id = u.id AND m.organization_id = ${organizationId}
+    WHERE u.status = 'active' ORDER BY u.name`);

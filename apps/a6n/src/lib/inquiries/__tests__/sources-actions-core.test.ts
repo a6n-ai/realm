@@ -1,4 +1,4 @@
-import { actorOf } from "../../../../test/helpers";
+import { actorOf, memberStmt, orgStmt } from "../../../../test/helpers";
 import { env } from "cloudflare:test";
 import { beforeAll, beforeEach, describe, expect, test } from "vitest";
 import { applyMigrations } from "../../../../test/migrate";
@@ -17,6 +17,8 @@ beforeEach(async () => {
     env.DB.prepare("delete from lead_sources"),
     env.DB.prepare("delete from users"),
     env.DB.prepare("insert into users (id, name, email, role, status, created_at, updated_at) values ('usr_admin', 'Ada', 'a@x.io', 'admin', 'active', 1, 1)"),
+    orgStmt(),
+    memberStmt("usr_admin", "admin"),
   ]);
 });
 

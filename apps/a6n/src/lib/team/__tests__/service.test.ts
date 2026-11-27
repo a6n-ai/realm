@@ -1,4 +1,4 @@
-import { actorOf } from "../../../../test/helpers";
+import { TEST_ORG, actorOf, memberStmt, orgStmt } from "../../../../test/helpers";
 import { env, SELF } from "cloudflare:test";
 import { beforeAll, beforeEach, describe, expect, test, vi } from "vitest";
 import { applyMigrations } from "../../../../test/migrate";
@@ -24,8 +24,8 @@ const user = (id: string, role: string, status = "active") =>
 
 const inquiry = (id: string, owner: string | null, closed: boolean) =>
   env.DB.prepare(
-    `insert into inquiries (id, created_at, contact_name, source_id, stage, owner_id, next_follow_up_at, closed_at)
-     values (?, ?, 'c', 'lsr_cold', ?, ?, ?, ?)`,
+    `insert into inquiries (id, organization_id, created_at, contact_name, source_id, stage, owner_id, next_follow_up_at, closed_at)
+     values (?, 'org_test', ?, 'c', 'lsr_cold', ?, ?, ?, ?)`,
   ).bind(id, NOW, closed ? "won" : "new", owner, closed ? null : NOW + 1000, closed ? NOW : null);
 
 beforeAll(applyMigrations);
@@ -44,7 +44,11 @@ beforeEach(async () => {
     user("usr_admin", "admin"),
     user("usr_admin2", "admin"),
     user("usr_sam", "sales"),
-    env.DB.prepare("insert into lead_sources (id, created_at, key, label, active) values ('lsr_cold', ?, 'cold', 'Cold', 1)").bind(NOW),
+    orgStmt(),
+    memberStmt("usr_admin", "admin"),
+    memberStmt("usr_admin2", "admin"),
+    memberStmt("usr_sam"),
+    env.DB.prepare("insert into lead_sources (id, organization_id, created_at, key, label, active) values ('lsr_cold', 'org_test', ?, 'cold', 'Cold', 1)").bind(NOW),
   ]);
 });
 
@@ -76,7 +80,7 @@ describe("remove", () => {
 
   test("a claim by the removed user in parallel still ends unassigned", async () => {
     await env.DB.batch([inquiry("inq_a", null, false), inquiry("inq_b", "usr_sam", false)]);
-    const inq = createInquiriesService(getDb(env));
+    const inq = createInquiriesService(getDb(env), TEST_ORG);
     await Promise.all([inq.claim("inq_a", { userId: "usr_sam" }), mk().svc.remove("usr_sam", admin)]);
     expect(await all("select * from inquiries where owner_id is not null")).toHaveLength(0);
   });
@@ -138,7 +142,7 @@ describe("remove isolation and claim", () => {
   test("a claim after removal is refused and owner stays null", async () => {
     await inquiry("inq_a", null, false).run();
     await mk().svc.remove("usr_sam", admin);
-    expect(await createInquiriesService(getDb(env)).claim("inq_a", { userId: "usr_sam" })).toMatchObject({ ok: false });
+    expect(await createInquiriesService(getDb(env), TEST_ORG).claim("inq_a", { userId: "usr_sam" })).toMatchObject({ ok: false });
     expect(await all("select owner_id from inquiries where id = 'inq_a'")).toEqual([{ owner_id: null }]);
   });
 });

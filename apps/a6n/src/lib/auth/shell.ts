@@ -30,6 +30,6 @@ export async function loadShell(env: Env, headers: Headers): Promise<Shell | nul
     role: m?.role ?? null,
     permissions: m?.permissions ?? [],
     platformAdmin: user.platformRole === "super_admin",
-    unassigned: m ? await unassignedCounts(db) : { total: 0, overdue: 0 },
+    unassigned: m ? await unassignedCounts(db, m.organizationId) : { total: 0, overdue: 0 },
   };
 }

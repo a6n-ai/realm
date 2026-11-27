@@ -90,3 +90,10 @@ export async function addMember(userId: string, organizationId: string, role = "
     .run();
   return id;
 }
+
+/** Batchable statements: the shared test organisation and a membership in it (for tests that seed rows with SQL). */
+export const orgStmt = () =>
+  env.DB.prepare("insert or ignore into organizations (id, name, slug, created_at) values (?, 'Test org', 'test-org', ?)").bind(TEST_ORG, Date.now());
+export const memberStmt = (userId: string, role = "member") =>
+  env.DB.prepare("insert or ignore into members (id, organization_id, user_id, role, created_at) values (?, ?, ?, ?, ?)")
+    .bind(`mem_${userId}`, TEST_ORG, userId, role, Date.now());

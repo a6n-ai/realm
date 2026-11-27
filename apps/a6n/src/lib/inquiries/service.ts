@@ -37,12 +37,14 @@ const isTime = (n: unknown): n is number => typeof n === "number" && Number.isFi
 // Drizzle's D1 batch returns one D1Result per statement; meta.changes is that statement's row count.
 const changed = (res: unknown): number => (res as { meta?: { changes?: number } })?.meta?.changes ?? 0;
 
-export function createInquiriesService(db: CrmDb) {
+// Bound to one organisation: every read and write below is limited to it, and people outside it never own its rows.
+export function createInquiriesService(db: CrmDb, org: string) {
   const repo = new InquiriesRepository(db);
+  const inOrg = async (id: string) =>
+    (await db.all<{ id: string }>(sql`SELECT id FROM inquiries WHERE id = ${id} AND organization_id = ${org}`)).length > 0;
 
   const refuseWhenUnchanged = async (id: string, fallback: RefusalCode): Promise<Refusal> => {
-    const row = await repo.findByPublicId(id);
-    return { ok: false, code: row ? fallback : "stale" };
+    return { ok: false, code: (await inOrg(id)) ? fallback : "stale" };
   };
 
   return {
@@ -61,29 +63,30 @@ export function createInquiriesService(db: CrmDb) {
       await atomic(db, () => {
         const items: BatchItem[] = [];
         if (companyName && nameKey) {
-          items.push(sql`INSERT INTO companies (id, created_at, created_by, name, name_key)
-            VALUES (${newId("cmp")}, ${now}, ${actor.userId}, ${companyName}, ${nameKey})
-            ON CONFLICT(name_key) DO NOTHING`);
+          items.push(sql`INSERT INTO companies (id, created_at, created_by, organization_id, name, name_key)
+            SELECT ${newId("cmp")}, ${now}, ${actor.userId}, ${org}, ${companyName}, ${nameKey}
+            WHERE NOT EXISTS (SELECT 1 FROM companies WHERE organization_id = ${org} AND name_key = ${nameKey})`);
         }
         // Raw SQL: Drizzle's onConflictDoNothing({ where }) emits invalid SQL for a partial-index target.
-        items.push(sql`INSERT INTO inquiries (id, created_at, created_by, contact_name, phone, email, company_id,
+        items.push(sql`INSERT INTO inquiries (id, created_at, created_by, organization_id, contact_name, phone, email, company_id,
             source_id, sub_source_id, requirements, stage, owner_id, next_follow_up_at, external_id, created_via)
-          SELECT ${newInquiryId}, ${now}, ${actor.userId}, ${name}, ${phone}, ${clean(input.contact.email)},
-            (SELECT id FROM companies WHERE name_key = ${nameKey}),
+          SELECT ${newInquiryId}, ${now}, ${actor.userId}, ${org}, ${name}, ${phone}, ${clean(input.contact.email)},
+            (SELECT id FROM companies WHERE organization_id = ${org} AND name_key = ${nameKey}),
             s.id,
             (SELECT ss.id FROM lead_subsources ss WHERE ss.source_id = s.id AND ss.key = ${subKey} AND ss.active),
             ${clean(input.requirements)}, 'new',
-            (SELECT id FROM users WHERE id = ${owner} AND status = 'active'),
+            (SELECT u.id FROM users u WHERE u.id = ${owner} AND u.status = 'active'
+              AND EXISTS (SELECT 1 FROM members m WHERE m.user_id = u.id AND m.organization_id = ${org})),
             ${input.nextFollowUpAt}, ${externalId}, ${input.createdVia}
           FROM lead_sources s
-          WHERE s.key = ${input.source} AND s.active
+          WHERE s.key = ${input.source} AND s.active AND s.organization_id = ${org}
             AND (${subKey} IS NULL OR EXISTS (
               SELECT 1 FROM lead_subsources ss WHERE ss.source_id = s.id AND ss.key = ${subKey} AND ss.active))
           ON CONFLICT(source_id, external_id) WHERE external_id IS NOT NULL DO NOTHING`);
         items.push({
           onlyIfPreviousChanged: 1,
-          query: sql`INSERT INTO inquiry_activities (id, created_at, inquiry_id, type, to_stage, to_owner_id, actor_id)
-            SELECT ${newId("iac")}, ${now}, ${newInquiryId}, 'created', 'new',
+          query: sql`INSERT INTO inquiry_activities (id, created_at, organization_id, inquiry_id, type, to_stage, to_owner_id, actor_id)
+            SELECT ${newId("iac")}, ${now}, ${org}, ${newInquiryId}, 'created', 'new',
               (SELECT owner_id FROM inquiries WHERE id = ${newInquiryId}), ${actor.userId}`,
         });
         return items;
@@ -92,9 +95,9 @@ export function createInquiriesService(db: CrmDb) {
       const found = externalId
         ? (
             await db.all<{ id: string }>(sql`SELECT i.id FROM inquiries i JOIN lead_sources s ON s.id = i.source_id
-              WHERE s.key = ${input.source} AND i.external_id = ${externalId}`)
+              WHERE s.key = ${input.source} AND i.external_id = ${externalId} AND i.organization_id = ${org}`)
           )[0]
-        : (await db.all<{ id: string }>(sql`SELECT id FROM inquiries WHERE id = ${newInquiryId}`))[0];
+        : (await db.all<{ id: string }>(sql`SELECT id FROM inquiries WHERE id = ${newInquiryId} AND organization_id = ${org}`))[0];
       const inquiry = found && (await repo.findByPublicId(found.id));
       if (!found || !inquiry) return { ok: false, code: "inactive_source" };
       return { ok: true, inquiry, created: found.id === newInquiryId };
@@ -119,11 +122,11 @@ export function createInquiriesService(db: CrmDb) {
       const [upd] = await atomic(db, () => [
         sql`UPDATE inquiries SET stage = ${patch.stage}, lost_reason = ${patch.lostReason}
           ${patch.closedAt === undefined ? sql`` : sql`, closed_at = ${patch.closedAt}, next_follow_up_at = NULL`}
-          WHERE id = ${id} AND stage = ${from} AND closed_at IS NULL`,
+          WHERE id = ${id} AND organization_id = ${org} AND stage = ${from} AND closed_at IS NULL`,
         {
           onlyIfPreviousChanged: 1,
-          query: sql`INSERT INTO inquiry_activities (id, created_at, inquiry_id, type, from_stage, to_stage, actor_id)
-            SELECT ${newId("iac")}, ${now}, ${id}, ${activity.type}, ${activity.fromStage}, ${activity.toStage}, ${actor.userId}`,
+          query: sql`INSERT INTO inquiry_activities (id, created_at, organization_id, inquiry_id, type, from_stage, to_stage, actor_id)
+            SELECT ${newId("iac")}, ${now}, ${org}, ${id}, ${activity.type}, ${activity.fromStage}, ${activity.toStage}, ${actor.userId}`,
         },
       ]);
       return changed(upd) === 1 ? { ok: true } : { ok: false, code: "stale" };
@@ -140,16 +143,17 @@ export function createInquiriesService(db: CrmDb) {
       // lost_reason is cleared last: the activity derives fromStage from it, since the update already overwrote stage.
       const [upd] = await atomic(db, () => [
         sql`UPDATE inquiries SET stage = ${stage}, closed_at = NULL, next_follow_up_at = ${nextFollowUpAt},
-            owner_id = CASE WHEN EXISTS (SELECT 1 FROM users WHERE id = owner_id AND status = 'active') THEN owner_id ELSE NULL END
-          WHERE id = ${id} AND closed_at IS NOT NULL`,
+            owner_id = CASE WHEN EXISTS (SELECT 1 FROM users u WHERE u.id = owner_id AND u.status = 'active'
+              AND EXISTS (SELECT 1 FROM members m WHERE m.user_id = u.id AND m.organization_id = ${org})) THEN owner_id ELSE NULL END
+          WHERE id = ${id} AND organization_id = ${org} AND closed_at IS NOT NULL`,
         {
           onlyIfPreviousChanged: 1,
-          query: sql`INSERT INTO inquiry_activities (id, created_at, inquiry_id, type, from_stage, to_stage, actor_id)
-            SELECT ${newId("iac")}, ${now}, id, 'reopened',
+          query: sql`INSERT INTO inquiry_activities (id, created_at, organization_id, inquiry_id, type, from_stage, to_stage, actor_id)
+            SELECT ${newId("iac")}, ${now}, ${org}, id, 'reopened',
               CASE WHEN lost_reason IS NOT NULL THEN 'lost' ELSE 'won' END, ${stage}, ${actor.userId}
             FROM inquiries WHERE id = ${id}`,
         },
-        sql`UPDATE inquiries SET lost_reason = NULL WHERE id = ${id} AND closed_at IS NULL AND lost_reason IS NOT NULL`,
+        sql`UPDATE inquiries SET lost_reason = NULL WHERE id = ${id} AND organization_id = ${org} AND closed_at IS NULL AND lost_reason IS NOT NULL`,
       ]);
       return changed(upd) === 1 ? { ok: true } : { ok: false, code: "stale" };
     },
@@ -158,9 +162,9 @@ export function createInquiriesService(db: CrmDb) {
       const note = clean(input.note);
       if (!(ACTIVITY_TYPES as readonly string[]).includes(input.type) || !note) return invalid;
       const [res] = await atomic(db, () => [
-        sql`INSERT INTO inquiry_activities (id, created_at, inquiry_id, type, note, actor_id)
-          SELECT ${newId("iac")}, ${Date.now()}, id, ${input.type}, ${note}, ${actor.userId}
-          FROM inquiries WHERE id = ${id}`,
+        sql`INSERT INTO inquiry_activities (id, created_at, organization_id, inquiry_id, type, note, actor_id)
+          SELECT ${newId("iac")}, ${Date.now()}, ${org}, id, ${input.type}, ${note}, ${actor.userId}
+          FROM inquiries WHERE id = ${id} AND organization_id = ${org}`,
       ]);
       return changed(res) === 1 ? { ok: true } : { ok: false, code: "stale" };
     },
@@ -168,19 +172,21 @@ export function createInquiriesService(db: CrmDb) {
     async setFollowUp(id: string, at: number, _actor: Actor): Promise<{ ok: true } | Refusal> {
       if (!isTime(at)) return invalid;
       const [res] = await atomic(db, () => [
-        sql`UPDATE inquiries SET next_follow_up_at = ${at} WHERE id = ${id} AND closed_at IS NULL`,
+        sql`UPDATE inquiries SET next_follow_up_at = ${at} WHERE id = ${id} AND organization_id = ${org} AND closed_at IS NULL`,
       ]);
       return changed(res) === 1 ? { ok: true } : { ok: false, code: "stale" };
     },
 
     async claim(id: string, actor: Actor): Promise<{ ok: true } | Refusal> {
       const [upd] = await atomic(db, () => [
-        sql`UPDATE inquiries SET owner_id = ${actor.userId} WHERE id = ${id} AND owner_id IS NULL AND closed_at IS NULL
-          AND EXISTS (SELECT 1 FROM users WHERE id = ${actor.userId} AND status = 'active')`,
+        sql`UPDATE inquiries SET owner_id = ${actor.userId}
+          WHERE id = ${id} AND organization_id = ${org} AND owner_id IS NULL AND closed_at IS NULL
+          AND EXISTS (SELECT 1 FROM users WHERE id = ${actor.userId} AND status = 'active')
+          AND EXISTS (SELECT 1 FROM members m WHERE m.user_id = ${actor.userId} AND m.organization_id = ${org})`,
         {
           onlyIfPreviousChanged: 1,
-          query: sql`INSERT INTO inquiry_activities (id, created_at, inquiry_id, type, from_owner_id, to_owner_id, actor_id)
-            SELECT ${newId("iac")}, ${Date.now()}, ${id}, 'reassigned', NULL, ${actor.userId}, ${actor.userId}`,
+          query: sql`INSERT INTO inquiry_activities (id, created_at, organization_id, inquiry_id, type, from_owner_id, to_owner_id, actor_id)
+            SELECT ${newId("iac")}, ${Date.now()}, ${org}, ${id}, 'reassigned', NULL, ${actor.userId}, ${actor.userId}`,
         },
       ]);
       return changed(upd) === 1 ? { ok: true } : refuseWhenUnchanged(id, "already_claimed");
@@ -195,12 +201,13 @@ export function createInquiriesService(db: CrmDb) {
       if (!toOwnerId || fromOwnerId === toOwnerId) return invalid;
       const [upd] = await atomic(db, () => [
         sql`UPDATE inquiries SET owner_id = ${toOwnerId}
-          WHERE id = ${id} AND owner_id IS ${fromOwnerId}
-            AND EXISTS (SELECT 1 FROM users WHERE id = ${toOwnerId} AND status = 'active')`,
+          WHERE id = ${id} AND organization_id = ${org} AND owner_id IS ${fromOwnerId}
+            AND EXISTS (SELECT 1 FROM users WHERE id = ${toOwnerId} AND status = 'active')
+            AND EXISTS (SELECT 1 FROM members m WHERE m.user_id = ${toOwnerId} AND m.organization_id = ${org})`,
         {
           onlyIfPreviousChanged: 1,
-          query: sql`INSERT INTO inquiry_activities (id, created_at, inquiry_id, type, from_owner_id, to_owner_id, actor_id)
-            SELECT ${newId("iac")}, ${Date.now()}, ${id}, 'reassigned', ${fromOwnerId}, ${toOwnerId}, ${actor.userId}`,
+          query: sql`INSERT INTO inquiry_activities (id, created_at, organization_id, inquiry_id, type, from_owner_id, to_owner_id, actor_id)
+            SELECT ${newId("iac")}, ${Date.now()}, ${org}, ${id}, 'reassigned', ${fromOwnerId}, ${toOwnerId}, ${actor.userId}`,
         },
       ]);
       return changed(upd) === 1 ? { ok: true } : { ok: false, code: "stale" };
@@ -214,13 +221,13 @@ export function createInquiriesService(db: CrmDb) {
       const sets = sql.join(keys.map((k) => sql`${sql.raw(cols[k])} = ${clean(patch[k])}`), sql`, `);
       const [res] = await atomic(db, () => [
         sql`UPDATE inquiries SET ${sets}
-          WHERE id = ${id} AND (${next("contactName")} IS NOT NULL OR ${next("phone")} IS NOT NULL)`,
+          WHERE id = ${id} AND organization_id = ${org} AND (${next("contactName")} IS NOT NULL OR ${next("phone")} IS NOT NULL)`,
       ]);
       return changed(res) === 1 ? { ok: true } : refuseWhenUnchanged(id, "invalid");
     },
 
-    listForView: (args: Parameters<typeof listForView>[1]) => listForView(db, args),
-    unassignedCounts: (now?: number) => unassignedCounts(db, now),
+    listForView: (args: Omit<Parameters<typeof listForView>[1], "organizationId">) => listForView(db, { ...args, organizationId: org }),
+    unassignedCounts: (now?: number) => unassignedCounts(db, org, now),
   };
 }
 

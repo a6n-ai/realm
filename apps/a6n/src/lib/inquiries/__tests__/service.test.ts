@@ -1,6 +1,7 @@
 import { env } from "cloudflare:test";
 import { beforeAll, beforeEach, describe, expect, test } from "vitest";
 import { applyMigrations } from "../../../../test/migrate";
+import { memberStmt, orgStmt, TEST_ORG } from "../../../../test/helpers";
 import { getDb } from "../../../db/client";
 import { createInquiriesService, type IngestInput } from "../service";
 import { createSourcesService } from "../sources";
@@ -9,7 +10,7 @@ import { searchCompanies, toNameKey } from "../companies";
 const NOW = Date.now();
 const me = { userId: "usr_me" };
 const other = { userId: "usr_other" };
-const svc = () => createInquiriesService(getDb(env));
+const svc = () => createInquiriesService(getDb(env), TEST_ORG);
 const all = <T>(q: string, ...args: unknown[]) => env.DB.prepare(q).bind(...args).all<T>().then((r) => r.results);
 const activities = (id: string, type?: string) =>
   all<{ type: string; from_stage: string | null; to_stage: string | null; from_owner_id: string | null; to_owner_id: string | null }>(
@@ -47,10 +48,13 @@ beforeEach(async () => {
         "insert into users (id, name, email, role, status, created_at, updated_at) values (?, ?, ?, 'sales', ?, ?, ?)",
       ).bind(id, id, `${id}@x.io`, id === "usr_gone" ? "removed" : "active", NOW, NOW),
     ),
-    env.DB.prepare("insert into lead_sources (id, created_at, key, label, active) values ('lsr_cold', ?, 'cold', 'Cold', 1)").bind(NOW),
-    env.DB.prepare("insert into lead_sources (id, created_at, key, label, active) values ('lsr_off', ?, 'off', 'Off', 0)").bind(NOW),
-    env.DB.prepare("insert into lead_subsources (id, created_at, source_id, key, label, active) values ('lss_a', ?, 'lsr_cold', 'linkedin', 'LinkedIn', 1)").bind(NOW),
-    env.DB.prepare("insert into lead_subsources (id, created_at, source_id, key, label, active) values ('lss_b', ?, 'lsr_cold', 'old', 'Old', 0)").bind(NOW),
+    orgStmt(),
+    memberStmt("usr_me"),
+    memberStmt("usr_other"),
+    env.DB.prepare("insert into lead_sources (id, organization_id, created_at, key, label, active) values ('lsr_cold', 'org_test', ?, 'cold', 'Cold', 1)").bind(NOW),
+    env.DB.prepare("insert into lead_sources (id, organization_id, created_at, key, label, active) values ('lsr_off', 'org_test', ?, 'off', 'Off', 0)").bind(NOW),
+    env.DB.prepare("insert into lead_subsources (id, organization_id, created_at, source_id, key, label, active) values ('lss_a', 'org_test', ?, 'lsr_cold', 'linkedin', 'LinkedIn', 1)").bind(NOW),
+    env.DB.prepare("insert into lead_subsources (id, organization_id, created_at, source_id, key, label, active) values ('lss_b', 'org_test', ?, 'lsr_cold', 'old', 'Old', 0)").bind(NOW),
   ]);
 });
 
@@ -75,8 +79,8 @@ describe("ingest", () => {
 
   test("two concurrent ingests with the same externalId give one inquiry", async () => {
     const [a, b] = await Promise.all([
-      createInquiriesService(getDb(env)).ingest(input({ externalId: "race" }), me),
-      createInquiriesService(getDb(env)).ingest(input({ externalId: "race" }), me),
+      createInquiriesService(getDb(env), TEST_ORG).ingest(input({ externalId: "race" }), me),
+      createInquiriesService(getDb(env), TEST_ORG).ingest(input({ externalId: "race" }), me),
     ]);
     expect(a.ok && b.ok).toBe(true);
     expect(await all("select * from inquiries")).toHaveLength(1);
@@ -86,8 +90,8 @@ describe("ingest", () => {
 
   test("two concurrent calls with a new company name give one company", async () => {
     const [a, b] = await Promise.all([
-      createInquiriesService(getDb(env)).ingest(input({ company: "Globex" }), me),
-      createInquiriesService(getDb(env)).ingest(input({ company: "GLOBEX " }), me),
+      createInquiriesService(getDb(env), TEST_ORG).ingest(input({ company: "Globex" }), me),
+      createInquiriesService(getDb(env), TEST_ORG).ingest(input({ company: "GLOBEX " }), me),
     ]);
     expect(a.ok && b.ok).toBe(true);
     expect(await all("select * from companies")).toHaveLength(1);
@@ -156,8 +160,8 @@ describe("stage change", () => {
   test("two concurrent stage changes give one winner and one activity", async () => {
     const inq = await ingest();
     const [a, b] = await Promise.all([
-      createInquiriesService(getDb(env)).changeStage(inq.id, "new", "contacted", {}, me),
-      createInquiriesService(getDb(env)).changeStage(inq.id, "new", "negotiating", {}, other),
+      createInquiriesService(getDb(env), TEST_ORG).changeStage(inq.id, "new", "contacted", {}, me),
+      createInquiriesService(getDb(env), TEST_ORG).changeStage(inq.id, "new", "negotiating", {}, other),
     ]);
     expect([a.ok, b.ok].sort()).toEqual([false, true]);
     expect(await activities(inq.id, "stage_change")).toHaveLength(1);
@@ -203,8 +207,8 @@ describe("reopen", () => {
   test("two concurrent reopens give one reopened activity", async () => {
     const inq = await close("won");
     const [a, b] = await Promise.all([
-      createInquiriesService(getDb(env)).reopen(inq.id, "new", NOW, me),
-      createInquiriesService(getDb(env)).reopen(inq.id, "contacted", NOW, other),
+      createInquiriesService(getDb(env), TEST_ORG).reopen(inq.id, "new", NOW, me),
+      createInquiriesService(getDb(env), TEST_ORG).reopen(inq.id, "contacted", NOW, other),
     ]);
     expect([a.ok, b.ok].sort()).toEqual([false, true]);
     expect(await activities(inq.id, "reopened")).toHaveLength(1);
@@ -215,8 +219,8 @@ describe("claim", () => {
   test("two concurrent claims give one owner and one reassigned activity", async () => {
     const inq = await ingest();
     const [a, b] = await Promise.all([
-      createInquiriesService(getDb(env)).claim(inq.id, me),
-      createInquiriesService(getDb(env)).claim(inq.id, other),
+      createInquiriesService(getDb(env), TEST_ORG).claim(inq.id, me),
+      createInquiriesService(getDb(env), TEST_ORG).claim(inq.id, other),
     ]);
     expect([a.ok, b.ok].sort()).toEqual([false, true]);
     expect([a, b].find((r) => !r.ok)).toEqual({ ok: false, code: "already_claimed" });
@@ -250,8 +254,8 @@ describe("assign", () => {
   test("two concurrent assigns give one reassigned activity", async () => {
     const inq = await ingest();
     const [a, b] = await Promise.all([
-      createInquiriesService(getDb(env)).assign(inq.id, null, "usr_me", me),
-      createInquiriesService(getDb(env)).assign(inq.id, null, "usr_other", me),
+      createInquiriesService(getDb(env), TEST_ORG).assign(inq.id, null, "usr_me", me),
+      createInquiriesService(getDb(env), TEST_ORG).assign(inq.id, null, "usr_other", me),
     ]);
     expect([a.ok, b.ok].sort()).toEqual([false, true]);
     expect(await activities(inq.id, "reassigned")).toHaveLength(1);
@@ -340,12 +344,12 @@ describe("companies and sources", () => {
   test("toNameKey lowercases, trims and collapses spaces; searchCompanies returns matches", async () => {
     expect(toNameKey("  Acme   CORP ")).toBe("acme corp");
     await ingest({ company: "Acme Corp" });
-    expect(await searchCompanies(getDb(env), "acm")).toMatchObject([{ name: "Acme Corp" }]);
-    expect(await searchCompanies(getDb(env), "zzz")).toEqual([]);
+    expect(await searchCompanies(getDb(env), TEST_ORG, "acm")).toMatchObject([{ name: "Acme Corp" }]);
+    expect(await searchCompanies(getDb(env), TEST_ORG, "zzz")).toEqual([]);
   });
 
   test("sources are created, renamed, deactivated and audited; never deleted", async () => {
-    const s = createSourcesService(getDb(env));
+    const s = createSourcesService(getDb(env), TEST_ORG);
     const created = await s.create({ key: "partner", label: "Partner" }, me);
     expect(created.ok).toBe(true);
     expect(await s.create({ key: "partner", label: "Dup" }, me)).toEqual({ ok: false, code: "invalid" });
@@ -364,7 +368,7 @@ describe("companies and sources", () => {
 
 describe("sub-source rename", () => {
   test("renames, audits, and reports stale when nothing changes", async () => {
-    const s = createSourcesService(getDb(env));
+    const s = createSourcesService(getDb(env), TEST_ORG);
     expect(await s.renameSubsource("lss_a", "LinkedIn Ads", me)).toEqual({ ok: true });
     expect(await s.renameSubsource("lss_a", "LinkedIn Ads", me)).toEqual({ ok: false, code: "stale" });
     expect(await s.renameSubsource("lss_a", "  ", me)).toEqual({ ok: false, code: "invalid" });

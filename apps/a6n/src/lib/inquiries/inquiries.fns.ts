@@ -34,21 +34,21 @@ import { createSourcesService } from "./sources";
 
 export const listInquiriesFn = createServerFn({ method: "GET" })
   .validator(validate(listInquiriesSchema))
-  .handler(({ data }) => read("inquiry:read", (actor) => listInquiriesPage(depsFor(env).db, actor.userId, data)));
+  .handler(({ data }) => read("inquiry:read", (actor) => listInquiriesPage(depsFor(env).db, actor, data)));
 
 export const getInquiryFn = createServerFn({ method: "GET" })
   .validator(validate(getInquirySchema))
-  .handler(({ data }) => read("inquiry:read", async () => (await getInquiryDetail(depsFor(env).db, data.id)) ?? { missing: true as const }));
+  .handler(({ data }) => read("inquiry:read", async (actor) => (await getInquiryDetail(depsFor(env).db, actor.organizationId, data.id)) ?? { missing: true as const }));
 
 export const searchCompaniesFn = createServerFn({ method: "GET" })
   .validator(validate(searchCompaniesSchema))
-  .handler(({ data }) => read("inquiry:create", () => searchCompanies(depsFor(env).db, data.q)));
+  .handler(({ data }) => read("inquiry:create", (actor) => searchCompanies(depsFor(env).db, actor.organizationId, data.q)));
 
 export const listActiveSourcesFn = createServerFn({ method: "GET" }).handler(() =>
-  read("inquiry:read", () => createSourcesService(depsFor(env).db).listActive()),
+  read("inquiry:read", (actor) => createSourcesService(depsFor(env).db, actor.organizationId).listActive()),
 );
 
-export const listOwnersFn = createServerFn({ method: "GET" }).handler(() => read("inquiry:read", () => listOwners(depsFor(env).db)));
+export const listOwnersFn = createServerFn({ method: "GET" }).handler(() => read("inquiry:read", (actor) => listOwners(depsFor(env).db, actor.organizationId)));
 
 export const createInquiryFn = createServerFn({ method: "POST" })
   .validator(validate(createInquirySchema))

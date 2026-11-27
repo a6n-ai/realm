@@ -17,7 +17,7 @@ import { addSubsourceSchema, createSourceSchema, renameSourceSchema, setActiveSc
 import { createSourcesService } from "./sources";
 
 export const listSourcesFn = createServerFn({ method: "GET" }).handler(() =>
-  read("source:manage", () => createSourcesService(depsFor(env).db).listAll()),
+  read("source:manage", (actor) => createSourcesService(depsFor(env).db, actor.organizationId).listAll()),
 );
 
 export const createSourceFn = createServerFn({ method: "POST" })
