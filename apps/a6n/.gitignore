@@ -1,3 +1,6 @@
 .dev.vars
 .wrangler/
 dist/
+
+scripts/.seed.sql
+scripts/.promote.sql

@@ -18,3 +18,7 @@ Realm's Next rules (`proxy.ts`, `node_modules/next/dist/docs`, `transpilePackage
 ## Data
 
 One database, D1. Migrations are for D1 only (`drizzle/`).
+
+## Scripts
+
+Run the deploy scripts as `pnpm run deploy` / `pnpm run deploy:apply` (`pnpm deploy` is a builtin). Agents never run `--apply` or remote wrangler.
