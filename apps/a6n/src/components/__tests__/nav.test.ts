@@ -34,3 +34,9 @@ describe("createItems", () => {
     expect(createItems(p("admin")).map((c) => c.kind)).toEqual(["inquiry", "invite", "source"]);
   });
 });
+
+test("only a super admin sees Organisations", () => {
+  const names = (admin: boolean) => visibleNav(p("owner"), { total: 0, overdue: 0 }, admin).flatMap((g) => g.items.map((i) => i.label));
+  expect(names(false)).not.toContain("Organisations");
+  expect(names(true)).toContain("Organisations");
+});

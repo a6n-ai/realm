@@ -1,11 +1,11 @@
 import type { NavGroup, NavItem } from "@foundry/console/nav";
-import { InboxIcon, SettingsIcon, TagIcon, UserRoundXIcon } from "lucide-react";
+import { BuildingIcon, InboxIcon, SettingsIcon, TagIcon, UserRoundXIcon } from "lucide-react";
 import type { Permission } from "../lib/auth/permissions";
 
 export type CreateKind = "inquiry" | "invite" | "source";
 export type CreateItem = { kind: CreateKind; label: string };
 
-export function visibleNav(permissions: readonly Permission[], unassigned: { total: number; overdue: number }): NavGroup[] {
+export function visibleNav(permissions: readonly Permission[], unassigned: { total: number; overdue: number }, platformAdmin = false): NavGroup[] {
   const badge = unassigned.total > 0 ? String(unassigned.total) : undefined;
   const admin: NavItem[] = permissions.includes("source:manage") ? [{ label: "Sources", to: "/sources", icon: TagIcon }] : [];
   return [
@@ -16,6 +16,7 @@ export function visibleNav(permissions: readonly Permission[], unassigned: { tot
       ],
     },
     { items: [...admin, { label: "Settings", to: "/settings", icon: SettingsIcon }] },
+    ...(platformAdmin ? [{ items: [{ label: "Organisations", to: "/admin", icon: BuildingIcon }] }] : []),
   ];
 }
 

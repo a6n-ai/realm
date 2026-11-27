@@ -34,14 +34,14 @@ export async function requireActor(
 }
 
 // Platform pages: anyone but a super admin gets 404, so the page's existence is not revealed.
-export async function requirePlatformAdmin(env: Env, headers: Headers, opts: { write?: boolean } = {}): Promise<{ userId: string }> {
+export async function requirePlatformAdmin(env: Env, headers: Headers, opts: { write?: boolean } = {}): Promise<{ userId: string; name: string }> {
   const user = await getSession(env, headers);
   if (!user || user.platformRole !== "super_admin") throw new ConsoleError(404, "not found");
   if (opts.write) {
     const origin = headers.get("origin");
     if (origin !== null && origin !== new URL(env.BETTER_AUTH_URL).origin) throw new ConsoleError(403, "cross-origin write");
   }
-  return { userId: user.id };
+  return { userId: user.id, name: user.name };
 }
 
 // Known errors keep status and message; anything else is a 500 with no detail for the browser.

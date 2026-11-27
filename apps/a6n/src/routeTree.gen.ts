@@ -12,9 +12,11 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as NoOrganizationRouteImport } from './routes/no-organization'
 import { Route as SetPasswordRouteImport } from './routes/set-password'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppAccountRouteImport } from './routes/_app/account'
+import { Route as AppAdminRouteImport } from './routes/_app/admin'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppSourcesRouteImport } from './routes/_app/sources'
 import { Route as AppTeamRouteImport } from './routes/_app/team'
@@ -42,6 +44,11 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
+const NoOrganizationRoute = NoOrganizationRouteImport.update({
+  id: '/no-organization',
+  path: '/no-organization',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SetPasswordRoute = SetPasswordRouteImport.update({
   id: '/set-password',
   path: '/set-password',
@@ -55,6 +62,11 @@ const AppIndexRoute = AppIndexRouteImport.update({
 const AppAccountRoute = AppAccountRouteImport.update({
   id: '/account',
   path: '/account',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAdminRoute = AppAdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
   getParentRoute: () => AppRoute,
 } as any)
 const AppSettingsRoute = AppSettingsRouteImport.update({
@@ -122,8 +134,10 @@ export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
+  '/no-organization': typeof NoOrganizationRoute
   '/set-password': typeof SetPasswordRoute
   '/account': typeof AppAccountRoute
+  '/admin': typeof AppAdminRoute
   '/settings': typeof AppSettingsRouteWithChildren
   '/sources': typeof AppSourcesRoute
   '/team': typeof AppTeamRoute
@@ -140,8 +154,10 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
+  '/no-organization': typeof NoOrganizationRoute
   '/set-password': typeof SetPasswordRoute
   '/account': typeof AppAccountRoute
+  '/admin': typeof AppAdminRoute
   '/sources': typeof AppSourcesRoute
   '/team': typeof AppTeamRoute
   '/api/health': typeof ApiHealthRoute
@@ -160,8 +176,10 @@ export interface FileRoutesById {
   '/_app': typeof AppRouteWithChildren
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
+  '/no-organization': typeof NoOrganizationRoute
   '/set-password': typeof SetPasswordRoute
   '/_app/account': typeof AppAccountRoute
+  '/_app/admin': typeof AppAdminRoute
   '/_app/settings': typeof AppSettingsRouteWithChildren
   '/_app/sources': typeof AppSourcesRoute
   '/_app/team': typeof AppTeamRoute
@@ -182,8 +200,10 @@ export interface FileRouteTypes {
     | '/'
     | '/forgot-password'
     | '/login'
+    | '/no-organization'
     | '/set-password'
     | '/account'
+    | '/admin'
     | '/settings'
     | '/sources'
     | '/team'
@@ -200,8 +220,10 @@ export interface FileRouteTypes {
   to:
     | '/forgot-password'
     | '/login'
+    | '/no-organization'
     | '/set-password'
     | '/account'
+    | '/admin'
     | '/sources'
     | '/team'
     | '/api/health'
@@ -219,8 +241,10 @@ export interface FileRouteTypes {
     | '/_app'
     | '/forgot-password'
     | '/login'
+    | '/no-organization'
     | '/set-password'
     | '/_app/account'
+    | '/_app/admin'
     | '/_app/settings'
     | '/_app/sources'
     | '/_app/team'
@@ -240,6 +264,7 @@ export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   LoginRoute: typeof LoginRoute
+  NoOrganizationRoute: typeof NoOrganizationRoute
   SetPasswordRoute: typeof SetPasswordRoute
   ApiHealthRoute: typeof ApiHealthRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
@@ -268,6 +293,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/no-organization': {
+      id: '/no-organization'
+      path: '/no-organization'
+      fullPath: '/no-organization'
+      preLoaderRoute: typeof NoOrganizationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/set-password': {
       id: '/set-password'
       path: '/set-password'
@@ -287,6 +319,13 @@ declare module '@tanstack/react-router' {
       path: '/account'
       fullPath: '/account'
       preLoaderRoute: typeof AppAccountRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/admin': {
+      id: '/_app/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AppAdminRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/settings': {
@@ -398,6 +437,7 @@ const AppSettingsRouteWithChildren = AppSettingsRoute._addFileChildren(
 
 interface AppRouteChildren {
   AppAccountRoute: typeof AppAccountRoute
+  AppAdminRoute: typeof AppAdminRoute
   AppSettingsRoute: typeof AppSettingsRouteWithChildren
   AppSourcesRoute: typeof AppSourcesRoute
   AppTeamRoute: typeof AppTeamRoute
@@ -408,6 +448,7 @@ interface AppRouteChildren {
 
 const AppRouteChildren: AppRouteChildren = {
   AppAccountRoute: AppAccountRoute,
+  AppAdminRoute: AppAdminRoute,
   AppSettingsRoute: AppSettingsRouteWithChildren,
   AppSourcesRoute: AppSourcesRoute,
   AppTeamRoute: AppTeamRoute,
@@ -422,6 +463,7 @@ const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   ForgotPasswordRoute: ForgotPasswordRoute,
   LoginRoute: LoginRoute,
+  NoOrganizationRoute: NoOrganizationRoute,
   SetPasswordRoute: SetPasswordRoute,
   ApiHealthRoute: ApiHealthRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,

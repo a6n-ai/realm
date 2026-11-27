@@ -19,6 +19,8 @@ export const { errorText, reasonText } = createErrorText({
   unknown_role: "That role does not exist.",
   builtin_role: "Built-in roles cannot be changed.",
   name_taken: "A role with that name already exists.",
+  slug_taken: "That address is already used by another organisation.",
+  no_organization: "You are not in any organisation yet.",
   not_a_member: "Only members of this organisation can join its teams.",
   already_in_team: "That person is already in the team.",
   role_in_use: "Someone still has this role. Give them another role first.",

@@ -1,25 +1,16 @@
-import { Link, Outlet } from "@tanstack/react-router";
-import { AppMark } from "./auth/auth-kit";
+import { Outlet } from "@tanstack/react-router";
 import type { Shell } from "../lib/auth/shell";
 import { visibleNav } from "./nav";
 import { AppShell } from "./shell/app-shell";
 import { CreateProvider } from "./shell/create-dialogs";
 import { FindPalette } from "./shell/find-palette";
+import { OrgSwitcher } from "./shell/org-switcher";
 import { UserMenu } from "./shell/user-menu";
-
-function Brand() {
-  return (
-    <Link to="/inquiries" className="flex h-9 items-center gap-2 px-2 font-semibold text-(--strong)">
-      <AppMark className="size-6" />
-      <span className="group-data-[collapsible=icon]:hidden">a6n</span>
-    </Link>
-  );
-}
 
 export default function ConsoleLayout({ shell }: { shell: Shell }) {
   return (
     <CreateProvider>
-      <AppShell nav={visibleNav(shell.permissions, shell.unassigned)} brand={<Brand />} find={<FindPalette permissions={shell.permissions} />} userMenu={<UserMenu name={shell.user.name} email={shell.user.email} />}>
+      <AppShell nav={visibleNav(shell.permissions, shell.unassigned, shell.platformAdmin)} brand={<OrgSwitcher shell={shell} />} find={<FindPalette permissions={shell.permissions} />} userMenu={<UserMenu name={shell.user.name} email={shell.user.email} />}>
         <Outlet />
       </AppShell>
     </CreateProvider>

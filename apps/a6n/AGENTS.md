@@ -19,6 +19,14 @@ Realm's Next rules (`proxy.ts`, `node_modules/next/dist/docs`, `transpilePackage
 
 Production secrets live in the account Secrets Store (`secrets_store_secrets` in `wrangler.jsonc`, names `A6N_*`), set by an owner in the dashboard; no script or agent sets them. Read every secret through `readSecret()` (`src/lib/secrets.ts`), never `env.X` directly: in production the binding is a store object (`await .get()`), in tests and local dev a plain string. `env.dev` (`pnpm dev`) and `env.test` (vitest) bind no store, so `.dev.vars` and the vitest bindings supply readable test values of 32+ characters.
 
+## Organisations, roles and the super admin
+
+Better Auth's organization plugin holds organisations, members (with their role: `owner`, `admin`, `member` or a custom role), custom roles (`organization_roles`) and teams; every business row carries `organization_id` and every service is bound to the actor's organisation. The admin plugin's `users.role` is only the platform role: `user`, or `super_admin` for the `/admin` organisations page. `super_admin` is never granted by the app or any API; an owner grants it with one statement, run by hand:
+
+```bash
+pnpm --filter a6n exec wrangler d1 execute a6n --remote --command="UPDATE users SET role = 'super_admin' WHERE email = 'person@example.com'"
+```
+
 ## Data
 
 One database, D1. Migrations are for D1 only (`drizzle/`).

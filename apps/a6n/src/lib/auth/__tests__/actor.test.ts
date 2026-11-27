@@ -116,6 +116,6 @@ describe("organisation membership", () => {
     const headers = headersFor(await signIn(email));
     expect(((await rejects(requirePlatformAdmin(env, headers))) as ConsoleError).status).toBe(404);
     await env.DB.prepare("update users set role = 'super_admin' where id = ?").bind(id).run();
-    await expect(requirePlatformAdmin(env, headers)).resolves.toEqual({ userId: id });
+    await expect(requirePlatformAdmin(env, headers)).resolves.toEqual({ userId: id, name: email });
   });
 });

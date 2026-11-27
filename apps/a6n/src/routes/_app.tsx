@@ -10,6 +10,10 @@ export const Route = createFileRoute("/_app")({
     const shell = await getShell();
     if (!shell) throw redirect({ to: "/login", search: { redirect: location.href } });
     if (!shell.user.passwordSet) throw redirect({ to: "/set-password" });
+    // No organisation: only a super admin may stay, and only on the platform page.
+    if (!shell.organization && !(shell.platformAdmin && location.pathname.startsWith("/admin"))) {
+      throw redirect({ to: shell.platformAdmin ? "/admin" : "/no-organization" });
+    }
     return { shell };
   },
   component: () => {
