@@ -1,5 +1,4 @@
-// Placeholder: Task 12 replaces it with the structural Relay RPC type.
-type RelayRpcLike = unknown;
+import type { RelayRpcLike } from "./lib/mail/relay-mailer";
 
 declare global {
   namespace Cloudflare {
