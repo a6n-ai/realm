@@ -17,4 +17,9 @@ export const { errorText, reasonText } = createErrorText({
   last_admin: "You cannot remove the last admin.",
   self: "You cannot remove yourself.",
   already_removed: "That person is already removed.",
+  // Relay send refusals, shown when an invite could not be mailed.
+  no_default_sender: "Relay has no default sender for this app. Set one in Relay, then resend the invite.",
+  sender_not_verified: "Relay does not let this app send from its sender address. Check the app's senders in Relay.",
+  quota_exceeded: "Relay's monthly send quota is used up.",
+  workspace_suspended: "The Relay workspace is suspended.",
 });

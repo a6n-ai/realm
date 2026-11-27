@@ -59,7 +59,7 @@ export function TeamTable({ members, statuses, selfId, filtered = false }: { mem
       const res = await resendInviteFn({ data: { id: m.id } });
       if (!res.ok) return void toast.error(errorText(new Error(res.code)));
       if (res.sent) toast.success("Invite sent");
-      else toast.error("The invite could not be sent. Copy the link and send it another way.");
+      else toast.error(res.reason ? errorText(new Error(res.reason)) : "The invite could not be sent. Copy the link and send it another way.");
       await router.invalidate();
     } catch (err) {
       toast.error(errorText(err));

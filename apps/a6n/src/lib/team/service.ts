@@ -4,8 +4,14 @@ import type { CrmDb } from "../../db/client";
 import type { Actor } from "../auth/actor";
 import { MailUnavailableError, type InviteStatus, type Mailer } from "../mail/mailer";
 
+// Relay's send refusals. Only these reach the UI as a reason; any other failure text stays in the log.
+export const SEND_REFUSALS = ["no_default_sender", "sender_not_verified", "quota_exceeded", "workspace_suspended"] as const;
+export type SendRefusal = (typeof SEND_REFUSALS)[number];
+// Relay sent "no default sender" before the typed code; both spellings map to the code.
+const asRefusal = (error: string): SendRefusal | undefined => SEND_REFUSALS.find((r) => r === error.trim().replaceAll(" ", "_"));
+
 export type InviteResult =
-  | { ok: true; sent: boolean; inviteLink: string }
+  | { ok: true; sent: boolean; inviteLink: string; reason?: SendRefusal }
   | { ok: false; code: "already_active" | "mail_unavailable" | "not_found" | "invalid" };
 
 // The seed's system actor owns audit rows; it is never a team member.
@@ -62,16 +68,21 @@ export function createTeamService(db: CrmDb, mailer: Mailer | (() => Mailer), au
     const inviteLink = linkFor(email);
     const [row] = await db.all<{ key: string }>(sql`SELECT idempotency_key AS key FROM invites WHERE id = ${inviteId}`);
     let sent = false;
+    let reason: SendRefusal | undefined;
     try {
       const r = await m.sendInvite(email, inviteLink, actor.name, row!.key);
       if (r.ok) {
         sent = true;
         await db.run(sql`UPDATE invites SET relay_message_id = ${r.messageId ?? null}, sent_at = ${Date.now()} WHERE id = ${inviteId}`);
+      } else {
+        // A refusal used to vanish here: the caller saw only sent: false and nothing was logged.
+        console.error(`invite send refused: ${r.error ?? "unknown"}`);
+        reason = asRefusal(r.error ?? "");
       }
     } catch (e) {
       console.error("invite send failed", e);
     }
-    return { ok: true, sent, inviteLink };
+    return reason ? { ok: true, sent, inviteLink, reason } : { ok: true, sent, inviteLink };
   };
 
   return {

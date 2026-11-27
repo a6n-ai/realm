@@ -182,6 +182,16 @@ describe("invite", () => {
     expect(await all("select relay_message_id from invites")).toEqual([{ relay_message_id: null }]);
   });
 
+  test("a Relay refusal code reaches the caller as reason; other failure text does not", async () => {
+    const { svc, mailer } = mk();
+    mailer.failInvites(true);
+    expect(await svc.invite({ email: "g@x.io", name: "G" }, admin)).not.toHaveProperty("reason");
+    mailer.failInvites(true, "no default sender");
+    expect(await svc.invite({ email: "h@x.io", name: "H" }, admin)).toMatchObject({ ok: true, sent: false, reason: "no_default_sender" });
+    mailer.failInvites(true, "sender_not_verified");
+    expect(await svc.invite({ email: "i@x.io", name: "I" }, admin)).toMatchObject({ sent: false, reason: "sender_not_verified" });
+  });
+
   test("a missing mail binding returns mail_unavailable and creates no user", async () => {
     const svc = createTeamService(getDb(env), () => { throw new MailUnavailableError("RELAY binding missing"); }, AUTH_URL);
     expect(await svc.invite({ email: "m@x.io", name: "M" }, admin)).toEqual({ ok: false, code: "mail_unavailable" });

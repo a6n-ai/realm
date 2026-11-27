@@ -19,7 +19,7 @@ export async function copyLink(link: string) {
   }
 }
 
-type Result = { sent: boolean; inviteLink: string; email: string };
+type Result = { sent: boolean; inviteLink: string; email: string; reason?: string };
 
 // `inline` renders the form as the members page card: fields in one row, Invite in the card footer.
 export function InviteForm({ done, inline = false }: { done: () => void; inline?: boolean }) {
@@ -38,7 +38,7 @@ export function InviteForm({ done, inline = false }: { done: () => void; inline?
     try {
       const res = await inviteFn({ data: { email, name } });
       if (!res.ok) return setError(errorText(new Error(res.code)));
-      setResult({ sent: res.sent, inviteLink: res.inviteLink, email: email.trim().toLowerCase() });
+      setResult({ sent: res.sent, inviteLink: res.inviteLink, email: email.trim().toLowerCase(), reason: res.reason });
       await router.invalidate();
     } catch (err) {
       setError(errorText(err));
@@ -51,7 +51,9 @@ export function InviteForm({ done, inline = false }: { done: () => void; inline?
     const finished = (
       <div className="grid gap-4">
         <p className="text-sm" role="status">
-          {result.sent ? `Invite sent to ${result.email}.` : `The invite to ${result.email} could not be sent. Copy the link and send it another way.`}
+          {result.sent
+            ? `Invite sent to ${result.email}.`
+            : `The invite to ${result.email} could not be sent. ${result.reason ? `${errorText(new Error(result.reason))} ` : ""}Copy the link and send it another way.`}
         </p>
         {result.sent ? null : (
           <Input readOnly value={result.inviteLink} aria-label="Invite link" onFocus={(e) => e.currentTarget.select()} />

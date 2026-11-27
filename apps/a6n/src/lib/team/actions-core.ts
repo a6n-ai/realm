@@ -2,11 +2,11 @@ import type { Actor } from "../auth/actor";
 import type { Deps } from "../deps";
 import { gate, type ActionResult } from "../inquiries/actions-core";
 import { inviteSchema, memberIdSchema } from "./schemas";
-import { createTeamService } from "./service";
+import { createTeamService, type SendRefusal } from "./service";
 
 const svc = (deps: Deps) => createTeamService(deps.db, deps.mailer, deps.authUrl);
 
-export type InviteOutcome = ActionResult<{ sent: boolean; inviteLink: string }>;
+export type InviteOutcome = ActionResult<{ sent: boolean; inviteLink: string; reason?: SendRefusal }>;
 
 export async function runInvite(actor: Actor, deps: Deps, input: unknown): Promise<InviteOutcome> {
   const g = gate("team:manage", inviteSchema, actor, input);

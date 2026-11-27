@@ -7,10 +7,11 @@ export type SentMail =
 export function createMemoryMailer(): Mailer & {
   sent: SentMail[];
   lastCode(email: string): string | undefined;
-  failInvites(fail: boolean): void;
+  failInvites(fail: boolean, error?: string): void;
 } {
   const sent: SentMail[] = [];
   let failing = false;
+  let failure = "memory mailer: invite failure";
   return {
     sent,
     lastCode(email) {
@@ -20,14 +21,15 @@ export function createMemoryMailer(): Mailer & {
       }
       return undefined;
     },
-    failInvites(fail) {
+    failInvites(fail, error = "memory mailer: invite failure") {
       failing = fail;
+      failure = error;
     },
     async sendSignInCode(to, code) {
       sent.push({ kind: "code", to, code });
     },
     async sendInvite(to, link, inviterName, idempotencyKey) {
-      if (failing) return { ok: false, error: "memory mailer: invite failure" };
+      if (failing) return { ok: false, error: failure };
       sent.push({ kind: "invite", to, link, inviterName, idempotencyKey });
       return { ok: true, messageId: `mem_${sent.length}` };
     },
