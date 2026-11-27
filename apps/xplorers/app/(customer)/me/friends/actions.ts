@@ -34,9 +34,21 @@ export async function searchFriendsAction(q: string) {
 export async function friendAction(kind: Kind, publicId: string): Promise<{ error?: string; relation?: Relation }> {
   if (!KINDS.includes(kind)) throw new ValidationError("Unknown action");
   const me = await viewer();
+  const id = String(publicId);
   const r = await attempt(async (): Promise<Relation | undefined> => {
-    if (kind === "request") return friendsService.request(me, String(publicId));
-    await friendsService[kind](me, String(publicId));
+    switch (kind) {
+      case "request":
+        return friendsService.request(me, id);
+      case "accept":
+        await friendsService.accept(me, id);
+        return;
+      case "decline":
+        await friendsService.decline(me, id);
+        return;
+      case "remove":
+        await friendsService.remove(me, id);
+        return;
+    }
   });
   if ("error" in r) return r;
   const relation = r.value;
