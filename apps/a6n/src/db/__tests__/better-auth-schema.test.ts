@@ -1,24 +1,8 @@
+import { env } from "cloudflare:test";
 import { getTableColumns } from "drizzle-orm";
-import { admin } from "better-auth/plugins/admin";
-import { emailOTP } from "better-auth/plugins/email-otp";
 import { getAuthTables } from "better-auth/db";
-import type { BetterAuthOptions } from "better-auth";
 import { describe, expect, test } from "vitest";
-import { accounts, rateLimits, sessions, users, verifications } from "../schema";
-
-// Mirror of createAuth's plugins and the adapter's singular schema map.
-const options = {
-  rateLimit: { storage: "database" },
-  plugins: [admin(), emailOTP({ sendVerificationOTP: async () => {} })],
-} satisfies BetterAuthOptions;
-
-const schemaMap: Record<string, object> = {
-  user: users,
-  session: sessions,
-  account: accounts,
-  verification: verifications,
-  rateLimit: rateLimits,
-};
+import { authOptions, authSchemaMap as typedMap } from "../../lib/auth";
 
 const COMPATIBLE: Record<string, string[]> = {
   string: ["string"],
@@ -27,8 +11,10 @@ const COMPATIBLE: Record<string, string[]> = {
   date: ["date", "number"],
 };
 
+const schemaMap: Record<string, object> = typedMap;
+
 describe("Better Auth schema coverage", () => {
-  const authTables = getAuthTables(options);
+  const authTables = getAuthTables(authOptions(env));
 
   test("every Better Auth model is mapped", () => {
     for (const key of Object.keys(authTables)) expect(schemaMap, `model ${key}`).toHaveProperty(key);
