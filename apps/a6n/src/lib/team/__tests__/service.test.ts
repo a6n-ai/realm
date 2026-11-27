@@ -58,7 +58,7 @@ describe("remove", () => {
       inquiry("inq_open", "usr_sam", false),
       inquiry("inq_closed", "usr_sam", true),
       env.DB.prepare(
-        "insert into inquiry_activities (id, created_at, inquiry_id, type, actor_id) values ('iac_own', ?, 'inq_closed', 'note', 'usr_sam')",
+        "insert into inquiry_activities (id, organization_id, created_at, inquiry_id, type, actor_id) values ('iac_own', 'org_test', ?, 'inq_closed', 'note', 'usr_sam')",
       ).bind(NOW),
     ]);
     expect(await mk().svc.remove("usr_sam", admin)).toEqual({ removed: true });

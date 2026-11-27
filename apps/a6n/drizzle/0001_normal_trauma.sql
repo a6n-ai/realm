@@ -1,1 +1,0 @@
-ALTER TABLE `users` ADD `last_sign_in_at` integer;

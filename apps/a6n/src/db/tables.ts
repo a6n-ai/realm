@@ -41,8 +41,7 @@ const sessions = defineTable(
 );
 
 // Better Auth organization plugin (teams + dynamic access control). a6n is the first organisation; business rows below
-// carry organization_id. It stays nullable in D1: making it NOT NULL needs a table rebuild, and D1 keeps foreign keys on,
-// so dropping a parent table would cascade-delete its children. Every service writes it; the isolation suite proves it.
+// carry organization_id (required). Shipped as one baseline (2026-11-27 reset), so no D1 table rebuild was needed.
 const organizations = defineTable(
   "organizations",
   {
@@ -173,7 +172,7 @@ const invites = defineTable(
   "invites",
   {
     ...c.base("inv"),
-    organizationId: orgRef(),
+    organizationId: orgRef().notNull(),
     userId: c.ref("user_id").notNull().references(() => users.columns.id, { onDelete: "cascade" }),
     invitedBy: c.ref("invited_by").notNull().references(() => users.columns.id),
     n: c.int("n").notNull(),
@@ -191,7 +190,7 @@ const companies = defineTable(
   "companies",
   {
     ...c.base("cmp"),
-    organizationId: orgRef(),
+    organizationId: orgRef().notNull(),
     name: c.string("name").notNull(),
     nameKey: c.string("name_key").notNull(),
   },
@@ -202,7 +201,7 @@ const leadSources = defineTable(
   "lead_sources",
   {
     ...c.base("lsr"),
-    organizationId: orgRef(),
+    organizationId: orgRef().notNull(),
     key: c.string("key").notNull(),
     label: c.string("label").notNull(),
     active: c.bool("active").notNull().default(true),
@@ -214,7 +213,7 @@ const leadSubsources = defineTable(
   "lead_subsources",
   {
     ...c.base("lss"),
-    organizationId: orgRef(),
+    organizationId: orgRef().notNull(),
     sourceId: c.ref("source_id").notNull().references(() => leadSources.columns.id, { onDelete: "restrict" }),
     key: c.string("key").notNull(),
     label: c.string("label").notNull(),
@@ -227,7 +226,7 @@ const inquiries = defineTable(
   "inquiries",
   {
     ...c.base("inq"),
-    organizationId: orgRef(),
+    organizationId: orgRef().notNull(),
     contactName: c.string("contact_name"),
     phone: c.string("phone"),
     email: c.string("email"),
@@ -257,7 +256,7 @@ const inquiryActivities = defineTable(
   {
     id: c.id("iac"),
     createdAt: c.time("created_at").notNull(),
-    organizationId: orgRef(),
+    organizationId: orgRef().notNull(),
     inquiryId: c.ref("inquiry_id").notNull().references(() => inquiries.columns.id, { onDelete: "cascade" }),
     type: c.string("type").notNull(),
     note: c.text("note"),
@@ -272,7 +271,7 @@ const inquiryActivities = defineTable(
 
 const auditLog = defineTable("audit_log", {
   ...c.base("aud"),
-  organizationId: orgRef(),
+  organizationId: orgRef().notNull(),
   action: c.string("action").notNull(),
   actorId: c.ref("actor_id").notNull().references(() => users.columns.id),
   target: c.string("target"),

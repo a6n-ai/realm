@@ -67,7 +67,7 @@ describe("schema", () => {
   });
 });
 
-describe("organisations (migration A)", () => {
+describe("organisations: tables and columns", () => {
   test("every business table carries organization_id", async () => {
     for (const table of ORG_SCOPED) {
       const cols = await rows<{ name: string }>(`pragma table_info(${table})`);
@@ -93,7 +93,13 @@ describe("organisations (migration A)", () => {
   });
 });
 
-describe("organisations (migration B)", () => {
+describe("organisations: required and unique per organisation", () => {
+  test("a business row without an organisation is rejected", async () => {
+    await expect(
+      env.DB.prepare("insert into lead_sources (id, created_at, key, label) values ('lsr_none', ?, 'x', 'X')").bind(Date.now()).run(),
+    ).rejects.toThrow(/NOT NULL/);
+  });
+
   test("source keys and company names are unique per organisation, not across organisations", async () => {
     const now = Date.now();
     await env.DB.prepare("insert or ignore into organizations (id, name, slug, created_at) values ('org_u', 'U', 'u', ?)").bind(now).run();

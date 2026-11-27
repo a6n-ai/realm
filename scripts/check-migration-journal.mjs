@@ -24,7 +24,9 @@ import { join } from "node:path";
 // Second xplorers squash on 2026-10-19, owner-approved while the app is a pilot:
 // 0000-0010 became one baseline again, and prod's __drizzle_migrations is
 // recreated to match. The base journal now starts at the first baseline's `when`.
-const SQUASHED_FROM = { xplorers: 1791188313266 };
+// a6n squash on 2026-11-27, owner-approved before anyone used the app: 0000-0001 became one baseline with the
+// organisation tables and a required organization_id, and prod D1 was reset (tables and d1_migrations dropped) to match.
+const SQUASHED_FROM = { xplorers: 1791188313266, a6n: 1795759493347 };
 
 // Apps whose migrations live elsewhere than db/migrations. D1 apps are applied by
 // `wrangler d1 migrations apply`, which tracks files by name in d1_migrations and
@@ -59,7 +61,8 @@ for (const app of readdirSync("apps")) {
 
   const baseJson = base ? gitShow(base, journalPath) : null;
   const parsedBase = baseJson ? JSON.parse(baseJson).entries : [];
-  const baseEntries = parsedBase[0]?.when === SQUASHED_FROM[app] ? [] : parsedBase;
+  const squashed = parsedBase[0]?.when === SQUASHED_FROM[app];
+  const baseEntries = squashed ? [] : parsedBase;
   const known = new Set(baseEntries.map((e) => e.tag));
 
   baseEntries.forEach((b, i) => {
@@ -87,7 +90,8 @@ for (const app of readdirSync("apps")) {
     if (e.when % 1000 === 0) errors.push(`${app}: new ${e.tag} when ${e.when} looks hand-typed; let drizzle-kit generate stamp it`);
   }
 
-  checkFileSet(app, dir, entries.filter((x) => !known.has(x.tag)));
+  // The squash itself deletes the old files by design; every later change is checked normally.
+  if (!squashed) checkFileSet(app, dir, entries.filter((x) => !known.has(x.tag)));
 }
 
 // Wrangler applies pending files in filename order and remembers them by name, so a rename or

@@ -3,6 +3,7 @@ import { env, SELF } from "cloudflare:test";
 import { sql } from "drizzle-orm";
 import { beforeAll, expect, test } from "vitest";
 import { applyMigrations } from "../../../test/migrate";
+import { ensureTestOrg, TEST_ORG } from "../../../test/helpers";
 import { getDb } from "../client";
 import { companies } from "../schema";
 
@@ -15,7 +16,8 @@ test("getDb(env) runs select 1 on migrated D1", async () => {
 
 test("a repository built on getDb(env) inserts and reads", async () => {
   const repo = new BaseRepository(getDb(env), companies, companies.id, companies.id);
-  const created = await repo.create({ name: "Acme", nameKey: "acme" });
+  await ensureTestOrg();
+  const created = await repo.create({ organizationId: TEST_ORG, name: "Acme", nameKey: "acme" });
   const found = await repo.findByPublicId(created.id);
   expect(found).toMatchObject({ name: "Acme", nameKey: "acme" });
 });
