@@ -15,11 +15,14 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as SetPasswordRouteImport } from './routes/set-password'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppAccountRouteImport } from './routes/_app/account'
+import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppSourcesRouteImport } from './routes/_app/sources'
 import { Route as AppTeamRouteImport } from './routes/_app/team'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as AppInquiriesIndexRouteImport } from './routes/_app/inquiries/index'
 import { Route as AppInquiriesIdRouteImport } from './routes/_app/inquiries/$id'
+import { Route as AppSettingsIndexRouteImport } from './routes/_app/settings/index'
+import { Route as AppSettingsMembersRouteImport } from './routes/_app/settings/members'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 
 const AppRoute = AppRouteImport.update({
@@ -51,6 +54,11 @@ const AppAccountRoute = AppAccountRouteImport.update({
   path: '/account',
   getParentRoute: () => AppRoute,
 } as any)
+const AppSettingsRoute = AppSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppSourcesRoute = AppSourcesRouteImport.update({
   id: '/sources',
   path: '/sources',
@@ -76,6 +84,16 @@ const AppInquiriesIdRoute = AppInquiriesIdRouteImport.update({
   path: '/inquiries/$id',
   getParentRoute: () => AppRoute,
 } as any)
+const AppSettingsIndexRoute = AppSettingsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppSettingsRoute,
+} as any)
+const AppSettingsMembersRoute = AppSettingsMembersRouteImport.update({
+  id: '/members',
+  path: '/members',
+  getParentRoute: () => AppSettingsRoute,
+} as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
   path: '/api/auth/$',
@@ -88,12 +106,15 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/set-password': typeof SetPasswordRoute
   '/account': typeof AppAccountRoute
+  '/settings': typeof AppSettingsRouteWithChildren
   '/sources': typeof AppSourcesRoute
   '/team': typeof AppTeamRoute
   '/api/health': typeof ApiHealthRoute
   '/inquiries/$id': typeof AppInquiriesIdRoute
+  '/settings/members': typeof AppSettingsMembersRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/inquiries/': typeof AppInquiriesIndexRoute
+  '/settings/': typeof AppSettingsIndexRoute
 }
 export interface FileRoutesByTo {
   '/forgot-password': typeof ForgotPasswordRoute
@@ -105,8 +126,10 @@ export interface FileRoutesByTo {
   '/api/health': typeof ApiHealthRoute
   '/': typeof AppIndexRoute
   '/inquiries/$id': typeof AppInquiriesIdRoute
+  '/settings/members': typeof AppSettingsMembersRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/inquiries': typeof AppInquiriesIndexRoute
+  '/settings': typeof AppSettingsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -115,13 +138,16 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/set-password': typeof SetPasswordRoute
   '/_app/account': typeof AppAccountRoute
+  '/_app/settings': typeof AppSettingsRouteWithChildren
   '/_app/sources': typeof AppSourcesRoute
   '/_app/team': typeof AppTeamRoute
   '/api/health': typeof ApiHealthRoute
   '/_app/': typeof AppIndexRoute
   '/_app/inquiries/$id': typeof AppInquiriesIdRoute
+  '/_app/settings/members': typeof AppSettingsMembersRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/_app/inquiries/': typeof AppInquiriesIndexRoute
+  '/_app/settings/': typeof AppSettingsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -131,12 +157,15 @@ export interface FileRouteTypes {
     | '/login'
     | '/set-password'
     | '/account'
+    | '/settings'
     | '/sources'
     | '/team'
     | '/api/health'
     | '/inquiries/$id'
+    | '/settings/members'
     | '/api/auth/$'
     | '/inquiries/'
+    | '/settings/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/forgot-password'
@@ -148,8 +177,10 @@ export interface FileRouteTypes {
     | '/api/health'
     | '/'
     | '/inquiries/$id'
+    | '/settings/members'
     | '/api/auth/$'
     | '/inquiries'
+    | '/settings'
   id:
     | '__root__'
     | '/_app'
@@ -157,13 +188,16 @@ export interface FileRouteTypes {
     | '/login'
     | '/set-password'
     | '/_app/account'
+    | '/_app/settings'
     | '/_app/sources'
     | '/_app/team'
     | '/api/health'
     | '/_app/'
     | '/_app/inquiries/$id'
+    | '/_app/settings/members'
     | '/api/auth/$'
     | '/_app/inquiries/'
+    | '/_app/settings/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -219,6 +253,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAccountRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/settings': {
+      id: '/_app/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AppSettingsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/sources': {
       id: '/_app/sources'
       path: '/sources'
@@ -254,6 +295,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppInquiriesIdRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/settings/': {
+      id: '/_app/settings/'
+      path: '/'
+      fullPath: '/settings/'
+      preLoaderRoute: typeof AppSettingsIndexRouteImport
+      parentRoute: typeof AppSettingsRoute
+    }
+    '/_app/settings/members': {
+      id: '/_app/settings/members'
+      path: '/members'
+      fullPath: '/settings/members'
+      preLoaderRoute: typeof AppSettingsMembersRouteImport
+      parentRoute: typeof AppSettingsRoute
+    }
     '/api/auth/$': {
       id: '/api/auth/$'
       path: '/api/auth/$'
@@ -264,8 +319,23 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AppSettingsRouteChildren {
+  AppSettingsMembersRoute: typeof AppSettingsMembersRoute
+  AppSettingsIndexRoute: typeof AppSettingsIndexRoute
+}
+
+const AppSettingsRouteChildren: AppSettingsRouteChildren = {
+  AppSettingsMembersRoute: AppSettingsMembersRoute,
+  AppSettingsIndexRoute: AppSettingsIndexRoute,
+}
+
+const AppSettingsRouteWithChildren = AppSettingsRoute._addFileChildren(
+  AppSettingsRouteChildren,
+)
+
 interface AppRouteChildren {
   AppAccountRoute: typeof AppAccountRoute
+  AppSettingsRoute: typeof AppSettingsRouteWithChildren
   AppSourcesRoute: typeof AppSourcesRoute
   AppTeamRoute: typeof AppTeamRoute
   AppIndexRoute: typeof AppIndexRoute
@@ -275,6 +345,7 @@ interface AppRouteChildren {
 
 const AppRouteChildren: AppRouteChildren = {
   AppAccountRoute: AppAccountRoute,
+  AppSettingsRoute: AppSettingsRouteWithChildren,
   AppSourcesRoute: AppSourcesRoute,
   AppTeamRoute: AppTeamRoute,
   AppIndexRoute: AppIndexRoute,

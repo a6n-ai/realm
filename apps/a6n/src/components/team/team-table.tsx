@@ -1,7 +1,8 @@
-import { EmptyState } from "@foundry/console/empty-state";
 import { ResourceTable, type Column } from "@foundry/console/resource-table";
 import type { RowAction } from "@foundry/console/row-menu";
+import { Avatar, AvatarFallback } from "@foundry/ui/avatar";
 import { Badge } from "@foundry/ui/badge";
+import { initials } from "@foundry/ui/initials";
 import { toast } from "@foundry/ui/toast";
 import { useRouter } from "@tanstack/react-router";
 import { UsersIcon } from "lucide-react";
@@ -11,7 +12,9 @@ import { errorText } from "../../lib/error-copy";
 import type { MemberRow } from "../../lib/team/service";
 import { resendInviteFn } from "../../lib/team/team.fns";
 import type { InviteStatus } from "../../lib/mail/mailer";
-import { copyLink, InviteDialog } from "./invite-dialog";
+import { EmptyState } from "../page/empty-state";
+import { Panel } from "../page/panel";
+import { copyLink } from "./invite-dialog";
 import { InviteStatusBadge } from "./invite-status";
 import { RemoveMemberDialog } from "./remove-member-dialog";
 
@@ -21,13 +24,18 @@ const columns = (statuses: Record<string, InviteStatus>): Column<TeamMember>[] =
   {
     header: "Member",
     cell: (m) => (
-      <span className="grid">
-        <span className="font-medium text-(--strong)">{m.name}</span>
-        <span className="text-muted-foreground">{m.email}</span>
+      <span className="flex items-center gap-3">
+        <Avatar size="sm">
+          <AvatarFallback>{initials(m.name)}</AvatarFallback>
+        </Avatar>
+        <span className="grid">
+          <span className="font-medium text-(--strong)">{m.name}</span>
+          <span className="text-muted-foreground">{m.email}</span>
+        </span>
       </span>
     ),
   },
-  { header: "Role", secondary: true, cell: (m) => <span className="capitalize">{m.role}</span> },
+  { header: "Role", secondary: true, cell: (m) => <Badge variant="outline" className="capitalize">{m.role}</Badge> },
   {
     header: "Status",
     cell: (m) =>
@@ -42,7 +50,7 @@ const columns = (statuses: Record<string, InviteStatus>): Column<TeamMember>[] =
   { header: "Open inquiries", numeric: true, secondary: true, cell: (m) => m.openInquiries },
 ];
 
-export function TeamTable({ members, statuses, selfId }: { members: TeamMember[]; statuses: Record<string, InviteStatus>; selfId: string }) {
+export function TeamTable({ members, statuses, selfId, filtered = false }: { members: TeamMember[]; statuses: Record<string, InviteStatus>; selfId: string; filtered?: boolean }) {
   const router = useRouter();
   const [removing, setRemoving] = useState<TeamMember | null>(null);
 
@@ -62,22 +70,30 @@ export function TeamTable({ members, statuses, selfId }: { members: TeamMember[]
     const active = m.status === "active";
     return [
       { label: "Resend invite", onSelect: () => void resend(m), hidden: !active || m.passwordSet },
-      { label: "Copy invite link", onSelect: () => void copyLink(m.inviteLink!), hidden: !m.inviteLink },
+      { label: "Copy link", onSelect: () => void copyLink(m.inviteLink!), hidden: !m.inviteLink },
       { label: "Remove", destructive: true, onSelect: () => setRemoving(m), hidden: !active || m.id === selfId },
     ];
   };
 
   return (
     <>
-      <ResourceTable
-        label="Team"
-        columns={columns(statuses)}
-        rows={members}
-        rowKey={(m) => m.id}
-        rowLabel={(m) => m.name}
-        menu={menu}
-        empty={<EmptyState icon={UsersIcon} title="No team members yet" description="Invite someone to start sharing inquiries." action={<InviteDialog />} />}
-      />
+      <Panel>
+        <ResourceTable
+          label="Members"
+          columns={columns(statuses)}
+          rows={members}
+          rowKey={(m) => m.id}
+          rowLabel={(m) => m.name}
+          menu={menu}
+          empty={
+            <EmptyState
+              icon={UsersIcon}
+              title={filtered ? "No members match" : "No team members yet"}
+              description={filtered ? "Try a different search or clear the filters." : "Invite someone above to start sharing inquiries."}
+            />
+          }
+        />
+      </Panel>
       <RemoveMemberDialog member={removing} onClose={() => setRemoving(null)} />
     </>
   );
