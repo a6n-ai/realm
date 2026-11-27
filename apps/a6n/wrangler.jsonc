@@ -1,7 +1,7 @@
 // Secrets (never in this file): BETTER_AUTH_SECRET, RELAY_API_KEY. Set with `wrangler secret put`.
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "a6n-crm",
+  "name": "a6n",
   "compatibility_date": "2026-11-23",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
   "main": "src/server.ts",
@@ -18,8 +18,8 @@
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "a6n-crm",
-      // set after: wrangler d1 create a6n-crm (owner approval)
+      "database_name": "a6n",
+      // set after: wrangler d1 create a6n (owner approval)
       "database_id": "00000000-0000-0000-0000-000000000000",
       "migrations_dir": "drizzle",
     },

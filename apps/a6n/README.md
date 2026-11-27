@@ -1,4 +1,4 @@
-# a6n-crm
+# a6n
 
 Inquiry CRM for a6n's sales team. TanStack Start on one Cloudflare Worker with D1, built like `relay/apps/relay-v2`.
 

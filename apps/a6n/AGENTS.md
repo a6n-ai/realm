@@ -1,4 +1,4 @@
-# a6n-crm agent guide
+# a6n agent guide
 
 TanStack Start on Cloudflare Workers + D1. Skills to load for framework work:
 

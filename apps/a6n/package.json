@@ -1,5 +1,5 @@
 {
-  "name": "a6n-crm",
+  "name": "a6n",
   "private": true,
   "type": "module",
   "scripts": {
@@ -8,8 +8,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "db:generate": "drizzle-kit generate",
-    "db:migrate:local": "wrangler d1 migrations apply a6n-crm --local",
-    "db:migrate:remote": "wrangler d1 migrations apply a6n-crm --remote",
+    "db:migrate:local": "wrangler d1 migrations apply a6n --local",
+    "db:migrate:remote": "wrangler d1 migrations apply a6n --remote",
     "deploy": "node scripts/deploy.ts",
     "deploy:apply": "node scripts/deploy.ts --apply"
   },
