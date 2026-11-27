@@ -19,7 +19,7 @@ import { StageBadge } from "./stage-badge";
 import { StageControl } from "./stage-control";
 import { LINK } from "../link-class";
 
-function Panel({ title, children }: { title: string; children: ReactNode }) {
+export function Panel({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className="grid gap-3 rounded-md border bg-card p-4">
       <h2 className="text-sm font-semibold">{title}</h2>

@@ -1,6 +1,5 @@
 import { DeniedState, ErrorState } from "@foundry/console/error-state";
 import type { Facet } from "@foundry/console/filters";
-import { ListSkeleton } from "@foundry/console/list-skeleton";
 import { Pager } from "@foundry/console/pager";
 import { ResourceTable } from "@foundry/console/resource-table";
 import { useConsoleRouter } from "@foundry/console/router";
@@ -20,6 +19,8 @@ import { PageHeader } from "../../../components/shell/page-header";
 import { errorText } from "../../../lib/error-copy";
 import { listActiveSourcesFn, listInquiriesFn, listOwnersFn } from "../../../lib/inquiries/inquiries.fns";
 import { STAGES } from "../../../lib/inquiries/stages";
+import { InquiriesSkeleton } from "../../../components/page/skeletons";
+
 
 type View = "mine" | "unassigned" | "all";
 type InquirySearch = { view?: View; q?: string; stage?: string; source?: string; owner?: string; due?: "1"; page?: number };
@@ -48,12 +49,7 @@ export const Route = createFileRoute("/_app/inquiries/")({
     ]);
     return { list, sources, owners };
   },
-  pendingComponent: () => (
-    <>
-      <PageHeader crumbs={[{ label: "Inquiries" }]} />
-      <ListSkeleton />
-    </>
-  ),
+  pendingComponent: InquiriesSkeleton,
   errorComponent: ({ error }) => {
     const router = useRouter();
     return (

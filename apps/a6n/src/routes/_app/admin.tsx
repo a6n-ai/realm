@@ -1,6 +1,5 @@
 import { ErrorState } from "@foundry/console/error-state";
 import { FormError } from "@foundry/console/form-error";
-import { ListSkeleton } from "@foundry/console/list-skeleton";
 import { RowMenu } from "@foundry/console/row-menu";
 import { Button } from "@foundry/ui/button";
 import { Input } from "@foundry/ui/input";
@@ -14,6 +13,8 @@ import { PageHeader } from "../../components/shell/page-header";
 import { errorText } from "../../lib/error-copy";
 import type { OrgRow } from "../../lib/platform/service";
 import { addOwnerFn, createOrganizationFn, listOrganizationsFn, renameOrganizationFn } from "../../lib/platform/platform.fns";
+import { AdminSkeleton } from "../../components/page/skeletons";
+
 
 export const Route = createFileRoute("/_app/admin")({
   loader: async () => {
@@ -21,7 +22,7 @@ export const Route = createFileRoute("/_app/admin")({
     if (orgs === null) throw notFound();
     return orgs;
   },
-  pendingComponent: () => <ListSkeleton />,
+  pendingComponent: AdminSkeleton,
   errorComponent: ({ error }) => {
     const router = useRouter();
     return <ErrorState error={error} errorText={errorText} onRetry={() => void router.invalidate()} />;

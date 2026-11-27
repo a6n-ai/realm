@@ -1,5 +1,4 @@
 import { DeniedState, ErrorState } from "@foundry/console/error-state";
-import { ListSkeleton } from "@foundry/console/list-skeleton";
 import { useConsoleRouter } from "@foundry/console/router";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { FilterBar } from "../../components/page/filter-bar";
@@ -7,18 +6,15 @@ import { PageHeader } from "../../components/shell/page-header";
 import { SourcesTable } from "../../components/sources/sources-table";
 import { errorText } from "../../lib/error-copy";
 import { listSourcesFn } from "../../lib/inquiries/sources.fns";
+import { SourcesSkeleton } from "../../components/page/skeletons";
+
 
 const FACETS = [{ key: "active", label: "Status", options: [{ value: "yes", label: "Active" }, { value: "no", label: "Inactive" }] }];
 
 export const Route = createFileRoute("/_app/sources")({
   validateSearch: (s: Record<string, unknown>): { active?: "yes" | "no" } => ({ active: s.active === "yes" || s.active === "no" ? s.active : undefined }),
   loader: () => listSourcesFn(),
-  pendingComponent: () => (
-    <>
-      <PageHeader crumbs={[{ label: "Sources" }]} />
-      <ListSkeleton />
-    </>
-  ),
+  pendingComponent: SourcesSkeleton,
   errorComponent: ({ error }) => {
     const router = useRouter();
     return (

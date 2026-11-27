@@ -1,5 +1,4 @@
 import { DeniedState, ErrorState } from "@foundry/console/error-state";
-import { ListSkeleton } from "@foundry/console/list-skeleton";
 import { RowMenu } from "@foundry/console/row-menu";
 import { Badge } from "@foundry/ui/badge";
 import { Button } from "@foundry/ui/button";
@@ -11,10 +10,12 @@ import { RoleDialog, type RoleDialogMode } from "../../../components/roles/role-
 import { roleLabel } from "../../../components/team/role-select";
 import { errorText } from "../../../lib/error-copy";
 import { deleteRoleFn, listRolesFn } from "../../../lib/roles/roles.fns";
+import { RolesSkeleton } from "../../../components/page/skeletons";
+
 
 export const Route = createFileRoute("/_app/settings/roles")({
   loader: () => listRolesFn(),
-  pendingComponent: () => <ListSkeleton />,
+  pendingComponent: RolesSkeleton,
   errorComponent: ({ error }) => {
     const router = useRouter();
     return <ErrorState error={error} errorText={errorText} onRetry={() => void router.invalidate()} />;

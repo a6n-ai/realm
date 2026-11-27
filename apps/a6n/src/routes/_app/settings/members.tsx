@@ -1,5 +1,4 @@
 import { DeniedState, ErrorState } from "@foundry/console/error-state";
-import { ListSkeleton } from "@foundry/console/list-skeleton";
 import { useConsoleRouter } from "@foundry/console/router";
 import { SearchInput, Toolbar } from "@foundry/console/toolbar";
 import { useUrlFilter } from "@foundry/console/use-url-filter";
@@ -11,6 +10,8 @@ import { InviteForm } from "../../../components/team/invite-dialog";
 import { TeamTable } from "../../../components/team/team-table";
 import { errorText } from "../../../lib/error-copy";
 import { listTeamFn } from "../../../lib/team/team.fns";
+import { MembersSkeleton } from "../../../components/page/skeletons";
+
 
 const str = (v: unknown) => (typeof v === "string" && v ? v : undefined);
 
@@ -21,7 +22,7 @@ export const Route = createFileRoute("/_app/settings/members")({
     status: STATUS_FACET.options.find((o) => o.value === s.status)?.value,
   }),
   loader: () => listTeamFn(),
-  pendingComponent: () => <ListSkeleton />,
+  pendingComponent: MembersSkeleton,
   errorComponent: ({ error }) => {
     const router = useRouter();
     return <ErrorState error={error} errorText={errorText} onRetry={() => void router.invalidate()} />;

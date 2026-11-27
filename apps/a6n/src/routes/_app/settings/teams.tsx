@@ -1,5 +1,4 @@
 import { DeniedState, ErrorState } from "@foundry/console/error-state";
-import { ListSkeleton } from "@foundry/console/list-skeleton";
 import { RowMenu } from "@foundry/console/row-menu";
 import { Button } from "@foundry/ui/button";
 import { toast } from "@foundry/ui/toast";
@@ -10,10 +9,12 @@ import { TeamMembersDialog, TeamNameDialog } from "../../../components/teams/tea
 import { errorText } from "../../../lib/error-copy";
 import type { TeamRow } from "../../../lib/teams/service";
 import { deleteTeamFn, listTeamsFn } from "../../../lib/teams/teams.fns";
+import { TeamsSkeleton } from "../../../components/page/skeletons";
+
 
 export const Route = createFileRoute("/_app/settings/teams")({
   loader: () => listTeamsFn(),
-  pendingComponent: () => <ListSkeleton />,
+  pendingComponent: TeamsSkeleton,
   errorComponent: ({ error }) => {
     const router = useRouter();
     return <ErrorState error={error} errorText={errorText} onRetry={() => void router.invalidate()} />;
