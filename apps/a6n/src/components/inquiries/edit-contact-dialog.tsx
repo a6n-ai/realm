@@ -4,18 +4,20 @@ import { confirmAction } from "@foundry/console/run-action";
 import { Button } from "@foundry/ui/button";
 import { Input } from "@foundry/ui/input";
 import { Label } from "@foundry/ui/label";
+import { PhoneInput } from "@foundry/ui/phone-input";
 import { Textarea } from "@foundry/ui/textarea";
 import { useRouter } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 import { errorText } from "../../lib/error-copy";
 import { updateContactFn } from "../../lib/inquiries/inquiries.fns";
+import { DEFAULT_COUNTRY, toInputValue } from "../../lib/phone";
 
 type Contact = { id: string; contactName: string | null; phone: string | null; email: string | null; requirements: string | null };
 
 function Form({ contact, done }: { contact: Contact; done: () => void }) {
   const router = useRouter();
   const [contactName, setName] = useState(contact.contactName ?? "");
-  const [phone, setPhone] = useState(contact.phone ?? "");
+  const [phone, setPhone] = useState(() => toInputValue(contact.phone));
   const [email, setEmail] = useState(contact.email ?? "");
   const [requirements, setRequirements] = useState(contact.requirements ?? "");
   const [error, setError] = useState<string | null>(null);
@@ -44,7 +46,8 @@ function Form({ contact, done }: { contact: Contact; done: () => void }) {
       </div>
       <div className="grid gap-2">
         <Label htmlFor="ec-phone">Phone</Label>
-        <Input id="ec-phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} />
+        <PhoneInput id="ec-phone" defaultCountry={DEFAULT_COUNTRY} value={phone} onChange={setPhone} />
+        {contact.phone && !phone ? <p className="text-xs text-muted-foreground">Stored as "{contact.phone}", which is not a full number. Enter it again to replace it.</p> : null}
       </div>
       <div className="grid gap-2">
         <Label htmlFor="ec-email">Email</Label>

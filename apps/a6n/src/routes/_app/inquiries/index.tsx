@@ -108,7 +108,7 @@ function InquiriesPage() {
       <Panel>
         <ResourceTable
           label="Inquiries"
-          columns={inquiryColumns}
+          columns={inquiryColumns(shell.permissions.includes("inquiry:update"))}
           rows={list.rows}
           rowKey={(r) => r.id}
           rowLabel={inquiryLabel}

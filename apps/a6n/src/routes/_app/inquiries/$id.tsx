@@ -49,5 +49,5 @@ function InquiryPage() {
       </>
     );
   }
-  return <InquiryDetail inquiry={inquiry} owners={owners} canAssign={shell.permissions.includes("inquiry:assign")} />;
+  return <InquiryDetail inquiry={inquiry} owners={owners} canAssign={shell.permissions.includes("inquiry:assign")} canEdit={shell.permissions.includes("inquiry:update")} />;
 }

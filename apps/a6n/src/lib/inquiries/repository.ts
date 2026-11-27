@@ -1,7 +1,7 @@
 import { UpdatableRepository } from "@foundry/database";
 import { and, asc, desc, eq, isNull, lt, or, sql, type AnyColumn, type SQL } from "drizzle-orm";
 import type { CrmDb } from "../../db/client";
-import { companies, inquiries, users } from "../../db/schema";
+import { companies, inquiries, leadSources, users } from "../../db/schema";
 import { likePattern } from "./companies";
 
 export const PAGE_SIZE = 50;
@@ -12,6 +12,8 @@ export type InquiryRow = {
   id: string;
   contactName: string | null;
   companyName: string | null;
+  phone: string | null;
+  source: string;
   stage: string;
   ownerId: string | null;
   ownerName: string | null;
@@ -63,6 +65,8 @@ export class InquiriesRepository extends UpdatableRepository<typeof inquiries, C
         id: inquiries.id,
         contactName: inquiries.contactName,
         companyName: companies.name,
+        phone: inquiries.phone,
+        source: leadSources.label,
         stage: inquiries.stage,
         ownerId: inquiries.ownerId,
         ownerName: users.name,
@@ -71,6 +75,7 @@ export class InquiriesRepository extends UpdatableRepository<typeof inquiries, C
         closedAt: inquiries.closedAt,
       })
       .from(inquiries)
+      .innerJoin(leadSources, eq(inquiries.sourceId, leadSources.id))
       .leftJoin(companies, eq(inquiries.companyId, companies.id))
       .leftJoin(users, eq(inquiries.ownerId, users.id))
       .where(and(...where))
@@ -84,6 +89,8 @@ export class InquiriesRepository extends UpdatableRepository<typeof inquiries, C
         id: r.id,
         contactName: r.contactName,
         companyName: r.companyName,
+        phone: r.phone,
+        source: r.source,
         stage: r.stage,
         ownerId: r.ownerId,
         ownerName: r.ownerName,

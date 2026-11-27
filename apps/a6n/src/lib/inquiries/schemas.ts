@@ -4,13 +4,15 @@ import { LOST_REASONS, OPEN_STAGES, STAGES } from "./stages";
 const id = z.string().min(1).max(64);
 const text = (max: number) => z.string().max(max);
 const optionalText = (max: number) => z.string().max(max).nullish();
+// E.164 from the phone input, or a free-text number already stored or sent by another source; junk like "abc" is refused.
+const phone = z.string().max(50).regex(/^(|(?=.*\d)\+?[\d\s().-]{3,})$/, "Enter a valid phone number").nullish();
 const time = z.number().int().finite();
 
 export const createInquirySchema = z.object({
   source: z.string().min(1).max(50),
   subSource: z.string().max(50).nullish(),
   contactName: optionalText(200),
-  phone: optionalText(50),
+  phone,
   email: z.union([z.literal(""), z.email().max(254)]).nullish(),
   company: optionalText(200),
   requirements: optionalText(5000),
@@ -31,7 +33,7 @@ export const assignSchema = z.object({ id, fromOwnerId: id.nullable(), toOwnerId
 export const updateContactSchema = z.object({
   id,
   contactName: optionalText(200),
-  phone: optionalText(50),
+  phone,
   email: z.union([z.literal(""), z.email().max(254)]).nullish(),
   requirements: optionalText(5000),
 });

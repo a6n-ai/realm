@@ -15,9 +15,11 @@ import { ActivityTimeline } from "./activity-timeline";
 import { EditContactDialog } from "./edit-contact-dialog";
 import { FollowUpBadge } from "./follow-up-badge";
 import { OwnerControl } from "./owner-control";
-import { StageBadge } from "./stage-badge";
-import { StageControl } from "./stage-control";
+import { StageMenu } from "./stage-menu";
 import { LINK } from "../link-class";
+import { formatPhone, telHref } from "../../lib/phone";
+import { LOST_LABEL } from "./labels";
+import type { LostReason } from "../../lib/inquiries/stages";
 
 export function Panel({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -59,18 +61,21 @@ function FollowUp({ id, at, overdue, open }: { id: string; at: number | null; ov
   );
 }
 
-export function InquiryDetail({ inquiry: i, owners, canAssign }: { inquiry: Detail; owners: { id: string; name: string }[]; canAssign: boolean }) {
+export function InquiryDetail({ inquiry: i, owners, canAssign, canEdit }: { inquiry: Detail; owners: { id: string; name: string }[]; canAssign: boolean; canEdit: boolean }) {
   const open = i.closedAt === null;
   const title = i.contactName ?? i.phone ?? i.company ?? "Inquiry";
   return (
     <>
-      <PageHeader crumbs={[{ label: "Inquiries", to: "/inquiries" }, { label: title }]} badge={<StageBadge stage={i.stage} />} actions={<EditContactDialog contact={i} />} />
+      <PageHeader crumbs={[{ label: "Inquiries", to: "/inquiries" }, { label: title }]} badge={<StageMenu id={i.id} stage={i.stage} canEdit={canEdit} />} description={[i.company, i.ownerName ? `Owner: ${i.ownerName}` : "Unassigned"].filter(Boolean).join(" · ")} actions={<EditContactDialog contact={i} />} />
       <div className="grid gap-4 px-4 pb-8 lg:grid-cols-[minmax(0,20rem)_minmax(0,1fr)]">
         <div className="grid content-start gap-4">
+          <Panel title="Follow-up">
+            <FollowUp key={i.nextFollowUpAt ?? "none"} id={i.id} at={i.nextFollowUpAt} overdue={i.overdue} open={open} />
+          </Panel>
           <Panel title="Contact">
             <dl className="grid gap-3">
               <Fact label="Name">{i.contactName}</Fact>
-              <Fact label="Phone">{i.phone ? <a className={LINK} href={`tel:${i.phone}`}>{i.phone}</a> : null}</Fact>
+              <Fact label="Phone">{i.phone ? <a className={LINK} href={telHref(i.phone)}>{formatPhone(i.phone)}</a> : null}</Fact>
               <Fact label="Email">{i.email ? <a className={LINK} href={`mailto:${i.email}`}>{i.email}</a> : null}</Fact>
               <Fact label="Company">{i.company}</Fact>
               <Fact label="Source">
@@ -78,20 +83,14 @@ export function InquiryDetail({ inquiry: i, owners, canAssign }: { inquiry: Deta
                 {i.subSource ? ` / ${i.subSource}` : ""}
               </Fact>
               <Fact label="Requirements">{i.requirements ? <span className="whitespace-pre-wrap">{i.requirements}</span> : null}</Fact>
+              {i.lostReason ? <Fact label="Lost reason">{LOST_LABEL[i.lostReason as LostReason] ?? i.lostReason}</Fact> : null}
               <Fact label="Created">
                 <LocalTime at={i.createdAt} />
               </Fact>
             </dl>
           </Panel>
-          <Panel title="Stage">
-            {i.lostReason ? <p className="text-muted-foreground">Lost: {i.lostReason.replaceAll("_", " ")}</p> : null}
-            <StageControl id={i.id} stage={i.stage} />
-          </Panel>
           <Panel title="Owner">
             <OwnerControl id={i.id} ownerId={i.ownerId} ownerName={i.ownerName} ownerRemoved={i.ownerRemoved} open={open} canAssign={canAssign} owners={owners} />
-          </Panel>
-          <Panel title="Follow-up">
-            <FollowUp key={i.nextFollowUpAt ?? "none"} id={i.id} at={i.nextFollowUpAt} overdue={i.overdue} open={open} />
           </Panel>
         </div>
         <div className="grid content-start gap-4">

@@ -118,9 +118,11 @@ export function FieldSkeleton() {
 
 const inquiryColumns: SkeletonColumn[] = [
   { header: "Contact", w: "w-40", lines: 2 },
+  { header: "Phone", w: "w-32", secondary: true },
   { header: "Stage", pill: true },
   { header: "Owner", w: "w-28", secondary: true },
-  { header: "Follow-up", w: "w-24" },
+  { header: "Next follow-up", w: "w-24" },
+  { header: "Source", w: "w-20", secondary: true },
 ];
 
 export function InquiriesSkeleton() {
@@ -191,6 +193,16 @@ export function InquiryDetailSkeleton() {
       <PageHeader crumbs={crumbs} actions={<Skeleton className="h-9 w-20" />} />
       <div className="grid gap-4 px-4 pb-8 lg:grid-cols-[minmax(0,20rem)_minmax(0,1fr)]" aria-hidden="true">
         <div className="grid content-start gap-4">
+          <DetailPanel title="Follow-up">
+            <Skeleton shape="pill" className="h-5 w-24" />
+            <div className="flex items-end gap-2">
+              <div className="grid flex-1 gap-2">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-9 w-full" />
+              </div>
+              <Skeleton className="h-9 w-24" />
+            </div>
+          </DetailPanel>
           <DetailPanel title="Contact">
             <div className="grid gap-3">
               {["Name", "Phone", "Email", "Company", "Source", "Requirements", "Created"].map((l) => (
@@ -201,21 +213,8 @@ export function InquiryDetailSkeleton() {
               ))}
             </div>
           </DetailPanel>
-          <DetailPanel title="Stage">
-            <Skeleton className="h-9 w-full" />
-          </DetailPanel>
           <DetailPanel title="Owner">
             <Skeleton className="h-9 w-full" />
-          </DetailPanel>
-          <DetailPanel title="Follow-up">
-            <Skeleton shape="pill" className="h-5 w-24" />
-            <div className="flex items-end gap-2">
-              <div className="grid flex-1 gap-2">
-                <Skeleton className="h-4 w-24" />
-                <Skeleton className="h-9 w-full" />
-              </div>
-              <Skeleton className="h-9 w-24" />
-            </div>
           </DetailPanel>
         </div>
         <div className="grid content-start gap-4">

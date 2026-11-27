@@ -3,10 +3,12 @@ import { FormError } from "@foundry/console/form-error";
 import { Button } from "@foundry/ui/button";
 import { Input } from "@foundry/ui/input";
 import { Label } from "@foundry/ui/label";
+import { PhoneInput } from "@foundry/ui/phone-input";
 import { Textarea } from "@foundry/ui/textarea";
 import { useNavigate, useRouter } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 import { fromDateInput, tomorrowInput } from "../../lib/dates";
+import { DEFAULT_COUNTRY } from "../../lib/phone";
 import { errorText } from "../../lib/error-copy";
 import { createInquiryFn } from "../../lib/inquiries/inquiries.fns";
 import type { SourceRow, SubsourceRow } from "../../lib/inquiries/sources";
@@ -72,7 +74,7 @@ function NewInquiryForm({ sources, subsources, onDone }: Pick<Props, "sources" |
         </div>
         <div className="grid gap-2">
           <Label htmlFor="ni-phone">Phone</Label>
-          <Input id="ni-phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} autoComplete="off" />
+          <PhoneInput id="ni-phone" defaultCountry={DEFAULT_COUNTRY} value={phone} onChange={setPhone} autoComplete="off" />
         </div>
       </div>
       <div className="grid gap-2">
