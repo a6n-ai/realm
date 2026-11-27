@@ -226,10 +226,10 @@ describe("invite", () => {
 
   test("inviting the system actor's email is refused as invalid and does not reactivate it", async () => {
     await env.DB.prepare(
-      "insert into users (id, name, email, role, status, created_at, updated_at) values ('usr_system', 'System', 'system@crm.a6n.ai', 'sales', 'removed', ?, ?)",
+      "insert into users (id, name, email, role, status, created_at, updated_at) values ('usr_system', 'System', 'system@app.a6n.ai', 'sales', 'removed', ?, ?)",
     ).bind(NOW, NOW).run();
     const { svc, mailer } = mk();
-    expect(await svc.invite({ email: "system@crm.a6n.ai", name: "Sys" }, admin)).toEqual({ ok: false, code: "invalid" });
+    expect(await svc.invite({ email: "system@app.a6n.ai", name: "Sys" }, admin)).toEqual({ ok: false, code: "invalid" });
     expect(await all("select status from users where id = 'usr_system'")).toEqual([{ status: "removed" }]);
     expect(await all("select * from invites")).toHaveLength(0);
     expect(mailer.sent).toHaveLength(0);

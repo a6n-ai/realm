@@ -11,7 +11,7 @@ function Brand() {
   return (
     <Link to="/inquiries" className="flex h-9 items-center gap-2 px-2 font-semibold text-(--strong)">
       <img src="/icon.svg" alt="" className="size-6" />
-      <span className="group-data-[collapsible=icon]:hidden">a6n CRM</span>
+      <span className="group-data-[collapsible=icon]:hidden">a6n</span>
     </Link>
   );
 }
@@ -43,7 +43,7 @@ function UserMenu({ name }: { name: string }) {
 export default function ConsoleLayout({ shell }: { shell: Shell }) {
   return (
     <AppShell
-      appName="a6n CRM"
+      appName="a6n"
       brand={<Brand />}
       nav={visibleNav(shell.user.role, shell.unassigned)}
       user={{ name: shell.user.name, email: shell.user.email }}

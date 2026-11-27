@@ -29,7 +29,7 @@ describe("seedSql", () => {
       { email: "b@x.com", provider_id: "credential" },
     ]);
     const sys = await env.DB.prepare("select email, status from users where id = 'usr_system'").first();
-    expect(sys).toEqual({ email: "system@crm.a6n.ai", status: "removed" });
+    expect(sys).toEqual({ email: "system@app.a6n.ai", status: "removed" });
     expect(await env.DB.prepare("select 1 from accounts where user_id = 'usr_system'").first()).toBeNull();
   });
 

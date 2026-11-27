@@ -10,9 +10,9 @@
   "assets": { "binding": "ASSETS" },
   "workers_dev": false,
   "preview_urls": false,
-  "routes": [{ "pattern": "crm.a6n.ai", "custom_domain": true }],
+  "routes": [{ "pattern": "app.a6n.ai", "custom_domain": true }],
   "vars": {
-    "BETTER_AUTH_URL": "https://crm.a6n.ai",
+    "BETTER_AUTH_URL": "https://app.a6n.ai",
     "MAILER": "relay",
   },
   "d1_databases": [

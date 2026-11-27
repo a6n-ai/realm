@@ -60,9 +60,9 @@ export const appAuthUi: Partial<AuthUi> = { Button: KitButton, Field: KitField }
 
 export function AuthLogo() {
   return (
-    <Link to="/" aria-label="a6n CRM home" className="flex items-center gap-2 font-semibold text-(--strong)">
+    <Link to="/" aria-label="a6n home" className="flex items-center gap-2 font-semibold text-(--strong)">
       <img src="/icon.svg" alt="" className="size-8" />
-      a6n CRM
+      a6n
     </Link>
   );
 }

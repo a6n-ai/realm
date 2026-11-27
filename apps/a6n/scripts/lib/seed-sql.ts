@@ -35,7 +35,7 @@ export async function seedSql(admins: SeedAdmin[], now = Date.now()): Promise<st
     );
   }
   out.push(
-    `INSERT INTO users (id, name, email, email_verified, role, status, password_set, created_at, updated_at) VALUES (${q(SYSTEM_ID)}, 'System', 'system@crm.a6n.ai', 1, 'sales', 'removed', 0, ${now}, ${now}) ON CONFLICT DO NOTHING`,
+    `INSERT INTO users (id, name, email, email_verified, role, status, password_set, created_at, updated_at) VALUES (${q(SYSTEM_ID)}, 'System', 'system@app.a6n.ai', 1, 'sales', 'removed', 0, ${now}, ${now}) ON CONFLICT DO NOTHING`,
   );
   for (const s of SOURCES) {
     out.push(

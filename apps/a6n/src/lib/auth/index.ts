@@ -56,7 +56,7 @@ export function authOptions(env: Env) {
   if (!env.BETTER_AUTH_URL) throw new Error("BETTER_AUTH_URL is missing");
   const db = getDb(env);
   return {
-    appName: "a6n CRM",
+    appName: "a6n",
     secret: env.BETTER_AUTH_SECRET,
     baseURL: env.BETTER_AUTH_URL,
     trustedOrigins: [env.BETTER_AUTH_URL],

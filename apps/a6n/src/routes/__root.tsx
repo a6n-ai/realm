@@ -6,7 +6,7 @@ import appCss from "../styles.css?url";
 
 export const Route = createRootRoute({
   head: () => ({
-    meta: [{ charSet: "utf-8" }, { name: "viewport", content: "width=device-width, initial-scale=1" }, { title: "a6n CRM" }],
+    meta: [{ charSet: "utf-8" }, { name: "viewport", content: "width=device-width, initial-scale=1" }, { title: "a6n" }],
     links: [{ rel: "icon", href: "/icon.svg", type: "image/svg+xml" }, { rel: "stylesheet", href: appCss }],
   }),
   component: () => (
@@ -28,7 +28,7 @@ export const Route = createRootRoute({
       <h1 className="text-xl font-semibold">Page not found</h1>
       <p className="text-muted-foreground">It does not exist or has moved.</p>
       <Link to="/" className="text-primary underline">
-        Back to a6n CRM
+        Back to a6n
       </Link>
     </main>
   ),
