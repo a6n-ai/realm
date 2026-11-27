@@ -110,7 +110,11 @@ const RUNNERS: Partial<Record<CronJobKey, (opts: RunOptions) => Promise<Summary>
     const { drainPending, materializeDue } = await import("@/lib/notifications/drain");
     const materialized = await materializeDue();
     const processed = await drainPending();
-    return { campaignsStarted: materialized, sent: processed };
+    const { emailViaRelay } = await import("@/lib/runtime/env");
+    const blocks = emailViaRelay() ? await (await import("@/lib/relay/blocks")).pushBlocks() : null;
+    // The tick chains the rest.
+    if (blocks?.pending) await (await import("@/lib/notifications/outbox-signal")).signalOutbox();
+    return { campaignsStarted: materialized, sent: processed, ...(blocks ? { blocksPushed: blocks.pushed } : {}) };
   },
 };
 

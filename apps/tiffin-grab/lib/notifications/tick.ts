@@ -13,12 +13,14 @@ export async function runTick() {
   const materialized = await materializeDue();
   const processed = await drainPending();
   const relay = emailViaRelay() ? await (await import("@/lib/relay/forward")).forwardRelayOutbox() : null;
+  const blocks = emailViaRelay() ? await (await import("@/lib/relay/blocks")).pushBlocks() : null;
+  const blocksAt = blocks?.pending ? Date.now() + 60_000 : null;
   const [scheduledAt, pendingAt] = await Promise.all([computeNotifyNextAt(), earliestPendingAt()]);
   const relayAt = relay?.retryAfterMs == null ? null : Date.now() + relay.retryAfterMs;
-  const next = [scheduledAt, pendingAt, relayAt].filter((t): t is number => t != null);
+  const next = [scheduledAt, pendingAt, relayAt, blocksAt].filter((t): t is number => t != null);
   if (next.length) await scheduleCampaignWake(Math.min(...next));
   // The Queue consumer re-delivers its message after this when rows are left pending.
-  const due = [pendingAt, relayAt].filter((t): t is number => t != null);
+  const due = [pendingAt, relayAt, blocksAt].filter((t): t is number => t != null);
   const retryAfterMs = due.length ? Math.max(0, Math.min(...due) - Date.now()) : null;
   return { materialized, processed, retryAfterMs };
 }

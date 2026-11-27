@@ -1,8 +1,15 @@
 import { runCronJob } from "./run";
 
-/** mode=tick is the Queue consumer (every transactional email) and, with wake=1, the CampaignWake Workflow; otherwise the manual backstop. */
+/**
+ * mode=tick is the Queue consumer (every transactional email) and, with wake=1, the CampaignWake Workflow.
+ * mode=block-parity lists the local email blocks Relay does not hold. Otherwise the manual backstop.
+ */
 export async function runNotificationsCron(request: Request): Promise<Response> {
   const params = new URL(request.url).searchParams;
+  if (params.get("mode") === "block-parity") {
+    const { blockParity } = await import("@/lib/relay/blocks");
+    return Response.json(await blockParity());
+  }
   if (params.get("mode") !== "tick") {
     const result = await runCronJob("notifications", "schedule");
     return Response.json(result, { status: result.ok ? 200 : 500 });
