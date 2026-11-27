@@ -48,7 +48,7 @@ function KitField({ label, error, trailing, id, ref, className, ...input }: Auth
         control
       )}
       {error ? (
-        <p id={`${fieldId}-error`} className="text-sm text-destructive">
+        <p id={`${fieldId}-error`} role="alert" className="text-sm text-destructive">
           {error}
         </p>
       ) : null}

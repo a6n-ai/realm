@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { getRequestHeaders } from "@tanstack/react-start/server";
 import { env } from "cloudflare:workers";
-import { ConsoleError, requireActor, toResponseError } from "../auth/actor";
+import { ConsoleError, refusing, requireActor, toResponseError } from "../auth/actor";
 import type { Permission } from "../auth/permissions";
 import { depsFor } from "../deps";
 import { validate } from "../schemas";
@@ -64,88 +64,32 @@ const WRITE = (permission: Permission) => ({ permission, write: true });
 
 export const createInquiryFn = createServerFn({ method: "POST" })
   .validator(validate(createInquirySchema))
-  .handler(async ({ data }) => {
-    try {
-      const actor = await requireActor(env, getRequestHeaders(), WRITE("inquiry:create"));
-      return await runCreateInquiry(actor, depsFor(env), data);
-    } catch (err) {
-      return toResponseError(err);
-    }
-  });
+  .handler(({ data }) => refusing(env, getRequestHeaders(), WRITE("inquiry:create"), (actor) => runCreateInquiry(actor, depsFor(env), data)));
 
 export const changeStageFn = createServerFn({ method: "POST" })
   .validator(validate(changeStageSchema))
-  .handler(async ({ data }) => {
-    try {
-      const actor = await requireActor(env, getRequestHeaders(), WRITE("inquiry:update"));
-      return await runChangeStage(actor, depsFor(env), data);
-    } catch (err) {
-      return toResponseError(err);
-    }
-  });
+  .handler(({ data }) => refusing(env, getRequestHeaders(), WRITE("inquiry:update"), (actor) => runChangeStage(actor, depsFor(env), data)));
 
 export const reopenFn = createServerFn({ method: "POST" })
   .validator(validate(reopenSchema))
-  .handler(async ({ data }) => {
-    try {
-      const actor = await requireActor(env, getRequestHeaders(), WRITE("inquiry:update"));
-      return await runReopen(actor, depsFor(env), data);
-    } catch (err) {
-      return toResponseError(err);
-    }
-  });
+  .handler(({ data }) => refusing(env, getRequestHeaders(), WRITE("inquiry:update"), (actor) => runReopen(actor, depsFor(env), data)));
 
 export const addActivityFn = createServerFn({ method: "POST" })
   .validator(validate(addActivitySchema))
-  .handler(async ({ data }) => {
-    try {
-      const actor = await requireActor(env, getRequestHeaders(), WRITE("inquiry:note"));
-      return await runAddActivity(actor, depsFor(env), data);
-    } catch (err) {
-      return toResponseError(err);
-    }
-  });
+  .handler(({ data }) => refusing(env, getRequestHeaders(), WRITE("inquiry:note"), (actor) => runAddActivity(actor, depsFor(env), data)));
 
 export const setFollowUpFn = createServerFn({ method: "POST" })
   .validator(validate(setFollowUpSchema))
-  .handler(async ({ data }) => {
-    try {
-      const actor = await requireActor(env, getRequestHeaders(), WRITE("inquiry:update"));
-      return await runSetFollowUp(actor, depsFor(env), data);
-    } catch (err) {
-      return toResponseError(err);
-    }
-  });
+  .handler(({ data }) => refusing(env, getRequestHeaders(), WRITE("inquiry:update"), (actor) => runSetFollowUp(actor, depsFor(env), data)));
 
 export const claimFn = createServerFn({ method: "POST" })
   .validator(validate(claimSchema))
-  .handler(async ({ data }) => {
-    try {
-      const actor = await requireActor(env, getRequestHeaders(), WRITE("inquiry:claim"));
-      return await runClaim(actor, depsFor(env), data);
-    } catch (err) {
-      return toResponseError(err);
-    }
-  });
+  .handler(({ data }) => refusing(env, getRequestHeaders(), WRITE("inquiry:claim"), (actor) => runClaim(actor, depsFor(env), data)));
 
 export const assignFn = createServerFn({ method: "POST" })
   .validator(validate(assignSchema))
-  .handler(async ({ data }) => {
-    try {
-      const actor = await requireActor(env, getRequestHeaders(), WRITE("inquiry:assign"));
-      return await runAssign(actor, depsFor(env), data);
-    } catch (err) {
-      return toResponseError(err);
-    }
-  });
+  .handler(({ data }) => refusing(env, getRequestHeaders(), WRITE("inquiry:assign"), (actor) => runAssign(actor, depsFor(env), data)));
 
 export const updateContactFn = createServerFn({ method: "POST" })
   .validator(validate(updateContactSchema))
-  .handler(async ({ data }) => {
-    try {
-      const actor = await requireActor(env, getRequestHeaders(), WRITE("inquiry:update"));
-      return await runUpdateContact(actor, depsFor(env), data);
-    } catch (err) {
-      return toResponseError(err);
-    }
-  });
+  .handler(({ data }) => refusing(env, getRequestHeaders(), WRITE("inquiry:update"), (actor) => runUpdateContact(actor, depsFor(env), data)));

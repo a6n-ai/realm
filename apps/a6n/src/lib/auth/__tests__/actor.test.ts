@@ -2,7 +2,7 @@ import { env } from "cloudflare:test";
 import { beforeAll, describe, expect, test } from "vitest";
 import { applyMigrations } from "../../../../test/migrate";
 import { freshId, headersFor, insertUser, signIn } from "../../../../test/helpers";
-import { ConsoleError, requireActor } from "../actor";
+import { ConsoleError, refusing, requireActor } from "../actor";
 
 beforeAll(applyMigrations);
 
@@ -49,5 +49,35 @@ describe("requireActor", () => {
       name: email,
       role: "admin",
     });
+  });
+});
+
+describe("refusing", () => {
+  const run = async () => "ran" as const;
+
+  test("no session -> unauthorized", async () => {
+    await expect(refusing(env, new Headers(), { permission: "inquiry:assign", write: true }, run)).resolves.toEqual({ ok: false, code: "unauthorized" });
+  });
+
+  test("sales on assign -> forbidden, not thrown", async () => {
+    const email = `sales-${freshId()}@a6n.test`;
+    await insertUser(email, "sales");
+    const headers = headersFor(await signIn(email));
+    await expect(refusing(env, headers, { permission: "inquiry:assign", write: true }, run)).resolves.toEqual({ ok: false, code: "forbidden" });
+  });
+
+  test("foreign origin -> bad_origin", async () => {
+    const email = `admin-${freshId()}@a6n.test`;
+    await insertUser(email, "admin");
+    const headers = headersFor(await signIn(email));
+    headers.set("origin", "https://evil.test");
+    await expect(refusing(env, headers, { permission: "inquiry:assign", write: true }, run)).resolves.toEqual({ ok: false, code: "bad_origin" });
+  });
+
+  test("allowed actor runs the action", async () => {
+    const email = `admin-${freshId()}@a6n.test`;
+    await insertUser(email, "admin");
+    const headers = headersFor(await signIn(email));
+    await expect(refusing(env, headers, { permission: "inquiry:assign", write: true }, run)).resolves.toBe("ran");
   });
 });

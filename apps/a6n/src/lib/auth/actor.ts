@@ -39,3 +39,21 @@ export function toResponseError(err: unknown): never {
   setResponseStatus(500);
   throw new Error("internal error");
 }
+
+// Expected refusals come back as { ok:false, code } so the UI can show them; anything else still throws.
+export async function refusing<T>(
+  env: Env,
+  headers: Headers,
+  opts: { permission?: Permission; write?: boolean },
+  run: (actor: Actor) => Promise<T>,
+): Promise<T | { ok: false; code: string }> {
+  try {
+    return await run(await requireActor(env, headers, opts));
+  } catch (err) {
+    if (err instanceof ConsoleError && (err.status === 401 || err.status === 403)) {
+      const code = err.status === 401 ? "unauthorized" : err.message === "forbidden" ? "forbidden" : "bad_origin";
+      return { ok: false, code };
+    }
+    return toResponseError(err);
+  }
+}

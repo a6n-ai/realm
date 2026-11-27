@@ -32,7 +32,7 @@ export const Route = createFileRoute("/_app/inquiries/")({
     const page = Number(s.page);
     return {
       view: s.view === "unassigned" || s.view === "all" ? s.view : undefined,
-      q: str(s.q),
+      q: str(typeof s.q === "number" ? String(s.q) : s.q),
       stage: STAGES.find((x) => x === s.stage),
       source: str(s.source),
       owner: str(s.owner),
