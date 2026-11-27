@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { Role, ValidationError } from "@foundry/commons";
+import { attempt } from "@/lib/actions/guard";
 import { CODE_ERROR_MESSAGE } from "@/lib/discounts/quote";
 import { getSession } from "@/lib/auth/session";
 import { bookingsService, type BookingRequest } from "@/lib/services/bookings.service";
@@ -32,15 +33,10 @@ function pick(req: BookingRequest): BookingRequest {
   };
 }
 
-function inline(err: unknown): Failure {
-  if (err instanceof ValidationError) return { error: err.message };
-  throw err;
-}
-
 export async function quoteAction(req: BookingRequest): Promise<{ quote: QuoteView } | Failure> {
   const user = await familyId();
   if (!user) return SIGN_IN;
-  try {
+  const r = await attempt(async () => {
     const q = await bookingsService.quote(pick(req), user);
     return {
       quote: {
@@ -57,32 +53,28 @@ export async function quoteAction(req: BookingRequest): Promise<{ quote: QuoteVi
         currency: q.currency,
       },
     };
-  } catch (err) {
-    return inline(err);
-  }
+  });
+  return "error" in r ? r : r.value;
 }
 
 export async function createChildAction(input: { name: string; dateOfBirth: string }): Promise<{ child: ChildView } | Failure> {
   if (!(await familyId())) return SIGN_IN;
-  try {
+  const r = await attempt(async () => {
     const row = await childrenService.createMine({ name: String(input.name), dateOfBirth: String(input.dateOfBirth) });
     return { child: { publicId: row.publicId, name: row.name, dateOfBirth: row.dateOfBirth } };
-  } catch (err) {
-    return inline(err);
-  }
+  });
+  return "error" in r ? r : r.value;
 }
 
 export async function bookAction(req: BookingRequest): Promise<Failure> {
   const user = await familyId();
   if (!user) return SIGN_IN;
-  let target: string;
-  try {
+  const r = await attempt(async () => {
     const result = await bookingsService.createForUser(user, pick(req));
-    target = result.paymentPublicId
+    return result.paymentPublicId
       ? `/me/pay/${result.paymentPublicId}${result.codeError ? `?codeError=${encodeURIComponent(result.codeError)}` : ""}`
       : "/me/classes?booked=1";
-  } catch (err) {
-    return inline(err);
-  }
-  redirect(target);
+  });
+  if ("error" in r) return r;
+  redirect(r.value);
 }

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { ValidationError } from "@foundry/commons";
+import { attempt } from "@/lib/actions/guard";
 import { requirePermission } from "@/lib/auth/guards";
 import { studioSessionsService } from "@/lib/services/studio-sessions.service";
 
@@ -35,15 +35,12 @@ function formFields(formData: FormData) {
 }
 
 export async function createClassAction(_prev: ClassFormState, formData: FormData): Promise<ClassFormState> {
-  await requirePermission({ studioSession: ["create"] });
-  let publicId: string;
-  try {
-    const row = await studioSessionsService.createClass(formFields(formData));
-    publicId = row.publicId;
-  } catch (err) {
-    if (err instanceof ValidationError) return { error: err.message };
-    throw err;
-  }
+  const r = await attempt(async () => {
+    await requirePermission({ studioSession: ["create"] });
+    return studioSessionsService.createClass(formFields(formData));
+  });
+  if ("error" in r) return r;
+  const { publicId } = r.value;
   revalidatePath(PATH);
   revalidatePath("/dashboard/sessions");
   revalidatePath("/whats-on");
@@ -56,13 +53,11 @@ export async function updateClassAction(
   _prev: ClassFormState,
   formData: FormData,
 ): Promise<ClassFormState> {
-  await requirePermission({ studioSession: ["update"] });
-  try {
-    await studioSessionsService.updateClass(publicId, formFields(formData));
-  } catch (err) {
-    if (err instanceof ValidationError) return { error: err.message };
-    throw err;
-  }
+  const r = await attempt(async () => {
+    await requirePermission({ studioSession: ["update"] });
+    return studioSessionsService.updateClass(publicId, formFields(formData));
+  });
+  if ("error" in r) return r;
   revalidatePath(PATH);
   revalidatePath(`${PATH}/${publicId}`);
   revalidatePath("/dashboard/sessions");
