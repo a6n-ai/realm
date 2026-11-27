@@ -69,12 +69,15 @@ const ADMIN_DISABLED_PATHS = [
 ].map((p) => `/admin/${p}`);
 
 // Organisation changes run through the console's server functions (their own permission checks and guards, such as
-// the last owner), which call auth.api directly. Over HTTP only the read and set-active routes stay open.
+// the last owner). Over HTTP only list (your own organisations), set-active and has-permission stay open.
 const ORG_DISABLED_PATHS = [
   "create", "delete", "update", "invite-member", "accept-invitation", "reject-invitation", "cancel-invitation",
   "get-invitation", "list-invitations", "list-user-invitations", "leave", "remove-member", "update-member-role",
   "create-role", "update-role", "delete-role", "create-team", "update-team", "remove-team", "add-team-member",
   "remove-team-member", "check-slug",
+  // Reads as well: list-members and friends return every member's email past the console's own gates.
+  "list-members", "get-full-organization", "get-organization", "list-teams", "list-team-members", "list-user-teams",
+  "list-roles", "get-role", "get-active-member", "get-active-member-role", "set-active-team",
 ].map((p) => `/organization/${p}`);
 
 // Routes that take an email and can mint a session or write a credential.
