@@ -20,6 +20,12 @@ describe("visibleNav", () => {
   });
 });
 
+test("the Unassigned badge is hidden when nothing is unassigned", () => {
+  const item = visibleNav("sales", { total: 0, overdue: 0 })[0]!.items.find((i) => i.label === "Unassigned");
+  expect(item).toBeDefined();
+  expect(item?.badge).toBeUndefined();
+});
+
 describe("createItems", () => {
   test("sales can only start an inquiry; an admin can also invite and add a source", () => {
     expect(createItems("sales").map((c) => c.kind)).toEqual(["inquiry"]);

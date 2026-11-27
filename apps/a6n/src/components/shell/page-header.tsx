@@ -1,17 +1,17 @@
 import { ConsoleLink, type ConsoleSearch } from "@foundry/console/router";
-import { Avatar, AvatarFallback } from "@foundry/ui/avatar";
 import { SidebarTrigger } from "@foundry/ui/sidebar";
 import { ChevronLeftIcon } from "lucide-react";
-import { type ReactNode, useEffect } from "react";
+import { Fragment, type ReactNode, useEffect } from "react";
 import { CreateNewMenu } from "./add-new";
 
 export type Crumb = { label: string; to?: string; search?: ConsoleSearch };
 
-// Vercel's two rows: a top bar (scope left, page name centred, Create New right), then the big page title.
-export function PageHeader({ crumbs, badge, actions, description }: { crumbs: Crumb[]; badge?: ReactNode; actions?: ReactNode; description?: string }) {
+// Vercel's two rows: a top bar (breadcrumb left, Create New right), then the big page title.
+// `title` overrides the big title when the breadcrumb is longer than it (Settings / Account under "Settings").
+export function PageHeader({ crumbs, title: titleOverride, badge, actions, description }: { crumbs: Crumb[]; title?: string; badge?: ReactNode; actions?: ReactNode; description?: string }) {
   const last = crumbs.length - 1;
-  const title = crumbs[last]?.label;
-  const parent = crumbs[last - 1];
+  const title = titleOverride ?? crumbs[last]?.label;
+  const parent = titleOverride ? undefined : crumbs[last - 1];
 
   useEffect(() => {
     if (title) document.title = `${title} · a6n`;
@@ -20,7 +20,7 @@ export function PageHeader({ crumbs, badge, actions, description }: { crumbs: Cr
   return (
     <>
       <header className="border-b">
-        <div className="grid h-14 grid-cols-[1fr_auto_1fr] items-center gap-2 px-3">
+        <div className="flex h-14 items-center justify-between gap-2 px-3">
           <div className="flex min-w-0 items-center gap-2">
             <SidebarTrigger size="icon" className="md:hidden" />
             {parent?.to ? (
@@ -34,16 +34,19 @@ export function PageHeader({ crumbs, badge, actions, description }: { crumbs: Cr
                 {parent.label}
               </ConsoleLink>
             ) : (
-              <span className="flex items-center gap-2 px-2 text-base font-medium">
-                <Avatar size="sm" className="rounded-full after:rounded-full">
-                  <AvatarFallback className="rounded-full bg-muted text-foreground">a</AvatarFallback>
-                </Avatar>
-                a6n
-              </span>
+              <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-1.5 px-2 text-sm text-muted-foreground">
+                {crumbs.map((c, i) => (
+                  <Fragment key={c.label}>
+                    {i > 0 ? <span aria-hidden>/</span> : null}
+                    <span className={i === last && last > 0 ? "truncate font-medium text-foreground" : undefined} aria-current={i === last ? "page" : undefined}>
+                      {c.label}
+                    </span>
+                  </Fragment>
+                ))}
+              </nav>
             )}
           </div>
-          <span className="hidden max-w-64 truncate text-sm font-medium sm:block">{title}</span>
-          <div className="col-start-3 flex justify-end">
+          <div className="flex shrink-0 justify-end">
             <CreateNewMenu />
           </div>
         </div>
