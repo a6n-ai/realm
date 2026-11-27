@@ -5,7 +5,8 @@
 # CI never uses this (it installs from GitHub). Re-run `pnpm install` to undo.
 # --place <app-dir>: a named package with no installed copy (not yet in any package.json) is copied
 # as a plain directory into <app-dir>/node_modules/@foundry/<pkg> so the app resolves it. Without
-# the flag, such packages are skipped with a warning.
+# the flag, such packages are skipped with a warning. A placed package gets none of its own
+# dependencies installed and is wiped by `pnpm install`.
 # Usage: scripts/sync-foundry-local.sh [--place <app-dir>] <foundry-checkout-path> [package ...]
 set -euo pipefail
 shopt -s nullglob
@@ -41,11 +42,17 @@ fi
 for p in "${PKGS[@]}"; do
   dirs=("$ROOT"/node_modules/.pnpm/@foundry+"$p"@*/node_modules/@foundry/"$p")
   if [[ ${#dirs[@]} -eq 0 && -n "$PLACE" ]]; then
+    if [[ ! -d "$FOUNDRY/packages/$p/src" || ! -f "$FOUNDRY/packages/$p/package.json" ]]; then
+      echo "warn: $FOUNDRY/packages/$p has no src/ or package.json, skipping" >&2
+      continue
+    fi
     dir="$PLACE/node_modules/@foundry/$p"
+    tmp="$(mktemp -d "$PLACE/node_modules/.sync-$p.XXXXXX")"
+    cp -R "$FOUNDRY/packages/$p/src" "$tmp/src"
+    cp "$FOUNDRY/packages/$p/package.json" "$tmp/package.json"
+    mkdir -p "$(dirname "$dir")"
     rm -rf "$dir"
-    mkdir -p "$dir"
-    cp -R "$FOUNDRY/packages/$p/src" "$dir/src"
-    cp "$FOUNDRY/packages/$p/package.json" "$dir/package.json"
+    mv "$tmp" "$dir"
     echo "placed $dir"
     continue
   fi
