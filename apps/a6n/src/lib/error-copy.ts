@@ -14,7 +14,9 @@ export const { errorText, reasonText } = createErrorText({
   mail_unavailable: "Mail is not available right now.",
   bad_origin: "That request was blocked. Reload the page and try again.",
   already_active: "That person is already on the team.",
-  last_admin: "You cannot remove the last admin.",
+  last_owner: "An organisation needs at least one owner.",
+  role_not_grantable: "You cannot give or take away a role with access you do not have.",
+  unknown_role: "That role does not exist.",
   self: "You cannot remove yourself.",
   already_removed: "That person is already removed.",
   // Relay send refusals, shown when an invite could not be mailed.

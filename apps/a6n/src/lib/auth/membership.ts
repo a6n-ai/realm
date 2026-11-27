@@ -42,3 +42,23 @@ export async function resolveMembership(db: CrmDb, userId: string, activeOrganiz
   if (!m) return null;
   return { ...m, permissions: await permissionsFor(db, m.organizationId, m.role) };
 }
+
+export type OrgRoleInfo = { name: string; builtIn: boolean; permissions: OrgPermission[] };
+
+/** Built-in roles first, then the organisation's custom roles. */
+export async function listOrgRoles(db: CrmDb, organizationId: string): Promise<OrgRoleInfo[]> {
+  const builtIn = (["owner", "admin", "member"] as const).map((name) => ({ name, builtIn: true, permissions: builtInPermissions(name) }));
+  const custom = await db
+    .select({ role: organizationRoles.role, permission: organizationRoles.permission })
+    .from(organizationRoles)
+    .where(eq(organizationRoles.organizationId, organizationId))
+    .orderBy(organizationRoles.role);
+  return [
+    ...builtIn,
+    ...custom.map((c) => ({ name: c.role, builtIn: false, permissions: permissionsOf(JSON.parse(c.permission) as Statements) })),
+  ];
+}
+
+/** Nobody can hand out (or take away) a role that holds a permission they do not hold themselves. */
+export const canGrant = (actorPermissions: readonly OrgPermission[], rolePermissions: readonly OrgPermission[]) =>
+  rolePermissions.every((p) => actorPermissions.includes(p));

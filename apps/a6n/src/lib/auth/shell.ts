@@ -1,7 +1,7 @@
 import { getDb } from "../../db/client";
 import type { Env } from "../../env";
 import { unassignedCounts } from "../inquiries/repository";
-import { listMemberships, resolveMembership } from "./membership";
+import { canGrant, listMemberships, listOrgRoles, resolveMembership } from "./membership";
 import type { Permission } from "./permissions";
 import { getSession, type SessionUser } from "./session";
 
@@ -13,6 +13,8 @@ export type Shell = {
   organizations: { id: string; name: string }[];
   role: string | null;
   permissions: Permission[];
+  /** Roles this person may hand out in the active organisation (invite and role pickers). */
+  grantableRoles: { name: string; builtIn: boolean }[];
   platformAdmin: boolean;
   unassigned: { total: number; overdue: number };
 };
@@ -29,6 +31,9 @@ export async function loadShell(env: Env, headers: Headers): Promise<Shell | nul
     organizations,
     role: m?.role ?? null,
     permissions: m?.permissions ?? [],
+    grantableRoles: m
+      ? (await listOrgRoles(db, m.organizationId)).filter((r) => canGrant(m.permissions, r.permissions)).map((r) => ({ name: r.name, builtIn: r.builtIn }))
+      : [],
     platformAdmin: user.platformRole === "super_admin",
     unassigned: m ? await unassignedCounts(db, m.organizationId) : { total: 0, overdue: 0 },
   };

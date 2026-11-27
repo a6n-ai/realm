@@ -1,3 +1,4 @@
+import { useRouteContext } from "@tanstack/react-router";
 import { createContext, type ReactNode, useContext, useState } from "react";
 import { listActiveSourcesFn } from "../../lib/inquiries/inquiries.fns";
 import type { SourceRow, SubsourceRow } from "../../lib/inquiries/sources";
@@ -12,6 +13,7 @@ export const useCreate = () => useContext(CreateContext);
 
 // The Create New menu, Find and the empty states open the same three dialogs, mounted once here.
 export function CreateProvider({ children }: { children: ReactNode }) {
+  const { shell } = useRouteContext({ from: "/_app" });
   const [open, setOpen] = useState<CreateKind | null>(null);
   const [sources, setSources] = useState<{ sources: SourceRow[]; subsources: SubsourceRow[] }>({ sources: [], subsources: [] });
   const close = (next: boolean) => {
@@ -25,7 +27,7 @@ export function CreateProvider({ children }: { children: ReactNode }) {
     <CreateContext.Provider value={start}>
       {children}
       <NewInquiryDialog open={open === "inquiry"} onOpenChange={close} sources={sources.sources} subsources={sources.subsources} />
-      <InviteDialog open={open === "invite"} onOpenChange={close} />
+      <InviteDialog open={open === "invite"} onOpenChange={close} roles={shell.grantableRoles} />
       <SourceDialog mode={{ kind: "create" }} open={open === "source"} onOpenChange={close} />
     </CreateContext.Provider>
   );

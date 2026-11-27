@@ -5,22 +5,33 @@ import { refusing } from "../auth/actor";
 import { depsFor } from "../deps";
 import { read, WRITE } from "../guarded.fns";
 import { validate } from "../schemas";
-import { runInvite, runRemove, runResendInvite } from "./actions-core";
-import { inviteSchema, memberIdSchema } from "./schemas";
+import { runChangeRole, runInvite, runRemove, runResendInvite } from "./actions-core";
+import { changeRoleSchema, inviteSchema, memberIdSchema } from "./schemas";
+import { canGrant, listOrgRoles } from "../auth/membership";
 import { createTeamService } from "./service";
 
-const service = () => {
+const service = (organizationId: string) => {
   const d = depsFor(env);
-  return createTeamService(d.db, d.mailer, d.authUrl);
+  return createTeamService(d.db, organizationId, d.mailer, d.authUrl);
 };
 
 // Null without invitation:create, so invite statuses never reach someone who cannot invite.
 export const listTeamFn = createServerFn({ method: "GET" }).handler(() =>
-  read("invitation:create", async () => {
-    const svc = service();
+  read("invitation:create", async (actor) => {
+    const svc = service(actor.organizationId);
     const members = await svc.list();
     const statuses = await svc.inviteStatuses(members.filter((m) => m.latestInvite).map((m) => m.id));
-    return { members: members.map((m) => ({ ...m, inviteLink: svc.pendingLink(m) })), statuses };
+    // Only roles the viewer could hand out appear in the pickers; the server re-checks on every change.
+    const roles = (await listOrgRoles(depsFor(env).db, actor.organizationId))
+      .filter((r) => canGrant(actor.permissions, r.permissions))
+      .map((r) => ({ name: r.name, builtIn: r.builtIn }));
+    return {
+      members: members.map((m) => ({ ...m, inviteLink: svc.pendingLink(m) })),
+      statuses,
+      roles,
+      canChangeRoles: actor.permissions.includes("member:update"),
+      canRemove: actor.permissions.includes("member:delete"),
+    };
   }),
 );
 
@@ -35,3 +46,7 @@ export const resendInviteFn = createServerFn({ method: "POST" })
 export const removeFn = createServerFn({ method: "POST" })
   .validator(validate(memberIdSchema))
   .handler(({ data }) => refusing(env, getRequestHeaders(), WRITE("member:delete"), (actor) => runRemove(actor, depsFor(env), data)));
+
+export const changeRoleFn = createServerFn({ method: "POST" })
+  .validator(validate(changeRoleSchema))
+  .handler(({ data }) => refusing(env, getRequestHeaders(), WRITE("member:update"), (actor) => runChangeRole(actor, depsFor(env), data)));

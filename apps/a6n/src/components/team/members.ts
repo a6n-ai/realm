@@ -6,9 +6,18 @@ export type MemberStatus = "active" | "invited" | "removed";
 export const memberStatus = (m: Pick<MemberRow, "status" | "passwordSet">): MemberStatus =>
   m.status !== "active" ? "removed" : m.passwordSet ? "active" : "invited";
 
-export const MEMBER_FACETS: Facet[] = [
-  { key: "role", label: "Role", options: [{ value: "admin", label: "Admin" }, { value: "sales", label: "Sales" }] },
-  { key: "status", label: "Status", options: [{ value: "active", label: "Active" }, { value: "invited", label: "Invited" }, { value: "removed", label: "Removed" }] },
+const label = (name: string) => name.charAt(0).toUpperCase() + name.slice(1);
+
+export const STATUS_FACET: Facet = {
+  key: "status",
+  label: "Status",
+  options: [{ value: "active", label: "Active" }, { value: "invited", label: "Invited" }, { value: "removed", label: "Removed" }],
+};
+
+/** Role options follow the organisation's roles (built-in and custom). */
+export const memberFacets = (roles: string[]): Facet[] => [
+  { key: "role", label: "Role", options: roles.map((r) => ({ value: r, label: label(r) })) },
+  STATUS_FACET,
 ];
 
 export type MemberSearch = { q?: string; role?: string; status?: string };

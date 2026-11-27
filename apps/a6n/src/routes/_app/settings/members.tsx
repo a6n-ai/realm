@@ -6,7 +6,7 @@ import { useUrlFilter } from "@foundry/console/use-url-filter";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 import { FilterBar } from "../../../components/page/filter-bar";
-import { filterMembers, MEMBER_FACETS } from "../../../components/team/members";
+import { filterMembers, memberFacets, STATUS_FACET } from "../../../components/team/members";
 import { InviteForm } from "../../../components/team/invite-dialog";
 import { TeamTable } from "../../../components/team/team-table";
 import { errorText } from "../../../lib/error-copy";
@@ -17,8 +17,8 @@ const str = (v: unknown) => (typeof v === "string" && v ? v : undefined);
 export const Route = createFileRoute("/_app/settings/members")({
   validateSearch: (s: Record<string, unknown>): { q?: string; role?: string; status?: string } => ({
     q: str(typeof s.q === "number" ? String(s.q) : s.q),
-    role: MEMBER_FACETS[0]!.options.find((o) => o.value === s.role)?.value,
-    status: MEMBER_FACETS[1]!.options.find((o) => o.value === s.status)?.value,
+    role: str(s.role)?.slice(0, 64),
+    status: STATUS_FACET.options.find((o) => o.value === s.status)?.value,
   }),
   loader: () => listTeamFn(),
   pendingComponent: () => <ListSkeleton />,
@@ -29,9 +29,9 @@ export const Route = createFileRoute("/_app/settings/members")({
   component: MembersPage,
 });
 
-function InviteCard() {
+function InviteCard({ roles }: { roles: { name: string; builtIn: boolean }[] }) {
   const [round, setRound] = useState(0);
-  return <InviteForm key={round} inline done={() => setRound(round + 1)} />;
+  return <InviteForm key={round} inline roles={roles} done={() => setRound(round + 1)} />;
 }
 
 function MembersPage() {
@@ -44,13 +44,13 @@ function MembersPage() {
   const shown = filterMembers(team.members, search);
   return (
     <>
-      <InviteCard />
+      <InviteCard roles={team.roles} />
       <section aria-label="Members" className="grid [&>div:first-child]:px-0 [&_[data-slot=card-content]]:mx-0 [&_[data-slot=card-content]]:mb-0">
         <Toolbar
           search={<SearchInput value={q} onChange={setQ} placeholder="Search name or email" />}
-          filters={<FilterBar facets={MEMBER_FACETS} value={search} onChange={(next) => navigate({ search: next, replace: true })} />}
+          filters={<FilterBar facets={memberFacets(team.roles.map((r) => r.name))} value={search} onChange={(next) => navigate({ search: next, replace: true })} />}
         />
-        <TeamTable members={shown} statuses={team.statuses} selfId={shell.user.id} filtered={Boolean(search.q || search.role || search.status)} />
+        <TeamTable members={shown} statuses={team.statuses} selfId={shell.user.id} roles={team.roles} canChangeRoles={team.canChangeRoles} canRemove={team.canRemove} filtered={Boolean(search.q || search.role || search.status)} />
       </section>
     </>
   );

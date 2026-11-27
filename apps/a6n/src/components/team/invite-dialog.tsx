@@ -9,6 +9,7 @@ import { useId, useState, type FormEvent } from "react";
 import { SettingsCard } from "../page/settings-card";
 import { errorText } from "../../lib/error-copy";
 import { inviteFn } from "../../lib/team/team.fns";
+import { RoleSelect, type RoleOption } from "./role-select";
 
 export async function copyLink(link: string) {
   try {
@@ -22,10 +23,11 @@ export async function copyLink(link: string) {
 type Result = { sent: boolean; inviteLink: string; email: string; reason?: string };
 
 // `inline` renders the form as the members page card: fields in one row, Invite in the card footer.
-export function InviteForm({ done, inline = false }: { done: () => void; inline?: boolean }) {
+export function InviteForm({ done, roles, inline = false }: { done: () => void; roles: RoleOption[]; inline?: boolean }) {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
+  const [role, setRole] = useState(roles.find((r) => r.name === "member")?.name ?? roles[0]?.name ?? "member");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [result, setResult] = useState<Result | null>(null);
@@ -36,7 +38,7 @@ export function InviteForm({ done, inline = false }: { done: () => void; inline?
     setError(null);
     setPending(true);
     try {
-      const res = await inviteFn({ data: { email, name } });
+      const res = await inviteFn({ data: { email, name, role } });
       if (!res.ok) return setError(errorText(new Error(res.code)));
       setResult({ sent: res.sent, inviteLink: res.inviteLink, email: email.trim().toLowerCase(), reason: res.reason });
       await router.invalidate();
@@ -70,7 +72,7 @@ export function InviteForm({ done, inline = false }: { done: () => void; inline?
   }
 
   const form = (
-    <form id={formId} onSubmit={submit} className={inline ? "grid gap-3 sm:grid-cols-2" : "grid gap-4"}>
+    <form id={formId} onSubmit={submit} className={inline ? "grid gap-3 sm:grid-cols-[1fr_1fr_auto]" : "grid gap-4"}>
       <div className="grid gap-2">
         <Label htmlFor="inv-email">Email</Label>
         <Input id="inv-email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
@@ -79,8 +81,12 @@ export function InviteForm({ done, inline = false }: { done: () => void; inline?
         <Label htmlFor="inv-name">Name</Label>
         <Input id="inv-name" required value={name} onChange={(e) => setName(e.target.value)} />
       </div>
+      <div className="grid gap-2">
+        <Label>Role</Label>
+        <RoleSelect value={role} roles={roles} onChange={setRole} label="Role" />
+      </div>
       {inline ? null : <Button type="submit" disabled={pending}>Send invite</Button>}
-      <div className={inline ? "sm:col-span-2" : undefined}>
+      <div className={inline ? "sm:col-span-3" : undefined}>
         <FormError error={error} />
       </div>
     </form>
@@ -90,7 +96,7 @@ export function InviteForm({ done, inline = false }: { done: () => void; inline?
     <SettingsCard
       title="Invite Team Members"
       description="They get an email to set a password."
-      footer="New members join as sales."
+      footer="Roles decide what each person can do. Edit them in Roles."
       action={
         <Button type="submit" form={formId} disabled={pending}>
           Invite
@@ -102,10 +108,10 @@ export function InviteForm({ done, inline = false }: { done: () => void; inline?
   );
 }
 
-export function InviteDialog({ open, onOpenChange }: { open?: boolean; onOpenChange?: (open: boolean) => void }) {
+export function InviteDialog({ open, onOpenChange, roles }: { open?: boolean; onOpenChange?: (open: boolean) => void; roles: RoleOption[] }) {
   return (
     <CreateDialog trigger={open === undefined ? "Invite" : undefined} open={open} onOpenChange={onOpenChange} title="Invite a team member">
-      {(done) => <InviteForm done={done} />}
+      {(done) => <InviteForm done={done} roles={roles} />}
     </CreateDialog>
   );
 }

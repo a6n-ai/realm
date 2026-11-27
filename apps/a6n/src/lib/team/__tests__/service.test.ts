@@ -11,11 +11,11 @@ import { MailUnavailableError } from "../../mail/mailer";
 import { createTeamService } from "../service";
 
 const NOW = Date.now();
-const admin = actorOf("usr_admin", "Ada", "admin");
-const admin2 = actorOf("usr_admin2", "Bo", "admin");
+const admin = actorOf("usr_admin", "Ada", "owner");
+const admin2 = actorOf("usr_admin2", "Bo", "owner");
 const AUTH_URL = "http://localhost";
 const all = <T>(q: string, ...args: unknown[]) => env.DB.prepare(q).bind(...args).all<T>().then((r) => r.results);
-const mk = (mailer = createMemoryMailer()) => ({ mailer, svc: createTeamService(getDb(env), mailer, AUTH_URL) });
+const mk = (mailer = createMemoryMailer()) => ({ mailer, svc: createTeamService(getDb(env), TEST_ORG, mailer, AUTH_URL) });
 
 const user = (id: string, role: string, status = "active") =>
   env.DB.prepare(
@@ -45,8 +45,8 @@ beforeEach(async () => {
     user("usr_admin2", "admin"),
     user("usr_sam", "sales"),
     orgStmt(),
-    memberStmt("usr_admin", "admin"),
-    memberStmt("usr_admin2", "admin"),
+    memberStmt("usr_admin", "owner"),
+    memberStmt("usr_admin2", "owner"),
     memberStmt("usr_sam"),
     env.DB.prepare("insert into lead_sources (id, organization_id, created_at, key, label, active) values ('lsr_cold', 'org_test', ?, 'cold', 'Cold', 1)").bind(NOW),
   ]);
@@ -85,21 +85,21 @@ describe("remove", () => {
     expect(await all("select * from inquiries where owner_id is not null")).toHaveLength(0);
   });
 
-  test("refuses self and the last admin with the right reasons", async () => {
+  test("refuses self and the last owner with the right reasons", async () => {
     const { svc } = mk();
     expect(await svc.remove("usr_admin", admin)).toEqual({ removed: false, reason: "self" });
-    await env.DB.prepare("update users set status = 'removed' where id = 'usr_admin2'").run();
-    expect(await svc.remove("usr_admin", admin2)).toEqual({ removed: false, reason: "last_admin" });
+    await env.DB.prepare("delete from members where user_id = 'usr_admin2'").run();
+    expect(await svc.remove("usr_admin", admin2)).toEqual({ removed: false, reason: "last_owner" });
     expect(await svc.remove("usr_admin2", admin)).toEqual({ removed: false, reason: "already_removed" });
     expect(await all("select * from audit_log")).toHaveLength(0);
   });
 
-  test("two admins removing each other at once leave one active admin", async () => {
+  test("two owners removing each other at once leave one owner", async () => {
     const { svc } = mk();
     const r = await Promise.all([svc.remove("usr_admin2", admin), svc.remove("usr_admin", admin2)]);
     expect(r.filter((x) => x.removed)).toHaveLength(1);
-    expect(r.find((x) => !x.removed)).toMatchObject({ reason: "last_admin" });
-    expect(await all("select * from users where role = 'admin' and status = 'active'")).toHaveLength(1);
+    expect(r.find((x) => !x.removed)).toMatchObject({ reason: "last_owner" });
+    expect(await all("select * from members where organization_id = 'org_test' and role = 'owner'")).toHaveLength(1);
   });
 
   test("a repeat removal writes no second audit row", async () => {
@@ -130,6 +130,7 @@ describe("remove isolation and claim", () => {
       env.DB.prepare("insert into verifications (id, identifier, value, expires_at, created_at, updated_at) values (?, ?, 'v', ?, ?, ?)").bind(id, ident, NOW + 1e6, NOW, NOW);
     await env.DB.batch([
       user("usr_b", "sales").bind("usr_b", "usr_b", "b@x.com", "sales", "active", NOW, NOW),
+      memberStmt("usr_b"),
       ver("v1", "sign-in-otp-b@x.com"),
       ver("v2", "forget-password-otp-b@x.com"),
       ver("v3", "sign-in-otp-a.b@x.com"),
@@ -150,9 +151,9 @@ describe("remove isolation and claim", () => {
 describe("invite", () => {
   test("two concurrent invites of one new email: one ok, one already_active, one row, one mail", async () => {
     const mailer = createMemoryMailer();
-    const a = createTeamService(getDb(env), mailer, AUTH_URL);
-    const b = createTeamService(getDb(env), mailer, AUTH_URL);
-    const r = await Promise.all([a.invite({ email: "race@x.io", name: "R" }, admin), b.invite({ email: "race@x.io", name: "R" }, admin)]);
+    const a = createTeamService(getDb(env), TEST_ORG, mailer, AUTH_URL);
+    const b = createTeamService(getDb(env), TEST_ORG, mailer, AUTH_URL);
+    const r = await Promise.all([a.invite({ email: "race@x.io", name: "R", role: "member" }, admin), b.invite({ email: "race@x.io", name: "R", role: "member" }, admin)]);
     expect(r.filter((x) => x.ok)).toHaveLength(1);
     expect(r.filter((x) => !x.ok)).toEqual([{ ok: false, code: "already_active" }]);
     expect(await all("select * from invites")).toHaveLength(1);
@@ -160,18 +161,19 @@ describe("invite", () => {
   });
 
   test("a trailing slash on authUrl does not double up in the link", async () => {
-    const svc = createTeamService(getDb(env), createMemoryMailer(), "http://localhost/");
-    expect(await svc.invite({ email: "s@x.io", name: "S" }, admin)).toMatchObject({ inviteLink: "http://localhost/login?email=s%40x.io&invited=1" });
+    const svc = createTeamService(getDb(env), TEST_ORG, createMemoryMailer(), "http://localhost/");
+    expect(await svc.invite({ email: "s@x.io", name: "S", role: "member" }, admin)).toMatchObject({ inviteLink: "http://localhost/login?email=s%40x.io&invited=1" });
   });
 
   test("creates the user and an invites row, sends the link and records the message id", async () => {
     const { svc, mailer } = mk();
-    const r = await svc.invite({ email: "New@X.io", name: "New" }, admin);
+    const r = await svc.invite({ email: "New@X.io", name: "New", role: "member" }, admin);
     expect(r).toEqual({ ok: true, sent: true, inviteLink: "http://localhost/login?email=new%40x.io&invited=1" });
     const [u] = await all<{ id: string; role: string; password_set: number }>("select * from users where email = 'new@x.io'");
-    expect(u).toMatchObject({ role: "sales", password_set: 0 });
+    expect(u).toMatchObject({ role: "user", password_set: 0 });
+    expect(await all("select role from members where user_id = ? and organization_id = 'org_test'", u!.id)).toEqual([{ role: "member" }]);
     const [inv] = await all<{ n: number; idempotency_key: string; relay_message_id: string | null; sent_at: number | null }>("select * from invites");
-    expect(inv).toMatchObject({ n: 1, idempotency_key: `invite:${u!.id}:1` });
+    expect(inv).toMatchObject({ n: 1, idempotency_key: `invite:${u!.id}:org_test:1` });
     expect(inv!.relay_message_id).toMatch(/^mem_/);
     expect(inv!.sent_at).not.toBeNull();
     expect(mailer.sent).toMatchObject([{ kind: "invite", to: "new@x.io", inviterName: "Ada" }]);
@@ -181,7 +183,7 @@ describe("invite", () => {
   test("a Relay failure still creates the user, keeps a null message id and returns the link", async () => {
     const { svc, mailer } = mk();
     mailer.failInvites(true);
-    const r = await svc.invite({ email: "f@x.io", name: "F" }, admin);
+    const r = await svc.invite({ email: "f@x.io", name: "F", role: "member" }, admin);
     expect(r).toMatchObject({ ok: true, sent: false, inviteLink: expect.stringContaining("/login?email=f%40x.io") });
     expect(await all("select * from users where email = 'f@x.io'")).toHaveLength(1);
     expect(await all("select relay_message_id from invites")).toEqual([{ relay_message_id: null }]);
@@ -190,29 +192,29 @@ describe("invite", () => {
   test("a Relay refusal code reaches the caller as reason; other failure text does not", async () => {
     const { svc, mailer } = mk();
     mailer.failInvites(true);
-    expect(await svc.invite({ email: "g@x.io", name: "G" }, admin)).not.toHaveProperty("reason");
+    expect(await svc.invite({ email: "g@x.io", name: "G", role: "member" }, admin)).not.toHaveProperty("reason");
     mailer.failInvites(true, "no default sender");
-    expect(await svc.invite({ email: "h@x.io", name: "H" }, admin)).toMatchObject({ ok: true, sent: false, reason: "no_default_sender" });
+    expect(await svc.invite({ email: "h@x.io", name: "H", role: "member" }, admin)).toMatchObject({ ok: true, sent: false, reason: "no_default_sender" });
     mailer.failInvites(true, "sender_not_verified");
-    expect(await svc.invite({ email: "i@x.io", name: "I" }, admin)).toMatchObject({ sent: false, reason: "sender_not_verified" });
+    expect(await svc.invite({ email: "i@x.io", name: "I", role: "member" }, admin)).toMatchObject({ sent: false, reason: "sender_not_verified" });
   });
 
   test("a missing mail binding returns mail_unavailable and creates no user", async () => {
-    const svc = createTeamService(getDb(env), () => { throw new MailUnavailableError("RELAY binding missing"); }, AUTH_URL);
-    expect(await svc.invite({ email: "m@x.io", name: "M" }, admin)).toEqual({ ok: false, code: "mail_unavailable" });
+    const svc = createTeamService(getDb(env), TEST_ORG, () => { throw new MailUnavailableError("RELAY binding missing"); }, AUTH_URL);
+    expect(await svc.invite({ email: "m@x.io", name: "M", role: "member" }, admin)).toEqual({ ok: false, code: "mail_unavailable" });
     expect(await all("select * from users where email = 'm@x.io'")).toHaveLength(0);
     expect(await all("select * from invites")).toHaveLength(0);
   });
 
   test("an active email returns already_active and writes no row", async () => {
-    const r = await mk().svc.invite({ email: "usr_sam@x.io", name: "Sam" }, admin);
+    const r = await mk().svc.invite({ email: "usr_sam@x.io", name: "Sam", role: "member" }, admin);
     expect(r).toEqual({ ok: false, code: "already_active" });
     expect(await all("select * from invites")).toHaveLength(0);
   });
 
   test("two concurrent resends get distinct n values", async () => {
     const { svc } = mk();
-    await svc.invite({ email: "c@x.io", name: "C" }, admin);
+    await svc.invite({ email: "c@x.io", name: "C", role: "member" }, admin);
     const [{ id }] = await all<{ id: string }>("select id from users where email = 'c@x.io'") as [{ id: string }];
     await Promise.all([svc.resendInvite(id, admin), svc.resendInvite(id, admin)]);
     expect((await all<{ n: number }>("select n from invites order by n")).map((r) => r.n)).toEqual([1, 2, 3]);
@@ -220,21 +222,21 @@ describe("invite", () => {
 
   test("inviteStatuses reads the latest row per user, failed when no message id", async () => {
     const { svc, mailer } = mk();
-    await svc.invite({ email: "s@x.io", name: "S" }, admin);
+    await svc.invite({ email: "s@x.io", name: "S", role: "member" }, admin);
     mailer.failInvites(true);
-    await svc.invite({ email: "t@x.io", name: "T" }, admin);
+    await svc.invite({ email: "t@x.io", name: "T", role: "member" }, admin);
     const ids = (await all<{ id: string; email: string }>("select id, email from users where email in ('s@x.io','t@x.io') order by email")).map((r) => r.id);
     expect(await svc.inviteStatuses(ids)).toEqual({ [ids[0]!]: "sent", [ids[1]!]: "failed" });
   });
 
   test("a Relay status failure maps every looked-up member to unknown instead of throwing", async () => {
     const { svc, mailer } = mk();
-    await svc.invite({ email: "s@x.io", name: "S" }, admin);
+    await svc.invite({ email: "s@x.io", name: "S", role: "member" }, admin);
     mailer.failInvites(true);
-    await svc.invite({ email: "t@x.io", name: "T" }, admin);
+    await svc.invite({ email: "t@x.io", name: "T", role: "member" }, admin);
     const ids = (await all<{ id: string }>("select id from users where email in ('s@x.io','t@x.io') order by email")).map((r) => r.id);
     const log = vi.spyOn(console, "error").mockImplementation(() => {});
-    const down = createTeamService(getDb(env), { ...mailer, statusByKeys: async () => { throw new Error("relay down"); } }, AUTH_URL);
+    const down = createTeamService(getDb(env), TEST_ORG, { ...mailer, statusByKeys: async () => { throw new Error("relay down"); } }, AUTH_URL);
     expect(await down.inviteStatuses(ids)).toEqual({ [ids[0]!]: "unknown", [ids[1]!]: "failed" });
     log.mockRestore();
   });
@@ -244,7 +246,7 @@ describe("invite", () => {
       "insert into users (id, name, email, role, status, created_at, updated_at) values ('usr_system', 'System', 'system@app.a6n.ai', 'sales', 'removed', ?, ?)",
     ).bind(NOW, NOW).run();
     const { svc, mailer } = mk();
-    expect(await svc.invite({ email: "system@app.a6n.ai", name: "Sys" }, admin)).toEqual({ ok: false, code: "invalid" });
+    expect(await svc.invite({ email: "system@app.a6n.ai", name: "Sys", role: "member" }, admin)).toEqual({ ok: false, code: "invalid" });
     expect(await all("select status from users where id = 'usr_system'")).toEqual([{ status: "removed" }]);
     expect(await all("select * from invites")).toHaveLength(0);
     expect(mailer.sent).toHaveLength(0);
@@ -253,7 +255,7 @@ describe("invite", () => {
   test("list returns open inquiry counts and the latest invite", async () => {
     await env.DB.batch([inquiry("inq_1", "usr_sam", false), inquiry("inq_2", "usr_sam", true)]);
     const { svc } = mk();
-    await svc.invite({ email: "l@x.io", name: "L" }, admin);
+    await svc.invite({ email: "l@x.io", name: "L", role: "member" }, admin);
     const rows = await svc.list();
     expect(rows.find((r) => r.id === "usr_sam")).toMatchObject({ openInquiries: 1, latestInvite: null });
     expect(rows.find((r) => r.email === "l@x.io")).toMatchObject({ latestInvite: { n: 1 }, passwordSet: false });
@@ -286,10 +288,69 @@ describe("invite", () => {
     expect((await login()).status).toBe(200);
 
     expect(await svc.remove("usr_sam", admin)).toEqual({ removed: true });
-    expect(await svc.invite({ email: "usr_sam@x.io", name: "Sam" }, admin)).toMatchObject({ ok: true, sent: true });
+    expect(await svc.invite({ email: "usr_sam@x.io", name: "Sam", role: "member" }, admin)).toMatchObject({ ok: true, sent: true });
     expect(await all("select id, status, password_set from users where email = 'usr_sam@x.io'")).toEqual([
       { id: "usr_sam", status: "active", password_set: 0 },
     ]);
     expect((await login()).status).toBeGreaterThanOrEqual(400);
+  });
+});
+
+describe("roles in an organisation", () => {
+  const roleOf = async (userId: string, org = TEST_ORG) =>
+    (await all<{ role: string }>("select role from members where user_id = ? and organization_id = ?", userId, org))[0]?.role;
+
+  test("an invite can give admin; an admin cannot give owner; unknown roles are refused", async () => {
+    const { svc } = mk();
+    const r = await svc.invite({ email: "a2@x.io", name: "A2", role: "admin" }, admin);
+    expect(r.ok).toBe(true);
+    const [u] = await all<{ id: string }>("select id from users where email = 'a2@x.io'");
+    expect(await roleOf(u!.id)).toBe("admin");
+    const plainAdmin = actorOf("usr_admin", "Ada", "admin");
+    expect(await svc.invite({ email: "o@x.io", name: "O", role: "owner" }, plainAdmin)).toEqual({ ok: false, code: "role_not_grantable" });
+    expect(await svc.invite({ email: "z@x.io", name: "Z", role: "wizard" }, admin)).toEqual({ ok: false, code: "unknown_role" });
+    expect(await all("select * from users where email in ('o@x.io', 'z@x.io')")).toHaveLength(0);
+  });
+
+  test("changeRole updates, audits, and never removes the last owner", async () => {
+    const { svc } = mk();
+    expect(await svc.changeRole("usr_sam", "admin", admin)).toEqual({ ok: true });
+    expect(await roleOf("usr_sam")).toBe("admin");
+    expect(await all("select action from audit_log where target = 'usr_sam'")).toEqual([{ action: "member.role" }]);
+    await env.DB.prepare("update members set role = 'admin' where user_id = 'usr_admin2'").run();
+    expect(await svc.changeRole("usr_admin", "member", admin)).toEqual({ ok: false, code: "last_owner" });
+    expect(await roleOf("usr_admin")).toBe("owner");
+    expect(await svc.changeRole("usr_admin2", "owner", actorOf("usr_sam", "Sam", "admin"))).toEqual({ ok: false, code: "role_not_grantable" });
+    expect(await svc.changeRole("usr_nobody", "member", admin)).toEqual({ ok: false, code: "not_found" });
+  });
+
+  test("an account active in another organisation is added, not refused", async () => {
+    const { svc } = mk();
+    const other = "org_other";
+    await env.DB.prepare("insert into organizations (id, name, slug, created_at) values (?, 'Other', 'other', ?)").bind(other, NOW).run();
+    await env.DB.prepare("insert into members (id, organization_id, user_id, role, created_at) values ('mem_x', ?, 'usr_admin', 'owner', ?)").bind(other, NOW).run();
+    const r = await createTeamService(getDb(env), other, createMemoryMailer(), AUTH_URL).invite({ email: "usr_sam@x.io", name: "Sam", role: "member" }, actorOf("usr_admin", "Ada", "owner", other));
+    expect(r.ok).toBe(true);
+    expect(await roleOf("usr_sam", other)).toBe("member");
+    expect(await roleOf("usr_sam")).toBe("member");
+    expect(await svc.invite({ email: "usr_sam@x.io", name: "Sam", role: "member" }, admin)).toEqual({ ok: false, code: "already_active" });
+  });
+
+  test("removal from one organisation keeps the account and other organisations' inquiries", async () => {
+    const other = "org_keep";
+    await env.DB.batch([
+      env.DB.prepare("insert into organizations (id, name, slug, created_at) values (?, 'Keep', 'keep', ?)").bind(other, NOW),
+      env.DB.prepare("insert into members (id, organization_id, user_id, role, created_at) values ('mem_k', ?, 'usr_sam', 'member', ?)").bind(other, NOW),
+      inquiry("inq_here", "usr_sam", false),
+      env.DB.prepare("insert into lead_sources (id, organization_id, created_at, key, label) values ('lsr_k', ?, ?, 'k', 'K')").bind(other, NOW),
+      env.DB.prepare("insert into inquiries (id, organization_id, created_at, contact_name, source_id, stage, owner_id, next_follow_up_at) values ('inq_there', ?, ?, 'c', 'lsr_k', 'new', 'usr_sam', ?)").bind(other, NOW, NOW + 1000),
+    ]);
+    expect(await mk().svc.remove("usr_sam", admin)).toEqual({ removed: true });
+    expect(await all("select id, owner_id from inquiries order by id")).toEqual([
+      { id: "inq_here", owner_id: null },
+      { id: "inq_there", owner_id: "usr_sam" },
+    ]);
+    expect(await all("select status from users where id = 'usr_sam'")).toEqual([{ status: "active" }]);
+    expect(await roleOf("usr_sam", other)).toBe("member");
   });
 });

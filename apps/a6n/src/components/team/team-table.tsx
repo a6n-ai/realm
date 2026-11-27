@@ -6,11 +6,12 @@ import { initials } from "@foundry/ui/initials";
 import { toast } from "@foundry/ui/toast";
 import { useRouter } from "@tanstack/react-router";
 import { UsersIcon } from "lucide-react";
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 import { LocalTime } from "../local-time";
 import { errorText } from "../../lib/error-copy";
 import type { MemberRow } from "../../lib/team/service";
-import { resendInviteFn } from "../../lib/team/team.fns";
+import { changeRoleFn, resendInviteFn } from "../../lib/team/team.fns";
+import { RoleSelect, roleLabel, type RoleOption } from "./role-select";
 import type { InviteStatus } from "../../lib/mail/mailer";
 import { EmptyState } from "../page/empty-state";
 import { Panel } from "../page/panel";
@@ -20,7 +21,7 @@ import { RemoveMemberDialog } from "./remove-member-dialog";
 
 export type TeamMember = MemberRow & { inviteLink: string | null };
 
-const columns = (statuses: Record<string, InviteStatus>): Column<TeamMember>[] => [
+const columns = (statuses: Record<string, InviteStatus>, role: (m: TeamMember) => ReactNode): Column<TeamMember>[] => [
   {
     header: "Member",
     cell: (m) => (
@@ -35,7 +36,7 @@ const columns = (statuses: Record<string, InviteStatus>): Column<TeamMember>[] =
       </span>
     ),
   },
-  { header: "Role", secondary: true, cell: (m) => <Badge variant="outline" className="capitalize">{m.role}</Badge> },
+  { header: "Role", secondary: true, cell: role },
   {
     header: "Status",
     cell: (m) =>
@@ -50,7 +51,23 @@ const columns = (statuses: Record<string, InviteStatus>): Column<TeamMember>[] =
   { header: "Open inquiries", numeric: true, secondary: true, cell: (m) => m.openInquiries },
 ];
 
-export function TeamTable({ members, statuses, selfId, filtered = false }: { members: TeamMember[]; statuses: Record<string, InviteStatus>; selfId: string; filtered?: boolean }) {
+export function TeamTable({
+  members,
+  statuses,
+  selfId,
+  roles,
+  canChangeRoles,
+  canRemove,
+  filtered = false,
+}: {
+  members: TeamMember[];
+  statuses: Record<string, InviteStatus>;
+  selfId: string;
+  roles: RoleOption[];
+  canChangeRoles: boolean;
+  canRemove: boolean;
+  filtered?: boolean;
+}) {
   const router = useRouter();
   const [removing, setRemoving] = useState<TeamMember | null>(null);
 
@@ -66,12 +83,31 @@ export function TeamTable({ members, statuses, selfId, filtered = false }: { mem
     }
   }
 
+  async function changeRole(m: TeamMember, role: string) {
+    if (role === m.role) return;
+    try {
+      const res = await changeRoleFn({ data: { id: m.id, role } });
+      if (!res.ok) return void toast.error(errorText(new Error(res.code)));
+      toast.success(`${m.name} is now ${roleLabel(role)}`);
+      await router.invalidate();
+    } catch (err) {
+      toast.error(errorText(err));
+    }
+  }
+
+  const roleCell = (m: TeamMember) =>
+    canChangeRoles && m.status === "active" ? (
+      <RoleSelect value={m.role} roles={roles} onChange={(r) => void changeRole(m, r)} label={`Role for ${m.name}`} />
+    ) : (
+      <Badge variant="outline">{roleLabel(m.role)}</Badge>
+    );
+
   const menu = (m: TeamMember): RowAction[] => {
     const active = m.status === "active";
     return [
       { label: "Resend invite", onSelect: () => void resend(m), hidden: !active || m.passwordSet },
       { label: "Copy link", onSelect: () => void copyLink(m.inviteLink!), hidden: !m.inviteLink },
-      { label: "Remove", destructive: true, onSelect: () => setRemoving(m), hidden: !active || m.id === selfId },
+      { label: "Remove", destructive: true, onSelect: () => setRemoving(m), hidden: !canRemove || !active || m.id === selfId },
     ];
   };
 
@@ -80,7 +116,7 @@ export function TeamTable({ members, statuses, selfId, filtered = false }: { mem
       <Panel>
         <ResourceTable
           label="Members"
-          columns={columns(statuses)}
+          columns={columns(statuses, roleCell)}
           rows={members}
           rowKey={(m) => m.id}
           rowLabel={(m) => m.name}
