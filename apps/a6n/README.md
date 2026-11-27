@@ -10,5 +10,5 @@ pnpm db:migrate:local
 pnpm dev        # http://localhost:3003
 ```
 
-`pnpm run deploy` is a dry run (plain `pnpm deploy` is a pnpm builtin); `pnpm run deploy:apply` ships. Seed: `node scripts/seed.ts --admin <email>:<name> ...` then `pnpm db:seed:remote`. Promote: `node scripts/seed.ts --promote <email> --by <email>` then `wrangler d1 execute a6n --remote --file scripts/.promote.sql`. One database (D1) with migrations in `drizzle/`.
+`pnpm run deploy` is a dry run (plain `pnpm deploy` is a pnpm builtin); `pnpm run deploy:apply` ships. There are no seed scripts: admins invite people from Team (invites are always `sales`), and an owner makes someone an admin by hand in the D1 console. One database (D1) with migrations in `drizzle/`.
 Create the D1 database only with owner approval, then set `database_id` in `wrangler.jsonc`.
