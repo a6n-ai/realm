@@ -5,8 +5,8 @@ import { defineConfig } from "vitest/config";
 const migrations = await readD1Migrations("./drizzle");
 
 export default defineConfig({
-  // The first request in each file cold-starts the Worker bundle, so 5s is too tight.
-  test: { testTimeout: 20_000 },
+  // The first request in each file cold-starts the Worker bundle; under parallel load that exceeds 20s.
+  test: { testTimeout: 60_000, hookTimeout: 60_000 },
   plugins: [
     tanstackStart(),
     cloudflareTest({
