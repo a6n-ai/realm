@@ -39,6 +39,6 @@ targetRules = ["generic-api-key"]
 regexes = ['''^(tg|tiffin)(\.[A-Za-z0-9-]+)+$''']
 
 [[allowlists]]
-description = "a6n vitest config: Miniflare test bindings for the local test D1, never production values (old commits used apps/a6n-crm)"
+description = "Old a6n test-binding secret (random-looking, test D1 only; commit 66a9bb1 under apps/a6n-crm). Current tests use readable strings like xplorers."
 targetRules = ["generic-api-key"]
 paths = ['''^apps/a6n(-crm)?/vitest\.config\.ts$''']
