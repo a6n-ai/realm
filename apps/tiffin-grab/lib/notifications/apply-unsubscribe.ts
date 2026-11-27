@@ -26,8 +26,8 @@ export async function applyUnsubscribe(
   const campaignIdParam = url.searchParams.get("campaignId");
   const campaignId = campaignIdParam && /^\d+$/.test(campaignIdParam) ? BigInt(campaignIdParam) : undefined;
   const applied = !!address && !!token && verifyUnsubscribeToken(secret, address, token);
-  // The engine table is the record and is always written first. Under the Relay flag Relay is told at once; if that
-  // call fails, the daily `relay-copy --only=suppressions` run copies the row over.
+  // The engine table is the record and is always written first. Under the Relay flag Relay is told at once; a failed
+  // call is logged and the opt-out stays only in the engine table.
   await handleUnsubscribe(db, notificationTables, { address, token, secret, campaignId, source });
   if (applied && emailViaRelay()) {
     try {
