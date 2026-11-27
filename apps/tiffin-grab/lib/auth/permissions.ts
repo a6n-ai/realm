@@ -16,7 +16,7 @@ export const appStatement = {
   settings: ["read", "write"],
   audit: ["read"],
   customer: ["read", "write", "export", "manage"],
-  inquiry: ["read", "write", "import"],
+  inquiry: ["read", "write", "import", "export"],
   catalog: ["read", "write"],
   delivery: ["read", "write", "manage"],
   discount: ["read", "write"],
@@ -36,7 +36,7 @@ export const MEMBER_PERMISSIONS = {
   subscription: ["read", "write", "pause"],
   menu: ["read"],
   finance: ["read", "verify"],
-  inquiry: ["read", "write", "import"],
+  inquiry: ["read", "write", "import", "export"],
   customer: ["read", "write", "export"],
   delivery: ["read", "write"],
   ticket: ["read", "write"],
@@ -69,7 +69,8 @@ export const RESOURCE_LABELS: ResourceLabel[] = [
     { action: "read", label: "View customers" }, { action: "write", label: "Edit customers" }, { action: "export", label: "Export customers" },
     { action: "manage", label: "Edit addresses and contacts, bulk invite" } ] },
   { resource: "inquiry", label: "Inquiries", actions: [
-    { action: "read", label: "View inquiries" }, { action: "write", label: "Edit inquiries" }, { action: "import", label: "Import inquiries" } ] },
+    { action: "read", label: "View inquiries" }, { action: "write", label: "Edit inquiries" }, { action: "import", label: "Import inquiries" },
+    { action: "export", label: "Export inquiries" } ] },
   { resource: "catalog", label: "Catalog", actions: [
     { action: "read", label: "View catalog" }, { action: "write", label: "Edit catalog" } ] },
   { resource: "delivery", label: "Deliveries", actions: [

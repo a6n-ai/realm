@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { eq, inArray } from "drizzle-orm";
 import { zonedDateIso } from "@foundry/commons";
-import { ClipboardListIcon, ListPlusIcon, PlusIcon, InboxIcon, UsersIcon, TrendingUpIcon, XCircleIcon } from "lucide-react";
+import { ClipboardListIcon, DownloadIcon, ListPlusIcon, PlusIcon, InboxIcon, UsersIcon, TrendingUpIcon, XCircleIcon } from "lucide-react";
 import { StatCards, StatCardsSkeleton } from "@/components/dashboard/stat-cards";
 import { db } from "@/db/client";
 import { deliveryZones, inquiries } from "@/db/schema";
@@ -262,10 +262,19 @@ function newInquiryTrigger() {
 async function NewInquiryAction() {
   await requirePagePermission({ inquiry: ["read"] });
 
-  const { defaultCountry, timezone, sources, zones, catalog } = await loadSheetData();
+  const [{ defaultCountry, timezone, sources, zones, catalog }, canExport] = await Promise.all([
+    loadSheetData(),
+    can({ inquiry: ["export"] }),
+  ]);
 
   return (
     <>
+      {canExport && (
+        <Button variant="outline" render={<a href="/api/inquiries/export" download />}>
+          <DownloadIcon className="size-4" />
+          Export
+        </Button>
+      )}
       <QuickAddDialog
         sources={sources}
         trigger={
