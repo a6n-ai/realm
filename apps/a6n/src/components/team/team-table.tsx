@@ -17,6 +17,7 @@ import { EmptyState } from "../page/empty-state";
 import { Panel } from "../page/panel";
 import { copyLink } from "./invite-dialog";
 import { InviteStatusBadge } from "./invite-status";
+import { ReportsToDialog } from "./reports-to-dialog";
 import { RemoveMemberDialog } from "./remove-member-dialog";
 
 export type TeamMember = MemberRow & { inviteLink: string | null };
@@ -58,6 +59,8 @@ export function TeamTable({
   roles,
   canChangeRoles,
   canRemove,
+  canSetManager,
+  everyone,
   filtered = false,
 }: {
   members: TeamMember[];
@@ -66,10 +69,13 @@ export function TeamTable({
   roles: RoleOption[];
   canChangeRoles: boolean;
   canRemove: boolean;
+  canSetManager: boolean;
+  everyone: TeamMember[];
   filtered?: boolean;
 }) {
   const router = useRouter();
   const [removing, setRemoving] = useState<TeamMember | null>(null);
+  const [reporting, setReporting] = useState<TeamMember | null>(null);
 
   async function resend(m: TeamMember) {
     try {
@@ -107,6 +113,7 @@ export function TeamTable({
     return [
       { label: "Resend invite", onSelect: () => void resend(m), hidden: !active || m.passwordSet },
       { label: "Copy link", onSelect: () => void copyLink(m.inviteLink!), hidden: !m.inviteLink },
+      { label: "Reports to", onSelect: () => setReporting(m), hidden: !canSetManager || !active },
       { label: "Remove", destructive: true, onSelect: () => setRemoving(m), hidden: !canRemove || !active || m.id === selfId },
     ];
   };
@@ -131,6 +138,7 @@ export function TeamTable({
         />
       </Panel>
       <RemoveMemberDialog member={removing} onClose={() => setRemoving(null)} />
+      {reporting ? <ReportsToDialog member={reporting} people={everyone.filter((p) => p.status === "active")} onClose={() => setReporting(null)} /> : null}
     </>
   );
 }

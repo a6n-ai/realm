@@ -1,0 +1,1 @@
+ALTER TABLE `members` ADD `manager_id` text REFERENCES members(id);

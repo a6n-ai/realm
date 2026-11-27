@@ -26,6 +26,7 @@ import { Route as AppInquiriesIdRouteImport } from './routes/_app/inquiries/$id'
 import { Route as AppSettingsIndexRouteImport } from './routes/_app/settings/index'
 import { Route as AppSettingsAccountRouteImport } from './routes/_app/settings/account'
 import { Route as AppSettingsMembersRouteImport } from './routes/_app/settings/members'
+import { Route as AppSettingsOrgChartRouteImport } from './routes/_app/settings/org-chart'
 import { Route as AppSettingsRolesRouteImport } from './routes/_app/settings/roles'
 import { Route as AppSettingsTeamsRouteImport } from './routes/_app/settings/teams'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
@@ -114,6 +115,11 @@ const AppSettingsMembersRoute = AppSettingsMembersRouteImport.update({
   path: '/members',
   getParentRoute: () => AppSettingsRoute,
 } as any)
+const AppSettingsOrgChartRoute = AppSettingsOrgChartRouteImport.update({
+  id: '/org-chart',
+  path: '/org-chart',
+  getParentRoute: () => AppSettingsRoute,
+} as any)
 const AppSettingsRolesRoute = AppSettingsRolesRouteImport.update({
   id: '/roles',
   path: '/roles',
@@ -145,6 +151,7 @@ export interface FileRoutesByFullPath {
   '/inquiries/$id': typeof AppInquiriesIdRoute
   '/settings/account': typeof AppSettingsAccountRoute
   '/settings/members': typeof AppSettingsMembersRoute
+  '/settings/org-chart': typeof AppSettingsOrgChartRoute
   '/settings/roles': typeof AppSettingsRolesRoute
   '/settings/teams': typeof AppSettingsTeamsRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -165,6 +172,7 @@ export interface FileRoutesByTo {
   '/inquiries/$id': typeof AppInquiriesIdRoute
   '/settings/account': typeof AppSettingsAccountRoute
   '/settings/members': typeof AppSettingsMembersRoute
+  '/settings/org-chart': typeof AppSettingsOrgChartRoute
   '/settings/roles': typeof AppSettingsRolesRoute
   '/settings/teams': typeof AppSettingsTeamsRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -188,6 +196,7 @@ export interface FileRoutesById {
   '/_app/inquiries/$id': typeof AppInquiriesIdRoute
   '/_app/settings/account': typeof AppSettingsAccountRoute
   '/_app/settings/members': typeof AppSettingsMembersRoute
+  '/_app/settings/org-chart': typeof AppSettingsOrgChartRoute
   '/_app/settings/roles': typeof AppSettingsRolesRoute
   '/_app/settings/teams': typeof AppSettingsTeamsRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -211,6 +220,7 @@ export interface FileRouteTypes {
     | '/inquiries/$id'
     | '/settings/account'
     | '/settings/members'
+    | '/settings/org-chart'
     | '/settings/roles'
     | '/settings/teams'
     | '/api/auth/$'
@@ -231,6 +241,7 @@ export interface FileRouteTypes {
     | '/inquiries/$id'
     | '/settings/account'
     | '/settings/members'
+    | '/settings/org-chart'
     | '/settings/roles'
     | '/settings/teams'
     | '/api/auth/$'
@@ -253,6 +264,7 @@ export interface FileRouteTypes {
     | '/_app/inquiries/$id'
     | '/_app/settings/account'
     | '/_app/settings/members'
+    | '/_app/settings/org-chart'
     | '/_app/settings/roles'
     | '/_app/settings/teams'
     | '/api/auth/$'
@@ -391,6 +403,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSettingsMembersRouteImport
       parentRoute: typeof AppSettingsRoute
     }
+    '/_app/settings/org-chart': {
+      id: '/_app/settings/org-chart'
+      path: '/org-chart'
+      fullPath: '/settings/org-chart'
+      preLoaderRoute: typeof AppSettingsOrgChartRouteImport
+      parentRoute: typeof AppSettingsRoute
+    }
     '/_app/settings/roles': {
       id: '/_app/settings/roles'
       path: '/roles'
@@ -418,6 +437,7 @@ declare module '@tanstack/react-router' {
 interface AppSettingsRouteChildren {
   AppSettingsAccountRoute: typeof AppSettingsAccountRoute
   AppSettingsMembersRoute: typeof AppSettingsMembersRoute
+  AppSettingsOrgChartRoute: typeof AppSettingsOrgChartRoute
   AppSettingsRolesRoute: typeof AppSettingsRolesRoute
   AppSettingsTeamsRoute: typeof AppSettingsTeamsRoute
   AppSettingsIndexRoute: typeof AppSettingsIndexRoute
@@ -426,6 +446,7 @@ interface AppSettingsRouteChildren {
 const AppSettingsRouteChildren: AppSettingsRouteChildren = {
   AppSettingsAccountRoute: AppSettingsAccountRoute,
   AppSettingsMembersRoute: AppSettingsMembersRoute,
+  AppSettingsOrgChartRoute: AppSettingsOrgChartRoute,
   AppSettingsRolesRoute: AppSettingsRolesRoute,
   AppSettingsTeamsRoute: AppSettingsTeamsRoute,
   AppSettingsIndexRoute: AppSettingsIndexRoute,

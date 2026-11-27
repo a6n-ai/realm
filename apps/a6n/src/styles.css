@@ -267,3 +267,27 @@ body:has(.admin-ui) {
     min-width: 0;
   }
 }
+
+/* Org chart: nested lists, connector lines drawn with borders. Wide screens hang the tree down; narrow ones indent it. */
+.org-tree ul { position: relative; display: flex; justify-content: center; padding-top: 1.25rem; }
+.org-tree > ul { padding-top: 0; }
+.org-tree li { position: relative; display: flex; flex-direction: column; align-items: center; padding: 1.25rem 0.5rem 0; }
+.org-tree > ul > li { padding-top: 0; }
+.org-tree li::before, .org-tree li::after { content: ""; position: absolute; top: 0; right: 50%; width: 50%; height: 1.25rem; border-top: 1px solid var(--border); }
+.org-tree li::after { right: auto; left: 50%; border-left: 1px solid var(--border); }
+.org-tree > ul > li::before, .org-tree > ul > li::after { display: none; }
+.org-tree li:only-child::before { display: none; }
+.org-tree li:only-child::after { border-top: 0; }
+.org-tree li:first-child::before, .org-tree li:last-child::after { border-top-color: transparent; }
+.org-tree li:last-child::before { border-right: 1px solid var(--border); border-top-right-radius: 6px; }
+.org-tree li:first-child::after { border-top-left-radius: 6px; }
+.org-tree ul ul::before { content: ""; position: absolute; top: 0; left: 50%; height: 1.25rem; border-left: 1px solid var(--border); }
+@media (max-width: 767px) {
+  .org-tree ul { display: block; padding-top: 0; margin-left: 1rem; border-left: 1px solid var(--border); }
+  .org-tree > ul { margin-left: 0; border-left: 0; }
+  .org-tree li { display: block; padding: 0.5rem 0 0 1rem; }
+  .org-tree > ul > li { padding-left: 0; }
+  .org-tree li::before { top: 1.5rem; right: auto; left: 0; width: 0.75rem; height: 0; border: 0; border-top: 1px solid var(--border); border-radius: 0; display: block; }
+  .org-tree li::after, .org-tree ul ul::before { display: none; }
+  .org-tree > ul > li::before { display: none; }
+}

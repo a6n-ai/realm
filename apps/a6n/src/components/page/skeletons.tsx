@@ -314,3 +314,18 @@ export function TeamsSkeleton() {
     </>
   );
 }
+
+export function OrgChartSkeleton() {
+  return (
+    <>
+      <SettingsCardSkeleton title="Org chart" description="Who reports to whom, with each person's teams. Set reporting lines from Members." action={false}>
+        <div className="flex flex-wrap justify-center gap-4" aria-hidden="true">
+          {Array.from({ length: 3 }, (_, i) => (
+            <Skeleton key={i} className="h-20 w-56 rounded-xl" />
+          ))}
+        </div>
+      </SettingsCardSkeleton>
+      <Loading />
+    </>
+  );
+}

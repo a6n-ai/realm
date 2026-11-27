@@ -13,6 +13,7 @@ function SettingsLayout() {
     ...(canManageMembers(shell.permissions) ? [{ to: "/settings/members", label: "Members" }] : []),
     ...(shell.permissions.includes("ac:read") ? [{ to: "/settings/roles", label: "Roles" }] : []),
     ...(shell.permissions.includes("team:update") ? [{ to: "/settings/teams", label: "Teams" }] : []),
+    { to: "/settings/org-chart", label: "Org chart" },
     { to: "/settings/account", label: "Account" },
   ];
   const tab = tabs.find((t) => t.to === pathname);

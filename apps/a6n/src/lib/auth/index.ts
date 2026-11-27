@@ -189,6 +189,8 @@ export function authOptions(env: Env, secret: string | undefined) {
         roles: orgRoles,
         allowUserToCreateOrganization: false,
         teams: { enabled: true, defaultTeam: { enabled: false } },
+        // input: false keeps every Better Auth route from setting it; only the team service writes it.
+        schema: { member: { additionalFields: { managerId: { type: "string", required: false, input: false } } } },
         dynamicAccessControl: { enabled: true },
       }),
       emailOTP({

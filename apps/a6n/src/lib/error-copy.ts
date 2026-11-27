@@ -24,6 +24,9 @@ export const { errorText, reasonText } = createErrorText({
   already_in_team: "That person is already in the team.",
   role_in_use: "Someone still has this role. Give them another role first.",
   self: "You cannot remove yourself.",
+  self_manager: "Nobody can report to themselves.",
+  cycle: "That would put someone above their own manager. Pick someone else.",
+  manager_not_found: "That person is not in this organisation.",
   already_removed: "That person is already removed.",
   // Relay send refusals, shown when an invite could not be mailed.
   no_default_sender: "Relay has no default sender for this app. Set one in Relay, then resend the invite.",

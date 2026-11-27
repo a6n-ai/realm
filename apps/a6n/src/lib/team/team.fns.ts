@@ -1,10 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
 import { env } from "cloudflare:workers";
 import { depsFor } from "../deps";
-import { read, refusing, WRITE } from "../guarded.fns";
+import { read, readAny, refusing, WRITE } from "../guarded.fns";
 import { validate } from "../schemas";
-import { runChangeRole, runInvite, runRemove, runResendInvite } from "./actions-core";
-import { changeRoleSchema, inviteSchema, memberIdSchema } from "./schemas";
+import { runChangeRole, runInvite, runRemove, runResendInvite, runSetManager } from "./actions-core";
+import { changeRoleSchema, inviteSchema, memberIdSchema, setManagerSchema } from "./schemas";
 import { canGrant, listOrgRoles } from "../auth/membership";
 import { createTeamService } from "./service";
 
@@ -29,6 +29,7 @@ export const listTeamFn = createServerFn({ method: "GET" }).handler(() =>
       roles,
       canChangeRoles: actor.permissions.includes("member:update"),
       canRemove: actor.permissions.includes("member:delete"),
+      canSetManager: actor.permissions.includes("member:update"),
     };
   }),
 );
@@ -48,3 +49,12 @@ export const removeFn = createServerFn({ method: "POST" })
 export const changeRoleFn = createServerFn({ method: "POST" })
   .validator(validate(changeRoleSchema))
   .handler(({ data }) => refusing(WRITE("member:update"), (actor) => runChangeRole(actor, depsFor(env), data)));
+
+export const setManagerFn = createServerFn({ method: "POST" })
+  .validator(validate(setManagerSchema))
+  .handler(({ data }) => refusing(WRITE("member:update"), (actor) => runSetManager(actor, depsFor(env), data)));
+
+// Names, roles and teams only, never emails: every member may view it.
+export const orgChartFn = createServerFn({ method: "GET" }).handler(() =>
+  readAny((actor) => service(actor.organizationId).orgChart()),
+);

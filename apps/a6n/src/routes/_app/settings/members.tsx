@@ -51,7 +51,7 @@ function MembersPage() {
           search={<SearchInput value={q} onChange={setQ} placeholder="Search name or email" />}
           filters={<FilterBar facets={memberFacets(team.roles.map((r) => r.name))} value={search} onChange={(next) => navigate({ search: next, replace: true })} />}
         />
-        <TeamTable members={shown} statuses={team.statuses} selfId={shell.user.id} roles={team.roles} canChangeRoles={team.canChangeRoles} canRemove={team.canRemove} filtered={Boolean(search.q || search.role || search.status)} />
+        <TeamTable members={shown} statuses={team.statuses} selfId={shell.user.id} roles={team.roles} canChangeRoles={team.canChangeRoles} canRemove={team.canRemove} canSetManager={team.canSetManager} everyone={team.members} filtered={Boolean(search.q || search.role || search.status)} />
       </section>
     </>
   );

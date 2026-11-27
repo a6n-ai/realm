@@ -64,6 +64,8 @@ const members = defineTable(
     organizationId: orgRef().notNull(),
     userId: c.ref("user_id").notNull().references(() => users.columns.id, { onDelete: "cascade" }),
     role: c.string("role").notNull().default("member"),
+    // Reporting line: another member of the same organisation (the service enforces that); null = top of the tree.
+    managerId: c.ref("manager_id").references((): any => members.columns.id, { onDelete: "set null" }),
     createdAt: c.timestamp("created_at").notNull(),
   },
   (t) => [unique("members_org_user_uq").on(t.organizationId, t.userId), index("members_user_idx").on(t.userId)],

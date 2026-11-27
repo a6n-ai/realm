@@ -1,7 +1,7 @@
 import type { Actor } from "../auth/actor";
 import type { Deps } from "../deps";
 import { gate, type ActionResult } from "../inquiries/actions-core";
-import { changeRoleSchema, inviteSchema, memberIdSchema } from "./schemas";
+import { changeRoleSchema, inviteSchema, memberIdSchema, setManagerSchema } from "./schemas";
 import { createTeamService, type SendRefusal } from "./service";
 
 const svc = (deps: Deps, actor: Actor) => createTeamService(deps.db, actor.organizationId, deps.mailer, deps.authUrl);
@@ -29,4 +29,10 @@ export async function runChangeRole(actor: Actor, deps: Deps, input: unknown): P
   const g = gate("member:update", changeRoleSchema, actor, input);
   if ("refusal" in g) return g.refusal;
   return svc(deps, actor).changeRole(g.data.id, g.data.role, actor);
+}
+
+export async function runSetManager(actor: Actor, deps: Deps, input: unknown): Promise<ActionResult> {
+  const g = gate("member:update", setManagerSchema, actor, input);
+  if ("refusal" in g) return g.refusal;
+  return svc(deps, actor).setManager(g.data.id, g.data.managerId, actor);
 }

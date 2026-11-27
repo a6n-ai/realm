@@ -20,6 +20,19 @@ export type ChangeRoleResult = { ok: true } | { ok: false; code: "not_found" | "
 // The seed's system actor owns audit rows; it is never a team member.
 const SYSTEM_ID = "usr_system";
 
+export type SetManagerResult =
+  | { ok: true }
+  | { ok: false; code: "forbidden" | "not_found" | "manager_not_found" | "self_manager" | "cycle" | "role_not_grantable" };
+
+export type OrgChartPerson = {
+  userId: string;
+  memberId: string;
+  name: string;
+  role: string;
+  managerMemberId: string | null;
+  teams: string[];
+};
+
 export type RemoveResult =
   | { removed: true }
   | { removed: false; reason: "last_owner" | "self" | "already_removed" | "role_not_grantable" };
@@ -33,6 +46,7 @@ export type MemberRow = {
   passwordSet: boolean;
   lastSignIn: number | null;
   openInquiries: number;
+  managerId: string | null;
   latestInvite: { n: number; idempotencyKey: string; relayMessageId: string | null; sentAt: number | null } | null;
 };
 
@@ -214,6 +228,57 @@ export function createTeamService(db: CrmDb, org: string, mailer: Mailer | (() =
       return out;
     },
 
+    async setManager(userId: string, managerUserId: string | null, actor: Actor): Promise<SetManagerResult> {
+      if (!actor.permissions.includes("member:update")) return { ok: false, code: "forbidden" };
+      if (managerUserId === userId) return { ok: false, code: "self_manager" };
+      const find = async (u: string) =>
+        (await db.all<{ id: string; role: string; manager_id: string | null }>(sql`SELECT id, role, manager_id FROM members WHERE organization_id = ${org} AND user_id = ${u}`))[0];
+      const member = await find(userId);
+      if (!member) return { ok: false, code: "not_found" };
+      const manager = managerUserId === null ? null : await find(managerUserId);
+      if (manager === undefined) return { ok: false, code: "manager_not_found" };
+      // Same rule as changeRole: the actor must hold everything the target's current role holds.
+      if (!canGrant(actor.permissions, (await roleInfo(member.role)) ?? [])) return { ok: false, code: "role_not_grantable" };
+      if (manager) {
+        // UNION (not UNION ALL) so a loop already in the data cannot spin forever.
+        const [hit] = await db.all(sql`WITH RECURSIVE up(id) AS (
+            SELECT ${manager.id} UNION SELECT m.manager_id FROM members m JOIN up ON m.id = up.id
+            WHERE m.organization_id = ${org} AND m.manager_id IS NOT NULL)
+          SELECT 1 FROM up WHERE id = ${member.id}`);
+        if (hit) return { ok: false, code: "cycle" };
+      }
+      await atomic(db, () => [
+        sql`UPDATE members SET manager_id = ${manager?.id ?? null} WHERE organization_id = ${org} AND id = ${member.id}`,
+        sql`INSERT INTO audit_log (id, created_at, created_by, organization_id, action, actor_id, target, data)
+          VALUES (${newId("aud")}, ${Date.now()}, ${actor.userId}, ${org}, 'member.manager', ${actor.userId}, ${userId},
+            json_object('from', ${member.manager_id}, 'to', ${manager?.id ?? null}))`,
+      ]);
+      return { ok: true };
+    },
+
+    // Names, roles and teams only: no emails, so any member of the organisation may read it.
+    async orgChart(): Promise<OrgChartPerson[]> {
+      const people = await db.all<{ member_id: string; user_id: string; name: string; role: string; manager_id: string | null }>(
+        sql`SELECT m.id AS member_id, m.user_id, u.name, m.role, m.manager_id
+          FROM members m JOIN users u ON u.id = m.user_id
+          WHERE m.organization_id = ${org} AND u.status = 'active' ORDER BY u.name, m.id`,
+      );
+      const links = await db.all<{ user_id: string; name: string }>(
+        sql`SELECT tm.user_id, t.name FROM team_members tm JOIN teams t ON t.id = tm.team_id
+          WHERE t.organization_id = ${org} ORDER BY t.name`,
+      );
+      const teamsOf = new Map<string, string[]>();
+      for (const l of links) teamsOf.set(l.user_id, [...(teamsOf.get(l.user_id) ?? []), l.name]);
+      return people.map((p) => ({
+        userId: p.user_id,
+        memberId: p.member_id,
+        name: p.name,
+        role: p.role,
+        managerMemberId: p.manager_id,
+        teams: teamsOf.get(p.user_id) ?? [],
+      }));
+    },
+
     // Removing someone from this organisation deletes the membership and unassigns their open inquiries here. When it
     // was their last organisation, their account goes too (status removed, sessions, password and codes), as before.
     async remove(userId: string, actor: Actor): Promise<RemoveResult> {
@@ -228,7 +293,11 @@ export function createTeamService(db: CrmDb, org: string, mailer: Mailer | (() =
       const mine = sql`EXISTS (SELECT 1 FROM audit_log WHERE id = ${auditId})`;
       const lastOrg = sql`NOT EXISTS (SELECT 1 FROM members WHERE user_id = ${userId})`;
       const e = target?.email ?? "";
-      const [del] = await atomic(db, () => [
+      const [, del] = await atomic(db, () => [
+        // Reports move up to the leaver's manager (or to the top) before the row goes; same guard as the delete below.
+        sql`UPDATE members SET manager_id = (SELECT manager_id FROM members WHERE organization_id = ${org} AND user_id = ${userId})
+          WHERE organization_id = ${org} AND manager_id = (SELECT id FROM members WHERE organization_id = ${org} AND user_id = ${userId})
+            AND ((SELECT ',' || replace(role, ' ', '') || ',' FROM members WHERE organization_id = ${org} AND user_id = ${userId}) NOT LIKE '%,owner,%' OR ${ownerCount} > 1)`,
         sql`DELETE FROM members WHERE organization_id = ${org} AND user_id = ${userId}
           AND ((',' || replace(role, ' ', '') || ',') NOT LIKE '%,owner,%' OR ${ownerCount} > 1)`,
         {
@@ -254,9 +323,10 @@ export function createTeamService(db: CrmDb, org: string, mailer: Mailer | (() =
     async list(): Promise<MemberRow[]> {
       const rows = await db.all<{
         id: string; name: string; email: string; role: string; status: string; password_set: number;
-        open: number; last_sign_in: number | null; n: number | null; key: string | null; msg: string | null; sent_at: number | null;
+        open: number; manager_user_id: string | null; last_sign_in: number | null; n: number | null; key: string | null; msg: string | null; sent_at: number | null;
       }>(sql`SELECT u.id, u.name, u.email, m.role, u.status, u.password_set,
           (SELECT count(*) FROM inquiries WHERE organization_id = ${org} AND owner_id = u.id AND closed_at IS NULL) AS open,
+          (SELECT user_id FROM members WHERE id = m.manager_id) AS manager_user_id,
           u.last_sign_in_at AS last_sign_in,
           i.n, i.idempotency_key AS key, i.relay_message_id AS msg, i.sent_at
         FROM members m
@@ -274,6 +344,7 @@ export function createTeamService(db: CrmDb, org: string, mailer: Mailer | (() =
         passwordSet: !!r.password_set,
         lastSignIn: r.last_sign_in === null ? null : Number(r.last_sign_in),
         openInquiries: Number(r.open),
+        managerId: r.manager_user_id,
         latestInvite: r.n === null ? null : { n: r.n, idempotencyKey: r.key!, relayMessageId: r.msg, sentAt: r.sent_at },
       }));
     },

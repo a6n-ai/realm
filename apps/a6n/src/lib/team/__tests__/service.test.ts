@@ -354,3 +354,82 @@ describe("roles in an organisation", () => {
     expect(await roleOf("usr_sam", other)).toBe("member");
   });
 });
+
+describe("reporting lines", () => {
+  const managerOf = async (userId: string) =>
+    (await all<{ m: string | null }>("select manager_id as m from members where user_id = ? and organization_id = ?", userId, TEST_ORG))[0]?.m;
+  const addPerson = (id: string, role = "member") => env.DB.batch([user(id, "sales"), memberStmt(id, role)]);
+
+  test("setManager writes, audits and reads back through list and orgChart", async () => {
+    const { svc } = mk();
+    expect(await svc.setManager("usr_sam", "usr_admin", admin)).toEqual({ ok: true });
+    expect(await managerOf("usr_sam")).toBe("mem_usr_admin");
+    expect(await all("select action from audit_log where target = 'usr_sam'")).toEqual([{ action: "member.manager" }]);
+    expect((await svc.list()).find((m) => m.id === "usr_sam")?.managerId).toBe("usr_admin");
+    const sam = (await svc.orgChart()).find((p) => p.userId === "usr_sam");
+    expect(sam).toEqual({ userId: "usr_sam", memberId: "mem_usr_sam", name: "usr_sam", role: "member", managerMemberId: "mem_usr_admin", teams: [] });
+    expect(await svc.setManager("usr_sam", null, admin)).toEqual({ ok: true });
+    expect(await managerOf("usr_sam")).toBeNull();
+  });
+
+  test("a manager from another organisation is refused", async () => {
+    await env.DB.batch([
+      env.DB.prepare("insert or ignore into organizations (id, name, slug, created_at) values ('org_b', 'B', 'b', ?)").bind(NOW),
+      user("usr_b", "sales"),
+      env.DB.prepare("insert into members (id, organization_id, user_id, role, created_at) values ('mem_b', 'org_b', 'usr_b', 'member', ?)").bind(NOW),
+    ]);
+    expect(await mk().svc.setManager("usr_sam", "usr_b", admin)).toEqual({ ok: false, code: "manager_not_found" });
+    expect(await managerOf("usr_sam")).toBeNull();
+  });
+
+  test("self is refused", async () => {
+    expect(await mk().svc.setManager("usr_sam", "usr_sam", admin)).toEqual({ ok: false, code: "self_manager" });
+  });
+
+  test("a cycle is refused", async () => {
+    await addPerson("usr_c");
+    const { svc } = mk();
+    await svc.setManager("usr_sam", "usr_admin2", admin);
+    await svc.setManager("usr_c", "usr_sam", admin);
+    expect(await svc.setManager("usr_admin2", "usr_c", admin)).toEqual({ ok: false, code: "cycle" });
+    expect(await managerOf("usr_admin2")).toBeNull();
+  });
+
+  test("an actor without member:update is refused", async () => {
+    expect(await mk().svc.setManager("usr_sam", "usr_admin", actorOf("usr_sam", "Sam", "sales"))).toEqual({ ok: false, code: "forbidden" });
+    expect(await managerOf("usr_sam")).toBeNull();
+  });
+
+  test("an admin cannot set the manager of an owner", async () => {
+    expect(await mk().svc.setManager("usr_admin2", "usr_sam", actorOf("usr_sam", "Sam", "admin"))).toEqual({ ok: false, code: "role_not_grantable" });
+    expect(await managerOf("usr_admin2")).toBeNull();
+  });
+
+  test("removing a manager moves the reports to the manager's manager", async () => {
+    await addPerson("usr_mid");
+    await addPerson("usr_low");
+    const { svc } = mk();
+    await svc.setManager("usr_mid", "usr_admin", admin);
+    await svc.setManager("usr_low", "usr_mid", admin);
+    expect(await svc.remove("usr_mid", admin)).toEqual({ removed: true });
+    expect(await managerOf("usr_low")).toBe("mem_usr_admin");
+    await svc.setManager("usr_sam", "usr_low", admin);
+    expect(await svc.remove("usr_admin", admin2)).toEqual({ removed: true });
+    expect(await managerOf("usr_low")).toBeNull();
+  });
+
+  test("orgChart of one organisation never shows another's people", async () => {
+    await env.DB.batch([
+      env.DB.prepare("insert or ignore into organizations (id, name, slug, created_at) values ('org_b', 'B', 'b', ?)").bind(NOW),
+      user("usr_b", "sales"),
+      env.DB.prepare("insert into members (id, organization_id, user_id, role, created_at) values ('mem_b', 'org_b', 'usr_b', 'member', ?)").bind(NOW),
+      env.DB.prepare("insert or ignore into teams (id, name, organization_id, created_at) values ('tea_b', 'Secret', 'org_b', ?)").bind(NOW),
+      env.DB.prepare("insert into team_members (id, team_id, user_id) values ('tmm_b', 'tea_b', 'usr_sam')"),
+    ]);
+    const mine = await mk().svc.orgChart();
+    expect(mine.map((p) => p.userId).sort()).toEqual(["usr_admin", "usr_admin2", "usr_sam"]);
+    expect(mine.find((p) => p.userId === "usr_sam")?.teams).toEqual([]);
+    const theirs = await createTeamService(getDb(env), "org_b", createMemoryMailer(), AUTH_URL).orgChart();
+    expect(theirs.map((p) => p.userId)).toEqual(["usr_b"]);
+  });
+});

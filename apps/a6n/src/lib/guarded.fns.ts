@@ -20,6 +20,8 @@ const guard = createGuard<Need, Actor>({ actor: (need) => requireActor(env, getR
 
 // A read the actor may not make is null, and the page renders DeniedState with status 200.
 export const read = <T>(permission: Permission, fn: (actor: Actor) => Promise<T>) => guard.read({ permission }, fn);
+// Any member of the active organisation.
+export const readAny = <T>(fn: (actor: Actor) => Promise<T>) => guard.read({}, fn);
 export const refusing = guard.refuse;
 export const { fail } = guard;
 
