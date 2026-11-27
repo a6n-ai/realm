@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import type { Env } from "../../../env";
 import { consoleMailer } from "../console-mailer";
 import { MailUnavailableError, mailerFor } from "../mailer";
 import { memoryMailer } from "../memory-mailer";
