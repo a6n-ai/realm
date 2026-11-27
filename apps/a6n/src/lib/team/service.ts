@@ -240,6 +240,8 @@ export function createTeamService(db: CrmDb, org: string, mailer: Mailer | (() =
           SELECT ${sqlNewId("iac", "sqlite")}, ${now}, ${org}, id, 'reassigned', ${userId}, NULL, ${actor.userId}
           FROM inquiries WHERE organization_id = ${org} AND owner_id = ${userId} AND closed_at IS NULL AND ${mine}`,
         sql`UPDATE inquiries SET owner_id = NULL WHERE organization_id = ${org} AND owner_id = ${userId} AND closed_at IS NULL AND ${mine}`,
+        sql`DELETE FROM team_members WHERE user_id = ${userId} AND team_id IN (SELECT id FROM teams WHERE organization_id = ${org}) AND ${mine}`,
+        sql`UPDATE teams SET member_count = (SELECT count(*) FROM team_members WHERE team_id = teams.id) WHERE organization_id = ${org} AND ${mine}`,
         sql`UPDATE users SET status = 'removed', updated_at = ${now} WHERE id = ${userId} AND ${mine} AND ${lastOrg}`,
         sql`DELETE FROM sessions WHERE user_id = ${userId} AND ${mine} AND ${lastOrg}`,
         sql`DELETE FROM accounts WHERE user_id = ${userId} AND provider_id = 'credential' AND ${mine} AND ${lastOrg}`,
