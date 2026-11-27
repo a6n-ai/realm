@@ -4,24 +4,19 @@ import { createItems, visibleNav } from "../nav";
 const labels = (role: "admin" | "sales") => visibleNav(role, { total: 3, overdue: 1 }).flatMap((g) => g.items.map((i) => i.label));
 
 describe("visibleNav", () => {
-  test("a sales user has no Team or Sources item", () => {
+  test("a sales user has no Sources item", () => {
     expect(labels("sales")).toEqual(["Inquiries", "Unassigned", "Settings"]);
   });
 
-  test("an admin has both, and Team opens the members settings", () => {
-    expect(labels("admin")).toEqual(expect.arrayContaining(["Team", "Sources", "Settings"]));
-    const team = visibleNav("admin", { total: 0, overdue: 0 }).flatMap((g) => g.items).find((i) => i.label === "Team");
-    expect(team?.to).toBe("/settings/members");
+  test("an admin has Sources and Settings but no Team item", () => {
+    expect(labels("admin")).toEqual(["Inquiries", "Unassigned", "Sources", "Settings"]);
   });
 
-  test("the Unassigned badge shows the total and the overdue count", () => {
-    const item = visibleNav("sales", { total: 3, overdue: 1 })[0]!.items.find((i) => i.label === "Unassigned");
-    expect(item?.badge).toBe("3 · 1 overdue");
-  });
-
-  test("the badge is the bare total when nothing is overdue", () => {
-    const item = visibleNav("sales", { total: 2, overdue: 0 })[0]!.items.find((i) => i.label === "Unassigned");
-    expect(item?.badge).toBe("2");
+  test("the Unassigned badge is the plain total, overdue or not", () => {
+    for (const overdue of [0, 1]) {
+      const item = visibleNav("sales", { total: 3, overdue })[0]!.items.find((i) => i.label === "Unassigned");
+      expect(item?.badge).toBe("3");
+    }
   });
 });
 

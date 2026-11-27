@@ -8,9 +8,10 @@ describe("findEntries", () => {
     expect(e.find((x) => x.label === "Unassigned")?.to).toBe("/inquiries?view=unassigned");
   });
 
-  test("an admin also finds Team, Sources and their actions", () => {
+  test("an admin also finds Sources and the admin actions, not Team", () => {
     const labels = findEntries("admin").map((x) => x.label);
-    expect(labels).toEqual(expect.arrayContaining(["Team", "Sources", "Invite member", "New source"]));
+    expect(labels).toEqual(expect.arrayContaining(["Sources", "Invite member", "New source"]));
+    expect(labels).not.toContain("Team");
   });
 
   test("actions carry a create kind, pages a path", () => {
