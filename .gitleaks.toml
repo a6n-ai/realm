@@ -37,3 +37,8 @@ paths = [
 description = "Browser storage key names (dotted tg.* / tiffin.* ids such as tg.renewals.plans.columns.v1), not credentials"
 targetRules = ["generic-api-key"]
 regexes = ['''^(tg|tiffin)(\.[A-Za-z0-9-]+)+$''']
+
+[[allowlists]]
+description = "a6n vitest config: Miniflare test bindings for the local test D1, never production values (old commits used apps/a6n-crm)"
+targetRules = ["generic-api-key"]
+paths = ['''^apps/a6n(-crm)?/vitest\.config\.ts$''']
