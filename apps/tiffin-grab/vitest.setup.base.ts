@@ -33,6 +33,12 @@ if (typeof document !== "undefined") {
   HTMLDialogElement.prototype.close ??= function (this: HTMLDialogElement) {
     this.removeAttribute("open");
   };
+  // jsdom has no CSS namespace, and ui-sdk's form code calls CSS.escape unguarded (forms/form.js), which threw an
+  // unhandled ReferenceError after some tests finished (flaky CI on invites-list).
+  globalThis.CSS ??= {
+    escape: (value: string) => value.replace(/([^\w-])/g, "\\$1"),
+    supports: () => false,
+  } as unknown as typeof CSS;
   HTMLElement.prototype.showPopover ??= function () {};
   HTMLElement.prototype.hidePopover ??= function () {};
   // jsdom hides [popover] content it can't open; show only the open popup (ui-sdk sets data-open) so closed keepMounted content stays hidden.
