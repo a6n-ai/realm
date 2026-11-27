@@ -1,7 +1,7 @@
-import { EmptyState } from "@foundry/console/empty-state";
+import { EmptyState } from "../../../components/page/empty-state";
 import { DeniedState, ErrorState } from "@foundry/console/error-state";
 import { ListSkeleton } from "@foundry/console/list-skeleton";
-import { PageHeader } from "@foundry/console/page-header";
+import { PageHeader } from "../../../components/shell/page-header";
 import { Button } from "@foundry/ui/button";
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { SearchXIcon } from "lucide-react";

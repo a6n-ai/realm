@@ -1,4 +1,4 @@
-import { PageHeader } from "@foundry/console/page-header";
+import { PageHeader } from "../shell/page-header";
 import { runAction } from "@foundry/console/run-action";
 import { Button } from "@foundry/ui/button";
 import { Input } from "@foundry/ui/input";

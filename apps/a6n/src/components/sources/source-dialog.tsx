@@ -70,10 +70,13 @@ function Form({ mode, done }: { mode: SourceDialogMode; done: () => void }) {
   );
 }
 
-export function SourceDialog({ mode }: { mode: SourceDialogMode }) {
+type Controlled = { open: boolean; onOpenChange: (open: boolean) => void };
+
+// Controlled (open + onOpenChange) means the caller owns the trigger.
+export function SourceDialog({ mode, open, onOpenChange }: { mode: SourceDialogMode } & Partial<Controlled>) {
   const copy = COPY[mode.kind];
   return (
-    <CreateDialog trigger={copy.trigger} title={mode.kind === "subsource" ? `${copy.title} to ${mode.sourceLabel}` : copy.title}>
+    <CreateDialog trigger={open === undefined ? copy.trigger : undefined} open={open} onOpenChange={onOpenChange} title={mode.kind === "subsource" ? `${copy.title} to ${mode.sourceLabel}` : copy.title}>
       {(done) => <Form mode={mode} done={done} />}
     </CreateDialog>
   );

@@ -20,7 +20,8 @@ export async function copyLink(link: string) {
 
 type Result = { sent: boolean; inviteLink: string; email: string };
 
-function Form({ done }: { done: () => void }) {
+// `inline` lays the fields in one row, for the card at the top of the members page.
+export function InviteForm({ done, inline = false }: { done: () => void; inline?: boolean }) {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
@@ -64,7 +65,7 @@ function Form({ done }: { done: () => void }) {
   }
 
   return (
-    <form onSubmit={submit} className="grid gap-4">
+    <form onSubmit={submit} className={inline ? "grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-start" : "grid gap-4"}>
       <div className="grid gap-2">
         <Label htmlFor="inv-email">Email</Label>
         <Input id="inv-email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
@@ -73,18 +74,20 @@ function Form({ done }: { done: () => void }) {
         <Label htmlFor="inv-name">Name</Label>
         <Input id="inv-name" required value={name} onChange={(e) => setName(e.target.value)} />
       </div>
-      <FormError error={error} />
-      <Button type="submit" disabled={pending}>
-        Send invite
+      <Button type="submit" disabled={pending} className={inline ? "sm:mt-[1.625rem]" : undefined}>
+        {inline ? "Invite" : "Send invite"}
       </Button>
+      <div className={inline ? "sm:col-span-3" : undefined}>
+        <FormError error={error} />
+      </div>
     </form>
   );
 }
 
-export function InviteDialog() {
+export function InviteDialog({ open, onOpenChange }: { open?: boolean; onOpenChange?: (open: boolean) => void }) {
   return (
-    <CreateDialog trigger="Invite" title="Invite a team member">
-      {(done) => <Form done={done} />}
+    <CreateDialog trigger={open === undefined ? "Invite" : undefined} open={open} onOpenChange={onOpenChange} title="Invite a team member">
+      {(done) => <InviteForm done={done} />}
     </CreateDialog>
   );
 }
