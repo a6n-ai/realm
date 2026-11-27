@@ -13,7 +13,7 @@ describe("seedSql", () => {
   beforeAll(async () => {
     await applyMigrations();
     const passwordHash = await hashPassword("x");
-    sql = seedSql([
+    sql = await seedSql([
       { email: "a@x.com", name: "A", passwordHash },
       { email: "b@x.com", name: "B", passwordHash },
     ]);
@@ -51,11 +51,48 @@ describe("seedSql", () => {
   });
 });
 
+describe("seedSql ids", () => {
+  beforeAll(applyMigrations);
+  const ID = /^(usr|acc)_[0-9A-Za-z_-]{12}$/;
+
+  it("gives colliding-slug emails distinct id-format ids", async () => {
+    const sql = await seedSql([
+      { email: "a.b@x.com", name: "A", passwordHash: "h1" },
+      { email: "a_b@x.com", name: "B", passwordHash: "h2" },
+    ]);
+    await run(sql);
+    const rows = await env.DB.prepare(
+      "select u.id as uid, a.id as aid from users u join accounts a on a.user_id = u.id where u.email in ('a.b@x.com','a_b@x.com')",
+    ).all<{ uid: string; aid: string }>();
+    expect(rows.results).toHaveLength(2);
+    expect(new Set(rows.results.map((r) => r.uid)).size).toBe(2);
+    for (const r of rows.results) {
+      expect(r.uid).toMatch(ID);
+      expect(r.aid).toMatch(ID);
+    }
+  });
+
+  it("is deterministic and idempotent", async () => {
+    const admins = [{ email: "Det@X.com ", name: "D", passwordHash: "h" }];
+    expect(await seedSql(admins, 1)).toEqual(await seedSql(admins, 1));
+  });
+
+  it("attaches the account to a user that already exists under another id", async () => {
+    const now = Date.now();
+    await env.DB.prepare(
+      "insert into users (id, name, email, role, status, created_at, updated_at) values ('usr_legacy', 'L', 'legacy@x.com', 'sales', 'active', ?, ?)",
+    ).bind(now, now).run();
+    await run(await seedSql([{ email: "legacy@x.com", name: "L", passwordHash: "h" }]));
+    const acc = await env.DB.prepare("select user_id, account_id from accounts where user_id = 'usr_legacy'").first();
+    expect(acc).toEqual({ user_id: "usr_legacy", account_id: "usr_legacy" });
+  });
+});
+
 describe("promoteSql", () => {
   beforeAll(applyMigrations);
 
   it("promotes an active user and writes one audit row", async () => {
-    await run(seedSql([]));
+    await run(await seedSql([]));
     const now = Date.now();
     await env.DB.prepare(
       "insert into users (id, name, email, role, status, created_at, updated_at) values ('usr_p1', 'P', 'p@x.com', 'sales', 'active', ?, ?)",

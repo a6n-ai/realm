@@ -17,14 +17,21 @@ const q = (v: string): string => `'${v.replaceAll("'", "''")}'`;
 const slug = (v: string): string => v.toLowerCase().replace(/[^a-z0-9]+/g, "_");
 const labelOf = (k: string): string => k.charAt(0).toUpperCase() + k.slice(1).replaceAll("-", " ");
 
-export function seedSql(admins: SeedAdmin[], now = Date.now()): string[] {
+// Id format: 3-letter prefix, "_", 12 chars of [0-9A-Za-z_-]. Derived from the email so re-applying stays idempotent.
+async function emailId(prefix: string, email: string): Promise<string> {
+  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(email)));
+  return `${prefix}_${btoa(String.fromCharCode(...digest)).replaceAll("+", "-").replaceAll("/", "_").slice(0, 12)}`;
+}
+
+export async function seedSql(admins: SeedAdmin[], now = Date.now()): Promise<string[]> {
   const out: string[] = [];
   for (const a of admins) {
     const email = a.email.trim().toLowerCase();
-    const id = `usr_${slug(email)}`;
+    const id = await emailId("usr", email);
     out.push(
       `INSERT INTO users (id, name, email, email_verified, role, status, password_set, created_at, updated_at) VALUES (${q(id)}, ${q(a.name)}, ${q(email)}, 1, 'admin', 'active', 1, ${now}, ${now}) ON CONFLICT DO NOTHING`,
-      `INSERT INTO accounts (id, user_id, account_id, provider_id, password, created_at, updated_at) VALUES (${q(`acc_${slug(email)}`)}, ${q(id)}, ${q(id)}, 'credential', ${q(a.passwordHash)}, ${now}, ${now}) ON CONFLICT DO NOTHING`,
+      // Selects the user by email: the row may already exist under another id.
+      `INSERT INTO accounts (id, user_id, account_id, provider_id, password, created_at, updated_at) SELECT ${q(await emailId("acc", email))}, id, id, 'credential', ${q(a.passwordHash)}, ${now}, ${now} FROM users WHERE email = ${q(email)} ON CONFLICT DO NOTHING`,
     );
   }
   out.push(

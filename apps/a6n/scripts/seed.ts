@@ -51,6 +51,6 @@ if (promote) {
     if (password.length < 12) throw new Error("password must be at least 12 characters");
     admins.push({ email, name: spec.slice(at + 1), passwordHash: await hashPassword(password) });
   }
-  writeFileSync(out(".seed.sql"), seedSql(admins).join(";\n") + ";\n");
+  writeFileSync(out(".seed.sql"), (await seedSql(admins)).join(";\n") + ";\n");
   console.log(`wrote scripts/.seed.sql (${admins.length} admins)`);
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { deployPlan, describeStep, runPlan, unappliedOrDrift } from "./deploy-plan";
+import { deployPlan, describeStep, parseAppliedNames, parsePendingNames, runPlan, unappliedOrDrift } from "./deploy-plan";
 
 describe("deploy plan", () => {
   it("orders build, migrate, deploy, verify", () => {
@@ -25,7 +25,21 @@ describe("deploy plan", () => {
   });
 
   it("reports unapplied and drifted migrations", () => {
-    expect(unappliedOrDrift(["0000_a.sql"], ["0000_a.sql", "0001_b.sql"])).toEqual(["0001_b.sql"]);
-    expect(unappliedOrDrift(["0000_a.sql", "0009_x.sql"], ["0000_a.sql"])).toEqual(["0009_x.sql"]);
+    expect(unappliedOrDrift(["0000_a.sql", "0001_b.sql"], ["0000_a.sql"])).toEqual(["0001_b.sql"]);
+    expect(unappliedOrDrift(["0000_a.sql"], ["0000_a.sql", "0009_x.sql"])).toEqual(["0009_x.sql"]);
+    expect(unappliedOrDrift(["0000_a.sql"], ["0000_a.sql"])).toEqual([]);
+  });
+
+  it("parses the pending list", () => {
+    expect(parsePendingNames("| name |\n| 0001_b.sql |\n| 0002_c-d.sql |")).toEqual(["0001_b.sql", "0002_c-d.sql"]);
+    expect(parsePendingNames("No migrations to apply!")).toEqual([]);
+    expect(() => parsePendingNames("error: auth failed")).toThrow("unrecognised");
+  });
+
+  it("parses applied names from d1 execute json", () => {
+    expect(parseAppliedNames(JSON.stringify([{ results: [{ name: "0000_a.sql" }, { name: "0001_b.sql" }] }]))).toEqual(["0000_a.sql", "0001_b.sql"]);
+    expect(parseAppliedNames(JSON.stringify([{ results: [] }]))).toEqual([]);
+    expect(() => parseAppliedNames("not json")).toThrow();
+    expect(() => parseAppliedNames(JSON.stringify([{ error: "x" }]))).toThrow("unrecognised");
   });
 });
