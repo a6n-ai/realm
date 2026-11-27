@@ -1,7 +1,8 @@
 import { env, SELF } from "cloudflare:test";
 import { expect } from "vitest";
 import { memoryMailer } from "../src/lib/mail/memory-mailer";
-import type { Role } from "../src/lib/auth/permissions";
+import type { Actor } from "../src/lib/auth/actor";
+import { builtInPermissions, type OrgRole } from "../src/lib/auth/permissions";
 
 export const BASE = "http://localhost/api/auth";
 export const json = { "content-type": "application/json" };
@@ -16,15 +17,34 @@ export function freshIp(): Record<string, string> {
   return { "cf-connecting-ip": `10.1.${Math.floor(seq / 250)}.${(seq % 250) + 1}` };
 }
 
-export async function insertUser(email: string, role: Role, status: "active" | "removed" = "active"): Promise<string> {
+// Every test user lives in one shared organisation unless a test builds its own. "sales" is the old name for member.
+export const TEST_ORG = "org_test";
+type TestRole = OrgRole | "sales";
+const orgRole = (r: TestRole): OrgRole => (r === "sales" ? "member" : r);
+
+export async function ensureTestOrg(): Promise<string> {
+  await env.DB.prepare("insert or ignore into organizations (id, name, slug, created_at) values (?, 'Test org', 'test-org', ?)")
+    .bind(TEST_ORG, Date.now())
+    .run();
+  return TEST_ORG;
+}
+
+export async function insertUser(email: string, role: TestRole, status: "active" | "removed" = "active"): Promise<string> {
   const id = `usr_${freshId()}`;
   const now = Date.now();
   await env.DB.prepare(
-    "insert into users (id, name, email, role, status, created_at, updated_at) values (?, ?, ?, ?, ?, ?, ?)",
+    "insert into users (id, name, email, role, status, created_at, updated_at) values (?, ?, ?, 'user', ?, ?, ?)",
   )
-    .bind(id, email, email, role, status, now, now)
+    .bind(id, email, email, status, now, now)
     .run();
+  if (status === "active") await addMember(id, await ensureTestOrg(), orgRole(role), now);
   return id;
+}
+
+/** An Actor as requireActor builds it, for unit tests of cores and services. */
+export function actorOf(userId: string, name: string, role: TestRole, organizationId = TEST_ORG): Actor {
+  const r = orgRole(role);
+  return { userId, name, organizationId, role: r, permissions: builtInPermissions(r) };
 }
 
 export async function sendCode(email: string): Promise<string> {

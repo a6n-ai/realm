@@ -1,6 +1,6 @@
 import { ConsoleLink, useConsoleRouter } from "@foundry/console/router";
 import { createFileRoute, Outlet } from "@tanstack/react-router";
-import { allows } from "../../lib/auth/permissions";
+import { canManageMembers } from "../../lib/auth/permissions";
 import { PageHeader } from "../../components/shell/page-header";
 
 export const Route = createFileRoute("/_app/settings")({ component: SettingsLayout });
@@ -10,7 +10,7 @@ function SettingsLayout() {
   const pathname = useConsoleRouter().usePathname().replace(/\/$/, "");
   const tabs = [
     { to: "/settings", label: "General" },
-    ...(allows(shell.user.role, "team:manage") ? [{ to: "/settings/members", label: "Members" }] : []),
+    ...(canManageMembers(shell.permissions) ? [{ to: "/settings/members", label: "Members" }] : []),
     { to: "/settings/account", label: "Account" },
   ];
   const tab = tabs.find((t) => t.to === pathname);

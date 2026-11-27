@@ -1,3 +1,4 @@
+import { actorOf } from "../../../../test/helpers";
 import { env } from "cloudflare:test";
 import { beforeAll, beforeEach, describe, expect, test } from "vitest";
 import { applyMigrations } from "../../../../test/migrate";
@@ -5,8 +6,8 @@ import { depsFor } from "../../deps";
 import { runAssign, runClaim, runCreateInquiry } from "../actions-core";
 
 const NOW = Date.now();
-const sales = { userId: "usr_sales", name: "Sam", role: "sales" as const };
-const admin = { userId: "usr_boss", name: "Ada", role: "admin" as const };
+const sales = actorOf("usr_sales", "Sam", "sales");
+const admin = actorOf("usr_boss", "Ada", "admin");
 
 beforeAll(applyMigrations);
 

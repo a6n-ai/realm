@@ -1,3 +1,4 @@
+import { actorOf } from "../../../../test/helpers";
 import { env } from "cloudflare:test";
 import { beforeAll, beforeEach, describe, expect, test } from "vitest";
 import { applyMigrations } from "../../../../test/migrate";
@@ -7,8 +8,8 @@ import { createMemoryMailer } from "../../mail/memory-mailer";
 import { runInvite, runRemove, runResendInvite } from "../actions-core";
 
 const NOW = Date.now();
-const admin = { userId: "usr_admin", name: "Ada", role: "admin" as const };
-const sales = { userId: "usr_sam", name: "Sam", role: "sales" as const };
+const admin = actorOf("usr_admin", "Ada", "admin");
+const sales = actorOf("usr_sam", "Sam", "sales");
 const user = (id: string, role: string) =>
   env.DB.prepare("insert into users (id, name, email, role, status, created_at, updated_at) values (?, ?, ?, ?, 'active', ?, ?)").bind(id, id, `${id}@x.io`, role, NOW, NOW);
 const count = async (q: string, ...a: unknown[]) => (await env.DB.prepare(q).bind(...a).first<{ n: number }>())!.n;
@@ -68,7 +69,7 @@ describe("team action cores", () => {
   test("remove maps self, last_admin and already_removed", async () => {
     const deps = withMailer(() => createMemoryMailer());
     expect(await runRemove(admin, deps, { id: "usr_admin" })).toEqual({ ok: false, code: "self" });
-    const other = { userId: "usr_sam", name: "Sam", role: "admin" as const };
+    const other = actorOf("usr_sam", "Sam", "admin");
     expect(await runRemove(other, deps, { id: "usr_admin" })).toEqual({ ok: false, code: "last_admin" });
     await env.DB.prepare("update users set status = 'removed' where id = 'usr_sam'").run();
     expect(await runRemove(admin, deps, { id: "usr_sam" })).toEqual({ ok: false, code: "already_removed" });

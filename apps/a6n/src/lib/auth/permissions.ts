@@ -1,33 +1,6 @@
 import { createAccessControl as createAc } from "better-auth/plugins/access";
 import { adminAc, defaultStatements, memberAc, ownerAc } from "better-auth/plugins/organization/access";
-import { createAccessControl } from "@foundry/auth";
-
-// Deliberately no better-auth `user`/`session` resources: the admin plugin's endpoints check them, so every one stays forbidden.
-export const statement = {
-  inquiry: ["read", "create", "update", "note", "claim", "assign"],
-  source: ["manage"],
-  team: ["manage"],
-} as const;
-
-export type Role = "admin" | "sales";
-export type Permission = {
-  [R in keyof typeof statement]: `${R}:${(typeof statement)[R][number]}`;
-}[keyof typeof statement];
-
-const grants: Record<Role, { [R in keyof typeof statement]?: readonly (typeof statement)[R][number][] }> = {
-  admin: statement,
-  sales: { inquiry: ["read", "create", "update", "note", "claim"] },
-};
-
-export const ac = createAccessControl(statement);
-export const roles = { admin: ac.newRole(grants.admin), sales: ac.newRole(grants.sales) };
-
-export function allows(role: Role, permission: Permission): boolean {
-  const [resource, action] = permission.split(":") as [keyof typeof statement, string];
-  return (grants[role]?.[resource] as readonly string[] | undefined)?.includes(action) ?? false;
-}
-
-// ---- Organisations (Better Auth organization plugin). Replaces the admin/sales grants above (Task 4 removes those).
+// ---- Organisations (Better Auth organization plugin).
 
 export const appStatement = {
   inquiry: ["read", "create", "update", "note", "claim", "assign"],
@@ -65,3 +38,30 @@ export const platformRoles = {
   super_admin: platformAc.newRole({ platform: ["manage"] }),
   user: platformAc.newRole({}),
 };
+
+/** Every grantable permission, as "resource:action". */
+export const ALL_PERMISSIONS = Object.entries(orgStatement).flatMap(([r, actions]) =>
+  (actions as readonly string[]).map((a) => `${r}:${a}` as OrgPermission),
+);
+export const isPermission = (p: string): p is OrgPermission => (ALL_PERMISSIONS as string[]).includes(p);
+
+export type Permission = OrgPermission;
+export type Statements = Partial<Record<string, readonly string[]>>;
+
+export const isBuiltInRole = (role: string): role is OrgRole => Object.hasOwn(orgRoles, role);
+
+/** Flattens a role's statements to "resource:action" strings, dropping anything outside the catalogue. */
+export function permissionsOf(statements: Statements): OrgPermission[] {
+  return Object.entries(statements)
+    .flatMap(([r, actions]) => (actions ?? []).map((a) => `${r}:${a}`))
+    .filter(isPermission);
+}
+
+/** Built-in roles' permissions. A member row may hold several roles, comma-separated (Better Auth). */
+export function builtInPermissions(role: OrgRole): OrgPermission[] {
+  return permissionsOf(orgRoles[role].statements as Statements);
+}
+
+/** People who can see the Members page. */
+export const canManageMembers = (p: readonly OrgPermission[]) =>
+  p.includes("invitation:create") || p.includes("member:update") || p.includes("member:delete");

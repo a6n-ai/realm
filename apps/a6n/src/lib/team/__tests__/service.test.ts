@@ -1,3 +1,4 @@
+import { actorOf } from "../../../../test/helpers";
 import { env, SELF } from "cloudflare:test";
 import { beforeAll, beforeEach, describe, expect, test, vi } from "vitest";
 import { applyMigrations } from "../../../../test/migrate";
@@ -10,8 +11,8 @@ import { MailUnavailableError } from "../../mail/mailer";
 import { createTeamService } from "../service";
 
 const NOW = Date.now();
-const admin = { userId: "usr_admin", name: "Ada", role: "admin" as const };
-const admin2 = { userId: "usr_admin2", name: "Bo", role: "admin" as const };
+const admin = actorOf("usr_admin", "Ada", "admin");
+const admin2 = actorOf("usr_admin2", "Bo", "admin");
 const AUTH_URL = "http://localhost";
 const all = <T>(q: string, ...args: unknown[]) => env.DB.prepare(q).bind(...args).all<T>().then((r) => r.results);
 const mk = (mailer = createMemoryMailer()) => ({ mailer, svc: createTeamService(getDb(env), mailer, AUTH_URL) });

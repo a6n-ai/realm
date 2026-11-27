@@ -6,7 +6,6 @@ import { Button } from "@foundry/ui/button";
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { SearchXIcon } from "lucide-react";
 import { InquiryDetail } from "../../../components/inquiries/inquiry-detail";
-import { allows } from "../../../lib/auth/permissions";
 import { errorText } from "../../../lib/error-copy";
 import { getInquiryFn, listOwnersFn } from "../../../lib/inquiries/inquiries.fns";
 
@@ -54,5 +53,5 @@ function InquiryPage() {
       </>
     );
   }
-  return <InquiryDetail inquiry={inquiry} owners={owners} canAssign={allows(shell.user.role, "inquiry:assign")} />;
+  return <InquiryDetail inquiry={inquiry} owners={owners} canAssign={shell.permissions.includes("inquiry:assign")} />;
 }

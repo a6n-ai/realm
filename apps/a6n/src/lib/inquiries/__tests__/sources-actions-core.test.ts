@@ -1,11 +1,12 @@
+import { actorOf } from "../../../../test/helpers";
 import { env } from "cloudflare:test";
 import { beforeAll, beforeEach, describe, expect, test } from "vitest";
 import { applyMigrations } from "../../../../test/migrate";
 import { depsFor } from "../../deps";
 import { runAddSubsource, runCreateSource, runRenameSource, runSetSourceActive } from "../sources-actions-core";
 
-const admin = { userId: "usr_admin", name: "Ada", role: "admin" as const };
-const sales = { userId: "usr_sam", name: "Sam", role: "sales" as const };
+const admin = actorOf("usr_admin", "Ada", "admin");
+const sales = actorOf("usr_sam", "Sam", "sales");
 
 beforeAll(applyMigrations);
 

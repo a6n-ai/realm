@@ -1,9 +1,11 @@
 import { setResponseStatus } from "@tanstack/react-start/server";
 import type { Env } from "../../env";
-import { allows, type Permission, type Role } from "./permissions";
+import { getDb } from "../../db/client";
+import { resolveMembership } from "./membership";
+import type { Permission } from "./permissions";
 import { getSession } from "./session";
 
-export type Actor = { userId: string; name: string; role: Role };
+export type Actor = { userId: string; name: string; organizationId: string; role: string; permissions: Permission[] };
 
 export class ConsoleError extends Error {
   constructor(
@@ -21,12 +23,25 @@ export async function requireActor(
 ): Promise<Actor> {
   const user = await getSession(env, headers);
   if (!user) throw new ConsoleError(401, "unauthorized");
-  if (opts.permission && !allows(user.role, opts.permission)) throw new ConsoleError(403, "forbidden");
+  const m = await resolveMembership(getDb(env), user.id, user.activeOrganizationId);
+  if (!m) throw new ConsoleError(409, "no_organization");
+  if (opts.permission && !m.permissions.includes(opts.permission)) throw new ConsoleError(403, "forbidden");
   if (opts.write) {
     const origin = headers.get("origin");
     if (origin !== null && origin !== new URL(env.BETTER_AUTH_URL).origin) throw new ConsoleError(403, "cross-origin write");
   }
-  return { userId: user.id, name: user.name, role: user.role };
+  return { userId: user.id, name: user.name, organizationId: m.organizationId, role: m.role, permissions: m.permissions };
+}
+
+// Platform pages: anyone but a super admin gets 404, so the page's existence is not revealed.
+export async function requirePlatformAdmin(env: Env, headers: Headers, opts: { write?: boolean } = {}): Promise<{ userId: string }> {
+  const user = await getSession(env, headers);
+  if (!user || user.platformRole !== "super_admin") throw new ConsoleError(404, "not found");
+  if (opts.write) {
+    const origin = headers.get("origin");
+    if (origin !== null && origin !== new URL(env.BETTER_AUTH_URL).origin) throw new ConsoleError(403, "cross-origin write");
+  }
+  return { userId: user.id };
 }
 
 // Known errors keep status and message; anything else is a 500 with no detail for the browser.

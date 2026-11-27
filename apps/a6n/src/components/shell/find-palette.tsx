@@ -3,18 +3,18 @@ import { Kbd } from "@foundry/ui/kbd";
 import { useNavigate } from "@tanstack/react-router";
 import { SearchIcon } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import type { Role } from "../../lib/auth/permissions";
+import type { Permission } from "../../lib/auth/permissions";
 import { useCreate } from "./create-dialogs";
 import { type FindEntry, findEntries } from "./find";
 import { isTypingTarget } from "./keys";
 
 const GROUPS: FindEntry["group"][] = ["Pages", "Actions"];
 
-export function FindPalette({ role }: { role: Role }) {
+export function FindPalette({ permissions }: { permissions: Permission[] }) {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
   const create = useCreate();
-  const entries = useMemo(() => findEntries(role), [role]);
+  const entries = useMemo(() => findEntries(permissions), [permissions]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

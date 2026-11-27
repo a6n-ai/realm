@@ -14,9 +14,9 @@ const service = () => {
   return createTeamService(d.db, d.mailer, d.authUrl);
 };
 
-// Null without team:manage, so invite statuses never reach a sales user.
+// Null without invitation:create, so invite statuses never reach someone who cannot invite.
 export const listTeamFn = createServerFn({ method: "GET" }).handler(() =>
-  read("team:manage", async () => {
+  read("invitation:create", async () => {
     const svc = service();
     const members = await svc.list();
     const statuses = await svc.inviteStatuses(members.filter((m) => m.latestInvite).map((m) => m.id));
@@ -26,12 +26,12 @@ export const listTeamFn = createServerFn({ method: "GET" }).handler(() =>
 
 export const inviteFn = createServerFn({ method: "POST" })
   .validator(validate(inviteSchema))
-  .handler(({ data }) => refusing(env, getRequestHeaders(), WRITE("team:manage"), (actor) => runInvite(actor, depsFor(env), data)));
+  .handler(({ data }) => refusing(env, getRequestHeaders(), WRITE("invitation:create"), (actor) => runInvite(actor, depsFor(env), data)));
 
 export const resendInviteFn = createServerFn({ method: "POST" })
   .validator(validate(memberIdSchema))
-  .handler(({ data }) => refusing(env, getRequestHeaders(), WRITE("team:manage"), (actor) => runResendInvite(actor, depsFor(env), data)));
+  .handler(({ data }) => refusing(env, getRequestHeaders(), WRITE("invitation:create"), (actor) => runResendInvite(actor, depsFor(env), data)));
 
 export const removeFn = createServerFn({ method: "POST" })
   .validator(validate(memberIdSchema))
-  .handler(({ data }) => refusing(env, getRequestHeaders(), WRITE("team:manage"), (actor) => runRemove(actor, depsFor(env), data)));
+  .handler(({ data }) => refusing(env, getRequestHeaders(), WRITE("member:delete"), (actor) => runRemove(actor, depsFor(env), data)));

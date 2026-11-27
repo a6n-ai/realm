@@ -1,13 +1,13 @@
 import type { NavGroup, NavItem } from "@foundry/console/nav";
 import { InboxIcon, SettingsIcon, TagIcon, UserRoundXIcon } from "lucide-react";
-import { allows, type Role } from "../lib/auth/permissions";
+import type { Permission } from "../lib/auth/permissions";
 
 export type CreateKind = "inquiry" | "invite" | "source";
 export type CreateItem = { kind: CreateKind; label: string };
 
-export function visibleNav(role: Role, unassigned: { total: number; overdue: number }): NavGroup[] {
+export function visibleNav(permissions: readonly Permission[], unassigned: { total: number; overdue: number }): NavGroup[] {
   const badge = unassigned.total > 0 ? String(unassigned.total) : undefined;
-  const admin: NavItem[] = allows(role, "source:manage") ? [{ label: "Sources", to: "/sources", icon: TagIcon }] : [];
+  const admin: NavItem[] = permissions.includes("source:manage") ? [{ label: "Sources", to: "/sources", icon: TagIcon }] : [];
   return [
     {
       items: [
@@ -19,10 +19,10 @@ export function visibleNav(role: Role, unassigned: { total: number; overdue: num
   ];
 }
 
-export function createItems(role: Role): CreateItem[] {
+export function createItems(permissions: readonly Permission[]): CreateItem[] {
   return [
-    ...(allows(role, "inquiry:create") ? [{ kind: "inquiry" as const, label: "New inquiry" }] : []),
-    ...(allows(role, "team:manage") ? [{ kind: "invite" as const, label: "Invite member" }] : []),
-    ...(allows(role, "source:manage") ? [{ kind: "source" as const, label: "New source" }] : []),
+    ...(permissions.includes("inquiry:create") ? [{ kind: "inquiry" as const, label: "New inquiry" }] : []),
+    ...(permissions.includes("invitation:create") ? [{ kind: "invite" as const, label: "Invite member" }] : []),
+    ...(permissions.includes("source:manage") ? [{ kind: "source" as const, label: "New source" }] : []),
   ];
 }

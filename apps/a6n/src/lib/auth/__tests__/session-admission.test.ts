@@ -22,6 +22,7 @@ describe("active organisation on sign-in", () => {
   test("a member signs in to their most recent organisation", async () => {
     const email = `o-${freshId()}@a6n.test`;
     const id = await insertUser(email, "sales");
+    await env.DB.prepare("delete from members where user_id = ?").bind(id).run();
     const older = await insertOrg();
     const newer = await insertOrg();
     await addMember(id, older, "member", 1);
@@ -33,6 +34,7 @@ describe("active organisation on sign-in", () => {
   test("a user with no membership signs in with no active organisation", async () => {
     const email = `n-${freshId()}@a6n.test`;
     const id = await insertUser(email, "sales");
+    await env.DB.prepare("delete from members where user_id = ?").bind(id).run();
     await signIn(email);
     expect(await activeOrg(id)).toBeNull();
   });

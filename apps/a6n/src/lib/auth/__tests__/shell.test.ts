@@ -15,7 +15,10 @@ describe("loadShell", () => {
     const email = `s-${freshId()}@a6n.test`;
     await insertUser(email, "sales");
     const shell = await loadShell(env, headersFor(await signIn(email)));
-    expect(shell?.user).toMatchObject({ email, role: "sales", passwordSet: false });
+    expect(shell?.user).toMatchObject({ email, platformRole: "user", passwordSet: false });
+    expect(shell).toMatchObject({ organization: { id: "org_test" }, role: "member", platformAdmin: false });
+    expect(shell?.permissions).toContain("inquiry:create");
+    expect(shell?.permissions).not.toContain("inquiry:assign");
     expect(shell?.unassigned).toEqual({ total: expect.any(Number), overdue: expect.any(Number) });
   });
 });

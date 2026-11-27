@@ -9,17 +9,17 @@ const svc = (deps: Deps) => createTeamService(deps.db, deps.mailer, deps.authUrl
 export type InviteOutcome = ActionResult<{ sent: boolean; inviteLink: string; reason?: SendRefusal }>;
 
 export async function runInvite(actor: Actor, deps: Deps, input: unknown): Promise<InviteOutcome> {
-  const g = gate("team:manage", inviteSchema, actor, input);
+  const g = gate("invitation:create", inviteSchema, actor, input);
   return "refusal" in g ? g.refusal : svc(deps).invite(g.data, actor);
 }
 
 export async function runResendInvite(actor: Actor, deps: Deps, input: unknown): Promise<InviteOutcome> {
-  const g = gate("team:manage", memberIdSchema, actor, input);
+  const g = gate("invitation:create", memberIdSchema, actor, input);
   return "refusal" in g ? g.refusal : svc(deps).resendInvite(g.data.id, actor);
 }
 
 export async function runRemove(actor: Actor, deps: Deps, input: unknown): Promise<ActionResult> {
-  const g = gate("team:manage", memberIdSchema, actor, input);
+  const g = gate("member:delete", memberIdSchema, actor, input);
   if ("refusal" in g) return g.refusal;
   const res = await svc(deps).remove(g.data.id, actor);
   return res.removed ? { ok: true } : { ok: false, code: res.reason };

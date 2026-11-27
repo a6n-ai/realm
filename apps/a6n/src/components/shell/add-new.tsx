@@ -8,7 +8,7 @@ import { useCreate } from "./create-dialogs";
 export function CreateNewMenu() {
   const { shell } = useRouteContext({ from: "/_app" });
   const create = useCreate();
-  const items = createItems(shell.user.role);
+  const items = createItems(shell.permissions);
   if (items.length === 0) return null;
   return (
     <DropdownMenu>

@@ -1,6 +1,6 @@
 import type { z } from "zod";
 import type { Actor } from "../auth/actor";
-import { allows, type Permission } from "../auth/permissions";
+import type { Permission } from "../auth/permissions";
 import type { Deps } from "../deps";
 import {
   addActivitySchema,
@@ -26,7 +26,7 @@ export function gate<S extends z.ZodType>(
   actor: Actor,
   input: unknown,
 ): { data: z.output<S> } | { refusal: typeof forbidden | typeof invalid } {
-  if (!allows(actor.role, permission)) return { refusal: forbidden };
+  if (!actor.permissions.includes(permission)) return { refusal: forbidden };
   const parsed = schema.safeParse(input);
   return parsed.success ? { data: parsed.data } : { refusal: invalid };
 }
@@ -38,7 +38,7 @@ function action<S extends z.ZodType, T = unknown>(
   run: (data: z.output<S>, actor: Actor, deps: Deps) => Promise<({ ok: true } & T) | Refusal>,
 ) {
   return async (actor: Actor, deps: Deps, input: unknown): Promise<ActionResult<T>> => {
-    if (!allows(actor.role, permission)) return forbidden;
+    if (!actor.permissions.includes(permission)) return forbidden;
     const parsed = schema.safeParse(input);
     if (!parsed.success) return invalid;
     return run(parsed.data, actor, deps);
