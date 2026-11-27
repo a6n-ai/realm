@@ -66,6 +66,13 @@ describe("pushBlocks", () => {
     expect(await queued()).toEqual([]);
   });
 
+  it.each([[[0, 0]], [[0, 2]], [[-1, 0]]])("keeps rows when the rejected indexes are %j", async (rejected) => {
+    await queue(2);
+    importSuppressions.mockResolvedValueOnce({ accepted: 0, rejected });
+    expect(await pushBlocks()).toEqual({ pushed: 0, pending: true });
+    expect(await queued()).toHaveLength(2);
+  });
+
   it("reports pending when the batch budget runs out", async () => {
     await queue(501);
     expect(await pushBlocks(1)).toEqual({ pushed: 500, pending: true });
@@ -94,6 +101,12 @@ describe("blockParity", () => {
   it("reports a narrower stream as missing", async () => {
     const id = await add("parity-narrow@example.test", "SES hard bounce", "all");
     suppressionStatus.mockResolvedValue([status("parity-narrow@example.test", "bounce", "marketing")]);
+    expect((await blockParity()).missing).toContain(id);
+  });
+
+  it("ignores a brand opt-out row", async () => {
+    const id = await add("parity-brand@example.test", "unsubscribe", "marketing");
+    suppressionStatus.mockResolvedValue([{ ...status("parity-brand@example.test", "unsubscribe", "marketing"), brandOptOut: true }]);
     expect((await blockParity()).missing).toContain(id);
   });
 

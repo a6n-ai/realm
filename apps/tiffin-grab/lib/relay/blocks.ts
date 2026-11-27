@@ -40,7 +40,10 @@ export async function pushBlocks(maxBatches = 4): Promise<{ pushed: number; pend
           campaignName: row.campaignName?.slice(0, 500) ?? null,
         })),
       );
-      if (accepted + rejected.length !== batch.length) throw new Error("relay did not answer for every row");
+      const distinct = new Set(rejected.filter((n) => Number.isInteger(n) && n >= 0 && n < batch.length));
+      if (distinct.size !== rejected.length || accepted + rejected.length !== batch.length) {
+        throw new Error("relay did not answer for every row");
+      }
       // A refused row would be refused again and stall the queue; blockParity reports the local block it came from.
       if (rejected.length) log.error({ rowIds: rejected.map((n) => String(batch[n]?.id)) }, "relay rejected block rows");
       await db.delete(relayBlockQueue).where(inArray(relayBlockQueue.id, batch.map((row) => row.id)));
@@ -66,7 +69,8 @@ export async function blockParity(): Promise<{ checked: number; missing: string[
   const held = new Set<string>();
   for (let i = 0; i < emails.length; i += STATUS_BATCH) {
     for (const s of await relayRpc().suppressionStatus(emails.slice(i, i + STATUS_BATCH), from)) {
-      held.add(`${s.email.toLowerCase()} ${s.reason} ${s.stream ?? "all"}`);
+      // A brand opt-out is not the stored block this check looks for.
+      if (!s.brandOptOut) held.add(`${s.email.toLowerCase()} ${s.reason} ${s.stream ?? "all"}`);
     }
   }
   const missing = local.filter((row) => {
