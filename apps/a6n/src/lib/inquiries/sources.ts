@@ -80,6 +80,16 @@ export function createSourcesService(db: CrmDb) {
       return changed(ins) === 1 ? { ok: true, id } : { ok: false, code: "invalid" };
     },
 
+    async renameSubsource(id: string, label: string, actor: Actor): Promise<SourceResult> {
+      const next = label.trim();
+      if (!next) return { ok: false, code: "invalid" };
+      const [upd] = await atomic(db, () => [
+        sql`UPDATE lead_subsources SET label = ${next} WHERE id = ${id} AND label <> ${next}`,
+        audit("subsource.rename", actor, id, { label: next }),
+      ]);
+      return changed(upd) === 1 ? { ok: true } : { ok: false, code: "stale" };
+    },
+
     setSubsourceActive: (id: string, active: boolean, actor: Actor) =>
       toggle("lead_subsources", id, active, actor, "subsource.set_active"),
   };

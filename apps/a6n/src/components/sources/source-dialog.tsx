@@ -7,11 +7,12 @@ import { Label } from "@foundry/ui/label";
 import { useRouter } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 import { errorText } from "../../lib/error-copy";
-import { addSubsourceFn, createSourceFn, renameSourceFn } from "../../lib/inquiries/sources.fns";
+import { addSubsourceFn, createSourceFn, renameSourceFn, renameSubsourceFn } from "../../lib/inquiries/sources.fns";
 
 export type SourceDialogMode =
   | { kind: "create" }
   | { kind: "rename"; id: string; label: string }
+  | { kind: "renamesub"; id: string; label: string }
   | { kind: "subsource"; sourceId: string; sourceLabel: string };
 
 // Keys are lowercase letters, digits and underscores; derived from the label so nobody types one.
@@ -25,19 +26,20 @@ export const keyFor = (label: string) =>
 const COPY = {
   create: { trigger: "Add source", title: "Add source", success: "Source added", save: "Add source" },
   rename: { trigger: "Rename", title: "Rename source", success: "Source renamed", save: "Save name" },
+  renamesub: { trigger: "Rename", title: "Rename sub-source", success: "Sub-source renamed", save: "Save name" },
   subsource: { trigger: "Add sub-source", title: "Add sub-source", success: "Sub-source added", save: "Add sub-source" },
 } as const;
 
 function Form({ mode, done }: { mode: SourceDialogMode; done: () => void }) {
   const router = useRouter();
-  const [label, setLabel] = useState(mode.kind === "rename" ? mode.label : "");
+  const [label, setLabel] = useState(mode.kind === "rename" || mode.kind === "renamesub" ? mode.label : "");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
     const key = keyFor(label);
-    if (!label.trim() || (mode.kind !== "rename" && !key)) return setError("Enter a name with letters or numbers.");
+    if (!label.trim() || (mode.kind !== "rename" && mode.kind !== "renamesub" && !key)) return setError("Enter a name with letters or numbers.");
     setError(null);
     setPending(true);
     try {
@@ -46,7 +48,9 @@ function Form({ mode, done }: { mode: SourceDialogMode; done: () => void }) {
           ? () => createSourceFn({ data: { key, label } })
           : mode.kind === "rename"
             ? () => renameSourceFn({ data: { id: mode.id, label } })
-            : () => addSubsourceFn({ data: { sourceId: mode.sourceId, key, label } });
+            : mode.kind === "renamesub"
+              ? () => renameSubsourceFn({ data: { id: mode.id, label } })
+              : () => addSubsourceFn({ data: { sourceId: mode.sourceId, key, label } });
       await confirmAction(action, COPY[mode.kind].success, () => router.invalidate(), errorText);
       done();
     } catch (err) {

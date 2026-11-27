@@ -30,3 +30,6 @@ export const runAddSubsource = (actor: Actor, deps: Deps, input: unknown) =>
 
 export const runSetSubsourceActive = (actor: Actor, deps: Deps, input: unknown) =>
   run(setActiveSchema, actor, input, (d) => svc(deps).setSubsourceActive(d.id, d.active, actor));
+
+export const runRenameSubsource = (actor: Actor, deps: Deps, input: unknown) =>
+  run(renameSourceSchema, actor, input, (d) => svc(deps).renameSubsource(d.id, d.label, actor));

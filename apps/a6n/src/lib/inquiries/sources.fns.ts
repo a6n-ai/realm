@@ -9,6 +9,7 @@ import {
   runAddSubsource,
   runCreateSource,
   runRenameSource,
+  runRenameSubsource,
   runSetSourceActive,
   runSetSubsourceActive,
 } from "./sources-actions-core";
@@ -38,3 +39,7 @@ export const addSubsourceFn = createServerFn({ method: "POST" })
 export const setSubsourceActiveFn = createServerFn({ method: "POST" })
   .validator(validate(setActiveSchema))
   .handler(({ data }) => refusing(env, getRequestHeaders(), WRITE("source:manage"), (actor) => runSetSubsourceActive(actor, depsFor(env), data)));
+
+export const renameSubsourceFn = createServerFn({ method: "POST" })
+  .validator(validate(renameSourceSchema))
+  .handler(({ data }) => refusing(env, getRequestHeaders(), WRITE("source:manage"), (actor) => runRenameSubsource(actor, depsFor(env), data)));

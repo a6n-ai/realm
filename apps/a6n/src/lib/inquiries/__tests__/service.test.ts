@@ -308,6 +308,16 @@ describe("listForView", () => {
     expect((await svc().listForView({ view: "all", userId: "usr_me", filters: { stage: "won" } })).rows).toHaveLength(1);
   });
 
+  test("the due filter keeps open inquiries with a follow-up at or before now", async () => {
+    const past = await ingest({ nextFollowUpAt: NOW - 1000 });
+    await ingest({ nextFollowUpAt: NOW + 1000 });
+    const closed = await ingest({ nextFollowUpAt: NOW - 2000 });
+    await svc().changeStage(closed.id, "new", "won", {}, me);
+    const due = await svc().listForView({ view: "all", userId: "usr_me", filters: { overdue: true }, now: NOW });
+    expect(due.rows.map((r) => r.id)).toEqual([past.id]);
+    expect((await svc().listForView({ view: "all", userId: "usr_me", now: NOW })).rows).toHaveLength(3);
+  });
+
   test("search, owner removed flag, company name and paging", async () => {
     const a = await ingest({ ownerId: "usr_me", company: "Initech", contact: { name: "Bill_Lumbergh", phone: "1" } });
     await env.DB.prepare("update users set status = 'removed' where id = 'usr_me'").run();
@@ -349,5 +359,16 @@ describe("companies and sources", () => {
     expect(sub.ok).toBe(true);
     expect(await s.setSubsourceActive(sub.ok ? sub.id! : "", false, me)).toEqual({ ok: true });
     expect((await all("select * from audit_log")).length).toBe(5);
+  });
+});
+
+describe("sub-source rename", () => {
+  test("renames, audits, and reports stale when nothing changes", async () => {
+    const s = createSourcesService(getDb(env));
+    expect(await s.renameSubsource("lss_a", "LinkedIn Ads", me)).toEqual({ ok: true });
+    expect(await s.renameSubsource("lss_a", "LinkedIn Ads", me)).toEqual({ ok: false, code: "stale" });
+    expect(await s.renameSubsource("lss_a", "  ", me)).toEqual({ ok: false, code: "invalid" });
+    expect((await s.listAll()).subsources.find((x) => x.id === "lss_a")?.label).toBe("LinkedIn Ads");
+    expect((await all("select * from audit_log where action = 'subsource.rename'")).length).toBe(1);
   });
 });
