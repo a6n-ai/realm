@@ -6,6 +6,8 @@ import type { ActionResult } from "@/lib/actions/action-result";
 import { staffAction } from "@/lib/actions/staff-action";
 import { db } from "@/db/client";
 import { notificationTables } from "@/lib/notifications/tables";
+import { signalOutbox } from "@/lib/notifications/outbox-signal";
+import { queueBlock } from "@/lib/relay/blocks";
 
 const OPTS = { guard: { notification: ["write"] }, revalidate: ["/dashboard/notifications/unsubscribed"] } as const;
 
@@ -20,7 +22,13 @@ export async function clearSuppressionAction(publicId: string): Promise<ActionRe
 export async function suppressManuallyAction(address: string, channel: "email" | "sms"): Promise<ActionResult> {
   return staffAction(OPTS, async () => {
     if (channel !== "email" && channel !== "sms") throw new ValidationError("Pick email or SMS");
-    const result = await suppressManually(db, notificationTables, { address, channel });
-    if ("error" in result) throw new ValidationError(result.error);
+    await db.transaction(async (tx) => {
+      const result = await suppressManually(tx as unknown as typeof db, notificationTables, { address, channel });
+      if ("error" in result) throw new ValidationError(result.error);
+      if (channel === "email") {
+        await queueBlock(tx, { email: address, reason: "manual", stream: "marketing", source: "admin", createdAt: Date.now() });
+      }
+    });
+    await signalOutbox();
   });
 }

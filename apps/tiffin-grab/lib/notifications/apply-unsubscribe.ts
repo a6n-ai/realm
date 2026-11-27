@@ -1,6 +1,10 @@
 import { handleUnsubscribe, verifyUnsubscribeToken } from "@relay/engine";
+import { eq } from "drizzle-orm";
 import { db } from "@/db/client";
-import { emailViaRelay, unsubscribeSecret } from "@/lib/runtime/env";
+import { campaign } from "@/db/schema";
+import { queueBlock } from "@/lib/relay/blocks";
+import { unsubscribeSecret } from "@/lib/runtime/env";
+import { signalOutbox } from "@/lib/notifications/outbox-signal";
 import { notificationTables } from "@/lib/notifications/tables";
 
 /**
@@ -24,19 +28,25 @@ export async function applyUnsubscribe(
   const address = url.searchParams.get("address");
   const token = url.searchParams.get("token");
   const campaignIdParam = url.searchParams.get("campaignId");
-  const campaignId = campaignIdParam && /^\d+$/.test(campaignIdParam) ? BigInt(campaignIdParam) : undefined;
-  const applied = !!address && !!token && verifyUnsubscribeToken(secret, address, token);
-  // The engine table is the record and is always written first. Under the Relay flag Relay is told at once; a failed
-  // call is logged and the opt-out stays only in the engine table.
-  await handleUnsubscribe(db, notificationTables, { address, token, secret, campaignId, source });
-  if (applied && emailViaRelay()) {
-    try {
-      const { relayRpc } = await import("@/lib/relay/client");
-      await relayRpc().suppress({ email: address.trim().toLowerCase(), reason: "unsubscribe", stream: "marketing" });
-    } catch (err) {
-      // The message only: the address is personal data.
-      console.error("relay unsubscribe failed", { err: err instanceof Error ? err.message : "unknown" });
-    }
-  }
-  return { applied, address: applied ? address : null };
+  const campaignId = campaignIdParam && /^\d{1,18}$/.test(campaignIdParam) ? BigInt(campaignIdParam) : undefined;
+  if (!address || !token || !verifyUnsubscribeToken(secret, address, token)) return { applied: false, address: null };
+  // The local row and the event bound for Relay commit together, so neither can exist without the other.
+  await db.transaction(async (tx) => {
+    await handleUnsubscribe(tx as unknown as typeof db, notificationTables, { address, token, secret, campaignId, source });
+    if (!address.includes("@")) return;
+    const [from] = campaignId
+      ? await tx.select({ publicId: campaign.publicId, name: campaign.name }).from(campaign).where(eq(campaign.id, campaignId))
+      : [];
+    await queueBlock(tx, {
+      email: address,
+      reason: "unsubscribe",
+      stream: "marketing",
+      source,
+      campaignRef: from?.publicId ?? null,
+      campaignName: from?.name ?? null,
+      createdAt: Date.now(),
+    });
+  });
+  await signalOutbox();
+  return { applied: true, address };
 }
