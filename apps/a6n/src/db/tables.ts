@@ -41,7 +41,8 @@ const sessions = defineTable(
 );
 
 // Better Auth organization plugin (teams + dynamic access control). a6n is the first organisation; business rows below
-// carry organization_id (nullable until the one-off backfill, then required by a later migration).
+// carry organization_id. It stays nullable in D1: making it NOT NULL needs a table rebuild, and D1 keeps foreign keys on,
+// so dropping a parent table would cascade-delete its children. Every service writes it; the isolation suite proves it.
 const organizations = defineTable(
   "organizations",
   {
@@ -182,7 +183,7 @@ const invites = defineTable(
   },
   (t) => [
     unique("invites_idempotency_key_uq").on(t.idempotencyKey),
-    unique("invites_user_n_uq").on(t.userId, t.n),
+    unique("invites_user_org_n_uq").on(t.userId, t.organizationId, t.n),
   ],
 );
 
@@ -194,7 +195,7 @@ const companies = defineTable(
     name: c.string("name").notNull(),
     nameKey: c.string("name_key").notNull(),
   },
-  (t) => [unique("companies_name_key_uq").on(t.nameKey)],
+  (t) => [unique("companies_org_name_key_uq").on(t.organizationId, t.nameKey)],
 );
 
 const leadSources = defineTable(
@@ -206,7 +207,7 @@ const leadSources = defineTable(
     label: c.string("label").notNull(),
     active: c.bool("active").notNull().default(true),
   },
-  (t) => [unique("lead_sources_key_uq").on(t.key)],
+  (t) => [unique("lead_sources_org_key_uq").on(t.organizationId, t.key)],
 );
 
 const leadSubsources = defineTable(

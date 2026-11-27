@@ -11,8 +11,8 @@ const TABLES = [
 const ORG_SCOPED = ["inquiries", "inquiry_activities", "companies", "lead_sources", "lead_subsources", "invites", "audit_log"];
 const INDEXES = [
   "users_email_uq", "sessions_token_uq", "session_user_id_idx", "account_user_id_idx",
-  "verification_identifier_idx", "rate_limits_key_uq", "invites_idempotency_key_uq", "invites_user_n_uq",
-  "companies_name_key_uq", "lead_sources_key_uq", "lead_subsources_source_key_uq",
+  "verification_identifier_idx", "rate_limits_key_uq", "invites_idempotency_key_uq", "invites_user_org_n_uq",
+  "companies_org_name_key_uq", "lead_sources_org_key_uq", "lead_subsources_source_key_uq",
   "inquiries_owner_follow_up_idx", "inquiries_stage_created_idx", "inquiries_source_external_uq",
   "inquiry_activities_inquiry_created_idx",
 ];
@@ -23,12 +23,13 @@ beforeAll(async () => {
   await applyMigrations();
   const now = Date.now();
   await env.DB.batch([
-    env.DB.prepare("insert into lead_sources (id, created_at, key, label) values ('lsr_a', ?, 'cold', 'Cold')").bind(now),
+    env.DB.prepare("insert or ignore into organizations (id, name, slug, created_at) values ('org_s', 'S', 's', ?)").bind(now),
+    env.DB.prepare("insert into lead_sources (id, organization_id, created_at, key, label) values ('lsr_a', 'org_s', ?, 'cold', 'Cold')").bind(now),
   ]);
 });
 
 const insert = (id: string, cols: Record<string, unknown>) => {
-  const all = { id, created_at: Date.now(), source_id: "lsr_a", ...cols };
+  const all = { id, organization_id: "org_s", created_at: Date.now(), source_id: "lsr_a", ...cols };
   const keys = Object.keys(all);
   return env.DB.prepare(`insert into inquiries (${keys.join(",")}) values (${keys.map(() => "?").join(",")})`)
     .bind(...Object.values(all))
@@ -88,6 +89,25 @@ describe("organisations (migration A)", () => {
     ]);
     await expect(
       env.DB.prepare("insert into members (id, organization_id, user_id, role, created_at) values ('mem_2', 'org_m', 'usr_m', 'member', ?)").bind(now).run(),
+    ).rejects.toThrow(/UNIQUE/);
+  });
+});
+
+describe("organisations (migration B)", () => {
+  test("source keys and company names are unique per organisation, not across organisations", async () => {
+    const now = Date.now();
+    await env.DB.prepare("insert or ignore into organizations (id, name, slug, created_at) values ('org_u', 'U', 'u', ?)").bind(now).run();
+    await env.DB.batch([
+      env.DB.prepare("insert into lead_sources (id, organization_id, created_at, key, label) values ('lsr_u1', 'org_s', ?, 'referral', 'R')").bind(now),
+      env.DB.prepare("insert into lead_sources (id, organization_id, created_at, key, label) values ('lsr_u2', 'org_u', ?, 'referral', 'R')").bind(now),
+      env.DB.prepare("insert into companies (id, organization_id, created_at, name, name_key) values ('cmp_u1', 'org_s', ?, 'Acme', 'acme')").bind(now),
+      env.DB.prepare("insert into companies (id, organization_id, created_at, name, name_key) values ('cmp_u2', 'org_u', ?, 'Acme', 'acme')").bind(now),
+    ]);
+    await expect(
+      env.DB.prepare("insert into lead_sources (id, organization_id, created_at, key, label) values ('lsr_u3', 'org_u', ?, 'referral', 'R')").bind(now).run(),
+    ).rejects.toThrow(/UNIQUE/);
+    await expect(
+      env.DB.prepare("insert into companies (id, organization_id, created_at, name, name_key) values ('cmp_u3', 'org_u', ?, 'Acme', 'acme')").bind(now).run(),
     ).rejects.toThrow(/UNIQUE/);
   });
 });
