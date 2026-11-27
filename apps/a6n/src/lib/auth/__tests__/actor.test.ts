@@ -2,7 +2,7 @@ import { env } from "cloudflare:test";
 import { beforeAll, describe, expect, test } from "vitest";
 import { applyMigrations } from "../../../../test/migrate";
 import { addMember, freshId, headersFor, insertOrg, insertUser, signIn, TEST_ORG } from "../../../../test/helpers";
-import { ConsoleError, refusing, requireActor, requirePlatformAdmin } from "../actor";
+import { ConsoleError, requireActor, requirePlatformAdmin } from "../actor";
 
 beforeAll(applyMigrations);
 
@@ -20,6 +20,7 @@ describe("requireActor", () => {
     const err = await rejects(requireActor(env, new Headers(), {}));
     expect(err).toBeInstanceOf(ConsoleError);
     expect((err as ConsoleError).status).toBe(401);
+    expect((err as ConsoleError).message).toBe("unauthorized");
   });
 
   test("403 for a member on invitation:create", async () => {
@@ -28,6 +29,7 @@ describe("requireActor", () => {
     const headers = headersFor(await signIn(email));
     const err = await rejects(requireActor(env, headers, { permission: "invitation:create" }));
     expect((err as ConsoleError).status).toBe(403);
+    expect((err as ConsoleError).message).toBe("forbidden");
   });
 
   test("403 for a write with a foreign Origin", async () => {
@@ -37,6 +39,7 @@ describe("requireActor", () => {
     headers.set("origin", "https://evil.test");
     const err = await rejects(requireActor(env, headers, { permission: "invitation:create", write: true }));
     expect((err as ConsoleError).status).toBe(403);
+    expect((err as ConsoleError).message).toBe("bad_origin");
   });
 
   test("admin with matching Origin gets an Actor", async () => {
@@ -51,36 +54,6 @@ describe("requireActor", () => {
       role: "admin",
       permissions: expect.arrayContaining(["invitation:create", "inquiry:assign"]),
     });
-  });
-});
-
-describe("refusing", () => {
-  const run = async () => "ran" as const;
-
-  test("no session -> unauthorized", async () => {
-    await expect(refusing(env, new Headers(), { permission: "inquiry:assign", write: true }, run)).resolves.toEqual({ ok: false, code: "unauthorized" });
-  });
-
-  test("sales on assign -> forbidden, not thrown", async () => {
-    const email = `sales-${freshId()}@a6n.test`;
-    await insertUser(email, "sales");
-    const headers = headersFor(await signIn(email));
-    await expect(refusing(env, headers, { permission: "inquiry:assign", write: true }, run)).resolves.toEqual({ ok: false, code: "forbidden" });
-  });
-
-  test("foreign origin -> bad_origin", async () => {
-    const email = `admin-${freshId()}@a6n.test`;
-    await insertUser(email, "admin");
-    const headers = headersFor(await signIn(email));
-    headers.set("origin", "https://evil.test");
-    await expect(refusing(env, headers, { permission: "inquiry:assign", write: true }, run)).resolves.toEqual({ ok: false, code: "bad_origin" });
-  });
-
-  test("allowed actor runs the action", async () => {
-    const email = `admin-${freshId()}@a6n.test`;
-    await insertUser(email, "admin");
-    const headers = headersFor(await signIn(email));
-    await expect(refusing(env, headers, { permission: "inquiry:assign", write: true }, run)).resolves.toBe("ran");
   });
 });
 

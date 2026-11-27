@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 import { ValidationError } from "@foundry/commons";
 import { db } from "@/db/client";
 import { coinRate, eventPayout } from "@/db/schema";
+import { attempt } from "@/lib/actions/guard";
 import { requirePermission } from "@/lib/auth/guards";
 import { getAppClock, setMaxWalletBalance } from "@/lib/services/app-settings.service";
 import { currentUserId } from "@/lib/services/session-service";
@@ -43,14 +44,12 @@ export async function adjustFamilyCoinsAction(
   familyPublicId: string,
   input: { coins: number; memo: string },
 ): Promise<{ error?: string }> {
-  await requirePermission({ wallet: ["update"] });
-  try {
+  const r = await attempt(async () => {
+    await requirePermission({ wallet: ["update"] });
     const userId = await walletService.familyUserId(familyPublicId);
     await walletService.adjust({ userId, coins: input.coins, memo: input.memo, actorId: await currentUserId() });
-  } catch (err) {
-    if (err instanceof ValidationError) return { error: err.message };
-    throw err;
-  }
+  });
+  if ("error" in r) return r;
   revalidatePath(PATH, "layout");
   revalidatePath("/dashboard/customers", "layout");
   return {};

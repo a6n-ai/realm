@@ -1,4 +1,5 @@
-import { AppError, AuthError, ForbiddenError } from "@foundry/commons";
+import { AuthError, ForbiddenError } from "@foundry/commons";
+import { createBoundary } from "@foundry/commons/guard";
 import { MealRuleViolationError } from "@/lib/errors";
 
 /**
@@ -35,6 +36,25 @@ function isRedirectError(e: unknown): boolean {
   );
 }
 
+// Next.js redirect() throws a NEXT_REDIRECT error the router must see, so it passes through.
+// Unexpected errors get a clean message: a thrown one would be redacted to Minified React Error #441.
+const boundary = createBoundary({
+  rethrow: isRedirectError,
+  internalMessage: "Unable to complete request. Please try again.",
+  onFailure: (_sent, status, cause) => {
+    if (status === 500) console.error("[runAction unexpected error]", cause);
+  },
+  details: (e) => {
+    if (e instanceof MealRuleViolationError) return { violatedRuleId: e.rulePublicId };
+    if (e instanceof AuthError && e.message === "Unauthorized") return { error: "Session expired. Please log in again." };
+    if (e instanceof ForbiddenError && e.message === "Forbidden") {
+      return { error: "You do not have permission to perform this action." };
+    }
+    const errorCode = (e as { errorCode?: unknown }).errorCode;
+    return typeof errorCode === "string" ? { errorCode } : {};
+  },
+});
+
 /**
  * Runs `fn`, converting an expected `AppError` or unexpected error into `{ error }`. Success may
  * return void, a message string, or an object merged onto `{ ok: true }`.
@@ -43,43 +63,15 @@ function isRedirectError(e: unknown): boolean {
  * widens the payload to `Record<string, unknown>` and the success branch stops
  * being assignable to the default `ActionResult` union (deploy typecheck fail).
  */
-export async function runAction(
-  fn: () => Promise<void | string>,
-): Promise<ActionResult>;
-export async function runAction<T extends Record<string, unknown>>(
-  fn: () => Promise<T>,
-): Promise<ActionResult<T>>;
+export async function runAction(fn: () => Promise<void | string>): Promise<ActionResult>;
+export async function runAction<T extends Record<string, unknown>>(fn: () => Promise<T>): Promise<ActionResult<T>>;
 export async function runAction<T extends Record<string, unknown>>(
   fn: () => Promise<void | string | T>,
 ): Promise<ActionResult | ActionResult<T>> {
-  try {
-    const result = await fn();
-    if (result == null) return { ok: true } as ActionResult;
-    if (typeof result === "string") return { ok: true, message: result } as ActionResult;
-    return { ok: true, ...result } as ActionResult<T>;
-  } catch (e) {
-    // Next.js redirect() throws a special error carrying NEXT_REDIRECT in digest.
-    // That must be re-thrown so Next.js router can navigate.
-    if (isRedirectError(e)) {
-      throw e;
-    }
-    if (e instanceof MealRuleViolationError) {
-      return { error: e.message, violatedRuleId: e.rulePublicId };
-    }
-    if (e instanceof AuthError) {
-      return { error: e.message === "Unauthorized" ? "Session expired. Please log in again." : e.message };
-    }
-    if (e instanceof ForbiddenError) {
-      return { error: e.message === "Forbidden" ? "You do not have permission to perform this action." : e.message };
-    }
-    if (e instanceof AppError) {
-      const errorCode = (e as { errorCode?: unknown }).errorCode;
-      return { error: e.message, status: e.status, ...(typeof errorCode === "string" && { errorCode }) };
-    }
-    // Unexpected error (e.g. database error, file storage timeout, etc.).
-    // Log the full error on the server for debugging, and return a clean error message
-    // to prevent Next.js from redacting it to Minified React Error #441.
-    console.error("[runAction unexpected error]", e);
-    return { error: "Unable to complete request. Please try again." };
-  }
+  const r = await boundary.result(fn);
+  if (!r.ok) return r;
+  const result = r.value;
+  if (result == null) return { ok: true } as ActionResult;
+  if (typeof result === "string") return { ok: true, message: result } as ActionResult;
+  return { ok: true, ...result } as ActionResult<T>;
 }

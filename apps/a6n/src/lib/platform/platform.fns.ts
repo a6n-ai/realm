@@ -1,9 +1,9 @@
 import { createServerFn } from "@tanstack/react-start";
 import { getRequestHeaders } from "@tanstack/react-start/server";
 import { env } from "cloudflare:workers";
-import { ConsoleError, requirePlatformAdmin, toResponseError } from "../auth/actor";
 import { createAuth } from "../auth";
 import { depsFor } from "../deps";
+import { platform } from "../guarded.fns";
 import { validate } from "../schemas";
 import { addOwnerSchema, createOrgSchema, renameOrgSchema, setActiveOrgSchema } from "./schemas";
 import { createPlatformService } from "./service";
@@ -12,16 +12,6 @@ const svc = () => {
   const d = depsFor(env);
   return createPlatformService(d.db, d.mailer, d.authUrl);
 };
-
-// Not a super admin: null, and the page shows nothing about organisations.
-async function platform<T>(write: boolean, run: (admin: { userId: string; name: string }) => Promise<T>): Promise<T | null> {
-  try {
-    return await run(await requirePlatformAdmin(env, getRequestHeaders(), { write }));
-  } catch (err) {
-    if (err instanceof ConsoleError && err.status === 404) return null;
-    return toResponseError(err);
-  }
-}
 
 export const listOrganizationsFn = createServerFn({ method: "GET" }).handler(() => platform(false, () => svc().listOrganizations()));
 

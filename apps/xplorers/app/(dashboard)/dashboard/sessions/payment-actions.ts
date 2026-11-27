@@ -1,18 +1,16 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { ValidationError } from "@foundry/commons";
+import { attempt } from "@/lib/actions/guard";
 import { requirePermission } from "@/lib/auth/guards";
 import { paymentsService } from "@/lib/services/payments.service";
 
 export async function verifyPaymentAction(publicId: string): Promise<{ error?: string }> {
-  await requirePermission({ studioSession: ["update"] } as never);
-  try {
-    await paymentsService.verify(publicId);
-  } catch (err) {
-    if (err instanceof ValidationError) return { error: err.message };
-    throw err;
-  }
+  const r = await attempt(async () => {
+    await requirePermission({ studioSession: ["update"] } as never);
+    return paymentsService.verify(publicId);
+  });
+  if ("error" in r) return r;
   revalidatePath("/dashboard/sessions");
   revalidatePath("/dashboard/customers", "layout");
   revalidatePath("/dashboard/payments", "layout");
@@ -20,13 +18,11 @@ export async function verifyPaymentAction(publicId: string): Promise<{ error?: s
 }
 
 export async function rejectPaymentAction(publicId: string): Promise<{ error?: string }> {
-  await requirePermission({ studioSession: ["update"] } as never);
-  try {
-    await paymentsService.reject(publicId);
-  } catch (err) {
-    if (err instanceof ValidationError) return { error: err.message };
-    throw err;
-  }
+  const r = await attempt(async () => {
+    await requirePermission({ studioSession: ["update"] } as never);
+    return paymentsService.reject(publicId);
+  });
+  if ("error" in r) return r;
   revalidatePath("/dashboard/sessions");
   revalidatePath("/dashboard/customers", "layout");
   revalidatePath("/dashboard/payments", "layout");

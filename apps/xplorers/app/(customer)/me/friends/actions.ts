@@ -2,7 +2,8 @@
 
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
-import { isRateLimited, NotFoundError, Role, ValidationError } from "@foundry/commons";
+import { isRateLimited, Role, ValidationError } from "@foundry/commons";
+import { attempt } from "@/lib/actions/guard";
 import { getSession } from "@/lib/auth/session";
 import { REF_COOKIE, REF_RE } from "@/lib/friends/ref-cookie";
 import type { Relation } from "@foundry/friends";
@@ -33,14 +34,24 @@ export async function searchFriendsAction(q: string) {
 export async function friendAction(kind: Kind, publicId: string): Promise<{ error?: string; relation?: Relation }> {
   if (!KINDS.includes(kind)) throw new ValidationError("Unknown action");
   const me = await viewer();
-  let relation: Relation | undefined;
-  try {
-    if (kind === "request") relation = await friendsService.request(me, String(publicId));
-    else await friendsService[kind](me, String(publicId));
-  } catch (e) {
-    if (e instanceof ValidationError || e instanceof NotFoundError) return { error: e.message };
-    throw e;
-  }
+  const id = String(publicId);
+  const r = await attempt(async (): Promise<Relation | undefined> => {
+    switch (kind) {
+      case "request":
+        return friendsService.request(me, id);
+      case "accept":
+        await friendsService.accept(me, id);
+        return;
+      case "decline":
+        await friendsService.decline(me, id);
+        return;
+      case "remove":
+        await friendsService.remove(me, id);
+        return;
+    }
+  });
+  if ("error" in r) return r;
+  const relation = r.value;
   revalidatePath("/me/friends");
   return relation ? { relation } : {};
 }

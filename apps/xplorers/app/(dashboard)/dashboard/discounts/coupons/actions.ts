@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { ValidationError } from "@foundry/commons";
+import { attempt } from "@/lib/actions/guard";
 import { requirePermission } from "@/lib/auth/guards";
 import { getAppClock } from "@/lib/services/app-settings.service";
 import { couponsService } from "@/lib/services/discounts.service";
@@ -42,13 +42,11 @@ function revalidate() {
 }
 
 export async function createCouponAction(_prev: CouponFormState, formData: FormData): Promise<CouponFormState> {
-  await requirePermission({ discount: ["create"] });
-  try {
+  const r = await attempt(async () => {
+    await requirePermission({ discount: ["create"] });
     await couponsService.create(await couponFields(formData));
-  } catch (err) {
-    if (err instanceof ValidationError) return { error: err.message };
-    throw err;
-  }
+  });
+  if ("error" in r) return r;
   revalidate();
   redirect(PATH);
 }
@@ -58,13 +56,11 @@ export async function updateCouponAction(
   _prev: CouponFormState,
   formData: FormData,
 ): Promise<CouponFormState> {
-  await requirePermission({ discount: ["update"] });
-  try {
+  const r = await attempt(async () => {
+    await requirePermission({ discount: ["update"] });
     await couponsService.update(publicId, await couponFields(formData));
-  } catch (err) {
-    if (err instanceof ValidationError) return { error: err.message };
-    throw err;
-  }
+  });
+  if ("error" in r) return r;
   revalidate();
   redirect(PATH);
 }

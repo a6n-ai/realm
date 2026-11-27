@@ -1,3 +1,5 @@
+import { AppError } from "@foundry/commons/errors";
+
 export const STAGES = ["new", "contacted", "requirements_gathered", "proposal_sent", "negotiating", "won", "lost"] as const;
 export type Stage = (typeof STAGES)[number];
 
@@ -7,10 +9,9 @@ export const CLOSED_STAGES = ["won", "lost"] as const;
 export const LOST_REASONS = ["budget", "timing", "chose_competitor", "no_response", "not_a_fit", "other"] as const;
 export type LostReason = (typeof LOST_REASONS)[number];
 
-export class ValidationError extends Error {
+export class ValidationError extends AppError {
   constructor(message: string) {
-    super(message);
-    this.name = "ValidationError";
+    super(message, 400);
   }
 }
 

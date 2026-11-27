@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { ValidationError } from "@foundry/commons";
+import { attempt } from "@/lib/actions/guard";
 import { requirePermission } from "@/lib/auth/guards";
 import { fromZonedLocal } from "@/lib/sessions/timezone";
 import { NeedsConfirmError, studioSessionsService } from "@/lib/services/studio-sessions.service";
@@ -12,15 +13,13 @@ const PATH = "/dashboard/sessions";
 export type ScheduleFormState = { error?: string };
 
 export async function scheduleSessionAction(_prev: ScheduleFormState, formData: FormData): Promise<ScheduleFormState> {
-  await requirePermission({ studioSession: ["create"] });
   const classPublicId = String(formData.get("classPublicId") ?? "");
   const occursOn = String(formData.get("occursOn") ?? "");
-  try {
-    await studioSessionsService.scheduleSession(classPublicId, occursOn);
-  } catch (err) {
-    if (err instanceof ValidationError) return { error: err.message };
-    throw err;
-  }
+  const r = await attempt(async () => {
+    await requirePermission({ studioSession: ["create"] });
+    return studioSessionsService.scheduleSession(classPublicId, occursOn);
+  });
+  if ("error" in r) return r;
   revalidatePath(PATH);
   revalidatePath("/dashboard/classes");
   revalidatePath("/whats-on");
@@ -29,14 +28,12 @@ export async function scheduleSessionAction(_prev: ScheduleFormState, formData: 
 }
 
 export async function unscheduleSessionAction(publicId: string): Promise<{ error?: string }> {
-  await requirePermission({ studioSession: ["update"] });
-  let occursOn: string;
-  try {
-    occursOn = await studioSessionsService.unscheduleSession(publicId);
-  } catch (err) {
-    if (err instanceof ValidationError) return { error: err.message };
-    throw err;
-  }
+  const r = await attempt(async () => {
+    await requirePermission({ studioSession: ["update"] });
+    return studioSessionsService.unscheduleSession(publicId);
+  });
+  if ("error" in r) return r;
+  const occursOn = r.value;
   revalidatePath(PATH);
   revalidatePath("/dashboard/classes");
   revalidatePath("/whats-on");
@@ -92,25 +89,21 @@ export async function updateSessionAction(
 }
 
 export async function cancelSessionAction(publicId: string, confirm: boolean): Promise<{ error?: string; cancelled?: number }> {
-  await requirePermission({ studioSession: ["update"] });
-  try {
+  const r = await attempt(async () => {
+    await requirePermission({ studioSession: ["update"] });
     const { cancelledBookings } = await studioSessionsService.cancelSession(publicId, { confirm });
     touch();
     return { cancelled: cancelledBookings };
-  } catch (err) {
-    if (err instanceof ValidationError) return { error: err.message };
-    throw err;
-  }
+  });
+  return "error" in r ? r : r.value;
 }
 
 export async function copyWeekAction(fromMonday: string, toMonday: string): Promise<{ error?: string; copied?: number }> {
-  await requirePermission({ studioSession: ["create"] });
-  try {
+  const r = await attempt(async () => {
+    await requirePermission({ studioSession: ["create"] });
     const { copied } = await studioSessionsService.copyWeek(fromMonday, toMonday);
     touch();
     return { copied };
-  } catch (err) {
-    if (err instanceof ValidationError) return { error: err.message };
-    throw err;
-  }
+  });
+  return "error" in r ? r : r.value;
 }
