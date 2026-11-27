@@ -11,7 +11,7 @@ export async function listInquiriesPage(db: CrmDb, userId: string, input: ListIn
   const res = await listForView(db, {
     view: input.view,
     userId,
-    filters: { stage: input.stage, sourceId: input.source, ownerId: input.owner },
+    filters: { stage: input.stage, sourceId: input.source, ownerId: input.owner, overdue: input.due === "1" },
     search: input.q,
     page: input.page - 1,
   });

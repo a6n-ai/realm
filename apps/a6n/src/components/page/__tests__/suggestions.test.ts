@@ -1,4 +1,6 @@
 import { describe, expect, test } from "vitest";
+import { chipsFrom, withoutKey } from "@foundry/console/filters";
+import { listInquiriesSchema } from "../../../lib/inquiries/schemas";
 import { suggestionsFor } from "../suggestions";
 
 const facets = [
@@ -19,5 +21,23 @@ describe("suggestionsFor", () => {
 
   test("a facet already in the URL is not suggested again", () => {
     expect(suggestionsFor(facets, { stage: "won" }).map((s) => s.key)).toEqual(["owner"]);
+  });
+});
+
+describe("Follow-up Due chip", () => {
+  const due = { key: "due", label: "Follow-up", options: [{ value: "1", label: "Due" }] };
+
+  test("is suggested, becomes ?due=1, shows as a chip, and removing it clears the param", () => {
+    const [s] = suggestionsFor([due], {});
+    expect([s?.label, s?.valueLabel]).toEqual(["Follow-up", "Due"]);
+    const next = { stage: "new", [s!.key]: s!.value };
+    expect(chipsFrom(next, [due])).toEqual([{ key: "due", label: "Follow-up", valueLabel: "Due" }]);
+    expect(suggestionsFor([due], next)).toEqual([]);
+    expect(withoutKey(next, "due")).toEqual({ stage: "new" });
+  });
+
+  test("the list schema accepts due=1 and rejects other values", () => {
+    expect(listInquiriesSchema.parse({ due: "1" }).due).toBe("1");
+    expect(listInquiriesSchema.safeParse({ due: "0" }).success).toBe(false);
   });
 });

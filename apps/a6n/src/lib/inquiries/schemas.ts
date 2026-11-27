@@ -42,6 +42,7 @@ export const listInquiriesSchema = z.object({
   stage: z.enum(STAGES).optional(),
   source: id.optional(),
   owner: id.optional(),
+  due: z.literal("1").optional(),
   page: z.number().int().min(1).max(10_000).default(1),
 });
 export const getInquirySchema = z.object({ id });

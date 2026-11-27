@@ -22,7 +22,7 @@ import { listActiveSourcesFn, listInquiriesFn, listOwnersFn } from "../../../lib
 import { STAGES } from "../../../lib/inquiries/stages";
 
 type View = "mine" | "unassigned" | "all";
-type InquirySearch = { view?: View; q?: string; stage?: string; source?: string; owner?: string; page?: number };
+type InquirySearch = { view?: View; q?: string; stage?: string; source?: string; owner?: string; due?: "1"; page?: number };
 
 const str = (v: unknown) => (typeof v === "string" && v ? v : undefined);
 
@@ -35,6 +35,7 @@ export const Route = createFileRoute("/_app/inquiries/")({
       stage: STAGES.find((x) => x === s.stage),
       source: str(s.source),
       owner: str(s.owner),
+      due: s.due === "1" || s.due === 1 ? "1" : undefined,
       page: Number.isInteger(page) && page > 1 ? page : undefined,
     };
   },
@@ -87,8 +88,9 @@ function InquiriesPage() {
     { key: "stage", label: "Stage", options: STAGES.map((s) => ({ value: s, label: STAGE_LABEL[s] })) },
     { key: "source", label: "Source", options: (sources?.sources ?? []).map((s) => ({ value: s.id, label: s.label })) },
     { key: "owner", label: "Owner", options: (owners ?? []).map((o) => ({ value: o.id, label: o.name })) },
+    { key: "due", label: "Follow-up", options: [{ value: "1", label: "Due" }] },
   ];
-  const filtered = Boolean(search.q || search.stage || search.source || search.owner);
+  const filtered = Boolean(search.q || search.stage || search.source || search.owner || search.due);
   const clear = () => navigate({ search: { view: search.view }, replace: true });
 
   return (
