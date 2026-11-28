@@ -30,3 +30,15 @@ describe("systemLine", () => {
     expect(isSystemActivity({ type: "stage_change" })).toBe(true);
   });
 });
+
+describe("meeting doc activity", () => {
+  test("doc activity lines", () => {
+    const lines = [
+      act({ type: "doc_joined", note: "Ana", actorName: null }),
+      act({ type: "doc_edited", actorName: null, note: "Ana" }),
+      act({ type: "doc_started", actorName: "Sam" }),
+    ];
+    expect(lines.map(systemLine)).toEqual(["Client joined: Ana", "Doc edited by Ana", "Sam started a meeting doc"]);
+    expect(lines.every(isSystemActivity)).toBe(true);
+  });
+});

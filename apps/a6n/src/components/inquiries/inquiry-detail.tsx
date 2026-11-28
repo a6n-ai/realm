@@ -8,6 +8,7 @@ import type { LostReason } from "../../lib/inquiries/stages";
 import { formatPhone, phoneFlag, telHref } from "../../lib/phone";
 import { LINK } from "../link-class";
 import { LocalTime } from "../local-time";
+import { MeetingDocsSection } from "../meeting-docs/meeting-docs-section";
 import { PageHeader } from "../shell/page-header";
 import { ActivityComposer } from "./activity-composer";
 import { ActivityTimeline } from "./activity-timeline";
@@ -128,6 +129,7 @@ export function InquiryDetail({ inquiry: i, owners, canAssign, canEdit }: { inqu
               </div>
             )}
           </section>
+          <MeetingDocsSection key={i.id} inquiryId={i.id} canShare={canEdit} />
           <section className="grid gap-3">
             <h2 className="text-sm font-semibold">Activity</h2>
             <ActivityComposer id={i.id} />

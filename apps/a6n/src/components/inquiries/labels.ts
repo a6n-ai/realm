@@ -66,6 +66,12 @@ export function systemLine(a: Activity): string {
       if (!a.fromOwnerName && a.toOwnerName === a.actorName) return `${who} claimed it`;
       if (a.fromOwnerName && !a.toOwnerName) return `Reassigned from ${a.fromOwnerName} (removed)`;
       return `${who} assigned it to ${a.toOwnerName ?? "nobody"}`;
+    case "doc_started":
+      return `${who} started a meeting doc`;
+    case "doc_joined":
+      return `Client joined: ${a.note}`;
+    case "doc_edited":
+      return `Doc edited by ${a.actorName ?? a.note ?? "someone"}`;
     default:
       return describeActivity(a);
   }

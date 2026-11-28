@@ -1,4 +1,4 @@
-import { ArrowRightLeftIcon, MailIcon, MessageCircleIcon, PhoneIcon, PlusIcon, RotateCcwIcon, StickyNoteIcon, UserRoundCheckIcon, type LucideIcon } from "lucide-react";
+import { ArrowRightLeftIcon, FileTextIcon, MailIcon, MessageCircleIcon, PencilIcon, PhoneIcon, PlusIcon, RotateCcwIcon, StickyNoteIcon, UserPlusIcon, UserRoundCheckIcon, type LucideIcon } from "lucide-react";
 import type { Activity } from "../../lib/inquiries/queries";
 import { RelativeTime } from "../relative-time";
 import { HUMAN_VERB, isSystemActivity, systemLine } from "./labels";
@@ -12,6 +12,9 @@ export const ACTIVITY_ICON: Record<string, LucideIcon> = {
   stage_change: ArrowRightLeftIcon,
   reopened: RotateCcwIcon,
   reassigned: UserRoundCheckIcon,
+  doc_started: FileTextIcon,
+  doc_joined: UserPlusIcon,
+  doc_edited: PencilIcon,
 };
 
 export function ActivityTimeline({ activities }: { activities: Activity[] }) {
