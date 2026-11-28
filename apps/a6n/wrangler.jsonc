@@ -25,8 +25,11 @@
     },
   ],
   "services": [{ "binding": "RELAY", "service": "relay", "entrypoint": "RelayRpc" }],
-  "durable_objects": { "bindings": [{ "name": "COLLAB_ROOM", "class_name": "CollabRoom" }] },
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["CollabRoom"] }],
+  "durable_objects": { "bindings": [{ "name": "COLLAB_ROOM", "class_name": "CollabRoom" }, { "name": "DOC_ARCHIVE", "class_name": "DocArchive" }] },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["CollabRoom"] },
+    { "tag": "v2", "new_sqlite_classes": ["DocArchive"] },
+  ],
   "secrets_store_secrets": [
     { "binding": "BETTER_AUTH_SECRET", "store_id": "d374ac890df14bff9410ff67ae23f88b", "secret_name": "A6N_BETTER_AUTH_SECRET" },
     { "binding": "RELAY_API_KEY", "store_id": "d374ac890df14bff9410ff67ae23f88b", "secret_name": "A6N_RELAY_API_KEY" },
@@ -41,11 +44,11 @@
       ],
       "services": [{ "binding": "RELAY", "service": "relay", "entrypoint": "RelayRpc" }],
       "routes": [],
-      "durable_objects": { "bindings": [{ "name": "COLLAB_ROOM", "class_name": "CollabRoom" }] },
+      "durable_objects": { "bindings": [{ "name": "COLLAB_ROOM", "class_name": "CollabRoom" }, { "name": "DOC_ARCHIVE", "class_name": "DocArchive" }] },
       "vars": { "BETTER_AUTH_URL": "http://localhost:3003", "MAILER": "console" },
       "secrets_store_secrets": [],
     },
     // Vitest (vitest.config.ts): the test pool supplies D1, Relay and plain-string secrets.
-    "test": { "routes": [], "vars": {}, "secrets_store_secrets": [], "durable_objects": { "bindings": [{ "name": "COLLAB_ROOM", "class_name": "CollabRoom" }] } },
+    "test": { "routes": [], "vars": {}, "secrets_store_secrets": [], "durable_objects": { "bindings": [{ "name": "COLLAB_ROOM", "class_name": "CollabRoom" }, { "name": "DOC_ARCHIVE", "class_name": "DocArchive" }] } },
   },
 }

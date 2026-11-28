@@ -4,25 +4,17 @@ import type { RoomControl } from "@foundry/collab/server";
 import { sql } from "drizzle-orm";
 import type { CrmDb } from "../../db/client";
 import { listOwners } from "../inquiries/queries";
+import { notTrashed, type DocKind } from "./meta";
 import type { DocActor, Refusal } from "../meeting-docs/service";
 import { createShareOps } from "../meeting-docs/share-ops";
-import { activeMember, docAccess, OWN_DOC, type Access } from "./access";
+import { docAccess, OWN_DOC } from "./access";
 
-export type DocListItem = {
-  id: string;
-  title: string;
-  updatedAt: number;
-  ownerName: string | null;
-  access: Access;
-  sharedWith: number;
-  activeLinks: number;
-};
 export type MemberGrant = { userId: string; name: string; mode: "edit" | "view" };
 
 const stale: Refusal = { ok: false, code: "stale" };
 const invalid: Refusal = { ok: false, code: "invalid" };
 
-// Bound to one organisation and one member: their own docs, and the ones shared with them.
+// Bound to one organisation and one member: creating their docs and sharing them with members. Listing and the rest: library.ts.
 export function createDocsService(db: CrmDb, org: string, userId: string, rooms: RoomControl) {
   const mine = OWN_DOC + userId;
   const owns = async (docId: string) => (await docAccess(db, org, userId, docId))?.access === "owner";
@@ -30,29 +22,16 @@ export function createDocsService(db: CrmDb, org: string, userId: string, rooms:
     (await db.all<{ id: string }>(sql`SELECT id FROM doc_members WHERE doc_id = ${docId} AND user_id = ${member}`))[0]?.id;
 
   return {
-    async create(actor: DocActor): Promise<{ ok: true; id: string }> {
+    async create(actor: DocActor, kind: DocKind = "notes"): Promise<{ ok: true; id: string }> {
       const id = newId("cdc");
       const now = Date.now();
-      await db.run(sql`INSERT INTO collab_docs (id, created_at, created_by, updated_at, organization_id, owner_ref, title, default_link_ttl_seconds)
-        VALUES (${id}, ${now}, ${actor.userId}, ${now}, ${org}, ${mine}, 'Untitled', ${DEFAULT_LINK_TTL_SECONDS})`);
+      await atomic(db, () => [
+        sql`INSERT INTO collab_docs (id, created_at, created_by, updated_at, organization_id, owner_ref, title, default_link_ttl_seconds)
+          VALUES (${id}, ${now}, ${actor.userId}, ${now}, ${org}, ${mine}, 'Untitled', ${DEFAULT_LINK_TTL_SECONDS})`,
+        sql`INSERT INTO doc_meta (id, created_at, created_by, updated_at, doc_id, kind)
+          VALUES (${newId("dmt")}, ${now}, ${actor.userId}, ${now}, ${id}, ${kind})`,
+      ]);
       return { ok: true, id };
-    },
-
-    async listMine(): Promise<DocListItem[]> {
-      return db.all<DocListItem>(sql`SELECT d.id, d.title, d.updated_at AS updatedAt, u.name AS ownerName, 'owner' AS access,
-          (SELECT count(*) FROM doc_members g WHERE g.doc_id = d.id) AS sharedWith,
-          (SELECT count(*) FROM collab_shares s WHERE s.doc_id = d.id AND s.revoked_at IS NULL AND s.expires_at > ${Date.now()}) AS activeLinks
-        FROM collab_docs d LEFT JOIN users u ON u.id = d.created_by
-        WHERE d.organization_id = ${org} AND d.owner_ref = ${mine}
-        ORDER BY d.updated_at DESC, d.id DESC`);
-    },
-
-    async listShared(): Promise<DocListItem[]> {
-      return db.all<DocListItem>(sql`SELECT d.id, d.title, d.updated_at AS updatedAt, u.name AS ownerName, g.mode AS access,
-          0 AS sharedWith, 0 AS activeLinks
-        FROM doc_members g JOIN collab_docs d ON d.id = g.doc_id LEFT JOIN users u ON u.id = d.created_by
-        WHERE g.user_id = ${userId} AND d.organization_id = ${org} AND d.owner_ref LIKE ${OWN_DOC + "%"} AND ${activeMember(sql`g.user_id`)}
-        ORDER BY d.updated_at DESC, d.id DESC`);
     },
 
     async get(docId: string) {
@@ -62,28 +41,6 @@ export function createDocsService(db: CrmDb, org: string, userId: string, rooms:
         SELECT d.id, d.title, d.default_link_ttl_seconds AS defaultLinkTtlSeconds, u.name AS ownerName
         FROM collab_docs d LEFT JOIN users u ON u.id = d.created_by WHERE d.id = ${docId}`);
       return row ? { ...row, access: access.access } : null;
-    },
-
-    async rename(docId: string, title: string, actor: DocActor): Promise<{ ok: true } | Refusal> {
-      if (!(await owns(docId))) return stale;
-      const next = title.trim();
-      if (!next || next.length > 200) return invalid;
-      await db.run(sql`UPDATE collab_docs SET title = ${next}, updated_at = ${Date.now()}, updated_by = ${actor.userId} WHERE id = ${docId}`);
-      return { ok: true };
-    },
-
-    async remove(docId: string): Promise<{ ok: true } | Refusal> {
-      const own = await docAccess(db, org, userId, docId);
-      if (own?.access !== "owner") return stale;
-      const grants = await db.all<{ id: string }>(sql`SELECT id FROM doc_members WHERE doc_id = ${docId}
-        UNION ALL SELECT id FROM collab_shares WHERE doc_id = ${docId}`);
-      const drop = () => Promise.all([own.grant, ...grants.map((g) => g.id)].map((id) => rooms.revoke(docId, id)));
-      // before: an unreachable room fails the delete, which can be retried. After: nobody who rejoined meanwhile stays
-      await drop();
-      // grants and links go with the row
-      await db.run(sql`DELETE FROM collab_docs WHERE id = ${docId}`);
-      await drop();
-      return { ok: true };
     },
 
     /** Who can open the doc, and who could be added. Null unless the caller owns it. */
@@ -127,6 +84,6 @@ export function createDocsService(db: CrmDb, org: string, userId: string, rooms:
       return { ok: true };
     },
 
-    links: createShareOps(db, rooms, sql`d.organization_id = ${org} AND d.owner_ref = ${mine}`),
+    links: createShareOps(db, rooms, sql`d.organization_id = ${org} AND d.owner_ref = ${mine} AND ${notTrashed}`),
   };
 }

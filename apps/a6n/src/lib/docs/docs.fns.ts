@@ -8,6 +8,11 @@ import {
   runCreateDoc,
   runCreateDocShare,
   runDeleteDoc,
+  runDuplicateDoc,
+  runEmptyTrash,
+  runRestoreDoc,
+  runSetKind,
+  runTrashDoc,
   runRemoveMember,
   runRenameDoc,
   runRevokeDocShare,
@@ -15,7 +20,8 @@ import {
   runSetDocShareExpiry,
   runSetMember,
 } from "./actions-core";
-import { createDocSchema, memberSchema, renameDocSchema, setMemberSchema } from "./schemas";
+import { createDocsLibrary } from "./library";
+import { createDocSchema, emptyTrashSchema, memberSchema, renameDocSchema, setKindSchema, setMemberSchema } from "./schemas";
 import { createDocsService } from "./service";
 
 const MEMBER_WRITE = { write: true };
@@ -25,11 +31,10 @@ const service = (actor: { organizationId: string; userId: string }) => {
   return createDocsService(deps.db, actor.organizationId, actor.userId, deps.rooms);
 };
 
-export const listDocsFn = createServerFn({ method: "GET" }).handler(() =>
-  readAny(async (actor) => {
-    const docs = service(actor);
-    const [mine, shared] = await Promise.all([docs.listMine(), docs.listShared()]);
-    return { mine, shared };
+export const libraryFn = createServerFn({ method: "GET" }).handler(() =>
+  readAny((actor) => {
+    const deps = depsFor(env);
+    return createDocsLibrary(deps.db, actor, deps.rooms, deps.archive).list();
   }),
 );
 
@@ -86,3 +91,23 @@ export const revokeDocShareFn = createServerFn({ method: "POST" })
 export const setDocDefaultTtlFn = createServerFn({ method: "POST" })
   .validator(validate(defaultTtlSchema))
   .handler(({ data }) => refusing(MEMBER_WRITE, (actor) => runSetDocDefaultTtl(actor, depsFor(env), data)));
+
+export const setDocKindFn = createServerFn({ method: "POST" })
+  .validator(validate(setKindSchema))
+  .handler(({ data }) => refusing(MEMBER_WRITE, (actor) => runSetKind(actor, depsFor(env), data)));
+
+export const duplicateDocFn = createServerFn({ method: "POST" })
+  .validator(validate(docIdSchema))
+  .handler(({ data }) => refusing(MEMBER_WRITE, (actor) => runDuplicateDoc(actor, depsFor(env), data)));
+
+export const trashDocFn = createServerFn({ method: "POST" })
+  .validator(validate(docIdSchema))
+  .handler(({ data }) => refusing(MEMBER_WRITE, (actor) => runTrashDoc(actor, depsFor(env), data)));
+
+export const restoreDocFn = createServerFn({ method: "POST" })
+  .validator(validate(docIdSchema))
+  .handler(({ data }) => refusing(MEMBER_WRITE, (actor) => runRestoreDoc(actor, depsFor(env), data)));
+
+export const emptyTrashFn = createServerFn({ method: "POST" })
+  .validator(validate(emptyTrashSchema))
+  .handler(({ data }) => refusing(MEMBER_WRITE, (actor) => runEmptyTrash(actor, depsFor(env), data)));

@@ -3,6 +3,7 @@ import handler from "@tanstack/react-start/server-entry";
 import type { Env } from "./env";
 import { readSecret } from "./lib/secrets";
 
+export { DocArchive } from "./lib/docs/archive";
 export { CollabRoom } from "./lib/meeting-docs/room";
 
 export default {

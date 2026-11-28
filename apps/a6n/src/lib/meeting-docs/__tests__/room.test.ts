@@ -9,6 +9,7 @@ import { actorOf, freshId, insertUser, TEST_ORG } from "../../../../test/helpers
 import { applyMigrations } from "../../../../test/migrate";
 import { getDb } from "../../../db/client";
 import { saveSnapshot } from "../room-store";
+import { createDocsLibrary } from "../../docs/library";
 import { createDocsService } from "../../docs/service";
 import { depsFor } from "../../deps";
 import { issueStaffRoomToken } from "../room-token";
@@ -398,7 +399,7 @@ test("a save that fails as the last person leaves is retried", async () => {
   await expect.poll(async () => (await saved()).text, { timeout: 900 }).toBe("first\nlast words");
 });
 
-test("a member's own doc: removing a person drops only them, and deleting drops the creator without bringing the doc back", async () => {
+test("a member's own doc: removing a person drops only them, and Trash drops the creator and refuses their token", async () => {
   const other = await insertUser(`r-${freshId()}@x.io`, "member");
   const docs = createDocsService(getDb(env), TEST_ORG, ME, depsFor(env).rooms);
   const { id } = await docs.create(actor);
@@ -417,8 +418,10 @@ test("a member's own doc: removing a person drops only them, and deleting drops 
   expect(await (await connectRoom(id, oldToken)).closed).toEqual({ code: 4403 });
   write(creator.doc, "still mine");
   await settle();
-  await docs.remove(id);
+  const mine = await roomToken(ME);
+  await createDocsLibrary(getDb(env), actorOf(ME, "x", "member"), depsFor(env).rooms, depsFor(env).archive).trash(id);
   expect(await creator.closed).toEqual({ code: 4403 });
-  await settle();
-  expect(await rows("select id from collab_docs where id = ?", id)).toEqual([]);
+  expect(await (await connectRoom(id, mine)).closed).toEqual({ code: 4401 });
+  // a staff token with no grant, as meeting docs use, is refused too
+  expect(await (await connectRoom(id, await token({ doc: id }))).closed).toEqual({ code: 4401 });
 });

@@ -12,6 +12,7 @@ declare global {
       RELAY_API_KEY?: SecretValue;
       COLLAB_SECRET?: SecretValue;
       COLLAB_ROOM: DurableObjectNamespace<import("./lib/meeting-docs/room").CollabRoom>;
+      DOC_ARCHIVE: DurableObjectNamespace<import("./lib/docs/archive").DocArchive>;
       MAILER?: string;
     }
   }

@@ -98,6 +98,8 @@ export function ShareDialog({
   shares,
   actions,
   people,
+  open: controlled,
+  onOpenChange,
 }: {
   docId: string;
   defaultSeconds: number;
@@ -105,9 +107,14 @@ export function ShareDialog({
   actions: ShareActions;
   /** Member sharing, shown above the links. */
   people?: ReactNode;
+  /** With these, the caller opens it and there is no Share button. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
+  const [own, setOwn] = useState(false);
+  const open = controlled ?? own;
+  const setOpen = onOpenChange ?? setOwn;
   const [mode, setMode] = useState<"edit" | "view">("edit");
   const [choice, setChoice] = useState<ExpiryChoice>({ preset: defaultSeconds });
   const [url, setUrl] = useState<string | null>(null);
@@ -138,16 +145,18 @@ export function ShareDialog({
 
   return (
     <>
-      <Button
-        onClick={() => {
-          setUrl(null);
-          setChoice({ preset: defaultSeconds });
-          setOpen(true);
-        }}
-      >
-        <Share2Icon aria-hidden className="size-4" />
-        Share
-      </Button>
+      {controlled === undefined ? (
+        <Button
+          onClick={() => {
+            setUrl(null);
+            setChoice({ preset: defaultSeconds });
+            setOpen(true);
+          }}
+        >
+          <Share2Icon aria-hidden className="size-4" />
+          Share
+        </Button>
+      ) : null}
       <ResponsiveDialog open={open} onOpenChange={setOpen} title="Share this doc" description={people ? "Choose people, or create a link: anyone with it can join by typing their name." : "Anyone with a link can join by typing their name."}>
         <div className="grid max-h-[70dvh] gap-5 overflow-y-auto p-px">
           {people}

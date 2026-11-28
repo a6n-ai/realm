@@ -23,4 +23,5 @@ export const {
   collabDocs,
   collabShares,
   docMembers,
+  docMeta,
 } = buildTables(tables, "sqlite");

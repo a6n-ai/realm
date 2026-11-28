@@ -1,37 +1,24 @@
 import { PresenceAvatars } from "@foundry/collab/presence";
 import type { CollabEditorProps } from "@foundry/collab/react";
-import { ConfirmDialog } from "@foundry/console/confirm-dialog";
 import { DeniedState, ErrorState } from "@foundry/console/error-state";
-import { confirmAction } from "@foundry/console/run-action";
+import { runAction } from "@foundry/console/run-action";
 import { Button } from "@foundry/ui/button";
 import { createFileRoute, Link, useNavigate, useRouter } from "@tanstack/react-router";
 import { LockIcon, SearchXIcon, Trash2Icon } from "lucide-react";
 import { useState } from "react";
 import { DocTitle } from "../../../components/docs/doc-title";
 import { PeopleSection } from "../../../components/docs/people-section";
+import { ownDocLinks } from "../../../components/docs/share-from-list";
 import { DocEditor } from "../../../components/meeting-docs/doc-editor";
 import { DocSettings } from "../../../components/meeting-docs/doc-settings";
-import { ShareDialog, type ShareActions } from "../../../components/meeting-docs/share-dialog";
+import { ShareDialog } from "../../../components/meeting-docs/share-dialog";
 import { DOC_VIEWPORT } from "../../../components/meeting-docs/viewport";
 import { EmptyState } from "../../../components/page/empty-state";
 import { DocPageSkeleton } from "../../../components/page/skeletons";
 import { PageHeader } from "../../../components/shell/page-header";
-import {
-  createDocShareFn,
-  deleteDocFn,
-  getDocFn,
-  revokeDocShareFn,
-  setDocDefaultTtlFn,
-  setDocShareExpiryFn,
-} from "../../../lib/docs/docs.fns";
+import { getDocFn, setDocDefaultTtlFn, trashDocFn } from "../../../lib/docs/docs.fns";
 import { errorText } from "../../../lib/error-copy";
 import { staffRoomTokenFn } from "../../../lib/meeting-docs/meeting-docs.fns";
-
-const linkActions: ShareActions = {
-  create: (data) => createDocShareFn({ data }),
-  setExpiry: (data) => setDocShareExpiryFn({ data }),
-  revoke: (data) => revokeDocShareFn({ data }),
-};
 
 const crumbs = [{ label: "Docs", to: "/docs" }, { label: "Doc" }];
 
@@ -79,7 +66,6 @@ function Doc({ doc, viewer, members, shares }: Loaded) {
   const navigate = useNavigate();
   const [provider, setProvider] = useState<Parameters<NonNullable<CollabEditorProps["onProvider"]>>[0]>(null);
   const [denied, setDenied] = useState(false);
-  const [deleting, setDeleting] = useState(false);
   const owner = doc.access === "owner";
 
   return (
@@ -93,7 +79,12 @@ function Doc({ doc, viewer, members, shares }: Loaded) {
             {provider ? <PresenceAvatars provider={provider} /> : null}
             {owner ? (
               <>
-                <Button variant="outline" size="icon" aria-label="Delete doc" onClick={() => setDeleting(true)}>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  aria-label="Move to Trash"
+                  onClick={() => void runAction(() => trashDocFn({ data: { docId: doc.id } }), "Moved to Trash", () => navigate({ to: "/docs" }), errorText)}
+                >
                   <Trash2Icon aria-hidden className="size-4" />
                 </Button>
                 <DocSettings seconds={doc.defaultLinkTtlSeconds} onSave={(seconds) => setDocDefaultTtlFn({ data: { docId: doc.id, seconds } })} />
@@ -101,7 +92,7 @@ function Doc({ doc, viewer, members, shares }: Loaded) {
                   docId={doc.id}
                   defaultSeconds={doc.defaultLinkTtlSeconds}
                   shares={shares}
-                  actions={linkActions}
+                  actions={ownDocLinks}
                   people={members ? <PeopleSection docId={doc.id} {...members} /> : null}
                 />
               </>
@@ -129,17 +120,6 @@ function Doc({ doc, viewer, members, shares }: Loaded) {
           />
         )}
       </div>
-      <ConfirmDialog
-        open={deleting}
-        onOpenChange={setDeleting}
-        title="Delete this doc?"
-        description="Everyone loses access now, and links stop working. This cannot be undone."
-        confirmLabel="Delete doc"
-        onConfirm={async () => {
-          await confirmAction(() => deleteDocFn({ data: { docId: doc.id } }), "Doc deleted", () => navigate({ to: "/docs" }), errorText);
-          setDeleting(false);
-        }}
-      />
     </>
   );
 }

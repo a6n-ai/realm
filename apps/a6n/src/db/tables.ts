@@ -297,6 +297,19 @@ const docMembers = defineTable(
   ],
 );
 
+// A doc's type and trash state. Rows leave the database only by "delete forever", after the archive has a copy.
+const docMeta = defineTable(
+  "doc_meta",
+  {
+    ...c.updatable("dmt"),
+    docId: c.ref("doc_id").notNull().references(() => collabTables.collabDocs.columns.id, { onDelete: "cascade" }),
+    kind: c.string("kind", 16),
+    trashedAt: c.time("trashed_at"),
+    trashedBy: c.ref("trashed_by"),
+  },
+  (t) => [unique("doc_meta_doc_uq").on(t.docId), check("doc_meta_kind_ck", () => sql`kind in ('notes','brainstorm','client')`)],
+);
+
 export const tables = {
   users,
   organizations,
@@ -318,4 +331,5 @@ export const tables = {
   auditLog,
   ...collabTables,
   docMembers,
+  docMeta,
 };

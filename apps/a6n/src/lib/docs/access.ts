@@ -1,5 +1,6 @@
 import { sql, type SQL } from "drizzle-orm";
 import type { CrmDb } from "../../db/client";
+import { notTrashed } from "./meta";
 
 export type Access = "owner" | "edit" | "view";
 
@@ -15,7 +16,7 @@ export async function docAccess(db: CrmDb, org: string, userId: string, docId: s
   const [row] = await db.all<{ ownerRef: string; grantId: string | null; mode: "edit" | "view" | null }>(sql`
     SELECT d.owner_ref AS ownerRef, g.id AS grantId, g.mode FROM collab_docs d
     LEFT JOIN doc_members g ON g.doc_id = d.id AND g.user_id = ${userId}
-    WHERE d.id = ${docId} AND d.organization_id = ${org} AND d.owner_ref LIKE ${OWN_DOC + "%"} AND ${activeMember(sql`${userId}`)}`);
+    WHERE d.id = ${docId} AND d.organization_id = ${org} AND d.owner_ref LIKE ${OWN_DOC + "%"} AND ${activeMember(sql`${userId}`)} AND ${notTrashed}`);
   if (!row) return null;
   if (row.ownerRef === OWN_DOC + userId) return { access: "owner", grant: OWN_GRANT + userId };
   return row.grantId && row.mode ? { access: row.mode, grant: row.grantId } : null;

@@ -3,6 +3,7 @@ import { sql } from "drizzle-orm";
 import type { CrmDb } from "../../db/client";
 import type { Actor } from "../auth/actor";
 import { docAccess, OWN_DOC } from "../docs/access";
+import { notTrashed } from "../docs/meta";
 import { hitRateLimit } from "./rate-limit";
 import { guestTokenSchema } from "./schemas";
 import { resolveShare } from "./share-link";
@@ -18,7 +19,7 @@ export type GuestRoomToken =
 export async function issueStaffRoomToken(db: CrmDb, secret: string, actor: Actor, docId: string): Promise<StaffRoomToken> {
   const stale = { ok: false, code: "stale" } as const;
   const [found] = await db.all<{ ownerRef: string }>(
-    sql`SELECT owner_ref AS ownerRef FROM collab_docs WHERE id = ${docId} AND organization_id = ${actor.organizationId}`,
+    sql`SELECT d.owner_ref AS ownerRef FROM collab_docs d WHERE d.id = ${docId} AND d.organization_id = ${actor.organizationId} AND ${notTrashed}`,
   );
   if (!found) return stale;
   let canEdit: boolean;

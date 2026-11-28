@@ -1,6 +1,7 @@
 import { hashShareToken } from "@foundry/collab/token";
 import { sql } from "drizzle-orm";
 import type { CrmDb } from "../../db/client";
+import { notTrashed } from "../docs/meta";
 
 export type ShareView =
   | {
@@ -28,7 +29,7 @@ export async function resolveShare(db: CrmDb, token: string, now = Date.now()): 
     JOIN collab_docs d ON d.id = s.doc_id
     JOIN organizations o ON o.id = d.organization_id
     LEFT JOIN users u ON u.id = s.created_by
-    WHERE s.token_hash = ${await hashShareToken(token)}`);
+    WHERE s.token_hash = ${await hashShareToken(token)} AND ${notTrashed}`);
   if (!row || row.revokedAt !== null) return { status: "unavailable" };
   const { revokedAt, ...view } = row;
   return now >= view.expiresAt ? { status: "expired" } : { status: "ok", ...view };

@@ -3,6 +3,7 @@ import { DEFAULT_LINK_TTL_SECONDS } from "@foundry/collab/limits";
 import type { RoomControl } from "@foundry/collab/server";
 import { sql, type SQL } from "drizzle-orm";
 import type { CrmDb } from "../../db/client";
+import { notTrashed } from "../docs/meta";
 import { createShareOps } from "./share-ops";
 
 export type Refusal = { ok: false; code: "stale" | "invalid" };
@@ -38,7 +39,7 @@ export function createMeetingDocsService(db: CrmDb, org: string, rooms: RoomCont
           d.default_link_ttl_seconds AS defaultLinkTtlSeconds, coalesce(d.text, '') != '' AS hasContent,
           (SELECT count(*) FROM collab_shares s WHERE s.doc_id = d.id AND s.revoked_at IS NULL AND s.expires_at > ${Date.now()}) AS activeShares
         FROM collab_docs d LEFT JOIN users u ON u.id = d.created_by
-        WHERE d.organization_id = ${org} AND ${where}
+        WHERE d.organization_id = ${org} AND ${notTrashed} AND ${where}
         ORDER BY d.created_at DESC, d.id DESC`)
     ).map((row) => ({ ...row, hasContent: Boolean(row.hasContent) }));
 
@@ -78,6 +79,6 @@ export function createMeetingDocsService(db: CrmDb, org: string, rooms: RoomCont
       return { ...doc, inquiryId, contactName: contact?.name ?? null };
     },
 
-    ...createShareOps(db, rooms, sql`d.organization_id = ${org} AND d.owner_ref LIKE ${OWNER + "%"}`),
+    ...createShareOps(db, rooms, sql`d.organization_id = ${org} AND d.owner_ref LIKE ${OWNER + "%"} AND ${notTrashed}`),
   };
 }
