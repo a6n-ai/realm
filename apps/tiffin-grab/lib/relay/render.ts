@@ -1,6 +1,7 @@
 import { Children, cloneElement, isValidElement, type ReactElement, type ReactNode } from "react";
 import { render } from "react-email";
-import { appendUnsubscribeFooter, interpolate, renderEmailForEvent } from "@relay/engine";
+import { appendUnsubscribeFooter, renderEmailForEvent } from "@relay/engine";
+import { interpolate } from "@relay/email/interpolate";
 import { Lead, MENU_REMINDER, TEMPLATES } from "@/emails/transactional";
 import { db } from "@/db/client";
 import { notificationTables } from "@/db/schema";

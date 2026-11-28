@@ -6,7 +6,7 @@ import type { FileDetail } from "@foundry/storage/model";
 import { Button } from "@foundry/ui/button";
 import { FileUpload, FileUploadDropzone, FileUploadTrigger } from "@foundry/ui/file-upload";
 import { cn } from "@foundry/ui/cn";
-import { apiFetch } from "@/lib/http/api-fetch";
+import { apiFetch } from "@foundry/ui/api-fetch";
 import { ImageCropperDialog } from "./image-cropper-dialog";
 
 const ACCEPT = ["image/png", "image/jpeg", "image/webp", "image/gif"];
