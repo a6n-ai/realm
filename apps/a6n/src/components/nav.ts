@@ -1,5 +1,5 @@
 import type { NavGroup, NavItem } from "@foundry/console/nav";
-import { BuildingIcon, InboxIcon, SettingsIcon, TagIcon, UserRoundXIcon } from "lucide-react";
+import { BuildingIcon, FileTextIcon, InboxIcon, SettingsIcon, TagIcon, UserRoundXIcon } from "lucide-react";
 import type { Permission } from "../lib/auth/permissions";
 
 export type CreateKind = "inquiry" | "invite" | "source";
@@ -13,6 +13,7 @@ export function visibleNav(permissions: readonly Permission[], unassigned: { tot
       items: [
         { label: "Inquiries", to: "/inquiries", icon: InboxIcon },
         { label: "Unassigned", to: "/inquiries?view=unassigned", icon: UserRoundXIcon, ...(badge ? { badge } : {}) },
+        { label: "Docs", to: "/docs", icon: FileTextIcon },
       ],
     },
     { items: [...admin, { label: "Settings", to: "/settings", icon: SettingsIcon }] },

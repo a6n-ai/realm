@@ -8,13 +8,26 @@ import { LockIcon, SearchXIcon } from "lucide-react";
 import { useState } from "react";
 import { DocEditor } from "../../../components/meeting-docs/doc-editor";
 import { DocSettings } from "../../../components/meeting-docs/doc-settings";
-import { ShareDialog } from "../../../components/meeting-docs/share-dialog";
+import { ShareDialog, type ShareActions } from "../../../components/meeting-docs/share-dialog";
 import { DOC_VIEWPORT } from "../../../components/meeting-docs/viewport";
 import { EmptyState } from "../../../components/page/empty-state";
 import { InquiryDetailSkeleton } from "../../../components/page/skeletons";
 import { PageHeader } from "../../../components/shell/page-header";
 import { errorText } from "../../../lib/error-copy";
-import { getMeetingDocFn, staffRoomTokenFn } from "../../../lib/meeting-docs/meeting-docs.fns";
+import {
+  createShareFn,
+  getMeetingDocFn,
+  revokeShareFn,
+  setDefaultTtlFn,
+  setShareExpiryFn,
+  staffRoomTokenFn,
+} from "../../../lib/meeting-docs/meeting-docs.fns";
+
+const linkActions: ShareActions = {
+  create: (data) => createShareFn({ data }),
+  setExpiry: (data) => setShareExpiryFn({ data }),
+  revoke: (data) => revokeShareFn({ data }),
+};
 
 const crumbs = [{ label: "Inquiries", to: "/inquiries" }, { label: "Meeting doc" }];
 
@@ -77,8 +90,8 @@ function MeetingDoc({ doc, shares, canEdit, canShare, viewer }: Loaded) {
             {provider ? <PresenceAvatars provider={provider} /> : null}
             {canShare ? (
               <>
-                <DocSettings docId={doc.id} seconds={doc.defaultLinkTtlSeconds} />
-                <ShareDialog docId={doc.id} defaultSeconds={doc.defaultLinkTtlSeconds} shares={shares} />
+                <DocSettings seconds={doc.defaultLinkTtlSeconds} onSave={(seconds) => setDefaultTtlFn({ data: { docId: doc.id, seconds } })} />
+                <ShareDialog docId={doc.id} defaultSeconds={doc.defaultLinkTtlSeconds} shares={shares} actions={linkActions} />
               </>
             ) : null}
           </>

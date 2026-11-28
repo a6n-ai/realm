@@ -7,11 +7,11 @@ const labels = (role: "admin" | "sales") => visibleNav(p(role), { total: 3, over
 
 describe("visibleNav", () => {
   test("a sales user has no Sources item", () => {
-    expect(labels("sales")).toEqual(["Inquiries", "Unassigned", "Settings"]);
+    expect(labels("sales")).toEqual(["Inquiries", "Unassigned", "Docs", "Settings"]);
   });
 
   test("an admin has Sources and Settings but no Team item", () => {
-    expect(labels("admin")).toEqual(["Inquiries", "Unassigned", "Sources", "Settings"]);
+    expect(labels("admin")).toEqual(["Inquiries", "Unassigned", "Docs", "Sources", "Settings"]);
   });
 
   test("the Unassigned badge is the plain total, overdue or not", () => {
@@ -39,4 +39,8 @@ test("only a super admin sees Organisations", () => {
   const names = (admin: boolean) => visibleNav(p("owner"), { total: 0, overdue: 0 }, admin).flatMap((g) => g.items.map((i) => i.label));
   expect(names(false)).not.toContain("Organisations");
   expect(names(true)).toContain("Organisations");
+});
+
+test("every member has Docs, whatever their permissions", () => {
+  expect(visibleNav([], { total: 0, overdue: 0 }).flatMap((g) => g.items)).toContainEqual(expect.objectContaining({ label: "Docs", to: "/docs" }));
 });

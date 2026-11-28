@@ -343,3 +343,27 @@ export function OrgChartSkeleton() {
     </>
   );
 }
+
+export function DocsSkeleton() {
+  return (
+    <>
+      <PageHeader title="Docs" crumbs={[{ label: "Docs" }]} actions={<Skeleton className="h-9 w-28" />} />
+      <div className="grid gap-3 px-4 pb-8">
+        <Skeleton className="h-9 w-56" />
+        <RowListSkeleton rows={5} />
+      </div>
+    </>
+  );
+}
+
+export function DocPageSkeleton() {
+  return (
+    <>
+      <PageHeader crumbs={[{ label: "Docs", to: "/docs" }, { label: "Doc" }]} />
+      <div className="grid gap-3 px-4 pb-8" aria-hidden="true">
+        <Skeleton className="h-9 w-2/3" />
+        <Skeleton className="h-96 w-full" />
+      </div>
+    </>
+  );
+}

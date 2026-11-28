@@ -8,18 +8,24 @@ import { RadioGroup, RadioGroupItem } from "@foundry/ui/radio-group";
 import { toast } from "@foundry/ui/toast";
 import { useRouter } from "@tanstack/react-router";
 import { CopyIcon, Share2Icon } from "lucide-react";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { errorText } from "../../lib/error-copy";
-import { createShareFn, revokeShareFn, setShareExpiryFn } from "../../lib/meeting-docs/meeting-docs.fns";
+import type { ActionResult } from "../../lib/inquiries/actions-core";
 import type { ShareRow } from "../../lib/meeting-docs/service";
 import { LocalTime } from "../local-time";
 import { ResponsiveDialog } from "../responsive-dialog";
 import { expiryFrom, type ExpiryChoice } from "./expiry";
 import { ExpirySelect } from "./expiry-select";
 
-const MODE_LABEL = { edit: "Can edit", view: "Read only" } as const;
+export const MODE_LABEL = { edit: "Can edit", view: "Read only" } as const;
 
-function ShareItem({ share, defaultSeconds }: { share: ShareRow; defaultSeconds: number }) {
+export type ShareActions = {
+  create: (data: { docId: string; mode: "edit" | "view"; expiresAt: number }) => Promise<ActionResult<{ shareId: string; url: string }>>;
+  setExpiry: (data: { shareId: string; expiresAt: number }) => Promise<ActionResult>;
+  revoke: (data: { shareId: string }) => Promise<ActionResult>;
+};
+
+function ShareItem({ share, defaultSeconds, actions }: { share: ShareRow; defaultSeconds: number; actions: ShareActions }) {
   const router = useRouter();
   const [changing, setChanging] = useState(false);
   const [choice, setChoice] = useState<ExpiryChoice>({ preset: defaultSeconds });
@@ -29,7 +35,7 @@ function ShareItem({ share, defaultSeconds }: { share: ShareRow; defaultSeconds:
 
   const save = () =>
     runAction(
-      () => setShareExpiryFn({ data: { shareId: share.id, expiresAt: expiryFrom(choice, Date.now()) } }),
+      () => actions.setExpiry({ shareId: share.id, expiresAt: expiryFrom(choice, Date.now()) }),
       "Expiry changed",
       async () => {
         setChanging(false);
@@ -78,7 +84,7 @@ function ShareItem({ share, defaultSeconds }: { share: ShareRow; defaultSeconds:
         description="Revoke this link? Anyone using it is disconnected now."
         confirmLabel="Revoke link"
         onConfirm={async () => {
-          await confirmAction(() => revokeShareFn({ data: { shareId: share.id } }), "Link revoked", () => router.invalidate(), errorText);
+          await confirmAction(() => actions.revoke({ shareId: share.id }), "Link revoked", () => router.invalidate(), errorText);
           setConfirming(false);
         }}
       />
@@ -86,7 +92,20 @@ function ShareItem({ share, defaultSeconds }: { share: ShareRow; defaultSeconds:
   );
 }
 
-export function ShareDialog({ docId, defaultSeconds, shares }: { docId: string; defaultSeconds: number; shares: ShareRow[] }) {
+export function ShareDialog({
+  docId,
+  defaultSeconds,
+  shares,
+  actions,
+  people,
+}: {
+  docId: string;
+  defaultSeconds: number;
+  shares: ShareRow[];
+  actions: ShareActions;
+  /** Member sharing, shown above the links. */
+  people?: ReactNode;
+}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<"edit" | "view">("edit");
@@ -97,7 +116,7 @@ export function ShareDialog({ docId, defaultSeconds, shares }: { docId: string; 
   async function create() {
     setPending(true);
     try {
-      const res = await createShareFn({ data: { docId, mode, expiresAt: expiryFrom(choice, Date.now()) } });
+      const res = await actions.create({ docId, mode, expiresAt: expiryFrom(choice, Date.now()) });
       if (!res.ok) return void toast.error(errorText(new Error(res.code)));
       setUrl(res.url);
       await router.invalidate();
@@ -129,8 +148,9 @@ export function ShareDialog({ docId, defaultSeconds, shares }: { docId: string; 
         <Share2Icon aria-hidden className="size-4" />
         Share
       </Button>
-      <ResponsiveDialog open={open} onOpenChange={setOpen} title="Share this doc" description="Anyone with a link can join by typing their name.">
+      <ResponsiveDialog open={open} onOpenChange={setOpen} title="Share this doc" description={people ? "Choose people, or create a link: anyone with it can join by typing their name." : "Anyone with a link can join by typing their name."}>
         <div className="grid max-h-[70dvh] gap-5 overflow-y-auto p-px">
+          {people}
           <div className="grid gap-3">
             <RadioGroup aria-label="Access" value={mode} onValueChange={(v) => setMode(v === "view" ? "view" : "edit")} className="flex gap-4">
               {(["edit", "view"] as const).map((m) => (
@@ -161,7 +181,7 @@ export function ShareDialog({ docId, defaultSeconds, shares }: { docId: string; 
             {shares.length ? (
               <ul className="grid gap-2">
                 {shares.map((s) => (
-                  <ShareItem key={s.id} share={s} defaultSeconds={defaultSeconds} />
+                  <ShareItem key={s.id} share={s} defaultSeconds={defaultSeconds} actions={actions} />
                 ))}
               </ul>
             ) : (

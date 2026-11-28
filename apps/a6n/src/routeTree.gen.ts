@@ -22,6 +22,8 @@ import { Route as AppSourcesRouteImport } from './routes/_app/sources'
 import { Route as AppTeamRouteImport } from './routes/_app/team'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as MTokenRouteImport } from './routes/m.$token'
+import { Route as AppDocsIndexRouteImport } from './routes/_app/docs/index'
+import { Route as AppDocsDocIdRouteImport } from './routes/_app/docs/$docId'
 import { Route as AppInquiriesIndexRouteImport } from './routes/_app/inquiries/index'
 import { Route as AppInquiriesIdRouteImport } from './routes/_app/inquiries/$id'
 import { Route as AppSettingsIndexRouteImport } from './routes/_app/settings/index'
@@ -97,6 +99,16 @@ const MTokenRoute = MTokenRouteImport.update({
   path: '/m/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AppDocsIndexRoute = AppDocsIndexRouteImport.update({
+  id: '/docs/',
+  path: '/docs/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppDocsDocIdRoute = AppDocsDocIdRouteImport.update({
+  id: '/docs/$docId',
+  path: '/docs/$docId',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppInquiriesIndexRoute = AppInquiriesIndexRouteImport.update({
   id: '/inquiries/',
   path: '/inquiries/',
@@ -161,6 +173,7 @@ export interface FileRoutesByFullPath {
   '/team': typeof AppTeamRoute
   '/api/health': typeof ApiHealthRoute
   '/m/$token': typeof MTokenRoute
+  '/docs/$docId': typeof AppDocsDocIdRoute
   '/inquiries/$id': typeof AppInquiriesIdRoute
   '/settings/account': typeof AppSettingsAccountRoute
   '/settings/members': typeof AppSettingsMembersRoute
@@ -168,6 +181,7 @@ export interface FileRoutesByFullPath {
   '/settings/roles': typeof AppSettingsRolesRoute
   '/settings/teams': typeof AppSettingsTeamsRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/docs/': typeof AppDocsIndexRoute
   '/inquiries/': typeof AppInquiriesIndexRoute
   '/settings/': typeof AppSettingsIndexRoute
   '/inquiries/$id/docs/$docId': typeof AppInquiriesIdDocsDocIdRoute
@@ -184,6 +198,7 @@ export interface FileRoutesByTo {
   '/api/health': typeof ApiHealthRoute
   '/m/$token': typeof MTokenRoute
   '/': typeof AppIndexRoute
+  '/docs/$docId': typeof AppDocsDocIdRoute
   '/inquiries/$id': typeof AppInquiriesIdRoute
   '/settings/account': typeof AppSettingsAccountRoute
   '/settings/members': typeof AppSettingsMembersRoute
@@ -191,6 +206,7 @@ export interface FileRoutesByTo {
   '/settings/roles': typeof AppSettingsRolesRoute
   '/settings/teams': typeof AppSettingsTeamsRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/docs': typeof AppDocsIndexRoute
   '/inquiries': typeof AppInquiriesIndexRoute
   '/settings': typeof AppSettingsIndexRoute
   '/inquiries/$id/docs/$docId': typeof AppInquiriesIdDocsDocIdRoute
@@ -210,6 +226,7 @@ export interface FileRoutesById {
   '/api/health': typeof ApiHealthRoute
   '/m/$token': typeof MTokenRoute
   '/_app/': typeof AppIndexRoute
+  '/_app/docs/$docId': typeof AppDocsDocIdRoute
   '/_app/inquiries/$id': typeof AppInquiriesIdRoute
   '/_app/settings/account': typeof AppSettingsAccountRoute
   '/_app/settings/members': typeof AppSettingsMembersRoute
@@ -217,6 +234,7 @@ export interface FileRoutesById {
   '/_app/settings/roles': typeof AppSettingsRolesRoute
   '/_app/settings/teams': typeof AppSettingsTeamsRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/_app/docs/': typeof AppDocsIndexRoute
   '/_app/inquiries/': typeof AppInquiriesIndexRoute
   '/_app/settings/': typeof AppSettingsIndexRoute
   '/_app/inquiries/$id_/docs/$docId': typeof AppInquiriesIdDocsDocIdRoute
@@ -236,6 +254,7 @@ export interface FileRouteTypes {
     | '/team'
     | '/api/health'
     | '/m/$token'
+    | '/docs/$docId'
     | '/inquiries/$id'
     | '/settings/account'
     | '/settings/members'
@@ -243,6 +262,7 @@ export interface FileRouteTypes {
     | '/settings/roles'
     | '/settings/teams'
     | '/api/auth/$'
+    | '/docs/'
     | '/inquiries/'
     | '/settings/'
     | '/inquiries/$id/docs/$docId'
@@ -259,6 +279,7 @@ export interface FileRouteTypes {
     | '/api/health'
     | '/m/$token'
     | '/'
+    | '/docs/$docId'
     | '/inquiries/$id'
     | '/settings/account'
     | '/settings/members'
@@ -266,6 +287,7 @@ export interface FileRouteTypes {
     | '/settings/roles'
     | '/settings/teams'
     | '/api/auth/$'
+    | '/docs'
     | '/inquiries'
     | '/settings'
     | '/inquiries/$id/docs/$docId'
@@ -284,6 +306,7 @@ export interface FileRouteTypes {
     | '/api/health'
     | '/m/$token'
     | '/_app/'
+    | '/_app/docs/$docId'
     | '/_app/inquiries/$id'
     | '/_app/settings/account'
     | '/_app/settings/members'
@@ -291,6 +314,7 @@ export interface FileRouteTypes {
     | '/_app/settings/roles'
     | '/_app/settings/teams'
     | '/api/auth/$'
+    | '/_app/docs/'
     | '/_app/inquiries/'
     | '/_app/settings/'
     | '/_app/inquiries/$id_/docs/$docId'
@@ -400,6 +424,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_app/docs/': {
+      id: '/_app/docs/'
+      path: '/docs'
+      fullPath: '/docs/'
+      preLoaderRoute: typeof AppDocsIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/docs/$docId': {
+      id: '/_app/docs/$docId'
+      path: '/docs/$docId'
+      fullPath: '/docs/$docId'
+      preLoaderRoute: typeof AppDocsDocIdRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/inquiries/': {
       id: '/_app/inquiries/'
       path: '/inquiries'
@@ -502,7 +540,9 @@ interface AppRouteChildren {
   AppSourcesRoute: typeof AppSourcesRoute
   AppTeamRoute: typeof AppTeamRoute
   AppIndexRoute: typeof AppIndexRoute
+  AppDocsDocIdRoute: typeof AppDocsDocIdRoute
   AppInquiriesIdRoute: typeof AppInquiriesIdRoute
+  AppDocsIndexRoute: typeof AppDocsIndexRoute
   AppInquiriesIndexRoute: typeof AppInquiriesIndexRoute
   AppInquiriesIdDocsDocIdRoute: typeof AppInquiriesIdDocsDocIdRoute
 }
@@ -514,7 +554,9 @@ const AppRouteChildren: AppRouteChildren = {
   AppSourcesRoute: AppSourcesRoute,
   AppTeamRoute: AppTeamRoute,
   AppIndexRoute: AppIndexRoute,
+  AppDocsDocIdRoute: AppDocsDocIdRoute,
   AppInquiriesIdRoute: AppInquiriesIdRoute,
+  AppDocsIndexRoute: AppDocsIndexRoute,
   AppInquiriesIndexRoute: AppInquiriesIndexRoute,
   AppInquiriesIdDocsDocIdRoute: AppInquiriesIdDocsDocIdRoute,
 }

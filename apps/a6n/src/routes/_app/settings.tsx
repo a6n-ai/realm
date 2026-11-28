@@ -1,6 +1,7 @@
 import { ConsoleLink, useConsoleRouter } from "@foundry/console/router";
 import { createFileRoute, Outlet } from "@tanstack/react-router";
 import { canManageMembers } from "../../lib/auth/permissions";
+import { TAB_LINK } from "../../components/link-class";
 import { PageHeader } from "../../components/shell/page-header";
 
 export const Route = createFileRoute("/_app/settings")({ component: SettingsLayout });
@@ -28,7 +29,7 @@ function SettingsLayout() {
               to={t.to}
               aria-current={pathname === t.to ? "page" : undefined}
               data-active={pathname === t.to}
-              className="inline-flex h-9 shrink-0 items-center rounded-md px-3 text-sm text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring data-[active=true]:bg-muted data-[active=true]:font-medium data-[active=true]:text-foreground"
+              className={TAB_LINK}
             >
               {t.label}
             </ConsoleLink>

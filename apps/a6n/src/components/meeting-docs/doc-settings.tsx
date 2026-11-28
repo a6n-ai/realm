@@ -6,13 +6,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useRouter } from "@tanstack/react-router";
 import { Settings2Icon } from "lucide-react";
 import { errorText } from "../../lib/error-copy";
-import { setDefaultTtlFn } from "../../lib/meeting-docs/meeting-docs.fns";
+import type { ActionResult } from "../../lib/inquiries/actions-core";
 import { presetLabel } from "./expiry-select";
 
-export function DocSettings({ docId, seconds }: { docId: string; seconds: number }) {
+export function DocSettings({ seconds, onSave }: { seconds: number; onSave: (seconds: number) => Promise<ActionResult> }) {
   const router = useRouter();
-  const save = (next: number) =>
-    void runAction(() => setDefaultTtlFn({ data: { docId, seconds: next } }), "Default expiry saved", () => router.invalidate(), errorText);
+  const save = (next: number) => void runAction(() => onSave(next), "Default expiry saved", () => router.invalidate(), errorText);
   return (
     <Popover>
       <PopoverTrigger render={<Button variant="outline" size="icon" aria-label="Doc settings" />}>
