@@ -12,7 +12,7 @@ const STATUS_TEXT: Record<CollabStatus, string> = {
   connecting: "Connecting…",
   connected: "Live",
   disconnected: "Offline, retrying",
-  full: "This doc is full",
+  full: "That change is too large to save. Reload the page to keep editing.",
 };
 
 export type DocEditorProps = Pick<CollabEditorProps, "docId" | "getToken" | "readOnly" | "template" | "onDenied" | "onProvider"> & {

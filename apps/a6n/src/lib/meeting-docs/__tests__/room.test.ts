@@ -1,6 +1,7 @@
 import { env, evictDurableObject, runInDurableObject } from "cloudflare:test";
 import { signRoomToken, type RoomClaims } from "@foundry/collab/token";
 import * as encoding from "lib0/encoding";
+import { Buffer } from "node:buffer";
 import { beforeAll, beforeEach, expect, test } from "vitest";
 import * as Y from "yjs";
 import { connectRoom } from "../../../../test/collab-client";
@@ -272,4 +273,124 @@ test("an idle guest is dropped when the link expires, with no traffic at all, ev
   expect(late.ws!.readyState).toBe(1);
   staff.close();
   late.close();
+});
+
+const CAP = 1_000_000;
+const filler = (bytes: number) => "x".repeat(bytes);
+async function store(words: string) {
+  const doc = new Y.Doc();
+  write(doc, words);
+  await saveSnapshot(getDb(env), docId, Y.encodeStateAsUpdate(doc), words.slice(0, 100));
+}
+const savedBytes = async () => Buffer.from((await saved()).snapshot!, "base64").byteLength;
+
+test("a change that would push the doc past the cap is refused, and the doc stays editable and saved", async () => {
+  await store(filler(900_000));
+  const pusher = await join((await guest()).token);
+  write(pusher.doc, filler(200_000));
+  expect(await pusher.closed).toEqual({ code: 4413 });
+  const staff = await join(await token());
+  write(staff.doc, "still works");
+  staff.close();
+  // the stored text is cut at 200k characters, so look in the snapshot
+  const savedContent = async () => {
+    const doc = new Y.Doc();
+    Y.applyUpdate(doc, Buffer.from((await saved()).snapshot!, "base64"));
+    return content(doc);
+  };
+  await expect.poll(savedContent, { timeout: 5000 }).toContain("still works");
+  expect(await savedBytes()).toBeLessThanOrEqual(CAP);
+});
+
+test("a nearly full doc still accepts deletions", async () => {
+  await store(filler(CAP - 200));
+  const staff = await join(await token());
+  const fragment = staff.doc.getXmlFragment("document-store");
+  fragment.delete(0, fragment.length);
+  write(staff.doc, "cleared");
+  await expect.poll(async () => (await saved()).text, { timeout: 5000 }).toBe("cleared");
+  expect(staff.ws!.readyState).toBe(1);
+  staff.close();
+});
+
+test("one guest cannot open unlimited sockets, and staff are never turned away", async () => {
+  const g = await guest();
+  const open = [];
+  for (let i = 0; i < 5; i++) open.push(await join(g.token));
+  const extra = await connectRoom(docId, g.token);
+  expect(await extra.closed).toEqual({ code: 4429 });
+  const staff = await join(await token());
+  staff.close();
+  for (const client of open) client.close();
+});
+
+test("one link cannot open unlimited sockets under changing names", async () => {
+  const g = await guest();
+  const expiresAt = (await svc().listShares(docId))[0]!.expiresAt;
+  const named = (i: number) => token({ sub: `guest:${g.shareId}:n${i}`, name: `n${i}`, share: g.shareId, until: expiresAt });
+  const open = [];
+  for (let i = 0; i < 20; i++) open.push(await join(await named(i)));
+  const extra = await connectRoom(docId, await named(20));
+  expect(await extra.closed).toEqual({ code: 4429 });
+  for (const client of open) client.close();
+});
+
+const awarenessMessage = (bytes: number) => {
+  const encoder = encoding.createEncoder();
+  encoding.writeVarUint(encoder, 1);
+  const inner = encoding.createEncoder();
+  encoding.writeVarUint(inner, 1);
+  encoding.writeVarUint(inner, 4242);
+  encoding.writeVarUint(inner, 1);
+  encoding.writeVarString(inner, JSON.stringify({ pad: filler(bytes) }));
+  encoding.writeVarUint8Array(encoder, encoding.toUint8Array(inner));
+  return encoding.toUint8Array(encoder);
+};
+
+test("oversized presence is neither stored nor relayed", async () => {
+  const staff = await join(await token());
+  const viewer = await join((await guest({ edit: false })).token);
+  viewer.ws!.send(awarenessMessage(100_000));
+  await settle();
+  expect(Math.max(0, ...staff.awarenessSizes)).toBeLessThan(33_000);
+  await runInDurableObject(env.COLLAB_ROOM.getByName(docId), (room) => {
+    expect(room.document.awareness.getStates().has(4242)).toBe(false);
+  });
+  staff.close();
+  viewer.close();
+});
+
+test("a socket that sends too many bytes closes with 4429", async () => {
+  const viewer = await join((await guest({ edit: false })).token);
+  for (let i = 0; i < 12; i++) viewer.ws!.send(awarenessMessage(200_000));
+  expect(await viewer.closed).toEqual({ code: 4429 });
+});
+
+test("asking for the whole doc over and over closes with 4429", async () => {
+  const viewer = await join((await guest({ edit: false })).token);
+  const encoder = encoding.createEncoder();
+  encoding.writeVarUint(encoder, 0);
+  encoding.writeVarUint(encoder, 0);
+  encoding.writeVarUint8Array(encoder, Y.encodeStateVector(new Y.Doc()));
+  for (let i = 0; i < 20; i++) viewer.ws!.send(encoding.toUint8Array(encoder));
+  expect(await viewer.closed).toEqual({ code: 4429 });
+});
+
+test("a save that fails as the last person leaves is retried", async () => {
+  const staff = await join(await token());
+  write(staff.doc, "first");
+  await expect.poll(async () => (await saved()).text, { timeout: 5000 }).toBe("first");
+  await runInDurableObject(env.COLLAB_ROOM.getByName(docId), (room) => {
+    const target = room as unknown as { saveSnapshot: (...args: unknown[]) => Promise<void> };
+    const real = target.saveSnapshot;
+    target.saveSnapshot = async () => {
+      target.saveSnapshot = real;
+      throw new Error("D1 is briefly unavailable");
+    };
+  });
+  write(staff.doc, "last words");
+  await settle();
+  staff.close();
+  // the 2 s debounce is still pending when this poll gives up, so only the retry can satisfy it
+  await expect.poll(async () => (await saved()).text, { timeout: 900 }).toBe("first\nlast words");
 });

@@ -26,6 +26,7 @@ export async function connectRoom(docId: string, token: string, origin = "http:/
   const closed = new Promise<{ code: number }>((resolve) => (markClosed = resolve));
 
   const messages: unknown[] = [];
+  const awarenessSizes: number[] = [];
 
   const send = (write: (encoder: encoding.Encoder) => void) => {
     const encoder = encoding.createEncoder();
@@ -44,7 +45,9 @@ export async function connectRoom(docId: string, token: string, origin = "http:/
         return;
       }
       const decoder = decoding.createDecoder(new Uint8Array(event.data as ArrayBuffer));
-      if (decoding.readVarUint(decoder) !== MESSAGE_SYNC) return;
+      const kind = decoding.readVarUint(decoder);
+      if (kind === MESSAGE_AWARENESS) awarenessSizes.push((event.data as ArrayBuffer).byteLength);
+      if (kind !== MESSAGE_SYNC) return;
       const reply = encoding.createEncoder();
       encoding.writeVarUint(reply, MESSAGE_SYNC);
       const type = syncProtocol.readSyncMessage(decoder, reply, doc, "remote");
@@ -75,5 +78,5 @@ export async function connectRoom(docId: string, token: string, origin = "http:/
     awareness.destroy();
   };
 
-  return { status: res.status, ws, doc, synced, closed, messages, announce, close: () => ws?.close(1000) };
+  return { status: res.status, ws, doc, synced, closed, messages, awarenessSizes, announce, close: () => ws?.close(1000) };
 }
