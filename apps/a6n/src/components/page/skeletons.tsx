@@ -191,11 +191,16 @@ const crumbs = [{ label: "Inquiries", to: "/inquiries" }, { label: "Inquiry" }];
 export function InquiryDetailSkeleton() {
   return (
     <>
-      <PageHeader crumbs={crumbs} actions={<Skeleton className="h-7 w-24" />} />
+      <PageHeader crumbs={crumbs} actions={<Skeleton className="size-8" />} />
+      <div className="flex flex-wrap gap-2 px-4 pb-6" aria-hidden="true">
+        {Array.from({ length: 7 }, (_, n) => (
+          <Skeleton key={n} shape="pill" className="h-8 w-24" />
+        ))}
+      </div>
       <div className="grid items-start gap-6 px-4 pb-8 lg:grid-cols-[minmax(0,1fr)_20rem]" aria-hidden="true">
         <aside className="order-first lg:order-last">
           <PropertiesCard>
-            {["Status", "Owner", "Next follow-up", "Source", "Company", "Phone", "Email", "Created"].map((l) => (
+            {["Owner", "Next follow-up", "Source", "Company", "Phone", "Email", "Created"].map((l) => (
               <PropertyRow key={l} label={l}>
                 <Bar w="w-28" />
               </PropertyRow>

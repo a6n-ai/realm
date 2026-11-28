@@ -1,6 +1,6 @@
 import type { Column } from "@foundry/console/resource-table";
 import type { InquiryRow } from "../../lib/inquiries/repository";
-import { formatPhone, telHref } from "../../lib/phone";
+import { formatPhone, phoneFlag, telHref } from "../../lib/phone";
 import { LINK } from "../link-class";
 import { FollowUpBadge } from "./follow-up-badge";
 import { StageMenu } from "./stage-menu";
@@ -31,6 +31,7 @@ export const inquiryColumns = (canEdit: boolean): Column<InquiryRow>[] => [
     cell: (r) =>
       r.phone ? (
         <a className={`whitespace-nowrap ${LINK}`} href={telHref(r.phone)}>
+          <span aria-hidden className="mr-1.5">{phoneFlag(r.phone)}</span>
           {formatPhone(r.phone)}
         </a>
       ) : (

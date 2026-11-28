@@ -1,6 +1,7 @@
 import { atomic, newId, type BatchItem } from "@foundry/database";
 import { sql } from "drizzle-orm";
 import type { CrmDb } from "../../db/client";
+import { toE164 } from "../phone";
 import { toNameKey } from "./companies";
 import { InquiriesRepository, listForView, unassignedCounts } from "./repository";
 import { reopen as reopenRules, transition, ValidationError } from "./stages";
@@ -50,7 +51,7 @@ export function createInquiriesService(db: CrmDb, org: string) {
   return {
     async ingest(input: IngestInput, actor: Actor): Promise<{ ok: true; inquiry: Inquiry; created: boolean } | Refusal> {
       const name = clean(input.contact.name);
-      const phone = clean(input.contact.phone);
+      const phone = toE164(input.contact.phone);
       if ((!name && !phone) || !isTime(input.nextFollowUpAt) || !input.source || !input.createdVia) return invalid;
       const companyName = clean(input.company)?.replace(/\s+/g, " ") ?? null;
       const nameKey = companyName ? toNameKey(companyName) : null;
@@ -214,6 +215,7 @@ export function createInquiriesService(db: CrmDb, org: string) {
     },
 
     async updateContact(id: string, patch: ContactPatch, _actor: Actor): Promise<{ ok: true } | Refusal> {
+      if (patch.phone !== undefined) patch = { ...patch, phone: toE164(patch.phone) };
       const cols = { contactName: "contact_name", phone: "phone", email: "email", requirements: "requirements" } as const;
       const keys = (Object.keys(cols) as (keyof ContactPatch)[]).filter((k) => patch[k] !== undefined);
       if (keys.length === 0) return invalid;

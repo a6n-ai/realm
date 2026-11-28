@@ -5,7 +5,7 @@ import { CheckIcon, CopyIcon, MoreHorizontalIcon } from "lucide-react";
 import { useState } from "react";
 import type { InquiryDetail as Detail } from "../../lib/inquiries/queries";
 import type { LostReason } from "../../lib/inquiries/stages";
-import { formatPhone, telHref } from "../../lib/phone";
+import { formatPhone, phoneFlag, telHref } from "../../lib/phone";
 import { LINK } from "../link-class";
 import { LocalTime } from "../local-time";
 import { PageHeader } from "../shell/page-header";
@@ -16,7 +16,7 @@ import { FollowUpControl } from "./follow-up-control";
 import { LOST_LABEL } from "./labels";
 import { OwnerControl } from "./owner-control";
 import { PropertiesCard, PropertyRow } from "./property-row";
-import { StageMenu } from "./stage-menu";
+import { StagePills } from "./stage-pills";
 
 function CopyEmail({ email }: { email: string }) {
   const [copied, setCopied] = useState(false);
@@ -66,12 +66,12 @@ export function InquiryDetail({ inquiry: i, owners, canAssign, canEdit }: { inqu
           </>
         }
       />
+      <div className="px-4 pb-6">
+        <StagePills id={i.id} stage={i.stage} canEdit={canEdit} />
+      </div>
       <div className="grid items-start gap-6 px-4 pb-8 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <aside className="order-first lg:sticky lg:top-4 lg:order-last">
           <PropertiesCard open={propsOpen} onToggle={() => setPropsOpen((v) => !v)}>
-            <PropertyRow label="Status">
-              <StageMenu id={i.id} stage={i.stage} canEdit={canEdit} />
-            </PropertyRow>
             <PropertyRow label="Owner">
               <OwnerControl id={i.id} ownerId={i.ownerId} ownerName={i.ownerName} ownerRemoved={i.ownerRemoved} open={open} canAssign={canAssign} owners={owners} />
             </PropertyRow>
@@ -83,7 +83,7 @@ export function InquiryDetail({ inquiry: i, owners, canAssign, canEdit }: { inqu
               {i.subSource ? ` / ${i.subSource}` : ""}
             </PropertyRow>
             <PropertyRow label="Company">{i.company}</PropertyRow>
-            <PropertyRow label="Phone">{i.phone ? <a className={LINK} href={telHref(i.phone)}>{formatPhone(i.phone)}</a> : null}</PropertyRow>
+            <PropertyRow label="Phone">{i.phone ? <a className={LINK} href={telHref(i.phone)}><span aria-hidden className="mr-1.5">{phoneFlag(i.phone)}</span>{formatPhone(i.phone)}</a> : null}</PropertyRow>
             <PropertyRow label="Email">
               {i.email ? (
                 <span className="-my-1.5 flex min-w-0 items-center gap-1">
