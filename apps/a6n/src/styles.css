@@ -293,3 +293,9 @@ body:has(.admin-ui) {
   .org-tree li::after, .org-tree ul ul::before { display: none; }
   .org-tree > ul > li::before { display: none; }
 }
+
+/* BlockNote paints its own surface; the doc sits on the page's. Its stylesheet is unlayered and loads later. */
+.meeting-doc .bn-root .bn-editor { background-color: transparent; }
+@media (max-width: 40rem) {
+  .meeting-doc .bn-root .bn-editor { padding-inline: 1rem; }
+}

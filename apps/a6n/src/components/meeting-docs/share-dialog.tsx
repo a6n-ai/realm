@@ -130,7 +130,7 @@ export function ShareDialog({ docId, defaultSeconds, shares }: { docId: string; 
         Share
       </Button>
       <ResponsiveDialog open={open} onOpenChange={setOpen} title="Share this doc" description="Anyone with a link can join by typing their name.">
-        <div className="grid gap-5">
+        <div className="grid max-h-[70dvh] gap-5 overflow-y-auto p-px">
           <div className="grid gap-3">
             <RadioGroup aria-label="Access" value={mode} onValueChange={(v) => setMode(v === "view" ? "view" : "edit")} className="flex gap-4">
               {(["edit", "view"] as const).map((m) => (

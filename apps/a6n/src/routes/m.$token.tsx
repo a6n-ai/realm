@@ -8,6 +8,7 @@ import { sessionStore } from "@foundry/ui/safe-storage";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useEffect, useState, type FormEvent } from "react";
 import { DocEditor } from "../components/meeting-docs/doc-editor";
+import { DOC_VIEWPORT } from "../components/meeting-docs/viewport";
 import { errorText } from "../lib/error-copy";
 import { guestRoomTokenFn, openShareFn } from "../lib/meeting-docs/meeting-docs.fns";
 import type { ShareView } from "../lib/meeting-docs/share-link";
@@ -25,6 +26,7 @@ export const Route = createFileRoute("/m/$token")({
       { title: "Shared doc · a6n" },
       { name: "robots", content: "noindex, nofollow" },
       { name: "referrer", content: "no-referrer" },
+      { name: "viewport", content: DOC_VIEWPORT },
     ],
   }),
   loader: ({ params }) => openShareFn({ data: { token: params.token } }),

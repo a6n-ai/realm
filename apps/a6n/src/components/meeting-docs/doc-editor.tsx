@@ -38,7 +38,7 @@ function Live({ user, ...props }: DocEditorProps) {
         {STATUS_TEXT[status]}
         {props.readOnly ? " · Read only" : ""}
       </p>
-      <div className="min-h-96 rounded-lg border py-4">
+      <div className="meeting-doc min-h-96 rounded-lg border py-4">
         <Suspense fallback={loading}>
           <CollabEditor
             {...props}

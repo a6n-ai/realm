@@ -1,4 +1,4 @@
-import { env } from "cloudflare:test";
+import { env, evictDurableObject, runInDurableObject } from "cloudflare:test";
 import { signRoomToken, type RoomClaims } from "@foundry/collab/token";
 import * as encoding from "lib0/encoding";
 import { beforeAll, beforeEach, expect, test } from "vitest";
@@ -148,8 +148,12 @@ test("a revoked share cannot rejoin with a token that is still valid", async () 
 test("a message after until closes with 4403", async () => {
   const visitor = await join((await guest({ until: Date.now() + 1000 })).token);
   await new Promise((resolve) => setTimeout(resolve, 1100));
-  write(visitor.doc, "too late");
+  // the room's alarm may have closed the socket already; either way nothing written now may land
+  if (visitor.ws!.readyState === 1) write(visitor.doc, "too late");
   expect(await visitor.closed).toEqual({ code: 4403 });
+  const other = await join(await token());
+  expect(content(other.doc)).not.toContain("too late");
+  other.close();
 });
 
 test("a silent expired viewer is dropped before anyone else's change reaches it", async () => {
@@ -196,4 +200,76 @@ test("a flood of messages closes with 4429", async () => {
   const client = await join(await token());
   for (let i = 0; i < 700; i++) client.ws!.send(new Uint8Array([3]));
   expect(await client.closed).toEqual({ code: 4429 });
+});
+
+// hibernation drops the room's memory but keeps the sockets, and the browser provider sends no presence heartbeat
+const hibernate = () => evictDurableObject(env.COLLAB_ROOM.getByName(docId));
+
+test("after hibernation a newcomer makes the room ask the others to re-announce", async () => {
+  const first = await join(await token());
+  first.announce("Sam");
+  await settle();
+  await hibernate();
+  const second = await join((await guest()).token);
+  await expect.poll(() => first.messages).toContainEqual({ type: "who" });
+  expect(second.messages).not.toContainEqual({ type: "who" });
+  first.close();
+  second.close();
+});
+
+test("after hibernation the others still learn that someone left", async () => {
+  const staff = await join(await token());
+  const visitor = await join((await guest()).token);
+  visitor.announce("Ana");
+  await settle();
+  await hibernate();
+  visitor.close();
+  await expect.poll(() => staff.messages).toContainEqual({ type: "left", clients: [visitor.doc.clientID] });
+  staff.close();
+});
+
+test("a person who already reconnected is not reported as gone", async () => {
+  const staff = await join(await token());
+  const g = await guest();
+  const old = await join(g.token);
+  old.announce("Ana");
+  await settle();
+  await hibernate();
+  const again = await connectRoom(docId, g.token);
+  await again.synced;
+  // the same browser tab keeps its Yjs client id across a reconnect
+  again.doc.clientID = old.doc.clientID;
+  again.announce("Ana");
+  await settle();
+  old.close();
+  await settle();
+  expect(staff.messages.filter((m) => (m as { type: string }).type === "left")).toEqual([]);
+  staff.close();
+  again.close();
+});
+
+test("edits made before hibernation are still there afterwards", async () => {
+  const staff = await join(await token());
+  write(staff.doc, "kept across sleep");
+  await expect.poll(async () => (await saved()).text, { timeout: 5000 }).toBe("kept across sleep");
+  await hibernate();
+  const other = await join(await token());
+  expect(content(other.doc)).toContain("kept across sleep");
+  staff.close();
+  other.close();
+});
+
+test("an idle guest is dropped when the link expires, with no traffic at all, even from a sleeping room", async () => {
+  const staff = await join(await token());
+  const late = await join((await guest({ until: Date.now() + 60_000 })).token);
+  const soon = await join((await guest({ until: Date.now() + 1500 })).token);
+  await hibernate();
+  expect(await soon.closed).toEqual({ code: 4403 });
+  // the next expiry is scheduled, and nobody else was dropped
+  await runInDurableObject(env.COLLAB_ROOM.getByName(docId), async (_room, state) => {
+    expect(await state.storage.getAlarm()).toBeGreaterThan(Date.now() + 30_000);
+  });
+  expect(late.ws!.readyState).toBe(1);
+  staff.close();
+  late.close();
 });

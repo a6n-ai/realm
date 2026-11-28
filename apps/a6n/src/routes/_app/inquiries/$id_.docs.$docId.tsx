@@ -9,6 +9,7 @@ import { useState } from "react";
 import { DocEditor } from "../../../components/meeting-docs/doc-editor";
 import { DocSettings } from "../../../components/meeting-docs/doc-settings";
 import { ShareDialog } from "../../../components/meeting-docs/share-dialog";
+import { DOC_VIEWPORT } from "../../../components/meeting-docs/viewport";
 import { EmptyState } from "../../../components/page/empty-state";
 import { InquiryDetailSkeleton } from "../../../components/page/skeletons";
 import { PageHeader } from "../../../components/shell/page-header";
@@ -18,6 +19,7 @@ import { getMeetingDocFn, staffRoomTokenFn } from "../../../lib/meeting-docs/mee
 const crumbs = [{ label: "Inquiries", to: "/inquiries" }, { label: "Meeting doc" }];
 
 export const Route = createFileRoute("/_app/inquiries/$id_/docs/$docId")({
+  head: () => ({ meta: [{ name: "viewport", content: DOC_VIEWPORT }] }),
   loader: ({ params }) => getMeetingDocFn({ data: { docId: params.docId } }),
   pendingComponent: InquiryDetailSkeleton,
   errorComponent: ({ error }) => {
