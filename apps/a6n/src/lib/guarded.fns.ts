@@ -40,3 +40,7 @@ const admin = createGuard<{ write: boolean }, Admin | null>({
   ...shared,
 });
 export const platform = <T>(write: boolean, fn: (admin: Admin) => Promise<T>) => admin.run({ write }, async (a) => (a ? fn(a) : null));
+
+// No sign-in: the caller's own input is the credential. Failures are reported like every other guard's.
+const visitor = createGuard<Need, null>({ actor: async () => null, ...shared });
+export const open = <T>(fn: () => Promise<T>) => visitor.run({}, fn);

@@ -78,11 +78,15 @@ export function createMeetingDocsService(db: CrmDb, org: string, rooms: RoomCont
       return (await summaries(sql`d.owner_ref = ${OWNER + inquiryId}`)).map(({ ownerRef, ...doc }) => doc);
     },
 
-    async get(docId: string): Promise<(DocSummary & { inquiryId: string }) | null> {
+    async get(docId: string): Promise<(DocSummary & { inquiryId: string; contactName: string | null }) | null> {
       const [row] = await summaries(sql`d.id = ${docId} AND d.owner_ref LIKE ${OWNER + "%"}`);
       if (!row) return null;
       const { ownerRef, ...doc } = row;
-      return { ...doc, inquiryId: ownerRef.slice(OWNER.length) };
+      const inquiryId = ownerRef.slice(OWNER.length);
+      const [contact] = await db.all<{ name: string | null }>(sql`SELECT coalesce(i.contact_name, c.name) AS name
+        FROM inquiries i LEFT JOIN companies c ON c.id = i.company_id
+        WHERE i.id = ${inquiryId} AND i.organization_id = ${org}`);
+      return { ...doc, inquiryId, contactName: contact?.name ?? null };
     },
 
     async setDefaultTtl(docId: string, seconds: number, actor: DocActor): Promise<{ ok: true } | Refusal> {

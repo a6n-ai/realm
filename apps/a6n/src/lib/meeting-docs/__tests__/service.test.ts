@@ -41,7 +41,7 @@ describe("meeting docs service", () => {
     expect(await svc().listForInquiry("inq_md")).toMatchObject([
       { id, title: "Meeting with Ana - 2026-11-28", createdByName: "me@x.io", hasContent: false, activeShares: 0 },
     ]);
-    expect(await svc().get(id)).toMatchObject({ id, inquiryId: "inq_md" });
+    expect(await svc().get(id)).toMatchObject({ id, inquiryId: "inq_md", contactName: "Ana" });
   });
 
   test("org B cannot start, list, open or share org A docs", async () => {
