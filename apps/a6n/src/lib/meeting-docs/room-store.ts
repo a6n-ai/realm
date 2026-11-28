@@ -4,6 +4,7 @@ import { LIMITS } from "@foundry/collab/limits";
 import type { CollabEvent } from "@foundry/collab/server";
 import { sql } from "drizzle-orm";
 import type { CrmDb } from "../../db/client";
+import { isGrantActive, isMemberGrant } from "../docs/access";
 
 // The Durable Object's storage. There is no actor here: the organisation comes from the doc row.
 
@@ -42,6 +43,7 @@ export async function isShareActive(
   until: number | null,
   now = Date.now(),
 ): Promise<boolean> {
+  if (isMemberGrant(shareId)) return isGrantActive(db, docId, shareId);
   if (until === null) return false;
   const found = await db.all(sql`SELECT 1 FROM collab_shares WHERE id = ${shareId} AND doc_id = ${docId}
     AND revoked_at IS NULL AND expires_at > ${now} AND expires_at >= ${until}`);

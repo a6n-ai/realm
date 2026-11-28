@@ -5,10 +5,13 @@ import { Buffer } from "node:buffer";
 import { beforeAll, beforeEach, expect, test } from "vitest";
 import * as Y from "yjs";
 import { connectRoom } from "../../../../test/collab-client";
-import { TEST_ORG } from "../../../../test/helpers";
+import { actorOf, freshId, insertUser, TEST_ORG } from "../../../../test/helpers";
 import { applyMigrations } from "../../../../test/migrate";
 import { getDb } from "../../../db/client";
 import { saveSnapshot } from "../room-store";
+import { createDocsService } from "../../docs/service";
+import { depsFor } from "../../deps";
+import { issueStaffRoomToken } from "../room-token";
 import { createMeetingDocsService } from "../service";
 import { ME, rows, seed } from "./seed";
 
@@ -393,4 +396,29 @@ test("a save that fails as the last person leaves is retried", async () => {
   staff.close();
   // the 2 s debounce is still pending when this poll gives up, so only the retry can satisfy it
   await expect.poll(async () => (await saved()).text, { timeout: 900 }).toBe("first\nlast words");
+});
+
+test("a member's own doc: removing a person drops only them, and deleting drops the creator without bringing the doc back", async () => {
+  const other = await insertUser(`r-${freshId()}@x.io`, "member");
+  const docs = createDocsService(getDb(env), TEST_ORG, ME, depsFor(env).rooms);
+  const { id } = await docs.create(actor);
+  docId = id;
+  await docs.setMember(id, other, "edit", actor);
+  const roomToken = async (userId: string) => {
+    const res = await issueStaffRoomToken(getDb(env), SECRET, actorOf(userId, "x", "member"), id);
+    if (!res.ok) throw new Error(res.code);
+    return res.token;
+  };
+  const creator = await join(await roomToken(ME));
+  const oldToken = await roomToken(other);
+  const friend = await join(oldToken);
+  await docs.removeMember(id, other);
+  expect(await friend.closed).toEqual({ code: 4403 });
+  expect(await (await connectRoom(id, oldToken)).closed).toEqual({ code: 4403 });
+  write(creator.doc, "still mine");
+  await settle();
+  await docs.remove(id);
+  expect(await creator.closed).toEqual({ code: 4403 });
+  await settle();
+  expect(await rows("select id from collab_docs where id = ?", id)).toEqual([]);
 });

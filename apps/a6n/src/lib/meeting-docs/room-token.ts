@@ -2,6 +2,7 @@ import { ROOM_TOKEN_TTL_SECONDS, signRoomToken } from "@foundry/collab/token";
 import { sql } from "drizzle-orm";
 import type { CrmDb } from "../../db/client";
 import type { Actor } from "../auth/actor";
+import { docAccess, OWN_DOC } from "../docs/access";
 import { hitRateLimit } from "./rate-limit";
 import { guestTokenSchema } from "./schemas";
 import { resolveShare } from "./share-link";
@@ -15,10 +16,24 @@ export type GuestRoomToken =
   | { ok: false; code: "expired" | "unavailable" | "rate_limited" | "invalid" };
 
 export async function issueStaffRoomToken(db: CrmDb, secret: string, actor: Actor, docId: string): Promise<StaffRoomToken> {
-  const found = await db.all(sql`SELECT 1 FROM collab_docs WHERE id = ${docId} AND organization_id = ${actor.organizationId}`);
-  if (!found.length) return { ok: false, code: "stale" };
-  const canEdit = actor.permissions.includes("inquiry:update");
-  const claims = { doc: docId, sub: actor.userId, name: actor.name, edit: canEdit, share: null, until: null };
+  const stale = { ok: false, code: "stale" } as const;
+  const [found] = await db.all<{ ownerRef: string }>(
+    sql`SELECT owner_ref AS ownerRef FROM collab_docs WHERE id = ${docId} AND organization_id = ${actor.organizationId}`,
+  );
+  if (!found) return stale;
+  let canEdit: boolean;
+  // set for a member's own doc, so the room can drop them when that access ends
+  let share: string | null = null;
+  if (found.ownerRef.startsWith(OWN_DOC)) {
+    const own = await docAccess(db, actor.organizationId, actor.userId, docId);
+    if (!own) return stale;
+    canEdit = own.access !== "view";
+    share = own.grant;
+  } else {
+    if (!actor.permissions.includes("inquiry:read")) return stale;
+    canEdit = actor.permissions.includes("inquiry:update");
+  }
+  const claims = { doc: docId, sub: actor.userId, name: actor.name, edit: canEdit, share, until: null };
   return { ok: true, token: await signRoomToken(secret, claims), canEdit };
 }
 
