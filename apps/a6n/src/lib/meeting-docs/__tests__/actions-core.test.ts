@@ -1,10 +1,11 @@
 import { env } from "cloudflare:test";
 import { beforeAll, beforeEach, expect, test } from "vitest";
-import { actorOf } from "../../../../test/helpers";
+import { actorOf, freshId, insertUser, TEST_ORG } from "../../../../test/helpers";
 import { applyMigrations } from "../../../../test/migrate";
 import { depsFor } from "../../deps";
 import { runCreateShare, runRevokeShare, runSetDefaultTtl, runSetShareExpiry, runStartDoc } from "../actions-core";
-import { ME, seed } from "./seed";
+import { createMeetingDocsService } from "../service";
+import { ME, rows, seed } from "./seed";
 
 const member = actorOf(ME, "Sam", "member");
 const reader = { ...member, permissions: ["inquiry:read" as const] };
@@ -45,4 +46,22 @@ test("invalid input is invalid", async () => {
   const invalid = { ok: false, code: "invalid" };
   expect(await runCreateShare(member, deps(), { docId, mode: "admin", expiresAt: later() })).toEqual(invalid);
   expect(await runStartDoc(member, deps(), { inquiryId: "inq_md", localDate: "28/11/2026" })).toEqual(invalid);
+});
+
+test("meeting-doc functions cannot touch a member's own doc, even for an owner", async () => {
+  const other = await insertUser(`o-${freshId()}@x.io`, "member");
+  await env.DB.prepare("insert into collab_docs (id, created_at, updated_at, organization_id, owner_ref, title) values ('cdc_priv', 1, 1, ?, ?, 'p')")
+    .bind(TEST_ORG, `user:${other}`)
+    .run();
+  await env.DB.prepare("insert into collab_shares (id, created_at, updated_at, doc_id, token_hash, mode, expires_at) values ('csh_priv', 1, 1, 'cdc_priv', 'h', 'view', ?)")
+    .bind(later())
+    .run();
+  const boss = actorOf(ME, "Sam", "owner");
+  const stale = { ok: false, code: "stale" };
+  expect(await runCreateShare(boss, deps(), { docId: "cdc_priv", mode: "edit", expiresAt: later() })).toEqual(stale);
+  expect(await runSetDefaultTtl(boss, deps(), { docId: "cdc_priv", seconds: 86400 })).toEqual(stale);
+  expect(await runSetShareExpiry(boss, deps(), { shareId: "csh_priv", expiresAt: later() })).toEqual(stale);
+  expect(await runRevokeShare(boss, deps(), { shareId: "csh_priv" })).toEqual(stale);
+  expect(await createMeetingDocsService(deps().db, TEST_ORG, deps().rooms).listShares("cdc_priv")).toEqual([]);
+  expect(await rows("select mode, revoked_at from collab_shares where id = 'csh_priv'")).toEqual([{ mode: "view", revoked_at: null }]);
 });
