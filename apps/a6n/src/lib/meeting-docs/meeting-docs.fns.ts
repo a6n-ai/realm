@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { getRequestHeaders, setResponseStatus } from "@tanstack/react-start/server";
 import { env } from "cloudflare:workers";
 import { depsFor } from "../deps";
-import { open, read, refusing, WRITE } from "../guarded.fns";
+import { open, read, readAny, refusing, WRITE } from "../guarded.fns";
 import { validate } from "../schemas";
 import { readSecret } from "../secrets";
 import { runCreateShare, runRevokeShare, runSetDefaultTtl, runSetShareExpiry, runStartDoc } from "./actions-core";
@@ -82,7 +82,8 @@ export const setDefaultTtlFn = createServerFn({ method: "POST" })
 export const staffRoomTokenFn = createServerFn({ method: "POST" })
   .validator(validate(docIdSchema))
   .handler(({ data }) =>
-    read("inquiry:read", async (actor) => issueStaffRoomToken(depsFor(env).db, await collabSecret(), actor, data.docId)),
+    // any member: the token function checks the doc's own access rule
+    readAny(async (actor) => issueStaffRoomToken(depsFor(env).db, await collabSecret(), actor, data.docId)),
   );
 
 // The two below are public: the share token is the only credential.
