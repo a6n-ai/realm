@@ -22,4 +22,5 @@ export const {
   auditLog,
   collabDocs,
   collabShares,
+  docMembers,
 } = buildTables(tables, "sqlite");

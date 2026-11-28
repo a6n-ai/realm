@@ -281,6 +281,22 @@ const auditLog = defineTable("audit_log", {
   data: c.json<Record<string, unknown>>("data"),
 });
 
+// Who, besides its creator, may open a member's own doc. A change of access gets a new id, which ends the old room grant.
+const docMembers = defineTable(
+  "doc_members",
+  {
+    ...c.updatable("dmb"),
+    docId: c.ref("doc_id").notNull().references(() => collabTables.collabDocs.columns.id, { onDelete: "cascade" }),
+    userId: c.ref("user_id").notNull().references(() => users.columns.id, { onDelete: "cascade" }),
+    mode: c.string("mode", 8).notNull(),
+  },
+  (t) => [
+    unique("doc_members_doc_user_uq").on(t.docId, t.userId),
+    index("doc_members_user_idx").on(t.userId),
+    check("doc_members_mode_ck", () => sql`mode in ('edit','view')`),
+  ],
+);
+
 export const tables = {
   users,
   organizations,
@@ -301,4 +317,5 @@ export const tables = {
   inquiryActivities,
   auditLog,
   ...collabTables,
+  docMembers,
 };

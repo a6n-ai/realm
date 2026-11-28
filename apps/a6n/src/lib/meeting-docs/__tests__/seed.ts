@@ -7,6 +7,7 @@ export const ME = "usr_md_me";
 export async function seed(): Promise<void> {
   const now = Date.now();
   await env.DB.batch([
+    env.DB.prepare("delete from doc_members"),
     env.DB.prepare("delete from collab_shares"),
     env.DB.prepare("delete from collab_docs"),
     env.DB.prepare("delete from inquiry_activities"),
