@@ -48,6 +48,7 @@ export function DocRowActions({ doc }: { doc: LibraryItem }) {
   const router = useRouter();
   const navigate = useNavigate();
   const search = useSearch({ from: "/_app/docs/" });
+  const [menu, setMenu] = useState(false);
   const [renaming, setRenaming] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const { can } = doc;
@@ -63,7 +64,7 @@ export function DocRowActions({ doc }: { doc: LibraryItem }) {
 
   return (
     <>
-      <DropdownMenu>
+      <DropdownMenu open={menu} onOpenChange={setMenu}>
         <DropdownMenuTrigger render={<Button variant="ghost" size="icon" aria-label={`Actions for ${doc.title}`} />}>
           <MoreHorizontalIcon aria-hidden className="size-4" />
         </DropdownMenuTrigger>
@@ -85,9 +86,11 @@ export function DocRowActions({ doc }: { doc: LibraryItem }) {
                 <DropdownMenuLabel>Type</DropdownMenuLabel>
                 <DropdownMenuRadioGroup
                   value={doc.kind}
-                  onValueChange={(v) =>
-                    v !== doc.kind && void runAction(() => setDocKindFn({ data: { ...data, kind: v as DocKind } }), "Type changed", refresh, errorText)
-                  }
+                  onValueChange={(v) => {
+                    // a radio item leaves the menu open
+                    setMenu(false);
+                    if (v !== doc.kind) void runAction(() => setDocKindFn({ data: { ...data, kind: v as DocKind } }), "Type changed", refresh, errorText);
+                  }}
                 >
                   {KIND_ORDER.map((kind) => (
                     <DropdownMenuRadioItem key={kind} value={kind}>
