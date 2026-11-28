@@ -11,7 +11,7 @@ const CollabEditor = lazy(() => import("@foundry/collab/react").then((m) => ({ d
 const STATUS_TEXT: Record<CollabStatus, string> = {
   connecting: "Connecting…",
   connected: "Live",
-  disconnected: "Offline, retrying",
+  disconnected: "Can't connect, retrying. Changes are not saved yet.",
   full: "That change is too large to save. Reload the page to keep editing.",
 };
 
