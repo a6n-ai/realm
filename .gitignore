@@ -72,6 +72,10 @@ skills-lock.json
 docs/
 # A route folder, not design docs: /api/public/v1/docs.
 !apps/tiffin-grab/app/api/public/v1/docs/
+# a6n's Docs section: code, not design docs.
+!apps/a6n/src/components/docs/
+!apps/a6n/src/lib/docs/
+!apps/a6n/src/routes/_app/docs/
 .vcscore
 .impeccable/
 
