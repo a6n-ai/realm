@@ -14,7 +14,7 @@ export function RepCodeFab() {
   const [coding, setCoding] = useState(false);
   return (
     <>
-      <div className="fixed right-4 bottom-24 z-40 flex items-center gap-2 md:right-6 md:bottom-6">
+      <div data-editor-hidden className="fixed right-4 bottom-24 z-40 flex items-center gap-2 md:right-6 md:bottom-6">
         <Button
           type="button"
           variant="outline"

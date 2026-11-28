@@ -1,4 +1,5 @@
-import { normalizeAddress, suppress, suppressionKind } from "@relay/engine";
+import { suppress, suppressionKind } from "@relay/engine";
+import { normalizeAddress } from "@foundry/commons";
 import { createLogger } from "@foundry/commons/logger";
 import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/db/client";

@@ -151,14 +151,17 @@ export default async function CampaignPage({
 
   if (sendable) {
     const channel = (row.channels as string[])[0] ?? "email";
+    // data-campaign-editor hides the section chrome and floating buttons (app.css).
     return (
-      <div className="space-y-4">
+      <div data-campaign-editor className="space-y-4">
         {staleAlert}
-        <div className="flex justify-end gap-2">
-          <CampaignDuplicateButton campaignPublicId={row.publicId} campaignName={row.name} lists={lists} timeZone={timezone} />
-          <CampaignDeleteButton campaignPublicId={row.publicId} name={row.name} />
-        </div>
         <CampaignFlow
+          actions={
+            <>
+              <CampaignDuplicateButton campaignPublicId={row.publicId} campaignName={row.name} lists={lists} timeZone={timezone} />
+              <CampaignDeleteButton campaignPublicId={row.publicId} name={row.name} />
+            </>
+          }
           campaignPublicId={row.publicId}
           name={row.name}
           status={row.status as "draft" | "scheduled"}

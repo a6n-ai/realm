@@ -19,6 +19,11 @@
   transition: none;
 }
 
+/* The campaign editor is a full page: no section header, tabs or date filter, no floating buttons. */
+.admin-ui:has([data-campaign-editor]) [data-editor-hidden] {
+  display: none;
+}
+
 /* Admin-only: customer screens share these filter components and keep their own look. Colour-only, no transitions. */
 .admin-ui [data-slot="filter-add"],
 .admin-ui [data-slot="filter-chip"],

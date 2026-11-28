@@ -9,23 +9,25 @@ export default async function NotificationsLayout({ children }: { children: Reac
   await requirePagePermission({ notification: ["read"] });
   return (
     <PageShell>
-      <PageHeader
-        icon={BellIcon}
-        title="Notifications"
-        subtitle="Templates, delivery logs, and analytics."
-      />
-      <DatedTabNav
-        ariaLabel="Notifications sections"
-        tabs={[
-          { href: "/dashboard/notifications/templates", label: "Templates" },
-          { href: "/dashboard/notifications/campaigns", label: "Campaigns" },
-          { href: "/dashboard/notifications/contact-lists", label: "Contact lists" },
-          { href: "/dashboard/notifications/unsubscribed", label: "Unsubscribed" },
-          { href: "/dashboard/notifications/logs", label: "Logs" },
-          { href: "/dashboard/notifications/analytics", label: "Analytics" },
-        ]}
-      />
-      <SectionDateRange />
+      <div data-editor-hidden className="space-y-6">
+        <PageHeader
+          icon={BellIcon}
+          title="Notifications"
+          subtitle="Templates, delivery logs, and analytics."
+        />
+        <DatedTabNav
+          ariaLabel="Notifications sections"
+          tabs={[
+            { href: "/dashboard/notifications/templates", label: "Templates" },
+            { href: "/dashboard/notifications/campaigns", label: "Campaigns" },
+            { href: "/dashboard/notifications/contact-lists", label: "Contact lists" },
+            { href: "/dashboard/notifications/unsubscribed", label: "Unsubscribed" },
+            { href: "/dashboard/notifications/logs", label: "Logs" },
+            { href: "/dashboard/notifications/analytics", label: "Analytics" },
+          ]}
+        />
+        <SectionDateRange />
+      </div>
       <div className="min-w-0">{children}</div>
     </PageShell>
   );

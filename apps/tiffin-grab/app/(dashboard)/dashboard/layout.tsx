@@ -212,7 +212,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
           />
           {children}
           {/* Room to scroll the last row out from under the floating button. */}
-          {hasRepAllowance && <div aria-hidden className="h-20" />}
+          {hasRepAllowance && <div aria-hidden data-editor-hidden className="h-20" />}
         </CrmShell>
         </AppCurrencyProvider>
         </NavAccessProvider>
