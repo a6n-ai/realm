@@ -1,4 +1,3 @@
-import { PresenceAvatars } from "@foundry/collab/presence";
 import type { CollabEditorProps } from "@foundry/collab/react";
 import { ErrorState } from "@foundry/console/error-state";
 import { Button } from "@foundry/ui/button";
@@ -8,6 +7,7 @@ import { sessionStore } from "@foundry/ui/safe-storage";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useEffect, useState, type FormEvent } from "react";
 import { DocEditor } from "../components/meeting-docs/doc-editor";
+import { PresenceNames } from "../components/meeting-docs/presence-names";
 import { DOC_VIEWPORT } from "../components/meeting-docs/viewport";
 import { errorText } from "../lib/error-copy";
 import { guestRoomTokenFn, openShareFn } from "../lib/meeting-docs/meeting-docs.fns";
@@ -52,19 +52,19 @@ function GuestPage() {
   return <GuestDoc key={share.shareId} token={token} share={share} />;
 }
 
-function NameForm({ onJoin }: { onJoin: (name: string) => void }) {
-  const [name, setName] = useState("");
+function NameForm({ onSubmit, initial = "", action }: { onSubmit: (name: string) => void; initial?: string; action: string }) {
+  const [name, setName] = useState(initial);
   const trimmed = name.trim();
   function submit(e: FormEvent) {
     e.preventDefault();
-    if (trimmed) onJoin(trimmed);
+    if (trimmed) onSubmit(trimmed);
   }
   return (
     <form onSubmit={submit} className="mx-auto grid w-full max-w-sm gap-3 pt-10">
       <Label htmlFor="guest-name">Your name</Label>
       <Input id="guest-name" autoFocus required maxLength={60} autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} />
       <Button type="submit" disabled={!trimmed}>
-        Join
+        {action}
       </Button>
     </form>
   );
@@ -75,8 +75,18 @@ function GuestDoc({ token, share }: { token: string; share: Extract<ShareView, {
   const [name, setName] = useState<string | null>(null);
   const [refusal, setRefusal] = useState<keyof typeof REFUSALS | null>(null);
   const [provider, setProvider] = useState<Parameters<NonNullable<CollabEditorProps["onProvider"]>>[0]>(null);
+  const [renaming, setRenaming] = useState(false);
   // storage is read after mount, so the server and the first client render agree
   useEffect(() => setName(sessionStore.get(key)), [key]);
+
+  function saveName(next: string) {
+    sessionStore.set(key, next);
+    setName(next);
+    setRenaming(false);
+    // the others see the new name at once; the room's activity log picks it up on the next reconnect
+    const me = provider?.awareness.getLocalState()?.user as Record<string, unknown> | undefined;
+    if (provider && me) provider.awareness.setLocalStateField("user", { ...me, name: next });
+  }
 
   if (refusal) return <Refusal text={REFUSALS[refusal]} />;
 
@@ -87,7 +97,21 @@ function GuestDoc({ token, share }: { token: string; share: Extract<ShareView, {
           <span className="text-sm font-semibold">{share.orgName}</span>
           <span className="text-xs text-muted-foreground">Shared by {share.sharedBy ?? share.orgName}</span>
         </div>
-        {provider ? <PresenceAvatars provider={provider} /> : null}
+        {name ? (
+          <Button variant="outline" size="sm" aria-expanded={renaming} onClick={() => setRenaming((v) => !v)}>
+            Change your name
+          </Button>
+        ) : null}
+        {renaming && name ? (
+          <div className="w-full">
+            <NameForm initial={name} action="Save" onSubmit={saveName} />
+          </div>
+        ) : null}
+        {provider ? (
+          <div className="w-full">
+            <PresenceNames provider={provider} />
+          </div>
+        ) : null}
       </header>
       <main className="grid gap-4">
         <h1 className="text-2xl font-semibold tracking-tight">{share.title}</h1>
@@ -105,12 +129,7 @@ function GuestDoc({ token, share }: { token: string; share: Extract<ShareView, {
             onProvider={setProvider}
           />
         ) : (
-          <NameForm
-            onJoin={(next) => {
-              sessionStore.set(key, next);
-              setName(next);
-            }}
-          />
+          <NameForm action="Join" onSubmit={saveName} />
         )}
       </main>
     </div>
