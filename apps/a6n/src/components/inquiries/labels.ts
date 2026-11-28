@@ -47,3 +47,26 @@ export function describeActivity(a: Activity): string {
       return TYPE_LABEL[a.type] ?? a.type;
   }
 }
+
+const HUMAN_TYPES = ["note", "call", "whatsapp", "email"];
+export const HUMAN_VERB: Record<string, string> = { note: "added a note", call: "logged a call", whatsapp: "logged a WhatsApp", email: "logged an email" };
+export const isSystemActivity = (a: Pick<Activity, "type">): boolean => !HUMAN_TYPES.includes(a.type);
+
+// Compact timeline line for events the system wrote, with the actor in front.
+export function systemLine(a: Activity): string {
+  const who = a.actorName ?? "Someone";
+  switch (a.type) {
+    case "created":
+      return `${who} created this inquiry`;
+    case "stage_change":
+      return `${who} moved ${stageLabel(a.fromStage ?? "")} → ${stageLabel(a.toStage ?? "")}`;
+    case "reopened":
+      return `${who} reopened it at ${stageLabel(a.toStage ?? "")}`;
+    case "reassigned":
+      if (!a.fromOwnerName && a.toOwnerName === a.actorName) return `${who} claimed it`;
+      if (a.fromOwnerName && !a.toOwnerName) return `Reassigned from ${a.fromOwnerName} (removed)`;
+      return `${who} assigned it to ${a.toOwnerName ?? "nobody"}`;
+    default:
+      return describeActivity(a);
+  }
+}

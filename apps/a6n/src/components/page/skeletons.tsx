@@ -2,7 +2,7 @@ import { Toolbar } from "@foundry/console/toolbar";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@foundry/ui/table";
 import type { ReactNode } from "react";
-import { Panel as DetailPanel } from "../inquiries/inquiry-detail";
+import { PropertiesCard, PropertyRow } from "../inquiries/property-row";
 import { PageHeader } from "../shell/page-header";
 import { Panel } from "./panel";
 import { SettingsCard } from "./settings-card";
@@ -190,52 +190,43 @@ const crumbs = [{ label: "Inquiries", to: "/inquiries" }, { label: "Inquiry" }];
 export function InquiryDetailSkeleton() {
   return (
     <>
-      <PageHeader crumbs={crumbs} actions={<Skeleton className="h-9 w-20" />} />
-      <div className="grid gap-4 px-4 pb-8 lg:grid-cols-[minmax(0,20rem)_minmax(0,1fr)]" aria-hidden="true">
-        <div className="grid content-start gap-4">
-          <DetailPanel title="Follow-up">
-            <Skeleton shape="pill" className="h-5 w-24" />
-            <div className="flex items-end gap-2">
-              <div className="grid flex-1 gap-2">
-                <Skeleton className="h-4 w-24" />
-                <Skeleton className="h-9 w-full" />
+      <PageHeader crumbs={crumbs} actions={<Skeleton className="h-7 w-24" />} />
+      <div className="grid items-start gap-6 px-4 pb-8 lg:grid-cols-[minmax(0,1fr)_20rem]" aria-hidden="true">
+        <aside className="order-first lg:order-last">
+          <PropertiesCard>
+            {["Status", "Owner", "Next follow-up", "Source", "Company", "Phone", "Email", "Created"].map((l) => (
+              <PropertyRow key={l} label={l}>
+                <Bar w="w-28" />
+              </PropertyRow>
+            ))}
+          </PropertiesCard>
+        </aside>
+        <div className="grid min-w-0 gap-8">
+          <section className="grid gap-3">
+            <h2 className="text-sm font-semibold">Requirements</h2>
+            <Bar w="w-full" lines={2} />
+          </section>
+          <section className="grid gap-3">
+            <h2 className="text-sm font-semibold">Activity</h2>
+            <div className="grid gap-3 rounded-lg border bg-card p-3">
+              <Skeleton className="h-[4.75rem] w-full" />
+              <div className="flex items-center justify-between">
+                <Skeleton className="h-8 w-40" />
+                <Skeleton className="h-8 w-28" />
               </div>
-              <Skeleton className="h-9 w-24" />
             </div>
-          </DetailPanel>
-          <DetailPanel title="Contact">
-            <div className="grid gap-3">
-              {["Name", "Phone", "Email", "Company", "Source", "Requirements", "Created"].map((l) => (
-                <div key={l} className="grid gap-0.5">
-                  <span className="text-xs text-muted-foreground">{l}</span>
-                  <Bar w="w-36" />
-                </div>
-              ))}
-            </div>
-          </DetailPanel>
-          <DetailPanel title="Owner">
-            <Skeleton className="h-9 w-full" />
-          </DetailPanel>
-        </div>
-        <div className="grid content-start gap-4">
-          <DetailPanel title="Log activity">
-            <Skeleton className="h-9 w-full" />
-            <Skeleton className="h-20 w-full" />
-            <Skeleton className="h-9 w-24" />
-          </DetailPanel>
-          <DetailPanel title="Activity">
-            <ul className="grid gap-4">
+            <ul className="grid gap-3">
               {[0, 1, 2].map((i) => (
                 <li key={i} className="flex gap-3">
                   <Skeleton shape="pill" className="size-6 shrink-0" />
-                  <div className="grid flex-1 gap-1">
+                  <div className="grid flex-1 gap-1 rounded-lg border bg-card p-3">
                     <Skeleton className="h-4 w-40" />
-                    <Skeleton className="h-4 w-3/4" />
+                    <Skeleton className="h-5 w-3/4" />
                   </div>
                 </li>
               ))}
             </ul>
-          </DetailPanel>
+          </section>
         </div>
       </div>
       <Loading />

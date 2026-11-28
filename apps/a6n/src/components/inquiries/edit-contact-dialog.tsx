@@ -65,9 +65,10 @@ function Form({ contact, done }: { contact: Contact; done: () => void }) {
   );
 }
 
-export function EditContactDialog({ contact }: { contact: Contact }) {
+// Pass open/onOpenChange to drive it from a menu or button; without them it renders its own trigger.
+export function EditContactDialog({ contact, open, onOpenChange }: { contact: Contact; open?: boolean; onOpenChange?: (open: boolean) => void }) {
   return (
-    <CreateDialog trigger="Edit contact" title="Edit contact">
+    <CreateDialog trigger={open === undefined ? "Edit contact" : undefined} open={open} onOpenChange={onOpenChange} title="Edit contact">
       {(done) => <Form contact={contact} done={done} />}
     </CreateDialog>
   );

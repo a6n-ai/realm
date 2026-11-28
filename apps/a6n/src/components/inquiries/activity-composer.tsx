@@ -7,6 +7,7 @@ import { useRouter } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 import { errorText } from "../../lib/error-copy";
 import { addActivityFn } from "../../lib/inquiries/inquiries.fns";
+import { ACTIVITY_ICON } from "./activity-timeline";
 import { ACTIVITY_TYPES } from "./labels";
 
 type ActivityType = (typeof ACTIVITY_TYPES)[number]["value"];
@@ -34,22 +35,28 @@ export function ActivityComposer({ id }: { id: string }) {
   }
 
   return (
-    <form onSubmit={submit} className="grid gap-3">
-      <Select value={type} onValueChange={(v) => setType(v as ActivityType)}>
-        <SelectTrigger aria-label="Activity type" className="sm:w-48">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {ACTIVITY_TYPES.map((t) => (
-            <SelectItem key={t.value} value={t.value}>
-              {t.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      <Textarea aria-label="Activity note" rows={3} value={note} onChange={(e) => setNote(e.target.value)} placeholder="What happened?" />
+    <form onSubmit={submit} className="grid gap-3 rounded-lg border bg-card p-3">
+      <Textarea aria-label="Activity note" rows={3} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Log a note, call, WhatsApp or email" />
       <FormError error={error} />
-      <div>
+      <div className="flex items-center justify-between gap-2">
+        <div className="w-40">
+          <Select value={type} onValueChange={(v) => setType(v as ActivityType)}>
+            <SelectTrigger aria-label="Activity type">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {ACTIVITY_TYPES.map((t) => {
+                const Icon = ACTIVITY_ICON[t.value]!;
+                return (
+                  <SelectItem key={t.value} value={t.value}>
+                    <Icon aria-hidden className="size-4" />
+                    {t.label}
+                  </SelectItem>
+                );
+              })}
+            </SelectContent>
+          </Select>
+        </div>
         <Button type="submit" disabled={pending}>
           Add activity
         </Button>

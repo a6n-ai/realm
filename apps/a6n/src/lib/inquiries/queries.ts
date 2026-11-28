@@ -52,6 +52,7 @@ export type InquiryDetail = {
   nextFollowUpAt: number | null;
   closedAt: number | null;
   createdAt: number;
+  createdByName: string | null;
   overdue: boolean;
   activities: Activity[];
 };
@@ -61,12 +62,13 @@ export async function getInquiryDetail(db: CrmDb, organizationId: string, id: st
     SELECT i.id, i.contact_name AS contactName, i.phone, i.email, c.name AS company, s.label AS source,
       ss.label AS subSource, i.requirements, i.stage, i.lost_reason AS lostReason, i.owner_id AS ownerId,
       o.name AS ownerName, o.status AS ownerStatus, i.next_follow_up_at AS nextFollowUpAt,
-      i.closed_at AS closedAt, i.created_at AS createdAt
+      i.closed_at AS closedAt, i.created_at AS createdAt, cr.name AS createdByName
     FROM inquiries i
     JOIN lead_sources s ON s.id = i.source_id
     LEFT JOIN lead_subsources ss ON ss.id = i.sub_source_id
     LEFT JOIN companies c ON c.id = i.company_id
     LEFT JOIN users o ON o.id = i.owner_id
+    LEFT JOIN users cr ON cr.id = i.created_by
     WHERE i.id = ${id} AND i.organization_id = ${organizationId}`);
   if (!row) return null;
   const activities = await db.all<Activity>(sql`

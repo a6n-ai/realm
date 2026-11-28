@@ -5,6 +5,7 @@ import { useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 import { errorText } from "../../lib/error-copy";
 import { assignFn, claimFn } from "../../lib/inquiries/inquiries.fns";
+import { OwnerAvatar } from "./owner-avatar";
 
 export function OwnerControl({
   id,
@@ -29,12 +30,13 @@ export function OwnerControl({
 
   return (
     <div className="grid gap-3">
-      <p>
+      <p className="flex items-center gap-2">
+        <OwnerAvatar name={ownerName} />
         {ownerName ? (
-          <>
+          <span>
             <span className="font-medium text-(--strong)">{ownerName}</span>
             {ownerRemoved ? <span className="text-muted-foreground"> (removed)</span> : null}
-          </>
+          </span>
         ) : (
           <span className="text-muted-foreground">Unassigned</span>
         )}
