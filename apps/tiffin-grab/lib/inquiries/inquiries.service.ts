@@ -779,14 +779,24 @@ class InquiriesService extends SessionUpdatableService<typeof inquiries> {
   // raw-row paged API that @foundry/routes exposes, and a projected/joined shape can't override it.
   // No explicit return annotation: PipelineRow is inferred from it (below), so
   // annotating `Promise<Page<PipelineRow>>` would be a circular type reference.
-  /** Every inquiry in the visible orgs, newest first. */
-  async listContacts(visible: Visible) {
+  /** Inquiries in the visible orgs matching the list's filters and tab, newest first. */
+  async listContacts(
+    visible: Visible,
+    condition?: Condition,
+    queue?: { tab: QueueTab; dayStart: number; dayEnd: number },
+    bucket?: SQL,
+  ) {
     if (noVisibleOrgs(visible)) return [];
     // shortcut: one query capped at 10k inquiries; page through it if the book outgrows that.
     return db
       .select({ fullName: inquiries.fullName, email: inquiries.email, phone: inquiries.phone })
       .from(inquiries)
-      .where(orgScope(inquiries.organizationId, visible))
+      .where(and(
+        orgScope(inquiries.organizationId, visible),
+        conditionToSql(condition, inquiriesResolver()),
+        queue ? queuePredicate(queue.tab, queue.dayStart, queue.dayEnd) : undefined,
+        bucket,
+      ))
       .orderBy(desc(inquiries.createdAt))
       .limit(10_000);
   }

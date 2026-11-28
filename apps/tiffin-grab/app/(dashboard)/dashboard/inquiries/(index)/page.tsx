@@ -1,15 +1,14 @@
 import { Suspense } from "react";
 import { eq, inArray } from "drizzle-orm";
 import { zonedDateIso } from "@foundry/commons";
-import { ClipboardListIcon, DownloadIcon, ListPlusIcon, PlusIcon, InboxIcon, UsersIcon, TrendingUpIcon, XCircleIcon } from "lucide-react";
+import { ClipboardListIcon, ListPlusIcon, PlusIcon, InboxIcon, UsersIcon, TrendingUpIcon, XCircleIcon } from "lucide-react";
 import { StatCards, StatCardsSkeleton } from "@/components/dashboard/stat-cards";
 import { db } from "@/db/client";
 import { deliveryZones, inquiries } from "@/db/schema";
 import { can, requirePagePermission } from "@/lib/auth/guards";
-import { LOST_REASON_LABELS } from "@/lib/inquiries/lost-reason";
 import { getAppSettings } from "@/lib/settings";
 import { listActiveLeadSources } from "@/lib/inquiries/lead-sources.service";
-import { inquiriesService, inquiryBucketWhere, type QueueTab } from "@/lib/inquiries/inquiries.service";
+import { inquiriesService, type QueueTab } from "@/lib/inquiries/inquiries.service";
 import { canReassign } from "@/lib/staff/reassign";
 import { listAssignableStaff } from "@/lib/staff/assignable-staff";
 import { parseSort } from "@foundry/design-system/list-sort";
@@ -20,10 +19,6 @@ import Link from "next/link";
 import { Button } from "@foundry/ui/button";
 import { Skeleton } from "@foundry/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@foundry/ui/tabs";
-import {
-  parseFilterState,
-  type FacetDef,
-} from "@/components/ds";
 import { AddInquirySheet } from "../new-inquiry-form";
 import { QuickAddDialog } from "../quick-add/quick-add-dialog";
 import { InquiriesList, InquiriesListSkeleton } from "../inquiries-list";
@@ -33,13 +28,14 @@ import { NextRenewalsGrid } from "../next-renewals-grid";
 import { recommendedRenewals } from "@/lib/renewals/next-renewal.service";
 import { resolveSessionVisibleOrgIds } from "@/lib/auth/visible-orgs";
 import { reassignInquiry } from "../actions";
-import { SUB_STATUSES, SUB_STATUS_META } from "@/lib/inquiries/status";
 import { QueueTabs } from "../queue-tabs";
+import { inquiryListQuery, inquirySpec } from "../list-query";
+import { InquiriesExportButton } from "../inquiries-export-button";
 import { InquiriesChrome } from "../inquiries-chrome";
 import { RenewalsQueue, RenewalsQueueSkeleton } from "../renewals-queue";
 import { MarkSectionRead } from "@/components/dashboard/mark-section-read";
-import { epochBoundsWhere, withDefaultMonth, withListDates } from "@/lib/list/default-month";
-import { inquiriesListHref, parseInquiryBucket } from "@/lib/list/inquiries-drill";
+import { epochBoundsWhere, withDefaultMonth } from "@/lib/list/default-month";
+import { inquiriesListHref } from "@/lib/list/inquiries-drill";
 import { dayRange } from "@foundry/commons/util/dates";
 import { requestNow } from "@/lib/dates/request-now";
 import { redirect } from "next/navigation";
@@ -48,13 +44,6 @@ import { ALL_OWNERS, ME, resolveOwnerParam } from "@/lib/list/presets";
 import { eq as facetEq } from "@foundry/commons/model/condition";
 type SearchParams = Promise<Record<string, string | undefined>>;
 
-// "none" is New (sub_status is null); the resolver maps it to `is null`.
-const SUB_STATUS_FACET_OPTIONS = [
-  { value: "none", label: "New" },
-  ...SUB_STATUSES.map((s) => ({ value: s, label: SUB_STATUS_META[s].label })),
-];
-
-const QUEUES: QueueTab[] = ["due", "overdue", "upcoming", "open", "closed", "quick"];
 const EMPTY_COPY: Record<QueueTab, string> = {
   due: "Nobody to chase today.",
   overdue: "Nothing overdue.",
@@ -269,12 +258,7 @@ async function NewInquiryAction() {
 
   return (
     <>
-      {canExport && (
-        <Button variant="outline" render={<a href="/api/inquiries/export" download />}>
-          <DownloadIcon className="size-4" />
-          Export
-        </Button>
-      )}
+      {canExport && <InquiriesExportButton />}
       <QuickAddDialog
         sources={sources}
         trigger={
@@ -341,15 +325,7 @@ function renewalOwnerHref(sp: Awaited<SearchParams>, owner: string): string {
 async function InquiriesData({ searchParams }: { searchParams: SearchParams }) {
   await requirePagePermission({ inquiry: ["read"] });
 
-  const sp = await withListDates(await searchParams);
-  const bucket = parseInquiryBucket(sp.bucket);
-  const queue = QUEUES.find((q) => q === sp.queue) ?? "due";
-  const sort = parseSort(
-    sp,
-    ["name", "owner", "stage", "source", "nextFollowUp", "created"],
-    // Quick adds are worked through oldest first.
-    { column: "created", dir: queue === "quick" ? "asc" : "desc" },
-  );
+  const raw = await searchParams;
 
   const [owners, { sources, subsources }, sheet, canReassignRecords, { timezone }, zoneOptions] = await Promise.all([
     loadOwnerOptions(),
@@ -360,23 +336,15 @@ async function InquiriesData({ searchParams }: { searchParams: SearchParams }) {
     db.selectDistinct({ value: deliveryZones.name, label: deliveryZones.name }).from(deliveryZones).where(eq(deliveryZones.active, true)).orderBy(deliveryZones.name),
   ]);
 
-  // Facet spec is server-authored so parseFilterState (server) and FacetFilters
-  // (client) read the same shape. Search is the "search" facet — rendered by the
-  // nav-bar search, not FacetFilters — and its OR(fullName, phone) is folded into
-  // the condition here.
-  const spec: FacetDef[] = [
-    { kind: "pills", field: "subStatus", label: "Status", options: SUB_STATUS_FACET_OPTIONS },
-    { kind: "select", field: "owner", label: "Owner", options: [{ value: ME, label: "Me" }, { value: ALL_OWNERS, label: "All owners" }, ...owners] },
-    { kind: "multi", field: "source", label: "Source", options: sources },
-    { kind: "multi", field: "subsource", label: "Subsource", options: subsources, dependsOn: "source" },
-    ...(zoneOptions.length ? [{ kind: "multi" as const, field: "zone", label: "Zone", options: zoneOptions }] : []),
-    { kind: "multi", field: "lostReason", label: "Lost reason", options: Object.entries(LOST_REASON_LABELS).map(([value, label]) => ({ value, label })) },
-    { kind: "dateRange", field: "createdAt", label: "Created" },
-    { kind: "search", fields: ["fullName", "phone", "email"] },
-  ];
-
+  const spec = inquirySpec({ owners, sources, subsources, zones: zoneOptions }).filter((f) => !("field" in f && f.field === "zone" && !zoneOptions.length));
   const viewer = (await getSession())?.user.id;
-  const { condition, page } = parseFilterState(spec, { ...sp, owner: resolveOwnerParam(sp.owner, viewer) });
+  const { sp, bucket, queue, condition, page, bucketWhere } = await inquiryListQuery(raw, viewer, spec);
+  const sort = parseSort(
+    sp,
+    ["name", "owner", "stage", "source", "nextFollowUp", "created"],
+    // Quick adds are worked through oldest first.
+    { column: "created", dir: queue === "quick" ? "asc" : "desc" },
+  );
   const todayIso = zonedDateIso(requestNow(), timezone);
   const { start: dayStart, end: dayEnd } = dayRange(todayIso, timezone);
   const [result, counts] = await Promise.all([
@@ -385,7 +353,7 @@ async function InquiriesData({ searchParams }: { searchParams: SearchParams }) {
       page,
       sort,
       bucket ? undefined : { tab: queue, dayStart, dayEnd },
-      bucket ? inquiryBucketWhere(bucket) : undefined,
+      bucketWhere,
     ),
     inquiriesService.queueCounts(condition, dayStart, dayEnd),
   ]);

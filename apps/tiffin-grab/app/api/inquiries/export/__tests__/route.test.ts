@@ -14,7 +14,11 @@ const visibleOrgs = vi.hoisted(() => vi.fn(async (): Promise<"all" | string[]> =
 vi.mock("@/lib/auth/visible-orgs", () => ({ resolveSessionVisibleOrgIds: visibleOrgs }));
 
 const { GET } = await import("../route");
-const call = () => GET();
+const call = (query = "") => GET(new Request(`http://localhost/api/inquiries/export?${query}`));
+const names = async (res: Response) => {
+  const wb = XLSX.read(new Uint8Array(await res.arrayBuffer()), { type: "array" });
+  return XLSX.utils.sheet_to_json<{ Name: string }>(wb.Sheets.Inquiries).map((r) => r.Name);
+};
 
 describe("GET /api/inquiries/export", () => {
   beforeEach(resetInquiryData);
@@ -46,6 +50,14 @@ describe("GET /api/inquiries/export", () => {
       await resetInquiryData();
       await db.delete(organization).where(inArray(organization.id, ids));
     }
+  });
+
+  it("follows the open tab and the search filter", async () => {
+    await insertTestInquiry({ fullName: "Ram Open", phone: "+16475551710" });
+    await insertTestInquiry({ fullName: "Sita Open", phone: "+16475551711" });
+    await insertTestInquiry({ fullName: "Ram Closed", phone: "+16475551712", stage: "lost" });
+    expect((await names(await call("queue=closed"))).toSorted()).toEqual(["Ram Closed"]);
+    expect(await names(await call("queue=open&q=ram"))).toEqual(["Ram Open"]);
   });
 
   it("denies a caller without the export permission", async () => {
