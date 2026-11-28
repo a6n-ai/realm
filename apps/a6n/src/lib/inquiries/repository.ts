@@ -1,8 +1,9 @@
 import { UpdatableRepository } from "@foundry/database";
-import { and, asc, desc, eq, isNull, lt, or, sql, type AnyColumn, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, gte, isNull, lt, or, sql, type AnyColumn, type SQL } from "drizzle-orm";
 import type { CrmDb } from "../../db/client";
 import { companies, inquiries, leadSources, users } from "../../db/schema";
 import { likePattern } from "./companies";
+import { STAGES, type Stage } from "./stages";
 
 export const PAGE_SIZE = 50;
 
@@ -22,6 +23,11 @@ export type InquiryRow = {
   overdue: boolean;
 };
 
+export const BOARD_CARDS = 50;
+export const BOARD_CLOSED_DAYS = 30;
+export const BOARD_STAGES = STAGES;
+export type BoardColumn = { stage: Stage; count: number; cards: InquiryRow[] };
+
 export type ListFilters = { stage?: string; sourceId?: string; ownerId?: string; overdue?: boolean };
 
 export class InquiriesRepository extends UpdatableRepository<typeof inquiries, CrmDb, string> {
@@ -29,17 +35,11 @@ export class InquiriesRepository extends UpdatableRepository<typeof inquiries, C
     super(db, inquiries, inquiries.id, inquiries.id);
   }
 
-  async listForView(args: {
-    organizationId: string;
-    view: InquiryView;
-    userId: string;
-    filters?: ListFilters;
-    search?: string;
-    page?: number;
-    now?: number;
-  }): Promise<{ rows: InquiryRow[]; hasNext: boolean }> {
-    const { view, userId, filters = {}, search, page = 0 } = args;
-    const now = args.now ?? Date.now();
+  private conditions(
+    args: { organizationId: string; view: InquiryView; userId: string; filters?: ListFilters; search?: string },
+    now: number,
+  ): (SQL | undefined)[] {
+    const { view, userId, filters = {}, search } = args;
     const where: (SQL | undefined)[] = [eq(inquiries.organizationId, args.organizationId)];
     if (view === "mine") where.push(eq(inquiries.ownerId, userId), isNull(inquiries.closedAt));
     if (view === "unassigned") where.push(isNull(inquiries.ownerId), isNull(inquiries.closedAt));
@@ -51,10 +51,68 @@ export class InquiriesRepository extends UpdatableRepository<typeof inquiries, C
     if (q) {
       const p = likePattern(q);
       const esc = (col: SQL | AnyColumn) => sql`${col} like ${p} escape '\\'`;
-      where.push(
-        or(esc(inquiries.contactName), esc(companies.name), esc(inquiries.email), esc(inquiries.phone)),
-      );
+      where.push(or(esc(inquiries.contactName), esc(companies.name), esc(inquiries.email), esc(inquiries.phone)));
     }
+    return where;
+  }
+
+  // Per-stage counts plus the first BOARD_CARDS cards of each stage. Closed stages only show the last BOARD_CLOSED_DAYS days.
+  async board(args: {
+    organizationId: string;
+    view: InquiryView;
+    userId: string;
+    filters?: ListFilters;
+    search?: string;
+    now?: number;
+  }): Promise<BoardColumn[]> {
+    const now = args.now ?? Date.now();
+    const cutoff = now - BOARD_CLOSED_DAYS * 86_400_000;
+    const where = and(
+      ...this.conditions({ ...args, filters: { ...args.filters, stage: undefined } }, now),
+      or(isNull(inquiries.closedAt), gte(inquiries.closedAt, cutoff)),
+    );
+    const from = sql`FROM ${inquiries}
+      INNER JOIN ${leadSources} ON ${inquiries.sourceId} = ${leadSources.id}
+      LEFT JOIN ${companies} ON ${inquiries.companyId} = ${companies.id}
+      LEFT JOIN ${users} ON ${inquiries.ownerId} = ${users.id}
+      WHERE ${where}`;
+    const counts = await this.db.all<{ stage: string; n: number }>(sql`SELECT ${inquiries.stage} AS stage, count(*) AS n ${from} GROUP BY ${inquiries.stage}`);
+    const cards = await this.db.all<Omit<InquiryRow, "ownerRemoved" | "overdue"> & { ownerStatus: string | null; closedAt: number | null }>(sql`
+      SELECT * FROM (
+        SELECT ${inquiries.id} AS id, ${inquiries.contactName} AS contactName, ${companies.name} AS companyName, ${inquiries.phone} AS phone,
+          ${leadSources.label} AS source, ${inquiries.stage} AS stage, ${inquiries.ownerId} AS ownerId, ${users.name} AS ownerName,
+          ${users.status} AS ownerStatus, ${inquiries.nextFollowUpAt} AS nextFollowUpAt, ${inquiries.closedAt} AS closedAt,
+          row_number() OVER (
+            PARTITION BY ${inquiries.stage}
+            ORDER BY CASE WHEN ${inquiries.closedAt} IS NULL THEN ${inquiries.nextFollowUpAt} ELSE -${inquiries.closedAt} END, ${inquiries.id}
+          ) AS rn
+        ${from}
+      ) WHERE rn <= ${BOARD_CARDS}`);
+    return BOARD_STAGES.map((stage) => ({
+      stage,
+      count: Number(counts.find((c) => c.stage === stage)?.n ?? 0),
+      cards: cards
+        .filter((c) => c.stage === stage)
+        .map(({ ownerStatus, closedAt, ...r }) => ({
+          ...r,
+          ownerRemoved: ownerStatus === "removed",
+          overdue: closedAt === null && r.nextFollowUpAt !== null && r.nextFollowUpAt < now,
+        })),
+    }));
+  }
+
+  async listForView(args: {
+    organizationId: string;
+    view: InquiryView;
+    userId: string;
+    filters?: ListFilters;
+    search?: string;
+    page?: number;
+    now?: number;
+  }): Promise<{ rows: InquiryRow[]; hasNext: boolean }> {
+    const { view, filters = {}, page = 0 } = args;
+    const now = args.now ?? Date.now();
+    const where = this.conditions(args, now);
     const order =
       view === "all"
         ? [desc(inquiries.createdAt), desc(inquiries.id)]
@@ -115,6 +173,8 @@ export class InquiriesRepository extends UpdatableRepository<typeof inquiries, C
 
 export const listForView = (db: CrmDb, args: Parameters<InquiriesRepository["listForView"]>[0]) =>
   new InquiriesRepository(db).listForView(args);
+
+export const listBoard = (db: CrmDb, args: Parameters<InquiriesRepository["board"]>[0]) => new InquiriesRepository(db).board(args);
 
 export const unassignedCounts = (db: CrmDb, organizationId: string, now?: number) =>
   new InquiriesRepository(db).unassignedCounts(organizationId, now);

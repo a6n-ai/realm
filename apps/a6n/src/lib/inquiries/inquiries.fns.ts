@@ -14,7 +14,7 @@ import {
   runUpdateContact,
 } from "./actions-core";
 import { searchCompanies } from "./companies";
-import { getInquiryDetail, listInquiriesPage, listOwners } from "./queries";
+import { getInquiryDetail, listBoardColumns, listInquiriesPage, listOwners } from "./queries";
 import {
   addActivitySchema,
   assignSchema,
@@ -22,6 +22,7 @@ import {
   claimSchema,
   createInquirySchema,
   getInquirySchema,
+  listBoardSchema,
   listInquiriesSchema,
   reopenSchema,
   searchCompaniesSchema,
@@ -33,6 +34,10 @@ import { createSourcesService } from "./sources";
 export const listInquiriesFn = createServerFn({ method: "GET" })
   .validator(validate(listInquiriesSchema))
   .handler(({ data }) => read("inquiry:read", (actor) => listInquiriesPage(depsFor(env).db, actor, data)));
+
+export const listBoardFn = createServerFn({ method: "GET" })
+  .validator(validate(listBoardSchema))
+  .handler(({ data }) => read("inquiry:read", (actor) => listBoardColumns(depsFor(env).db, actor, data)));
 
 export const getInquiryFn = createServerFn({ method: "GET" })
   .validator(validate(getInquirySchema))

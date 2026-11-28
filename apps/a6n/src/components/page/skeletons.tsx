@@ -3,6 +3,7 @@ import { Skeleton } from "@foundry/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@foundry/ui/table";
 import type { ReactNode } from "react";
 import { PropertiesCard, PropertyRow } from "../inquiries/property-row";
+import { STAGES } from "../../lib/inquiries/stages";
 import { PageHeader } from "../shell/page-header";
 import { Panel } from "./panel";
 import { SettingsCard } from "./settings-card";
@@ -231,6 +232,24 @@ export function InquiryDetailSkeleton() {
       </div>
       <Loading />
     </>
+  );
+}
+
+export function BoardSkeleton() {
+  return (
+    <div className="flex gap-3 overflow-hidden px-4 pb-4" aria-hidden="true">
+      {STAGES.map((stage, col) => (
+        <div key={stage} className="grid w-72 shrink-0 content-start gap-2 rounded-xl border bg-card p-2">
+          <div className="flex h-8 items-center justify-between px-1">
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-4 w-5" />
+          </div>
+          {Array.from({ length: Math.max(1, 3 - (col % 3)) }, (_, i) => (
+            <Skeleton key={i} className="h-[4.5rem] w-full" />
+          ))}
+        </div>
+      ))}
+    </div>
   );
 }
 

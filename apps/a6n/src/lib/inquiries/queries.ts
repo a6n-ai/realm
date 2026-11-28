@@ -1,10 +1,11 @@
 import { sql } from "drizzle-orm";
 import type { CrmDb } from "../../db/client";
-import { listForView, type InquiryRow } from "./repository";
-import type { listInquiriesSchema } from "./schemas";
+import { listBoard, listForView, type BoardColumn, type InquiryRow } from "./repository";
+import type { listBoardSchema, listInquiriesSchema } from "./schemas";
 import type { z } from "zod";
 
 export type ListInput = z.output<typeof listInquiriesSchema>;
+export type BoardInput = z.output<typeof listBoardSchema>;
 export type InquiryPage = { rows: InquiryRow[]; hasNext: boolean; page: number };
 
 export async function listInquiriesPage(
@@ -22,6 +23,15 @@ export async function listInquiriesPage(
   });
   return { ...res, page: input.page };
 }
+
+export const listBoardColumns = (db: CrmDb, actor: { userId: string; organizationId: string }, input: BoardInput): Promise<BoardColumn[]> =>
+  listBoard(db, {
+    organizationId: actor.organizationId,
+    view: input.view,
+    userId: actor.userId,
+    filters: { sourceId: input.source, ownerId: input.owner, overdue: input.due === "1" },
+    search: input.q,
+  });
 
 export type Activity = {
   id: string;

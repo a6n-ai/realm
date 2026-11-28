@@ -1,60 +1,29 @@
-import { ConfirmDialog } from "@foundry/console/confirm-dialog";
-import { confirmAction, runAction } from "@foundry/console/run-action";
+import { runAction } from "@foundry/console/run-action";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@foundry/ui/dropdown-menu";
 import { useRouter } from "@tanstack/react-router";
 import { CheckIcon, ChevronDownIcon } from "lucide-react";
-import { useEffect, useState } from "react";
-import { createPortal } from "react-dom";
+import { useState } from "react";
 import { errorText } from "../../lib/error-copy";
 import { changeStageFn } from "../../lib/inquiries/inquiries.fns";
 import { isStage, type Stage } from "../../lib/inquiries/stages";
-import { ResponsiveDialog } from "../responsive-dialog";
 import { STAGE_LABEL } from "./labels";
-import { LostForm } from "./lost-form";
-import { ReopenForm } from "./reopen-form";
+import { StageDialogs, type StageDialog } from "./stage-dialogs";
 import { StageBadge } from "./stage-badge";
 import { pickStage, stageMenuModel } from "./stage-menu-items";
 
-type Dialog = "lost" | "won" | "reopen" | null;
-
-// The badge is the trigger. The dialogs portal to <body>: inside a table cell, ResourceTable's row rules (`td button`: relative) would break their close button.
+// The badge is the trigger.
 export function StageMenu({ id, stage, canEdit }: { id: string; stage: string; canEdit: boolean }) {
   const router = useRouter();
-  const [dialog, setDialog] = useState<Dialog>(null);
-  const [host, setHost] = useState<HTMLElement | null>(null);
-  useEffect(() => setHost(document.body), []);
+  const [dialog, setDialog] = useState<StageDialog>(null);
   if (!canEdit || !isStage(stage)) return <StageBadge stage={stage} />;
   const model = stageMenuModel(stage);
-  const move = (to: Stage, run: typeof runAction) => run(() => changeStageFn({ data: { id, from: stage, to, lostReason: null } }), `Moved to ${STAGE_LABEL[to]}`, () => router.invalidate(), errorText);
+  const move = (to: Stage) => runAction(() => changeStageFn({ data: { id, from: stage, to, lostReason: null } }), `Moved to ${STAGE_LABEL[to]}`, () => router.invalidate(), errorText);
 
   function pick(to: Stage) {
     const action = pickStage(stage, to);
     if (action === "lost" || action === "won") setDialog(action);
-    else if (action === "change") void move(to, runAction);
+    else if (action === "change") void move(to);
   }
-
-  const dialogs = (
-    <>
-      <ResponsiveDialog open={dialog === "lost"} onOpenChange={(o) => !o && setDialog(null)} title="Mark as lost" description="Why was this inquiry lost?">
-        <LostForm id={id} from={stage} done={() => setDialog(null)} />
-      </ResponsiveDialog>
-      <ResponsiveDialog open={dialog === "reopen"} onOpenChange={(o) => !o && setDialog(null)} title="Reopen inquiry">
-        <ReopenForm id={id} done={() => setDialog(null)} />
-      </ResponsiveDialog>
-      <ConfirmDialog
-        open={dialog === "won"}
-        onOpenChange={(o) => !o && setDialog(null)}
-        title="Mark as won?"
-        description="The inquiry closes as won. You can reopen it later."
-        confirmLabel="Mark as won"
-        destructive={false}
-        onConfirm={async () => {
-          await move("won", confirmAction);
-          setDialog(null);
-        }}
-      />
-    </>
-  );
 
   return (
     <>
@@ -78,7 +47,7 @@ export function StageMenu({ id, stage, canEdit }: { id: string; stage: string; c
           ) : null}
         </DropdownMenuContent>
       </DropdownMenu>
-      {host ? createPortal(dialogs, host) : null}
+      <StageDialogs id={id} stage={stage} dialog={dialog} close={() => setDialog(null)} />
     </>
   );
 }

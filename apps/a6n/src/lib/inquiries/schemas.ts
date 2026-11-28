@@ -49,3 +49,4 @@ export const listInquiriesSchema = z.object({
 });
 export const getInquirySchema = z.object({ id });
 export const searchCompaniesSchema = z.object({ q: z.string().max(200) });
+export const listBoardSchema = listInquiriesSchema.omit({ stage: true, page: true });
