@@ -60,7 +60,7 @@ export function PageHeader({ crumbs, title: titleOverride, badge, actions, descr
             </div>
             {description ? <p className="text-base text-muted-foreground">{description}</p> : null}
           </div>
-          {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}
+          {actions ? <div className="flex shrink-0 items-center gap-2 self-start">{actions}</div> : null}
         </div>
       ) : null}
     </>

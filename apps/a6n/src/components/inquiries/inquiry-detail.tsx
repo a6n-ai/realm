@@ -1,14 +1,8 @@
-import { runAction } from "@foundry/console/run-action";
 import { Button } from "@foundry/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@foundry/ui/dropdown-menu";
-import { Input } from "@foundry/ui/input";
 import { toast } from "@foundry/ui/toast";
-import { useRouter } from "@tanstack/react-router";
 import { CheckIcon, CopyIcon, MoreHorizontalIcon } from "lucide-react";
 import { useState } from "react";
-import { fromDateInput, toDateInput } from "../../lib/dates";
-import { errorText } from "../../lib/error-copy";
-import { setFollowUpFn } from "../../lib/inquiries/inquiries.fns";
 import type { InquiryDetail as Detail } from "../../lib/inquiries/queries";
 import type { LostReason } from "../../lib/inquiries/stages";
 import { formatPhone, telHref } from "../../lib/phone";
@@ -18,33 +12,11 @@ import { PageHeader } from "../shell/page-header";
 import { ActivityComposer } from "./activity-composer";
 import { ActivityTimeline } from "./activity-timeline";
 import { EditContactDialog } from "./edit-contact-dialog";
-import { FollowUpBadge } from "./follow-up-badge";
+import { FollowUpControl } from "./follow-up-control";
 import { LOST_LABEL } from "./labels";
 import { OwnerControl } from "./owner-control";
 import { PropertiesCard, PropertyRow } from "./property-row";
 import { StageMenu } from "./stage-menu";
-
-function FollowUp({ id, at, overdue, editable }: { id: string; at: number | null; overdue: boolean; editable: boolean }) {
-  const router = useRouter();
-  const [value, setValue] = useState(at === null ? "" : toDateInput(at));
-  const next = fromDateInput(value);
-  const dirty = value !== (at === null ? "" : toDateInput(at));
-  return (
-    <div className="grid gap-2">
-      <FollowUpBadge at={at} overdue={overdue} />
-      {editable ? (
-        <>
-          <Input aria-label="Next follow-up" type="date" value={value} onChange={(e) => setValue(e.target.value)} />
-          {next !== null && dirty ? (
-            <Button variant="outline" onClick={() => runAction(() => setFollowUpFn({ data: { id, at: next } }), "Follow-up saved", () => router.invalidate(), errorText)}>
-              Save date
-            </Button>
-          ) : null}
-        </>
-      ) : null}
-    </div>
-  );
-}
 
 function CopyEmail({ email }: { email: string }) {
   const [copied, setCopied] = useState(false);
@@ -78,7 +50,6 @@ export function InquiryDetail({ inquiry: i, owners, canAssign, canEdit }: { inqu
         description={i.company ?? undefined}
         actions={
           <>
-            <StageMenu id={i.id} stage={i.stage} canEdit={canEdit} />
             {canEdit ? (
               <>
                 <DropdownMenu>
@@ -105,7 +76,7 @@ export function InquiryDetail({ inquiry: i, owners, canAssign, canEdit }: { inqu
               <OwnerControl id={i.id} ownerId={i.ownerId} ownerName={i.ownerName} ownerRemoved={i.ownerRemoved} open={open} canAssign={canAssign} owners={owners} />
             </PropertyRow>
             <PropertyRow label="Next follow-up">
-              <FollowUp key={i.nextFollowUpAt ?? "none"} id={i.id} at={i.nextFollowUpAt} overdue={i.overdue} editable={open && canEdit} />
+              <FollowUpControl key={i.nextFollowUpAt ?? "none"} id={i.id} at={i.nextFollowUpAt} overdue={i.overdue} editable={open && canEdit} />
             </PropertyRow>
             <PropertyRow label="Source">
               {i.source}
@@ -115,7 +86,7 @@ export function InquiryDetail({ inquiry: i, owners, canAssign, canEdit }: { inqu
             <PropertyRow label="Phone">{i.phone ? <a className={LINK} href={telHref(i.phone)}>{formatPhone(i.phone)}</a> : null}</PropertyRow>
             <PropertyRow label="Email">
               {i.email ? (
-                <span className="flex min-w-0 items-center gap-1">
+                <span className="-my-1.5 flex min-w-0 items-center gap-1">
                   <a className={`truncate ${LINK}`} href={`mailto:${i.email}`}>
                     {i.email}
                   </a>
@@ -125,8 +96,12 @@ export function InquiryDetail({ inquiry: i, owners, canAssign, canEdit }: { inqu
             </PropertyRow>
             {i.lostReason ? <PropertyRow label="Lost reason">{LOST_LABEL[i.lostReason as LostReason] ?? i.lostReason}</PropertyRow> : null}
             <PropertyRow label="Created">
-              <LocalTime at={i.createdAt} />
-              {i.createdByName ? <span className="text-muted-foreground"> by {i.createdByName}</span> : null}
+              <span className="grid">
+                <span className="whitespace-nowrap">
+                  <LocalTime at={i.createdAt} />
+                </span>
+                {i.createdByName ? <span className="text-xs text-muted-foreground">by {i.createdByName}</span> : null}
+              </span>
             </PropertyRow>
           </PropertiesCard>
         </aside>
