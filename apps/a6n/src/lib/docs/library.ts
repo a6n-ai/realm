@@ -119,19 +119,21 @@ export function createDocsLibrary(db: CrmDb, actor: Actor, rooms: Rooms, archive
   // True once the rows are gone.
   const archiveDoc = async (docId: string): Promise<boolean> => {
     await rooms.closeAll(docId);
-    const [doc] = await db.all<Omit<ArchivedDoc, "archivedAt" | "archivedBy" | "members" | "links"> & { updatedAt: number }>(sql`
+    const [doc] = await db.all<Omit<ArchivedDoc, "archivedAt" | "archivedBy" | "members" | "links"> & { updatedAt: number; markedAt: number }>(sql`
       SELECT d.id, d.organization_id AS organizationId, d.owner_ref AS ownerRef, m.kind, d.title, d.snapshot, d.text,
-        d.created_at AS createdAt, d.created_by AS createdBy, d.updated_at AS updatedAt
+        d.created_at AS createdAt, d.created_by AS createdBy, d.updated_at AS updatedAt, m.updated_at AS markedAt
       FROM collab_docs d JOIN doc_meta m ON m.doc_id = d.id WHERE d.id = ${docId} AND m.trashed_at IS NOT NULL`);
     if (!doc) return false;
-    const { updatedAt, ...content } = doc;
+    const { updatedAt, markedAt, ...content } = doc;
     const members = await db.all<ArchivedDoc["members"][number]>(sql`SELECT user_id AS userId, mode FROM doc_members WHERE doc_id = ${docId}`);
     const links = await db.all<ArchivedDoc["links"][number]>(sql`SELECT id, mode, token_hash AS tokenHash, expires_at AS expiresAt,
         revoked_at AS revokedAt, created_by AS createdBy FROM collab_shares WHERE doc_id = ${docId}`);
     await archive.put({ ...content, members, links, archivedAt: Date.now(), archivedBy: me });
-    // only what was copied: still in Trash and not saved since. Members, links and meta go with the row
+    // only what was copied: not saved since, and in Trash without a break, so nobody could add a person or a link.
+    // Members, links and meta go with the row
     const gone = await db.all(sql`DELETE FROM collab_docs WHERE id = ${docId} AND updated_at = ${updatedAt}
-      AND EXISTS (SELECT 1 FROM doc_meta t WHERE t.doc_id = collab_docs.id AND t.trashed_at IS NOT NULL) RETURNING id`);
+      AND EXISTS (SELECT 1 FROM doc_meta t WHERE t.doc_id = collab_docs.id AND t.trashed_at IS NOT NULL
+        AND t.updated_at = ${markedAt}) RETURNING id`);
     return gone.length > 0;
   };
 

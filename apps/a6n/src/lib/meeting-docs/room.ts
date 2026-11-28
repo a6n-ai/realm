@@ -19,9 +19,18 @@ export class CollabRoom extends BaseCollabRoom<Env> {
     return claims && (await isDocOpen(getDb(this.env), claims.doc)) ? claims : null;
   }
 
-  /** RPC: drop every open connection. */
+  private loaded = false;
+
+  async onLoad(): Promise<void> {
+    await super.onLoad();
+    this.loaded = true;
+  }
+
+  /** RPC: drop every open connection and store what they typed. A save that fails fails the caller. */
   async closeAll(): Promise<void> {
     for (const conn of this.getConnections()) conn.close(4403, "closed");
+    // a room that never loaded holds an empty doc, which must not replace the stored one (asleep means already saved)
+    if (this.loaded) await this.onSave();
   }
 
   protected loadSnapshot(docId: string) {

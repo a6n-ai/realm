@@ -198,3 +198,18 @@ test("a doc that changed while it was being archived stays in Trash", async () =
   expect(await lib(ME).deleteForever(id)).toEqual({ ok: true });
   expect(await archived(id)).toMatchObject({ text: "late" });
 });
+
+test("a doc restored, shared and trashed again while it was being archived keeps its rows", async () => {
+  const { id } = await docs().create(me);
+  await lib(ME).trash(id);
+  const late = createDocsLibrary(db(), actor(ME), depsFor(env).rooms, {
+    put: async () => {
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      await lib(ME).restore(id);
+      await docs().setMember(id, other, "edit", me);
+      await lib(ME).trash(id);
+    },
+  });
+  expect(await late.deleteForever(id)).toEqual(stale);
+  expect(await rows("select user_id from doc_members where doc_id = ?", id)).toEqual([{ user_id: other }]);
+});

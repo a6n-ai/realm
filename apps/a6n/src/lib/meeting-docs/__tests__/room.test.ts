@@ -425,3 +425,20 @@ test("a member's own doc: removing a person drops only them, and Trash drops the
   // a staff token with no grant, as meeting docs use, is refused too
   expect(await (await connectRoom(id, await token({ doc: id }))).closed).toEqual({ code: 4401 });
 });
+
+test("edits not yet saved are stored by the time closeAll resolves", async () => {
+  const staff = await join(await token());
+  write(staff.doc, "just typed");
+  await new Promise((resolve) => setTimeout(resolve, 100));
+  expect((await saved()).text ?? "").not.toContain("just typed");
+  await env.COLLAB_ROOM.getByName(docId).closeAll();
+  expect((await saved()).text).toContain("just typed");
+});
+
+test("closeAll on a room that never loaded leaves the stored doc alone", async () => {
+  const stored = new Y.Doc();
+  write(stored, "kept notes");
+  await saveSnapshot(getDb(env), docId, Y.encodeStateAsUpdate(stored), "kept notes");
+  await env.COLLAB_ROOM.getByName(docId).closeAll();
+  expect((await saved()).text).toContain("kept notes");
+});
