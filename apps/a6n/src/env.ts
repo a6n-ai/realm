@@ -11,7 +11,7 @@ declare global {
       BETTER_AUTH_SECRET: SecretValue;
       RELAY_API_KEY?: SecretValue;
       COLLAB_SECRET?: SecretValue;
-      COLLAB_ROOM: DurableObjectNamespace<import("@foundry/collab/server").CollabRoom>;
+      COLLAB_ROOM: DurableObjectNamespace<import("./lib/meeting-docs/room").CollabRoom>;
       MAILER?: string;
     }
   }
