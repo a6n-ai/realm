@@ -20,4 +20,6 @@ export const {
   inquiries,
   inquiryActivities,
   auditLog,
+  collabDocs,
+  collabShares,
 } = buildTables(tables, "sqlite");

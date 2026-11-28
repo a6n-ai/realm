@@ -1,3 +1,4 @@
 MAILER=console
 BETTER_AUTH_SECRET=a6n-local-secret-a6n-local-secret-a6n
 BETTER_AUTH_URL=http://localhost:3003
+COLLAB_SECRET=a6n-local-collab-secret-a6n-local-collab

@@ -28,6 +28,7 @@
   "secrets_store_secrets": [
     { "binding": "BETTER_AUTH_SECRET", "store_id": "d374ac890df14bff9410ff67ae23f88b", "secret_name": "A6N_BETTER_AUTH_SECRET" },
     { "binding": "RELAY_API_KEY", "store_id": "d374ac890df14bff9410ff67ae23f88b", "secret_name": "A6N_RELAY_API_KEY" },
+    { "binding": "COLLAB_SECRET", "store_id": "d374ac890df14bff9410ff67ae23f88b", "secret_name": "A6N_COLLAB_SECRET" },
   ],
   // Bindings are not inherited by environments, so neither of these binds the Secrets Store.
   "env": {

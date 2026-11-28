@@ -6,6 +6,8 @@
 @source "../node_modules/@foundry/ui/src";
 @source "../node_modules/@foundry/console/src";
 @source "../node_modules/@foundry/auth-ui/src";
+@source "../node_modules/@foundry/collab/src";
+@source "../node_modules/@blocknote/shadcn/dist";
 
 @custom-variant dark (&:is(.dark *));
 

@@ -1,4 +1,5 @@
 import { sql } from "drizzle-orm";
+import { collabTables } from "@foundry/collab/schema";
 import { c, check, defineTable, index, unique } from "@foundry/database/factory";
 
 const users = defineTable(
@@ -299,4 +300,5 @@ export const tables = {
   inquiries,
   inquiryActivities,
   auditLog,
+  ...collabTables,
 };

@@ -22,6 +22,7 @@ export default defineConfig({
           RELAY_API_KEY: "test-placeholder",
           BETTER_AUTH_SECRET: "a6n-test-secret-a6n-test-secret-a6n-test",
           BETTER_AUTH_URL: "http://localhost",
+          COLLAB_SECRET: "a6n-collab-test-secret-a6n-collab-test",
         },
       },
     }),

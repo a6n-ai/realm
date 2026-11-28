@@ -10,6 +10,8 @@ declare global {
       BETTER_AUTH_URL: string;
       BETTER_AUTH_SECRET: SecretValue;
       RELAY_API_KEY?: SecretValue;
+      COLLAB_SECRET?: SecretValue;
+      COLLAB_ROOM: DurableObjectNamespace<import("@foundry/collab/server").CollabRoom>;
       MAILER?: string;
     }
   }

@@ -15,6 +15,13 @@
       "when": 1795800051383,
       "tag": "0001_lame_mattie_franklin",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1795851615711,
+      "tag": "0002_clear_eternity",
+      "breakpoints": true
     }
   ]
 }
