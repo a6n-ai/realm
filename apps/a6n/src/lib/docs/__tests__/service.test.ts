@@ -103,3 +103,44 @@ test("a meeting doc token needs inquiry:read", async () => {
   const nobody = { ...actorOf(ME, "Sam", "member"), permissions: [] };
   expect(await issueStaffRoomToken(db(), SECRET, nobody, started.id)).toEqual(stale);
 });
+
+const failingOnce = () => {
+  const revoked: string[] = [];
+  let fail = true;
+  const rooms = {
+    revoke: async (_docId: string, id: string) => {
+      if (fail) {
+        fail = false;
+        throw new Error("room unreachable");
+      }
+      revoked.push(id);
+    },
+  };
+  return { rooms, revoked };
+};
+
+test.each(["removeMember", "setMember", "remove"] as const)("%s that cannot reach the room changes nothing, so a retry still ends the grant", async (op) => {
+  const { id } = await svc(ME).create(me);
+  await svc(ME).setMember(id, other, "edit", me);
+  const old = (await claims(other, id)).share!;
+  const { rooms, revoked } = failingOnce();
+  const docs = createDocsService(db(), TEST_ORG, ME, rooms);
+  const run = () => (op === "remove" ? docs.remove(id) : op === "setMember" ? docs.setMember(id, other, "view", me) : docs.removeMember(id, other));
+  await expect(run()).rejects.toThrow("room unreachable");
+  expect(await isShareActive(db(), id, old, null)).toBe(true);
+  expect(await run()).toEqual({ ok: true });
+  expect(revoked).toContain(old);
+  expect(await isShareActive(db(), id, old, null)).toBe(false);
+});
+
+test("two access changes at once leave no grant that was never revoked", async () => {
+  const { id } = await svc(ME).create(me);
+  await svc(ME).setMember(id, other, "edit", me);
+  const old = (await claims(other, id)).share!;
+  const revoked: string[] = [];
+  const docs = createDocsService(db(), TEST_ORG, ME, { revoke: async (_d, grant) => void revoked.push(grant) });
+  const results = await Promise.all([docs.setMember(id, other, "view", me), docs.setMember(id, other, "edit", me)]);
+  expect(results.map((r) => r.ok).sort()).toEqual([false, true]);
+  expect((await rows<{ id: string }>("select id from doc_members")).length).toBe(1);
+  expect(revoked).toContain(old);
+});

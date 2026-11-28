@@ -77,9 +77,12 @@ export function createDocsService(db: CrmDb, org: string, userId: string, rooms:
       if (own?.access !== "owner") return stale;
       const grants = await db.all<{ id: string }>(sql`SELECT id FROM doc_members WHERE doc_id = ${docId}
         UNION ALL SELECT id FROM collab_shares WHERE doc_id = ${docId}`);
-      // grants and links go with the row; sockets are dropped after, so none can rejoin
+      const drop = () => Promise.all([own.grant, ...grants.map((g) => g.id)].map((id) => rooms.revoke(docId, id)));
+      // before: an unreachable room fails the delete, which can be retried. After: nobody who rejoined meanwhile stays
+      await drop();
+      // grants and links go with the row
       await db.run(sql`DELETE FROM collab_docs WHERE id = ${docId}`);
-      await Promise.all([own.grant, ...grants.map((g) => g.id)].map((id) => rooms.revoke(docId, id)));
+      await drop();
       return { ok: true };
     },
 
@@ -97,12 +100,19 @@ export function createDocsService(db: CrmDb, org: string, userId: string, rooms:
       if ((mode !== "edit" && mode !== "view") || member === userId || !(await listOwners(db, org)).some((m) => m.id === member)) return invalid;
       const old = await grantOf(docId, member);
       const now = Date.now();
+      if (old) await rooms.revoke(docId, old);
       // a new id per change: a room token for the old access is then refused
-      await atomic(db, () => [
-        sql`DELETE FROM doc_members WHERE doc_id = ${docId} AND user_id = ${member}`,
-        sql`INSERT INTO doc_members (id, created_at, created_by, updated_at, doc_id, user_id, mode)
-          VALUES (${newId("dmb")}, ${now}, ${actor.userId}, ${now}, ${docId}, ${member}, ${mode})`,
-      ]);
+      try {
+        await atomic(db, () => [
+          // only the grant read above: if another change replaced it, the insert hits the unique index and nothing is written
+          sql`DELETE FROM doc_members WHERE id = ${old ?? null}`,
+          sql`INSERT INTO doc_members (id, created_at, created_by, updated_at, doc_id, user_id, mode)
+            VALUES (${newId("dmb")}, ${now}, ${actor.userId}, ${now}, ${docId}, ${member}, ${mode})`,
+        ]);
+      } catch (err) {
+        if ((await grantOf(docId, member)) !== old) return stale;
+        throw err;
+      }
       if (old) await rooms.revoke(docId, old);
       return { ok: true };
     },
@@ -111,6 +121,7 @@ export function createDocsService(db: CrmDb, org: string, userId: string, rooms:
       if (!(await owns(docId))) return stale;
       const old = await grantOf(docId, member);
       if (!old) return stale;
+      await rooms.revoke(docId, old);
       await db.run(sql`DELETE FROM doc_members WHERE id = ${old}`);
       await rooms.revoke(docId, old);
       return { ok: true };
