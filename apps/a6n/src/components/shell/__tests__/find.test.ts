@@ -6,7 +6,7 @@ const p = (r: "admin" | "sales" | "owner" | "member") => builtInPermissions(r ==
 describe("findEntries", () => {
   test("a sales user finds the inquiry pages, Settings, Account settings and New inquiry only", () => {
     const e = findEntries(p("sales"));
-    expect(e.map((x) => x.label)).toEqual(["Inquiries", "Unassigned", "Settings", "Account settings", "New inquiry"]);
+    expect(e.map((x) => x.label)).toEqual(["Inquiries", "Unassigned", "Docs", "Settings", "Account settings", "New inquiry"]);
     expect(e.find((x) => x.label === "Unassigned")?.to).toBe("/inquiries?view=unassigned");
   });
 
