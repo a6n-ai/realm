@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { render } from "react-email";
-import { interpolate, renderEmailForEvent } from "@relay/engine";
+import { renderEmailForEvent } from "@relay/engine";
+import { interpolate } from "@relay/email/interpolate";
 
 vi.mock("@relay/engine", async (orig) => ({ ...(await orig<object>()), renderEmailForEvent: vi.fn(async () => null) }));
 vi.mock("@/lib/notifications/campaign-config", () => ({

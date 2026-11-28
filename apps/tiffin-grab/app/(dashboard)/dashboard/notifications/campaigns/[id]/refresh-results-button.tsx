@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "@foundry/ui/toast";
 import { RefreshCwIcon } from "lucide-react";
 import { Button } from "@foundry/ui/button";
-import { apiFetch } from "@relay/engine/ui/api-fetch";
+import { apiFetch } from "@foundry/ui/api-fetch";
 
 /** Pulls Delivered/Opened/Clicked from SES's CloudWatch counts; there is no per-event webhook for them. */
 export function RefreshResultsButton({ campaignPublicId }: { campaignPublicId: string }) {

@@ -1,7 +1,7 @@
 "use server";
 
 import { z } from "zod";
-import { sanitizeEmailHtml } from "@relay/engine";
+import { sanitizeEmailHtml } from "@relay/email/sanitize";
 import type { ActionResult } from "@/lib/actions/action-result";
 import { ValidationError } from "@foundry/commons";
 import { staffAction } from "@/lib/actions/staff-action";

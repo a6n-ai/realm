@@ -1,3 +1,4 @@
+import { VARIABLE_RE } from "@relay/email/interpolate";
 import { EVENTS, type AppEvent, type EntityVars } from "./events";
 
 export type { AppEvent };
@@ -13,13 +14,10 @@ export function availableVariables(event: AppEvent): string[] {
   return e ? e.fields.map((f) => `${e.entity}.${f.name}`) : [];
 }
 
-// Same grammar as @relay/engine interpolate, including `{{a.b|fallback}}`.
-const VAR_RE = /\{\{\s*([\w.]+)\s*(?:\|[^}]*)?\}\}/g;
-
 export function validateTemplateVars(event: AppEvent, body: string): string[] {
   const known = new Set(availableVariables(event));
   const unknown: string[] = [];
-  for (const m of body.matchAll(VAR_RE)) {
+  for (const m of body.matchAll(VARIABLE_RE)) {
     const v = m[1];
     if (!known.has(v) && !unknown.includes(v)) unknown.push(v);
   }
