@@ -8,7 +8,22 @@ export type Crumb = { label: string; to?: string; search?: ConsoleSearch };
 
 // Vercel's two rows: a top bar (breadcrumb left, Create New right), then the big page title.
 // `title` overrides the big title when the breadcrumb is longer than it (Settings / Account under "Settings").
-export function PageHeader({ crumbs, title: titleOverride, badge, actions, description }: { crumbs: Crumb[]; title?: string; badge?: ReactNode; actions?: ReactNode; description?: string }) {
+export function PageHeader({
+  crumbs,
+  title: titleOverride,
+  heading,
+  badge,
+  actions,
+  description,
+}: {
+  crumbs: Crumb[];
+  title?: string;
+  /** Replaces the big title, e.g. with a field that renames it. It must carry its own h1. */
+  heading?: ReactNode;
+  badge?: ReactNode;
+  actions?: ReactNode;
+  description?: string;
+}) {
   const last = crumbs.length - 1;
   const title = titleOverride ?? crumbs[last]?.label;
   const parent = titleOverride ? undefined : crumbs[last - 1];
@@ -53,9 +68,9 @@ export function PageHeader({ crumbs, title: titleOverride, badge, actions, descr
       </header>
       {title ? (
         <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-3 px-4 pt-8 pb-6">
-          <div className="grid min-w-0 gap-1">
+          <div className={heading ? "grid min-w-0 flex-1 basis-64 gap-1" : "grid min-w-0 gap-1"}>
             <div className="flex min-w-0 items-center gap-2">
-              <h1 className="truncate text-3xl font-semibold tracking-tight">{title}</h1>
+              {heading ?? <h1 className="truncate text-3xl font-semibold tracking-tight">{title}</h1>}
               {badge}
             </div>
             {description ? <p className="text-base text-muted-foreground">{description}</p> : null}
