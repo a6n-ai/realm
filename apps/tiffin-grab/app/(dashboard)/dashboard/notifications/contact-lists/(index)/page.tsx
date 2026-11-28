@@ -14,6 +14,7 @@ import { ContactListFromSegment } from "@relay/engine/ui/contact-list-from-segme
 import { ContactListManualAdd } from "@relay/engine/ui/contact-list-manual-add";
 import { contactListStats, listContactLists, CONTACT_LIST_SORT_COLUMNS, type ContactListSortColumn } from "@/lib/notifications/lists";
 import { ContactListsTable, ContactListsTableSkeleton, type ContactListRow } from "../contact-lists-table";
+import { SectionDateRange } from "@/components/filters/section-date-range";
 
 export const dynamic = "force-dynamic";
 
@@ -39,6 +40,7 @@ export default async function ContactListsPage({ searchParams }: { searchParams:
   await requirePagePermission({ notification: ["read"] });
   return (
     <div className="space-y-6">
+      <SectionDateRange />
       <Suspense fallback={<StatsSkeleton />}>
         <StatsData searchParams={searchParams} />
       </Suspense>

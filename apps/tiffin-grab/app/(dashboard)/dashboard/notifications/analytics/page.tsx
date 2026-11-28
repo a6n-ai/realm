@@ -9,6 +9,7 @@ import { ChartCard } from "@/components/dashboard/analytics/chart-card";
 import { ChartSkeleton } from "@/components/dashboard/analytics/skeletons";
 import { PartsDonut, SegmentedBar } from "@/components/dashboard/analytics/charts";
 import type { Tone } from "@/components/dashboard/analytics/chart-math";
+import { SectionDateRange } from "@/components/filters/section-date-range";
 
 const STATUS_TONE: Record<string, Tone> = { sent: "success", failed: "destructive", skipped: "muted" };
 
@@ -22,6 +23,9 @@ export default async function NotificationAnalyticsPage({ searchParams }: { sear
   await requirePagePermission({ notification: ["read"] });
   return (
     <div className="flex flex-col gap-6">
+      <div>
+        <SectionDateRange />
+      </div>
       <Suspense fallback={<AnalyticsStatCardsSkeleton rows={1} />}>
         <StatsData searchParams={searchParams} />
       </Suspense>

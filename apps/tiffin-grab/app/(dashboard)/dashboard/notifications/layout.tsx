@@ -2,7 +2,6 @@ import type { ReactNode } from "react";
 import { BellIcon } from "lucide-react";
 import { requirePagePermission } from "@/lib/auth/guards";
 import { PageShell, PageHeader } from "@/components/ds";
-import { SectionDateRange } from "@/components/filters/section-date-range";
 import { DatedTabNav } from "@/components/filters/dated-tab-nav";
 
 export default async function NotificationsLayout({ children }: { children: ReactNode }) {
@@ -26,7 +25,6 @@ export default async function NotificationsLayout({ children }: { children: Reac
             { href: "/dashboard/notifications/analytics", label: "Analytics" },
           ]}
         />
-        <SectionDateRange />
       </div>
       <div className="min-w-0">{children}</div>
     </PageShell>

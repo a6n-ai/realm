@@ -14,6 +14,7 @@ import { getAppSettings } from "@/lib/settings";
 import { listCampaigns, listContactListChoices, CAMPAIGN_SORT_COLUMNS, type CampaignSortColumn } from "@/lib/notifications/lists";
 import { CampaignsTable, CampaignsTableSkeleton, type CampaignRow } from "../campaigns-table";
 import { awsRegion } from "@/lib/runtime/env";
+import { SectionDateRange } from "@/components/filters/section-date-range";
 
 const SPEC: FacetDef[] = [
   { kind: "search", fields: ["name"] },
@@ -45,6 +46,7 @@ export default async function CampaignsPage({ searchParams }: { searchParams: Se
   await requirePagePermission({ notification: ["read"] });
   return (
     <div className="space-y-6">
+      <SectionDateRange />
       <Suspense fallback={null}>
         <SesQuotaCard />
       </Suspense>

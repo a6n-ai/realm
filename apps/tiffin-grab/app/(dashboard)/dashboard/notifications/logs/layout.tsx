@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { DatedTabNav } from "@/components/filters/dated-tab-nav";
+import { SectionDateRange } from "@/components/filters/section-date-range";
 
 // A route per tab, not client-side Tabs — each keeps its own filter/sort/page
 // URL params (both tables use `q`/`page`/`size`/`sort`/`dir` and some
@@ -8,6 +9,7 @@ import { DatedTabNav } from "@/components/filters/dated-tab-nav";
 export default function LogsLayout({ children }: { children: ReactNode }) {
   return (
     <div className="space-y-4">
+      <SectionDateRange />
       <DatedTabNav
         ariaLabel="Logs sections"
         tabs={[
